@@ -10,6 +10,12 @@
  *   description names R2, R3 or R4 `off`. Existing rows are never changed (idempotent).
  * Refuses `APP_ENV=production` and a database with more than 500 non-tester persons
  * (edge case 28). The `roles` rows come from the defaults profile, which runs first (BS-11).
+ * Without `DEMO_STAFF_PASSWORD` or `DEMO_TOTP_SECRET` the staff users are skipped (the rest
+ * still runs), so the runner works in a bare test environment.
+ *
+ * `seed.run` receives the runner's `SeedCtx` (`scripts/seed-demo.ts`): it writes through `s.db`
+ * (the module transaction), dates rows with `s.now` and records the ids it creates in `s.ids`
+ * as `platform.user.<role>` and `platform.person.customer<n>`.
  */
 import type { DbOrTx } from "@beam/db";
 import { featureFlags, persons, settings, users, type RoleKey } from "@beam/db/schema";
@@ -19,8 +25,10 @@ import { eq, sql } from "@/lib/ctx";
 import { hashPassword } from "@/lib/password";
 import { encryptSensitive, rowsOf, sensitiveAad } from "@/lib/sensitive";
 import { FLAGS } from "@/registry/flags.generated";
+import type { SeedCtx } from "@/scripts/seed-demo";
 
-export type DemoSeedContext = { tx: DbOrTx; now?: Date };
+/** The part of the runner's `SeedCtx` this seed reads; `now` defaults to the current time. */
+export type DemoSeedContext = Pick<SeedCtx, "db"> & Partial<Pick<SeedCtx, "now" | "ids">>;
 export type DemoSeedResult = { created: number; skipped: number };
 
 export const DEMO_STAFF: readonly { role: RoleKey; name: string; locale: Locale; isTester: boolean }[] = [
@@ -67,17 +75,13 @@ export const DEMO_COMPANY = {
   website: "https://www.beam.be",
 };
 
-function dbOf(ctx: DemoSeedContext | DbOrTx): DbOrTx {
-  return typeof ctx === "object" && ctx !== null && "tx" in ctx && !("select" in ctx) ? (ctx as DemoSeedContext).tx : (ctx as DbOrTx);
-}
-
-async function guard(db: DbOrTx, env: Readonly<Record<string, string | undefined>>): Promise<{ password: string; totp: string }> {
+async function guard(db: DbOrTx, env: Readonly<Record<string, string | undefined>>): Promise<{ password: string; totp: string } | null> {
   if (env.APP_ENV === "production") throw new Error("platform demo seed refuses APP_ENV=production (PL-79)");
   const [row] = rowsOf<{ n: number }>(await db.execute(sql`select count(*)::int as n from persons where not is_tester`));
   if (Number(row?.n ?? 0) > 500) throw new Error("platform demo seed refuses: more than 500 non-tester persons (edge case 28)");
   const password = env.DEMO_STAFF_PASSWORD;
   const totp = env.DEMO_TOTP_SECRET?.replace(/\s/g, "").toUpperCase();
-  if (!password || !totp) throw new Error("platform demo seed needs DEMO_STAFF_PASSWORD and DEMO_TOTP_SECRET");
+  if (!password || !totp) return null;
   return { password, totp };
 }
 
@@ -91,31 +95,36 @@ async function personId(db: DbOrTx, input: { email: string; firstName: string; l
   return { id: row!.id, created: true };
 }
 
-async function userExists(db: DbOrTx, email: string): Promise<boolean> {
+async function userId(db: DbOrTx, email: string): Promise<string | null> {
   const [row] = await db.select({ id: users.id }).from(users).where(sql`lower(${users.email}) = ${email}`);
-  return !!row;
+  return row?.id ?? null;
 }
 
-export async function runPlatformDemoSeed(ctx: DemoSeedContext | DbOrTx, env: Readonly<Record<string, string | undefined>> = process.env): Promise<DemoSeedResult> {
-  const db = dbOf(ctx);
-  const { password, totp } = await guard(db, env);
-  const now = (typeof ctx === "object" && "now" in ctx && ctx.now instanceof Date ? ctx.now : null) ?? new Date();
+export async function runPlatformDemoSeed(s: DemoSeedContext, env: Readonly<Record<string, string | undefined>> = process.env): Promise<DemoSeedResult> {
+  const db = s.db;
+  const credentials = await guard(db, env);
+  const now = s.now ?? new Date();
+  const ids = s.ids ?? new Map<string, string>();
   let created = 0;
   let skipped = 0;
   let hash: string | null = null;
 
   for (const staff of DEMO_STAFF) {
     const email = `${staff.role}@demo.beam.be`;
-    if (await userExists(db, email)) {
+    const existing = await userId(db, email);
+    if (existing || !credentials) {
+      if (existing) ids.set(`platform.user.${staff.role}`, existing);
       skipped++;
       continue;
     }
+    const { password, totp } = credentials;
     hash ??= await hashPassword(password);
     const partner = staff.role === "external_partner" ? await personId(db, { email, firstName: "Partner", lastName: "Demo", locale: staff.locale }) : null;
     const [row] = await db
       .insert(users)
       .values({ audience: "staff", email, name: staff.name, locale: staff.locale, roleKey: staff.role, isTester: staff.isTester, passwordHash: hash, passwordChangedAt: now, emailVerified: now, ...(partner ? { personId: partner.id } : {}) })
       .returning({ id: users.id });
+    ids.set(`platform.user.${staff.role}`, row!.id);
     // Same storage as `writeMfaSecrets` in lib/auth.ts (not imported: the seed runs outside Next.js).
     const codes = await Promise.all(generateRecoveryCodes().map(async (c) => ({ hash: await hashRecoveryCode(c), used_at: null })));
     const secret = encryptSensitive(totp, sensitiveAad.totpSecret(row!.id));
@@ -130,11 +139,12 @@ export async function runPlatformDemoSeed(ctx: DemoSeedContext | DbOrTx, env: Re
   const people = demoPersons();
   for (const [index, person] of people.entries()) {
     const p = await personId(db, person);
+    ids.set(`platform.person.customer${index + 1}`, p.id);
     if (p.created) created++;
     else skipped++;
     if (index < DEMO_CUSTOMER_USERS) {
       const [account] = await db.select({ id: users.id }).from(users).where(eq(users.personId, p.id));
-      if (account || (await userExists(db, person.email))) skipped++;
+      if (account || (await userId(db, person.email))) skipped++;
       else {
         await db.insert(users).values({ audience: "customer", email: person.email, name: `${person.firstName} ${person.lastName}`, locale: person.locale, personId: p.id, isTester: true, emailVerified: now });
         created++;
@@ -155,5 +165,5 @@ export async function runPlatformDemoSeed(ctx: DemoSeedContext | DbOrTx, env: Re
 
 export const seed = {
   after: [],
-  run: (ctx: DemoSeedContext | DbOrTx) => runPlatformDemoSeed(ctx),
+  run: (s: SeedCtx) => runPlatformDemoSeed(s),
 };

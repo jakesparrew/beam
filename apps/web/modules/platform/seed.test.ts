@@ -9,6 +9,7 @@ import { eq, sql } from "@/lib/ctx";
 import { verifyPassword } from "@/lib/password";
 import { generateTotp, generateTotpSecret, verifyTotp } from "@/lib/totp";
 import { resetRuntime } from "@/lib/testing";
+import { runSeed } from "@/scripts/seed-demo";
 import { DEMO_COMPANY, DEMO_STAFF, demoPersons, runPlatformDemoSeed, seed } from "./seed";
 
 process.env.SENSITIVE_DATA_KEY_V1 ??= randomBytes(32).toString("base64");
@@ -32,8 +33,11 @@ describe("platform demo seed (DR-12, DR-14)", () => {
   });
 
   it("creates nine MFA-enrolled staff users, 20 test persons and five customer users", async () => {
-    const result = await runPlatformDemoSeed({ tx: handle.db }, env);
+    const ids = new Map<string, string>();
+    const result = await runPlatformDemoSeed({ db: handle.db, now: new Date(), ids }, env);
     expect(result.created).toBeGreaterThanOrEqual(9 + 20 + 5);
+    expect(ids.get("platform.user.owner")).toBeTruthy();
+    expect(ids.get("platform.person.customer20")).toBeTruthy();
 
     const staff = await handle.db.select().from(users).where(eq(users.audience, "staff"));
     expect(staff.map((u) => u.email).sort()).toEqual(DEMO_STAFF.map((s) => `${s.role}@demo.beam.be`).sort());
@@ -69,14 +73,41 @@ describe("platform demo seed (DR-12, DR-14)", () => {
 
   it("is idempotent: a second run creates nothing", async () => {
     const before = await handle.db.select({ id: users.id, hash: users.passwordHash }).from(users);
-    const result = await runPlatformDemoSeed(handle.db, env);
+    const result = await runPlatformDemoSeed({ db: handle.db }, env);
     expect(result.created).toBe(0);
     const after = await handle.db.select({ id: users.id, hash: users.passwordHash }).from(users);
     expect(after).toEqual(before);
   });
 
-  it("refuses production and missing demo secrets", async () => {
-    await expect(runPlatformDemoSeed(handle.db, { ...env, APP_ENV: "production" })).rejects.toThrow(/production/);
-    await expect(runPlatformDemoSeed(handle.db, { APP_ENV: "local" })).rejects.toThrow(/DEMO_STAFF_PASSWORD/);
+  it("refuses production", async () => {
+    await expect(runPlatformDemoSeed({ db: handle.db }, { ...env, APP_ENV: "production" })).rejects.toThrow(/production/);
+  });
+});
+
+describe("platform demo seed through the runner (SeedCtx)", () => {
+  let fresh: DbHandle;
+  beforeAll(async () => {
+    fresh = await createTestDb();
+  });
+  afterAll(async () => {
+    await fresh.close();
+  });
+
+  it("runs as a DEMO_SEEDS entry on the runner's transaction; without demo secrets it skips the staff users", async () => {
+    const saved = { password: process.env.DEMO_STAFF_PASSWORD, totp: process.env.DEMO_TOTP_SECRET };
+    delete process.env.DEMO_STAFF_PASSWORD;
+    delete process.env.DEMO_TOTP_SECRET;
+    try {
+      const report = await runSeed(fresh.db, { profile: "demo", env: { APP_ENV: "local" }, seeds: [{ module: "platform", ...seed }], runJobsAfter: false, log: () => undefined });
+      expect(report.demo.map((d) => d.module)).toEqual(["platform"]);
+      expect(await fresh.db.select().from(users).where(eq(users.audience, "staff"))).toHaveLength(0);
+      expect(await fresh.db.select().from(persons).where(sql`${persons.email} like 'customer%@example.com'`)).toHaveLength(20);
+      expect(await fresh.db.select().from(users).where(eq(users.audience, "customer"))).toHaveLength(5);
+      const [company] = await fresh.db.select().from(settings).where(eq(settings.key, "company"));
+      expect(company!.value).toEqual(DEMO_COMPANY);
+    } finally {
+      if (saved.password !== undefined) process.env.DEMO_STAFF_PASSWORD = saved.password;
+      if (saved.totp !== undefined) process.env.DEMO_TOTP_SECRET = saved.totp;
+    }
   });
 });

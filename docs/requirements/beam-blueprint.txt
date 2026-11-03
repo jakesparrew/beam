@@ -1,0 +1,3800 @@
+BEAM – Custom CRM, Operations & AI
+Platform
+
+Detailed Requirements Blueprint for SideStream
+Version: Consolidated Requirements Draft – Final Internal Review​
+Purpose: Define the complete desired scope before SideStream prepares its formal
+technical and commercial proposal.​
+Primary objective: Build a scalable operating system for BEAM rather than simply
+replacing individual software tools.
+
+  ______________________________________________________________________
+
+
+
+1. Strategic Objective
+BEAM has reached a stage where its current collection of separate software systems is
+creating operational inefficiency, fragmented data, limited customer intelligence and
+unnecessary manual work.
+
+The objective is therefore not simply:
+
+      “Build a CRM.”
+
+The objective is:
+
+      Build one integrated operating platform for BEAM that connects customer
+      data, bookings, packages, memberships, payments, communication,
+      marketing, sales, finance and management intelligence, while creating the
+      infrastructure for future automation and AI.
+The system should allow BEAM to:
+
+     ●​ operate more efficiently;
+     ●​ substantially reduce manual administration;
+     ●​ increase customer retention;
+     ●​ increase customer lifetime value;
+     ●​ improve customer experience;
+     ●​ systematise B2C sales;
+     ●​ create a professional B2B sales infrastructure;
+     ●​ improve lead qualification and lead conversion;
+     ●​ understand marketing ROI;
+     ●​ improve financial and management visibility;
+     ●​ automate repetitive processes;
+     ●​ enable AI-supported decision-making;
+     ●​ remain scalable as BEAM grows.
+
+    ______________________________________________________________________
+
+
+
+2. Core Design Principle
+The architecture should follow this sequence:
+
+Reliable Data
+
+↓
+
+Operational Systems
+
+↓
+
+Automation
+
+↓
+
+AI Intelligence
+
+↓
+
+Human Decision & Action
+
+AI should not compensate for poorly organised data or workflows.
+
+
+
+
+                                                                             2
+Where deterministic business rules can solve a problem reliably, they should generally be
+preferred over unnecessary AI usage.
+
+For example:
+
+      “Client has only two sessions remaining.”
+
+does not require AI reasoning.
+
+The system can calculate this automatically.
+
+AI becomes relevant when interpretation, recommendation, content creation, forecasting,
+research or reasoning is required.
+
+  ______________________________________________________________________
+
+
+
+3. Central Customer Record
+Every individual customer should have one master customer profile.
+
+The system should avoid duplicate customer records wherever possible and use a unique
+internal customer ID.
+
+
+
+Customer Identity
+Potential fields:
+
+    ●​ First name
+    ●​ Last name
+    ●​ Email address
+    ●​ Mobile number
+    ●​ Address
+    ●​ Postal code
+    ●​ City
+    ●​ Country
+    ●​ Language
+    ●​ Date of birth if required
+    ●​ Customer ID
+    ●​ Registration date
+    ●​ Preferred communication channel
+    ●​ Notes
+
+
+
+                                                                                        3
+    ●​ Internal tags
+
+  ______________________________________________________________________
+
+
+Commercial Status
+The system should explicitly store whether someone is a lead or a customer.
+
+Initial business definition:
+
+Lead​
+No paid session, package, night or membership.
+
+Customer​
+Has paid for at least one session, package, night or membership.
+
+Member​
+Has an active BEAM Membership.
+
+Staff must be able to manually correct a classification where necessary.
+
+The system must not silently override a manual correction.
+
+  ______________________________________________________________________
+
+
+Customer Origin
+We should be able to identify:
+
+    ●​ Original lead source
+    ●​ Campaign
+    ●​ Referral
+    ●​ Event
+    ●​ Webinar
+    ●​ Organic search
+    ●​ Social media
+    ●​ Paid advertising
+    ●​ Partner
+    ●​ Existing customer introduction
+    ●​ Walk-in
+    ●​ Other source
+
+
+
+
+                                                                              4
+Where technically possible, the original acquisition source should remain attached to the
+customer permanently.
+
+Source and commercial status should remain separate concepts.
+
+The acquisition source should not automatically determine customer classification, queue
+position or event priority.
+
+  ______________________________________________________________________
+
+
+
+4. Consent & Communication
+Permissions
+A single generic field such as “GDPR accepted” is not sufficient.
+
+Consent and lawful basis should be managed per purpose.
+
+For each relevant purpose, the system should retain:
+
+   ●​ Purpose
+   ●​ Status
+   ●​ Date and time
+   ●​ Source
+   ●​ Method
+   ●​ Wording/version
+   ●​ Withdrawal date where applicable
+
+Examples:
+
+Booking / payment / package / membership​
+Processing may be based on contract or another appropriate lawful basis.
+
+Newsletter / marketing​
+Consent where legally required.
+
+Assessment result delivery​
+Fulfilment of the person's request does not automatically mean newsletter consent.
+
+B2B communication​
+Should follow the applicable lawful basis and internal policy.
+
+
+
+
+                                                                                            5
+Language should be stored as an operational field.
+
+The contact's language should determine whether communication is sent in:
+
+   ●​ Dutch
+   ●​ French
+   ●​ English
+
+A missing translation should not silently cause the wrong language to be sent.
+
+  ______________________________________________________________________
+
+
+
+5. Complete Customer Timeline
+The CRM should contain a chronological customer history.
+
+Ideally this includes:
+
+   ●​ Lead created
+   ●​ Emails sent
+   ●​ Email engagement
+   ●​ Webinar registrations
+   ●​ Webinar attendance
+   ●​ Live webinar activity
+   ●​ Replay activity
+   ●​ On-demand activity
+   ●​ Watch time
+   ●​ Poll responses
+   ●​ CTA clicks
+   ●​ Chat or submitted questions
+   ●​ Event registrations
+   ●​ Event attendance
+   ●​ First booking
+   ●​ First visit
+   ●​ Purchases
+   ●​ Package purchases
+   ●​ Sessions consumed
+   ●​ Nights booked
+   ●​ Membership purchases
+   ●​ Membership renewals
+   ●​ Promotions used
+
+
+                                                                                 6
+   ●​ Cancellations
+   ●​ No-shows
+   ●​ Customer service interactions
+   ●​ Notes
+   ●​ Sales follow-up
+   ●​ Reactivation attempts
+   ●​ Assessment completed
+   ●​ Assessment version
+   ●​ Assessment answers
+   ●​ Assessment score
+   ●​ Assessment outcome
+   ●​ Assessment CTA activity
+   ●​ Waitlist state
+   ●​ Consent changes
+   ●​ Automation entries
+   ●​ Automation branches
+   ●​ Automation exits
+   ●​ Automation stop reasons
+
+The platform should distinguish between:
+
+Registered
+
+Started
+
+Attended
+
+Watched
+
+These are not the same thing.
+
+Similarly, live, replay and on-demand webinar behaviour should be stored separately.
+
+The team should be able to understand the complete relationship with a customer from
+one screen.
+
+  ______________________________________________________________________
+
+
+
+6. Customer Segmentation
+The system should allow both dynamic and manual segmentation.
+
+
+
+
+                                                                                       7
+Potential customer statuses:
+
+   ●​ Lead
+   ●​ Prospect
+   ●​ New customer
+   ●​ First-time visitor
+   ●​ Active customer
+   ●​ Repeat customer
+   ●​ Package holder
+   ●​ Member
+   ●​ VIP
+   ●​ Dormant customer
+   ●​ Reactivation candidate
+   ●​ Lost customer
+
+Additional segmentation should be possible based on:
+
+   ●​ Total spend
+   ●​ Purchase frequency
+   ●​ Visit frequency
+   ●​ Last visit
+   ●​ Remaining package balance
+   ●​ Package type
+   ●​ Membership status
+   ●​ Event participation
+   ●​ Webinar registration
+   ●​ Webinar attendance
+   ●​ Watch time
+   ●​ Poll answers
+   ●​ CTA activity
+   ●​ Assessment result
+   ●​ Waitlist status
+   ●​ Consent purpose/status
+   ●​ Geography
+   ●​ Language
+   ●​ Lead source
+   ●​ Campaign
+   ●​ Lifetime value
+   ●​ Referral activity
+   ●​ B2B relationship
+   ●​ Customer interests
+
+
+
+                                                       8
+   ●​ Custom tags
+
+Segments should update automatically where appropriate.
+
+The system must also support exclusion logic.
+
+Examples:
+
+   ●​ A member must be keepable out of a newcomer sequence.
+   ●​ A customer who purchases should leave lead nurture.
+   ●​ Someone already booked should not receive inappropriate inactivity messaging.
+   ●​ Someone unsubscribed from marketing should not re-enter a marketing sequence
+       through a new import.
+
+  ______________________________________________________________________
+
+
+
+7. Booking System
+The custom platform should replace or substantially replicate the relevant functionality
+currently provided by SimplyBook.
+
+
+
+Day Sessions
+BEAM currently operates multiple daytime session blocks.
+
+The system should support:
+
+   ●​ predefined session times;
+   ●​ configurable operating days;
+   ●​ configurable capacity;
+   ●​ booking by individual customer;
+   ●​ booking for additional guests;
+   ●​ guest invitation;
+   ●​ eligible package sharing;
+   ●​ different pricing rules;
+   ●​ package/credit bookings;
+   ●​ member pricing;
+   ●​ promotional pricing;
+   ●​ manual staff bookings;
+   ●​ rescheduling;
+   ●​ cancellations;
+
+
+                                                                                           9
+   ●​ waiting lists;
+   ●​ booking confirmations;
+   ●​ reminders;
+   ●​ attendance registration.
+
+Administrators must be able to change session schedules without developer intervention.
+
+  ______________________________________________________________________
+
+
+
+8. Night Bookings
+Night sessions require their own booking logic.
+
+The system should support:
+
+   ●​ overnight availability;
+   ●​ available bed count;
+   ●​ number of guests;
+   ●​ individual or shared bookings;
+   ●​ different prices;
+   ●​ packages containing nights;
+   ●​ promotional night pricing;
+   ●​ manual bookings;
+   ●​ cancellation rules;
+   ●​ waiting lists;
+   ●​ payment;
+   ●​ confirmations;
+   ●​ reminder communication.
+
+Day and night bookings should exist within the same customer profile.
+
+  ______________________________________________________________________
+
+
+
+9. Capacity Management
+The system should understand BEAM's physical capacity.
+
+Administrators should be able to define:
+
+   ●​ available seats;
+
+
+
+                                                                                      10
+   ●​ available beds;
+   ●​ room capacity;
+   ●​ different capacity by session;
+   ●​ blocked capacity;
+   ●​ staff reservations;
+   ●​ partner allocations;
+   ●​ host allocations;
+   ●​ speaker allocations;
+   ●​ special events;
+   ●​ closed days;
+   ●​ exceptional opening hours.
+
+Capacity utilisation should eventually become part of management reporting.
+
+  ______________________________________________________________________
+
+
+
+10. Customer Self-Service Portal
+Customers should ideally be able to log into their own account.
+
+Potential functionality:
+
+   ●​ View upcoming bookings
+   ●​ Make bookings
+   ●​ Cancel/reschedule
+   ●​ View previous visits
+   ●​ View package balance
+   ●​ View credits
+   ●​ View package expiry date
+   ●​ Purchase packages
+   ●​ Purchase sessions
+   ●​ View membership
+   ●​ Renew membership
+   ●​ Update personal details
+   ●​ Manage communication preferences
+   ●​ View event registrations
+   ●​ Access invoices where relevant
+   ●​ Invite a guest
+   ●​ Share eligible package usage
+   ●​ View waitlist/offered-seat status where relevant
+
+
+
+                                                                              11
+This should initially be available through responsive web access.
+
+A dedicated BEAM mobile application can be considered later.
+
+  ______________________________________________________________________
+
+
+
+11. Packages & Credits
+Package management is a core requirement.
+
+BEAM currently works with multiple package structures and prices.
+
+The system should support:
+
+   ●​ different package sizes;
+   ●​ different package pricing;
+   ●​ different session values;
+   ●​ promotional packages;
+   ●​ manual package creation;
+   ●​ package start dates;
+   ●​ expiry dates;
+   ●​ validity periods;
+   ●​ extensions;
+   ●​ manual adjustments;
+   ●​ remaining balance;
+   ●​ customer-visible balance;
+   ●​ staff-visible balance;
+   ●​ historical packages;
+   ●​ package usage history;
+   ●​ package sharing rules;
+   ●​ linked guest/customer rules.
+
+  ______________________________________________________________________
+
+
+Credits
+SideStream suggested considering a credit-based architecture.
+
+This should be evaluated carefully.
+
+A credit architecture could make it easier to:
+
+
+
+                                                                           12
+   ●​ combine multiple service types;
+   ●​ accommodate different packages;
+   ●​ create promotional bonuses;
+   ●​ reward referrals;
+   ●​ handle memberships;
+   ●​ offer partner incentives;
+   ●​ manage partial value;
+   ●​ create future services.
+
+Important:
+
+The customer-facing experience does not necessarily have to use the word credits.
+
+The internal architecture could use units/credits while the customer still sees:
+
+      “4 sessions remaining.”
+
+  ______________________________________________________________________
+
+
+
+12. Membership Management
+The system should manage BEAM Membership.
+
+Required functionality may include:
+
+   ●​ Membership start date
+   ●​ Renewal date
+   ●​ Membership expiry
+   ●​ Membership type
+   ●​ Membership price
+   ●​ Membership benefits
+   ●​ Included sessions
+   ●​ Included nights
+   ●​ Discount percentage
+   ●​ Event benefits
+   ●​ Member-only activities
+   ●​ Renewal reminders
+   ●​ Membership history
+   ●​ Member segmentation
+   ●​ Membership communication
+
+
+
+
+                                                                                    13
+Member discounts should ideally be applied automatically at checkout without requiring
+discount codes.
+
+Membership status must interact correctly with:
+
+   ●​ segmentation;
+   ●​ event eligibility;
+   ●​ pricing;
+   ●​ booking rules;
+   ●​ communication;
+   ●​ waitlist rules.
+
+  ______________________________________________________________________
+
+
+
+13. Payments
+BEAM should continue using a regulated payment provider such as:
+
+   ●​ Mollie
+   ●​ Stripe
+
+The custom platform should manage the customer-facing transaction logic while the
+regulated provider processes the payment.
+
+Required functionality:
+
+   ●​ Online payments
+   ●​ Payment links
+   ●​ Package purchases
+   ●​ Session purchases
+   ●​ Night bookings
+   ●​ Membership payments
+   ●​ Event tickets
+   ●​ Discounts
+   ●​ Refunds
+   ●​ Recurring payments if required
+   ●​ Payment status
+   ●​ Failed payments
+   ●​ Transaction references
+   ●​ Abandoned checkout detection
+
+
+
+
+                                                                                     14
+Payment information should automatically update the customer record.
+
+  ______________________________________________________________________
+
+
+
+14. Point of Sale / Lightspeed
+Replacement
+BEAM currently uses Lightspeed for in-centre transactions.
+
+The custom platform should potentially replace Lightspeed for:
+
+   ●​ Customer purchases
+   ●​ Session sales
+   ●​ Package sales
+   ●​ Product sales
+   ●​ Membership sales
+   ●​ Event sales
+   ●​ Discounts
+   ●​ Member discounts
+   ●​ Payment registration
+   ●​ Refunds
+   ●​ Receipts
+   ●​ Sales reporting
+
+If physical inventory becomes relevant, requirements should include:
+
+   ●​ Product catalogue
+   ●​ Stock levels
+   ●​ Inventory adjustments
+   ●​ Low-stock warnings
+   ●​ Supplier information
+
+The precise Lightspeed functionality currently used by BEAM should still be validated
+internally before final scope approval.
+
+  ______________________________________________________________________
+
+
+
+15. Events & Ticketing
+
+                                                                                        15
+BEAM organises:
+
+   ●​ Lectures
+   ●​ Concerts
+   ●​ Member events
+   ●​ Experiences
+   ●​ Webinars
+   ●​ Special activities
+   ●​ Partner events
+
+The system should support:
+
+   ●​ Event creation
+   ●​ Capacity
+   ●​ Ticket types
+   ●​ Ticket prices
+   ●​ Member pricing
+   ●​ Promotional pricing
+   ●​ Lead Magnet activation
+   ●​ Registration
+   ●​ Payment
+   ●​ Confirmation emails
+   ●​ Reminders
+   ●​ Attendance
+   ●​ Guest information
+   ●​ Waiting lists
+   ●​ Lead-priority event logic
+   ●​ Reserved partner/host/speaker capacity
+   ●​ Post-event follow-up
+
+Event participation should automatically become part of the customer's CRM history.
+
+  ______________________________________________________________________
+
+
+
+16. Lead Capture
+Every incoming lead should automatically enter the CRM.
+
+Possible sources:
+
+   ●​ Website forms
+
+
+
+                                                                                      16
+   ●​ Landing pages
+   ●​ Facebook / Instagram ads
+   ●​ Google ads
+   ●​ Webinar registrations
+   ●​ Events
+   ●​ Referral programmes
+   ●​ Partners
+   ●​ QR codes
+   ●​ B2B campaigns
+   ●​ Manual entry
+
+Each lead should retain:
+
+   ●​ Source
+   ●​ Campaign
+   ●​ Date
+   ●​ Funnel
+   ●​ Relevant tags
+   ●​ Consent status
+
+  ______________________________________________________________________
+
+
+Custom Forms
+The platform should allow BEAM to create custom forms without developer intervention.
+
+Potential forms include:
+
+   ●​ Lead capture forms
+   ●​ Registration forms
+   ●​ Intake forms
+   ●​ Qualification forms
+   ●​ Surveys
+   ●​ Assessment forms
+
+The forms should support:
+
+   ●​ hidden fields;
+   ●​ UTM capture;
+   ●​ conditional logic;
+   ●​ show/hide;
+   ●​ branching;
+
+
+
+                                                                                        17
+   ●​ conditional endings;
+   ●​ embedding on the BEAM website;
+   ●​ landing-page integration.
+
+  ______________________________________________________________________
+
+
+
+17. Assessment & Lead Qualification
+Engine
+The platform should include, or explicitly phase, a native assessment / scorecard
+capability intended to replace tools such as Typeform or ScoreApp where agreed.
+
+
+
+Builder
+The BEAM team should be able to create:
+
+   ●​ Forms
+   ●​ Quizzes
+   ●​ Assessments
+   ●​ Scorecards
+   ●​ Self-assessments
+   ●​ Qualification forms
+   ●​ Intake forms
+
+without developer intervention.
+
+  ______________________________________________________________________
+
+
+Question Types
+Potential types:
+
+   ●​ Single choice
+   ●​ Multiple choice
+   ●​ Yes/no
+   ●​ Rating
+   ●​ Number
+   ●​ Short text
+
+
+
+                                                                                    18
+   ●​ Long text
+   ●​ Dropdown
+   ●​ Date
+   ●​ Email
+   ●​ Phone
+   ●​ Consent
+   ●​ Hidden fields
+   ●​ UTM parameters
+
+  ______________________________________________________________________
+
+
+Logic & Scoring
+The system should support:
+
+   ●​ Show / hide
+   ●​ Skip
+   ●​ Branch
+   ●​ Conditional sections
+   ●​ Conditional endings
+   ●​ Multiple conditions
+   ●​ Weighted answers
+   ●​ Category scores
+   ●​ Total scores
+   ●​ Multiple score dimensions
+   ●​ Ranges
+   ●​ Thresholds
+   ●​ Custom formulas
+   ●​ Outcome based on total
+   ●​ Outcome based on category
+   ●​ Outcome based on answer combinations
+
+  ______________________________________________________________________
+
+
+Personalised Result
+A person may receive:
+
+   ●​ Score
+   ●​ Category
+   ●​ Explanation
+
+
+                                                                           19
+   ●​ Recommendation
+   ●​ CTA
+   ●​ Relevant BEAM Experience
+   ●​ Webinar
+   ●​ Event
+   ●​ Booking option
+
+The result link should recognise the customer so they do not have to re-enter information
+unnecessarily.
+
+The result email is separate from newsletter consent.
+
+  ______________________________________________________________________
+
+
+CRM Storage
+The system should retain:
+
+   ●​ Assessment
+   ●​ Assessment version
+   ●​ Answers
+   ●​ Score
+   ●​ Result
+   ●​ Date
+   ●​ Source
+   ●​ Campaign
+   ●​ UTM
+   ●​ Tags
+   ●​ Consent
+
+Historical results should remain tied to the version that produced them.
+
+Changing an assessment should not rewrite historical answers or scores.
+
+  ______________________________________________________________________
+
+
+Behaviour Tracking
+The platform should track:
+
+   ●​ Started
+   ●​ Partial
+
+
+
+                                                                                       20
+   ●​ Abandoned
+   ●​ Completed
+   ●​ Result generated
+   ●​ CTA clicked
+   ●​ Booking
+   ●​ Purchase
+
+An abandoned assessment should not receive a completed-result sequence.
+
+Resume functionality may be configurable.
+
+  ______________________________________________________________________
+
+
+Sensitive Assessment Information
+Fields involving:
+
+   ●​ health;
+   ●​ sleep;
+   ●​ stress;
+   ●​ recovery;
+   ●​ physical or mental wellbeing;
+
+may involve higher-risk personal data.
+
+These fields should not automatically be sent to an AI model.
+
+AI processing should require an explicit BEAM setting, a documented purpose and
+appropriate privacy safeguards.
+
+  ______________________________________________________________________
+
+
+
+18. Native Webinar Platform
+A webinar should not be treated merely as a lead source or email sequence.
+
+BEAM would like SideStream to assess a native webinar module within the CRM,
+potentially replacing Zoom or WebinarGeek for the core customer journey.
+
+The module should ideally support:
+
+   ●​ Browser-based attendance
+
+
+
+                                                                                  21
+   ●​ Live webinars
+   ●​ On-demand webinars
+   ●​ Simulive webinars
+   ●​ Recurring webinars
+   ●​ One-off webinars
+   ●​ Separate host and participant links
+   ●​ Multiple presenters
+   ●​ Mute/remove functionality
+   ●​ Screen sharing
+   ●​ Automatic recording
+
+  ______________________________________________________________________
+
+
+Webinar Behaviour
+The system should distinguish:
+
+   ●​ Registered
+   ●​ Started
+   ●​ Attended
+   ●​ More than 15 minutes watched
+   ●​ More than 30 minutes watched
+   ●​ More than 50% watched
+   ●​ Watched to the end
+   ●​ Replay registered
+   ●​ Replay started
+   ●​ Replay watched
+   ●​ On-demand registered
+   ●​ On-demand started
+   ●​ On-demand watched
+
+  ______________________________________________________________________
+
+
+Replay
+Replay functionality should include:
+
+   ●​ gated access;
+   ●​ expiry date/time;
+   ●​ configurable viewing limits where appropriate.
+
+
+
+
+                                                                           22
+  ______________________________________________________________________
+
+
+Polls, CTA & Chat
+These should ideally work in:
+
+   ●​ Live
+   ●​ Replay
+   ●​ On-demand
+
+The system should distinguish:
+
+   ●​ Live poll response
+   ●​ Replay poll response
+   ●​ On-demand poll response
+   ●​ Live CTA click
+   ●​ Replay CTA click
+   ●​ On-demand CTA click
+
+The system should store:
+
+   ●​ CTA shown
+   ●​ CTA clicked
+   ●​ Interaction time
+   ●​ Booking after CTA
+   ●​ Purchase after CTA
+   ●​ Chat / questions where relevant
+
+Poll answers should be able to:
+
+   ●​ apply tags;
+   ●​ trigger segmentation;
+   ●​ trigger automations.
+
+  ______________________________________________________________________
+
+
+Webinar Reporting
+Reporting should distinguish:
+
+   ●​ Leads
+   ●​ Customers
+
+
+
+                                                                           23
+   ●​ Members
+
+and include:
+
+   ●​ Registered
+   ●​ Attended
+   ●​ Watch time
+   ●​ Poll responses
+   ●​ CTA activity
+   ●​ Replay
+   ●​ On-demand
+   ●​ Booking
+   ●​ Purchase
+   ●​ Conversion within configurable time periods
+
+If the native webinar module is not included in V1, SideStream should clearly identify:
+
+   ●​ which external webinar platform remains;
+   ●​ how it integrates;
+   ●​ what data is synchronised;
+   ●​ what GDPR/subprocessor implications remain.
+
+  ______________________________________________________________________
+
+
+
+19. Lead-Priority Waitlist & Event
+Access Engine
+Waiting-list functionality should be more sophisticated than a simple first-come queue.
+
+For selected events, BEAM may want to prioritise new leads because events are important
+lead-conversion mechanisms.
+
+  ______________________________________________________________________
+
+
+Lead Magnet Flag
+Each event should support:
+
+Lead Magnet = Yes / No
+
+
+
+
+                                                                                          24
+When No, normal event and membership rules apply.
+
+When Yes, BEAM should be able to define:
+
+   ●​ seats reserved for leads;
+   ●​ priority window;
+   ●​ release timing;
+   ●​ customer queue;
+   ●​ public release.
+
+  ______________________________________________________________________
+
+
+Lead Definition
+For this engine:
+
+Lead​
+No paid session, package, night or membership.
+
+Customer​
+Has paid for at least one.
+
+Staff can manually correct status.
+
+  ______________________________________________________________________
+
+
+Configuration
+Per event:
+
+   ●​ Total capacity
+   ●​ Number/percentage reserved for leads
+   ●​ Start of lead window
+   ●​ End of lead window
+   ●​ Timezone: Europe/Brussels
+   ●​ Release rule
+   ●​ Partner/host/speaker hold-back
+   ●​ Claim window
+
+  ______________________________________________________________________
+
+
+Queue States
+
+                                                                       25
+The system should support:
+
+   ●​ Lead queue
+   ●​ Customer queue
+   ●​ Offered
+   ●​ Confirmed
+   ●​ Released
+
+Confirmed is not waiting.
+
+  ______________________________________________________________________
+
+
+Purchase While Waiting
+If a waiting lead purchases, the person may move to the customer queue.
+
+However:
+
+      A confirmed seat must remain confirmed.
+
+The purchase changes follow-up, not an already confirmed seat.
+
+  ______________________________________________________________________
+
+
+Claim Window
+When a seat becomes available:
+
+   ●​ the next eligible person receives an offer;
+   ●​ the offer uses a real expiring link;
+   ●​ the claim period is configurable;
+   ●​ after expiry, the seat is offered to the next eligible person.
+
+  ______________________________________________________________________
+
+
+Duplicate Protection
+The platform should prevent:
+
+   ●​ identical email taking multiple seats;
+   ●​ obvious attempts to bypass lead-priority rules with secondary addresses without
+       review.
+
+
+
+                                                                                    26
+Suspicious cases should be flagged for staff review.
+
+    ______________________________________________________________________
+
+
+Communication
+Customers should see accurate availability information.
+
+For example:
+
+If seats are temporarily reserved for leads, an existing customer should see the future
+opening time rather than a button that fails after being clicked.
+
+No public ranking such as:
+
+       “You are number 7”
+
+should be shown unless BEAM explicitly activates it.
+
+    ______________________________________________________________________
+
+
+
+20. B2C Pipeline
+BEAM needs a structured B2C customer journey.
+
+Potential structure:
+
+Lead
+
+↓
+
+Engaged Lead
+
+↓
+
+Webinar / Event / BEAM Experience
+
+↓
+
+First Visit
+
+↓
+
+First Purchase
+
+
+                                                                                          27
+↓
+
+Active Customer
+
+↓
+
+Repeat Purchase
+
+↓
+
+Member / High-Value Customer
+
+↓
+
+Retention / Reactivation
+
+The exact stages should align with the future B2C Sales Playbook.
+
+    ______________________________________________________________________
+
+
+
+21. B2C Follow-Up Automation
+Potential automated triggers:
+
+
+
+New Lead
+     ●​ Welcome communication
+     ●​ Education sequence
+     ●​ Webinar invitation
+     ●​ BEAM Experience invitation
+     ●​ Sales follow-up reminder
+
+
+
+After First Booking
+     ●​ Confirmation
+     ●​ Preparation information
+     ●​ Reminder
+
+
+
+After First Visit
+
+
+                                                                         28
+    ●​ Follow-up
+    ●​ Feedback request
+    ●​ Package offer
+    ●​ Sales task
+
+
+
+Package Usage
+When the customer reaches:
+
+    ●​ 50%
+    ●​ 75%
+    ●​ 80%
+    ●​ 90%
+    ●​ final session
+
+different actions can be triggered.
+
+A package sequence should stop if a repurchase makes it irrelevant.
+
+  ______________________________________________________________________
+
+
+Inactivity
+Potential thresholds:
+
+    ●​ 30 days
+    ●​ 60 days
+    ●​ 90 days
+    ●​ longer-term dormant
+
+Inactivity messaging should not be sent if the customer already has a future booking
+where that message would be inappropriate.
+
+  ______________________________________________________________________
+
+
+Automation Conflict Rules
+This is essential.
+
+Examples:
+
+    ●​ Purchase exits lead nurture.
+
+
+                                                                                       29
+   ●​ Customer enters customer journey.
+   ●​ Member does not remain in newcomer sequence.
+   ●​ One person should not simultaneously receive contradictory lead, customer,
+       waitlist and webinar sales journeys.
+   ●​ Staff must be able to move a customer between journeys without a developer.
+
+  ______________________________________________________________________
+
+
+Webinar Behaviour Triggers
+Potential triggers:
+
+   ●​ Registered/no attendance
+   ●​ Attended
+   ●​ 15 minutes
+   ●​ 30 minutes
+   ●​ 50%
+   ●​ Watched to end
+   ●​ Replay viewed
+   ●​ On-demand viewed
+   ●​ Poll answer
+   ●​ CTA click
+
+  ______________________________________________________________________
+
+
+
+22. Retention Engine
+Retention is currently one of BEAM's highest commercial priorities.
+
+The system should identify:
+
+   ●​ Customers visiting less frequently
+   ●​ Customers whose packages are nearly finished
+   ●​ Customers who finished a package but did not repurchase
+   ●​ Customers whose package is approaching expiry
+   ●​ High-value customers becoming inactive
+   ●​ Members approaching renewal
+   ●​ Customers who purchased but never booked
+   ●​ Customers with unused sessions
+
+
+
+
+                                                                                    30
+Ideally BEAM management receives a prioritised list such as:
+
+         “These are the 25 customers requiring attention this week.”
+
+Not every retention decision requires AI.
+
+Many should be rule-based.
+
+  ______________________________________________________________________
+
+
+
+23. Customer Lifetime Value
+The platform should calculate customer lifetime value.
+
+At minimum:
+
+    ●​ Total lifetime revenue
+    ●​ Number of purchases
+    ●​ Number of visits
+    ●​ Average transaction value
+    ●​ First purchase
+    ●​ Most recent purchase
+    ●​ First visit
+    ●​ Most recent visit
+
+Later:
+
+    ●​ Predicted future value
+    ●​ Churn probability
+    ●​ Repurchase probability
+
+  ______________________________________________________________________
+
+
+
+24. B2B CRM
+BEAM intends to develop a significant B2B business.
+
+B2B should exist within the same overall system but should have its own architecture.
+
+
+
+Company
+
+                                                                                        31
+     ●​ Company name
+     ●​ VAT number
+     ●​ Address
+     ●​ Website
+     ●​ Industry
+     ●​ Company size
+     ●​ Location
+     ●​ Notes
+     ●​ Status
+     ●​ Account owner
+
+
+
+Contact
+     ●​ Name
+     ●​ Position
+     ●​ Email
+     ●​ Phone
+     ●​ LinkedIn
+     ●​ Relationship
+     ●​ Decision-making role
+
+One company may have multiple contacts.
+
+One person may simultaneously exist as:
+
+     ●​ B2C customer;
+     ●​ B2B contact.
+
+The system should understand this relationship.
+
+    ______________________________________________________________________
+
+
+
+25. B2B Sales Pipeline
+Potential stages:
+
+Target Account
+
+↓
+
+Prospect Identified
+
+
+
+                                                                             32
+↓
+
+Contact Identified
+
+↓
+
+Outreach
+
+↓
+
+Response
+
+↓
+
+Qualified Opportunity
+
+↓
+
+Discovery Meeting
+
+↓
+
+Proposal
+
+↓
+
+Negotiation
+
+↓
+
+Won / Lost
+
+↓
+
+Account Management
+
+↓
+
+Renewal / Expansion
+
+Each opportunity should show:
+
+    ●​ Value
+    ●​ Probability
+    ●​ Expected close date
+    ●​ Owner
+
+
+
+
+                                33
+   ●​ Next action
+   ●​ Last contact
+   ●​ Notes
+   ●​ Activity history
+
+  ______________________________________________________________________
+
+
+
+26. B2B Lead Generation
+Future capability could include automated prospect identification.
+
+Potential requirements:
+
+   ●​ Define ideal company profile
+   ●​ Search for matching businesses
+   ●​ Identify decision-makers
+   ●​ Enrich company data
+   ●​ Retrieve contact details
+   ●​ Score prospects
+   ●​ Add prospects to CRM
+   ●​ Prepare outreach
+
+Target criteria may include:
+
+   ●​ geography;
+   ●​ company size;
+   ●​ industry;
+   ●​ employee profile;
+   ●​ burnout/wellbeing relevance;
+   ●​ HR focus;
+   ●​ executive wellness opportunities.
+
+Automated B2B prospecting should be subject to GDPR/ePrivacy review before activation.
+
+  ______________________________________________________________________
+
+
+
+27. B2B Cold Email
+SideStream demonstrated automated B2B prospecting.
+
+
+
+
+                                                                                    34
+Potential functionality:
+
+   ●​ Automatically identify target companies
+   ●​ Find contacts
+   ●​ Research company
+   ●​ Generate personalised message
+   ●​ Send outbound email
+   ●​ Monitor deliverability
+   ●​ Detect replies
+   ●​ Categorise replies
+   ●​ Draft responses
+   ●​ Escalate qualified replies
+   ●​ Log interaction in CRM
+
+Human oversight should initially remain for strategically important communication.
+
+  ______________________________________________________________________
+
+
+
+28. Cold Calling / Voice AI
+Potential future capability:
+
+   ●​ Automated outbound calling
+   ●​ Qualification
+   ●​ Appointment booking
+   ●​ Follow-up
+   ●​ Call transcription
+   ●​ CRM logging
+   ●​ Human escalation
+
+Before implementation BEAM should evaluate:
+
+   ●​ customer experience;
+   ●​ legal framework;
+   ●​ GDPR/ePrivacy;
+   ●​ transparency;
+   ●​ commercial effectiveness;
+   ●​ brand fit;
+   ●​ cost.
+
+This does not need to be included in V1.
+
+
+
+                                                                                     35
+  ______________________________________________________________________
+
+
+
+29. Sales Playbook Integration
+The CRM should operationalise BEAM's future:
+
+   ●​ B2C Sales Playbook
+   ●​ B2B Sales Playbook
+
+For every sales stage, the system should define:
+
+   ●​ Required action
+   ●​ Responsible person
+   ●​ Deadline
+   ●​ Automated communication
+   ●​ Human communication
+   ●​ Escalation
+   ●​ KPI
+
+The CRM should become the operational expression of the Sales Playbook.
+
+  ______________________________________________________________________
+
+
+
+30. Email Marketing Platform
+SideStream proposed replacing Mailchimp with an integrated BEAM email system.
+
+Required functionality:
+
+   ●​ Email templates
+   ●​ BEAM branding
+   ●​ Visual editor
+   ●​ AI-generated email creation
+   ●​ Segmentation
+   ●​ Campaigns
+   ●​ Automated sequences
+   ●​ Scheduling
+   ●​ Personalisation
+   ●​ Unsubscribe
+   ●​ Consent management
+
+
+                                                                                36
+   ●​ Open rate
+   ●​ Click rate
+   ●​ Bounce management
+   ●​ Deliverability monitoring
+   ●​ Campaign history per customer
+
+  ______________________________________________________________________
+
+
+Sending Infrastructure
+The system should support:
+
+   ●​ BEAM-owned sending domain/subdomain
+   ●​ BEAM visibility/control over DNS
+   ●​ SPF
+   ●​ DKIM
+   ●​ DMARC
+   ●​ Hard-bounce suppression
+   ●​ Soft-bounce retry/suppression
+   ●​ Spam complaint suppression
+   ●​ One-click unsubscribe
+   ●​ Plain-text email version
+   ●​ Legal footer
+   ●​ Preference centre
+
+The footer should contain relevant company details for:
+
+Vibrant Lifestyle Collective BV
+
+and explain why the recipient receives the message where appropriate.
+
+  ______________________________________________________________________
+
+
+Preference Centre
+Contacts should be able to manage categories independently where appropriate, for
+example:
+
+   ●​ General newsletter
+   ●​ Events
+   ●​ Member communication
+   ●​ B2B communication
+
+
+                                                                                    37
+Unsubscribing from one category should not necessarily mean unsubscribing from every
+legitimate communication category, subject to applicable law.
+
+  ______________________________________________________________________
+
+
+Dynamic Content
+One template should be able to show different content blocks based on status.
+
+Examples:
+
+   ●​ Lead
+   ●​ Customer
+   ●​ Member
+   ●​ Assessment outcome
+
+  ______________________________________________________________________
+
+
+Pre-Send Controls
+The system should support:
+
+   ●​ Preview as a real contact
+   ●​ Preview as a lead
+   ●​ Preview as a customer
+   ●​ Preview as a member
+   ●​ Test sends
+   ●​ Recipient preview
+   ●​ Remove individual recipient
+   ●​ Pause automation
+   ●​ Stop campaign after start where technically possible
+   ●​ Role-based sending permissions
+
+  ______________________________________________________________________
+
+
+
+31. Automated Email Sequences
+The system should support sequences for:
+
+   ●​ Leads
+
+
+
+
+                                                                                   38
+   ●​ Webinar registrations
+   ●​ Webinar follow-up
+   ●​ BEAM Experiences
+   ●​ First-time customers
+   ●​ Package customers
+   ●​ Dormant customers
+   ●​ Members
+   ●​ Membership renewal
+   ●​ Events
+   ●​ B2B outreach
+   ●​ B2B follow-up
+   ●​ Review requests
+   ●​ Assessments
+   ●​ Waitlists
+   ●​ Seat claims
+   ●​ Abandoned checkouts
+
+Sequences should be editable by BEAM without developer intervention.
+
+  ______________________________________________________________________
+
+
+Reusable Sequence Templates
+Examples:
+
+
+Package Usage
+
+   ●​ 50%
+   ●​ 75%
+   ●​ 90%
+   ●​ Last session
+   ●​ Stop on repurchase
+
+
+Inactivity
+
+   ●​ 30 days
+   ●​ 60 days
+   ●​ 90 days
+   ●​ Only if nothing relevant is booked
+
+
+Membership
+
+
+                                                                       39
+   ●​ 30-day renewal reminder
+   ●​ 7-day renewal reminder
+
+
+Review
+
+   ●​ After completed visit
+   ●​ Not after no-show
+   ●​ Not repeatedly within a short period
+
+  ______________________________________________________________________
+
+
+Late-Entry Skip
+If the scheduled send moment has passed, that email should be skipped.
+
+Example:
+
+Webinar Sunday.
+
+Customer registers Friday.
+
+The system should not send:
+
+   ●​ 7-day reminder
+   ●​ 3-day reminder
+
+This should be a system rule.
+
+  ______________________________________________________________________
+
+
+Unsubscribe Speed
+Unsubscribe should stop applicable marketing automation within an agreed technical
+window.
+
+Desired acceptance criterion: within 15 minutes.
+
+  ______________________________________________________________________
+
+
+Automation Timeline
+For each customer, staff should be able to see:
+
+
+
+
+                                                                                     40
+      ●​ Entered
+      ●​ Trigger
+      ●​ Step
+      ●​ Skipped step
+      ●​ Condition
+      ●​ Branch
+      ●​ Exit
+      ●​ Exit reason
+
+   ______________________________________________________________________
+
+
+
+32. AI-Assisted Marketing Creation
+Longer term, BEAM should be able to ask:
+
+        “Create the email campaign for the next Member Evening.”
+
+or:
+
+        “Create a reactivation campaign for clients who have not visited for 90 days.”
+
+AI should understand:
+
+      ●​ BEAM tone of voice
+      ●​ Brand guidelines
+      ●​ Previous campaigns
+      ●​ Customer segment
+      ●​ Event information
+      ●​ CRM data
+
+AI may prepare:
+
+      ●​ Subject line
+      ●​ Preview text
+      ●​ Email
+      ●​ Segmentation
+      ●​ Suggested timing
+
+Initially:
+
+        AI prepares → human approves → system sends
+
+
+
+
+                                                                                         41
+  ______________________________________________________________________
+
+
+
+33. Marketing Campaign Attribution
+BEAM should eventually understand the complete commercial result of a campaign.
+
+Example:
+
+Meta Ad
+
+→ Lead
+
+→ Webinar
+
+→ First Visit
+
+→ Package
+
+→ Repeat Purchase
+
+→ Membership
+
+→ Lifetime Value
+
+Track where technically possible:
+
+    ●​ Campaign
+    ●​ Source
+    ●​ Medium
+    ●​ Funnel
+    ●​ Lead cost
+    ●​ First purchase
+    ●​ Total revenue
+    ●​ Lifetime value
+
+  ______________________________________________________________________
+
+
+
+34. Marketing Dashboards
+Potential KPIs:
+
+    ●​ Leads generated
+
+
+                                                                                  42
+   ●​ Cost per lead
+   ●​ Registration rate
+   ●​ Attendance rate
+   ●​ Lead-to-visit
+   ●​ Visit-to-purchase
+   ●​ Customer acquisition cost
+   ●​ Revenue by campaign
+   ●​ Lifetime value by campaign
+   ●​ ROAS
+   ●​ Email performance
+   ●​ Reactivation revenue
+   ●​ Webinar conversion
+   ●​ Assessment completion
+   ●​ Assessment conversion
+   ●​ Abandoned-cart recovery
+
+  ______________________________________________________________________
+
+
+
+35. Customer Service
+Customer service should be integrated into the platform.
+
+Potential functionality:
+
+   ●​ Central inbox
+   ●​ Customer identification
+   ●​ Communication history
+   ●​ Internal notes
+   ●​ Task assignment
+   ●​ Status
+   ●​ Response templates
+   ●​ AI-assisted responses
+   ●​ Escalation
+   ●​ Resolution tracking
+
+  ______________________________________________________________________
+
+
+Unified Inbox
+SideStream should assess whether the platform can consolidate:
+
+
+                                                                       43
+    ●​ Email
+    ●​ Instagram
+    ●​ Facebook / Messenger
+    ●​ Google customer communication where technically supported
+    ●​ Website contact forms
+    ●​ Other future channels
+
+Relevant messages should be connected to the customer record where possible.
+
+   ______________________________________________________________________
+
+
+
+36. AI-Assisted Customer Support
+AI may draft responses based on:
+
+    ●​ Customer profile
+    ●​ Package
+    ●​ Booking
+    ●​ Membership
+    ●​ BEAM policies
+    ●​ Previous communication
+    ●​ Knowledge base
+
+Initially:
+
+AI drafts → Team approves → Customer receives
+
+Only low-risk processes should later become fully automated.
+
+   ______________________________________________________________________
+
+
+
+37. Tasks & Team Follow-Up
+The system should support internal tasks.
+
+Examples:
+
+    ●​ Call customer
+    ●​ Follow up B2B prospect
+    ●​ Resolve payment
+
+
+
+                                                                               44
+    ●​ Contact VIP
+    ●​ Prepare proposal
+    ●​ Review expiring package
+
+Task fields:
+
+    ●​ Owner
+    ●​ Due date
+    ●​ Priority
+    ●​ Related customer/company
+    ●​ Status
+    ●​ Notes
+
+Overdue tasks should be clearly visible.
+
+  ______________________________________________________________________
+
+
+
+38. Daily / Weekly Action Dashboard
+One of the most important desired outcomes is an actionable management view.
+
+Example:
+
+
+Today
+
+    ●​ 8 customers nearing package completion
+    ●​ 4 VIP customers inactive >60 days
+    ●​ 7 new leads require follow-up
+    ●​ 3 B2B proposals require action
+    ●​ 2 memberships expire soon
+    ●​ 5 failed payments
+    ●​ 12 webinar leads have not booked
+    ●​ 3 customers have unused packages approaching expiry
+
+This should move BEAM away from reactive management.
+
+  ______________________________________________________________________
+
+
+
+39. Management Dashboard
+
+                                                                               45
+Potential overview:
+
+
+
+Revenue
+   ●​ Daily
+   ●​ Weekly
+   ●​ Monthly
+   ●​ Year-to-date
+   ●​ Previous-period comparison
+
+
+
+Customers
+   ●​ New
+   ●​ Active
+   ●​ Returning
+   ●​ Dormant
+   ●​ Reactivated
+
+
+
+Sales
+   ●​ Packages
+   ●​ Nights
+   ●​ Sessions
+   ●​ Memberships
+   ●​ Products
+   ●​ Events
+
+
+
+Retention
+   ●​ Repeat purchase
+   ●​ Package completion
+   ●​ Reactivation
+   ●​ Membership renewal
+
+
+
+B2B
+   ●​ Pipeline value
+   ●​ Qualified opportunities
+
+
+
+                                   46
+   ●​ Proposals
+   ●​ Conversion
+   ●​ Revenue
+
+  ______________________________________________________________________
+
+
+Custom Dashboards
+Authorised users should ideally be able to configure custom dashboards using:
+
+   ●​ available KPIs;
+   ●​ customer segments;
+   ●​ filters;
+   ●​ date periods;
+   ●​ sales data;
+   ●​ marketing data.
+
+Developer involvement should not be required for every dashboard change.
+
+  ______________________________________________________________________
+
+
+
+40. Natural-Language Business
+Intelligence
+Once the data foundation is reliable, management should be able to ask:
+
+     “Which customers generated the most revenue this year?”
+
+     “Which campaign produced our highest-value customers?”
+
+     “Which customers purchased a 10-session package but did not repurchase?”
+
+     “Compare September revenue with August and explain the biggest changes.”
+
+     “Which B2B opportunities require attention?”
+
+     “Which 50 customers should we contact this week?”
+
+This could be enabled through Claude, ChatGPT or another suitable model securely
+connected to the platform.
+
+
+
+
+                                                                                   47
+  ______________________________________________________________________
+
+
+
+41. Finance & Accounting
+Billit should likely remain because of:
+
+   ●​ invoicing;
+   ●​ accounting workflow;
+   ●​ Peppol requirements.
+
+The platform should investigate integration with Billit.
+
+Potential goals:
+
+   ●​ Automatically create invoices
+   ●​ Synchronise customers
+   ●​ Synchronise transactions
+   ●​ Synchronise payment status
+   ●​ Retrieve invoice information
+   ●​ Link invoice to customer
+   ●​ Financial reporting
+   ●​ Reduce duplicate entry
+   ●​ Prepare accounting data automatically
+
+  ______________________________________________________________________
+
+
+
+42. Peppol
+BEAM should not replicate regulated Peppol functionality unnecessarily.
+
+If Billit provides the compliant infrastructure required, it should remain the Peppol layer
+unless there is a strong strategic reason to change this.
+
+  ______________________________________________________________________
+
+
+
+43. Financial Management
+Dashboard
+
+                                                                                              48
+Longer term, management should see:
+
+   ●​ Revenue
+   ●​ Revenue category
+   ●​ Payment method
+   ●​ Open invoices
+   ●​ Failed payments
+   ●​ Recurring payments
+   ●​ Refunds
+   ●​ VAT-related information
+   ●​ Cash inflow
+   ●​ Revenue trends
+
+  ______________________________________________________________________
+
+
+
+44. Referral & Partner Management
+The platform should potentially support:
+
+   ●​ Partner profile
+   ●​ Referral source
+   ●​ Customers referred
+   ●​ Revenue generated
+   ●​ Rewards
+   ●​ Credits
+   ●​ Commission
+   ●​ Partner performance
+
+This could become strategically important for BEAM.
+
+  ______________________________________________________________________
+
+
+
+45. Promotions & Discount Rules
+The system should support:
+
+   ●​ Percentage discount
+   ●​ Fixed discount
+   ●​ Customer-specific pricing
+
+
+
+
+                                                                       49
+   ●​ Member pricing
+   ●​ Time-limited pricing
+   ●​ Promotion codes
+   ●​ Automatic eligibility
+   ●​ Start/end dates
+
+BEAM frequently works with:
+
+   ●​ Event offers
+   ●​ Temporary promotions
+   ●​ Membership discounts
+   ●​ Package offers
+   ●​ Referral incentives
+
+  ______________________________________________________________________
+
+
+
+46. Pricing Flexibility
+Administrators should be able to configure:
+
+   ●​ Standard pricing
+   ●​ Promotional pricing
+   ●​ Membership pricing
+   ●​ Package pricing
+   ●​ B2B pricing
+   ●​ Event pricing
+   ●​ Discount rules
+
+BEAM should not require development work for standard pricing changes.
+
+Historical transactions must retain the original price.
+
+  ______________________________________________________________________
+
+
+
+47. Abandoned Cart / Checkout
+Recovery
+The platform should ideally track:
+
+
+
+
+                                                                         50
+   ●​ Checkout initiated
+   ●​ Product/service involved
+   ●​ Customer/lead
+   ●​ Checkout timestamp
+   ●​ Abandoned status
+   ●​ Payment failure
+   ●​ Recovery message
+   ●​ Recovery outcome
+   ●​ Purchase after recovery
+
+BEAM should be able to trigger appropriate recovery workflows.
+
+Reporting should show:
+
+   ●​ abandoned checkouts;
+   ●​ recovered checkouts;
+   ●​ recovery revenue.
+
+  ______________________________________________________________________
+
+
+
+48. No-Show & Cancellation
+Reporting
+The system should provide reporting on:
+
+   ●​ Cancellations
+   ●​ Late cancellations
+   ●​ No-shows
+   ●​ Customer
+   ●​ Service/session
+   ●​ Frequency
+   ●​ Revenue impact
+   ●​ Package impact
+   ●​ Patterns by customer
+   ●​ Patterns by session/time
+
+No-shows should not be treated as completed visits for review requests or relevant
+retention logic.
+
+  ______________________________________________________________________
+
+
+                                                                                     51
+49. Guest & Package Sharing
+Where BEAM permits package sharing, the system should support:
+
+   ●​ Customer inviting guest
+   ●​ Guest identification
+   ●​ Package owner
+   ●​ Session deducted
+   ●​ Guest attendance history
+   ●​ Sharing rules
+   ●​ Sharing limits
+   ●​ Fraud/abuse controls
+
+The customer relationship between package holder and guest should remain visible.
+
+  ______________________________________________________________________
+
+
+
+50. Third-Party Integrations
+Even if the long-term goal is a highly integrated BEAM platform, the system must be able
+to connect to relevant external platforms.
+
+Potential integrations:
+
+   ●​ Meta
+   ●​ Google Ads
+   ●​ Google Analytics
+   ●​ WordPress
+   ●​ Zoom if temporarily retained
+   ●​ WebinarGeek if temporarily retained
+   ●​ Zapier where useful
+   ●​ Mollie
+   ●​ Stripe
+   ●​ Billit
+   ●​ Social channels
+   ●​ Other future APIs
+
+SideStream should indicate for each integration whether it is:
+
+   ●​ native;
+
+
+
+                                                                                       52
+   ●​ API-based;
+   ●​ webhook-based;
+   ●​ automation-platform based;
+   ●​ temporary;
+   ●​ custom-built.
+
+  ______________________________________________________________________
+
+
+
+51. Custom Workflow Builder
+Longer term, authorised BEAM users should ideally be able to create or adjust workflows
+without requiring SideStream for every change.
+
+Potential building blocks:
+
+   ●​ Trigger
+   ●​ Condition
+   ●​ Delay
+   ●​ Branch
+   ●​ Send email
+   ●​ Create task
+   ●​ Apply tag
+   ●​ Change status
+   ●​ Add/remove sequence
+   ●​ Notify team member
+   ●​ Update customer field
+   ●​ Trigger webhook
+
+This may be phased if building it properly would significantly increase MVP complexity.
+
+  ______________________________________________________________________
+
+
+
+52. Gamification
+Potential future capability.
+
+Examples:
+
+   ●​ Customer milestones
+   ●​ Visit streaks
+
+
+                                                                                          53
+   ●​ Credits/rewards
+   ●​ Referral milestones
+   ●​ Member engagement
+   ●​ Event participation
+   ●​ Loyalty status
+
+This is not considered essential for V1 unless SideStream identifies a clear low-complexity
+implementation opportunity.
+
+  ______________________________________________________________________
+
+
+
+53. Data Migration
+SideStream should provide a clear migration plan.
+
+Potential sources:
+
+   ●​ SimplyBook
+   ●​ Lightspeed
+   ●​ Mailchimp
+   ●​ Membership data
+   ●​ Existing spreadsheets
+   ●​ Event databases
+   ●​ B2B lists
+   ●​ Webinar platforms
+   ●​ Assessment tools
+
+Migration should include where available:
+
+   ●​ Customer identity
+   ●​ Booking history
+   ●​ Purchase history
+   ●​ Package balance
+   ●​ Membership
+   ●​ Email consent
+   ●​ Suppression/unsubscribe data
+   ●​ Tags
+   ●​ Relevant communication information
+   ●​ Historical commercial data
+
+  ______________________________________________________________________
+
+
+                                                                                         54
+54. Duplicate Management
+Duplicate records should be detected using combinations such as:
+
+   ●​ Email
+   ●​ Phone
+   ●​ Name
+   ●​ Customer ID
+
+Administrators should be able to merge duplicates without losing history.
+
+A merge should be recorded in the audit trail.
+
+  ______________________________________________________________________
+
+
+
+55. User Roles & Permissions
+Potential roles:
+
+   ●​ Owner / Admin
+   ●​ Management
+   ●​ Customer service
+   ●​ Sales
+   ●​ Marketing
+   ●​ Finance
+   ●​ Reception / Operations
+   ●​ Technical administrator
+   ●​ External partner
+
+Permissions should be configurable.
+
+Specific sensitive information such as assessment answers or health-related fields should
+only be accessible to roles that genuinely require them.
+
+  ______________________________________________________________________
+
+
+
+56. User Action Log / Audit Trail
+The platform should record important administrative actions.
+
+
+
+                                                                                      55
+Examples:
+
+    ●​ Package manually adjusted
+    ●​ Discount applied
+    ●​ Customer record changed
+    ●​ Booking cancelled
+    ●​ Refund issued
+    ●​ Membership changed
+    ●​ Customer merged
+    ●​ User access changed
+    ●​ Data exported
+    ●​ Waitlist manually changed
+    ●​ Consent changed
+    ●​ Customer deleted
+    ●​ Permission changed
+    ●​ Campaign sent
+    ●​ Automation manually moved/stopped
+
+The log should include where relevant:
+
+    ●​ User
+    ●​ Time
+    ●​ Action
+    ●​ Previous value
+    ●​ New value
+
+This is important for operational control, GDPR and security.
+
+  ______________________________________________________________________
+
+
+
+57. GDPR & Privacy Operating Model
+This should not remain merely a list of questions.
+
+It needs to become an explicit operating layer.
+
+Initial intended roles:
+
+Vibrant Lifestyle Collective BV = Data Controller
+
+SideStream = Data Processor
+
+
+
+
+                                                                       56
+External services processing customer data may be subprocessors.
+
+A proper Article 28 Data Processing Agreement should be signed before real customer
+data is placed into production.
+
+A test environment with synthetic/fake data may exist before this.
+
+  ______________________________________________________________________
+
+
+
+58. Subprocessors & Data Location
+SideStream should provide and maintain a subprocessor register containing:
+
+   ●​ Name
+   ●​ Role
+   ●​ Country
+   ●​ Data processed
+
+Examples may include:
+
+   ●​ Hosting
+   ●​ Email infrastructure
+   ●​ Payment provider
+   ●​ Billit
+   ●​ AI provider
+   ●​ Webinar provider if external
+   ●​ Assessment provider if external
+
+Production and backup data should preferably remain within the EEA unless a specific
+exception is documented and agreed.
+
+Where data is transferred outside the EEA, the appropriate transfer mechanism should be
+documented.
+
+  ______________________________________________________________________
+
+
+
+59. GDPR Legal Basis & Consent
+The system should distinguish between different purposes.
+
+Examples:
+
+
+                                                                                       57
+Booking / payment / membership​
+Contractual necessity may apply.
+
+Newsletter​
+Consent where required.
+
+Assessment result​
+Delivering the requested result is different from subscribing someone to marketing.
+
+B2B communication​
+Requires appropriate legal assessment.
+
+Voice AI / cold calling​
+Requires separate review before activation.
+
+Withdrawal should:
+
+    ●​ stop applicable marketing;
+    ●​ suppress the contact from future marketing;
+    ●​ retain suppression history where necessary;
+    ●​ not allow accidental re-subscription during data imports.
+
+  ______________________________________________________________________
+
+
+
+60. Special-Category & Sensitive Data
+Fields relating to:
+
+    ●​ health;
+    ●​ sleep;
+    ●​ stress;
+    ●​ recovery;
+    ●​ medical information;
+
+should be treated carefully.
+
+They should not automatically be sent to an AI model.
+
+If BEAM later decides to use AI on these fields, the purpose, provider and legal basis should
+be explicitly reviewed first.
+
+  ______________________________________________________________________
+
+
+
+                                                                                          58
+61. AI & Personal Data
+For each AI feature, SideStream should document:
+
+   ●​ Which fields are sent
+   ●​ When
+   ●​ Why
+   ●​ AI provider
+   ●​ Provider location
+   ●​ Retention
+   ●​ Training status
+   ●​ Output storage
+   ●​ Prompt storage
+   ●​ Prompt retention
+
+BEAM customer data should not be used to train third-party models unless explicitly
+approved.
+
+Research-preview or similar opt-in model-training settings should remain disabled for
+BEAM data.
+
+Personal ChatGPT or Claude accounts should not become unofficial CRM integrations for
+customer data.
+
+  ______________________________________________________________________
+
+
+
+62. Customer Rights & Data Deletion
+The system should support:
+
+   ●​ Access
+   ●​ Correction
+   ●​ Deletion
+   ●​ Restriction
+   ●​ Objection
+   ●​ Portability
+
+Deletion should propagate where appropriate across:
+
+   ●​ CRM
+
+
+
+                                                                                        59
+   ●​ Email
+   ●​ Native webinar
+   ●​ Replay/on-demand data
+   ●​ Assessments
+   ●​ Waitlists
+   ●​ Booking records where legally deletable
+   ●​ AI provider prompts
+   ●​ Connected systems
+
+Mollie, Stripe and Billit may need to retain specific information for regulatory/accounting
+purposes.
+
+That does not mean the marketing profile remains active.
+
+  ______________________________________________________________________
+
+
+
+63. Data Retention
+The platform should support a clear retention table.
+
+At minimum:
+
+   ●​ Customer profile
+   ●​ Marketing contact
+   ●​ Suppression list
+   ●​ Bookings
+   ●​ Invoices
+   ●​ Webinar attendance
+   ●​ Chat
+   ●​ Watch time
+   ●​ Polls
+   ●​ Assessment answers
+   ●​ Assessment results
+   ●​ Waitlist
+   ●​ AI prompts
+   ●​ Audit logs
+
+Accounting records should follow applicable Belgian statutory retention rules.
+
+Marketing information should not be retained merely because financial records need to
+be retained.
+
+
+
+                                                                                          60
+  ______________________________________________________________________
+
+
+
+64. Security
+Minimum safeguards should be documented.
+
+Examples:
+
+   ●​ Encryption in transit
+   ●​ Encryption at rest
+   ●​ Multi-factor authentication
+   ●​ Role-based access
+   ●​ Password policies
+   ●​ Logging
+   ●​ Backup
+   ●​ Recovery
+   ●​ API security
+   ●​ Rate limiting
+   ●​ Vulnerability testing
+   ●​ Dependency management
+   ●​ Secure secret management
+
+SideStream mentioned internal security testing / ethical hacking capabilities.
+
+This should be formalised.
+
+  ______________________________________________________________________
+
+
+
+65. Security Incident & Breach
+Handling
+SideStream should notify BEAM rapidly after discovering a relevant data breach or security
+incident.
+
+A target such as within 24 hours of discovery should be contractually discussed so BEAM
+can assess its own obligations.
+
+The incident process should record:
+
+
+
+
+                                                                                        61
+    ●​ Discovery
+    ●​ Systems affected
+    ●​ Data affected
+    ●​ Risk
+    ●​ Actions
+    ●​ Notifications
+    ●​ Resolution
+
+  ______________________________________________________________________
+
+
+
+66. DPIA / Privacy Risk Assessment
+A Data Protection Impact Assessment should be considered before activating higher-risk
+processing such as:
+
+    ●​ AI-based customer ranking
+    ●​ Sensitive assessment processing
+    ●​ Watch-time profiling
+    ●​ Advanced B2B prospecting
+    ●​ Voice AI
+    ●​ Automated behavioural scoring
+
+  ______________________________________________________________________
+
+
+
+67. Backups & Disaster Recovery
+The agreement should specify:
+
+    ●​ Backup frequency
+    ●​ Backup retention
+    ●​ Backup location
+    ●​ Recovery procedure
+    ●​ Recovery responsibility
+    ●​ Expected recovery time
+
+This is essential.
+
+  ______________________________________________________________________
+
+
+
+
+                                                                                    62
+68. Data Ownership
+BEAM must retain ownership/control of:
+
+   ●​ Customer data
+   ●​ Company data
+   ●​ Transaction data
+   ●​ Database
+   ●​ Content
+   ●​ Reporting data
+
+This should be explicit in the agreement.
+
+  ______________________________________________________________________
+
+
+
+69. Source Code & Intellectual
+Property
+The agreement must clearly state:
+
+   ●​ Who owns custom code?
+   ●​ Does BEAM receive source-code access?
+   ●​ Where is the repository hosted?
+   ●​ Can another developer continue development?
+   ●​ Which SideStream reusable components remain SideStream IP?
+   ●​ Which BEAM-specific components belong to BEAM?
+   ●​ What happens after termination?
+
+This must be resolved before signing.
+
+  ______________________________________________________________________
+
+
+
+70. Vendor Independence / Exit Plan
+BEAM must not become technically trapped.
+
+If cooperation ends, BEAM should retain or receive, as contractually agreed:
+
+
+
+
+                                                                               63
+   ●​ Database
+   ●​ Data
+   ●​ Source code
+   ●​ Documentation
+   ●​ Credentials
+   ●​ Infrastructure access
+   ●​ Export capability
+   ●​ Integration credentials
+
+SideStream previously indicated that the system can be transferred and data exported.
+
+This should be contractual.
+
+  ______________________________________________________________________
+
+
+
+71. Hosting
+The proposal should specify:
+
+   ●​ Hosting provider
+   ●​ Hosting region
+   ●​ Account ownership
+   ●​ Hosting cost
+   ●​ Scaling model
+   ●​ Backup
+   ●​ Monitoring
+   ●​ Security
+   ●​ Payment responsibility
+   ●​ Exit procedure
+
+Where practical, critical infrastructure should be established under BEAM-owned
+accounts or with sufficient BEAM administrative access.
+
+  ______________________________________________________________________
+
+
+
+72. Monitoring & Reliability
+The platform should actively monitor:
+
+   ●​ Downtime
+
+
+                                                                                        64
+   ●​ Failed automations
+   ●​ Failed emails
+   ●​ Payment failures
+   ●​ Integration failures
+   ●​ Database issues
+   ●​ API failures
+   ●​ Deliverability problems
+
+BEAM should not discover important failures only because a customer complains.
+
+  ______________________________________________________________________
+
+
+
+73. Customer Support From
+SideStream
+This requires contractual clarity.
+
+
+
+Support Channels
+Potential channels:
+
+   ●​ Email
+   ●​ Slack
+   ●​ WhatsApp
+   ●​ Ticketing
+   ●​ Phone for emergencies
+
+
+
+Severity Levels
+
+Critical
+
+Examples:
+
+   ●​ System unavailable
+   ●​ Booking unavailable
+   ●​ Payments broken
+
+Requires urgent handling.
+
+
+
+                                                                                 65
+High
+
+Major operational functionality affected.
+
+
+Normal
+
+Bug or functional question.
+
+
+Improvement Request
+
+Feature enhancement or optimisation.
+
+SideStream should propose clear response times and service windows.
+
+  ______________________________________________________________________
+
+
+
+74. Monthly Maintenance &
+Development
+SideStream previously indicated an approximate monthly fee range.
+
+The agreement must define exactly what is included.
+
+Potential elements:
+
+   ●​ Hosting
+   ●​ Infrastructure
+   ●​ Required subscriptions
+   ●​ Monitoring
+   ●​ Security updates
+   ●​ Maintenance
+   ●​ Bug fixing
+   ●​ Support
+   ●​ Small improvements
+   ●​ Software updates
+   ●​ Ongoing optimisation
+
+It must also define what is not included.
+
+  ______________________________________________________________________
+
+
+
+                                                                       66
+75. Feature Change Policy
+The agreement should distinguish between:
+
+
+
+Bug
+
+Something agreed does not work.
+
+Normally corrected without new project fees.
+
+
+Small Improvement
+
+Minor enhancement to existing functionality.
+
+Potentially included within monthly support.
+
+
+New Feature
+New functionality outside existing scope.
+
+Potential separate quote.
+
+
+
+Major Module
+Significant new product area.
+
+Separate project.
+
+  ______________________________________________________________________
+
+
+
+76. Acceptance Criteria
+Before BEAM accepts the platform as delivered, written acceptance criteria should be
+agreed.
+
+Core examples:
+
+   ●​ Customer can register
+
+
+                                                                                       67
+   ●​ Customer can book
+   ●​ Customer can pay
+   ●​ Package balance updates
+   ●​ Member discount works
+   ●​ Email sends correctly
+   ●​ Administrator can modify booking
+   ●​ CRM reflects activity
+   ●​ Customer can cancel
+   ●​ Reporting reflects transaction
+   ●​ Data can be exported
+
+Additional critical acceptance tests should include:
+
+
+Email
+
+   ●​ Late-entry reminders are skipped.
+   ●​ Unsubscribe stops marketing within the agreed timeframe.
+   ●​ Hard-bounced address is suppressed.
+   ●​ Member/customer/lead dynamic blocks display correctly.
+
+
+Webinar
+
+   ●​ Registration ≠ attendance.
+   ●​ Watch time is captured.
+   ●​ Replay activity is stored separately.
+   ●​ Replay poll is stored separately from live poll.
+
+
+Assessment
+
+   ●​ Weighted/branched assessment works.
+   ●​ Existing customer record is updated.
+   ●​ Assessment result does not automatically create newsletter consent.
+   ●​ Sensitive health-related free text is excluded from AI unless explicitly enabled.
+
+
+Waitlist
+
+   ●​ Lead and customer rules work.
+   ●​ Duplicate does not take second seat.
+   ●​ Claim window expires correctly.
+   ●​ Confirmed seat is protected.
+   ●​ Waiting lead who buys is reclassified correctly.
+
+
+
+                                                                                          68
+GDPR
+
+   ●​ Export works.
+   ●​ Deletion propagates correctly.
+   ●​ Consent history is retained correctly.
+   ●​ Marketing suppression survives import.
+
+  ______________________________________________________________________
+
+
+
+77. Go-Live Gate
+BEAM should not place real customer data into production until the agreed minimum
+compliance and security conditions are met.
+
+Suggested go-live requirements:
+
+   ●​ Signed Article 28 agreement
+   ●​ Confirmed subprocessor list
+   ●​ Confirmed hosting/data region
+   ●​ Transfer mechanism documented where relevant
+   ●​ AI no-training position confirmed
+   ●​ Retention table agreed
+   ●​ Data export tested
+   ●​ Data deletion tested
+   ●​ Security controls confirmed
+   ●​ Backup process confirmed
+   ●​ Recovery process confirmed
+   ●​ User permissions configured
+   ●​ Core acceptance tests passed
+
+  ______________________________________________________________________
+
+
+
+78. Staging & Testing Environment
+SideStream should ideally provide:
+
+   ●​ Staging/test environment
+   ●​ Production environment
+
+
+
+
+                                                                                    69
+New functionality should be tested before being deployed to live customers.
+
+  ______________________________________________________________________
+
+
+
+79. Training
+SideStream should provide onboarding for:
+
+   ●​ Jonathan
+   ●​ Tinne
+   ●​ George
+   ●​ Tet
+   ●​ Relevant BEAM staff
+
+Training should cover:
+
+   ●​ Daily use
+   ●​ Administration
+   ●​ Reporting
+   ●​ Campaigns
+   ●​ Customer management
+   ●​ Booking
+   ●​ Troubleshooting
+   ●​ AI tools
+   ●​ Privacy/security responsibilities
+
+Training material or documentation should be provided.
+
+  ______________________________________________________________________
+
+
+
+80. Documentation
+The platform should not exist only inside SideStream's knowledge.
+
+Documentation should cover:
+
+   ●​ Architecture
+   ●​ Database
+   ●​ Integrations
+   ●​ User roles
+
+
+
+                                                                              70
+   ●​ Business rules
+   ●​ Automations
+   ●​ AI connections
+   ●​ Hosting
+   ●​ Backup
+   ●​ Support
+   ●​ Deployment
+   ●​ Data model
+   ●​ Core workflows
+
+George should be able to understand the technical architecture and act as an internal
+technical point of reference.
+
+  ______________________________________________________________________
+
+
+
+81. App
+A native BEAM mobile application is attractive but should probably not delay the core
+system.
+
+Potential future functionality:
+
+   ●​ Login
+   ●​ Booking
+   ●​ Package balance
+   ●​ Membership
+   ●​ Events
+   ●​ Notifications
+   ●​ Payments
+   ●​ Content
+
+Responsive web platform should take priority unless the mobile app has a clear
+immediate commercial case.
+
+  ______________________________________________________________________
+
+
+
+82. Potential BRANDEPIC / Wellness
+Platform Opportunity
+
+                                                                                        71
+This should not distract from BEAM implementation.
+
+However, the architecture should ideally avoid unnecessarily preventing future
+adaptation.
+
+Potential future path:
+
+BEAM Platform
+
+↓
+
+Validated Operating System
+
+↓
+
+Adaptable Wellness Framework
+
+↓
+
+Separate Database / Configuration per Client
+
+↓
+
+Potential BRANDEPIC Offering
+
+No additional complexity should be added to BEAM V1 solely for this possibility unless
+commercially justified.
+
+    ______________________________________________________________________
+
+
+
+83. Proposed Priority Structure
+
+PRIORITY 1 — Core Operating Foundation
+Must work reliably first:
+
+     ●​ Customer database
+     ●​ Booking
+     ●​ Day sessions
+     ●​ Nights
+     ●​ Packages / credits
+     ●​ Membership
+
+
+
+                                                                                         72
+   ●​ Payments
+   ●​ Basic POS
+   ●​ Customer portal
+   ●​ Email infrastructure
+   ●​ Data migration
+   ●​ Roles & permissions
+   ●​ Security
+   ●​ Custom lead forms
+   ●​ User action log
+   ●​ Core integrations
+
+The following must be explicitly classified as either V1 or Phase 2:
+
+   ●​ Native webinar
+   ●​ Assessment engine
+   ●​ Lead-priority waitlist
+
+If not in V1, SideStream must specify which temporary external tool remains.
+
+  ______________________________________________________________________
+
+
+PRIORITY 2 — Commercial Engine
+   ●​ B2C pipeline
+   ●​ Retention
+   ●​ Segmentation
+   ●​ Follow-up
+   ●​ Marketing automation
+   ●​ Events
+   ●​ Campaign attribution
+   ●​ B2B CRM
+   ●​ B2B pipeline
+   ●​ Tasks
+   ●​ Reporting
+   ●​ Abandoned cart
+   ●​ No-show/cancellation reporting
+   ●​ Package guest sharing
+   ●​ Unified communication inbox
+
+  ______________________________________________________________________
+
+
+
+
+                                                                               73
+PRIORITY 3 — Intelligence & Admin Flexibility
+   ●​ Management dashboards
+   ●​ Custom dashboards
+   ●​ Customer opportunity identification
+   ●​ Natural-language querying
+   ●​ AI-assisted email
+   ●​ AI customer service
+   ●​ Weekly management summary
+   ●​ Churn prediction
+   ●​ Marketing analysis
+   ●​ Custom workflows/automations
+   ●​ Gamification
+
+  ______________________________________________________________________
+
+
+PRIORITY 4 — Advanced Automation
+   ●​ Automated B2B prospecting
+   ●​ Personalised outbound email
+   ●​ Advanced sales automation
+   ●​ Voice AI
+   ●​ Predictive analytics
+   ●​ Mobile application
+   ●​ Advanced financial automation
+
+  ______________________________________________________________________
+
+
+
+84. Proposed V1 / MVP Target
+The first operational release should focus on running BEAM reliably with substantially
+reduced dependency on SimplyBook, Lightspeed and Mailchimp where agreed.
+
+Suggested V1:
+
+
+
+Customer
+   ●​ Unified customer profile
+   ●​ Segmentation
+
+
+                                                                                         74
+ ●​ Consent by purpose
+ ●​ Customer history
+ ●​ Import existing data
+
+
+
+Booking
+ ●​ Day bookings
+ ●​ Night bookings
+ ●​ Package booking
+ ●​ Capacity
+ ●​ Customer self-service
+ ●​ Basic waiting-list capability
+
+
+
+Commerce
+ ●​ Products/services
+ ●​ Packages
+ ●​ Membership
+ ●​ Pricing
+ ●​ Discounts
+ ●​ Mollie/Stripe
+
+
+
+Lead Capture
+ ●​ Custom forms
+ ●​ Conditional logic
+ ●​ Source/campaign capture
+ ●​ Website integration
+
+
+
+Communication
+ ●​ Transactional emails
+ ●​ Campaigns
+ ●​ Automated sequences
+ ●​ Deliverability infrastructure
+ ●​ Preference management
+ ●​ Multilingual templates
+
+
+
+
+                                    75
+Operations
+   ●​ Staff dashboard
+   ●​ Basic reporting
+   ●​ Tasks
+   ●​ Roles
+   ●​ User-action log
+
+
+
+Finance
+   ●​ Billit integration where possible
+
+
+
+Technical
+   ●​ Secure cloud hosting
+   ●​ Backup
+   ●​ Export
+   ●​ Documentation
+   ●​ Support
+   ●​ Monitoring
+
+
+
+Must Be Explicitly Decided Before Proposal
+SideStream should propose whether the following belong in V1 or Phase 2:
+
+   ●​ Native webinar
+   ●​ Assessment engine
+   ●​ Lead-priority waitlist
+
+Everything outside V1 should remain visible in the roadmap.
+
+  ______________________________________________________________________
+
+
+
+85. Key Internal Decisions BEAM Must
+Still Make
+Before final scope approval, BEAM should determine:
+
+
+                                                                           76
+  1.​ Do we move from packages to an internal credit architecture?
+  2.​ Which existing tools do we definitely replace?
+  3.​ Which Lightspeed functions are currently essential?
+  4.​ Which SimplyBook functions must be replicated?
+  5.​ Which Mailchimp functions are essential?
+  6.​ Which data must be migrated?
+  7.​ Exact day/night booking rules?
+  8.​ Cancellation rules?
+  9.​ Package validity rules?
+  10.​ Membership logic?
+  11.​ Customer portal functionality?
+  12.​ Final B2C stages?
+  13.​ Final B2B stages?
+  14.​ Initial follow-up automations?
+  15.​ Day-one management KPIs?
+  16.​ V1 versus Phase 2?
+  17.​ Native webinar in V1 or external webinar tool temporarily retained?
+  18.​ Native assessment in V1 or external assessment tool retained?
+  19.​ Lead-priority functionality active for which types of events?
+  20.​ Who owns/controls email sending domain and DNS?
+
+ ______________________________________________________________________
+
+
+
+86. Questions SideStream Must
+Answer in Its Proposal
+
+Scope
+  ●​ Exactly what is included?
+  ●​ What is excluded?
+  ●​ What is V1?
+  ●​ What is Phase 2?
+  ●​ Which external systems remain?
+  ●​ Which systems are fully replaced?
+
+
+
+Timing
+
+
+                                                                             77
+ ●​ Start date
+ ●​ Milestones
+ ●​ Testing
+ ●​ Migration
+ ●​ Training
+ ●​ Go-live
+
+
+
+Investment
+ ●​ Exact development cost
+ ●​ Payment schedule
+ ●​ VAT
+ ●​ Third-party costs
+
+
+
+Monthly Fee
+ ●​ Exact amount
+ ●​ Hosting included?
+ ●​ Subscriptions?
+ ●​ Support?
+ ●​ Improvements?
+ ●​ Usage limits?
+ ●​ Email sending volume?
+ ●​ AI usage?
+ ●​ Extra volume pricing?
+ ●​ Indexation?
+
+
+
+Support
+ ●​ Channels
+ ●​ Hours
+ ●​ Critical response times
+ ●​ Normal response times
+ ●​ Emergency process
+
+
+
+Ownership
+ ●​ Database
+
+
+
+                              78
+   ●​ Data
+   ●​ Source code
+   ●​ Repository
+   ●​ Infrastructure
+   ●​ Intellectual property
+
+
+
+Security & Privacy
+   ●​ GDPR
+   ●​ Hosting
+   ●​ Region
+   ●​ Subprocessors
+   ●​ AI processing
+   ●​ Training status
+   ●​ Backup
+   ●​ Recovery
+   ●​ Breach process
+   ●​ Security testing
+
+
+
+Exit
+   ●​ Data export
+   ●​ Code transfer
+   ●​ Documentation
+   ●​ Infrastructure access
+   ●​ Transition support
+
+
+
+
+87. Required Demonstration /
+Acceptance Scenarios
+We would like SideStream to explicitly explain how the proposed architecture handles at
+least the following scenarios:
+
+   1.​ Late-entry email skip​
+       A Friday registration does not receive already-expired webinar reminders.
+
+
+
+                                                                                          79
+   2.​ Fast unsubscribe​
+       Marketing stops within the agreed technical window.
+   3.​ Lead vs customer event access​
+       A lead-priority event correctly treats leads and existing customers differently.
+   4.​ Seat claim expiry​
+       An offered event seat expires and passes correctly to the next person.
+   5.​ Replay data separation​
+       Replay poll/CTA data is stored separately from live data.
+   6.​ Sensitive AI exclusion​
+       Health-related free-text data is not sent to an AI model by default.
+   7.​ End-to-end deletion​
+       Deletion/removal properly propagates through CRM, email, webinar, assessment
+       and waitlist systems where legally appropriate.
+
+  ______________________________________________________________________
+
+
+
+88. CEO-Level Acceptance Principles
+BEAM should only proceed when the following are sufficiently clear.
+
+
+1. We understand exactly what we are purchasing.
+
+No vague “AI platform” terminology.
+
+
+2. Core functionality is written down.
+
+Both parties sign off.
+
+
+3. BEAM retains control of its data.
+
+Non-negotiable.
+
+
+4. Source-code/IP ownership is clear.
+
+Non-negotiable to clarify.
+
+
+5. Support is contractually defined.
+
+BEAM cannot operate on an unsupported critical system.
+
+
+
+
+                                                                                          80
+6. Monthly costs are predictable.
+
+Hosting, subscriptions, AI usage and sending volume should be transparent.
+
+
+7. The platform can evolve.
+
+Continuous improvement should be possible.
+
+
+8. AI is used selectively.
+
+Do not use AI when simple rules are more reliable and cheaper.
+
+
+9. V1 is not overbuilt.
+
+The core operating system must work extremely well first.
+
+
+10. BEAM has an exit path.
+
+Another development party should be able to continue if necessary.
+
+
+11. Privacy and security are go-live criteria.
+
+They are not post-launch improvements.
+
+    ______________________________________________________________________
+
+
+
+89. Desired End State
+The longer-term vision is:
+
+
+
+LEADS & ACQUISITION
+Advertising​
+Webinars​
+Assessments​
+Events​
+Referrals​
+B2B Outreach
+
+↓
+
+
+
+                                                                             81
+UNIFIED CRM
+Individuals​
+Companies​
+Contacts​
+History​
+Consent​
+Segmentation
+
+↓
+
+
+
+COMMERCIAL SYSTEM
+Booking​
+Packages​
+Credits​
+Membership​
+Products​
+Events​
+Payments
+
+↓
+
+
+
+AUTOMATION
+Email​
+Follow-up​
+Retention​
+Reactivation​
+Sales Tasks​
+Waitlists​
+Alerts
+
+↓
+
+
+
+FINANCE
+Transactions​
+Billit​
+
+
+
+                    82
+Invoices​
+Payment Status​
+Reporting
+
+↓
+
+
+
+INTELLIGENCE
+Dashboards​
+Customer Opportunities​
+Campaign ROI​
+Forecasting​
+AI Queries
+
+↓
+
+
+
+ACTION
+Management​
+Marketing​
+B2C Sales​
+B2B Sales​
+Customer Service​
+Finance
+
+The result should be a system that tells BEAM not only:
+
+      What happened?
+
+but increasingly:
+
+      What requires our attention, why, and what should we do next?
+
+    ______________________________________________________________________
+
+
+Final Purpose of This Document
+This document is intended to give SideStream the widest possible view of what BEAM
+currently needs and may require in the foreseeable future.
+
+It should not be interpreted as a request to build every feature immediately.
+
+
+
+                                                                                     83
+Rather, we ask SideStream to:
+
+   1.​ challenge the architecture;
+   2.​ identify what should be native versus integrated;
+   3.​ recommend what belongs in V1;
+   4.​ identify what should be Phase 2 or later;
+   5.​ highlight unnecessary complexity;
+   6.​ confirm technical feasibility;
+   7.​ define dependencies;
+   8.​ estimate investment and timing;
+   9.​ specify ongoing costs;
+   10.​ propose the strongest practical roadmap.
+
+The objective is not to build the largest possible platform.
+
+The objective is to build the right platform for BEAM's next stage of growth.
+
+
+
+
+                                                                                84
+

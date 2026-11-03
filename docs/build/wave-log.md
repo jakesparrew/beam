@@ -44,3 +44,7 @@ One entry per merge batch and gate (runbook section 5.7, adapted by OD-3).
 - platform-P6 attempt 2 done in 5 minutes (265 web tests); merged as `58d8fd8`; gate `g10-p6` green in 141 s.
 - **Wave 3 checkpoint `g11-w3` (e2e mode)**: install, gen, migrations, typecheck, lint, i18n, all tests (101 s), gdpr, production build (129 s), `db:migrate` and `seed:demo` on beam_dev (44 s) green. Playwright: 7 passed (smoke 5, login page accessible, owner signs in with password and TOTP and signs out), 54 skipped (later-wave shells), 1 failed twice: "ten wrong passwords lock the account". The audit log on beam_dev shows the lock works (`auth.locked` at 10); the test's bare `getByRole("alert")` wait passed before each server action finished, so attempts overlapped the counter read and the restore step. A stale `next start` from the Neon setup held port 3100 and was stopped first.
 - Fixer `fix-w03-platform-2` makes `platform.spec.ts` wait for the action response; CONVENTIONS.md item 10 now forbids bare alert waits. Wave 4 starts in parallel, because the failure is in the test, not the product.
+
+## Wave 4 (dependency-scheduled from here on)
+
+- 23:35 UTC: started fix-w03-platform-2, credits-P1, commerce-P1, credits-P2, crm-P1, booking-P1 from `9892b11` (6 agents).

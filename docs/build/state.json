@@ -14,16 +14,25 @@
       "mergedAt": "2026-11-03T20:56:06Z"
     },
     "platform-P2": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "f14e1fc",
+      "runId": "wf_e1f35b9a-c3a",
+      "startedAt": "2026-11-03T20:57:09Z"
     },
     "platform-P3": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "f14e1fc",
+      "runId": "wf_d92d475c-cb4",
+      "startedAt": "2026-11-03T20:57:09Z"
     },
     "platform-P4": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "f14e1fc",
+      "runId": "wf_dec6bb2d-7af",
+      "startedAt": "2026-11-03T20:57:09Z"
     },
     "platform-P5": {
       "status": "pending",

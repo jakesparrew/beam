@@ -738,6 +738,7 @@ Order: forms-P1 and forms-P2 run in parallel (no shared files). forms-P3 to form
 - **Depends on:** `platform:users`, `crm:persons`, `crm:companies`, `booking:bookings` (contract columns `person_id`, `status`, `created_at`), `commerce:orders` (contract columns `person_id`, `status`, `paid_at`, `total_cents`), `email:email_messages` (Wave 0 contract tables).
 - **Tests (`forms.test.ts`):** slug check rejects `Bad Slug` and `result`; `status = 'published'` without `current_version_id` fails; second draft per form violates `form_versions_one_draft_uq`; check `published_by_user_id is null or published_at is not null` (a draft with a publisher fails; a seed-published row without one passes); `source` check rejects `paid_social` and accepts `paid_meta`; `funnel` not null; `applied_tag_keys` defaults to `{}`; `cta_warnings` defaults to `[]`; `completed` without `completed_at` fails; unique result and resume token hashes; `form_import_events` duplicate `(source_id, external_id)` ignored with `on conflict do nothing`; `v_form_funnel_daily` counts views and statuses on the right Brussels day (23:30 UTC case); `v_form_conversions` sees a booking on day 29 and ignores day 31; `v_form_latest_results` returns the newest completion; `value_enc` is in `SENSITIVE_COLUMNS`.
 - **Done:** the common done-definition.
+- **Build order note (03-build-order.md, forward-call stubs):** this package also owns `apps/web/modules/forms/api.ts` and declares in it every forms function that another module calls (section 4 and section 10), with its final signature, as a typed stub that throws `NotImplementedError`; input and output types are declared inline in `api.ts` because the pure core lands in parallel in forms-P2. Later forms packages replace the stub bodies; no signature changes without a cross-module decision.
 
 ### forms-P2 (V1): core engine (pure)
 
@@ -833,6 +834,7 @@ Order: forms-P1 and forms-P2 run in parallel (no shared files). forms-P3 to form
 - **Depends on:** forms-P1 to forms-P7; `webinar:webinars` table (id, slug, status) and the `/[locale]/webinars/[slug]` route.
 - **Tests:** portal list shows only the actor's submissions; "View result" issues a fresh token; logged-in resume from a second session continues the same submission; webinar CTA validates against an existing webinar and redirects.
 - **Done:** the common done-definition; `ff_forms_portal_results` flag gates the portal entry until BEAM switches it on.
+- **Build order note (03-build-order.md, forward-call stubs):** this package declares `countLandingConversions` in `apps/web/modules/forms/api.ts` as a typed stub returning `[]`, because site-P9 runs in the same wave as forms-P9, which implements it.
 
 ### forms-P9 (R3): referral and partner attribution, campaign report, inbox, landing conversions
 

@@ -18,9 +18,9 @@ import { audit as writeAudit, type AuditInput } from "./audit";
 import { recordEvent as writeEvent, type RecordEventInput } from "./events";
 
 /**
- * Drizzle's SQL operators. `apps/web` has no direct `drizzle-orm` dependency yet
- * (dependency request platform-P5), so lib code reaches the copy `@beam/db` uses (the same
- * physical package, so `sql` objects and tables stay compatible).
+ * Drizzle's SQL operators, re-exported so app code imports them from `@/lib/ctx`.
+ * `apps/web` and `@beam/db` resolve the same drizzle-orm instance (one lockfile entry),
+ * so `sql` objects and tables stay compatible.
  */
 export {
   and,
@@ -40,7 +40,7 @@ export {
   or,
   sql,
   type SQL,
-} from "../../../packages/db/node_modules/drizzle-orm";
+} from "drizzle-orm";
 
 export type { Db, DbOrTx, Tx };
 

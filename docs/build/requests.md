@@ -8,7 +8,6 @@ to "Served" with the package id.
 
 | From | For | Request |
 | --- | --- | --- |
-| platform-P2 | platform-P7 | Call `seedDefaults(db, { permissions: PERMISSIONS })` in `apps/web/scripts/seed-demo.ts`, so role grants follow the permissions registry. |
 | platform-P2 | crm, booking, commerce, finance, forms, email, automation, site (first package of each) | When you create the tables referenced by the Wave 0 contract-table stubs, add the foreign keys noted in the stub comments (companies, session_templates, ticket_types, promotions, checkouts, form_versions, email_template_versions, campaigns, automation_groups, automation_versions, page_versions). |
 | platform-P3 | crm (inbox AI drafts, R3) | `callClaude` feature key is `ai.draft_reply`, not `inbox_draft`. Its fields `thread_messages` and `knowledge_articles` are not in `AI_ALLOWED_FIELDS`: the crm package that builds AI reply drafts decides and documents which fields are sent, and asks platform for an `AI_ALLOWED_FIELDS` addition if needed. |
 | platform-P3 | email (AI campaign drafts, R4) | `callClaude` feature key is `ai.draft_email`, not `email.draft_email`. |
@@ -17,4 +16,7 @@ to "Served" with the package id.
 
 | From | For | Request | Served by |
 | --- | --- | --- | --- |
+| platform-P2 | platform-P7 | Call `seedDefaults(db, { permissions: PERMISSIONS })` in `seed-demo.ts`. | platform-P7 (launch instructions) |
+| platform-P5 | platform-P6 | Build `action()` on `createCtx()`, map errors by `error.code`, run `after(() => runJobs({ ids: ctxState(ctx).enqueuedIds, budgetMs: 8000 }))`, skip the automatic audit row when `auditedActions` has the action, flush the integration log and durable writes after commit or rollback; `hasPermission` may delegate to `actorHasPermission`; add `platform.nav.{settings,users,flags,system,ai}` to `platform.json` in all three locales. | platform-P6 (launch instructions) |
+| platform-P5 | orchestrator | `drizzle-orm` in `apps/web`; `lib/ctx.ts` imports it directly. | orchestrator, wave 2 |
 | platform-P3 | platform-P5 | The job runner treats `isPermanentFailure()` from `@beam/integrations/_shared` as dead at once. | platform-P5 (in its launch instructions) |

@@ -32,3 +32,7 @@ One entry per merge batch and gate (runbook section 5.7, adapted by OD-3).
 
 ## Wave 2: platform-P5
 - Started 21:37 UTC from `13e0d1d` (run `wf_51c79ed8-285`).
+- platform-P5 done in 45 minutes (152 web tests). Dependency request: `drizzle-orm` added to `apps/web` (one shared instance in the lockfile), and `lib/ctx.ts` switched to import it directly (frozen-file change, one line). Merged as `fbb76c1`.
+- Full gate `g06-w2` green in 217 s: lint 37 s, tests 74 s, production build 64 s, peak used RAM 4.0 GB.
+
+## Wave 3: platform-P6, P7

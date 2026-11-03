@@ -1,0 +1,411 @@
+# BEAM platform architecture (final, decided)
+
+This file is the authoritative architecture. It stays inside `docs/plan/00-decisions.md`; where that file is silent, this file decides. Every table, enum, job kind, route and function named here is binding for the module specs (`docs/plan/modules/*.md`). Nothing here is open.
+
+## 0. Scores and what was taken from each candidate
+
+Scores 1–10 per criterion (`docs/plan/_candidates/arch-{a,b,c}.md`):
+
+| Criterion | A: speed to MVP | B: data integrity | C: operational simplicity |
+| --- | --- | --- | --- |
+| Fit with the fixed decisions | 6 | 6 | 7 |
+| Completeness against the blueprint | 8 | 9 | 8 |
+| Data integrity | 7 | 10 | 8 |
+| Buildability by parallel agents in 3 weeks | 8 | 7 | 8 |
+| Operability by a 3-person team | 7 | 7 | 10 |
+| Risk | 7 | 8 | 8 |
+| **Total** | **43** | **47** | **49** |
+
+**Base: C.** One app, one tick with two lanes, schedules in code, SQL views for every derived number, `fake.ts` adapters, files in Postgres, read-only AI role, daily digest, runbooks, cost model. Its shape is what three people can run.
+
+**Grafted from B (the data model is taken almost whole):** `webhook_events` inbox, `integration_calls` log, `campaign_recipients`, `price_versions` with `pricing_trace`, `refunds`, `mandates`, `person_merges`, `person_sensitive_fields`, `watch_segments`, idempotency keys on `credit_entries`, `PermanentError` vs `RetryableError`, job priority, `automation_groups` and versioned automations, `GDPR_REGISTRY` plus the `information_schema` coverage test, the double-run job test, `retention_policies`, bounce-rate auto-pause.
+
+**Grafted from A:** the inline kick with `after()` after every committing action, the append-only trigger with the `SET LOCAL beam.allow_rewrite` bypass for erasure, the per-module file set (`actions, queries, jobs, events, permissions, nav`), frozen-file list, registry tests, one named test file per proposal scenario, sessions generated 90 days ahead, membership dunning with grace.
+
+**Rejected from all three because they contradict the fixed decisions:** `citext` (A, B, C), app-side UUID v7 (A, B), Next.js 15 (A, B), `middleware.ts` (A, C), hand-written timestamped SQL migrations (C), a separate `packages/workers` (B), Docker Postgres locally (B), integration tests on Neon branches instead of PGlite (A, C), feature flags inside `settings` (C), the bare table name `messages` (C), `staff_users` split from `users` (B).
+
+## 1. Monorepo layout
+
+```
+beam/
+  apps/web/                                   @beam/web, Next.js 16, the only deployable (Vercel Pro, fra1)
+    app/[locale]/(site)/...                   public website at /nl, /fr, /en
+    app/[locale]/(portal)/account/...         customer portal, installable PWA (Serwist, network-first, no offline writes)
+    app/(admin)/admin/...                     staff back-office, no locale prefix (locale from users.locale)
+    app/api/health/route.ts                   exists; extended with tick age and dead-job count
+    app/api/cron/tick/route.ts                the one cron entry point
+    app/api/webhooks/{mollie,resend}/route.ts
+    app/api/public/{forms,claim,unsubscribe,preferences,files,track}/...
+    app/api/webinar/heartbeat/route.ts        Release 2
+    proxy.ts                                  request middleware (Next.js 16 name)
+    modules/<m>/                              actions.ts queries.ts api.ts jobs.ts schedules.ts events.ts permissions.ts nav.ts privacy.ts seed.ts ui/
+    lib/                                      action.ts auth.ts ctx.ts job-runner.ts flags.ts logger.ts i18n.ts  (frozen after Wave 0)
+    registry/*.generated.ts                   written by `pnpm gen:indexes`, git-ignored
+    e2e/<m>.spec.ts, e2e/scenario-<n>-<name>.spec.ts   Playwright against beam_dev
+  packages/db/           @beam/db: src/schema/<m>.ts (tables, enums, pgView views), src/schema/index.ts (generated), migrations/ (drizzle-kit), src/enqueue.ts, src/seed/<m>.ts, src/testing.ts
+  packages/core/         @beam/core: src/<m>/ pure logic + zod schemas; src/i18n/ (LocalizedText, t(), messages/<locale>/<m>.json); src/ai/context.ts; src/privacy/registry.ts
+  packages/email/        @beam/email: src/templates/<m>/*.tsx (react-email), src/blocks/ (JSON document -> MJML -> HTML), src/resend.ts
+  packages/integrations/ @beam/integrations: src/{payments,billit,resend,youtube,ads,anthropic,slack}/ each with client.ts and fake.ts
+  packages/ui/           @beam/ui: shadcn/ui components, tokens, DataTable, LocalizedInput, FormField
+  packages/config/       @beam/config: eslint, tsconfig, tailwind, prettier presets
+```
+
+Import rules, enforced by eslint `no-restricted-imports` in `packages/config`:
+
+| Package | May import | Never imports |
+| --- | --- | --- |
+| `config` | nothing | anything |
+| `ui` | `config` | `db`, `core`, Next server code |
+| `core` | `zod`, `date-fns`, `@beam/db` types only (`import type`) | the db client, `email`, `integrations`, React, Next |
+| `db` | `core` (enums, zod types), `drizzle-orm`, drivers | `email`, `integrations`, `web` |
+| `email` | `core`, `react-email`, `mjml`, `resend` | `db` |
+| `integrations` | `core`, provider SDKs, `zod` | `db`, `email` |
+| `apps/web` | everything above | another module's internals: across modules only `modules/<m>/api.ts` and `@beam/core/<m>` |
+
+Twelve modules, same name in every folder (`packages/db/src/schema/<m>.ts`, `packages/core/src/<m>/`, `apps/web/modules/<m>/`, `packages/email/src/templates/<m>/`, `packages/core/src/i18n/messages/<locale>/<m>.json`):
+
+| Module | Owns | Release |
+| --- | --- | --- |
+| `platform` | users, roles, auth, jobs, tick, settings, feature flags, audit log, files, webhook inbox, integration log, AI gateway (`ai_requests`, allow-list, budget), admin System page | V1 (Wave 0) |
+| `crm` | persons, merge, sensitive fields, consent, suppressions, activity timeline, tags, segments, tasks, companies and contacts; B2B pipeline (R3); unified inbox (R3) | V1, R3 |
+| `booking` | session templates, sessions, capacity holds, bookings, guests, cancellation rules, waitlist with claim links, lead-priority windows (R2 activation) | V1, R2 |
+| `commerce` | products, price versions, promotions, checkout, orders, payments (`PaymentProvider`), refunds, mandates, POS, abandoned checkout | V1, R2 |
+| `credits` | credit grants (packages), ledger, allocation, expiry, sharing, memberships and renewals | V1 |
+| `finance` | invoices, credit notes, numbering, PDF, Billit sync, finance dashboard | V1, R3 |
+| `forms` | form builder, versions, logic, scoring, result pages, sensitive routing, lead capture with UTM, site embed | V1 |
+| `email` | templates, block editor, campaigns, chunked sending, Resend events, suppression handling, preference centre, AI drafts (R4) | V1, R4 |
+| `automation` | definitions, groups, enrolments, runs, evaluator, retention and threshold events, visual builder (R4) | V1, R4 |
+| `ops` | action dashboard, management dashboard, person stats, retention lists, imports, exports, privacy requests, retention sweep, ads data (R3), custom dashboards and NL questions (R4) | V1, R3, R4 |
+| `site` | public website pages, versions, Claude-assisted editing, SEO, booking entry points | V1 |
+| `webinar` | webinars on YouTube Live, registrations, watch segments, polls, CTAs, chat, replay and simulive | R2 |
+
+## 2. Core domain model
+
+Conventions: tables snake_case plural; `id uuid primary key default gen_random_uuid()` except `activity_events.id bigint generated always as identity` (used as a cursor); `created_at timestamptz not null default now()` everywhere, `updated_at` on mutable tables only; enums `pgEnum('<table>_<column>')`; money `integer` cents in EUR; VAT `vat_rate_pct numeric(4,2)` in {0, 6, 12, 21}; localised text `LocalizedText` jsonb `{ "nl-BE", "fr-BE", "en" }`; `*_at` timestamps, `*_on` dates, `is_*` booleans, `*_cents` money, FK `<singular>_id`. Email uniqueness is a unique index on `lower(email)`. **APPEND** = insert-only: trigger `reject_update_delete()` from the custom migration `0002_append_only.sql`, bypassed only when `current_setting('beam.allow_rewrite', true) = 'on'` (set with `SET LOCAL` by the erasure job). **IMMUTABLE** = a published version row is never edited; editing inserts `version + 1`. Views are declared with Drizzle `pgView` in `<m>.views.ts`, prefixed `v_`.
+
+**platform** (`platform.ts`)
+- `users`: audience (`staff|customer`), email, email_verified_at, name, password_hash (argon2id, nullable), locale (`nl-BE|fr-BE|en`), role_key -> roles (staff), person_id -> persons (customer), totp_secret_enc, mfa_enrolled_at, recovery_codes_enc, is_tester, failed_logins, locked_until, last_login_at, status (`active|disabled`). Unique index `lower(email)`.
+- `auth_accounts`, `auth_sessions` (user_id, session_token unique, expires_at, audience), `auth_verification_tokens`: Auth.js Drizzle adapter tables, mapped by name.
+- `roles`: key (`owner|management|customer_service|sales|marketing|finance|reception|technical_admin|external_partner`), name jsonb, permissions text[], is_system.
+- `jobs`: see section 3.
+- `webhook_events` APPEND: provider (`mollie|resend|billit`), external_event_id, payload jsonb, received_at, job_id. Unique (provider, external_event_id).
+- `integration_calls` APPEND: provider, operation, request_digest, status_code, duration_ms, error, job_id. Never request bodies.
+- `audit_log` APPEND: actor jsonb (`{kind: staff|customer|system|job, id}`), action, entity_type, entity_id, person_id, old_value jsonb, new_value jsonb, request_id, ip, is_redacted.
+- `settings`: key, value jsonb, version, updated_by_user_id. Keys: `booking_rules`, `business_hours`, `email_footer`, `warmup_schedule`, `ai`, `automation_cursor`, `last_tick_at`, `retention_defaults`, `company`.
+- `feature_flags`: key, state (`off|testers|on`), user_ids uuid[], person_ids uuid[], updated_by_user_id.
+- `files`: kind (`invoice_pdf|import|export|image|rendered_email|receipt`), name, mime, size_bytes, bytes bytea (max 10 MB), sha256, is_public, expires_at, person_id. Files live in Postgres so backup, branching and erasure cover them; above 5 GB total, `bytes` moves to Neon object storage behind the same row.
+- `ai_requests` APPEND: feature, model, actor jsonb, person_id, fields_sent text[], prompt text, output text, input_tokens, output_tokens, cost_cents, status (`ok|error|budget_exceeded`). Purged after 30 days.
+
+**crm** (`crm.ts`)
+- `persons`: email (nullable), phone, first_name, last_name, locale (not null, default `nl-BE`), address jsonb, birth_on, preferred_channel (`email|phone|whatsapp`), status_override (`lead|customer|member|null`), status_override_reason, status_override_by_user_id, acquisition jsonb `{source, campaign, medium, utm, referrer_person_id, partner_company_id}` written once at creation, partner_company_id, is_tester, merged_into_person_id, erased_at. Partial unique index on `lower(email)` where `erased_at is null and merged_into_person_id is null`. The only place identity lives.
+- `person_merges` APPEND: winner_person_id, loser_person_id, loser_snapshot jsonb, merged_by_user_id.
+- `person_sensitive_fields`: person_id, key (`health_note|sleep|stress|recovery|wellbeing|medical`), value_enc bytea (AES-256-GCM), key_version. Unique (person_id, key).
+- `consent_records` APPEND: person_id, purpose (`newsletter|events|member_comms|b2b|assessment_result|sensitive_processing|ai_processing`), status (`granted|withdrawn`), source, method (`form|portal|import|staff|preference_centre|unsubscribe_link|complaint`), wording_version, ip, recorded_at. View `v_consent_current` = latest row per (person_id, purpose).
+- `suppressions` APPEND: email_hash (sha256 of lower-cased email), email (nulled on erasure), scope (`all|newsletter|events|member_comms|b2b`), reason (`unsubscribe|hard_bounce|complaint|manual|erased`), source. Unique (email_hash, scope). Imports never write here except kind `suppressions`.
+- `activity_events` APPEND: id bigint identity, person_id, company_id (one of the two required), kind (`<module>.<past_tense>`), occurred_at, mode (`live|replay|on_demand|null`), is_sensitive, actor jsonb, ref_type, ref_id, data jsonb, dedupe_key unique. The timeline and the automation trigger source.
+- `tags`: key unique, name jsonb, color. `person_tags`: person_id, tag_id, source (`manual|automation|import|form`). Unique (person_id, tag_id).
+- `segments`: name, kind (`dynamic|static`), definition jsonb (rule tree over `v_person_profile` fields), exclude_segment_ids uuid[], last_count, last_counted_at. `segment_members`: segment_id, person_id, source (`rule|manual`), computed_at (cache, refreshed hourly and on demand).
+- `companies`: name, vat_number, address jsonb, website, industry, size (`1_9|10_49|50_249|250_plus`), status (`target|prospect|customer|partner|inactive`), owner_user_id, notes, is_partner, partner_commission_pct. `company_contacts`: company_id, person_id, position, decision_role (`decision_maker|influencer|user|gatekeeper`), relationship. Unique (company_id, person_id).
+- `opportunities` (R3): company_id, primary_contact_person_id, stage (`target|prospect_identified|contact_identified|outreach|response|qualified|discovery|proposal|negotiation|won|lost|account_management|renewal`), value_cents, probability_pct, expected_close_on, owner_user_id, next_action, next_action_at, lost_reason.
+- `tasks`: owner_user_id, person_id, company_id, title, kind (`call|follow_up|payment|proposal|review|other`), due_at, priority (`low|normal|high`), status (`open|done|cancelled`), source (`manual|automation|retention|system`), ref_type, ref_id, notes, done_at.
+- `inbox_threads` (R3): channel (`email|instagram|messenger|form`), external_thread_id, person_id, status (`open|pending|resolved`), assignee_user_id, subject. `inbox_messages` (R3): thread_id, direction (`in|out`), body, external_message_id unique, ai_draft, sent_by_user_id, occurred_at.
+
+**booking** (`booking.ts`)
+- `session_templates`: kind (`day|night|event`), name jsonb, weekdays smallint[] (1 = Monday), start_time time, duration_minutes, capacity_seats, capacity_beds, credit_kind (`day|night`), credit_cost (default 1), product_id (walk-in price), is_member_only, active_from_on, active_to_on, is_active. Editing regenerates future sessions without bookings.
+- `sessions`: template_id, kind (`day|night|event`), title jsonb, starts_at, ends_at, capacity_seats, capacity_beds, credit_kind, credit_cost, status (`open|closed|cancelled`), is_member_only, is_lead_magnet, lead_reserved_seats, lead_window_start_at, lead_window_end_at, claim_window_minutes (default 120), webinar_id (R2), location, notes. An event is a session of kind `event`; day sessions count seats, nights count beds.
+- `capacity_holds`: session_id, kind (`staff|partner|host|speaker|blocked`), quantity, company_id, note.
+- `ticket_types`: session_id, product_id, capacity, is_member_only, sales_start_at, sales_end_at.
+- `bookings`: session_id, person_id, status (`reserved|confirmed|cancelled|late_cancelled|no_show|attended`), paid_with (`credit|order|guest|free`), guest_of_booking_id, order_line_id, ticket_type_id, booked_by_user_id, source (`portal|admin|waitlist|import|pos|site`), reserved_until, cancelled_at, cancel_reason, attended_at, version. Partial unique (session_id, person_id) where status in (`reserved`, `confirmed`).
+- `waitlist_entries`: session_id, person_id, queue (`lead|customer|public`), state (`waiting|offered|confirmed|released|expired|withdrawn`), joined_at, offered_at, offer_expires_at, claim_token_hash, booking_id, is_flagged_duplicate, flag_reason. Unique (session_id, person_id).
+- Views: `v_session_availability` (capacity minus holds minus active bookings minus live offers, per queue, with `opens_for_customers_at`), `v_person_bookings`.
+
+**commerce** (`commerce.ts`)
+- `products`: kind (`session|night|package|membership|ticket|item|voucher`), sku unique, name jsonb, description jsonb, vat_rate_pct, credit_kind (`day|night|euro|null`), credit_units, validity_days, is_sharing_allowed, max_guest_uses_per_month (default 2), member_discount_pct, recurring_interval (`month|year|null`), included_credit_kind, included_credit_units, is_active, sort_order. Check: a package has exactly one credit_kind and one VAT rate.
+- `price_versions` APPEND: product_id, version, audience (`public|member|b2b`), amount_cents (VAT included), valid_from_at, valid_to_at, created_by_user_id. Current price = latest version valid at `now()` for the audience.
+- `person_prices`: person_id, product_id, amount_cents, valid_from_at, valid_to_at, reason.
+- `promotions`: code (null = automatic), kind (`percent|fixed`), value, applies_to jsonb `{product_ids, product_kinds}`, eligibility jsonb (segment rule), starts_at, ends_at, max_uses, max_uses_per_person, uses_count, is_active.
+- `checkouts`: person_id, email, items jsonb, status (`started|abandoned|completed|expired`), locale, utm jsonb, expires_at, abandoned_at, recovery_message_id, recovered_order_id.
+- `orders`: person_id, company_id, checkout_id, channel (`portal|site|admin|pos|link|recurring`), status (`draft|pending_payment|paid|cancelled|expired|refunded|partially_refunded`), subtotal_cents, discount_cents, vat_cents, total_cents, promotion_id, locale, client_key unique, paid_at, version.
+- `order_lines` IMMUTABLE: order_id, product_id, price_version_id, description jsonb snapshot, quantity, unit_amount_cents, discount_cents, line_total_cents, vat_rate_pct, vat_cents, promotion_id, pricing_trace jsonb, session_id, ticket_type_id.
+- `payments`: order_id, provider (`mollie|stripe|viva|cash|terminal|bank_transfer`), provider_payment_id unique, method, status (`open|pending|authorized|paid|failed|expired|cancelled|refunded|partially_refunded`), amount_cents, mandate_id, checkout_url, raw jsonb, status_history jsonb, paid_at. Status moves forward only.
+- `refunds`: payment_id, amount_cents, reason, provider_refund_id unique, status (`pending|sent|refunded|failed`), credit_note_id, created_by_user_id.
+- `mandates`: person_id, provider, provider_mandate_id unique, method, status (`pending|valid|invalid|revoked`).
+
+**credits** (`credits.ts`)
+- `credit_grants`: person_id (owner), product_id, order_line_id, credit_kind (`day|night|euro`), units_granted, unit_value_cents, starts_at, expires_at, status (`active|exhausted|expired|revoked`), source (`purchase|membership|bonus|import|manual|referral`), sharing jsonb `{mode: none|guests|named, max_guest_uses_per_month, allowed_person_ids}`. A package is a grant; the portal says "4 sessions remaining".
+- `credit_entries` APPEND (the ledger): grant_id, person_id (owner), beneficiary_person_id, kind (`grant|consume|release|expire|extend|adjust|revoke|transfer_out|transfer_in`), quantity (signed; `grant` > 0, `consume` and `expire` < 0, `extend` = 0 with `data.new_expires_at`), reason (mandatory for `adjust`), ref_type, ref_id, data jsonb, actor jsonb, idempotency_key unique.
+- `package_shares`: grant_id, shared_with_person_id, max_units, status (`active|revoked`), created_by_user_id.
+- `memberships`: person_id, product_id, status (`pending|active|past_due|cancelled|expired`), started_at, current_period_start_at, current_period_end_at, cancel_at, mandate_id, price_version_id, first_order_id, discount_pct. Partial unique (person_id) where status in (`active`, `past_due`).
+- Views: `v_credit_grant_balances` (sum per grant), `v_person_credits` (per person per kind, active and unexpired grants only), `v_person_status` (`member` if an active membership, else `customer` if any paid order, else `lead`; `coalesce(status_override, derived)` so a manual correction is never overwritten).
+
+**finance** (`finance.ts`)
+- `invoices`: number unique (`BEAM-2026-000123`, credit notes `CN-2026-000045`), kind (`invoice|credit_note`), reverses_invoice_id, order_id, person_id (nulled after erasure), company_id, customer_snapshot jsonb, lines jsonb, subtotal_cents, vat_cents, total_cents, vat_breakdown jsonb, issued_on, due_on, status (`issued|paid|open|cancelled`), pdf_file_id, billit_id, billit_status (`pending|synced|failed`), billit_synced_at. Immutable after issue; corrections are credit notes.
+- `invoice_sequences`: year, kind, last_number. Unique (year, kind); allocated with `SELECT ... FOR UPDATE` inside the issuing transaction (gapless).
+
+**forms** (`forms.ts`)
+- `forms`: slug unique, kind (`lead|intake|survey|assessment|registration`), name jsonb, current_version_id, status (`draft|published|archived`).
+- `form_versions` IMMUTABLE: form_id, version, definition jsonb (fields, logic, endings, i18n), scoring jsonb (weights, categories, thresholds, formulas, outcomes), sensitive_field_keys text[], locales text[], consent_purposes text[], published_at, created_by_user_id.
+- `form_submissions`: form_version_id, person_id, status (`started|partial|abandoned|completed`), answers jsonb (non-sensitive only), score jsonb, outcome_key, utm jsonb, source, locale, result_token_hash, started_at, completed_at, last_activity_at. Abandoned after 24 h without activity.
+- `form_sensitive_answers`: submission_id, person_id, field_key, value_enc bytea, key_version. Read only through `readSensitive()`.
+
+**email** (`email.ts`)
+- `email_templates`: slug unique, kind (`transactional|marketing`), purpose (`newsletter|events|member_comms|b2b|null`), current_version_id, status (`draft|published|archived`).
+- `email_template_versions` IMMUTABLE: template_id, version, subject jsonb, preheader jsonb, document jsonb (block document per locale), html_by_locale jsonb, text_by_locale jsonb, react_component (transactional only), locales text[], published_at, created_by_user_id.
+- `campaigns`: template_version_id, segment_id, exclude_segment_ids uuid[], purpose, status (`draft|scheduled|planning|sending|paused|sent|stopped|cancelled`), scheduled_at, audience_snapshot_at, recipients_count, sent_count, created_by_user_id.
+- `campaign_recipients`: campaign_id, person_id, locale, status (`planned|sent|skipped_suppressed|skipped_consent|skipped_translation|skipped_unreachable|removed|failed`), email_message_id. Unique (campaign_id, person_id).
+- `email_messages`: person_id, to_email, kind, purpose, template_version_id, campaign_id, enrolment_id, locale, subject, idempotency_key unique, resend_id unique, status (`queued|blocked_translation|suppressed|sent|delivered|bounced|complained|failed`), rendered_file_id (non-production only), sent_at.
+- `email_events` APPEND: email_message_id, type (`sent|delivered|delayed|bounced|complained|opened|clicked`), resend_event_id unique, url, payload jsonb, occurred_at.
+- View `v_marketing_reachability` (person_id, purpose, is_reachable: consent granted, not suppressed for `all` or the purpose, not erased, email present).
+
+**automation** (`automation.ts`)
+- `automation_groups`: key unique, name, is_exclusive, priority (lower wins). Seeded: `lead_nurture`, `customer_journey`, `package`, `inactivity`, `webinar`, `waitlist`, `membership`, `transactional`.
+- `automations`: slug unique, name, group_id, current_version_id, status (`draft|active|paused|archived`), is_marketing, purpose.
+- `automation_versions` IMMUTABLE: automation_id, version, definition jsonb (section 7), published_at, created_by_user_id.
+- `automation_enrolments`: automation_id, automation_version_id, person_id, anchor_at, status (`active|completed|exited`), next_step_key, next_step_at, entered_at, ended_at, end_reason, context jsonb. Partial unique (automation_id, person_id) where status = `active`.
+- `automation_runs` APPEND: enrolment_id, person_id, automation_id, step_key, outcome (`entered|scheduled|sent|task_created|tag_applied|field_set|branched|skipped_late_entry|skipped_condition|skipped_unreachable|skipped_translation|skipped_exclusive|skipped_paused|exited|completed|failed`), reason, email_message_id, task_id, occurred_at.
+
+**ops** (`ops.ts`)
+- `person_stats` (cache, recomputed nightly and per person on demand; never edited by hand): person_id unique, revenue_cents, purchases, visits, no_shows, avg_order_cents, first_purchase_at, last_purchase_at, first_visit_at, last_visit_at, last_activity_at, next_booking_at, b2c_stage (`lead|engaged_lead|experienced|first_visit|first_purchase|active|repeat|member|retention|lost`), computed_at.
+- `imports`: kind (`persons|suppressions|consents|bookings|packages|memberships|companies`), file_id, status (`uploaded|dry_run|running|done|failed`), mapping jsonb, is_dry_run, counts jsonb, report jsonb, created_by_user_id. `import_rows`: import_id, row_number, data jsonb, status (`pending|imported|updated|skipped|error`), message, person_id.
+- `privacy_requests`: person_id, kind (`export|erase|restrict|rectify`), status (`received|verified|running|done|failed`), requested_by (`customer|staff`), verified_at, report jsonb, file_id, completed_at.
+- `retention_policies`: key unique, table_name, days, action (`anonymise|delete`), is_active, updated_by_user_id.
+- `ad_spend_daily` (R3): platform (`meta|google`), account_id, campaign_external_id, campaign_name, day_on, spend_cents, impressions, clicks, leads, raw jsonb. Unique (platform, campaign_external_id, day_on).
+- `dashboards` (R4): name, owner_user_id, definition jsonb, is_shared.
+- Views: `v_person_profile` (persons + status + stats + current consents + credits; the segment compiler targets only this view), `v_retention_candidates` (the eight rule-based lists of blueprint section 22, each row with `reason` and `score`, thresholds from `settings.retention_defaults`), `v_no_show_report`, `v_abandoned_checkouts`, `v_revenue_daily`.
+
+**site** (`site.ts`)
+- `pages`: slug unique, current_version_id, status (`draft|published|archived`). `page_versions` IMMUTABLE: page_id, version, blocks jsonb per locale, seo jsonb, locales text[], published_at, created_by (`user|claude`), proposed_by_ai_request_id.
+
+**webinar** (`webinar.ts`, R2)
+- `webinars`: session_id, title jsonb, mode (`live|simulive|on_demand`), youtube_video_id, host_meet_url, starts_at, recording_video_id, replay_until_at, replay_view_limit, is_replay_gated.
+- `webinar_registrations`: webinar_id, person_id, access_token_hash, registered_mode (`live|replay|on_demand`). Unique (webinar_id, person_id).
+- `webinar_polls`: webinar_id, key, question jsonb, options jsonb, show_at_sec, tag_rules jsonb. `webinar_ctas`: webinar_id, key, label jsonb, url, show_at_sec, show_for_sec.
+- `watch_segments` APPEND: registration_id, mode (`live|replay|on_demand`), from_sec, to_sec, recorded_at. Watch time = merged interval length per mode (view `v_webinar_watch`, with 15-minute, 30-minute, 50 % and to-the-end flags).
+- `webinar_interactions` APPEND: registration_id, mode, kind (`started|poll_answer|cta_shown|cta_clicked|chat|question|ended`), poll_id, cta_id, payload jsonb, at_sec, occurred_at. `mode` on every row keeps live, replay and on-demand apart (scenario 5).
+
+## 3. Request and job model
+
+One rule: a request never calls an external service. It writes rows and enqueues jobs in the same transaction (transactional outbox). Jobs call the outside world. Three documented synchronous exceptions run through `runJobInline()` so they are still logged jobs: `PaymentProvider.createPayment()` at checkout, `PaymentProvider.createTerminalPayment()` at the POS counter, and the interactive Claude question in the admin (R4).
+
+**Server actions.** Every mutation is `action({ name, audience, permission, input, audit }, handler)` in `apps/web/modules/<m>/actions.ts`:
+
+```ts
+export const cancelBooking = action(
+  { name: 'booking.cancel', audience: 'staff', permission: 'bookings.write', input: CancelBookingInput, audit: 'bookings' },
+  async (ctx, input) => { /* ctx.tx, ctx.actor, ctx.locale, ctx.now, ctx.requestId, ctx.enqueue, ctx.recordEvent, ctx.audit, ctx.require */ });
+```
+
+`Ctx = { tx: Tx, actor, requestId, now, locale, enqueue, recordEvent, audit, require }`; `actor` is `{kind:'staff', userId, roleKey, permissions} | {kind:'customer', userId, personId} | {kind:'system', jobId} | {kind:'webhook', provider}`. The wrapper resolves the session, checks the permission, parses input with Zod, opens one interactive transaction, runs the handler, writes `audit_log` for staff writes, commits, then calls `after(() => runJobs({ ids: enqueuedIds, budgetMs: 8000 }))` so user-facing effects (confirmation email, unsubscribe, Mollie sync) leave within seconds. Errors map to `{ ok: false, error: { code: 'unauthorized'|'forbidden'|'validation'|'not_found'|'conflict'|'rate_limited'|'internal', message } }`; `internal` goes to Sentry.
+
+**Route handlers**, all under `app/api/`: `health`, `cron/tick`, `webhooks/mollie`, `webhooks/resend`, `public/forms/[slug]/submit`, `public/claim/[token]`, `public/unsubscribe/[token]`, `public/preferences/[token]`, `public/files/[id]`, `public/track/open` and `public/track/click`, `webinar/heartbeat` (R2). A webhook handler verifies the signature, does `insert into webhook_events ... on conflict do nothing`, enqueues `webhook.process` with key `webhook:<provider>:<external_event_id>` only when the insert happened, and returns 200 within 2 seconds. Mollie posts only a payment id, so `external_event_id = <payment_id>:<received_at ms>` and idempotency lives in the payment state machine (`applyProviderStatus()` ignores transitions already applied; side effects carry keys such as `payment:<id>:paid`).
+
+**`jobs` table**: id, kind, payload jsonb, idempotency_key unique, lane (`fast|bulk`), priority smallint (1 high, 5 default, 9 bulk), status (`pending|running|succeeded|failed|dead`), run_at, attempts, max_attempts (default 6), locked_at, locked_by, last_error, result jsonb, started_at, finished_at, created_at, updated_at. Partial index `(lane, priority, run_at) where status = 'pending'`. `enqueue(tx, { kind, payload, key, runAt?, lane?, priority? })` lives in `packages/db/src/enqueue.ts` and does `insert ... on conflict (idempotency_key) do nothing`.
+
+**Handler contract** (`apps/web/modules/<m>/jobs.ts`, collected into `registry/jobs.generated.ts`):
+
+```ts
+export const expireGrant = defineJob({ kind: 'credits.expire_grant', lane: 'fast', input: z.object({ grantId: z.string().uuid() }),
+  maxAttempts: 6, timeoutMs: 30_000, run: async (ctx, input) => { /* idempotent: a second run yields the same state */ } });
+```
+
+Each run gets its own transaction and a `system` actor. Errors are `RetryableError` (default) or `PermanentError` (invalid payload, missing translation, 4xx from a provider): permanent goes straight to `dead`. Backoff after failure n: 60 s, 300 s, 900 s, 3600 s, 21600 s plus 0–20 % jitter; after `max_attempts` the job is `dead`: Sentry event, one Slack line in `#beam-alerts`, a row on `/admin/system/jobs` with a Retry button (`system.jobs`). Jobs `running` for more than 10 minutes are reclaimed as `pending` with `last_error = 'stale lock'`. Succeeded jobs are deleted after 7 days, dead jobs after 90.
+
+**Idempotency keys** are deterministic strings: `email:<message_id>`, `campaign:<campaign_id>:chunk:<n>`, `automation:<enrolment_id>:<step_key>`, `billit:invoice:<invoice_id>`, `payment:<provider_payment_id>:<status>`, `renewal:<membership_id>:<period_end date>`, `expire:<grant_id>`, `schedule:<kind>:<YYYY-MM-DDTHH:mm>`, `webhook:<provider>:<external_event_id>`, `privacy:<request_id>:<step>`.
+
+**The one-minute tick.** `vercel.json` has one cron: `{ "path": "/api/cron/tick", "schedule": "* * * * *" }`. The route checks `Authorization: Bearer $CRON_SECRET`, sets `maxDuration = 120`, and:
+1. Enqueues every entry of the generated `registry/schedules.generated.ts` whose cron matches this minute (key `schedule:<kind>:<minute>`, so overlapping ticks cannot double-enqueue).
+2. Loops for 50 seconds: claims up to 20 `fast` jobs then up to 5 `bulk` jobs with `UPDATE jobs SET status='running', locked_at=now(), locked_by=$tick, attempts=attempts+1 WHERE id IN (SELECT id FROM jobs WHERE status='pending' AND lane=$1 AND run_at<=now() ORDER BY priority, run_at LIMIT $2 FOR UPDATE SKIP LOCKED) RETURNING *`; runs fast jobs with concurrency 5 and bulk with concurrency 2.
+3. Reclaims stale locks, writes `settings.last_tick_at`, pings the Better Stack heartbeat.
+Overlapping ticks are safe because of `SKIP LOCKED`.
+
+**Schedules** (`modules/<m>/schedules.ts`, cron in `Europe/Brussels`): every minute `automation.evaluate`, `waitlist.expire_offers`, `payments.scan_expired`; every 10 min `checkouts.mark_abandoned`; every 15 min `billit.sync_pending`; hourly `segments.refresh`; daily `credits.expire_grants` 00:05, `privacy.retention_sweep` 01:00, `files.purge_expired` 02:00, `sessions.materialise` 03:10 (90 days ahead), `ops.refresh_person_stats` 04:00, `ads.pull_yesterday` 05:30 (R3), `memberships.scan_renewals` 06:10, `ops.daily_digest` 08:00 (Slack), `jobs.prune` 03:30, `ledger.reconcile` 04:30; weekly `ai.weekly_summary` Monday 06:30 (R4).
+
+**Chunking.** Campaign send: `campaign.plan` inserts `campaign_recipients` with one `insert ... select` from the segment minus exclusions (status `planned`, `audience_snapshot_at` set), then enqueues `campaign.send_chunk` per 500 recipients on the `bulk` lane. A chunk re-checks `v_marketing_reachability` and the suppression list at that moment, renders per locale, calls Resend's batch endpoint 100 at a time, writes `email_messages` with key `campaign:<id>:person:<id>`. 50,000 contacts = 100 chunks, done in about 15 minutes of ticks. Pausing sets status `paused`; chunks see it and exit; a stopped campaign makes remaining chunks exit at once. Imports: the CSV goes into `files`, `import.process_chunk` handles 500 `import_rows` per job and enqueues the next offset; a dry run writes the report and changes nothing. Exports, erasure, session materialisation and Billit backfills use the same self-continuation pattern.
+
+## 4. Auth and permissions
+
+One Auth.js v5 instance, Drizzle adapter, database sessions, one `users` table with `audience`. Staff: Credentials (email + argon2id password; 12 characters minimum, zxcvbn score 3 or more, breached-password check) followed by a TOTP step (`otpauth`, 10 recovery codes); the session carries `audience = 'staff'` and `mfa_at`; no admin page renders before `mfa_at` is set; a staff user without MFA is forced to `/admin/mfa/setup`. Ten failed logins lock the account for 15 minutes. Staff sessions: 12 hours idle, 7 days absolute. Customers: Resend magic link from `mail.beam.be` (15-minute single-use token, 5 per address per hour), optional password afterwards; sessions 90 days. Credentials sign-in creates the `auth_sessions` row itself in the `signIn` callback and sets the session cookie (Auth.js's documented path for database sessions with Credentials). Logout deletes the row; `/admin/settings/users` can revoke any session. `proxy.ts` sends `/admin/*` through the staff check, `/[locale]/account/*` through the customer check, everything else is public. A customer `users` row points at exactly one `persons` row; every portal query filters on `ctx.actor.personId`; a customer also sees bookings they made for guests and grants shared with them.
+
+Permissions are strings `<module>.<action>` declared in `modules/<m>/permissions.ts` and collected into `registry/permissions.generated.ts`: `persons.read`, `persons.write`, `persons.merge`, `persons.sensitive_read`, `persons.export`, `persons.erase`, `bookings.read`, `bookings.write`, `bookings.override`, `waitlist.manage`, `commerce.sell`, `commerce.refund`, `pricing.write`, `credits.read`, `credits.adjust`, `memberships.write`, `invoices.read`, `invoices.issue`, `forms.write`, `forms.publish`, `email.write`, `email.send`, `campaigns.send`, `automations.write`, `automations.publish`, `automations.move_person`, `crm.b2b`, `tasks.all`, `reports.read`, `reports.finance`, `dashboards.manage`, `site.edit`, `site.publish`, `webinars.host`, `settings.write`, `users.manage`, `flags.manage`, `system.jobs`, `privacy.run`, `ai.use`, `partner.own`.
+
+Default role sets, seeded in `roles` and edited by the owner at `/admin/settings/roles` (every change audited):
+
+| Role | Has |
+| --- | --- |
+| owner, technical_admin | everything (technical_admin without `persons.sensitive_read`) |
+| management | everything except `users.manage`, `system.jobs`, `privacy.run`, `persons.sensitive_read` |
+| customer_service | persons.read/write/merge, bookings.read/write, waitlist.manage, credits.read/adjust, memberships.write, tasks.all, email.write, reports.read |
+| sales | persons.read/write, bookings.read, commerce.sell, crm.b2b, tasks.all, reports.read, ai.use |
+| marketing | persons.read, forms.write/publish, email.write/send, campaigns.send, automations.write/publish/move_person, site.edit/publish, webinars.host, reports.read, ai.use |
+| finance | persons.read, invoices.read/issue, commerce.refund, pricing.write, credits.read, reports.read/finance |
+| reception | persons.read/write, bookings.read/write, waitlist.manage, commerce.sell, credits.read, tasks.all |
+| external_partner | partner.own only: their holds, referrals and counts, scoped by `users.person_id -> persons.partner_company_id`; no customer PII |
+
+Nobody gets `persons.sensitive_read` by default except owner; the owner may grant it per role. Check in code: `action({ permission })` refuses before the handler runs; a handler needing a second permission calls `ctx.require('bookings.override')`, which throws `ForbiddenError`. Server components call `requirePermission()` from `lib/auth.ts`, and navigation (`modules/<m>/nav.ts`) hides entries through the same list, so UI and server agree by construction.
+
+Sensitive data (health, sleep, stress, recovery, wellbeing, medical) lives in exactly three places: `person_sensitive_fields`, `form_sensitive_answers`, and `activity_events` rows with `is_sensitive = true` (staff notes marked sensitive). Columns are declared with `sensitive(bytea('value_enc'))` from `packages/db/src/schema/_shared.ts`, which registers them in `SENSITIVE_COLUMNS`. Values are AES-256-GCM encrypted with `SENSITIVE_DATA_KEY_V1` (Vercel env); `key_version` on each row allows rotation by `security.rekey`. The one reader is `readSensitive(ctx, personId, purpose)` in `packages/core/src/privacy/`: it requires `persons.sensitive_read` (or the system actor with purpose `privacy_export`), decrypts, and writes `audit_log` action `sensitive.read`. The timeline, segments, staff exports, AI context, Sentry and logs never call it. `AI_ALLOWED_FIELDS` and `SEGMENT_ALLOWED_FIELDS` are allow-lists; a unit test asserts no `SENSITIVE_COLUMNS` member appears in either. The subject's own GDPR export includes the sensitive data.
+
+## 5. Multi-language
+
+- Locales `nl-BE` (default), `fr-BE`, `en`. `persons.locale` (required) drives every email and portal page; it is set from the form, the URL locale or `Accept-Language` on first contact. `users.locale` drives the back-office. The public site and portal carry the locale in the URL (`/nl`, `/fr`, `/en`); `proxy.ts` redirects a bare path to the best match.
+- UI strings: `packages/core/src/i18n/messages/<locale>/<module>.json`, keys `<module>.<screen>.<element>`, loaded by `next-intl` per route group and by `t(locale, key)` in email and job code (no React context). `en` is the source of truth; `pnpm i18n:check` fails CI when a key is missing in `nl-BE` or `fr-BE`. At runtime `next-intl` `onError` reports to Sentry and `getMessageFallback` renders `⟦module.screen.element⟧` in the admin and portal; nothing renders another language.
+- Content fields (product names, session titles, form labels, email subjects and blocks, page blocks, CTA text) are `LocalizedText` jsonb edited with `LocalizedInput` (three tabs, completeness badge). Drafts may be partial. Publishing a form version, template version, automation version, product or page calls `assertComplete(text, locales)`; the publish action fails with the list of missing locales.
+- Send paths: `renderEmail(templateVersion, locale)` throws `MissingTranslationError` (a `PermanentError`); the message row becomes `blocked_translation`, the campaign recipient `skipped_translation`, the automation run `skipped_translation`, and the daily digest and an alert list them. No fallback language, ever. A campaign cannot be scheduled while any recipient locale is missing from the template version.
+- A form or page may declare fewer `locales`; a visitor outside them sees a "not available in your language" page with a locale switch, never a mixed page. Dates, money and plurals use `Intl` with the locale and `Europe/Brussels`. The legal footer for Vibrant Lifestyle Collective BV is `settings.email_footer` per locale and names the consent purpose that caused the email.
+
+## 6. Money, credits and pricing
+
+- Integer cents, EUR, prices stored VAT included in `price_versions.amount_cents`. VAT rate sits on the product and is copied to the line: `vat_cents = round_half_up(line_total_cents * rate / (100 + rate))` per line; order totals are sums of lines; B2B invoices show the same lines excl. VAT. `vat_breakdown` on the invoice groups lines per rate.
+- `quote(input): Quote` in `packages/core/src/commerce/pricing.ts` is pure: `input = { items, audience, personStatus, isMember, memberDiscountPct, personPrices, promotions, promoCode, at }`. Rules in order: price version valid at `at` for the audience (`member` audience when `isMember`, else `b2b` for company orders, else `public`); customer-specific `person_prices`; member discount `products.member_discount_pct` (automatic, no code); promotion by code or automatic eligibility. The best single discount wins; discounts never stack. The result carries `price_version_id`, every discount with its reason, and the full `pricing_trace`, and checkout stores exactly that on `order_lines`. Historical orders never change because `price_versions` are append-only and lines are snapshots.
+- Order flow: the checkout action creates `orders` (status `pending_payment`, `client_key`) with lines, runs `payments.create` inline, stores `checkout_url`, redirects. `payments.sync { providerPaymentId }` runs from the Mollie webhook, fetches the payment by id (that fetch is the verification) and, when paid, in one transaction: order `paid`, `credit_entries` kind `grant`, membership `active`, bookings `confirmed`, invoice issued with the next number, `activity_events` `order.paid`, jobs `billit.push_invoice` and `email.send` (receipt). The return page polls `getOrderStatus` every 2 s for 30 s and reads only the database; it may also enqueue `payments.sync`. `payments.scan_expired` marks open payments `expired` after 30 minutes and the order `expired`.
+- Credits: kinds `day`, `night`, `euro` (gift vouchers). A session costs `sessions.credit_cost` units (default 1). `allocateCredits(grants, kind, units, beneficiary)` is pure: active grants matching the kind, earliest `expires_at` first, sharing rules satisfied. `consumeCredits(tx, ctx, { personId, beneficiaryPersonId, kind, units, ref })` locks the owner's active grants `FOR UPDATE`, writes `consume` entries split across grants with keys `consume:<booking_id>:<grant_id>`, and emits `credits.threshold_reached` events (50, 75, 80, 90 %, last unit; `dedupe_key = grant:<id>:threshold:<pct>`). Cancelling inside the policy writes `release` entries referencing the consume entries. `credits.expire_grants` writes `expire = -remaining` with key `expire:<grant_id>`. An extension writes `extend` (quantity 0, `data.new_expires_at`), updates `credit_grants.expires_at` and an audit row. Staff adjustments are `adjust` with a mandatory reason. Balance is always `sum(quantity)`; no balance column exists. `ledger.reconcile` nightly compares confirmed bookings paid with credit against consume entries and alerts on any mismatch or negative grant balance.
+- Package VAT: a package has one credit kind and one VAT rate (check constraint), so day packages (21 %) and night packages (6 %) are separate products; mixed packages do not exist. VAT is recognised at sale (single-purpose voucher). Credits consumed later carry no new VAT line.
+- Sharing: `credit_grants.sharing` from product defaults, editable per grant by staff; named sharing adds `package_shares`. A guest booking is its own `bookings` row with `guest_of_booking_id` and `paid_with = guest`; its ledger entry has `beneficiary_person_id = guest` on the owner's grant, so both timelines show it. Limits: `max_guest_uses_per_month` (default 2) and `package_shares.max_units`; a grant with more than 3 distinct guests in 30 days appears on the action dashboard for review.
+- Memberships: a membership product has `recurring_interval`; the first order creates a Mollie mandate; `memberships.scan_renewals` enqueues `memberships.charge_renewal` (key `renewal:<membership_id>:<period_end>`) 3 days before `current_period_end_at`; a paid renewal extends the period and grants `included_credit_units` as `grant` entries with source `membership`; a failed charge sets `past_due`, emits `membership.past_due`, retries on day 3 and day 7, and sets `expired` on day 10. `v_person_status` drives member pricing, member-only sessions and segmentation.
+- Invoices and credit notes: issued natively in the `payments.sync` transaction (invoice) or the refund action (credit note), numbered from `invoice_sequences` per year and kind, PDF rendered by `finance.render_pdf` into `files`, then `billit.push_invoice`. A refund creates the credit note, enqueues `payments.refund`, and writes `release` or `revoke` entries for unused credits. BEAM owns the numbers; Billit is the accounting and Peppol layer.
+- POS: `orders.channel = pos`, paid by `terminal` (Mollie Terminal API), `cash` or `bank_transfer`; receipt PDF in `files`; merchandise is a product of kind `item` without stock tracking in V1; food and drink are not sold through the platform.
+- Cancellation rules (`settings.booking_rules`, editable): day sessions free until 24 h before start, nights until 72 h, events non-refundable unless BEAM cancels; a late cancellation becomes `late_cancelled` and the credit stays consumed; a no-show is marked by staff at `sessions.ends_at + 2 h` by `bookings.mark_no_shows` for unattended confirmed bookings (configurable off).
+
+## 7. Automation engine
+
+A definition is JSON on a published, immutable `automation_versions` row:
+
+```json
+{ "trigger": { "event": "webinar.registered", "where": { "session.kind": "event" } },
+  "anchor": "data.starts_at", "audience": { "segment": "leads" }, "group": "webinar", "re_entry": "after_days:90",
+  "exit_on": ["order.paid", "consent.withdrawn:newsletter", "suppression.added"],
+  "steps": [
+    { "key": "confirm", "type": "email", "template": "webinar-confirm", "at": { "from": "enrolment", "minutes": 0 } },
+    { "key": "d7", "type": "email", "template": "webinar-7d", "at": { "from": "anchor", "minutes": -10080 } },
+    { "key": "d1", "type": "email", "template": "webinar-1d", "at": { "from": "anchor", "minutes": -1440 }, "unless": { "has_future_booking": true } },
+    { "key": "task", "type": "task", "title": "Call webinar lead", "owner_role": "sales", "at": { "from": "anchor", "minutes": 2880 } } ] }
+```
+
+Step types: `email`, `wait`, `condition` (branch), `task`, `tag`, `untag`, `set_field`, `status_override`, `enrol`, `exit`, `notify_slack`, `webhook`. The R4 workflow builder is a visual editor over this JSON, not a new engine. Triggers: `{ event }` with an optional `where` filter, `{ segment_enter }`, `{ manual }`.
+
+- Enrolment. `automation.evaluate` runs every minute, reads `activity_events` with `id > settings.automation_cursor` in batches of 1,000, and matches triggers of active automations. For each match it checks, inside `SELECT ... FROM persons WHERE id = $1 FOR UPDATE`: audience segment, `re_entry`, and the group: if the group `is_exclusive` and another enrolment in the group is active, the new automation enrols only when its automation has a lower `priority` number (the old one exits with reason `superseded`), otherwise it logs `skipped_exclusive`. For marketing automations it checks `v_marketing_reachability` for the purpose. It then inserts the enrolment, computes `due_at` for every step from `enrolment` or `anchor`, and immediately writes `skipped_late_entry` for every step whose `due_at` is before `entered_at`. A Friday registration for a Sunday webinar gets `confirm` and `d1` only, and the log says why (scenario 1).
+- Exits. The same pass matches every new event against `exit_on` of active enrolments and ends them with `exited` and the reason (`order.paid`, `unsubscribed`, `manual`, `erased`, `superseded`). A purchase ends lead nurture; a membership ends the newcomer sequence.
+- Fast unsubscribe (scenario 2). One-click link, preference centre, staff action and Resend complaint all insert `suppressions` in a transaction that also enqueues `automation.exit_for_suppression` (key `supp:<suppression_id>`, lane `fast`), and the action's `after()` runs it at once. Running marketing enrolments end with `unsubscribed` within seconds; the next tick is the safety net, well inside 15 minutes.
+- Send-time evaluation. When `next_step_at` is reached the evaluator enqueues `automation.step` (key `automation:<enrolment_id>:<step_key>`), which re-checks in order: enrolment active, automation not paused, person not erased, `unless` conditions, `v_marketing_reachability` for the template's purpose, translation available. Each failed check writes one `automation_runs` row with its outcome. Only then does it insert the `email_messages` row and enqueue `email.send`, which checks `suppressions` once more just before calling Resend.
+- Pause and resume. A paused automation evaluates nothing; on resume, steps overdue by more than 24 hours are logged `skipped_paused`, the rest are sent. Editing an active automation creates a new version; existing enrolments keep theirs unless staff choose "migrate active enrolments" (writes `exited:migrated` and `entered`).
+- Staff controls from the person page: exit (`manual`), enrol into any active automation, move between journeys (exit then enrol, one action, one audit row), preview the next steps. All appear on the timeline through `automation_runs`.
+- Rule-based facts are events too: `ops.refresh_person_stats` emits `person.inactive_days { days: 30|60|90|180 }` once per threshold, the ledger emits `credits.threshold_reached`, `memberships.scan_renewals` emits `membership.renewal_due { days: 30|7 }`, `checkouts.mark_abandoned` emits `checkout.abandoned`, and `bookings` emit `booking.attended` and `booking.no_show`. Review requests trigger only on `booking.attended` and not more than once per 30 days per person.
+- Seeded V1 sequences (editable by marketing): `welcome-lead`, `after-first-booking`, `after-first-visit`, `package-usage`, `inactivity`, `membership-renewal`, `review-request`, `waitlist-offer`, `abandoned-checkout` (R2 activation).
+
+## 8. Integration boundaries
+
+Every provider lives in `packages/integrations/src/<provider>/client.ts` with a `fake.ts` used by every test, takes credentials in its constructor, validates responses with Zod, throws `IntegrationError { provider, retryable }`, and writes `integration_calls` through a callback (no db import). Clients are called only from job handlers (`modules/<m>/jobs.ts`) and the three inline jobs.
+
+| Provider | Called from | Interface and verification | Failure surfaces as |
+| --- | --- | --- | --- |
+| Mollie | inline `payments.create`, `payments.terminal`; jobs `payments.sync`, `payments.refund`, `memberships.charge_renewal`, `payments.create_link`; webhook `/api/webhooks/mollie` | `PaymentProvider`: `createPayment`, `getPayment`, `refund`, `createMandate`, `createRecurringPayment`, `createPaymentLink`, `createTerminalPayment`, `verifyWebhook`. Stripe and Viva adapters implement the same interface and are chosen per channel in `settings.payment_provider_by_channel`. Webhook carries only an id; we fetch by id; `payments.status` moves forward only; `orders.client_key` makes double submit harmless. | Payment stays `open`; return page says "payment pending, we email you"; dead job alert; failed renewals and payments pending above 15 minutes on the action dashboard. |
+| Billit | jobs `billit.push_customer`, `billit.push_invoice`, `billit.push_credit_note`, `billit.sync_pending` (15 min, pulls paid status of bank-transfer invoices), daily `billit.reconcile` | REST client; our invoice numbers are Billit's external reference; `invoices.billit_id` stored before any second push; key `billit:invoice:<id>`. | `invoices.billit_status = failed` with Retry on the finance screen; High alert after 1 hour of failures; invoices stay legally valid without Billit. |
+| Resend | job `email.send` (priority 1, `fast`), `campaign.send_chunk` (priority 9, `bulk`); webhook `/api/webhooks/resend` (Svix signature) | `mail.beam.be` transactional, `news.beam.be` marketing; `resend_id` from the response; events -> `email_events`; `bounced` (hard) and `complained` insert `suppressions` scope `all`. One-click unsubscribe headers (`List-Unsubscribe`, `List-Unsubscribe-Post`). Warm-up of `news.beam.be`: `settings.warmup_schedule` starts at 1,000 per day and doubles weekly over 4 weeks. | Bounce rate above 2 % on a campaign pauses it and alerts marketing; complaint rate above 0.1 % in 24 h alerts; blocked messages in the digest. |
+| YouTube (R2) | job `webinar.create_broadcast` (Data API v3, BEAM's Google account refresh token), `webinar.fetch_recording`; browser IFrame Player API with simulive `seekTo(now - starts_at)`; heartbeat every 15 s to `/api/webinar/heartbeat` writing `watch_segments` | Unlisted stream embedded in `(portal)/account/webinars/[id]`; Google Meet for presenters. | Broadcast failure blocks publishing with a clear message; heartbeat loss is lost telemetry, never lost registrations; player error shows the unlisted link. |
+| Meta and Google Ads (R3) | job `ads.pull_yesterday` daily, read-only | Marketing API and Google Ads API into `ad_spend_daily`; upsert on (platform, campaign_external_id, day_on); UTM on forms links leads to campaigns. | Dashboard shows "data as of"; Normal alert after 3 failed days. |
+| Claude | jobs `ai.draft_email`, `ai.draft_reply`, `ai.weekly_summary`, `ai.classify` (Haiku); inline `ai.answer_question` (R4); `site.propose_page` (V1) | `@anthropic-ai/sdk`; `claude-opus-5-5` for drafts and analysis, `claude-haiku-5-5` for classification; stable system prompts with `cache_control`; structured outputs from Zod schemas; Message Batches API for the nightly summary. `toAiContext(person)` in `packages/core/src/ai/context.ts` uses the allow-list `AI_ALLOWED_FIELDS` (first_name, locale, status, is_member, b2c_stage, tags, acquisition.source, first_visit_at, last_visit_at, visits, purchases, revenue_cents, credits_remaining, grant_expires_at, membership_period_end_at, next_booking_at, open_tasks, granted_purposes) and never email, phone, notes or sensitive columns. `settings.ai = { sensitive_enabled: false, purpose: null, monthly_budget_cents: 10000, daily_cap_calls: 500 }`; enabling sensitive processing requires owner, a purpose text and is audited (scenario 6). Every call is an `ai_requests` row. NL questions (R4) run Claude-written SQL under the read-only Postgres role `beam_ai_ro` with `statement_timeout = 5s` over the `ai` schema, which exposes only non-sensitive views. | AI panels show "unavailable, write manually"; no operational flow depends on AI; budget exhaustion marks jobs `dead` with reason `budget`. Humans approve every draft. |
+| Slack | job `notify.slack` | one incoming webhook; key per alert fingerprint per hour | Sentry remains the fallback channel. |
+
+Website editing through Claude writes a proposed `page_versions` row (`created_by = claude`) that a staff member with `site.publish` publishes.
+
+## 9. Environments and delivery
+
+| Environment | App | Database | Data | Secrets |
+| --- | --- | --- | --- | --- |
+| local | `pnpm dev` | `beam_dev` on Neon branch `production` during the build; or a personal branch `dev-<name>` (`neon checkout`, 7-day TTL from `neon.ts`) | seed | `.env.local` from `neon env pull`; Mollie test key; `EMAIL_SINK=sink@beam.be` |
+| preview | Vercel preview per PR | Neon branch `preview/pr-<n>` created from `staging` (from `production` before week 7) by `preview-branch.yml`, deleted on PR close | seed | preview env group |
+| staging | Vercel environment `staging`, Git branch `staging` | Neon branch `staging` (created week 7), never suspended; before week 7 the `main` deployment on `beam_dev` is the staging | seed until go-live; afterwards an anonymised copy refreshed monthly by `anonymise-staging.yml` (`pnpm db:anonymise`) | staging env group: Mollie test, Billit sandbox |
+| production | Git branch `main`, Vercel production, `fra1` | Neon branch `production`, database `neondb`, 0.25–2 CU autoscaling, `suspend_timeout = 0` | real, after the go-live gate | production env group only |
+
+Outside production `EMAIL_SINK` rewrites every recipient to one mailbox and stores the rendered HTML in `files`; `PaymentProvider` uses Mollie test mode; Billit uses the sandbox; AI runs with `daily_cap_calls = 100`.
+
+- Migrations: `pnpm db:generate` (drizzle-kit) writes SQL and the journal into `packages/db/migrations`; the orchestrator runs it once per wave. `pnpm db:check-migrations` fails CI when schema and migrations drift. `deploy.yml` on push to `main` runs `pnpm db:migrate` with `DATABASE_URL_UNPOOLED` against the target branch, then `vercel deploy --prebuilt --prod`; previews run `pnpm db:migrate && pnpm build` as the Vercel build command against their branch. Rule: a release contains only expand steps (add table, add nullable column, add index, add view); contract steps (drop, rename, not-null backfill) ship one release after the code stopped using the old shape, so the previous build always runs on the new schema. Custom SQL (append-only triggers, the `beam_ai_ro` role) goes through `drizzle-kit generate --custom` files in the same folder.
+- Rollback: `vercel rollback` promotes the previous deployment in under a minute; the schema stays. Data mistakes are repaired forward with a correcting job or restored from a Neon point-in-time branch (section 10); the database is never rolled back. Releases are tagged `v2026.11.14` style; the changelog is the merged PR list.
+- Feature flags: `feature_flags` rows, states `off|testers|on`; `users.is_tester` and `persons.is_tester` mark testers; `flag('ff_webinar_portal', ctx)` from `lib/flags.ts` is the one helper, keys typed as a constant so a typo fails typecheck, cached 60 s. BEAM switches a flag from `/admin/settings/flags` (`flags.manage`, audited); no deploy needed. A flag is removed from code within two sprints of reaching `on`.
+- GitHub Actions in `.github/workflows/`: `ci.yml` (every PR: `gen:indexes`, typecheck, lint, `i18n:check`, unit and PGlite integration tests, `db:check-migrations`, `gdpr:coverage`, ownership check against `CODEOWNERS`), `preview-branch.yml`, `deploy.yml`, `e2e.yml` (Playwright against `beam_dev` via `neon-ws` on `main` and at checkpoints), `backup.yml` (nightly), `restore-drill.yml` (quarterly), `anonymise-staging.yml` (monthly after go-live).
+- Secrets only in Vercel environment groups and `.env.local`, listed by name in `.env.example`: `DATABASE_URL`, `DATABASE_URL_UNPOOLED`, `DATABASE_DRIVER`, `AUTH_SECRET`, `CRON_SECRET`, `SENSITIVE_DATA_KEY_V1`, `MOLLIE_API_KEY`, `MOLLIE_WEBHOOK_SECRET`, `BILLIT_API_KEY`, `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, `ANTHROPIC_API_KEY`, `SLACK_WEBHOOK_URL`, `SENTRY_DSN`, `BETTERSTACK_HEARTBEAT_URL`, `GOOGLE_OAUTH_REFRESH_TOKEN` (R2), `META_ADS_TOKEN` and `GOOGLE_ADS_TOKEN` (R3), `BACKUP_AGE_PUBLIC_KEY`. Rotated yearly; gitleaks in CI.
+
+## 10. Observability, backup, restore, security
+
+| Signal | Source | Threshold | Alert |
+| --- | --- | --- | --- |
+| Platform alive | Better Stack hits `/api/health` every minute (DB round trip, `last_tick_at` age, dead-job count, pending backlog) | tick older than 3 min, DB down, backlog above 500 | Slack `#beam-alerts` plus phone call to the on-call founder |
+| Errors | Sentry EU, server and client, release = git SHA, `beforeSend` strips emails, names, phone numbers; tags `requestId`, `jobId`, `actor.kind` | new issue, or error rate above 1 % over 5 min | Slack |
+| Dead jobs | `jobs` | any dead job | Slack, `/admin/system/jobs` |
+| Webhooks | `webhook_events` | signature failures above 5 in 10 min; Mollie silence 24 h while orders were created | Slack |
+| Email | `email_events`, `email_messages` | bounce above 2 % per campaign, complaint above 0.1 % in 24 h, any `blocked_translation` | Slack, campaign auto-pause |
+| Payments and Billit | `payments`, `invoices` | payment `pending` above 15 min; 3 failed renewals in a day; Billit failed for 1 h | Slack (High), action dashboard |
+| Daily digest | `ops.daily_digest` 08:00 | always | Slack: sends, bounces, dead jobs, blocked translations, backlog, DB size, ads data age |
+
+Logs are structured JSON (`logger.info({ job, id, ms })`) in Vercel logs, ids only, no personal data; Vercel Analytics on the site and portal. `/admin/system` shows jobs by status, last tick, webhook events, integration calls, blocked messages, sync backlogs, flags, audit search and privacy requests, so BEAM's technical_admin sees what Sidestream sees.
+
+Backup and restore:
+- Neon point-in-time restore, 7-day window (Launch plan). RPO 1 minute, RTO 1 hour. Runbook `docs/runbooks/restore.md`: create a branch at the timestamp just before the incident, run the smoke suite against it, point `DATABASE_URL` and `DATABASE_URL_UNPOOLED` at it in Vercel, redeploy, promote the branch to default, replay `webhook_events` received after the timestamp from the provider dashboards.
+- Off-provider dump: `backup.yml` at 02:30 UTC runs `pg_dump --format=custom`, encrypts with `age` (public key in CI, private key held by BEAM and Sidestream), uploads to a Scaleway Object Storage bucket in Paris in BEAM's name; daily dumps kept 35 days, the first of each month 12 months. If Neon is lost entirely: RPO 24 hours, RTO 8 hours (new Neon project, `pg_restore`, env switch). Files live in Postgres, so both mechanisms cover invoices, imports and exports.
+- `restore-drill.yml` on the first Monday of each quarter restores the latest dump into a fresh branch, runs the integration suite, and posts the result to Slack and the monthly report.
+
+Security controls: TLS and HSTS; CSP with nonces and frame restrictions in `next.config.ts` headers; argon2id; TOTP for every staff account; password policy above; Vercel WAF rate limits (60 requests per minute per IP on `/api/*`, `/admin/login`, `/[locale]/account/login`, 20 on `/api/public/forms/*`); webhook signature checks; Server Actions origin check plus the `action()` permission gate; signed single-use tokens for magic links, claim links, result links, preference centre and replay access (sha256 hashes stored); AES-256-GCM on sensitive columns with key versioning; append-only triggers; `beam_ai_ro` read-only role for AI SQL (R4); Drizzle parameterised SQL and Zod on every boundary; Renovate weekly plus `pnpm audit` and gitleaks in CI; audit rows for every staff write and every sensitive read; Sidestream's ethical-hacking test before go-live and every quarter after.
+
+Privacy workflows: `privacy_requests` drive both export and erasure. Each module registers `modules/<m>/privacy.ts` exporting `{ tables, export(tx, personId), erase(tx, personId) }`, collected into `registry/privacy.generated.ts` (`GDPR_REGISTRY`). `privacy.erase` runs handlers in dependency order under `SET LOCAL beam.allow_rewrite = 'on'`, records per table `rows` and `action` (`deleted|anonymised|retained_legal`), anonymises `persons` (name "Deleted person", email null, `erased_at`), keeps `suppressions.email_hash` with reason `erased`, keeps invoices with `customer_snapshot` reduced to legal name and address and `person_id` nulled, redacts `audit_log` values to digests with `is_redacted`, deletes `ai_requests`, `form_sensitive_answers`, `person_sensitive_fields`, `waitlist_entries`, `automation_enrolments`, `webinar_registrations`, calls Billit (anonymise customer) and Resend (delete contact), notes that Mollie retains payment data under its own obligations, and stores a report without personal data (scenario 7). `privacy.export` writes a zip of JSON and CSV per module into `files` (7-day expiry). The test `gdpr-coverage.test.ts` lists every column referencing `persons.id` from `information_schema` on a PGlite database and fails if its table is neither in the registry nor in `NO_PII_TABLES`. `retention_policies` defaults, enforced by `privacy.retention_sweep`: marketing profile with no activity 3 years -> anonymise; invoices 7 years; audit_log 5 years; ai_requests 30 days; webhook_events and integration_calls 90 days; succeeded jobs 7 days; import_rows 30 days; files of kind export 7 days; watch_segments, webinar_interactions and email_events 2 years; form_submissions 3 years.
+
+Monthly running cost at 2,000 active clients: Neon about $45 (production never suspends), Vercel $20, Resend $20, Sentry free tier then $26, Better Stack free tier, Scaleway €1, Claude $30–60. Inside the proposal's $120–225 range.
+
+## 11. How AI agents build this in parallel tonight
+
+The parallel build rules of `00-decisions.md` apply unchanged: one owner per file, no dependency changes inside packages, no migrations inside packages, generated registries, one worktree per package on `build/<package-id>`, the wave gate.
+
+**Wave 0, the foundation (one agent, hours 0–2; nothing else starts before it merges).** It extends the existing `packages/db` and `apps/web`; it does not recreate them.
+1. Workspace: `packages/{config,ui,core,email,integrations}` with `package.json`, every npm dependency the whole platform needs (Next 16, Auth.js v5, next-intl, Tailwind v4, shadcn, Zod, Drizzle, react-email, mjml, resend, @mollie/api-client, @anthropic-ai/sdk, otpauth, argon2, serwist, Vitest, Playwright, Sentry, pino, date-fns, zxcvbn, csv-parse, pdf rendering), eslint boundaries, Turborepo `gen` task that every other task depends on, CI workflows, `CODEOWNERS`, `docs/plan/conventions.md`, `CLAUDE.md`.
+2. `packages/db`: `src/schema/_shared.ts` (`id()`, `timestamps()`, `localized()`, `sensitive()`, locale and currency enums, `APPEND_ONLY_TABLES`), `platform.ts` complete, `crm.ts` with the final `persons`, `activity_events`, `consent_records`, `suppressions`, `audit_log`, plus stub files `<m>.ts` for the other ten modules with their contract tables and minimal columns (`sessions`, `bookings`, `products`, `price_versions`, `orders`, `order_lines`, `credit_grants`, `credit_entries`, `invoices`, `forms`, `email_templates`, `email_messages`, `automations`, `pages`), `src/enqueue.ts`, `src/seed/platform.ts`, `src/testing/factories.ts` (`makePerson`, `makeUser`, `makeProduct`, `makeSession`, `makeGrant`); `pnpm db:generate` once for `0001_init.sql` and the custom `0002_append_only.sql`.
+3. `apps/web/lib`: `action()`, `ctx.ts`, Auth.js for both audiences with TOTP, `proxy.ts`, `job-runner.ts` with `defineJob`, `enqueue`, `runJobs`, `runJobInline`, the tick route, `defineEvent`, `defineSchedule`, `flags.ts`, `logger.ts`, `i18n.ts`, `readSensitive()`, `recordEvent()`, `audit()`; the three route-group shells with navigation generated from `modules/*/nav.ts`; `/admin/system/jobs`; `scripts/gen-indexes.ts`.
+4. `packages/core`: `i18n/` with three empty catalogues per module and the parity test, `LocalizedText`, `t()`, `assertComplete()`; `privacy/`; `ai/context.ts`; `errors.ts`. `packages/email`: base layout, `renderEmail()`, `sendTransactional` job, one working template. `packages/integrations`: `PaymentProvider` interface, every client's `fake.ts`. `packages/ui`: shadcn base set, `DataTable`, `LocalizedInput`.
+5. `apps/web/modules/<m>/` for all twelve modules with every file present and compiling (`actions.ts`, `queries.ts`, `api.ts`, `jobs.ts`, `schedules.ts`, `events.ts`, `permissions.ts`, `nav.ts`, `privacy.ts`, `seed.ts`), and `api.ts` stubs with the final signatures of the cross-module contract: `crm.findOrCreatePersonByEmail`, `crm.getPersonStatus`, `credits.consumeCredits`, `credits.releaseCredits`, `commerce.quote`, `commerce.createOrder`, `booking.getAvailability`, `email.sendTransactional`, `finance.issueInvoice`, `platform.recordEvent`, `platform.audit`, `platform.enqueue`. Stubs throw `NotImplementedError` until the owner lands them; callers' unit tests mock them.
+
+**Frozen after Wave 0**: `apps/web/lib/*`, `apps/web/proxy.ts`, `packages/db/src/schema/_shared.ts`, `packages/db/src/schema/platform.ts`, existing columns of contract tables, `packages/config`, root configs, `CODEOWNERS`. A change to a frozen file is a separate PR by the orchestrator, never part of a module package.
+
+**Waves 1 and 2, parallel module packages.** Each coding agent owns exactly these paths and nothing else:
+
+| Package | Module(s) | Owns (`packages/db/src/schema/`, `packages/core/src/`, `apps/web/modules/`, route folders, `packages/email/src/templates/`, `packages/core/src/i18n/messages/*/`, `packages/db/src/seed/`) for |
+| --- | --- | --- |
+| `crm` | crm | persons, merge, sensitive fields, consent, suppressions, timeline, tags, segments compiler, tasks, companies; `(admin)/admin/{persons,companies,tasks,segments}`; preference centre pages |
+| `booking` | booking | templates, sessions, holds, bookings, guests, cancellation rules, waitlist and claim links, `(admin)/admin/{sessions,bookings,waitlist}`, `(portal)/account/{book,bookings,waitlist}` |
+| `commerce` | commerce | products, prices, promotions, `quote()`, checkout, Mollie adapter, POS, abandoned checkout, `(admin)/admin/{products,orders,pos}`, `(portal)/account/{shop,checkout}` |
+| `credits` | credits | grants, ledger, allocation, expiry, sharing, memberships, renewals, `(admin)/admin/{credits,memberships}`, `(portal)/account/{packages,membership}` |
+| `finance` | finance | invoices, credit notes, numbering, PDF, Billit adapter and sync, `(admin)/admin/finance`, `(portal)/account/invoices` |
+| `forms` | forms | builder, logic, scoring, result pages, sensitive routing, submissions, lead capture with UTM, `(admin)/admin/forms`, `(site)/f/[slug]`, `api/public/forms` |
+| `email` | email | block editor, MJML renderer, templates, transactional set, campaigns, chunked sending, Resend adapter and webhook, `(admin)/admin/{templates,campaigns}` |
+| `automation` | automation | evaluator, definitions, groups, seeded sequences, retention and threshold events, `(admin)/admin/automations` |
+| `ops` | ops | action dashboard, management dashboard, person stats, retention lists, imports, exports, privacy requests, retention sweep, `(admin)/admin/{dashboard,reports,imports,privacy}` |
+| `site` | site | public website pages, versions, Claude-assisted editing, SEO, booking entry points, `(site)/*` except forms, `(admin)/admin/site` |
+| `platform-admin` | platform | settings UI, roles UI, users UI, flags UI, System page beyond jobs, `(admin)/admin/settings`, `(admin)/admin/system` |
+| `webinar` (R2) | webinar | webinars, registrations, YouTube adapter, heartbeat, polls, CTAs, chat, replay, `(portal)/account/webinars`, `(admin)/admin/webinars` |
+
+Rules that prevent collisions: an agent adds columns only to its own schema file; a column needed in another module's table is requested in the PR description and added by the owner in the next wave. Cross-module calls go only through `modules/<m>/api.ts` and `@beam/core/<m>`; data coupling prefers `recordEvent()` on the write side and the views on the read side. Registries are per-module files collected by `pnpm gen:indexes` into `registry/*.generated.ts` and `packages/db/src/schema/index.ts`, which are git-ignored and regenerated before every `dev`, `build`, `test`, `typecheck` and `db:generate`. Nobody hand-edits a shared list.
+
+**Naming conventions** (`docs/plan/conventions.md`): tables snake_case plural; PK `id`; FK `<singular>_id`; enums `pgEnum('<table>_<column>')`; views `v_<name>`; event kinds `<module>.<past_tense>` (`booking.confirmed`); job kinds `<module>.<verb_noun>` (`email.send`); permissions `<module>.<action>`; i18n keys `<module>.<screen>.<element>`; flags `ff_<module>_<name>`; idempotency keys `<noun>:<id>:<qualifier>`; server actions `verbNoun` in `actions.ts`; queries `getX`/`listX` in `queries.ts`; Zod schemas `<Noun>Input` beside the action; core functions pure and named by what they return (`quote`, `allocateCredits`, `planSteps`); files kebab-case; React components PascalCase; tests `*.test.ts` beside the code; Playwright `e2e/<module>.spec.ts` and `e2e/scenario-<n>-<name>.spec.ts`; branches `build/<package-id>`; commits and PR titles `<module>: <summary>`.
+
+**Test strategy that keeps parallel work safe.**
+1. `packages/core` is pure and unit-tested without a database (pricing, allocation, step planning, late-entry skip, segment compilation, consent resolution, VAT rounding); these run in seconds and must stay above 90 % coverage for `commerce/pricing`, `credits`, `automation`, `booking/waitlist`.
+2. Module integration tests use `createTestDb()` (fresh PGlite per test file, from the TypeScript schema) and the shared factories; no network, no shared state. Required per module: `privacy.test.ts` (export and erase leave no rows referencing the person), `permissions.test.ts` (each action denies without its permission), `jobs.test.ts` (every handler run twice with the same payload yields the same database state), i18n parity.
+3. External services are never mocked ad hoc: tests use the `fake.ts` adapters from Wave 0, so Mollie, Billit, Resend, YouTube and Claude behave the same in every module's tests.
+4. Registry tests in Wave 0: unique job kinds, event kinds, permissions and schedule keys; every message key in all three locales; no `SENSITIVE_COLUMNS` member in `AI_ALLOWED_FIELDS` or `SEGMENT_ALLOWED_FIELDS`; `gdpr-coverage`.
+5. `createTestDb({ from: 'migrations' })` runs in CI after every `db:generate` to prove the committed migrations build the same schema.
+6. The seven proposal scenarios each get one named spec: `scenario-1-late-entry` (automation), `scenario-2-fast-unsubscribe` (email), `scenario-3-lead-access` and `scenario-4-seat-claim` (booking), `scenario-5-replay-separation` (webinar, R2), `scenario-6-sensitive-ai` (crm), `scenario-7-deletion` (ops). Plus `e2e/acceptance-v1.spec.ts` for the V1 checklist of proposal section 12. These are the acceptance checklist in code; the two R2 specs are skipped until R2.
+7. Wave gate (from `00-decisions.md`): `pnpm gen:indexes`, `pnpm db:generate`, `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build`, and at checkpoints Playwright against `beam_dev` through `neon-ws`. A red gate is fixed before the next wave starts.
+
+**Tonight's clock and definition of done.** Hours 0–2 Wave 0; hours 2–7 Wave 1 (the eleven V1 packages in parallel); hours 7–9 Wave 2 (seams: checkout to credits to booking, order to invoice to Billit, form to person to automation to email; the scenario specs; the acceptance spec). Done tonight means: every V1 table and view exists and `0001_init.sql` plus `0002_append_only.sql` are committed; each module's unit and integration suites are green; `main` builds and deploys with seed data on `beam_dev`; a staff user logs in with TOTP; a customer registers by magic link, buys a package with the fake Mollie adapter, books a day session with a credit, receives the confirmation in the sink, cancels within the rules and gets the credit back, and sees it all on the timeline; an invoice with number `BEAM-2026-000001` exists; an unsubscribe ends a running sequence; the deletion workflow produces its report.
+
+## 12. Top 10 risks
+
+| # | Risk | Mitigation |
+| --- | --- | --- |
+| 1 | The single tick cannot keep up when a campaign, claim expiries and renewals land in the same minute | Two lanes, fast first; 50-second budget; `after()` inline kick for user-facing jobs; chunked work; backlog alert at 500; escape hatch is a second cron route for the bulk lane, still no new vendor |
+| 2 | Duplicate side effects from webhook retries, overlapping ticks or double submits | `webhook_events` unique key, `jobs.idempotency_key` unique, `FOR UPDATE SKIP LOCKED` claims, payment state machine with forward-only status, `orders.client_key`, mandatory double-run `jobs.test.ts` |
+| 3 | Credit balance drift between bookings and the ledger | Ledger only, `FOR UPDATE` on grants, consume entry in the booking transaction, balances as views, nightly `ledger.reconcile` alerting on mismatches and negative grants |
+| 4 | Parallel agents collide on schema, registries or shared files | Contract tables frozen in Wave 0, one schema file per module, generated registries, additive columns only in the owner's file, one migration per wave by the orchestrator, `CODEOWNERS` ownership check in CI |
+| 5 | A missing translation blocks an operational email at the wrong moment, or the wrong language goes out | Publishing requires the declared locales, catalogue parity in CI, `blocked_translation` plus alert instead of fallback, staff can publish a fix without a deploy |
+| 6 | Sensitive data leaks through a convenient path (export, segment, AI, logs) | Three encrypted storage places, one reader with audit, allow-lists for AI and segments with a test, Sentry scrubbing, ids-only logs, read-only AI role over non-sensitive views, penetration test before go-live |
+| 7 | Marketing continues after an unsubscribe or a re-import | Suppression checked at enrolment, at step time, at chunk time and in `email.send`; inline `automation.exit_for_suppression`; `suppressions` is append-only and imports cannot clear it; `suppression survives import` is an acceptance test |
+| 8 | Waitlist race gives one seat to two people, or automation removes a confirmed seat | Claim and expiry both lock the session row `FOR UPDATE`; unique (session_id, person_id); `v_session_availability` counts live offers; `confirmed` entries are untouchable by the expiry job (guarded in `core/booking/waitlist`) and only staff with `bookings.override` can change them |
+| 9 | Mollie, Billit or Resend outage, or Billit behaving differently than assumed | Every call is a job with backoff up to 6 hours; invoices are valid locally; POS records `cash` and `bank_transfer`; terminal flow optional behind `PaymentProvider`; integration status on the System page; alerts within 15 minutes |
+| 10 | Deliverability on new domains, data migration bringing duplicates, and knowledge sitting with two founders | `news.beam.be` warm-up schedule, DMARC from quarantine to reject, one-click unsubscribe headers; import order suppressions, persons by `lower(email)`, consents, opening balances as `import` grants, dry runs and `external_ids`; one way to do everything, `docs/plan/conventions.md`, `docs/runbooks/` (restore, rotate keys, dead jobs, failed sync, add a role), George onboarded on the architecture in week 6 |

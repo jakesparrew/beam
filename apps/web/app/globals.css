@@ -1,0 +1,5 @@
+/* Tailwind v4 entry (runbook DR-16). Theme tokens come from @beam/ui (which imports the
+   @beam/config theme and tw-animate-css); @source makes Tailwind scan the UI kit's classes. */
+@import "tailwindcss";
+@import "@beam/ui/tokens.css";
+@source "../../../packages/ui/src";

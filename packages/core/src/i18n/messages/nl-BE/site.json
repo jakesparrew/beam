@@ -1,1 +1,8 @@
-{}
+{
+  "site": {
+    "permissions": {
+      "site_edit": "Websitepagina's bewerken",
+      "site_publish": "Websitepagina's publiceren"
+    }
+  }
+}

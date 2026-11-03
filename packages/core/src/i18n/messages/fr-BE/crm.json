@@ -1,1 +1,14 @@
-{}
+{
+  "crm": {
+    "permissions": {
+      "persons_read": "Voir les personnes, leur historique et leur statut",
+      "persons_write": "Créer et modifier les personnes, consentements et tags",
+      "persons_merge": "Fusionner les personnes en double",
+      "persons_sensitive_read": "Consulter les données de santé sensibles d'une personne",
+      "persons_export": "Exporter des listes de personnes en CSV",
+      "persons_erase": "Demander l'effacement d'une personne",
+      "crm_b2b": "Gérer les entreprises, les contacts et le pipeline B2B",
+      "tasks_all": "Voir et traiter toutes les tâches du personnel"
+    }
+  }
+}

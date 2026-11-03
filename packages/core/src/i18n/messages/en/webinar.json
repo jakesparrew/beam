@@ -1,1 +1,7 @@
-{}
+{
+  "webinar": {
+    "permissions": {
+      "webinars_host": "Create and host webinars"
+    }
+  }
+}

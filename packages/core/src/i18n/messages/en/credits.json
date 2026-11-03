@@ -1,1 +1,10 @@
-{}
+{
+  "credits": {
+    "permissions": {
+      "credits_read": "See credits, packages and memberships",
+      "credits_adjust": "Grant, adjust and extend credits",
+      "memberships_write": "Change and cancel memberships",
+      "referrals_manage": "Manage referral codes and rewards"
+    }
+  }
+}

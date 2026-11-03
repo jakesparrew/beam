@@ -1,1 +1,8 @@
-{}
+{
+  "forms": {
+    "permissions": {
+      "forms_write": "Create and edit forms",
+      "forms_publish": "Publish forms"
+    }
+  }
+}

@@ -1,1 +1,8 @@
-{}
+{
+  "finance": {
+    "permissions": {
+      "invoices_read": "Facturen en creditnota's bekijken",
+      "invoices_issue": "Facturen en creditnota's uitreiken"
+    }
+  }
+}

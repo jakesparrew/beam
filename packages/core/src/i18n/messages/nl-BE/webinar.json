@@ -1,1 +1,7 @@
-{}
+{
+  "webinar": {
+    "permissions": {
+      "webinars_host": "Webinars aanmaken en presenteren"
+    }
+  }
+}

@@ -1,1 +1,8 @@
-{}
+{
+  "forms": {
+    "permissions": {
+      "forms_write": "Formulieren aanmaken en bewerken",
+      "forms_publish": "Formulieren publiceren"
+    }
+  }
+}

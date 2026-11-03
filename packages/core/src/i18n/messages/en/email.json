@@ -1,1 +1,9 @@
-{}
+{
+  "email": {
+    "permissions": {
+      "email_write": "Create and edit email templates",
+      "email_send": "Send individual and test emails",
+      "campaigns_send": "Schedule and send campaigns"
+    }
+  }
+}

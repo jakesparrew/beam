@@ -1,1 +1,9 @@
-{}
+{
+  "automation": {
+    "permissions": {
+      "automations_write": "Créer et modifier les automatisations",
+      "automations_publish": "Publier, suspendre et reprendre les automatisations",
+      "automations_move_person": "Inscrire, déplacer et retirer des personnes des automatisations"
+    }
+  }
+}

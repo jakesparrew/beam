@@ -1,1 +1,10 @@
-{}
+{
+  "credits": {
+    "permissions": {
+      "credits_read": "Voir les crédits, les forfaits et les abonnements",
+      "credits_adjust": "Attribuer, ajuster et prolonger les crédits",
+      "memberships_write": "Modifier et résilier les abonnements",
+      "referrals_manage": "Gérer les codes de parrainage et les récompenses"
+    }
+  }
+}

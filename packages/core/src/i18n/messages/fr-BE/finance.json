@@ -1,1 +1,8 @@
-{}
+{
+  "finance": {
+    "permissions": {
+      "invoices_read": "Voir les factures et les notes de crédit",
+      "invoices_issue": "Émettre des factures et des notes de crédit"
+    }
+  }
+}

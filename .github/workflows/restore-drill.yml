@@ -1,0 +1,102 @@
+name: restore-drill
+
+# Quarterly restore drill (first Monday of January, April, July and October, 05:00 UTC):
+# restore the latest backup into a fresh Neon branch, check it, post the result to Slack.
+# Cron ORs day-of-month and day-of-week, so the job runs on days 1-7 and checks Monday itself.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 5 1-7 1,4,7,10 *"
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    outputs:
+      enabled: ${{ steps.flag.outputs.enabled }}
+    steps:
+      - id: flag
+        env:
+          HAS_KEY: ${{ secrets.BACKUP_AGE_SECRET_KEY != '' }}
+          HAS_NEON: ${{ secrets.NEON_API_KEY != '' }}
+          HAS_S3: ${{ secrets.SCW_ACCESS_KEY != '' }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          enabled=false
+          if [ "$HAS_KEY" = "true" ] && [ "$HAS_NEON" = "true" ] && [ "$HAS_S3" = "true" ]; then
+            if [ "$EVENT" = "workflow_dispatch" ] || [ "$(date -u +%u)" = "1" ]; then enabled=true; fi
+          fi
+          echo "enabled=$enabled" >> "$GITHUB_OUTPUT"
+
+  drill:
+    needs: check
+    if: needs.check.outputs.enabled == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.SCW_ACCESS_KEY }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.SCW_SECRET_KEY }}
+      AWS_DEFAULT_REGION: fr-par
+      BUCKET: ${{ vars.BACKUP_BUCKET || 'beam-backups' }}
+      APP_ENV: local
+      INTEGRATIONS: fake
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: install pg_restore 18 and age
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-18 age
+      - uses: neondatabase/create-branch-action@v6
+        id: branch
+        with:
+          project_id: ${{ vars.NEON_PROJECT_ID }}
+          branch_name: restore-drill/${{ github.run_id }}
+          database: ${{ vars.NEON_DATABASE || 'beam' }}
+          role: ${{ vars.NEON_ROLE || 'beam_app' }}
+          api_key: ${{ secrets.NEON_API_KEY }}
+      - name: restore the latest backup
+        env:
+          BACKUP_AGE_SECRET_KEY: ${{ secrets.BACKUP_AGE_SECRET_KEY }}
+          TARGET: ${{ steps.branch.outputs.db_url }}
+        run: |
+          aws s3 cp "s3://$BUCKET/latest.dump.age" latest.dump.age --endpoint-url https://s3.fr-par.scw.cloud
+          printf '%s\n' "$BACKUP_AGE_SECRET_KEY" > key.txt
+          age --decrypt --identity key.txt latest.dump.age > latest.dump
+          rm key.txt
+          /usr/lib/postgresql/18/bin/pg_restore --no-owner --no-privileges --clean --if-exists --dbname "$TARGET" latest.dump
+      - name: check the restored database
+        env:
+          DATABASE_DRIVER: neon-ws
+          DATABASE_URL: ${{ steps.branch.outputs.db_url_pooled }}
+          DATABASE_URL_UNPOOLED: ${{ steps.branch.outputs.db_url }}
+        run: |
+          pnpm db:check
+          pnpm test
+      - name: post the result to Slack
+        if: always()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          STATUS: ${{ job.status }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ -n "$SLACK_WEBHOOK_URL" ]; then
+            curl -fsS -X POST -H 'content-type: application/json' \
+              --data "{\"text\":\"Restore drill: $STATUS ($RUN_URL)\"}" "$SLACK_WEBHOOK_URL"
+          fi
+      - uses: neondatabase/delete-branch-action@v3
+        if: always()
+        with:
+          project_id: ${{ vars.NEON_PROJECT_ID }}
+          branch: restore-drill/${{ github.run_id }}
+          api_key: ${{ secrets.NEON_API_KEY }}

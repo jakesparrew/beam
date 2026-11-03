@@ -1,0 +1,61 @@
+name: backup
+
+# Nightly encrypted logical backup of production to Scaleway Object Storage (fr-par).
+# Skipped until the go-live secrets exist.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "30 2 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backup-production
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    outputs:
+      enabled: ${{ steps.flag.outputs.enabled }}
+    steps:
+      - id: flag
+        env:
+          HAS_DB: ${{ secrets.PRODUCTION_DATABASE_URL_UNPOOLED != '' }}
+          HAS_KEY: ${{ secrets.BACKUP_AGE_PUBLIC_KEY != '' }}
+          HAS_S3: ${{ secrets.SCW_ACCESS_KEY != '' }}
+        run: |
+          if [ "$HAS_DB" = "true" ] && [ "$HAS_KEY" = "true" ] && [ "$HAS_S3" = "true" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  backup:
+    needs: check
+    if: needs.check.outputs.enabled == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      DATABASE_URL_UNPOOLED: ${{ secrets.PRODUCTION_DATABASE_URL_UNPOOLED }}
+      BACKUP_AGE_PUBLIC_KEY: ${{ secrets.BACKUP_AGE_PUBLIC_KEY }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.SCW_ACCESS_KEY }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.SCW_SECRET_KEY }}
+      AWS_DEFAULT_REGION: fr-par
+      BUCKET: ${{ vars.BACKUP_BUCKET || 'beam-backups' }}
+    steps:
+      - name: install pg_dump 18 and age
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-18 age
+      - name: dump, encrypt, upload
+        run: |
+          stamp=$(date -u +%Y-%m-%d)
+          /usr/lib/postgresql/18/bin/pg_dump --format=custom --no-owner --no-privileges "$DATABASE_URL_UNPOOLED" \
+            | age --recipient "$BACKUP_AGE_PUBLIC_KEY" > "beam-$stamp.dump.age"
+          aws s3 cp "beam-$stamp.dump.age" "s3://$BUCKET/daily/beam-$stamp.dump.age" --endpoint-url https://s3.fr-par.scw.cloud
+          aws s3 cp "beam-$stamp.dump.age" "s3://$BUCKET/latest.dump.age" --endpoint-url https://s3.fr-par.scw.cloud

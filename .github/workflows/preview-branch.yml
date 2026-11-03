@@ -1,0 +1,74 @@
+name: preview-branch
+
+# One Neon branch per pull request (preview/pr-<n>), from production until week 7 and
+# from staging afterwards (set NEON_PREVIEW_PARENT), deleted when the PR closes.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: preview-${{ github.event.number }}
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    outputs:
+      enabled: ${{ steps.flag.outputs.enabled }}
+    steps:
+      - id: flag
+        env:
+          HAS_NEON: ${{ secrets.NEON_API_KEY != '' }}
+          HAS_VERCEL: ${{ secrets.VERCEL_TOKEN != '' }}
+        run: |
+          if [ "$HAS_NEON" = "true" ] && [ "$HAS_VERCEL" = "true" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  create:
+    needs: check
+    if: needs.check.outputs.enabled == 'true' && github.event.action != 'closed'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: neondatabase/create-branch-action@v6
+        id: branch
+        with:
+          project_id: ${{ vars.NEON_PROJECT_ID }}
+          branch_name: preview/pr-${{ github.event.number }}
+          parent_branch: ${{ vars.NEON_PREVIEW_PARENT || 'production' }}
+          database: ${{ vars.NEON_DATABASE || 'beam' }}
+          role: ${{ vars.NEON_ROLE || 'beam_app' }}
+          api_key: ${{ secrets.NEON_API_KEY }}
+      - name: write the branch URLs to the Vercel preview environment
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+          GIT_BRANCH: ${{ github.head_ref }}
+          POOLED: ${{ steps.branch.outputs.db_url_pooled }}
+          UNPOOLED: ${{ steps.branch.outputs.db_url }}
+        run: |
+          npx --yes vercel@latest env rm DATABASE_URL preview "$GIT_BRANCH" --yes --token "$VERCEL_TOKEN" || true
+          npx --yes vercel@latest env rm DATABASE_URL_UNPOOLED preview "$GIT_BRANCH" --yes --token "$VERCEL_TOKEN" || true
+          printf '%s' "$POOLED" | npx --yes vercel@latest env add DATABASE_URL preview "$GIT_BRANCH" --token "$VERCEL_TOKEN"
+          printf '%s' "$UNPOOLED" | npx --yes vercel@latest env add DATABASE_URL_UNPOOLED preview "$GIT_BRANCH" --token "$VERCEL_TOKEN"
+
+  delete:
+    needs: check
+    if: needs.check.outputs.enabled == 'true' && github.event.action == 'closed'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: neondatabase/delete-branch-action@v3
+        with:
+          project_id: ${{ vars.NEON_PROJECT_ID }}
+          branch: preview/pr-${{ github.event.number }}
+          api_key: ${{ secrets.NEON_API_KEY }}

@@ -1,5 +1,6 @@
+import { beamVitest } from "@beam/config";
 import { defineConfig } from "vitest/config";
 
-export default defineConfig({
-  test: { include: ["test/**/*.test.ts", "src/**/*.test.ts"], testTimeout: 30_000, hookTimeout: 60_000 },
-});
+export default defineConfig(
+  beamVitest({ include: ["test/**/*.test.ts", "src/**/*.test.ts", "scripts/**/*.test.ts"] }),
+);

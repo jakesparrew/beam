@@ -1,13 +1,9 @@
 {
-  "extends": "../../tsconfig.base.json",
+  "extends": "@beam/config/tsconfig.next.json",
   "compilerOptions": {
-    "jsx": "preserve",
-    "allowJs": false,
-    "noEmit": true,
-    "incremental": true,
-    "plugins": [{ "name": "next" }],
+    "jsx": "react-jsx",
     "paths": { "@/*": ["./*"] }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules"]
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", "**/*.mts", ".next/types/**/*.ts", ".next/dev/types/**/*.ts"],
+  "exclude": ["node_modules", "scripts/__fixtures__", ".next/cache", "playwright-report", "test-results"]
 }

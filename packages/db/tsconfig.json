@@ -1,5 +1,4 @@
 {
-  "extends": "../../tsconfig.base.json",
-  "compilerOptions": { "noEmit": true, "types": ["node"] },
-  "include": ["src", "scripts", "drizzle.config.ts"]
+  "extends": "@beam/config/tsconfig.lib.json",
+  "include": ["src", "scripts", "test", "drizzle.config.ts", "vitest.config.ts"]
 }

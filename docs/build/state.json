@@ -1,0 +1,493 @@
+{
+  "version": 1,
+  "packages": {
+    "platform-P1": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "platform-P2": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "platform-P3": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "platform-P4": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "platform-P5": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "platform-P6": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "platform-P7": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "platform-P8": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "crm-P1": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "booking-P1": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "commerce-P1": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "commerce-P2": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "credits-P1": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "credits-P2": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "finance-P1": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "forms-P1": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "forms-P2": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "email-P1": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "automation-P1": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "ops-P1": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "site-P1": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "crm-P2": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "crm-P3": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "crm-P4": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "booking-P2": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "booking-P3a": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "commerce-P3": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "credits-P3": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "finance-P2": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "forms-P3": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "email-P2": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "automation-P2": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "ops-P2": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "site-P2": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "crm-P5": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "crm-P6": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "booking-P3b": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "commerce-P4a": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "credits-P4": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "finance-P3": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "forms-P4": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "email-P3": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "automation-P3": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "ops-P3": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "ops-P6": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "site-P3": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "site-P5": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "crm-P7": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "booking-P4": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "booking-P5": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "commerce-P4b": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "credits-P5": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "finance-P4": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "forms-P5": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "email-P4": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "automation-P4": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "site-P4": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "site-P6": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "commerce-P5": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "credits-P6": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "finance-P5": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "forms-P6": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "email-P5": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "automation-P5": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "ops-P4": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "site-P7": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "booking-P6": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "commerce-P6": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "finance-P6": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "forms-P7": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "email-P6": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "automation-P6": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "commerce-P7": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "credits-P7": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "finance-P7": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "email-P7": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "ops-P5": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "platform-P11a": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "platform-P11b": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "platform-P12": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "webinar-P1": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "booking-P7": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "automation-P7": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "credits-P8": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "webinar-P2": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "booking-P8": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "ops-P7": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "webinar-P3": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "webinar-P4": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "email-P8": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "forms-P8": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "site-P8": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "webinar-P5": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "commerce-P8": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "webinar-P6": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "automation-P8": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "platform-P13": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "platform-P9": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "crm-P8": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "finance-P8": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "commerce-P9": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "credits-P9": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "crm-P9": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "booking-P9": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "finance-P9": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "ops-P8": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "automation-P9": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "email-P9": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "forms-P9": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "webinar-P7": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "site-P9": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "platform-P10": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "crm-P10": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "credits-P10": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "email-P10": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "finance-P10": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "site-P10": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "automation-P10": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "webinar-P8": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "ops-P9": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "ops-P10": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "forms-P10": {
+      "status": "pending",
+      "attempts": 0
+    }
+  }
+}

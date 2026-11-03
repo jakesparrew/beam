@@ -1,0 +1,39 @@
+{
+  "name": "@beam/email",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./render": "./src/render.ts",
+    "./layout": "./src/layout.tsx",
+    "./templates/define": "./src/templates/define.ts",
+    "./templates/registry": "./src/templates/registry.generated.ts",
+    "./templates/*": "./src/templates/*/index.ts",
+    "./blocks": "./src/blocks/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "preview": "email dev --dir src/templates"
+  },
+  "dependencies": {
+    "@beam/core": "workspace:*",
+    "@react-email/render": "catalog:",
+    "mjml": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "react-email": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@beam/config": "workspace:*",
+    "@types/mjml": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@vitest/coverage-v8": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

@@ -10,26 +10,35 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "generate": "drizzle-kit generate",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "generate": "pnpm -w gen:indexes && drizzle-kit generate",
     "migrate": "tsx scripts/migrate.ts",
     "check": "tsx scripts/check.ts",
-    "test": "vitest run",
-    "check-migrations": "tsx scripts/check-migrations.ts"
+    "check-migrations": "tsx scripts/check-migrations.ts",
+    "views": "tsx scripts/views-sql.ts",
+    "append-only": "tsx scripts/append-only-sql.ts",
+    "docs-schema": "tsx scripts/docs-schema.ts",
+    "test:migrations": "vitest run test/test-db.test.ts"
   },
   "dependencies": {
-    "@neondatabase/serverless": "^1.2.0",
-    "drizzle-orm": "^0.45.4",
-    "pg": "^8.23.1",
-    "@electric-sql/pglite": "^0.5.15",
-    "@vercel/functions": "^3.10.6"
+    "@beam/core": "workspace:*",
+    "@electric-sql/pglite": "catalog:",
+    "@neondatabase/serverless": "catalog:",
+    "@vercel/functions": "catalog:",
+    "drizzle-orm": "catalog:",
+    "pg": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
-    "@types/node": "^22",
-    "@types/pg": "^8.23.1",
-    "dotenv": "^18.0.9",
-    "drizzle-kit": "^0.31.11",
-    "tsx": "^4.23.15",
-    "typescript": "~5.9.3",
-    "vitest": "^5.1.0"
+    "@beam/config": "workspace:*",
+    "@types/node": "catalog:",
+    "@types/pg": "catalog:",
+    "@vitest/coverage-v8": "catalog:",
+    "dotenv": "catalog:",
+    "drizzle-kit": "catalog:",
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }

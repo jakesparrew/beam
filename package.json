@@ -1,26 +1,47 @@
 {
   "name": "beam-platform",
   "private": true,
+  "type": "module",
   "packageManager": "pnpm@10.28.0",
   "engines": {
     "node": ">=22"
   },
   "scripts": {
+    "gen:indexes": "tsx apps/web/scripts/gen-indexes.ts",
     "build": "turbo run build",
-    "dev": "turbo run dev",
+    "dev": "turbo run dev --filter @beam/web",
     "typecheck": "turbo run typecheck",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "test:e2e": "pnpm --filter @beam/web exec playwright test",
+    "test:load": "pnpm --filter @beam/web exec tsx scripts/load-test.ts",
+    "i18n:check": "pnpm --filter @beam/core exec tsx scripts/i18n-check.ts",
+    "gdpr:coverage": "pnpm --filter @beam/web exec vitest run test/gdpr-coverage.test.ts",
     "db:generate": "pnpm --filter @beam/db generate",
+    "db:views": "pnpm --filter @beam/db views",
+    "db:append-only": "pnpm --filter @beam/db append-only",
     "db:migrate": "pnpm --filter @beam/db migrate",
     "db:check": "pnpm --filter @beam/db check",
-    "test": "turbo run test",
-    "db:check-migrations": "pnpm --filter @beam/db check-migrations"
+    "db:check-migrations": "pnpm --filter @beam/db check-migrations",
+    "db:seed": "pnpm --filter @beam/web exec tsx scripts/seed-demo.ts",
+    "seed:demo": "pnpm db:seed --profile demo",
+    "docs:schema": "pnpm --filter @beam/db docs-schema",
+    "admin:reset-mfa": "pnpm --filter @beam/web exec tsx scripts/admin-reset-mfa.ts",
+    "exit:export": "pnpm --filter @beam/web exec tsx scripts/exit-export.ts",
+    "format": "prettier --write ."
   },
   "dependencies": {
-    "@neon/config": "^1.10.0",
-    "@neon/env": "^1.6.8"
+    "@neon/config": "catalog:",
+    "@neon/env": "catalog:"
   },
   "devDependencies": {
-    "turbo": "^2.11.10",
-    "typescript": "~5.9.3"
+    "@beam/config": "workspace:*",
+    "@beam/db": "workspace:*",
+    "@types/node": "catalog:",
+    "eslint": "catalog:",
+    "prettier": "catalog:",
+    "tsx": "catalog:",
+    "turbo": "catalog:",
+    "typescript": "catalog:"
   }
 }

@@ -12,3 +12,18 @@ next-env.d.ts
 .env.*.local
 # Neon project link (no secrets, machine-specific)
 .neon
+# generated registries and indexes (pnpm gen:indexes): never commit
+apps/web/registry/*.generated.ts
+packages/db/src/schema/index.ts
+packages/db/src/seed/index.generated.ts
+packages/core/src/i18n/messages/index.generated.ts
+packages/email/src/templates/registry.generated.ts
+# test and build output
+apps/web/test-results/
+apps/web/playwright-report/
+apps/web/e2e/.auth/
+coverage/
+# build session
+.worktrees/
+.claude/worktrees/
+docs/build/logs/

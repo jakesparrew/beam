@@ -1,0 +1,11 @@
+# gitleaks configuration: the default rule set, plus paths that only hold
+# placeholders or documentation.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Placeholders and documentation"
+paths = [
+  '''^\.env\.example$''',
+  '''^docs/''',
+]

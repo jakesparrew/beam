@@ -7,7 +7,9 @@
     ".": "./src/index.ts",
     "./schema": "./src/schema/index.ts",
     "./testing": "./src/testing.ts",
-    "./seed": "./src/seed/run.ts"
+    "./seed": "./src/seed/run.ts",
+    "./testing/*": "./src/testing/*.ts",
+    "./seed/*": "./src/seed/*.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

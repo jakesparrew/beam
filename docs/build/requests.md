@@ -23,6 +23,8 @@ to "Served" with the package id.
 | platform-P6 | platform-P8 | Call `notifySecurityChange` from `lib/auth.ts` in `resetUserMfa` (PL-9). |
 | platform-P6 | platform-P8 | Build `/admin/settings` (an owner signing in to `/admin` is redirected to the first permitted nav entry, which is a 404 until then). |
 | credits-P2 | credits (the package that owns `packages/core/src/credits/types.ts`), else platform | `types.ts` has Wave 0 guesses of `GrantSharing` (`max_guests_per_month`, `named_person_ids`) and `AllocationResult` (`allocations`/`quantity`) that do not match the spec; `credits/index.ts` re-exports the spec shapes (`GrantSharing` = `{ mode, max_guest_uses_per_month, allowed_person_ids }`, `AllocationResult` = `{ ok: true, parts } \| { ok: false, reason, available }`). Align `types.ts` with them or remove the two guesses. |
+| credits-P1 | credits-P4 | Add the FK `memberships.mandate_id -> mandates.id` once commerce's `mandates` table has merged (the column exists without an FK). |
+| credits-P1 | every module | Module factories and seed helpers are importable without editing shared files: `@beam/db/testing/<m>-factories` (for example `makeCreditGrant`, `makeMembership`, `makeEntry` from `@beam/db/testing/credits-factories`) and `@beam/db/seed/<m>` (for example `seedCreditsDemo` from `@beam/db/seed/credits`). |
 
 ## Served
 

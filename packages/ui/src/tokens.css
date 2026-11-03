@@ -1,0 +1,55 @@
+/*
+ * `@beam/ui/tokens.css`: the design tokens of every BEAM surface.
+ *
+ * apps/web loads it from `app/globals.css` right after `@import "tailwindcss"`
+ * (DR-16). The colour values live in `@beam/config/tailwind-theme.css`; this file
+ * adds the animation utilities, the dark variant, the base layer and the few token
+ * overrides that keep text contrast at 4.5:1 or more (PL-90, checked by
+ * `tokens.test.ts`).
+ */
+@import "tw-animate-css";
+@import "@beam/config/tailwind-theme.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* PL-90 contrast overrides (the shared theme is frozen; later declarations win). */
+.dark {
+  /* White on the dark-theme red is 3.3:1; near-black text on it is above 4.5:1. */
+  --destructive-foreground: oklch(0.18 0.03 27);
+}
+
+@layer base {
+  *,
+  ::before,
+  ::after {
+    border-color: var(--border);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+  }
+
+  /* A visible focus ring on every keyboard-focusable element (PL-90). */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}
+
+/* Motion respects the user's preference (PL-90). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

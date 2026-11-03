@@ -1,0 +1,787 @@
+# Module `ops`: dashboards, retention, reporting, imports, privacy and AI insights
+
+Owner package: `ops`. Code lives in `packages/db/src/schema/ops.ts` and `ops.views.ts`, `packages/core/src/ops/`, `apps/web/modules/ops/`, `apps/web/app/(admin)/admin/{dashboard,reports,imports,privacy}/`, `apps/web/app/[locale]/(portal)/account/privacy/`, `packages/integrations/src/ads/` (R3), `packages/email/src/templates/ops/`, `packages/core/src/i18n/messages/<locale>/ops.json`, `packages/db/src/seed/ops.ts`. Blueprint sections 20, 22, 23, 33, 34, 38, 39, 40, 48, 53, 62, 63, 66, plus requirements found in 3, 6, 9, 15, 18, 21, 31, 37, 43, 47, 49, 56, 59, 60, 68, 70, 76, 77, 87 (scenario 7) and 89.
+
+## 1. Purpose and release mapping
+
+`ops` turns the facts other modules write into numbers and lists people act on. It also runs the data workflows that touch every module: the migration import, data exports, privacy requests and the retention sweep. Rules come first (blueprint section 2): every list and score here is deterministic SQL. Claude is used only in Release 4, for questions and the weekly summary, always over a read-only, non-sensitive schema.
+
+| Release | What ships in `ops` |
+| --- | --- |
+| **V1 (weeks 1-6)** | `person_stats` cache (nightly at 04:00, every 5 minutes for recently active people, on demand) with historical lifetime value; `b2c_stage` derivation; `person.inactive_days` threshold events (30, 60, 90, 180); `v_person_profile` (the only view the segment compiler targets); `v_retention_candidates`, `v_revenue_daily`, `v_no_show_report`, `v_abandoned_checkouts` as views; the **staff action dashboard** (`/admin/dashboard`) with the V1 cards; **basic reporting** (`/admin/reports/revenue`: revenue daily, weekly, monthly, YTD with previous-period comparison, sales by product kind), so "reports reflect the transaction" (acceptance V1); **data migration** (CSV upload, mapping, dry run with report, chunked processing, duplicate handling by `lower(email)`, opening package balances as `import` grants with a reconciliation report BEAM signs off, cut-over checklist); **exports** (CSV per entity and the full data export); **privacy requests** (export, erasure, restriction, rectification, objection) with scenario 7; `retention_policies` and the nightly `privacy.retention_sweep`; DPIA register; `ops.daily_digest` Slack message |
+| **Release 2 (weeks 9-10)** | **Retention engine** screen and the weekly list "these are the 25 customers requiring attention this week" with one-click task creation; **B2C pipeline board** by `b2c_stage`; **no-show and cancellation report**; **abandoned checkout report** with recovery revenue; capacity utilisation report; action-dashboard cards that need R2 data (webinar leads not booked, shared-package abuse review); webinar fields in `v_person_profile` |
+| **Release 3 (weeks 11-12)** | **Management dashboard** in full (customers new, active, returning, dormant, reactivated; sales mix; retention rates; B2B pipeline from crm R3 opportunities); **campaign attribution** (first-touch from `persons.acquisition`, linear multi-touch from UTM touches and orders); **Meta and Google Ads read-only spend import** into `ad_spend_daily` with cost per lead, CAC, ROAS, revenue and lifetime value by campaign; **marketing dashboards** (leads, registration and attendance rates, lead-to-visit, visit-to-purchase, email performance, reactivation revenue, webinar and assessment conversion, abandoned-cart recovery); email and webinar performance summaries; B2B proposals card on the action dashboard |
+| **Release 4 (weeks 13-14)** | **Custom dashboards** from the KPI catalogue; **natural-language questions** answered by Claude over the read-only `ai` schema as `beam_ai_ro`; **weekly management summary**; **churn and repurchase indicators** and predicted value; **customer opportunity identification** |
+| **Later (out of scope)** | Predictive analytics beyond the rule-based indicators (trained models, forecasting), AI ranking that acts without a human, automated B2B prospecting analytics, voice AI reporting, gamification metrics, a native mobile dashboard, ad creation in Meta or Google, Google Analytics import |
+
+The proposal places the retention engine, the B2C pipeline and the no-show and abandoned-checkout reports in Release 2 and the management dashboard in Release 3. The views behind them exist from V1 because the V1 action dashboard reads them and because the architecture lists them as V1 views. Their screens stay behind feature flags until their release: `ff_ops_retention` (R2), `ff_ops_marketing` (R3), `ff_ops_ai` (R4).
+
+## 2. Domain model
+
+All tables live in `packages/db/src/schema/ops.ts`; views in `packages/db/src/schema/ops.views.ts`. Conventions from the architecture apply: `id uuid pk default gen_random_uuid()`, `created_at timestamptz not null default now()`, `updated_at timestamptz not null default now()` on mutable tables, enums named `<table>_<column>`. Tables marked (+) are additions to the architecture and are listed in section 13. Release 3 and 4 tables are created in V1 (expand-only, empty until used) so later packages never edit `ops.ts`.
+
+### 2.1 Enums
+
+| Enum | Values |
+| --- | --- |
+| `person_stats_b2c_stage` | `lead, engaged_lead, experienced, first_visit, first_purchase, active, repeat, member, retention, lost` |
+| `imports_kind` | `persons, suppressions, consents, tags, companies, bookings, packages, memberships, history` (`tags`, `history` added) |
+| `imports_source` (+) | `simplybook, lightspeed, mailchimp, spreadsheet, event_db, b2b_list, webinar_tool, assessment_tool, other` |
+| `imports_status` | `uploaded, dry_run, running, done, failed, cancelled` (`cancelled` added) |
+| `import_rows_status` | `pending, imported, updated, skipped, error` |
+| `imported_history_kind` (+) | `purchase, visit, no_show, cancellation, event_attendance, webinar_registration, webinar_attendance, assessment_result, email_engagement` |
+| `privacy_requests_kind` | `export, erase, restrict, rectify, object` (`object` added) |
+| `privacy_requests_status` | `received, verified, running, done, failed, cancelled` (`cancelled` added) |
+| `privacy_requests_requested_by` | `customer, staff, system` (`system` added, used by the retention sweep) |
+| `retention_policies_action` | `anonymise, delete, keep` (`keep` added: documented retention, never swept) |
+| `dpia_records_key` (+) | `ai_sensitive_processing, behavioural_scoring, ai_customer_ranking, watch_time_profiling, b2b_prospecting, voice_ai` |
+| `dpia_records_status` (+) | `not_started, in_progress, approved, rejected, not_required` |
+| `data_exports_kind` (+) | `entity, full` |
+| `data_exports_status` (+) | `queued, running, done, failed, expired` |
+| `ad_spend_daily_platform` | `meta, google` |
+| `attribution_credits_model` (+) | `first_touch, linear` |
+| `nl_questions_status` (+) | `answered, refused, error, timeout, budget_exceeded` |
+| `management_summaries_status` (+) | `ready, failed, skipped_budget` |
+
+### 2.2 Tables
+
+**`person_stats`** (cache; recomputed, never edited by hand; no audit)
+
+| Column | Type | Null | Default / check |
+| --- | --- | --- | --- |
+| person_id | uuid FK `persons.id` | not null | unique |
+| revenue_cents | integer | not null | 0; net of refunds; includes `imported_history` purchases |
+| purchases | integer | not null | 0, check >= 0; paid orders plus imported purchases |
+| visits | integer | not null | 0, check >= 0; attended day or night bookings plus imported visits; no-shows never count |
+| visits_last_60d (+) | integer | not null | 0 |
+| visits_prev_180d (+) | integer | not null | 0; visits in days 61-240 before now |
+| events_attended (+) | integer | not null | 0; attended bookings of session kind `event` plus imported event attendance |
+| no_shows | integer | not null | 0 |
+| late_cancellations (+) | integer | not null | 0 |
+| avg_order_cents | integer | not null | 0; `round(revenue_cents / purchases)`, 0 when no purchases |
+| first_purchase_at, last_purchase_at, first_visit_at, last_visit_at | timestamptz | null | |
+| last_activity_at | timestamptz | null | greatest of last visit, last purchase, last booking made, last form completion, last email click, last webinar attendance |
+| next_booking_at | timestamptz | null | earliest `sessions.starts_at > now()` of a `reserved` or `confirmed` booking |
+| b2c_stage | `person_stats_b2c_stage` | not null | `lead` |
+| b2c_stage_changed_at (+) | timestamptz | null | |
+| predicted_value_cents (+, R4) | integer | null | 12-month predicted revenue |
+| churn_probability (+, R4) | numeric(4,3) | null | check between 0 and 1 |
+| repurchase_probability (+, R4) | numeric(4,3) | null | check between 0 and 1 |
+| predicted_at (+, R4) | timestamptz | null | |
+| computed_at | timestamptz | not null | now() |
+
+Indexes: unique `(person_id)`; `(b2c_stage)`; `(last_visit_at)`; `(revenue_cents)`; `(next_booking_at)`. Invariant: a row exists for every non-erased, non-merged person after the nightly run.
+
+**`imports`**
+
+| Column | Type | Null | Default / check |
+| --- | --- | --- | --- |
+| kind | `imports_kind` | not null | |
+| source (+) | `imports_source` | not null | |
+| name | text | not null | staff label, max 120 |
+| file_id | uuid FK `files.id` | not null | first uploaded part |
+| part_file_ids (+) | uuid[] | not null | `'{}'`; further 3 MB parts in order |
+| status | `imports_status` | not null | `uploaded` |
+| header (+) | text[] | not null | `'{}'`; detected CSV headers |
+| row_count (+) | integer | not null | 0 |
+| mapping | jsonb | not null | `'{}'`; `ImportMapping` (below) |
+| is_dry_run | boolean | not null | true; mode of the latest run |
+| counts | jsonb | not null | `'{}'`; `{pending, imported, updated, skipped, error}` |
+| report | jsonb | not null | `'{}'`; `ImportReport` |
+| reconciliation (+) | jsonb | null | packages and memberships only |
+| signed_off_by_user_id (+) | uuid FK `users.id` | null | |
+| signed_off_at (+) | timestamptz | null | check: both sign-off columns null or both set |
+| started_at, finished_at (+) | timestamptz | null | |
+| created_by_user_id | uuid FK `users.id` | not null | |
+
+Indexes: `(status, created_at desc)`, `(kind)`. `ImportMapping = { columns: Record<string, TargetField | null>, options: { delimiter: ',' | ';' | '\t', dateFormat: 'iso' | 'dd/mm/yyyy' | 'mm/dd/yyyy', defaultLocale: Locale, overwrite: boolean, consentPurpose?: Purpose, consentWordingVersion?: string, productId?: uuid, creditKind?: 'day'|'night'|'euro', tagKey?: string } }`. Target fields per kind are the constant `IMPORT_TARGETS` in `packages/core/src/ops/import-targets.ts`; no target is a sensitive field.
+
+**`import_rows`**: `import_id` uuid FK `imports.id` on delete cascade not null; `row_number` integer not null; `data` jsonb not null (mapped fields only; unmapped columns are dropped before insert); `status` `import_rows_status` not null default `pending`; `dry_run_status` (+) `import_rows_status` null; `message` text null; `person_id` uuid FK `persons.id` null; `entity_type` (+) text null check in (`person, company, booking, grant, membership, suppression, consent, tag, history`); `entity_id` (+) uuid null. Unique `(import_id, row_number)`; indexes `(import_id, status)`, `(person_id)`. Purged after 30 days by the retention sweep.
+
+**`import_external_ids`** (+): `source` `imports_source` not null; `entity_type` text not null check in (`person, company, booking, grant, membership`); `external_id` text not null; `entity_id` uuid not null; `import_id` uuid FK `imports.id` not null. Unique `(source, entity_type, external_id)`; index `(entity_type, entity_id)`. Makes re-runs idempotent and keeps SimplyBook and Lightspeed customer ids.
+
+**`imported_history`** (+) APPEND: `person_id` uuid FK `persons.id` not null; `import_id` uuid FK `imports.id` not null; `source` `imports_source` not null; `kind` `imported_history_kind` not null; `occurred_at` timestamptz not null; `external_id` text not null; `description` text null; `amount_cents` integer null (purchases, VAT included); `product_kind` text null check in (`session, night, package, membership, ticket, item, voucher`); `data` jsonb not null default `'{}'`. Unique `(source, kind, external_id)`; index `(person_id, kind, occurred_at)`. Historical commercial data from SimplyBook, Lightspeed and old tools that has no native row; feeds `person_stats` and the timeline.
+
+**`cutover_checklist_items`** (+): `key` text not null unique (one of `CUTOVER_STEPS`), `done_at` timestamptz null, `done_by_user_id` uuid FK `users.id` null, `note` text null. Mutable, audited.
+
+**`privacy_requests`**
+
+| Column | Type | Null | Default / check |
+| --- | --- | --- | --- |
+| person_id | uuid FK `persons.id` | not null | |
+| kind | `privacy_requests_kind` | not null | |
+| status | `privacy_requests_status` | not null | `received` |
+| requested_by | `privacy_requests_requested_by` | not null | |
+| due_on (+) | date | not null | received date + 30 days (Brussels) |
+| verified_at | timestamptz | null | |
+| verified_by_user_id (+) | uuid FK `users.id` | null | null when verified by the customer's own session |
+| verification_note (+) | text | null | how identity was checked; max 500; no personal data by rule |
+| scheduled_for_at (+) | timestamptz | null | erase: `verified_at + 24 h` |
+| rectify_fields (+) | text[] | not null | `'{}'`; field names only, never values |
+| warnings (+) | jsonb | not null | `'[]'`; e.g. `["active_membership","credits_remaining"]` |
+| needs_manual_followup (+) | boolean | not null | false |
+| report | jsonb | not null | `'{}'`; `PrivacyReport`, never personal data |
+| file_id | uuid FK `files.id` | null | export: encrypted zip |
+| created_by_user_id (+) | uuid FK `users.id` | null | |
+| completed_at | timestamptz | null | |
+
+Partial unique `(person_id, kind) where status in ('received','verified','running')`; index `(status, due_on)`. `PrivacyReport = { steps: { module, table, rows, action: 'deleted'|'anonymised'|'retained_legal'|'kept' }[], external: { provider: 'billit'|'resend'|'mollie'|'anthropic', outcome: 'done'|'not_found'|'failed'|'provider_retains' }[], retained: { table, legal_basis }[], startedAt, finishedAt }`.
+
+**`processing_restrictions`** (+): `person_id` uuid FK `persons.id` not null unique; `privacy_request_id` uuid FK `privacy_requests.id` null; `reason` text not null (`gdpr_restriction` or `gdpr_objection`); `started_by_user_id` uuid FK `users.id` null. A row means: out of `v_person_profile`, segments, campaigns, marketing automations, AI context and staff exports. Lifting deletes the row (audited).
+
+**`retention_policies`**: `key` text not null unique; `table_name` text not null; `days` integer null (check: `(action = 'keep') = (days is null)`, days >= 1); `action` `retention_policies_action` not null; `description` (+) text not null; `run_order` (+) smallint not null default 100; `batch_size` (+) integer not null default 1000; `is_active` boolean not null default true; `last_run_at` (+) timestamptz null; `last_run_rows` (+) integer null; `last_run_status` (+) text null check in (`ok, no_handler, error`); `updated_by_user_id` uuid FK `users.id` null. Seeded rows in section 9.
+
+**`dpia_records`** (+): `key` `dpia_records_key` not null unique; `status` `dpia_records_status` not null default `not_started`; `purpose`, `risks`, `measures`, `decision_note` text null; `document_file_id` uuid FK `files.id` null; `reviewed_by_user_id` uuid FK `users.id` null; `reviewed_at` timestamptz null. Seeded with one row per key.
+
+**`data_exports`** (+): `kind` `data_exports_kind` not null; `entity` text null (check `(kind = 'entity') = (entity is not null)`; one of `EXPORT_ENTITIES`); `filters` jsonb not null default `'{}'` (`{from?, to?, segmentId?}`); `status` `data_exports_status` not null default `queued`; `part_file_ids` uuid[] not null default `'{}'`; `row_count` integer not null default 0; `cursor` jsonb null; `created_by_user_id` uuid FK `users.id` not null; `completed_at`, `expires_at` timestamptz null. Index `(created_by_user_id, created_at desc)`.
+
+**`retention_lists`** (+, R2): `week_start_on` date not null unique (Monday, Brussels); `size` smallint not null; `thresholds` jsonb not null (snapshot of `settings.retention_defaults`); `generated_at` timestamptz not null.
+**`retention_list_items`** (+, R2): `list_id` uuid FK `retention_lists.id` on delete cascade not null; `rank` smallint not null check between 1 and 100; `person_id` uuid FK `persons.id` not null; `score` integer not null; `primary_reason` text not null; `reasons` text[] not null; `detail` jsonb not null default `'{}'`; `task_id` uuid FK `tasks.id` null; `actioned_at` timestamptz null; `actioned_by_user_id` uuid FK `users.id` null; `dismissed_at` timestamptz null; `dismiss_reason` text null. Unique `(list_id, person_id)`, unique `(list_id, rank)`.
+
+**`ad_spend_daily`** (R3): `platform` enum not null; `account_id` text not null; `campaign_external_id` text not null; `campaign_name` text not null; `day_on` date not null; `spend_cents` integer not null check >= 0; `impressions`, `clicks`, `leads` integer not null default 0 check >= 0 (`leads` = platform-reported lead conversions, shown beside our own count); `currency` (+) text not null default `'EUR'` check `= 'EUR'`; `raw` jsonb not null; `pulled_at` (+) timestamptz not null. Unique `(platform, campaign_external_id, day_on)`; index `(day_on)`. No person data.
+
+**`attribution_credits`** (+, R3): `order_id` uuid FK `orders.id` not null; `person_id` uuid FK `persons.id` not null; `model` enum not null; `campaign_key` text not null (`lower(source)|lower(campaign)`, `direct|none` when no touch); `source`, `medium`, `campaign` text null; `weight` numeric(5,4) not null check > 0 and <= 1; `revenue_cents` integer not null; `paid_at` timestamptz not null; `computed_at` timestamptz not null. Unique `(order_id, model, campaign_key)`; indexes `(campaign_key, paid_at)`, `(person_id)`. Rebuilt nightly; derived data.
+
+**`dashboards`** (R4): `name` text not null; `owner_user_id` uuid FK `users.id` not null; `definition` jsonb not null (`DashboardDefinition`: `{ widgets: { id, kpi: KpiKey, period: 'day'|'week'|'month'|'ytd'|'last_30d'|'last_90d', compare: boolean, segmentId?: uuid, filters?: Record<string,string>, viz: 'number'|'line'|'bar'|'table' }[] }`, max 24 widgets); `is_shared` boolean not null default false. Index `(owner_user_id)`.
+
+**`nl_questions`** (+, R4): `user_id` uuid FK `users.id` not null; `question` text not null (max 500); `generated_sql` text null; `status` enum not null; `row_count` integer null; `columns` text[] not null default `'{}'`; `explanation` text null; `ai_request_ids` uuid[] not null default `'{}'`; `duration_ms` integer null. Index `(user_id, created_at desc)`. Purged after 30 days.
+
+**`management_summaries`** (+, R4): `week_start_on` date not null unique; `kpis` jsonb not null (aggregates only); `summary` jsonb not null (`{ "nl-BE"?, "fr-BE"?, "en"? }` markdown); `status` enum not null; `ai_request_ids` uuid[] not null default `'{}'`.
+
+**`ops_state`** (+): `key` text primary key (`stats_cursor`, `digest_last_sent_on`); `value` jsonb not null; `updated_at` timestamptz not null default now().
+
+APPEND tables owned here: `imported_history` (trigger `reject_update_delete()`, bypassed only by erasure). IMMUTABLE: none. Sensitive columns: none; `ops` never stores a `SENSITIVE_COLUMNS` member. The only place `ops` handles sensitive data is the subject's own privacy export, which reads it through `readSensitive(ctx, personId, 'privacy_export')` and stores the zip encrypted (rule 60). Personal-data columns: `person_id` everywhere above, `import_rows.data`, `imported_history.description` and `data`, `nl_questions.question`.
+
+### 2.3 Tables read or written from other modules
+
+Read (directly, by SQL in views and queries): `persons`, `v_person_status`, `person_tags`, `tags`, `v_consent_current`, `suppressions`, `activity_events`, `tasks`, `companies`, `company_contacts`, `opportunities` (R3) from crm; `sessions`, `session_templates`, `bookings`, `capacity_holds`, `waitlist_entries` from booking; `products`, `orders`, `order_lines`, `payments`, `refunds`, `checkouts`, `mandates` from commerce; `credit_grants`, `credit_entries`, `memberships`, `v_credit_grant_balances`, `v_person_credits` from credits; `invoices` from finance; `forms`, `form_versions`, `form_submissions` from forms; `email_messages`, `email_events`, `campaigns`, `campaign_recipients` from email; `automation_enrolments` from automation; `webinars`, `webinar_registrations`, `v_webinar_watch`, `webinar_interactions` (R2) from webinar; `jobs`, `settings`, `files`, `users`, `roles`, `ai_requests`, `webhook_events`, `audit_log` from platform.
+
+Written: only through the owners' `api.ts` functions listed in section 10 (persons, consents, suppressions, tags, tasks, companies, bookings, grants, memberships, files, jobs, audit, activity events). The retention sweep's generic delete handler writes the allow-listed append tables of section 9 directly, because they have no owner logic beyond insert.
+
+### 2.4 Views (`ops.views.ts`, Drizzle `pgView(...).as(sql\`...\`)`)
+
+Thresholds come from `settings.retention_defaults` (Zod `RetentionDefaults` in `packages/core/src/ops/retention-defaults.ts`; seeded): `{ visit_drop_ratio: 0.5, baseline_min_visits: 3, nearly_finished_pct: 80, expiry_days: 30, finished_no_repurchase_min_days: 14, finished_no_repurchase_max_days: 120, high_value_revenue_cents: 100000, vip_tag_key: "vip", high_value_inactive_days: 60, renewal_days: 30, never_booked_days: 14, unused_days: 45, weekly_list_size: 25, task_cooldown_days: 14, new_lead_followup_hours: 48, new_lead_window_days: 14, webinar_lead_window_days: 14, membership_expiring_days: 14, guest_abuse_distinct_guests: 3, guest_abuse_window_days: 30 }`. Each view reads it once with `cross join (select value as cfg from settings where key = 'retention_defaults') c`.
+
+**`v_person_profile`** (V1; R2 adds the webinar columns). One row per person who is not erased, not merged and has no `processing_restrictions` row. Columns: `person_id, locale, created_at, is_tester, partner_company_id, acquisition_source, acquisition_campaign, acquisition_medium` (from `persons.acquisition`), `postal_code, city, country` (from `persons.address`), `status` (from `v_person_status`), `is_member`, `tags text[]` (tag keys), `revenue_cents, purchases, visits, events_attended, no_shows, avg_order_cents, first_purchase_at, last_purchase_at, first_visit_at, last_visit_at, last_activity_at, next_booking_at, has_future_booking, b2c_stage, days_since_activity` (from `person_stats`, zero or null when absent), `lifetime_value_cents` (= `revenue_cents` in V1), `credits_day_remaining, credits_night_remaining, credits_euro_remaining, next_grant_expires_at` (from `v_person_credits`), `membership_status, membership_period_end_at` (latest `memberships` row), `consent_newsletter, consent_events, consent_member_comms, consent_b2b` (booleans, `v_consent_current.status = 'granted'`), `is_suppressed_all`, `is_company_contact`, `has_waitlist_waiting`, `last_assessment_form_slug, last_assessment_outcome_key` (latest completed submission of a form of kind `assessment`; both null when that form version has any `sensitive_field_keys`), and from R2 `webinars_registered, webinars_attended_live, webinars_watched_replay` (from `webinar_registrations` and `v_webinar_watch`). Never `email`, `phone`, names, birth date or any sensitive column. `PERSON_PROFILE_COLUMNS` in `packages/core/src/ops/profile-fields.ts` lists every column with its type so crm builds `SEGMENT_ALLOWED_FIELDS` from it.
+
+**`v_retention_candidates`** (V1). `union all` of eight rule blocks over people in `v_person_profile` with `is_tester = false`. Columns: `person_id, reason text, score integer, ref_type text, ref_id uuid, detail jsonb`. Rules (all times `now()`):
+
+| reason | Rule | ref | Base |
+| --- | --- | --- | --- |
+| `visiting_less` | `visits_prev_180d >= baseline_min_visits` and `visits_last_60d / 60.0 < visit_drop_ratio * visits_prev_180d / 180.0` and `has_future_booking = false` | person | 30 |
+| `package_nearly_finished` | grant `status = 'active'`, `units_granted > 0`, used share `(units_granted - remaining) * 100 / units_granted >= nearly_finished_pct`, `remaining >= 1` | grant | 35 |
+| `package_finished_no_repurchase` | grant `status = 'exhausted'`, last `consume` entry between `finished_no_repurchase_min_days` and `max_days` ago, no grant of the same `credit_kind` created after it, no active membership | grant | 40 |
+| `package_expiring` | grant `status = 'active'`, `remaining > 0`, `expires_at` within `expiry_days` | grant | 45 |
+| `high_value_inactive` | (`revenue_cents >= high_value_revenue_cents` or tag `vip_tag_key`) and `days_since_activity >= high_value_inactive_days` and `has_future_booking = false` | person | 50 |
+| `membership_renewal_due` | membership `status in ('active','past_due')` and `current_period_end_at` within `renewal_days` | membership | 40 |
+| `purchased_never_booked` | a grant with `source = 'purchase'` created more than `never_booked_days` ago and the person has no booking at all | grant | 30 |
+| `unused_sessions` | grant `status = 'active'`, `remaining > 0`, no `consume` entry on it in `unused_days`, created more than `unused_days` ago, `has_future_booking = false` | grant | 25 |
+
+`score = base + least(30, revenue_cents / 20000) + urgency`, where urgency is `greatest(0, 20 - days_until_expiry_or_period_end)` for `package_expiring` and `membership_renewal_due` (plus 10 when `memberships.cancel_at` is set), `least(20, days_since_activity / 10)` for `visiting_less`, `high_value_inactive`, `unused_sessions`, and 0 otherwise. `detail` carries `{grant_id, remaining, units_granted, expires_at, product_name}` or `{membership_id, period_end_at, cancel_at}` or `{visits_last_60d, visits_prev_180d, days_since_activity}`. Remaining units come from `v_credit_grant_balances.remaining` (credits view; column name `remaining` is assumed and adapted if credits names it otherwise).
+
+**`v_revenue_daily`** (V1):
+
+```sql
+select (o.paid_at at time zone 'Europe/Brussels')::date as day_on, o.channel, p.kind as product_kind,
+       count(distinct o.id)::int as orders, sum(ol.line_total_cents)::int as gross_cents,
+       sum(ol.vat_cents)::int as vat_cents, 0 as refunds_cents
+from orders o join order_lines ol on ol.order_id = o.id join products p on p.id = ol.product_id
+where o.paid_at is not null and o.status in ('paid','partially_refunded','refunded')
+group by 1, 2, 3
+union all
+select (r.created_at at time zone 'Europe/Brussels')::date, o.channel, 'refund', 0, 0, 0, sum(r.amount_cents)::int
+from refunds r join payments pm on pm.id = r.payment_id join orders o on o.id = pm.order_id
+where r.status = 'refunded' group by 1, 2
+```
+
+Net revenue = `gross_cents - refunds_cents`. Tester persons' orders are excluded (`join persons where is_tester = false`).
+
+**`v_no_show_report`** (V1 view, R2 screen). One row per booking with `status in ('cancelled','late_cancelled','no_show')`: `booking_id, person_id, session_id, template_id, session_kind, starts_at, weekday` (ISO, Brussels), `hour` (Brussels), `status, paid_with, cancelled_at, notice_hours` (`(starts_at - cancelled_at)` in hours), `value_cents` (credit bookings: consumed units × `credit_grants.unit_value_cents`; order bookings: `order_lines.line_total_cents / quantity`; guest and free: 0), `credit_units_forfeited` (consume minus release entries with `ref_type = 'booking'` and `ref_id = booking_id`, as a positive number).
+
+**`v_abandoned_checkouts`** (V1 view, R2 screen). One row per `checkouts` row with `abandoned_at is not null`: `checkout_id, person_id, email, status, created_at, abandoned_at, locale, utm, item_count, value_cents` (sum of `quantity * unit_amount_cents` over `items`), `had_payment_failure` (an order of this checkout has a payment `failed`, `expired` or `cancelled`), `recovery_message_id, recovered_order_id, recovered_revenue_cents` (`orders.total_cents` when paid), `recovered_at`.
+
+**`v_capacity_utilisation`** (R2): per session not `cancelled` with `starts_at < now() + 90 days`: `session_id, template_id, kind, starts_at, weekday, hour, capacity` (`capacity_beds` for nights, else `capacity_seats`), `held` (sum of `capacity_holds.quantity`), `booked` (bookings `reserved`, `confirmed`, `attended`, `no_show`), `attended`, `utilisation_pct = round(100.0 * booked / nullif(capacity, 0), 1)`, `attendance_pct = round(100.0 * attended / nullif(booked, 0), 1)`.
+
+**`v_marketing_touches`** (R3): `person_id, touched_at, source, medium, campaign, touch_kind` as the union of `persons.acquisition` (at `persons.created_at`, kind `acquisition`), `form_submissions.utm` (at `completed_at`, kind `form`), `checkouts.utm` (at `created_at`, kind `checkout`), with null and empty campaigns removed and values lower-cased.
+
+**`v_opportunity_candidates`** (R4): rule blocks with `person_id, reason, score, detail`: `membership_fit` (not a member, `visits_last_60d >= 6` and 60-day spend at or above the current member price for 2 months), `package_upgrade` (two or more grants of the same product in 180 days and a larger package of that credit kind exists), `repurchase_likely` (`repurchase_probability >= 0.6` and an active grant with remaining <= 2), `reactivation_likely` (`b2c_stage = 'retention'` and `churn_probability < 0.5`), `b2b_link` (a `company_contacts` row whose company has no open opportunity, R3 data).
+
+The `ai` schema (R4) is plain SQL in `packages/db/src/schema/ops.ai-schema.sql.ts` (constant `AI_SCHEMA_SQL`, applied by the orchestrator as a `drizzle-kit generate --custom` migration). It creates schema `ai`, role `beam_ai_ro` (`nologin` is not used; login with its own password from `DATABASE_URL_AI_RO`, `statement_timeout = '5s'`, `default_transaction_read_only = on`), grants `usage` on `ai` and `select` on these views only: `ai.customers` (from `v_person_profile`: `person_id, first_name, locale, status, is_member, b2c_stage, acquisition_source, acquisition_campaign, tags, visits, purchases, revenue_cents, avg_order_cents, events_attended, no_shows, first/last visit and purchase, next_booking_at, credits_*_remaining, membership_status, membership_period_end_at, predicted_value_cents, churn_probability, repurchase_probability`, testers excluded), `ai.orders` (`order_id, person_id, company_id, channel, paid_at, total_cents, status`), `ai.order_lines` (`order_id, product_kind, product_sku, product_name_en, quantity, line_total_cents`), `ai.revenue_daily`, `ai.bookings` (`booking_id, person_id, session_kind, starts_at, status, paid_with`), `ai.grants` (`person_id, product_sku, credit_kind, units_granted, remaining, expires_at, status`), `ai.memberships`, `ai.retention_candidates`, `ai.campaign_attribution`, `ai.ad_spend_daily`, `ai.opportunities` (`company_name, stage, value_cents, probability_pct, expected_close_on, next_action_at`). Nothing in `ai` exposes email, phone, last name, address, notes, `answers` or any sensitive column; `first_name` is the only name field and is in `AI_ALLOWED_FIELDS`.
+
+## 3. Business rules
+
+Each rule has a test named after its number (`R<n>` in the test title).
+
+**Person stats and lifetime value**
+1. `revenue_cents` = sum of `orders.total_cents` with status `paid`, `partially_refunded` or `refunded` for the person, minus `refunds.amount_cents` with status `refunded` on those orders, plus `imported_history.amount_cents` of kind `purchase`. Orders of a company (`company_id` set, `person_id` null) never count for a person.
+2. `purchases` counts those orders plus imported purchases. `avg_order_cents = round(revenue_cents / purchases)` half up; 0 when `purchases = 0`.
+3. A visit is a booking with status `attended` on a session of kind `day` or `night`, or an imported `visit`. A booking with status `no_show` is never a visit, never sets `last_visit_at` and never moves `b2c_stage` forward (blueprint 48). Guest bookings count for the guest, not the package owner.
+4. `next_booking_at` is the earliest future `starts_at` of the person's `reserved` or `confirmed` bookings, including guest bookings for them.
+5. The nightly `ops.refresh_person_stats` recomputes every non-erased, non-merged person in chunks of 2,000 ordered by `person_id` with one set-based `insert ... on conflict (person_id) do update`. Running it twice gives identical rows apart from `computed_at`.
+6. `ops.refresh_recent_stats` (every 5 minutes) recomputes the people with an `activity_events` row of a kind in `STATS_KINDS` (`order.paid`, `order.refunded`, `booking.confirmed`, `booking.cancelled`, `booking.attended`, `booking.no_show`, `credits.*`, `membership.*`, `form.completed`, `email.clicked`, `webinar.attended`, `ops.history_imported`) since `ops_state.stats_cursor`, at most 1,000 people per run, then advances the cursor.
+7. `refreshPersonStats(tx, personId)` recomputes one person synchronously; staff trigger it with "Recalculate" on the person page.
+
+**B2C stage** (`computeB2cStage(stats, status, signals)` in `packages/core/src/ops/stage.ts`, first match wins)
+8. `member` when `v_person_status.status = 'member'` (this honours `status_override`).
+9. `lost` when `purchases >= 1`, the last visit or purchase is more than 365 days ago and there is no future booking.
+10. `retention` when `purchases >= 1`, the last visit or purchase is more than 90 days ago and there is no future booking.
+11. `repeat` when `purchases >= 2`. `active` when `purchases = 1` and `visits >= 2`. `first_purchase` when `purchases = 1`.
+12. `first_visit` when `visits >= 1` and `purchases = 0` (a guest or free visit). `experienced` when `purchases = 0`, `visits = 0` and the person attended an event session or a webinar (live, replay or on demand).
+13. `engaged_lead` when `purchases = 0` and in the last 90 days the person completed a form, clicked an email, registered for a webinar or made a booking. Otherwise `lead`.
+14. When the stage changes, the job writes `b2c_stage_changed_at` and an activity event `ops.stage_changed { from, to }` with `dedupe_key = stage:<person_id>:<to>:<YYYY-MM-DD>`. Staff cannot set the stage by hand; it is derived only. Status corrections go through crm's `status_override`.
+
+**Inactivity events**
+15. Inactivity applies to people with `purchases >= 1` or `visits >= 1`. The anchor is the later of `last_visit_at` and `last_purchase_at`.
+16. For thresholds 30, 60, 90 and 180 days, the nightly job emits `person.inactive_days { days, anchor_at, has_future_booking }` when `anchor + days` falls within the last 3 days (Brussels dates). `dedupe_key = person:<id>:inactive:<days>:<anchor date>`. A new visit or purchase moves the anchor and re-arms every threshold. After the cut-over import nobody receives a burst of old thresholds, and a missed night is caught up for 3 days.
+17. When two thresholds fall inside the same 3-day window, only the highest is emitted.
+18. The event carries `has_future_booking`; seeded inactivity automations filter on it (blueprint 21). `ops` never sends email itself.
+
+**Retention engine** (R2 screen, V1 view)
+19. A person appears in `v_retention_candidates` once per matching reason and grant; erased, merged, restricted and tester persons never appear.
+20. The weekly list is built every Monday at 06:10 Brussels into `retention_lists` for that week. One row per person with their highest score (`primary_reason`) and all their reasons. It excludes people with an open or done crm task with `source = 'retention'` created in the last `task_cooldown_days`. It keeps the top `weekly_list_size` (default 25) by score, then revenue, then `person_id`. A rebuild in the same week replaces only items with no `task_id` and no `dismissed_at`.
+21. "Create task" on an item creates one crm task (`kind = 'follow_up'`, `source = 'retention'`, `priority = high` when score >= 80 else `normal`, `due_at` = next business day 10:00 Brussels, `ref_type = 'retention_list_item'`, title from the catalogue key `ops.retention.task_title.<reason>` in the owner's locale) and stores `task_id`. A second click returns the existing task. "Create all tasks" does the same for every item without a task, in one transaction.
+22. Dismissing an item requires a reason (`not_relevant`, `already_contacted`, `do_not_contact`, `other`) and keeps the row.
+
+**Action dashboard** (each card: a count, the first 10 rows, a link to the full list, and "Create task" per row)
+23. `packages_nearing_completion`: rows of reason `package_nearly_finished`.
+24. `vip_inactive`: rows of reason `high_value_inactive` (default more than 60 days).
+25. `new_leads_follow_up`: people with status `lead` created between `new_lead_window_days` days and `new_lead_followup_hours` hours ago, `acquisition_source` not `import`, no booking and no crm task referencing them.
+26. `b2b_proposals` (R3): crm opportunities in stage `proposal` or `negotiation` whose `next_action_at` is past or null. Hidden without `crm.b2b`.
+27. `memberships_expiring`: memberships `active` with `cancel_at` within `membership_expiring_days`, or `past_due`, or `current_period_end_at` within that window and no `valid` mandate.
+28. `failed_payments`: payments `failed` or `expired` in the last 7 days whose order is not paid later, plus payments `pending` or `open` for more than 15 minutes.
+29. `webinar_leads_not_booked` (R2): leads registered for a webinar that started in the last `webinar_lead_window_days` with no booking made after registration.
+30. `unused_packages_expiring`: rows of reason `package_expiring`.
+31. `shared_package_abuse` (R2): grants whose `credit_entries` show more than `guest_abuse_distinct_guests` distinct `beneficiary_person_id` other than the owner in `guest_abuse_window_days`, plus `waitlist_entries` with `is_flagged_duplicate = true` and state `waiting` or `offered`.
+32. `overdue_tasks`: open crm tasks with `due_at < now()` (the user's own; all with `tasks.all`).
+33. Counts are computed live (no cache); the page must render under 1.5 s with 10,000 persons in the seed.
+
+**Management dashboard and reports** (periods in Brussels time)
+34. Periods: day (vs previous day), ISO week Monday-Sunday (vs previous week), month-to-date (vs the same number of days of the previous month), YTD (vs the same span of the previous year). The comparison shows absolute and percentage change; percentage is blank when the previous value is 0.
+35. Revenue tiles use `v_revenue_daily` net revenue. Sales mix groups by product kind: `package`, `night`, `session`, `membership`, `item` (products), `ticket` (events), `voucher`.
+36. Customers (R3): `new` = first purchase in the period; `active` = a visit or purchase in the 90 days before period end; `returning` = active in the period and also active before it; `dormant` = customers whose last visit or purchase is 90-365 days before period end; `reactivated` = a visit or purchase in the period after a gap of more than 90 days.
+37. Retention (R3): repeat purchase rate = customers with `purchases >= 2` / customers; package completion = grants that became `exhausted` / grants that became `exhausted` or `expired` in the period; reactivation rate = reactivated / dormant at period start; membership renewal rate = paid renewals / renewals due in the period.
+38. B2B (R3): pipeline value = sum `value_cents` of open opportunities (not `won`, `lost`); weighted = sum `value_cents * probability_pct / 100`; qualified = stages `qualified` to `negotiation`; proposals = stage `proposal`; conversion = won / (won + lost) closed in the period; B2B revenue = paid orders with `company_id`.
+39. No-show report (R2): by customer (count, rate = no-shows / (attended + no-shows)), by template, by weekday x hour, value and credits forfeited; a customer with 3 or more no-shows in 90 days is flagged as a pattern.
+40. Abandoned checkouts (R2): abandoned count, recovered count (a paid `recovered_order_id`), recovery rate, recovery revenue, failure share.
+41. Every report excludes tester persons and has a CSV download of exactly the rows on screen (audited as `data.exported`).
+
+**Imports** (blueprint 53, risks 7 and 10)
+42. Upload: CSV (UTF-8, optional BOM, delimiter `,` `;` or tab), max 50 MB, sent in 3 MB parts to `/admin/imports/upload`. The first 20 rows and the header are shown for mapping.
+43. Required mapping per kind (`IMPORT_TARGETS`): `persons` needs `email` or (`phone` and `last_name`); `suppressions` needs `email`; `consents` needs `email` and a status column; `packages` needs `email`, `units_remaining`, `expires_on` and a product; `memberships` needs `email`, `product_sku`, `period_end_on`; `bookings` needs `email` and `session_starts_at`; `history` needs `email`, `occurred_at`, `history_kind`, `external_id`; `companies` needs `name`.
+44. A dry run processes every row and writes `dry_run_status` and `message` but changes nothing outside `import_rows` and `imports`. Its report lists: rows per outcome, new versus matched persons, duplicates inside the file, invalid emails, unknown products, suppressed addresses whose consent was skipped, and for packages the reconciliation. A real run is allowed only after a dry run of the same mapping (mapping hash stored in `report.mapping_hash`).
+45. Matching: a row matches an existing person by `lower(trim(email))`. Without email it matches by E.164 phone plus `lower(last_name)`; with no match a new person is created. A second row with the same email in the file is merged into the first (`updated`). An existing `import_external_ids` row matches first.
+46. Matched persons are updated only in empty fields unless `options.overwrite = true`; `locale`, `acquisition` and `created_at` are never overwritten. New persons get `acquisition = { source: 'import', campaign: <import name> }` and `locale` from the row or `defaultLocale`.
+47. Imports never remove or override a suppression. A `consents` row with status granted for an address suppressed for `all` or for that purpose is `skipped` with message `suppressed`. Suppression rows import through crm only with kind `suppressions`.
+48. Opening package balances: each `packages` row creates one `credit_grants` row (`source = 'import'`, `units_granted = units_remaining`, `expires_at` from the file, `starts_at` = import time) and one `grant` ledger entry with key `import:<import_id>:row:<row_number>`. The reconciliation report lists per credit kind and per product: rows, units in the file, units granted, the difference, and every row whose post-import balance in `v_credit_grant_balances` differs from the file. The import stays `done` but the cut-over step `packages_reconciled` can only be ticked after an owner or management user signs off (`signed_off_at`).
+49. Memberships import as `active` with `current_period_end_at` from the file and no mandate; the credits module then sends its payment-link renewal flow. Future bookings import only for materialised sessions (`booking.importBooking`), with `source = 'import'`; past bookings import as `history` rows.
+50. Every imported row writes `import_external_ids` when the file has an external id, and every `history` row writes an activity event `ops.history_imported` with `occurred_at` set to the original time and `dedupe_key = import:<source>:<kind>:<external_id>`.
+51. Chunks: 500 rows per `import.process_chunk` job, each in its own transaction, enqueuing the next offset. A row error marks that row `error` and never aborts the chunk. A job crash retries the chunk; rows already `imported` or `updated` are skipped on retry.
+52. Raw uploaded parts get `files.expires_at` = 30 days after the import finishes; `import_rows` are purged after 30 days.
+53. Cut-over checklist `CUTOVER_STEPS`, in order: `suppressions_imported`, `persons_imported`, `consents_imported`, `tags_imported`, `companies_imported`, `history_imported`, `packages_imported`, `packages_reconciled`, `memberships_imported`, `future_bookings_imported`, `stats_recomputed`, `old_tools_frozen`, `dns_switched`. The first ten are ticked automatically when a matching `done` import exists (and, for `packages_reconciled`, sign-off); the rest are ticked by hand. An import of kind `consents` or `persons` cannot run while `suppressions_imported` is not done unless the user confirms "no suppression source exists" (stored as a note).
+
+**Exports**
+54. Entity CSV export (`EXPORT_ENTITIES`: `persons, companies, company_contacts, tags, consents, suppressions, bookings, sessions, orders, order_lines, payments, refunds, invoices, credit_grants, credit_entries, memberships, form_submissions, email_messages, campaigns, tasks, activity_events`) uses fixed column lists that exclude `SENSITIVE_COLUMNS`, password hashes, TOTP and recovery secrets, token hashes and `raw` payloads. Restricted persons are excluded from staff exports.
+55. Each export runs in 5,000-row chunks, each chunk one CSV file part (at most 9 MB). The download streams a store-only zip of the parts. Files expire after 7 days.
+56. The full data export contains every entity of rule 54 plus every other platform table with the same exclusions, as one CSV per table, and a `README.csv` listing tables, row counts and excluded columns. It needs `persons.export` and `users.manage`. The complete database copy for exit is the encrypted `pg_dump` of `backup.yml`.
+57. Every export writes `audit_log` action `data.exported` with entity, filters and row count.
+
+**Privacy requests** (blueprint 62, scenario 7)
+58. Due date is 30 days after receipt. A request over 25 days old and not `done` shows on the action dashboard and in the digest.
+59. A customer's request from `/[locale]/account/privacy` is verified by their signed-in session (`verified_at` = now). A staff-entered request needs `privacy.run` to verify, with a verification note.
+60. Export: one zip with, per module, `<module>.json` and one CSV per table, built from each `GDPR_REGISTRY` entry's `export(tx, personId)`, plus `sensitive.json` from `readSensitive(ctx, personId, 'privacy_export')`, plus `README.txt` in the person's locale. The zip is encrypted with AES-256-GCM (`SENSITIVE_DATA_KEY_V1`) before storage, expires after 7 days, and is downloadable only by the subject in the portal or by `privacy.run` staff. The customer gets the email `ops/privacy-export-ready`.
+61. Erasure starts at `scheduled_for_at` (24 h after verification); until then the subject or staff can cancel. `privacy.run` staff may start it at once. Warnings (`active_membership`, `credits_remaining`, `future_bookings`, `open_invoices`, `open_orders`) must be acknowledged; nothing blocks erasure except another running request for the person.
+62. Erasure order: first external propagation (Resend delete contact, Billit anonymise customer), then module handlers in `ERASE_ORDER = ['webinar','automation','email','forms','booking','credits','commerce','finance','ops','crm','platform']`, each in its own transaction under `SET LOCAL beam.allow_rewrite = 'on'`, then the report. `crm` anonymises `persons` and keeps the suppression hash with reason `erased`; `platform` redacts `audit_log`, deletes `ai_requests` and the person's files and disables the customer user.
+63. An external call that is still failing on its last attempt is recorded as `failed` in the report, `needs_manual_followup = true`, and the local erasure continues. Mollie is recorded as `provider_retains` and Anthropic as `provider_retains` (API data retention by the provider, no deletion endpoint).
+64. The report holds only module, table, row counts, actions, legal bases and provider outcomes. The `audit_log` row `privacy.erased` has `entity_id = request id` and `new_value = { rows_total, modules }`, no name or email. The erasure confirmation email `ops/privacy-erasure-scheduled` goes out at verification, because no address exists afterwards.
+65. Restriction inserts `processing_restrictions`, records `withdrawn` consent for every marketing purpose (method `staff`, source `privacy_restriction`), exits all active enrolments through automation with reason `restricted`, and emits `privacy.restricted`. Contractual processing (bookings, payments, invoices) continues. Lifting deletes the row and never re-grants consent.
+66. Objection does the same as restriction for marketing, plus a crm suppression with scope `all` and reason `manual`, and leaves no restriction row (the person may still book).
+67. Rectification stores only field names in `rectify_fields`; staff apply the change on the person page (crm audit holds old and new values), then mark the request done, which enqueues finance's Billit customer resync.
+
+**Retention sweep, DPIA, digest**
+68. `privacy.retention_sweep` (01:00) runs active policies by `run_order`. Per policy it uses the owning module's `sweep[key]` handler when registered, else the generic handler for allow-listed tables (`created_at < now() - days`, `batch_size` rows per transaction under `SET LOCAL beam.allow_rewrite = 'on'`, self-continuing), else records `no_handler`. `keep` policies are skipped.
+69. `marketing_profile` (anonymise) creates a `privacy_requests` row (`kind = erase`, `requested_by = system`, verified and scheduled at once) for people whose `last_activity_at`, or `created_at` when null, is more than `days` ago, with no future booking, no active membership and no remaining credits. At most 200 per night.
+70. A feature listed in `DPIA_GATED` (`behavioural_scoring` for R4 churn indicators and opportunity scores, `ai_customer_ranking` for R4 NL ranking questions over `ai.retention_candidates`, `watch_time_profiling` for R2 watch-time segment fields) stays off until its `dpia_records.status` is `approved` or `not_required`. `isDpiaApproved(key)` is the one check.
+71. `ops.daily_digest` at 08:00 posts one Slack message: yesterday's sends, bounces and complaints, `blocked_translation` messages, dead jobs, pending backlog, failed payments, Billit failures, privacy requests near their due date, imports finished or failed, policies with `no_handler`, database size, and ads data age (R3). Ids and counts only. Key `schedule:ops.daily_digest:<minute>`; `ops_state.digest_last_sent_on` prevents a second post the same day.
+
+**Attribution and ads** (R3)
+72. First-touch attribution credits 100 % of every paid order to the person's `acquisition` campaign (`direct|none` when absent). Linear multi-touch splits each order equally over the distinct campaign keys in `v_marketing_touches` within 90 days before `paid_at`, falling back to first touch when none exist. Weights per order sum to 1.
+73. Ad campaigns join attribution by `campaign_key`: BEAM's UTM convention is `utm_source = meta|google`, `utm_campaign` = the platform campaign id (Meta `{{campaign.id}}`, Google `{campaignid}`); a campaign name match is the fallback. Cost per lead = spend / persons created with that campaign as first touch; CAC = spend / people whose first purchase falls in the period with that first touch; ROAS = attributed linear revenue / spend; LTV by campaign = average `revenue_cents` of people first-touched by it.
+74. `ads.pull_yesterday` (05:30) upserts yesterday and re-pulls the 3 days before (late conversions). After 3 consecutive failed days the digest raises a Normal alert; dashboards show "data as of <date>".
+75. Marketing KPIs: registration rate = webinar registrations / delivered invitation emails of campaigns with purpose `events` linked to the webinar's session; attendance rate = registrants with live watch time > 0 / registrants (events: attended / confirmed); lead-to-visit = leads created in the period with a first visit within 90 days / leads created; visit-to-purchase = first visits in the period followed by a first purchase within 30 days / first visits; assessment completion = completed / started submissions of assessment forms; assessment conversion = completed assessments followed by a first purchase within 60 days / completed; webinar conversion = registrants with a booking or purchase within 7, 30 or 90 days, split by lead, customer and member; reactivation revenue = revenue of orders paid after a gap of more than 90 days; abandoned-cart recovery as rule 40.
+
+**AI insights** (R4)
+76. Churn and repurchase indicators are formulas, not AI (`packages/core/src/ops/predict.ts`): mean interval = (last visit - first visit) / (visits - 1) when visits >= 2, else the population median (default 30 days); `r = days_since_activity / max(14, mean interval)`; `churn = clamp(1 - exp(-0.35 * max(0, r - 1)), 0, 0.99)`, halved for active members, 0.05 with a future booking; `repurchase = clamp((1 - churn) * min(1, purchases / 3) + 0.1 * (active grant with remaining <= 2), 0, 0.99)`; `predicted_value_cents = round(avg_order_cents * purchases / max(0.25, tenure_years) * (1 - churn))`. Computed in the nightly run only while `behavioural_scoring` is approved; otherwise the columns are null.
+77. NL questions: Claude (`claude-opus-5-5`) gets the `ai` schema description and the question, returns `{ sql, refusal? }` through a structured output. The server accepts only one `select` or `with ... select` statement without `;`, runs it as `beam_ai_ro` with `limit 200` appended when absent, then sends the column names and at most 200 rows to Claude for a short explanation in the user's locale. `person_id` columns render as links with names resolved on the server, never sent. Every call is an `ai_requests` row; the budget in `settings.ai` applies.
+78. The weekly management summary (Monday 06:30) sends only aggregates (rules 34-38 KPIs for last week and the week before, retention list counts per reason) to Claude, one call per locale used by owner and management users, stores it in `management_summaries`, and posts a link to Slack. It never contains person-level data.
+79. Custom dashboards use only KPIs from `KPI_REGISTRY` (`packages/core/src/ops/kpis.ts`), never free SQL. A shared dashboard is visible to every user with `reports.read`; only the owner or `dashboards.manage` can edit it.
+
+## 4. Server surface
+
+Files: `apps/web/modules/ops/{actions,queries,api,jobs,schedules,events,permissions,nav,privacy,seed}.ts` are thin entry files that re-export the sub-folder barrels `stats/`, `dashboard/`, `reports/`, `imports/`, `exports/`, `privacy/`, `retention/`, `marketing/`, `insights/`, `ai/` (each with its own `actions.ts`, `queries.ts`, `jobs.ts`, `schedules.ts` as needed). Inputs are Zod schemas in `packages/core/src/ops/schemas.ts`. Every staff action writes `audit_log` through `action({ audit })`.
+
+### 4.1 Server actions (`action()`)
+
+| Name | Input (Zod summary) | Output | Permission | Events / audit action |
+| --- | --- | --- | --- | --- |
+| `ops.recalculate_stats` `recalculatePersonStats` | `{ personId: uuid }` | `PersonStats` | `persons.read` | audit `stats.recalculated` |
+| `ops.create_dashboard_task` `createTaskFromCard` | `{ card: ActionCardKey, personId: uuid, refType?, refId?, ownerUserId?: uuid }` | `{ taskId }` | `tasks.all` | crm `task.created`; audit `task.created` |
+| `ops.retention_create_task` `createRetentionTask` (R2) | `{ itemId: uuid, ownerUserId?: uuid }` | `{ taskId }` | `tasks.all` | audit `retention.task_created` |
+| `ops.retention_create_all` `createAllRetentionTasks` (R2) | `{ listId: uuid, ownerUserId?: uuid }` | `{ created: number }` | `tasks.all` | audit `retention.tasks_created` |
+| `ops.retention_dismiss` `dismissRetentionItem` (R2) | `{ itemId, reason: enum, note?: string(500) }` | `{ ok }` | `tasks.all` | audit `retention.dismissed` |
+| `ops.retention_rebuild` `rebuildRetentionList` (R2) | `{}` | `{ listId }` | `reports.read` | audit `retention.rebuilt` |
+| `ops.import_create` `createImport` | `{ kind, source, name: string(1..120), fileIds: uuid[1..17] }` | `{ importId, header, sample }` | `persons.write` | audit `import.created` |
+| `ops.import_map` `saveImportMapping` | `{ importId, mapping: ImportMapping }` | `{ ok, missingTargets: string[] }` | `persons.write` | audit `import.mapped` |
+| `ops.import_dry_run` `startDryRun` | `{ importId }` | `{ jobId }` | `persons.write` | audit `import.dry_run_started` |
+| `ops.import_run` `startImport` | `{ importId, confirmNoSuppressionSource?: boolean }` | `{ jobId }` | `persons.write` + `ctx.require('settings.write')` | audit `import.started` |
+| `ops.import_cancel` `cancelImport` | `{ importId }` | `{ ok }` | `persons.write` | audit `import.cancelled` |
+| `ops.import_sign_off` `signOffReconciliation` | `{ importId, note: string(1..500) }` | `{ ok }` | `settings.write` | audit `import.signed_off` |
+| `ops.cutover_tick` `setCutoverStep` | `{ key: CutoverKey, done: boolean, note? }` | `{ ok }` | `settings.write` | audit `cutover.updated` |
+| `ops.export_create` `createExport` | `{ kind: 'entity'|'full', entity?: ExportEntity, filters? }` | `{ exportId }` | `persons.export` (+ `users.manage` for full; + `invoices.read` for finance entities) | audit `data.exported` (on completion) |
+| `ops.privacy_create` `createPrivacyRequest` | `{ personId, kind, verificationNote?: string(500), rectifyFields?: string[] }` | `{ requestId }` | export: `persons.export`; erase, restrict, object: `persons.erase`; rectify: `persons.write` | event `privacy.requested`; audit `privacy.requested` |
+| `ops.privacy_verify` `verifyPrivacyRequest` | `{ requestId, verificationNote: string(1..500), acknowledgeWarnings: boolean }` | `{ scheduledForAt? }` | `privacy.run` | event `privacy.verified`; audit `privacy.verified` |
+| `ops.privacy_run_now` `runPrivacyRequestNow` | `{ requestId }` | `{ jobId }` | `privacy.run` + `ctx.require('persons.erase')` for erase | audit `privacy.started` |
+| `ops.privacy_cancel` `cancelPrivacyRequest` | `{ requestId, reason: string(500) }` | `{ ok }` | `privacy.run` | event `privacy.cancelled`; audit `privacy.cancelled` |
+| `ops.privacy_complete_rectify` `completeRectification` | `{ requestId }` | `{ ok }` | `privacy.run` | audit `privacy.rectified` |
+| `ops.privacy_lift_restriction` `liftRestriction` | `{ personId, reason }` | `{ ok }` | `privacy.run` | event `privacy.restriction_lifted`; audit same |
+| `ops.portal_privacy_request` `requestMyData` / `requestMyErasure` | `{ kind: 'export'|'erase' }` | `{ requestId }` | customer audience (own person) | event `privacy.requested` |
+| `ops.portal_privacy_cancel` `cancelMyErasure` | `{ requestId }` | `{ ok }` | customer, own request, before `scheduled_for_at` | event `privacy.cancelled` |
+| `ops.retention_policy_update` `updateRetentionPolicy` | `{ key, days?: int(1..3650), isActive?: boolean }` | `{ ok }` | `privacy.run` | audit `retention_policy.updated` (old and new) |
+| `ops.dpia_update` `updateDpiaRecord` | `{ key, status, purpose?, risks?, measures?, decisionNote?, documentFileId? }` | `{ ok }` | `settings.write` | audit `dpia.updated` |
+| `ops.ads_pull_now` `pullAdsNow` (R3) | `{ days: int(1..90) }` | `{ jobIds }` | `settings.write` | audit `ads.pull_requested` |
+| `ops.ads_settings` `saveAdsSettings` (R3) | `{ metaAccountIds: string[], googleCustomerIds: string[] }` | `{ ok }` | `settings.write` | audit `settings.updated` |
+| `ops.dashboard_save` `saveDashboard` (R4) | `{ id?, name, definition: DashboardDefinition, isShared }` | `{ id }` | `dashboards.manage` (owner may edit own with `reports.read`) | audit `dashboard.saved` |
+| `ops.dashboard_delete` `deleteDashboard` (R4) | `{ id }` | `{ ok }` | `dashboards.manage` or owner | audit `dashboard.deleted` |
+| `ops.ask` `askQuestion` (R4) | `{ question: string(3..500) }` | `{ questionId, status, columns, rows, explanation }` | `ai.use` + `ctx.require('reports.read')` | audit `ai.question_asked` (question id only) |
+| `ops.summary_regenerate` `regenerateWeeklySummary` (R4) | `{ weekStartOn: date }` | `{ jobId }` | `reports.read` + `ctx.require('ai.use')` | audit `summary.regenerated` |
+
+### 4.2 Queries (`queries.ts`, server-only, each calls `requirePermission`)
+
+`getActionDashboard(ctx): ActionCard[]` (`reports.read` or `tasks.all`; cards filtered per rule 23-32 and section 7); `getRevenueReport(ctx, { period, at })` (`reports.read`); `getManagementDashboard(ctx, { period, at })` (R3, `reports.read`); `listRetentionCandidates(ctx, { reason?, page })`, `getWeeklyRetentionList(ctx, { weekStartOn? })` (R2); `getPipelineBoard(ctx, { stage? , page })` (R2, counts per stage plus the 50 most recent people per stage); `getNoShowReport`, `getAbandonedCheckoutReport`, `getCapacityReport` (R2, `{ from, to, groupBy }`); `getMarketingDashboard`, `getAttributionReport`, `getAdsReport`, `getEmailSummary`, `getWebinarSummary` (R3, `{ from, to, model? }`); `listImports`, `getImport(id)`, `listImportRows(id, { status?, page })`, `getCutoverChecklist()`; `listExports()`; `listPrivacyRequests({ status?, kind? })`, `getPrivacyRequest(id)`, `getMyPrivacyRequests(ctx)` (customer); `listRetentionPolicies()`, `listDpiaRecords()`; `listDashboards()`, `getDashboard(id)`, `evaluateKpi(ctx, kpi, opts)` (R4); `listQuestions(ctx)`, `getWeeklySummary(weekStartOn?)` (R4). All list queries paginate at 50 rows and select named columns only (Neon egress guidance).
+
+### 4.3 Route handlers
+
+| Route | Method | Purpose | Guard |
+| --- | --- | --- | --- |
+| `app/(admin)/admin/imports/upload/route.ts` | POST multipart `{ part: Blob <= 3 MB, index, total, name }` | stores one `files` row (`kind = import`, `expires_at = now + 2 days` until attached) and returns `{ fileId }` | staff, `persons.write`, max 17 parts |
+| `app/(admin)/admin/imports/[id]/rows.csv/route.ts` | GET | CSV of rows with `error` or `skipped` and their message | `persons.write` |
+| `app/(admin)/admin/reports/exports/[id]/download/route.ts` | GET | streams a store-only zip of the export parts | creator or `users.manage`; audit `export.downloaded` |
+| `app/(admin)/admin/reports/[report]/csv/route.ts` | GET | CSV of a report view with the same filters | `reports.read`; audit `data.exported` |
+| `app/(admin)/admin/privacy/[id]/download/route.ts` | GET | decrypts and streams the subject's export | `privacy.run`; audit `privacy.export_downloaded` |
+| `app/[locale]/(portal)/account/privacy/[id]/download/route.ts` | GET | decrypts and streams the subject's own export | customer, `privacy_requests.person_id = actor.personId`, not expired |
+
+No webhooks.
+
+### 4.4 Jobs (`defineJob`)
+
+| Kind | Lane, priority | Idempotency key | Payload | Behaviour and retries |
+| --- | --- | --- | --- | --- |
+| `ops.refresh_person_stats` | bulk, 9 | `schedule:ops.refresh_person_stats:<minute>`; continuations `stats:nightly:<YYYY-MM-DD>:<afterId>` | `{ runOn, afterId? }` | 2,000 people per job, then enqueues the next; emits inactivity and stage events; R4 phase computes predictions. Default retries |
+| `ops.refresh_recent_stats` | bulk, 5 | `schedule:ops.refresh_recent_stats:<minute>` | `{}` | rule 6 |
+| `ops.refresh_person` | fast, 5 | `stats:<personId>:<YYYY-MM-DDTHH:mm>` | `{ personId }` | one person; used by `requestStatsRefresh` |
+| `ops.daily_digest` | fast, 5 | `schedule:ops.daily_digest:<minute>` | `{}` | builds text, enqueues platform `notify.slack` with key `digest:<YYYY-MM-DD>` |
+| `ops.build_weekly_retention_list` (R2) | bulk, 5 | `retention:week:<YYYY-Www>` (schedule key on the cron run) | `{ weekStartOn }` | rule 20 |
+| `import.parse` | bulk, 5 | `import:<id>:parse:<mappingHash>` | `{ importId }` | streams parts through `csv-parse`, writes `import_rows` in batches of 500, sets `row_count`; `PermanentError` on malformed CSV |
+| `import.process_chunk` | bulk, 9 | `import:<id>:<dry|run>:chunk:<n>` | `{ importId, mode, offset }` | rule 51; maxAttempts 6 |
+| `import.finalise` | bulk, 5 | `import:<id>:<dry|run>:finalise` | `{ importId, mode }` | report, reconciliation, status, auto-ticks cut-over steps, `ops.refresh_person` for touched persons via `stats` run |
+| `ops.export_chunk` | bulk, 9 | `export:<id>:<entity>:chunk:<n>` | `{ exportId, entity, offset }` | 5,000 rows to one CSV part |
+| `ops.export_finalise` | bulk, 5 | `export:<id>:finalise` | `{ exportId }` | sets `done`, `expires_at`, audit `data.exported` |
+| `privacy.export` | bulk, 5 | `privacy:<id>:export` | `{ requestId }` | rule 60; timeout 120 s |
+| `privacy.erase` | fast, 1 | `privacy:<id>:start` | `{ requestId }` | checks status `verified` and `scheduled_for_at <= now`, sets `running`, enqueues the external steps |
+| `privacy.erase_external` | fast, 1 | `privacy:<id>:external:<billit|resend>` | `{ requestId, provider }` | calls the client; on the last attempt records `failed` instead of throwing; then enqueues `privacy:<id>:step:webinar` when all providers are recorded |
+| `privacy.erase_step` | fast, 1 | `privacy:<id>:step:<module>` | `{ requestId, module }` | runs one registry `erase` under `SET LOCAL beam.allow_rewrite = 'on'`, appends to the report, enqueues the next module or `privacy:<id>:finalise` |
+| `privacy.finalise` | fast, 1 | `privacy:<id>:finalise` | `{ requestId }` | status `done`, `completed_at`, audit `privacy.erased`, event-free (the person is gone) |
+| `privacy.retention_sweep` | bulk, 9 | `schedule:privacy.retention_sweep:<minute>`; continuations `retention:<YYYY-MM-DD>:<policyKey>:<n>` | `{ runOn, policyKey?, n? }` | rule 68-69 |
+| `ads.pull_yesterday` (R3) | bulk, 5 | `schedule:ads.pull_yesterday:<minute>`; per account `ads:<platform>:<accountId>:<YYYY-MM-DD>` | `{ platform?, accountId?, day? }` | rule 74; `IntegrationError.retryable` maps to retry, 401 to `PermanentError` |
+| `ads.backfill` (R3) | bulk, 9 | `ads:backfill:<platform>:<accountId>:<from>:<to>` | `{ platform, accountId, from, to }` | enqueues one per-day pull |
+| `ops.compute_attribution` (R3) | bulk, 9 | `schedule:ops.compute_attribution:<minute>` | `{ fromPaidAt? }` | deletes and rebuilds the last 400 days of `attribution_credits` in one transaction per 30-day slice |
+| `ai.weekly_summary` (R4) | bulk, 5 | `summary:<weekStartOn>:<locale>` (schedule enqueues per locale) | `{ weekStartOn, locale }` | rule 78; timeout 110 s; budget exhaustion is `PermanentError` with status `skipped_budget` |
+| `ai.answer_question` (R4) | inline via `runJobInline()` | `question:<questionId>` | `{ questionId }` | rule 77; 20 s budget; `timeout` status on SQL timeout |
+
+Every handler is idempotent: a second run with the same payload leaves the same database state (verified by `jobs.test.ts`).
+
+### 4.5 Schedules (`schedules.ts`, Europe/Brussels)
+
+`privacy.retention_sweep` `0 1 * * *`; `ops.refresh_person_stats` `0 4 * * *`; `ops.refresh_recent_stats` `*/5 * * * *`; `ops.daily_digest` `0 8 * * *`; `ops.build_weekly_retention_list` `10 6 * * 1` (R2); `ads.pull_yesterday` `30 5 * * *` (R3); `ops.compute_attribution` `50 5 * * *` (R3); `ai.weekly_summary` `30 6 * * 1` (R4). R2-R4 schedules are added by their release packages, and each handler returns early while its release flag is `off`.
+
+### 4.6 Activity event kinds (`events.ts`)
+
+`person.inactive_days { days, anchor_at, has_future_booking }`, `ops.stage_changed { from, to }`, `ops.history_imported { kind, source, amount_cents? }`, `privacy.requested { kind }`, `privacy.verified { kind }`, `privacy.cancelled { kind }`, `privacy.restricted`, `privacy.restriction_lifted`, `privacy.objected`, `privacy.exported` (on the subject's timeline when the export is ready). Erasure writes no activity event (the timeline is deleted).
+
+### 4.7 Cross-module API (`apps/web/modules/ops/api.ts`)
+
+```ts
+export type PersonStats = typeof personStats.$inferSelect;
+export async function getPersonStats(db: DbOrTx, personId: string): Promise<PersonStats | null>;
+export async function refreshPersonStats(tx: Tx, personId: string): Promise<PersonStats>;
+export async function requestStatsRefresh(tx: Tx, personId: string): Promise<void>; // enqueues ops.refresh_person
+export async function isProcessingRestricted(db: DbOrTx, personId: string): Promise<boolean>;
+export async function listRetentionReasons(db: DbOrTx, personId: string): Promise<{ reason: RetentionReason; score: number; detail: Record<string, unknown> }[]>;
+export async function createPrivacyRequest(ctx: Ctx, input: { personId: string; kind: PrivacyKind; requestedBy: 'customer' | 'staff' | 'system'; verificationNote?: string }): Promise<{ requestId: string }>;
+export async function getOpenPrivacyRequests(db: DbOrTx, personId: string): Promise<{ id: string; kind: PrivacyKind; status: PrivacyStatus; dueOn: string }[]>;
+export async function isDpiaApproved(db: DbOrTx, key: DpiaKey): Promise<boolean>;
+export const ERASE_ORDER: readonly ModuleId[]; // re-exported from @beam/core/ops
+```
+
+`@beam/core/ops` exports the pure parts: `computeB2cStage`, `inactivityEventsFor`, `retentionScore`, `predictIndicators`, `periodRange`, `comparePeriods`, `PERSON_PROFILE_COLUMNS`, `IMPORT_TARGETS`, `EXPORT_ENTITIES`, `CUTOVER_STEPS`, `KPI_REGISTRY`, `DPIA_GATED`, `RetentionDefaults`, `toCsv`, `parseCsvStream`, `zipStore` (store-only zip writer with data descriptors), `validateAiSql`.
+
+## 5. Screens
+
+All admin screens use `DataTable` from `@beam/ui`, a skeleton while loading (`loading.tsx`), an inline error panel with "Retry" and the request id (`error.tsx`), and the empty state named below. Money and dates use `Intl` with `users.locale` and Europe/Brussels.
+
+| Route | Shows | Actions | Empty state | Who |
+| --- | --- | --- | --- | --- |
+| `/admin/dashboard` | The action dashboard (rules 23-32): one card per list with count and top 10 rows (name, reason, key figure, link to the person), plus overdue privacy requests | "Create task" per row; "Open list" per card | "Nothing needs attention today" per card | `reports.read` or `tasks.all`; cards filtered by permission (section 7) |
+| `/admin/reports` | Index of reports available to the user | links | n/a | `reports.read` |
+| `/admin/reports/revenue` | Net revenue for day, week, month-to-date and YTD with previous-period change; a daily line for the last 90 days; sales mix by product kind and by channel | period picker, CSV | "No paid orders in this period" | `reports.read` |
+| `/admin/reports/exports` | Export list (kind, entity, status, rows, created by, expiry), new export form | create entity or full export, download | "No exports yet" | `persons.export` |
+| `/admin/reports/no-shows` (R2) | Totals, by customer (flagged patterns), by template, weekday x hour heatmap, value and credits forfeited | date range, CSV, "Create task" on a flagged customer | "No cancellations or no-shows in this period" | `reports.read` |
+| `/admin/reports/abandoned-checkouts` (R2) | Abandoned, recovered, rate, recovery revenue; table of checkouts with items, value, recovery message status, outcome | date range, CSV | "No abandoned checkouts" | `reports.read` |
+| `/admin/reports/capacity` (R2) | Utilisation and attendance by template, weekday, hour and month for the past 90 and next 90 days | range, group by | "No sessions in this range" | `reports.read` |
+| `/admin/dashboard/retention` (R2) | This week's list of 25 (rank, person, primary reason, all reasons, score, revenue, last visit, task status); tab "All candidates" by reason | "Create task", "Create all tasks", "Dismiss", "Rebuild" | "Everyone is on track this week" | `reports.read`; task buttons need `tasks.all` |
+| `/admin/dashboard/pipeline` (R2) | B2C board: one column per `b2c_stage` with count and the 50 most recent changes; filters by source and campaign | open person, create task | "No people in this stage" | `reports.read` |
+| `/admin/dashboard/management` (R3) | Revenue, customers, sales, retention and B2B tiles (rules 34-38) with comparisons | period picker, CSV per tile | tiles show 0 with "no data" | `reports.read` |
+| `/admin/reports/marketing` (R3) | Rule 75 KPIs with period comparison; email performance (sent, delivered, open, click, bounce, complaint, unsubscribe rate per campaign); webinar summary (registered, attended live, average watch time, replay and on-demand views, poll answers, CTA clicks, conversion by lead, customer, member) | range, CSV | "No marketing activity in this period" | `reports.read` |
+| `/admin/reports/attribution` (R3) | Per campaign: leads, first purchases, revenue (first-touch and linear), LTV, spend, CPL, CAC, ROAS; data-as-of date | model toggle, range, CSV | "No attributed revenue yet" | `reports.read` |
+| `/admin/reports/ads` (R3) | Spend, impressions, clicks, platform leads per campaign and day; account settings; last pull per account | "Pull now", account ids | "Connect an ad account in settings" | `reports.read`; settings `settings.write` |
+| `/admin/dashboard/custom` and `/custom/[id]` (R4) | Own and shared dashboards; widget grid | create, edit (widget picker from `KPI_REGISTRY`), share, delete | "Create your first dashboard" | `reports.read`; edit `dashboards.manage` or owner |
+| `/admin/dashboard/ask` (R4) | Question box, history of the user's questions, answer table, explanation, collapsed generated SQL | ask, re-ask | "Ask a question about BEAM's data" with the six blueprint examples as chips | `ai.use` and `reports.read` |
+| `/admin/dashboard/summary` (R4) | Weekly summaries by week, in the user's locale when available | regenerate | "The first summary arrives Monday 06:30" | `reports.read` |
+| `/admin/imports` | Imports (name, kind, source, status, counts, created by); cut-over checklist progress bar | new import | "No imports yet. Start with suppressions." | `persons.write` |
+| `/admin/imports/new` | Step 1 kind and source, step 2 chunked upload with progress, step 3 mapping (CSV header to target field, sample of 20 rows, options) | upload, save mapping, start dry run | n/a | `persons.write` |
+| `/admin/imports/[id]` | Status with live progress (polls every 3 s while running), dry-run report, run report, rows filtered by status, reconciliation for packages and memberships, sign-off block | run, cancel, download error rows, sign off | "No rows" | `persons.write`; run `settings.write`; sign off `settings.write` |
+| `/admin/imports/cutover` | The 13 `CUTOVER_STEPS` with state, who and when, linked import | tick or untick manual steps | n/a | `persons.write` view; `settings.write` tick |
+| `/admin/privacy` | Requests (kind, status, due date with red when under 5 days, requested by), filters | new request | "No privacy requests" | `privacy.run`, `persons.erase` or `persons.export` |
+| `/admin/privacy/new` | Person search (crm picker), kind, verification note, rectify fields | create | n/a | as `createPrivacyRequest` |
+| `/admin/privacy/[id]` | Request detail, warnings, schedule, step-by-step progress, report (no personal data), external outcomes, download for export | verify, run now, cancel, complete rectification | n/a | `privacy.run` |
+| `/admin/privacy/retention` | Retention policies with last run, rows and status | edit days, toggle | n/a | `privacy.run` |
+| `/admin/privacy/dpia` | DPIA register (six processing activities, status, purpose, risks, measures, decision, document) and which features each gates | edit, upload document | n/a | `settings.write` |
+| `/[locale]/account/privacy` | The customer's rights: download my data, delete my account (with the 24-hour cancel window and what is retained: invoices for the legal period, a suppression fingerprint), status of their requests, link to the preference centre | request export, request erasure (confirm dialog typed "DELETE"/"VERWIJDER"/"SUPPRIMER"), cancel erasure, download | "You have no open requests" | signed-in customer |
+
+Navigation (`nav.ts`): section "Insights" with Dashboard, Retention (R2), Pipeline (R2), Management (R3), Custom (R4), Ask (R4); section "Reports" with the report pages; section "Data" with Imports, Exports, Privacy. Entries are hidden by permission and by their release flag.
+
+## 6. Integrations
+
+| Service | Client | Calls | Failure handling | Idempotency |
+| --- | --- | --- | --- | --- |
+| Resend | `packages/integrations/src/resend/client.ts` (owned by email) | `deleteContact(email)` from `privacy.erase_external` | 404 = `not_found` (success); 5xx and network = retry with platform backoff; last attempt records `failed`, `needs_manual_followup` | key `privacy:<id>:external:resend`; delete is naturally idempotent |
+| Billit | `packages/integrations/src/billit/client.ts` (owned by finance) | `anonymiseCustomer(billitCustomerId)` (clears email, phone, contact name; keeps legal name, address, VAT for retained invoices) from `privacy.erase_external`; skipped with `not_found` when finance has no Billit customer reference | same as Resend | key `privacy:<id>:external:billit` |
+| Meta Marketing API (R3) | `packages/integrations/src/ads/meta.ts` and `ads/fake.ts` (owned by ops) | `getCampaignInsights({ accountId, day })` -> `{ campaignId, campaignName, spendCents, impressions, clicks, leads }[]` (`level=campaign`, fields `spend, impressions, clicks, actions`; `leads` = action type `lead`) | `IntegrationError { retryable }`; 401 or 403 = `PermanentError`, digest alert | upsert on `(platform, campaign_external_id, day_on)` |
+| Google Ads API (R3) | `packages/integrations/src/ads/google.ts` (owned by ops) | `getCampaignStats({ customerId, day })` via GAQL `select campaign.id, campaign.name, metrics.cost_micros, metrics.impressions, metrics.clicks, metrics.conversions from campaign where segments.date = '<day>'`; `spendCents = round(cost_micros / 10000)` | same | same |
+| Claude (R4) | through platform's AI gateway (`platform.aiGenerate`, which owns `packages/integrations/src/anthropic/`) | NL question SQL and explanation, weekly summary | gateway returns `unavailable` or `budget_exceeded`; the screen says "AI unavailable, use the reports"; nothing operational depends on it | `ai_requests` row per call; job keys above |
+| Slack | platform `notify.slack` job | digest, summary link | Sentry fallback (platform) | `digest:<date>`, `summary:<week>` |
+
+Mollie, Stripe and Viva are not called: their retention is recorded as `provider_retains` in the erasure report. Every test uses the `fake.ts` adapters; `ads/fake.ts` returns two campaigns per account per day with deterministic numbers and can be told to fail with `{ retryable }`.
+
+## 7. Permissions and audit
+
+`ops/permissions.ts` declares `reports.read`, `dashboards.manage` and `privacy.run` (descriptions in the `ops` catalogue). It uses `persons.*`, `tasks.all`, `crm.b2b`, `credits.read`, `invoices.read`, `settings.write`, `users.manage`, `ai.use` declared by their owners.
+
+| Capability | Permission | Default roles |
+| --- | --- | --- |
+| Action dashboard | `reports.read` or `tasks.all` | owner, technical_admin, management, customer_service, sales, marketing, finance, reception |
+| Card `b2b_proposals` | `crm.b2b` | owner, technical_admin, management, sales |
+| Card `shared_package_abuse` | `credits.read` | owner, technical_admin, management, customer_service, finance, reception |
+| Card `failed_payments` | `reports.read` or `commerce.sell` | all but external_partner |
+| Cards `memberships_expiring`, `packages_*`, `unused_packages_expiring` | `credits.read` or `reports.read` | all but external_partner |
+| Reports, management and marketing dashboards, retention list, pipeline board | `reports.read` | owner, technical_admin, management, customer_service, sales, marketing, finance |
+| Create tasks from lists | `tasks.all` | owner, technical_admin, management, customer_service, sales, reception |
+| Custom dashboards edit | `dashboards.manage` | owner, technical_admin, management |
+| Imports: upload, map, dry run | `persons.write` | owner, technical_admin, management, customer_service, sales, reception |
+| Imports: real run, sign-off, cut-over | `settings.write` | owner, technical_admin, management |
+| Entity exports | `persons.export` (+ `invoices.read` for invoices, payments, refunds) | owner, technical_admin, management |
+| Full data export | `persons.export` + `users.manage` | owner, technical_admin |
+| Create privacy requests | `persons.export` / `persons.erase` / `persons.write` by kind | owner, technical_admin, management (rectify also customer_service) |
+| Verify, run, cancel privacy requests; retention policies | `privacy.run` | owner, technical_admin |
+| DPIA register | `settings.write` | owner, technical_admin, management |
+| NL questions, weekly summary regenerate | `ai.use` + `reports.read` | owner, technical_admin, management, sales, marketing |
+| external_partner | none of the above | n/a |
+
+Audited (`audit_log`, actor, old and new value where a value changes): every action in 4.1; `data.exported` for every export and report CSV; `export.downloaded`; `privacy.requested`, `privacy.verified`, `privacy.started`, `privacy.cancelled`, `privacy.erased`, `privacy.export_downloaded`, `privacy.rectified`, `privacy.restriction_lifted`; `import.*`; `cutover.updated`; `retention_policy.updated`; `dpia.updated`; `sensitive.read` is written by `readSensitive()` during the privacy export with actor `system` and purpose `privacy_export`; `ai.question_asked` with question id only. Audit rows of erasure carry no personal data (rule 64). Reading dashboards is not audited.
+
+## 8. Multi-language and content
+
+- Catalogue namespace `ops`, files `packages/core/src/i18n/messages/{en,nl-BE,fr-BE}/ops.json`; `en` is the source; `pnpm i18n:check` enforces parity. Key groups: `ops.nav.*`, `ops.dashboard.card.<key>.{title,empty,row}`, `ops.dashboard.create_task`, `ops.reports.<report>.{title,empty,column.*,filter.*}`, `ops.period.{day,week,month,ytd,previous,change}`, `ops.stage.<b2c_stage>`, `ops.retention.reason.<reason>`, `ops.retention.task_title.<reason>`, `ops.retention.dismiss.<reason>`, `ops.imports.{kind,source,status,target,option,report,error}.*`, `ops.cutover.<key>`, `ops.exports.entity.<entity>`, `ops.privacy.{kind,status,warning,step,outcome,legal_basis}.*`, `ops.privacy.portal.*` (customer-facing), `ops.retention_policy.<key>`, `ops.dpia.<key>.{title,description}`, `ops.kpi.<key>.{label,help}` (R4), `ops.ask.*` (R4), `ops.digest.*` (Slack text, `en` only, ops channel language), `ops.permissions.<permission>`.
+- Task titles created from lists are rendered in the task owner's `users.locale` at creation time and stored as plain text in `tasks.title` (crm stores no `LocalizedText` there).
+- Transactional emails owned here: `packages/email/src/templates/ops/privacy-export-ready.tsx` and `privacy-erasure-scheduled.tsx`, both with subject and body keys in all three locales; sent through `email.sendTransactional` in `persons.locale`. A missing translation blocks the email (`blocked_translation`) and the privacy request shows a warning; the request itself still proceeds.
+- The privacy export `README.txt` and column headers of `sensitive.json` use the subject's locale; data values stay as stored. `LocalizedText` values (product names) are exported as their full JSON object.
+- No `LocalizedText` columns are owned by this module. Dashboard names and DPIA texts are single-language staff text. The weekly summary stores one text per locale it generated; a user whose locale is missing sees the `en` version with the badge "English only" (internal staff content, not customer communication, so the no-fallback rule for customer-facing text is not broken).
+- No publish-time completeness check applies to `ops` content; the two email templates follow email's publish check.
+
+## 9. Privacy
+
+`apps/web/modules/ops/privacy.ts` registers:
+
+```ts
+export const opsPrivacy: PrivacyRegistration = {
+  module: 'ops',
+  tables: ['person_stats', 'import_rows', 'imported_history', 'import_external_ids', 'privacy_requests',
+           'processing_restrictions', 'retention_list_items', 'attribution_credits', 'nl_questions'],
+  export: async (tx, personId) => ({ person_stats, imported_history, privacy_requests, processing_restrictions, retention_list_items }),
+  erase: async (tx, personId) => [/* { table, rows, action } per table */],
+  sweep: { import_rows, nl_questions, privacy_requests, marketing_profile },
+};
+```
+
+| Table | Export | Erase action | Why |
+| --- | --- | --- | --- |
+| `person_stats` | yes | deleted | derived |
+| `import_rows` | no (operational) | deleted; raw import files still within their 30 days that contain the subject's row are deleted | migration artefact |
+| `imported_history` | yes | deleted (append table, under `beam.allow_rewrite`) | history of a deleted profile |
+| `import_external_ids` | no | deleted where `entity_type = 'person'` and `entity_id` = person, and for their grants, bookings and memberships | no FK, matched by id |
+| `privacy_requests` | yes | kept (`retained_legal`): proof the request was handled; holds no personal data besides the anonymised `person_id` | accountability (GDPR art. 5(2)) |
+| `processing_restrictions` | yes | deleted | erasure supersedes restriction |
+| `retention_list_items` | yes | deleted | |
+| `attribution_credits` | no (derived) | deleted | rebuilt nightly without the person |
+| `nl_questions` | no | not person-linked; purged after 30 days | |
+| `ad_spend_daily`, `dashboards`, `management_summaries`, `retention_policies`, `dpia_records`, `data_exports`, `cutover_checklist_items`, `ops_state` | n/a | listed in `NO_PII_TABLES` | no person data |
+
+Seeded `retention_policies` (`packages/db/src/seed/ops.ts`; `run_order`, key, table, days, action):
+
+| Order | Key | Table | Days | Action | Handler |
+| --- | --- | --- | --- | --- | --- |
+| 10 | `marketing_profile` | persons | 1095 | anonymise | ops (rule 69) |
+| 20 | `form_sensitive_answers` | form_sensitive_answers | 1095 | delete | forms |
+| 30 | `form_submissions` | form_submissions | 1095 | delete | forms |
+| 40 | `watch_segments` | watch_segments | 730 | delete | webinar or generic |
+| 50 | `webinar_interactions` (polls, CTA, chat) | webinar_interactions | 730 | delete | webinar or generic |
+| 60 | `email_events` | email_events | 730 | delete | email or generic |
+| 70 | `waitlist_entries` | waitlist_entries | 365 | delete | booking or generic |
+| 80 | `bookings` | bookings | 2555 | delete | booking |
+| 90 | `invoices` | invoices | 2555 | anonymise | finance |
+| 100 | `audit_log` | audit_log | 1825 | delete | platform or generic |
+| 110 | `ai_requests` | ai_requests | 30 | delete | platform or generic |
+| 120 | `webhook_events` | webhook_events | 90 | delete | generic |
+| 130 | `integration_calls` | integration_calls | 90 | delete | generic |
+| 140 | `jobs_succeeded` | jobs | 7 | delete | platform (`jobs.prune`) |
+| 150 | `import_rows` | import_rows | 30 | delete | ops |
+| 160 | `files_export` | files | 7 | delete | platform (`files.purge_expired`) |
+| 170 | `nl_questions` | nl_questions | 30 | delete | ops |
+| 180 | `privacy_requests` | privacy_requests | 1825 | delete | ops |
+| 190 | `suppressions` | suppressions | null | keep | none: the hash is kept indefinitely so an opt-out survives every import |
+| 200 | `consent_records` | consent_records | null | keep | none: kept while the person exists as proof of consent; removed with the person by crm's erasure |
+
+The generic handler's allow-list (`GENERIC_SWEEP_TABLES`) is `watch_segments, webinar_interactions, email_events, waitlist_entries, audit_log, ai_requests, webhook_events, integration_calls`; `waitlist_entries` is swept only for rows whose session started before the cutoff. Booking and invoice periods follow the architecture's 7 years; the policy page shows the note "Confirm with your accountant; Belgian bookkeeping rules may require 10 years", and BEAM changes the number without a deploy.
+
+DPIA support: `dpia_records` is the register of the six higher-risk processing activities of blueprint 66, with purpose, risks, measures and decision. `DPIA_GATED` ties features to it (rule 70). The `/admin/privacy/dpia` page also shows, per AI feature, the documentation blueprint 61 asks for (fields sent from `AI_ALLOWED_FIELDS`, model, provider location, retention 30 days, no training, prompt and output storage in `ai_requests`), generated from the constant `AI_FEATURE_REGISTER` in `packages/core/src/ops/ai-register.ts`.
+
+Exports by staff exclude sensitive columns (rule 54). The subject's own export includes them (rule 60). The privacy export never includes another person's data: guest bookings show the guest's id only, shared grants show the owner's id only.
+
+## 10. Dependencies
+
+**Needs from other modules** (signatures `ops` codes against; the owner's spec is authoritative for the name, and `ops` adapts to it in the wave-2 seam work):
+
+| Module | Capability |
+| --- | --- |
+| platform | `action()`, `defineJob`, `defineSchedule`, `defineEvent`, `runJobInline`, `enqueue`, `recordEvent`, `audit`, `requirePermission`, `flag()`, `readSensitive()`; `getSetting(tx, 'retention_defaults' | 'ads' | 'ai')` and `setSetting`; `storeFile(tx, { kind, name, mime, bytes, personId?, expiresAt? }): Promise<{ id }>` and `readFile(db, id)`; `aiGenerate(ctx, { feature, model, system, messages, outputSchema, fieldsSent, personId? })` (R4); job `notify.slack`; `PrivacyRegistration` type and `GDPR_REGISTRY` from `registry/privacy.generated.ts`; `NO_PII_TABLES` |
+| crm | tables `persons`, `person_tags`, `tags`, `activity_events`, `tasks`, `companies`, `company_contacts`, `opportunities` (R3), views `v_consent_current`; `findOrCreatePersonByEmail(tx, { email, firstName?, lastName?, phone?, locale, acquisition })`; `updatePersonFields(tx, ctx, personId, patch, { onlyEmpty: boolean })`; `recordConsent(tx, ctx, { personId, purpose, status, source, method: 'import' | 'staff', wordingVersion })`; `addSuppression(tx, ctx, { email, scope, reason, source })`; `applyTag(tx, ctx, { personId, tagKey, source: 'import' })`; `createTask(tx, ctx, { ownerUserId, personId, title, kind, dueAt, priority, source, refType, refId })`; `upsertCompany(tx, ctx, input)`, `addCompanyContact(tx, ctx, input)`; `SEGMENT_ALLOWED_FIELDS` built from `PERSON_PROFILE_COLUMNS` |
+| booking | tables `sessions`, `session_templates`, `bookings`, `capacity_holds`, `waitlist_entries`; `importBooking(tx, ctx, { personId, sessionStartsAt, kind, status, externalRef })` |
+| commerce | tables `products`, `orders`, `order_lines`, `payments`, `refunds`, `checkouts` (`items[]` elements carry `quantity` and `unit_amount_cents`), `mandates` |
+| credits | tables `credit_grants`, `credit_entries`, `memberships`, views `v_credit_grant_balances` (`grant_id, remaining`), `v_person_credits` (`person_id, credit_kind, units_remaining, next_expires_at`), `v_person_status`; `importGrant(tx, ctx, { personId, productId, creditKind, units, expiresAt, idempotencyKey })`; `importMembership(tx, ctx, { personId, productId, periodEndAt, idempotencyKey })` |
+| finance | table `invoices` (counts for warnings); `getBillitCustomerRef(db, personId): Promise<string | null>`; `resyncCustomer(tx, personId)`; `BillitClient.anonymiseCustomer(id)` |
+| forms | tables `forms`, `form_versions`, `form_submissions` |
+| email | tables `email_messages`, `email_events`, `campaigns`, `campaign_recipients`; `sendTransactional(tx, { templateSlug, personId, data, idempotencyKey })`; `ResendClient.deleteContact(email)` |
+| automation | `exitAllForPerson(tx, ctx, personId, reason: 'restricted' | 'objected')`; seeded inactivity automations consuming `person.inactive_days` |
+| webinar (R2) | tables `webinars`, `webinar_registrations`, `webinar_interactions`, view `v_webinar_watch` |
+| every module | `privacy.ts` with `{ tables, export, erase }`, optional `sweep` handlers keyed by policy key |
+
+**Provides:**
+
+| To | What |
+| --- | --- |
+| crm | `v_person_profile` and `PERSON_PROFILE_COLUMNS` for the segment compiler; `getPersonStats` and `listRetentionReasons` for the person page; `isProcessingRestricted`; `createPrivacyRequest` behind the person page's "Export" and "Erase" buttons |
+| automation | events `person.inactive_days`, `ops.stage_changed`, `privacy.restricted`, `privacy.objected` as triggers and exits |
+| email | `v_person_profile` fields for dynamic content and audience preview |
+| platform | `privacy.retention_sweep`, the System page links to `/admin/privacy`; `isDpiaApproved('ai_sensitive_processing')` for the owner's sensitive-AI switch (scenario 6) |
+| webinar (R2) | `isDpiaApproved('watch_time_profiling')` before watch-time fields reach segments |
+| all modules | `requestStatsRefresh(tx, personId)` when they want an immediate stats refresh; the erasure orchestrator calling their `erase` in `ERASE_ORDER` |
+
+## 11. Edge cases and failure modes
+
+1. **Nightly stats run overlaps the 5-minute refresh.** Both upsert by `person_id` with the same function; the later write wins and both results are correct. No lock beyond the row.
+2. **A person is merged while stats are computed.** Merged persons are excluded; the loser's `person_stats` row is deleted by the next nightly run (rows whose person is merged or erased are removed in the same job).
+3. **A refund after the period closed.** Revenue reports count the refund on its own day (rule in `v_revenue_daily`); past days never change. Person `revenue_cents` drops at the next refresh.
+4. **No-show reversed by staff to attended.** The next refresh counts the visit; an inactivity event already emitted stays (append-only) but its dedupe key includes the anchor date, so thresholds re-arm from the new anchor.
+5. **Cut-over import makes 8,000 people inactive at once.** Rule 16's 3-day window emits nothing for old crossings, so no inactivity burst; thresholds start firing from the day each person newly crosses one.
+6. **CSV in Windows-1252 or with `;` delimiter (Excel BE).** The mapping step offers the delimiter; non-UTF-8 bytes are detected (invalid sequences) and the import fails at parse with `PermanentError` "save as CSV UTF-8"; nothing is written.
+7. **The same file uploaded twice.** `import_external_ids` and the `lower(email)` match make the second run report `updated` or `skipped`; package grants use key `import:<import_id>:row:<n>`, and a second import of the same packages file is blocked when its sha256 (from `files.sha256`) equals a `done` packages import, unless the user ticks "this is a different file".
+8. **Mailchimp export says "subscribed" for an address that unsubscribed in SimplyBook.** Suppressions import first (cut-over order); the consent row is `skipped` with `suppressed` (rule 47). The acceptance test "suppression survives import" covers it.
+9. **A chunk job dies mid-chunk.** Each chunk is one transaction, so nothing partial commits; the retry skips rows already done.
+10. **Reconciliation mismatch.** Sign-off is still possible but requires a note; mismatched rows stay listed, and staff fix balances with credits' `adjust` entries (reason mandatory), then re-open the report, which recomputes live.
+11. **Erasure requested for a person with a running membership and 6 credits left.** Warnings are shown; after acknowledgement the credits module's erase handler cancels the membership and revokes the grants; invoices stay with `person_id` null; the report lists them under `retained`.
+12. **Billit is down during erasure.** `privacy.erase_external` retries with backoff (up to about 7.5 hours over 6 attempts), then records `failed`; local erasure continues; the request shows "manual follow-up: Billit" and the digest lists it.
+13. **Erasure crashes in the middle (step `commerce`).** Steps before it are committed and recorded; the job retries the failed step, whose handler is idempotent (deleting already-deleted rows returns 0). The report records the final row counts per step.
+14. **The subject signs in during the 24-hour window and cancels.** Status becomes `cancelled`; the `privacy.erase` job runs at its time, sees `cancelled` and exits without changes.
+15. **An erased person re-registers with the same email.** crm creates a new person; the suppression hash with reason `erased` blocks marketing until the person grants consent again through a form, which crm handles; `ops` treats them as a new lead with fresh stats.
+16. **A new module table references `persons.id` and is not registered.** `gdpr-coverage.test.ts` fails CI listing the table and column.
+17. **Retention policy points at a table with no handler.** The sweep records `no_handler`, the digest lists the key, and nothing is deleted.
+18. **Ads API returns a non-EUR account.** `PermanentError` "account currency must be EUR"; that account's rows are not written; others continue.
+19. **UTM campaign does not match any ad campaign id.** Revenue appears under its own campaign key with spend 0 and ROAS blank; a "campaigns without spend" table lists them so marketing fixes the UTM template.
+20. **Claude writes SQL that touches `public.persons` or runs `delete`.** `validateAiSql` rejects anything but one `select`/`with`; if it slips through, `beam_ai_ro` has no grant on `public` and the transaction is read-only, so Postgres refuses; the question is stored `refused`.
+21. **NL query runs longer than 5 s.** `statement_timeout` cancels it; status `timeout`; the user sees "This question is too broad; add a period or limit".
+22. **AI budget exhausted.** `ask` returns `budget_exceeded` immediately; the weekly summary job ends `skipped_budget` and the Slack message says so.
+23. **Weekly list on a week with fewer than 25 candidates.** The list has as many items as candidates; `size` stores the real count.
+24. **A retention item's person is erased during the week.** The erase handler deletes the item; the list shows the remaining ranks with a gap, and the rank uniqueness stays valid.
+25. **Export of 60,000 persons.** 12 parts of 5,000 rows; the zip streams from the database without loading all parts in memory; download links expire after 7 days.
+26. **Digest job fails.** It retries with backoff; `ops_state.digest_last_sent_on` stops a double post after a late success; the missing digest appears as a dead job alert.
+27. **Tester persons.** Excluded from every report and list, included in `v_person_profile` with `is_tester = true` so tester segments work.
+28. **Daylight saving change.** All period boundaries are computed in SQL with `at time zone 'Europe/Brussels'`, never in server-local time; no `ops` schedule runs between 02:00 and 03:00, so the skipped and repeated hour never drops or doubles a run.
+
+## 12. Build packages
+
+Common rules for every package: work in the worktree `build/<id>`; never edit `package.json`, the lockfile, `packages/db/migrations/` or `registry/*.generated.ts`; a missing npm dependency goes to `docs/build/dependency-requests.md`. Done means: `pnpm typecheck` and `pnpm lint` pass, `pnpm i18n:check` passes, the package's Vitest suites are green on `createTestDb()` with the shared factories and `fake.ts` adapters, and the named Playwright spec passes against `beam_dev` when one is listed. Other modules' `api.ts` functions are mocked with `vi.mock` until their owner lands them. Entry files under `apps/web/modules/ops/` (`actions.ts`, `queries.ts`, `api.ts`, `jobs.ts`, `schedules.ts`, `events.ts`, `permissions.ts`, `nav.ts`, `privacy.ts`, `seed.ts`) are written once by ops-P1 and only re-export area files, so later packages never edit them.
+
+Order and parallelism: ops-P1 first (Wave 1). ops-P4 runs after ops-P1 in Wave 1. ops-P2, ops-P3, ops-P5 and ops-P6 run in Wave 2, after every Wave 1 module schema is merged (the views and the erasure need other modules' tables and `privacy.ts`): P2 first, then P3, P5 and P6 in parallel (P6 after P5 for `createPrivacyRequest`, which P6 mocks if run alongside). ops-P7 (R2), ops-P8 (R3), ops-P9 (R4) and ops-P10 (R4) are strictly sequential in that order because they edit `ops.views.ts`, `dashboard/queries.ts` and `ops.json` one after another.
+
+### ops-P1 (V1): schema, pure logic, module skeleton, catalogue (about 90 minutes)
+
+- **Goal:** every `ops` table and enum of section 2.2 (V1 to R4), the seed, the pure core library, compiling entry files and area stubs, the full V1 catalogue.
+- **Creates or edits:** `packages/db/src/schema/ops.ts` (edit the Wave 0 stub); `packages/db/src/seed/ops.ts` (retention policies of section 9, `dpia_records` rows, `settings.retention_defaults` through the platform seed helper, 13 cut-over rows); `packages/core/src/ops/{index,stage,inactivity,retention-defaults,retention-score,periods,profile-fields,import-targets,export-entities,cutover,privacy-order,dpia,ai-register,schemas,csv,zip}.ts`; `apps/web/modules/ops/{actions,queries,api,jobs,schedules,events,permissions,nav,privacy,seed}.ts`; stubs `apps/web/modules/ops/<area>/{actions,queries,jobs,schedules,api}.ts` for areas `stats, dashboard, reports, imports, exports, privacy, retention, marketing, insights, ai` (each `export {}`; the `api.ts` stubs export the 4.7 functions throwing `NotImplementedError`); `packages/core/src/i18n/messages/{en,nl-BE,fr-BE}/ops.json` (all V1 keys of section 8).
+- **Exposes:** `computeB2cStage(input: StageInput): B2cStage`; `inactivityEventsFor(input: { anchorAt: Date | null; today: string; lastEmitted?: number }): { days: 30 | 60 | 90 | 180 } | null`; `retentionScore(reason: RetentionReason, input: ScoreInput): number`; `periodRange(period: Period, at: Date): { from: Date; to: Date; prevFrom: Date; prevTo: Date }`; `toCsv(columns: string[], rows: AsyncIterable<unknown[]> | unknown[][]): AsyncIterable<Uint8Array>`; `parseCsvStream(parts: AsyncIterable<Uint8Array>, opts: { delimiter }): AsyncIterable<Record<string, string>>`; `zipStore(entries: AsyncIterable<{ name: string; data: AsyncIterable<Uint8Array> }>): AsyncIterable<Uint8Array>`; constants `PERSON_PROFILE_COLUMNS`, `IMPORT_TARGETS`, `EXPORT_ENTITIES`, `CUTOVER_STEPS`, `ERASE_ORDER`, `DPIA_GATED`, `AI_FEATURE_REGISTER`, `RetentionDefaults` (Zod); `permissions.ts` declaring `reports.read`, `dashboards.manage`, `privacy.run`; `events.ts` with the 4.6 kinds; `nav.ts` with every entry of section 5 behind permissions and flags `ff_ops_retention`, `ff_ops_marketing`, `ff_ops_ai`.
+- **Depends on:** `platform:` Wave 0 (`_shared.ts` helpers, `defineEvent`, `flag`), `crm:persons`, `platform:users`, `platform:files` tables.
+- **Tests:** `packages/core/src/ops/stage.test.ts` (rules 8-13, one case per stage, precedence member over lost, no-show never a visit); `inactivity.test.ts` (rules 15-17: 3-day window, highest threshold only, re-arm after new anchor, no event for leads); `retention-score.test.ts` (base, value cap 30, urgency per reason); `periods.test.ts` (week Monday-Sunday, month-to-date comparison on 31 March vs February, YTD, DST weekends); `csv.test.ts` (quotes, newlines, BOM, `;` delimiter, round trip); `zip.test.ts` (output opens with `unzip -t` semantics: CRC and data descriptors verified by a reference reader written in the test); `packages/db/src/schema/ops.test.ts` on `createTestDb()` (unique and partial unique constraints: one open privacy request per kind; sign-off check; `retention_policies` keep/days check). `imported_history` is named in the PR description for the orchestrator to add to the append-only trigger list (`APPEND_ONLY_TABLES` in the frozen `_shared.ts` and `0002_append_only.sql`).
+- **Done:** common done-definition; `pnpm gen:indexes` picks up the entry files.
+
+### ops-P2 (V1): views, person stats, inactivity and stage events, digest (about 120 minutes)
+
+- **Goal:** the five V1 views, the stats engine, its jobs and schedules, the stats half of `api.ts`, and the daily digest.
+- **Creates or edits:** `packages/db/src/schema/ops.views.ts` (create; owner of the file until ops-P7); `apps/web/modules/ops/stats/{compute.ts,jobs.ts,schedules.ts,actions.ts,queries.ts,api.ts}`; `apps/web/modules/ops/stats/digest.ts`.
+- **Exposes:** `getPersonStats`, `refreshPersonStats`, `requestStatsRefresh`, `listRetentionReasons` (4.7); `computeStatsSql(tx: Tx, opts: { personIds?: string[]; afterId?: string; limit: number }): Promise<{ upserted: number; lastId: string | null; stageChanges: StageChange[]; inactivity: InactivityHit[] }>`; jobs `ops.refresh_person_stats`, `ops.refresh_recent_stats`, `ops.refresh_person`, `ops.daily_digest`; action `recalculatePersonStats`.
+- **Depends on:** ops-P1; `crm:persons, person_tags, tags, activity_events, v_consent_current, suppressions, tasks, company_contacts`; `booking:sessions, bookings, waitlist_entries`; `commerce:orders, order_lines, products, refunds, payments, checkouts`; `credits:credit_grants, credit_entries, memberships, v_credit_grant_balances, v_person_credits, v_person_status`; `forms:forms, form_versions, form_submissions`; `email:email_messages, email_events`; `platform:recordEvent, enqueue, notify.slack, settings`.
+- **Tests:** `apps/web/modules/ops/stats/compute.test.ts` (rules 1-7 with factories: refund lowers revenue, company order excluded, imported purchase counted, guest visit counted for the guest, no-show excluded, `next_booking_at`); `stats/events.test.ts` (rules 14-18: stage-change event once per day, inactivity dedupe and re-arm, cut-over backfill emits nothing); `stats/jobs.test.ts` (every job run twice gives the same rows; continuation chunks of 2,000 cover 4,500 persons; recent refresh advances `ops_state.stats_cursor`); `packages/db/src/schema/ops.views.test.ts` (each `v_retention_candidates` reason fires and does not fire at its threshold; `v_person_profile` excludes erased, merged and restricted people and has no column from `SENSITIVE_COLUMNS`, `email`, `phone`; assessment outcome null for a form with sensitive fields; `v_revenue_daily` refund row and Brussels day boundary at 23:30 UTC; `v_no_show_report` credits forfeited; `v_abandoned_checkouts` recovered revenue); `stats/digest.test.ts` (message contains counts only, no email-like or name strings; second run same day posts nothing); `stats/permissions.test.ts`.
+- **Done:** common; `ops.refresh_person_stats` over the seed (10,000 persons) finishes in under 60 s on PGlite.
+
+### ops-P3 (V1): action dashboard and basic reporting (about 90 minutes)
+
+- **Goal:** `/admin/dashboard` with the V1 cards, `/admin/reports` and `/admin/reports/revenue`, report CSV route, task creation from cards.
+- **Creates or edits:** `apps/web/modules/ops/dashboard/{queries.ts,actions.ts,cards.ts}` (owner until ops-P7); `apps/web/modules/ops/reports/{queries.ts,revenue.ts,registry.ts}`; `apps/web/modules/ops/ui/{ActionCard,PeriodPicker,KpiTile,ChangeBadge}.tsx`; `apps/web/app/(admin)/admin/dashboard/{page,loading,error}.tsx`; `apps/web/app/(admin)/admin/reports/{page,loading,error}.tsx`; `apps/web/app/(admin)/admin/reports/revenue/{page,loading,error}.tsx`; `apps/web/app/(admin)/admin/reports/[report]/csv/route.ts`; `e2e/ops.spec.ts`.
+- **Exposes:** `getActionDashboard(ctx): Promise<ActionCard[]>`; `getRevenueReport(ctx, { period: Period; at: Date }): Promise<RevenueReport>`; `createTaskFromCard`; `REPORT_CSV: Record<ReportKey, (ctx, filters) => AsyncIterable<unknown[]>>` (P7 and P8 add keys in their own files and register them through `reports/registry.ts`, created here as the one map they import from).
+- **Depends on:** ops-P2 (views); `crm:createTask`, `crm:tasks`; `commerce:payments`; `credits:memberships, mandates`.
+- **Tests:** `dashboard/cards.test.ts` (rules 23, 24, 25, 27, 28, 30, 32 each with a firing and a non-firing fixture; card hidden without its permission); `dashboard/actions.test.ts` (task created with kind `follow_up`, `source = 'retention'` for the retention-reason cards and `manual` for the others, title in the owner's locale; a second click returns the same task); `reports/revenue.test.ts` (rule 34 period maths, net of refunds, sales mix, tester exclusion); `reports/permissions.test.ts`; `e2e/ops.spec.ts` (staff with MFA opens the dashboard; a paid fake-Mollie order appears in today's revenue: acceptance "reports reflect the transaction").
+- **Done:** common plus `e2e/ops.spec.ts`; dashboard query time under 1.5 s on the seed (rule 33).
+
+### ops-P4 (V1): data migration imports and cut-over checklist (about 120 minutes)
+
+- **Goal:** rules 42-53 end to end for all nine kinds, with dry run, reconciliation, sign-off and the cut-over screen.
+- **Creates or edits:** `apps/web/modules/ops/imports/{actions.ts,queries.ts,jobs.ts,match.ts,apply.ts,report.ts,reconcile.ts}`; `apps/web/modules/ops/imports/appliers/{persons,suppressions,consents,tags,companies,bookings,packages,memberships,history}.ts`; `apps/web/app/(admin)/admin/imports/{page,loading,error}.tsx`; `.../imports/new/page.tsx`; `.../imports/[id]/{page,loading,error}.tsx`; `.../imports/[id]/rows.csv/route.ts`; `.../imports/upload/route.ts`; `.../imports/cutover/page.tsx`; `apps/web/modules/ops/ui/{ImportMapper,ChunkedUpload,ImportReport}.tsx`; `e2e/ops-imports.spec.ts`.
+- **Exposes:** actions of 4.1 (`createImport` to `setCutoverStep`); jobs `import.parse`, `import.process_chunk`, `import.finalise`; `type RowApplier = (tx: Tx, ctx: JobCtx, row: ImportRow, opts: { dryRun: boolean; mapping: ImportMapping }) => Promise<{ status: ImportRowStatus; message?: string; personId?: string; entityType?: string; entityId?: string }>`; `matchPerson(tx, row): Promise<{ personId: string | null; how: 'external_id' | 'email' | 'phone_name' | 'none' }>`; `reconcilePackages(tx, importId): Promise<Reconciliation>`.
+- **Depends on:** ops-P1; `platform:storeFile, readFile, enqueue`; `crm:findOrCreatePersonByEmail, updatePersonFields, recordConsent, addSuppression, applyTag, upsertCompany, addCompanyContact`; `credits:importGrant, importMembership, v_credit_grant_balances`; `booking:importBooking`; `platform:recordEvent` (`ops.history_imported`).
+- **Tests:** `imports/match.test.ts` (rule 45: case and whitespace in email, phone plus name, in-file duplicate, external id first); `imports/appliers.test.ts` (one block per kind: required fields, overwrite off keeps existing values, `locale` and `acquisition` never overwritten, suppressed consent `skipped`, package grant idempotency key, history event with original `occurred_at`); `imports/dryrun.test.ts` (dry run changes nothing outside `imports` and `import_rows`: table row counts before and after; real run refused without a dry run of the same mapping hash); `imports/reconcile.test.ts` (matching file reconciles to zero difference; a pre-existing grant creates a reported mismatch; sign-off requires `settings.write` and a note); `imports/jobs.test.ts` (1,250 rows = 3 chunks; each job run twice yields the same state; crash in the middle of a chunk commits nothing); `imports/suppression-survives.test.ts` (acceptance: unsubscribe, then a Mailchimp `subscribed` import, then the person is still not reachable in `v_marketing_reachability`); `imports/cutover.test.ts` (auto-ticks, consents blocked before suppressions without the confirmation); `imports/permissions.test.ts`; `e2e/ops-imports.spec.ts` (upload a 3-part CSV, map, dry run report visible, run, rows imported).
+- **Done:** common plus `e2e/ops-imports.spec.ts`; a 50,000-row persons file processes in under 15 minutes of ticks on `beam_dev`.
+
+### ops-P5 (V1): privacy requests, erasure orchestration, subject export (about 120 minutes)
+
+- **Goal:** rules 58-67, scenario 7, the portal privacy page, the `ops` privacy registration and the gdpr-coverage test.
+- **Creates or edits:** `apps/web/modules/ops/privacy/{actions.ts,queries.ts,jobs.ts,api.ts,orchestrator.ts,export-zip.ts,external.ts,report.ts,register.ts}`; `apps/web/modules/ops/privacy.ts` is not edited (P1 made it re-export `./privacy/register`); `apps/web/app/(admin)/admin/privacy/{page,loading,error}.tsx`, `.../privacy/new/page.tsx`, `.../privacy/[id]/page.tsx`, `.../privacy/[id]/download/route.ts`; `apps/web/app/[locale]/(portal)/account/privacy/{page,loading,error}.tsx`, `.../account/privacy/[id]/download/route.ts`; `packages/email/src/templates/ops/{privacy-export-ready,privacy-erasure-scheduled}.tsx`; `apps/web/modules/ops/privacy/gdpr-coverage.test.ts`; `e2e/scenario-7-deletion.spec.ts`.
+- **Exposes:** `createPrivacyRequest`, `getOpenPrivacyRequests`, `isProcessingRestricted` (4.7); jobs `privacy.export`, `privacy.erase`, `privacy.erase_external`, `privacy.erase_step`, `privacy.finalise`; `runEraseStep(tx: Tx, requestId: string, module: ModuleId): Promise<PrivacyReport['steps']>`; `buildSubjectExport(tx: Tx, ctx: JobCtx, personId: string): AsyncIterable<{ name: string; data: AsyncIterable<Uint8Array> }>`.
+- **Depends on:** ops-P1; `platform:GDPR_REGISTRY, NO_PII_TABLES, readSensitive, storeFile, encrypt helper in @beam/core/privacy`; every module's `privacy.ts`; `crm:recordConsent, addSuppression`; `automation:exitAllForPerson`; `finance:getBillitCustomerRef, resyncCustomer, BillitClient.anonymiseCustomer`; `email:sendTransactional, ResendClient.deleteContact`.
+- **Tests:** `privacy/orchestrator.test.ts` (steps run in `ERASE_ORDER`; a failing step retries and the rerun is idempotent; cancelled request exits; 24-hour schedule; one running request per person); `privacy/external.test.ts` (fake Resend 404 = `not_found`; fake Billit failing on every attempt records `failed` and the local steps still run; `needs_manual_followup` set); `privacy/report.test.ts` (report and audit row contain no value matching the person's email, name or phone; Mollie and Anthropic recorded as `provider_retains`); `privacy/export.test.ts` (zip has one JSON and CSVs per registered module, `sensitive.json` present for the subject, file stored encrypted and decrypts with the key, expiry 7 days, another customer cannot download); `privacy/restrict.test.ts` (rules 65-66: person disappears from `v_person_profile`, consents withdrawn, enrolments exited, lifting does not re-grant); `privacy/privacy.test.ts` (ops's own tables: export then erase leaves no row referencing the person except `privacy_requests`); `gdpr-coverage.test.ts` (every column with a FK to `persons.id` in `information_schema` on `createTestDb()` belongs to a registry table or `NO_PII_TABLES`); `privacy/permissions.test.ts`; `e2e/scenario-7-deletion.spec.ts` (a person with bookings, a form submission, a campaign email, a waitlist entry, an invoice and an AI request is erased: CRM, email, assessment, waitlist and AI rows are gone or anonymised, the invoice remains with `person_id` null, the suppression hash remains, Billit and Resend fakes received their calls, the report shows no personal data, the audit row has no personal data).
+- **Done:** common plus `e2e/scenario-7-deletion.spec.ts`; `pnpm gdpr:coverage` green.
+
+### ops-P6 (V1): exports, retention sweep, retention policies and DPIA screens (about 90 minutes)
+
+- **Goal:** rules 54-57 and 68-70, `/admin/reports/exports`, `/admin/privacy/retention`, `/admin/privacy/dpia`, and `isDpiaApproved`.
+- **Creates or edits:** `apps/web/modules/ops/exports/{actions.ts,queries.ts,jobs.ts,entities.ts,api.ts,dpia.ts,sweep.ts,generic-sweep.ts}`; `apps/web/app/(admin)/admin/reports/exports/{page,loading,error}.tsx`, `.../reports/exports/[id]/download/route.ts`; `apps/web/app/(admin)/admin/privacy/retention/page.tsx`; `apps/web/app/(admin)/admin/privacy/dpia/page.tsx`; `e2e/ops-exports.spec.ts`.
+- **Exposes:** `isDpiaApproved(db, key)`; actions `createExport`, `updateRetentionPolicy`, `updateDpiaRecord`; jobs `ops.export_chunk`, `ops.export_finalise`, `privacy.retention_sweep`; `GENERIC_SWEEP_TABLES`.
+- **Depends on:** ops-P1; ops-P5 (`createPrivacyRequest` for `marketing_profile`; mocked if P5 is not merged); `platform:storeFile, GDPR_REGISTRY sweep handlers, SENSITIVE_COLUMNS`.
+- **Tests:** `exports/entities.test.ts` (each entity's column list excludes every `SENSITIVE_COLUMNS` member, password and token columns; restricted persons excluded); `exports/jobs.test.ts` (12,000 persons gives 3 parts; double-run safe; audit `data.exported` once with row count); `exports/full.test.ts` (README lists every table; refused without `users.manage`); `exports/sweep.test.ts` (rule 68 order; generic delete only for allow-listed tables and only older rows; append tables deleted under `beam.allow_rewrite` and refused without it; `keep` skipped; missing handler gives `no_handler`; `marketing_profile` creates at most 200 system erase requests and skips people with future bookings, memberships or credits); `exports/dpia.test.ts` (rule 70 for each gated key); `exports/permissions.test.ts`; `e2e/ops-exports.spec.ts` (acceptance "data can be exported": create a persons export, download the zip, it contains `persons-1.csv`).
+- **Done:** common plus `e2e/ops-exports.spec.ts`.
+
+### ops-P7 (R2): retention engine, B2C pipeline, no-show, abandoned-checkout and capacity reports (about 120 minutes)
+
+- **Goal:** rules 19-22, 29, 31, 39, 40; the R2 screens behind `ff_ops_retention`; webinar columns in `v_person_profile`; `v_capacity_utilisation`.
+- **Creates or edits:** edits `packages/db/src/schema/ops.views.ts` (after ops-P2: webinar columns, `v_capacity_utilisation`); edits `apps/web/modules/ops/dashboard/cards.ts` and `dashboard/queries.ts` (after ops-P3: cards `webinar_leads_not_booked`, `shared_package_abuse`); edits `packages/core/src/i18n/messages/{en,nl-BE,fr-BE}/ops.json` (after ops-P1); creates `apps/web/modules/ops/retention/{actions.ts,queries.ts,jobs.ts,schedules.ts,build-list.ts}`, `apps/web/modules/ops/reports/{no-shows.ts,abandoned.ts,capacity.ts,pipeline.ts}` and registers their CSV keys by editing `reports/registry.ts` (after ops-P3); pages `apps/web/app/(admin)/admin/dashboard/retention/page.tsx`, `.../dashboard/pipeline/page.tsx`, `.../reports/no-shows/page.tsx`, `.../reports/abandoned-checkouts/page.tsx`, `.../reports/capacity/page.tsx` (each with `loading.tsx`, `error.tsx`); `e2e/ops-retention.spec.ts`.
+- **Exposes:** `buildWeeklyRetentionList(tx: Tx, weekStartOn: string, cfg: RetentionDefaults): Promise<{ listId: string; size: number }>`; actions `createRetentionTask`, `createAllRetentionTasks`, `dismissRetentionItem`, `rebuildRetentionList`; queries `getWeeklyRetentionList`, `listRetentionCandidates`, `getPipelineBoard`, `getNoShowReport`, `getAbandonedCheckoutReport`, `getCapacityReport`; job and schedule `ops.build_weekly_retention_list`.
+- **Depends on:** ops-P2, ops-P3; `webinar:webinar_registrations, v_webinar_watch`; `crm:createTask`; `booking:capacity_holds, waitlist_entries`; `credits:credit_entries` (beneficiaries); `ops-P6:isDpiaApproved('watch_time_profiling')` gating the watch-time profile columns.
+- **Tests:** `retention/build-list.test.ts` (top 25 by score, one row per person with all reasons, cooldown exclusion, future booking excludes inactivity reasons, rebuild keeps actioned items, fewer than 25 candidates); `retention/actions.test.ts` (one-click task idempotent, create-all in one transaction, dismiss reason required); `retention/jobs.test.ts` (double run same week yields the same list); `reports/no-shows.test.ts` (rule 39: rates, pattern flag at 3 in 90 days, value and credits forfeited); `reports/abandoned.test.ts` (rule 40); `reports/capacity.test.ts` (nights use beds, holds counted); `reports/pipeline.test.ts` (counts per stage match `person_stats`); `dashboard/cards-r2.test.ts` (rules 29, 31); `e2e/ops-retention.spec.ts` (the weekly list renders with the flag on for a tester, "Create task" shows the task on the person page).
+- **Done:** common plus `e2e/ops-retention.spec.ts`.
+
+### ops-P8 (R3): ads import, attribution, management and marketing dashboards (about 120 minutes)
+
+- **Goal:** rules 34-38, 72-75; `ad_spend_daily` pulls; attribution; `/admin/dashboard/management`, `/admin/reports/{marketing,attribution,ads}` behind `ff_ops_marketing`; the `b2b_proposals` card.
+- **Creates or edits:** creates `packages/integrations/src/ads/{meta.ts,google.ts,types.ts}` and edits `packages/integrations/src/ads/{client.ts,fake.ts}` (Wave 0 stubs owned by ops); edits `packages/db/src/schema/ops.views.ts` (after ops-P7: `v_marketing_touches`); edits `dashboard/cards.ts`, `dashboard/queries.ts`, `reports/registry.ts` (after ops-P7); edits `ops.json` (after ops-P7); creates `apps/web/modules/ops/marketing/{actions.ts,queries.ts,jobs.ts,schedules.ts,attribution.ts,ads.ts,management.ts,kpis-marketing.ts,email-summary.ts,webinar-summary.ts}`; pages `apps/web/app/(admin)/admin/dashboard/management/page.tsx`, `.../reports/marketing/page.tsx`, `.../reports/attribution/page.tsx`, `.../reports/ads/page.tsx` (each with `loading.tsx`, `error.tsx`); `e2e/ops-marketing.spec.ts`.
+- **Exposes:** `MetaAdsClient.getCampaignInsights(input: { accountId: string; day: string }): Promise<AdDayRow[]>`; `GoogleAdsClient.getCampaignStats(input: { customerId: string; day: string }): Promise<AdDayRow[]>`; `computeAttribution(tx: Tx, opts: { fromPaidAt: Date }): Promise<{ rows: number }>`; `linearWeights(touches: Touch[], paidAt: Date): { campaignKey: string; weight: number }[]` (pure, in `marketing/attribution.ts`); queries `getManagementDashboard`, `getMarketingDashboard`, `getAttributionReport`, `getAdsReport`, `getEmailSummary`, `getWebinarSummary`; jobs `ads.pull_yesterday`, `ads.backfill`, `ops.compute_attribution`; actions `pullAdsNow`, `saveAdsSettings`.
+- **Depends on:** ops-P7; `crm:opportunities, company_contacts`; `email:campaigns, campaign_recipients, email_messages, email_events`; `webinar:webinars, webinar_registrations, v_webinar_watch, webinar_interactions`; `forms:form_submissions`; `platform:getSetting('ads')`, `settings.write`; environment `META_ADS_TOKEN`, `GOOGLE_ADS_TOKEN`.
+- **Tests:** `marketing/attribution.test.ts` (weights sum to 1; 90-day window; first-touch fallback; `direct|none`); `marketing/ads.test.ts` (fake clients; upsert idempotent on re-pull; micros to cents; 401 is permanent; non-EUR refused; 3-day re-pull); `marketing/management.test.ts` (rules 36-38 on fixtures with known answers); `marketing/kpis.test.ts` (rule 75, one case per KPI); `marketing/jobs.test.ts` (double run); `marketing/permissions.test.ts`; `e2e/ops-marketing.spec.ts` (management dashboard renders all tile groups; attribution shows a fake campaign's ROAS).
+- **Done:** common plus `e2e/ops-marketing.spec.ts`.
+
+### ops-P9 (R4): churn and repurchase indicators, opportunities, custom dashboards (about 90 minutes)
+
+- **Goal:** rule 76 in the nightly run, `v_opportunity_candidates`, `KPI_REGISTRY`, `/admin/dashboard/custom` behind `ff_ops_ai`.
+- **Creates or edits:** creates `packages/core/src/ops/{predict.ts,kpis.ts}`; edits `apps/web/modules/ops/stats/compute.ts` (after ops-P2: prediction phase gated by `isDpiaApproved('behavioural_scoring')`); edits `packages/db/src/schema/ops.views.ts` (after ops-P8: `v_opportunity_candidates`); edits `ops.json` (after ops-P8); creates `apps/web/modules/ops/insights/{actions.ts,queries.ts,evaluate-kpi.ts,opportunities.ts}`; pages `apps/web/app/(admin)/admin/dashboard/custom/page.tsx`, `.../dashboard/custom/[id]/page.tsx` (with `loading.tsx`, `error.tsx`); `apps/web/modules/ops/ui/{WidgetGrid,WidgetPicker}.tsx`.
+- **Exposes:** `predictIndicators(input: PredictInput): { churn: number; repurchase: number; predictedValueCents: number }`; `KPI_REGISTRY: Record<KpiKey, { label: string; unit: 'cents' | 'count' | 'pct'; periods: Period[]; segmentable: boolean }>` (every KPI of rules 34-38 and 75 plus `retention_candidates_by_reason` and `opportunities_by_reason`); `evaluateKpi(ctx, key: KpiKey, opts: { period: Period; at: Date; segmentId?: string; compare: boolean }): Promise<KpiValue>`; actions `saveDashboard`, `deleteDashboard`.
+- **Depends on:** ops-P8 (KPI query functions); ops-P6 (`isDpiaApproved`); `crm:segment_members` for segment filters.
+- **Tests:** `packages/core/src/ops/predict.test.ts` (rule 76 values for fixed inputs, clamps, member halving, future booking 0.05); `insights/stats-predictions.test.ts` (columns null while the DPIA is not approved, filled after approval); `insights/opportunities.test.ts` (each reason); `insights/kpi.test.ts` (every registry key evaluates on an empty and a seeded database; unknown key refused; definition with 25 widgets refused); `insights/permissions.test.ts` (shared dashboard read-only for non-owners without `dashboards.manage`).
+- **Done:** common.
+
+### ops-P10 (R4): `ai` schema, natural-language questions, weekly management summary (about 90 minutes)
+
+- **Goal:** rules 77-78; `AI_SCHEMA_SQL`; `/admin/dashboard/ask` and `/admin/dashboard/summary`.
+- **Creates or edits:** creates `packages/db/src/schema/ops.ai-schema.sql.ts` (SQL constant; the orchestrator turns it into a custom migration); `packages/core/src/ops/{validate-ai-sql.ts,ai-schema-doc.ts}`; `apps/web/modules/ops/ai/{actions.ts,queries.ts,jobs.ts,schedules.ts,ask.ts,summary.ts,ro-db.ts}`; pages `apps/web/app/(admin)/admin/dashboard/ask/page.tsx`, `.../dashboard/summary/page.tsx` (with `loading.tsx`, `error.tsx`); edits `ops.json` (after ops-P9); `e2e/ops-ai.spec.ts`.
+- **Exposes:** `validateAiSql(sql: string): { ok: true; sql: string } | { ok: false; reason: string }`; `getReadOnlyDb(): Promise<Db>` (connects with `DATABASE_URL_AI_RO`; in tests, `SET ROLE beam_ai_ro` on the PGlite handle); `askQuestion` action; jobs `ai.answer_question` (inline), `ai.weekly_summary`; schedule `ai.weekly_summary`.
+- **Depends on:** ops-P9, ops-P8; `platform:aiGenerate, ai_requests, settings.ai`; Anthropic `fake.ts` through the gateway; orchestrator applies `AI_SCHEMA_SQL` and adds `DATABASE_URL_AI_RO` to `.env.example` (requested in the PR description).
+- **Tests:** `packages/core/src/ops/validate-ai-sql.test.ts` (rejects `;`, DML, DDL, `pg_` functions, `set`, comments hiding statements; appends `limit 200`); `ai/ro-role.test.ts` (on PGlite with `AI_SCHEMA_SQL` applied: `beam_ai_ro` reads `ai.customers`, cannot read `public.persons`, cannot insert; no `ai` view exposes a `SENSITIVE_COLUMNS` member or `email`, `phone`, `last_name`); `ai/ask.test.ts` (fake Claude returns SQL; rows capped at 200; `person_id` names never in the second prompt; refusal, timeout and budget paths; `ai_requests` rows written); `ai/summary.test.ts` (prompt contains aggregates only; one row per locale; `skipped_budget`); `ai/jobs.test.ts` (double run); `e2e/ops-ai.spec.ts` (with the fake gateway, "Which customers generated the most revenue this year?" renders a table with person links).
+- **Done:** common plus `e2e/ops-ai.spec.ts`.
+
+## 13. Decisions made
+
+**Release placement**
+1. The views behind R2 screens (`v_retention_candidates`, `v_no_show_report`, `v_abandoned_checkouts`) ship in V1 because the architecture lists them as V1 views and the V1 action dashboard reads `v_retention_candidates`; their screens wait for R2 behind `ff_ops_retention`. R3 screens use `ff_ops_marketing`, R4 screens `ff_ops_ai`.
+2. V1 "basic reporting" is the revenue report (periods with comparison, sales mix); the full management dashboard is R3 as in the proposal.
+3. R3 and R4 tables are created in ops-P1 (expand-only, empty) so no later package edits `ops.ts`.
+4. Email and webinar performance summaries are R3 marketing-dashboard content; per-campaign stats screens stay with the email module.
+
+**Additions to the architecture's ops data model**
+5. Tables added: `import_external_ids`, `imported_history` (APPEND), `cutover_checklist_items`, `processing_restrictions`, `dpia_records`, `data_exports`, `retention_lists`, `retention_list_items`, `attribution_credits`, `nl_questions`, `management_summaries`, `ops_state`. `imported_history` joins the append-only trigger list through the orchestrator, because `_shared.ts` is frozen.
+6. Columns added: `person_stats.{visits_last_60d, visits_prev_180d, events_attended, late_cancellations, b2c_stage_changed_at, predicted_value_cents, churn_probability, repurchase_probability, predicted_at}`; `imports.{source, part_file_ids, header, row_count, reconciliation, signed_off_by_user_id, signed_off_at, started_at, finished_at}`; `import_rows.{dry_run_status, entity_type, entity_id}`; `privacy_requests.{due_on, verified_by_user_id, verification_note, scheduled_for_at, rectify_fields, warnings, needs_manual_followup, created_by_user_id}`; `retention_policies.{description, run_order, batch_size, last_run_at, last_run_rows, last_run_status}`; `ad_spend_daily.{currency, pulled_at}`.
+7. Enum values added: `imports_kind` `tags`, `history`; `imports_status` `cancelled`; `privacy_requests_kind` `object`; `privacy_requests_status` `cancelled`; `privacy_requests_requested_by` `system`; `retention_policies_action` `keep`. New enums as listed in 2.1.
+8. Views added: `v_capacity_utilisation` (R2), `v_marketing_touches` (R3), `v_opportunity_candidates` (R4); the `ai` schema views (R4).
+9. Settings keys used: `retention_defaults` (shape decided here, section 2.4) and the new key `ads` (`{ meta_account_ids, google_customer_ids }`). Environment variable added: `DATABASE_URL_AI_RO` (R4).
+10. Jobs and schedules added beyond the architecture: `ops.refresh_recent_stats` (every 5 minutes), `ops.refresh_person`, `ops.build_weekly_retention_list` (Monday 06:10), `import.parse`, `import.finalise`, `ops.export_chunk`, `ops.export_finalise`, `privacy.erase_external`, `privacy.erase_step`, `privacy.finalise`, `ads.backfill`, `ops.compute_attribution` (05:50), `ai.answer_question` as an inline job. Job kinds `import.*`, `privacy.*`, `ads.*` and `ai.*` keep the architecture's prefixes and are owned by `ops`.
+11. Routes added: `/[locale]/account/privacy` (portal, owned by ops) and the download and upload route handlers of 4.3, all inside folders `ops` owns.
+12. The `PrivacyRegistration` contract gains an optional `sweep` map keyed by retention policy key; the sweep falls back to a generic delete for an allow-list of insert-only tables.
+
+**Rules decided where the inputs were open**
+13. `b2c_stage` is derived only (rules 8-13); staff correct commercial status through crm's `status_override`, never the stage. The board is read-only for stage.
+14. A visit is an attended day or night booking; events count as `events_attended` and drive the `experienced` stage. No-shows never count (blueprint 48).
+15. Revenue is net of refunds, includes imported history, and excludes company orders from person revenue.
+16. Inactivity thresholds emit only when crossed within the last 3 days, and only the highest per window, so migrations and missed nights cause no bursts.
+17. Retention scores use fixed base weights per reason plus value (1 point per EUR 200, max 30) and urgency (max 20); the weekly list is a stable Monday snapshot with a 14-day task cooldown.
+18. High value means revenue of at least EUR 1,000 or the tag `vip`; both are settings.
+19. Action dashboard counts are live queries, not cached; the target is under 1.5 s.
+20. Previous-period comparison: day vs previous day, ISO week vs previous week, month-to-date vs the same days of the previous month, YTD vs the same span last year.
+21. Customer definitions for the management dashboard use a 90-day activity window and 365 days for lost.
+22. All dashboards and reports, including revenue, need `reports.read`; `reports.finance` stays for finance's own screens.
+
+**Imports**
+23. Historical purchases, visits, no-shows, webinar and assessment history import into `imported_history` and the timeline instead of fake orders, bookings or submissions, so no invoices, ledger entries or automations fire for the past.
+24. Uploads go in 3 MB parts (Vercel's 4.5 MB request limit, 10 MB per `files` row), max 50 MB per import.
+25. Matching is external id, then `lower(trim(email))`, then E.164 phone plus last name; existing values are kept unless overwrite is chosen; `locale` and `acquisition` are never overwritten.
+26. A real run requires a dry run with the same mapping; re-importing an identical packages file is blocked by its sha256.
+27. Imported memberships have no mandate; credits' payment-link renewal covers them. Only future bookings on materialised sessions import as bookings.
+28. Sensitive fields are not importable; target lists contain none.
+29. The cut-over order starts with suppressions; consents and persons cannot run before it without an explicit confirmation.
+
+**Exports and privacy**
+30. ZIP files are written by an in-house store-only zip writer (`zipStore`), so no new dependency is needed; CSV writing is in-house; parsing uses the installed `csv-parse`.
+31. Staff exports never include sensitive columns, secrets or restricted persons; the full export is CSV per table plus a README, and the complete copy is the encrypted `pg_dump` from `backup.yml`.
+32. The subject's export includes sensitive data, is encrypted at rest with `SENSITIVE_DATA_KEY_V1`, expires in 7 days and downloads only through authenticated routes.
+33. Privacy requests are due in 30 days; customer requests are verified by the signed-in session; staff requests need a verification note.
+34. Erasure waits 24 hours after verification (cancel window), runs external propagation first, then modules in `ERASE_ORDER`, each step its own job and transaction; an external provider that keeps failing does not block local erasure and is flagged for manual follow-up.
+35. The erasure confirmation email is sent at verification, because the address no longer exists afterwards.
+36. Restriction is a `processing_restrictions` row that removes the person from `v_person_profile` (and so from segments, campaigns and AI), withdraws marketing consents and exits automations; contractual processing continues. Objection adds a suppression and no restriction.
+37. Rectification stores field names only; crm's audit keeps the values; finance resyncs Billit.
+38. `privacy_requests` rows are kept 5 years after erasure as accountability evidence; they contain no personal data.
+39. `marketing_profile` retention runs the normal erasure pipeline as `requested_by = system`, at most 200 per night, skipping people with future bookings, memberships or credits.
+40. Invoice and booking retention are seeded at 7 years as the architecture states; the policy page notes that Belgian bookkeeping rules may require 10 years, and BEAM changes the value without a deploy.
+41. Suppression hashes and consent records are `keep` policies: documented, never swept.
+42. DPIA support is an in-app register of six processing activities; `behavioural_scoring`, `ai_customer_ranking` and `watch_time_profiling` gate R2-R4 features until approved or marked not required.
+
+**R3 and R4**
+43. Linear multi-touch over a 90-day lookback is the multi-touch model; first touch comes from `persons.acquisition`.
+44. Ads join on the platform campaign id carried in `utm_campaign`, with campaign name as fallback; only EUR ad accounts are supported; each pull re-reads the 3 previous days.
+45. Churn, repurchase and predicted value are transparent formulas (rule 76), not machine learning and not Claude ("rules before AI"); trained models are Later.
+46. NL questions send Claude only the `ai` schema description, then up to 200 result rows of allow-listed columns; person names are resolved locally and never sent.
+47. The weekly summary uses one normal Messages API call per locale (not the Batches API) because it is one small request a week; it holds aggregates only and is posted to Slack as a link, not emailed.
+48. Custom dashboards pick from `KPI_REGISTRY`; there is no free SQL outside the R4 question feature.
+49. `ops` owns `packages/integrations/src/ads/`; it uses the Billit and Resend clients owned by finance and email and the AI gateway owned by platform.
+50. Names of other modules' API functions in section 10 are the ones `ops` codes against; where an owner's spec names one differently, the owner's name wins and `ops` adapts during the Wave 2 seam work.

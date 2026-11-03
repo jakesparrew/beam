@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { DbHandle } from "../src/client";
 import { ROLE_KEYS, roles } from "../src/schema/platform";
+import { DEFAULT_SEEDS } from "../src/seed/index.generated";
 import { grantDefaultPermission, seedDefaults } from "../src/seed/run";
 import {
   DEFAULT_ROLE_GRANTS,
@@ -19,9 +20,35 @@ afterAll(() => h.close());
 const role = async (key: (typeof ROLE_KEYS)[number]) =>
   (await h.db.select().from(roles).where(eq(roles.key, key)))[0]!;
 
+type SeedEntry = { module: string; after: readonly string[] };
+const seeds = DEFAULT_SEEDS as readonly SeedEntry[];
+const seedOrder = seeds.map((s) => s.module);
+
+describe("generated DEFAULT_SEEDS order", () => {
+  // Module seeds (`packages/db/src/seed/<m>.ts`) may register after platform; platform must
+  // still run first, because the other modules' system rows build on its roles.
+  it("starts with platform, which depends on nothing", () => {
+    expect(seedOrder[0]).toBe("platform");
+    expect(seeds[0]!.after).toEqual([]);
+  });
+
+  it("lists each module once and runs every seed after the seeds it names", () => {
+    expect(new Set(seedOrder).size).toBe(seedOrder.length);
+    seeds.forEach((s, i) => {
+      for (const dep of s.after) {
+        // gen:indexes ignores a dependency that has no seed; one that has a seed comes first.
+        const at = seedOrder.indexOf(dep);
+        if (at !== -1) expect(at, `${s.module} after ${dep}`).toBeLessThan(i);
+      }
+    });
+  });
+});
+
 describe("platform defaults seed", () => {
   it("seeds the nine system roles with names in three locales", async () => {
-    expect(await seedDefaults(h.db)).toEqual(["platform"]);
+    const ran = await seedDefaults(h.db);
+    expect(ran[0]).toBe("platform");
+    expect(ran).toEqual(seedOrder);
     const rows = await h.db.select().from(roles);
     expect(rows.map((r) => r.key).sort()).toEqual([...ROLE_KEYS].sort());
     for (const r of rows) {
@@ -60,7 +87,7 @@ describe("platform defaults seed", () => {
 
   it("is idempotent on a second run", async () => {
     const before = await h.db.select().from(roles);
-    await seedDefaults(h.db);
+    expect(await seedDefaults(h.db)).toEqual(seedOrder);
     const after = await h.db.select().from(roles);
     const strip = (rows: typeof before) =>
       rows

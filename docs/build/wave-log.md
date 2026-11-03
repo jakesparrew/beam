@@ -26,3 +26,8 @@ One entry per merge batch and gate (runbook section 5.7, adapted by OD-3).
 - Plan: validation passed (123 packages after the coverage pass added platform-P14), coverage matrix `docs/plan/05-coverage.md` written, four ownership gaps fixed (booking-P6 portal routes, ops-P8 report routes, booking api folder, automation engine step file), plan README and repository README written. A scan of every owns list for misplaced paths found nothing else.
 - platform-P2 done in 29 minutes (53 db tests). Merged as `2e1033d`. Migrations `0000_init` (36 tables, 56 enums), `0001_append_only`, `0002_init_views` (4 views); `db:check-migrations`, `db:views --check`, `db:append-only --check` and `test:migrations` green. Gate `g03-p2` (merge mode) green in 72 s, peak 2.6 GB. Applied to `beam_dev` over neon-ws: 36 tables, 4 views, 10 append-only triggers, 3 migrations recorded.
 - Requests carried forward: platform-P7 calls `seedDefaults(db, { permissions: PERMISSIONS })` in `seed-demo.ts`; each module adds the foreign keys noted in the contract-table stub comments when it creates the referenced tables.
+- platform-P3 done in 33 minutes (163 tests across core, integrations, email). Merged as `e9d6e15`; gate `g04-p3` (merge mode) green in 51 s. Wave 1 quick gate `g05-w1` (all lint and tests) green in 74 s, peak 2.4 GB.
+- Requests carried forward: crm uses AI feature key `ai.draft_reply` (not `inbox_draft`) and needs a decision on `thread_messages`/`knowledge_articles` fields before R3; email uses `ai.draft_email`; platform-P5's job runner uses `isPermanentFailure()` from `@beam/integrations/_shared`.
+- A push hung on a stalled GitHub connection; `scripts/build/push.sh` now pushes with a 90 s timeout per attempt and backoff.
+
+## Wave 2: platform-P5

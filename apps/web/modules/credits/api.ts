@@ -1,7 +1,9 @@
 /**
- * credits' cross-module door (02-data-model section 6.5). Wave 0 stubs by platform-P7 with the
- * owner's final signatures: each throws `NotImplementedError('credits.<fn>')` until credits
- * implements it.
+ * credits' cross-module door (02-data-model section 6.5, credits spec section 4). Every function
+ * another module calls, with its final signature (Wave 0 stubs by platform-P7, completed by
+ * credits-P1): each throws `NotImplementedError('credits.<fn>')` until the credits package that
+ * lands it (P3 ledger, P4 memberships, P5 merge, P8 sharing review). The three R3 referral hooks
+ * that V1 code calls at runtime return `null` or nothing until credits-P9.
  */
 import type { DbOrTx, Tx } from "@beam/db";
 import { NotImplementedError } from "@beam/core/errors";
@@ -234,20 +236,23 @@ export function listSharingReview(_db: DbOrTx, _opts: { limit: number }): Promis
   return notYet("listSharingReview");
 }
 
-/** R3, crm person creation. */
+/**
+ * R3, crm person creation. V1 code calls it at runtime, so until credits-P9 implements referral
+ * codes it resolves to `null` (no code known) instead of throwing (03-build-order rule 1).
+ */
 export function resolveReferralCode(
   _db: DbOrTx,
   _code: string,
 ): Promise<{ codeId: string; referrerPersonId: string | null; partnerCompanyId: string | null } | null> {
-  return notYet("resolveReferralCode");
+  return Promise.resolve(null);
 }
 
-/** R3, commerce paid transaction. */
+/** R3, commerce paid transaction. No effect until credits-P9 (03-build-order rule 1). */
 export function onOrderPaidForReferrals(_tx: Tx, _ctx: Ctx, _input: { orderId: string }): Promise<void> {
-  return notYet("onOrderPaidForReferrals");
+  return Promise.resolve();
 }
 
-/** R3. */
+/** R3, commerce refund transaction. No effect until credits-P9 (03-build-order rule 1). */
 export function onOrderRefundedForReferrals(_tx: Tx, _ctx: Ctx, _input: { orderId: string; refundId: string }): Promise<void> {
-  return notYet("onOrderRefundedForReferrals");
+  return Promise.resolve();
 }

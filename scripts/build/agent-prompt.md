@@ -34,6 +34,11 @@ otherwise, and add or adjust tests that prove each fix.
   with that exact signature and mock it in your tests with `vi.mock`. Never change another
   module's stub.
 
+**Requests from earlier packages.** Read `docs/build/requests.md`. Every row under "Open" whose
+"For" column names your package or your module (and that falls inside your owned files) is part
+of your task: do it, and list it in your report under `requests` as "served: <request>". A request
+that falls outside your files stays open; say so in the report.
+
 ## 2. Read first, in this order
 1. `CONVENTIONS.md` (the rule card) and, once it exists, `docs/plan/conventions.md`.
 2. `docs/plan/04-build-session.md` sections 0, 1.5, 3 (for platform packages) and 4.

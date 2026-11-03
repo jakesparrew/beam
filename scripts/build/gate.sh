@@ -10,7 +10,9 @@ set -uo pipefail
 mode="${1:-quick}"; label="${2:-adhoc}"; since="${3:-}"
 cd "$(dirname "$0")/../.."
 logs=docs/build/logs; mkdir -p "$logs"
-if grep -Eq '^DATABASE_URL(_UNPOOLED)?=.*/neondb' .env.local 2>/dev/null || grep -q '/neondb' <<<"${DATABASE_URL:-}${DATABASE_URL_UNPOOLED:-}"; then
+# The production database is the path segment /neondb (the role name neondb_owner is not it).
+prod_db='\.neon\.tech/neondb([?"'"'"'[:space:]]|$)'
+if grep -Eq "^DATABASE_URL(_UNPOOLED)?=.*${prod_db}" .env.local 2>/dev/null || grep -Eq "$prod_db" <<<"${DATABASE_URL:-} ${DATABASE_URL_UNPOOLED:-}"; then
   echo "refusing: database points at production"; exit 9
 fi
 if [ "$mode" = merge ] && [ -z "$since" ]; then echo "merge mode needs <since-sha>"; exit 2; fi

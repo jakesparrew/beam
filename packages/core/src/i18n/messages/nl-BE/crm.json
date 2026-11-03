@@ -1,1 +1,14 @@
-{}
+{
+  "crm": {
+    "permissions": {
+      "persons_read": "Personen, hun tijdlijn en status bekijken",
+      "persons_write": "Personen, toestemmingen en tags aanmaken en bewerken",
+      "persons_merge": "Dubbele personen samenvoegen",
+      "persons_sensitive_read": "Gevoelige gezondheidsgegevens van een persoon inzien",
+      "persons_export": "Personenlijsten exporteren naar CSV",
+      "persons_erase": "De wissing van een persoon aanvragen",
+      "crm_b2b": "Bedrijven, contactpersonen en de B2B-pipeline beheren",
+      "tasks_all": "Alle taken van medewerkers zien en afhandelen"
+    }
+  }
+}

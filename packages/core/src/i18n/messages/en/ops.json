@@ -1,1 +1,10 @@
-{}
+{
+  "ops": {
+    "permissions": {
+      "reports_read": "See dashboards and reports",
+      "reports_finance": "See financial reports",
+      "dashboards_manage": "Create and share custom dashboards",
+      "privacy_run": "Run privacy requests: export, erasure and restriction"
+    }
+  }
+}

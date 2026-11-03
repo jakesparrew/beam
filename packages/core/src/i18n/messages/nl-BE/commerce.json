@@ -1,1 +1,9 @@
-{}
+{
+  "commerce": {
+    "permissions": {
+      "commerce_sell": "Verkopen aan de balie en bestellingen aanmaken",
+      "commerce_refund": "Bestellingen en bestellijnen terugbetalen",
+      "pricing_write": "Producten, prijzen en promoties beheren"
+    }
+  }
+}

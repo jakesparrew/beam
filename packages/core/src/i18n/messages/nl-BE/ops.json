@@ -1,1 +1,10 @@
-{}
+{
+  "ops": {
+    "permissions": {
+      "reports_read": "Dashboards en rapporten bekijken",
+      "reports_finance": "Financiële rapporten bekijken",
+      "dashboards_manage": "Eigen dashboards aanmaken en delen",
+      "privacy_run": "Privacyverzoeken uitvoeren: export, wissing en beperking"
+    }
+  }
+}

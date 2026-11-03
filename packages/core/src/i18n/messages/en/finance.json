@@ -1,1 +1,8 @@
-{}
+{
+  "finance": {
+    "permissions": {
+      "invoices_read": "See invoices and credit notes",
+      "invoices_issue": "Issue invoices and credit notes"
+    }
+  }
+}

@@ -1,1 +1,9 @@
-{}
+{
+  "email": {
+    "permissions": {
+      "email_write": "E-mailsjablonen aanmaken en bewerken",
+      "email_send": "Individuele e-mails en testmails versturen",
+      "campaigns_send": "Campagnes plannen en versturen"
+    }
+  }
+}

@@ -1,1 +1,10 @@
-{}
+{
+  "booking": {
+    "permissions": {
+      "bookings_read": "See sessions, bookings and the waitlist",
+      "bookings_write": "Book, move, cancel and check in customers",
+      "bookings_override": "Override capacity and booking rules",
+      "waitlist_manage": "Manage waitlists and seat offers"
+    }
+  }
+}

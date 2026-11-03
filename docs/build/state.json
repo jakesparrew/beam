@@ -62,12 +62,18 @@
       "mergedAt": "2026-11-03T22:28:10Z"
     },
     "platform-P6": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "19dbd95",
+      "runId": "wf_31aa1b94-155",
+      "startedAt": "2026-11-03T22:28:41Z"
     },
     "platform-P7": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "19dbd95",
+      "runId": "wf_f1e7d0b9-38b",
+      "startedAt": "2026-11-03T22:28:41Z"
     },
     "platform-P8": {
       "status": "pending",

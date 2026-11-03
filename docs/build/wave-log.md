@@ -36,3 +36,4 @@ One entry per merge batch and gate (runbook section 5.7, adapted by OD-3).
 - Full gate `g06-w2` green in 217 s: lint 37 s, tests 74 s, production build 64 s, peak used RAM 4.0 GB.
 
 ## Wave 3: platform-P6, P7
+- Started 22:28 UTC in parallel from `19dbd95` (runs `wf_31aa1b94-155`, `wf_f1e7d0b9-38b`).

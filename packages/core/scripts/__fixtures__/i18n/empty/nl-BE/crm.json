@@ -1,0 +1,8 @@
+{
+  "crm": {
+    "list": {
+      "title": "   ",
+      "count": "{n, plural, one {# persoon} other {# personen}}"
+    }
+  }
+}

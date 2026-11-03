@@ -1,0 +1,81 @@
+{
+  "platform": {
+    "errors": {
+      "unauthorized": "Your session has ended. Please sign in again.",
+      "forbidden": "You do not have permission to do this.",
+      "validation": "Some fields are not filled in correctly. Check the form and try again.",
+      "not_found": "This item no longer exists or you cannot open it.",
+      "conflict": "Someone else changed this in the meantime. Reload the page and try again.",
+      "rate_limited": "Too many attempts. Try again in a few minutes.",
+      "internal": "Something went wrong on our side. Try again later. Reference: {requestId}"
+    },
+    "shell": {
+      "recovery_codes_left": "{count, plural, =0 {You have no recovery codes left.} one {You have # recovery code left.} other {You have # recovery codes left.}}",
+      "missing_translation": "Translation missing"
+    },
+    "permissions": {
+      "settings_write": "Change platform and module settings",
+      "users_manage": "Invite, edit and disable staff accounts and change their role",
+      "flags_manage": "Turn feature flags on or off and manage testers",
+      "system_jobs": "Open the System pages: jobs, webhooks, integrations and support register",
+      "ai_use": "Use the AI assistants and see AI usage",
+      "partner_own": "See the partner's own holds, referrals and counts"
+    },
+    "email": {
+      "layout": {
+        "brand": "BEAM Vitality Center",
+        "footer": "You receive this email because you have an account with BEAM Vitality Center.",
+        "button_fallback": "If the button does not work, copy this link into your browser:"
+      },
+      "magic_link": {
+        "subject": "Your sign-in link for BEAM",
+        "preheader": "Sign in with one click. The link is valid for {expiresMinutes} minutes.",
+        "heading": "Sign in to your BEAM account",
+        "body": "Click the button below to sign in. The link is valid for {expiresMinutes} minutes and works only once. If you did not ask for this link, you can ignore this email.",
+        "cta": "Sign in"
+      },
+      "staff_invite": {
+        "subject": "You are invited to the BEAM back-office",
+        "preheader": "Set your password within {expiresHours} hours.",
+        "heading": "Welcome to the BEAM team",
+        "body": "An account has been created for you in the BEAM back-office. Choose a password and set up two-step verification. The link is valid for {expiresHours} hours and works only once.",
+        "cta": "Set my password"
+      },
+      "password_reset": {
+        "subject": "Reset your BEAM password",
+        "preheader": "The link is valid for {expiresMinutes} minutes.",
+        "heading": "Choose a new password",
+        "body": "We received a request to reset your password. Click the button below to choose a new one. The link is valid for {expiresMinutes} minutes. If you did not ask for this, you can ignore this email: your password stays the same.",
+        "cta": "Choose a new password"
+      },
+      "mfa_changed": {
+        "subject": "A security setting of your BEAM account changed",
+        "preheader": "Check that this was you.",
+        "heading": "Security notice",
+        "body": "{change, select, password_changed {Your password was changed.} password_reset {Your password was reset.} mfa_reset {Two-step verification was reset for your account.} recovery_codes_regenerated {New recovery codes were created for your account.} other {A security setting of your account was changed.}} If this was not you, contact your administrator immediately.",
+        "cta": "Review my account",
+        "when_label": "When"
+      },
+      "monthly_report": {
+        "subject": "BEAM platform report {period}",
+        "preheader": "Uptime, incidents and support for {period}.",
+        "heading": "Monthly platform report",
+        "body": "Here are the figures of the BEAM platform for {period}: availability, incidents, support requests, backups and AI use.",
+        "cta": "Open the report",
+        "uptime": "Availability",
+        "uptime_target": "Target 99.5 %",
+        "uptime_manual": "entered by hand",
+        "downtime": "Downtime (minutes)",
+        "incidents": "Security incidents (critical / high / normal)",
+        "support_received": "Support requests received",
+        "support_resolved": "Support requests resolved",
+        "support_breaches": "Response time exceeded",
+        "dead_jobs": "Failed background jobs",
+        "alerts_sent": "Alerts sent",
+        "backups": "Backups (ok / failed)",
+        "ai_spend": "AI cost",
+        "notes": "Notes"
+      }
+    }
+  }
+}

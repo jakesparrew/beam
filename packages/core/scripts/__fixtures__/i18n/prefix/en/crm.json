@@ -1,0 +1,8 @@
+{
+  "booking": {
+    "list": {
+      "title": "People",
+      "count": "{n, plural, one {# person} other {# people}}"
+    }
+  }
+}

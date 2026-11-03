@@ -1,0 +1,81 @@
+{
+  "platform": {
+    "errors": {
+      "unauthorized": "Je sessie is afgelopen. Meld je opnieuw aan.",
+      "forbidden": "Je hebt geen toestemming om dit te doen.",
+      "validation": "Sommige velden zijn niet correct ingevuld. Controleer het formulier en probeer opnieuw.",
+      "not_found": "Dit item bestaat niet meer of je kunt het niet openen.",
+      "conflict": "Iemand anders heeft dit intussen gewijzigd. Laad de pagina opnieuw en probeer opnieuw.",
+      "rate_limited": "Te veel pogingen. Probeer het over enkele minuten opnieuw.",
+      "internal": "Er ging iets mis aan onze kant. Probeer het later opnieuw. Referentie: {requestId}"
+    },
+    "shell": {
+      "recovery_codes_left": "{count, plural, =0 {Je hebt geen herstelcodes meer.} one {Je hebt nog # herstelcode.} other {Je hebt nog # herstelcodes.}}",
+      "missing_translation": "Vertaling ontbreekt"
+    },
+    "permissions": {
+      "settings_write": "Instellingen van het platform en de modules wijzigen",
+      "users_manage": "Medewerkersaccounts uitnodigen, bewerken en uitschakelen en hun rol wijzigen",
+      "flags_manage": "Feature flags in- of uitschakelen en testers beheren",
+      "system_jobs": "De systeempagina's openen: jobs, webhooks, integraties en supportregister",
+      "ai_use": "De AI-assistenten gebruiken en het AI-gebruik bekijken",
+      "partner_own": "De eigen reservaties, doorverwijzingen en aantallen van de partner bekijken"
+    },
+    "email": {
+      "layout": {
+        "brand": "BEAM Vitality Center",
+        "footer": "Je ontvangt deze e-mail omdat je een account hebt bij BEAM Vitality Center.",
+        "button_fallback": "Werkt de knop niet? Kopieer deze link naar je browser:"
+      },
+      "magic_link": {
+        "subject": "Je aanmeldlink voor BEAM",
+        "preheader": "Meld je aan met één klik. De link is {expiresMinutes} minuten geldig.",
+        "heading": "Meld je aan bij je BEAM-account",
+        "body": "Klik op de knop hieronder om je aan te melden. De link is {expiresMinutes} minuten geldig en werkt maar één keer. Heb je deze link niet aangevraagd? Dan mag je deze e-mail negeren.",
+        "cta": "Aanmelden"
+      },
+      "staff_invite": {
+        "subject": "Je bent uitgenodigd voor de BEAM-backoffice",
+        "preheader": "Stel binnen {expiresHours} uur je wachtwoord in.",
+        "heading": "Welkom in het BEAM-team",
+        "body": "Er is een account voor je aangemaakt in de BEAM-backoffice. Kies een wachtwoord en stel de verificatie in twee stappen in. De link is {expiresHours} uur geldig en werkt maar één keer.",
+        "cta": "Mijn wachtwoord instellen"
+      },
+      "password_reset": {
+        "subject": "Stel je BEAM-wachtwoord opnieuw in",
+        "preheader": "De link is {expiresMinutes} minuten geldig.",
+        "heading": "Kies een nieuw wachtwoord",
+        "body": "We kregen een aanvraag om je wachtwoord opnieuw in te stellen. Klik op de knop hieronder om een nieuw wachtwoord te kiezen. De link is {expiresMinutes} minuten geldig. Heb je dit niet aangevraagd? Dan mag je deze e-mail negeren: je wachtwoord blijft hetzelfde.",
+        "cta": "Nieuw wachtwoord kiezen"
+      },
+      "mfa_changed": {
+        "subject": "Een beveiligingsinstelling van je BEAM-account is gewijzigd",
+        "preheader": "Controleer of jij dit was.",
+        "heading": "Beveiligingsmelding",
+        "body": "{change, select, password_changed {Je wachtwoord is gewijzigd.} password_reset {Je wachtwoord is opnieuw ingesteld.} mfa_reset {De verificatie in twee stappen van je account is opnieuw ingesteld.} recovery_codes_regenerated {Er zijn nieuwe herstelcodes voor je account aangemaakt.} other {Een beveiligingsinstelling van je account is gewijzigd.}} Was jij dit niet? Neem dan meteen contact op met je beheerder.",
+        "cta": "Mijn account nakijken",
+        "when_label": "Wanneer"
+      },
+      "monthly_report": {
+        "subject": "BEAM-platformrapport {period}",
+        "preheader": "Beschikbaarheid, incidenten en support voor {period}.",
+        "heading": "Maandelijks platformrapport",
+        "body": "Hier zijn de cijfers van het BEAM-platform voor {period}: beschikbaarheid, incidenten, supportaanvragen, back-ups en AI-gebruik.",
+        "cta": "Rapport openen",
+        "uptime": "Beschikbaarheid",
+        "uptime_target": "Doel 99,5 %",
+        "uptime_manual": "manueel ingevuld",
+        "downtime": "Onbeschikbaarheid (minuten)",
+        "incidents": "Beveiligingsincidenten (kritiek / hoog / normaal)",
+        "support_received": "Ontvangen supportaanvragen",
+        "support_resolved": "Opgeloste supportaanvragen",
+        "support_breaches": "Reactietijd overschreden",
+        "dead_jobs": "Mislukte achtergrondtaken",
+        "alerts_sent": "Verstuurde meldingen",
+        "backups": "Back-ups (geslaagd / mislukt)",
+        "ai_spend": "AI-kosten",
+        "notes": "Opmerkingen"
+      }
+    }
+  }
+}

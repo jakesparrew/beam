@@ -14,11 +14,16 @@
       "mergedAt": "2026-11-03T20:56:06Z"
     },
     "platform-P2": {
-      "status": "running",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "f14e1fc",
       "runId": "wf_e1f35b9a-c3a",
-      "startedAt": "2026-11-03T20:57:09Z"
+      "startedAt": "2026-11-03T20:57:09Z",
+      "branchSha": "569a7cb",
+      "endedAt": "2026-11-03T21:26:10Z",
+      "minutes": 29,
+      "mergeSha": "2e1033d",
+      "mergedAt": "2026-11-03T21:29:53Z"
     },
     "platform-P3": {
       "status": "running",

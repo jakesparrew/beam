@@ -18,6 +18,10 @@ to "Served" with the package id.
 | platform-P7 | webinar | `WebinarSignup` in `apps/web/modules/webinar/api.ts` is a throwing stand-in; webinar-P3 replaces it. |
 | platform-P7 | ops | `PersonStats` in `apps/web/modules/ops/api.ts` is an open row type until `person_stats` exists; the ops package that creates it narrows the type. |
 | platform-P7 | every module | `packages/db/src/seed/<m>.ts` are documented skeletons without a `seed` export; a module that needs default rows exports `seed = { module, after: ['platform', ...], run }` there (allowed once `fix-w03-platform-1` merges). |
+| platform-P6 | platform-P8 | Move `AdminFrame` (AdminShell plus the Report-a-problem dialog) out of `modules/platform/ui/login-form.tsx` into its own ui file. |
+| platform-P6 | platform-P8 | Implement the `reportProblem` handler; the stub in `modules/platform/actions.ts` has its final signature. |
+| platform-P6 | platform-P8 | Call `notifySecurityChange` from `lib/auth.ts` in `resetUserMfa` (PL-9). |
+| platform-P6 | platform-P8 | Build `/admin/settings` (an owner signing in to `/admin` is redirected to the first permitted nav entry, which is a 404 until then). |
 
 ## Served
 

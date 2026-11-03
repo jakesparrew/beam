@@ -1,0 +1,49 @@
+name: anonymise-staging
+
+# Monthly, after go-live: anonymise personal data on the staging branch. Skipped until the
+# staging secret and the anonymise script exist.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "20 4 1 * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: anonymise-staging
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    outputs:
+      enabled: ${{ steps.flag.outputs.enabled }}
+    steps:
+      - id: flag
+        env:
+          HAS_DB: ${{ secrets.STAGING_DATABASE_URL != '' }}
+        run: echo "enabled=$HAS_DB" >> "$GITHUB_OUTPUT"
+
+  anonymise:
+    needs: check
+    if: needs.check.outputs.enabled == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      APP_ENV: staging
+      DATABASE_DRIVER: neon-ws
+      DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+      DATABASE_URL_UNPOOLED: ${{ secrets.STAGING_DATABASE_URL_UNPOOLED }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm gen:indexes
+      - name: anonymise staging
+        if: hashFiles('packages/db/scripts/anonymise.ts') != ''
+        run: pnpm --filter @beam/db exec tsx scripts/anonymise.ts

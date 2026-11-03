@@ -1,0 +1,21 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "timezone": "Europe/Brussels",
+  "schedule": ["before 6am on monday"],
+  "rangeStrategy": "pin",
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "schedule": ["at any time"],
+    "labels": ["security"]
+  },
+  "packageRules": [
+    { "groupName": "radix-ui", "matchPackageNames": ["@radix-ui/{/,}**", "radix-ui"] },
+    { "groupName": "sentry", "matchPackageNames": ["@sentry/{/,}**"] },
+    { "groupName": "drizzle", "matchPackageNames": ["drizzle-orm", "drizzle-kit"] },
+    { "groupName": "auth", "matchPackageNames": ["@auth/{/,}**", "next-auth"] },
+    { "groupName": "next", "matchPackageNames": ["next", "@next/{/,}**"] },
+    { "groupName": "tiptap", "matchPackageNames": ["@tiptap/{/,}**"] },
+    { "groupName": "vitest", "matchPackageNames": ["vitest", "@vitest/{/,}**", "vite"] }
+  ]
+}

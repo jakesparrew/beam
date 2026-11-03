@@ -1,36 +1,41 @@
 {
-  "$schema": "https://turbo.build/schema.json",
+  "$schema": "https://turborepo.com/schema.json",
+  "envMode": "loose",
   "globalEnv": [
     "DATABASE_URL",
     "DATABASE_URL_UNPOOLED",
     "DATABASE_DRIVER",
-    "NODE_ENV"
+    "NODE_ENV",
+    "APP_ENV",
+    "INTEGRATIONS",
+    "PAYMENTS_FAKE",
+    "EMAIL_SINK"
   ],
   "tasks": {
+    "//#gen:indexes": {
+      "cache": false
+    },
     "build": {
-      "dependsOn": [
-        "^build"
-      ],
-      "outputs": [
-        ".next/**",
-        "!.next/cache/**",
-        "dist/**"
-      ]
+      "dependsOn": ["^build", "//#gen:indexes"],
+      "outputs": [".next/**", "!.next/cache/**", "dist/**"]
     },
     "typecheck": {
-      "dependsOn": [
-        "^typecheck"
-      ]
+      "dependsOn": ["^typecheck", "//#gen:indexes"],
+      "outputs": []
     },
-    "dev": {
-      "cache": false,
-      "persistent": true
+    "lint": {
+      "dependsOn": ["^typecheck", "//#gen:indexes"],
+      "outputs": []
     },
     "test": {
-      "dependsOn": [
-        "^build"
-      ],
-      "outputs": []
+      "dependsOn": ["//#gen:indexes"],
+      "cache": false,
+      "outputs": ["coverage/**"]
+    },
+    "dev": {
+      "dependsOn": ["//#gen:indexes"],
+      "cache": false,
+      "persistent": true
     }
   }
 }

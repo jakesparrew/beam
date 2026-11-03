@@ -1,0 +1,85 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main, claude/focused-hopper-gpky3y]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  APP_ENV: local
+  INTEGRATIONS: fake
+  EMAIL_SINK: sink@beam.be
+  NODE_OPTIONS: --max-old-space-size=6144
+
+jobs:
+  checks:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm gen:indexes
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - name: i18n check
+        if: hashFiles('packages/core/scripts/i18n-check.ts') != ''
+        run: pnpm i18n:check
+      - name: unit and PGlite tests (no secrets)
+        run: pnpm test
+      - run: pnpm db:check-migrations
+      - name: views SQL is current
+        if: hashFiles('packages/db/scripts/views-sql.ts') != ''
+        run: pnpm db:views --check
+      - name: append-only SQL is current
+        if: hashFiles('packages/db/scripts/append-only-sql.ts') != ''
+        run: pnpm db:append-only --check
+      - run: pnpm --filter @beam/db test:migrations
+      - name: GDPR coverage
+        if: hashFiles('apps/web/test/gdpr-coverage.test.ts') != ''
+        run: pnpm gdpr:coverage
+      - name: ownership check (build/* branches)
+        if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'build/')
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+          BASE_REF: ${{ github.base_ref }}
+        run: pnpm --filter @beam/web exec tsx scripts/check-ownership.ts --package "${HEAD_REF#build/}" --base "origin/${BASE_REF}"
+      - name: dependency audit
+        run: pnpm audit --audit-level high --prod
+      - name: schema docs are current (main only)
+        if: github.ref == 'refs/heads/main' && hashFiles('packages/db/scripts/docs-schema.ts') != ''
+        run: pnpm docs:schema --check
+
+  secrets-scan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  actionlint:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: actionlint
+        uses: docker://rhysd/actionlint:latest
+        with:
+          args: -color

@@ -1,0 +1,65 @@
+name: e2e
+
+# Playwright against beam_dev through neon-ws, on main only: never on the integration
+# branch, so it never shares beam_dev with a running build session.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "10 2 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-beam-dev
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    outputs:
+      enabled: ${{ steps.flag.outputs.enabled }}
+    steps:
+      - id: flag
+        env:
+          HAS_DB: ${{ secrets.BEAM_DEV_DATABASE_URL != '' }}
+        run: echo "enabled=$HAS_DB" >> "$GITHUB_OUTPUT"
+
+  playwright:
+    needs: check
+    if: needs.check.outputs.enabled == 'true' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      APP_ENV: local
+      DATABASE_DRIVER: neon-ws
+      DATABASE_URL: ${{ secrets.BEAM_DEV_DATABASE_URL }}
+      DATABASE_URL_UNPOOLED: ${{ secrets.BEAM_DEV_DATABASE_URL_UNPOOLED }}
+      AUTH_SECRET: ${{ secrets.E2E_AUTH_SECRET }}
+      CRON_SECRET: ${{ secrets.E2E_CRON_SECRET }}
+      SENSITIVE_DATA_KEY_V1: ${{ secrets.E2E_SENSITIVE_DATA_KEY_V1 }}
+      FILE_URL_SECRET: ${{ secrets.E2E_FILE_URL_SECRET }}
+      DEMO_STAFF_PASSWORD: ${{ secrets.DEMO_STAFF_PASSWORD }}
+      DEMO_TOTP_SECRET: ${{ secrets.DEMO_TOTP_SECRET }}
+      INTEGRATIONS: fake
+      EMAIL_SINK: sink@beam.be
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @beam/web exec playwright install --with-deps chromium
+      - run: pnpm gen:indexes
+      - run: pnpm db:migrate
+      - run: pnpm seed:demo
+      - run: pnpm build
+      - run: pnpm test:e2e
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report
+          retention-days: 14

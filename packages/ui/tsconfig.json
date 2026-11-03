@@ -1,0 +1,4 @@
+{
+  "extends": "@beam/config/tsconfig.lib.json",
+  "include": ["src", "test", "vitest.config.ts"]
+}

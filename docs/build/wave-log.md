@@ -36,3 +36,7 @@ One entry per merge batch and gate (runbook section 5.7, adapted by OD-3).
 - Full gate `g06-w2` green in 217 s: lint 37 s, tests 74 s, production build 64 s, peak used RAM 4.0 GB.
 
 ## Wave 3: platform-P6, P7
+- Started 22:28 UTC in parallel from `19dbd95` (runs `wf_31aa1b94-155`, `wf_f1e7d0b9-38b`).
+- platform-P7 done in 32 minutes (185 web tests; 59 Playwright tests listed in 9 files, scenario and acceptance shells as fixme). Merged as `22a00d2`; gate `g07-p7` (merge mode) green in 131 s, gdpr coverage now running.
+- Fixer `fix-w03-platform-1`: `packages/db/test/seed-platform.test.ts` must accept module default seeds after platform (request from platform-P7).
+- `fix-w03-platform-1` done in 6 minutes; merged as `6207554`; gate `g08-fix1` green. Module default seeds may now register after platform.

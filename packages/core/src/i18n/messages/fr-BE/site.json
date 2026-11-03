@@ -1,1 +1,8 @@
-{}
+{
+  "site": {
+    "permissions": {
+      "site_edit": "Modifier les pages du site",
+      "site_publish": "Publier les pages du site"
+    }
+  }
+}

@@ -1,1 +1,10 @@
-{}
+{
+  "booking": {
+    "permissions": {
+      "bookings_read": "Sessies, boekingen en de wachtlijst bekijken",
+      "bookings_write": "Klanten boeken, verplaatsen, annuleren en inchecken",
+      "bookings_override": "Capaciteit en boekingsregels overschrijven",
+      "waitlist_manage": "Wachtlijsten en plaatsaanbiedingen beheren"
+    }
+  }
+}

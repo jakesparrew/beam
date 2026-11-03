@@ -1,1 +1,9 @@
-{}
+{
+  "commerce": {
+    "permissions": {
+      "commerce_sell": "Sell at the desk and create orders",
+      "commerce_refund": "Refund orders and order lines",
+      "pricing_write": "Manage products, prices and promotions"
+    }
+  }
+}

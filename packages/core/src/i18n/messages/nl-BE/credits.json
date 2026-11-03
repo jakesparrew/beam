@@ -1,1 +1,10 @@
-{}
+{
+  "credits": {
+    "permissions": {
+      "credits_read": "Tegoeden, beurtenkaarten en lidmaatschappen bekijken",
+      "credits_adjust": "Tegoeden toekennen, aanpassen en verlengen",
+      "memberships_write": "Lidmaatschappen wijzigen en opzeggen",
+      "referrals_manage": "Doorverwijscodes en beloningen beheren"
+    }
+  }
+}

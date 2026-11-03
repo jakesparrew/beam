@@ -1,1 +1,10 @@
-{}
+{
+  "ops": {
+    "permissions": {
+      "reports_read": "Voir les tableaux de bord et les rapports",
+      "reports_finance": "Voir les rapports financiers",
+      "dashboards_manage": "Créer et partager des tableaux de bord personnalisés",
+      "privacy_run": "Traiter les demandes de confidentialité : export, effacement et limitation"
+    }
+  }
+}

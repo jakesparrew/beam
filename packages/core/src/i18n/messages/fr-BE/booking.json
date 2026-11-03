@@ -1,1 +1,10 @@
-{}
+{
+  "booking": {
+    "permissions": {
+      "bookings_read": "Voir les sessions, les réservations et la liste d'attente",
+      "bookings_write": "Réserver, déplacer, annuler et enregistrer les clients",
+      "bookings_override": "Passer outre la capacité et les règles de réservation",
+      "waitlist_manage": "Gérer les listes d'attente et les offres de place"
+    }
+  }
+}

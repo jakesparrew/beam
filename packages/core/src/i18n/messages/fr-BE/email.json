@@ -1,1 +1,9 @@
-{}
+{
+  "email": {
+    "permissions": {
+      "email_write": "Créer et modifier les modèles d'e-mail",
+      "email_send": "Envoyer des e-mails individuels et des e-mails de test",
+      "campaigns_send": "Planifier et envoyer des campagnes"
+    }
+  }
+}

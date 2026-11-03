@@ -1,1 +1,8 @@
-{}
+{
+  "site": {
+    "permissions": {
+      "site_edit": "Edit website pages",
+      "site_publish": "Publish website pages"
+    }
+  }
+}

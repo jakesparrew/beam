@@ -1,1 +1,9 @@
-{}
+{
+  "commerce": {
+    "permissions": {
+      "commerce_sell": "Vendre au comptoir et créer des commandes",
+      "commerce_refund": "Rembourser les commandes et les lignes de commande",
+      "pricing_write": "Gérer les produits, les prix et les promotions"
+    }
+  }
+}

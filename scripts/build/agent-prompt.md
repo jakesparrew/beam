@@ -14,6 +14,14 @@ node -e "const p=require('./docs/plan/build-packages.json').packages.find(x=>x.i
 node -e "console.log(JSON.stringify(require('./docs/build/ownership.json')[process.argv[1]].owns,null,2))" "$ID"
 ```
 
+**Fixer packages.** If your id starts with `fix-`, you are a fixer: your package is not in
+`build-packages.json` but in `docs/build/state.json` (`packages["<ID>"]`: `module`, `goal`,
+`from` = the packages whose files you inherit, `owns` = your files). Print it with
+`node -e "console.log(JSON.stringify(require('./docs/build/state.json').packages[process.argv[1]],null,2))" "$ID"`.
+Your task is the launch message plus `goal`; the specs of the `from` packages are your context.
+Fix exactly what you are asked, keep every public name and signature unless the task says
+otherwise, and add or adjust tests that prove each fix.
+
 - The second list is the exact set of files you own (placeholders expanded). Create or edit
   only these. You may also add test files whose file name starts with your package id in lower
   case (for example `crm-p3.merge.test.ts`) inside a folder you own (BS-23). Nothing else.
@@ -25,6 +33,11 @@ node -e "console.log(JSON.stringify(require('./docs/build/ownership.json')[proce
   merged exists as a typed stub in `apps/web/modules/<m>/api.ts` (from platform-P7): call it
   with that exact signature and mock it in your tests with `vi.mock`. Never change another
   module's stub.
+
+**Requests from earlier packages.** Read `docs/build/requests.md`. Every row under "Open" whose
+"For" column names your package or your module (and that falls inside your owned files) is part
+of your task: do it, and list it in your report under `requests` as "served: <request>". A request
+that falls outside your files stays open; say so in the report.
 
 ## 2. Read first, in this order
 1. `CONVENTIONS.md` (the rule card) and, once it exists, `docs/plan/conventions.md`.

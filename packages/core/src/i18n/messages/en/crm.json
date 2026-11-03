@@ -1,1 +1,14 @@
-{}
+{
+  "crm": {
+    "permissions": {
+      "persons_read": "See persons, their timeline and status",
+      "persons_write": "Create and edit persons, consents and tags",
+      "persons_merge": "Merge duplicate persons",
+      "persons_sensitive_read": "Read sensitive health data of a person",
+      "persons_export": "Export person lists to CSV",
+      "persons_erase": "Request the erasure of a person",
+      "crm_b2b": "Manage companies, contacts and the B2B pipeline",
+      "tasks_all": "See and handle every staff task"
+    }
+  }
+}

@@ -1,1 +1,9 @@
-{}
+{
+  "automation": {
+    "permissions": {
+      "automations_write": "Create and edit automations",
+      "automations_publish": "Publish, pause and resume automations",
+      "automations_move_person": "Enrol, move and exit persons in automations"
+    }
+  }
+}

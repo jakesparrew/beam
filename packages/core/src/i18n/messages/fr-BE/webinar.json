@@ -1,1 +1,7 @@
-{}
+{
+  "webinar": {
+    "permissions": {
+      "webinars_host": "Créer et animer des webinaires"
+    }
+  }
+}

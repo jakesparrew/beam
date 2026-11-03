@@ -30,7 +30,7 @@ These decisions are made. Every spec, package and line of code follows them. Whe
 | i18n | `next-intl`. Three locales: `nl-BE`, `fr-BE`, `en`. Every user-facing string, email and form lives in a message catalogue; a missing translation blocks sending and falls back to showing the key in the admin UI |
 | UI | Tailwind CSS v4 + shadcn/ui components; one shared `packages/ui` used by portal, website and back-office |
 | Validation | Zod schemas shared between server actions, forms and API routes |
-| Testing | Vitest everywhere. Integration tests get a fresh in-memory PGlite database per test file with all migrations applied (`createTestDb()` from `@beam/db/testing`), so parallel agents never share state and need no network. Playwright end-to-end tests run against `beam_dev` on Neon through the `neon-ws` driver |
+| Testing | Vitest everywhere. Integration tests get a fresh in-memory PGlite database per test file built straight from the TypeScript schema (`createTestDb()` from `@beam/db/testing`, which uses drizzle-kit's programmatic API), so parallel agents never share state, need no network and can test new tables before any migration exists. `createTestDb({ from: "migrations" })` proves the committed migrations. Playwright end-to-end tests run against `beam_dev` on Neon through the `neon-ws` driver |
 | Observability | Sentry (EU region) for errors, Vercel Analytics and logs, Better Stack for uptime; alerts to a shared Slack channel |
 | Timezone | All times stored in UTC; business logic uses `Europe/Brussels` |
 | Money | Integer cents in `EUR`; VAT per line; prices snapshotted on every transaction |
@@ -66,3 +66,12 @@ These decisions are made. Every spec, package and line of code follows them. Whe
 8. No multi-tenancy. The platform is single-tenant and config-driven; a second deployment serves a second client.
 9. Feature flags per user let new features ship to test users on production before everyone sees them.
 10. Deletion and export are first-class workflows that reach every table and connected service.
+
+## Parallel build rules (how many agents build this at once without collisions)
+
+1. **One owner per file.** Every build package lists the files it creates or edits; no two packages in the same wave touch the same file.
+2. **No dependency changes inside packages.** Wave 0 installs every npm dependency the whole platform needs. A package that needs something else writes it to `docs/build/dependency-requests.md`; the orchestrator adds it between waves.
+3. **No migrations inside packages.** Packages only edit Drizzle schema files (`packages/db/src/schema/<module>.ts`). After each wave is merged, the orchestrator runs `pnpm db:generate` once, commits the migration, and the gate runs `pnpm db:check-migrations`.
+4. **Registries by convention, indexes generated.** Shared lists (schema re-exports, job handlers, permissions, activity event types, navigation, i18n message namespaces, route registries) live in one file per module; a generator script (`pnpm gen:indexes`) writes the index files. Packages never edit generated index files by hand.
+5. **Worktree per package.** Each coding agent works in its own git worktree on branch `build/<package-id>`, runs `pnpm install --offline` (shared pnpm store), and must leave `pnpm typecheck` and its own Vitest suites green before it commits.
+6. **Wave gate.** After merging a wave: `pnpm gen:indexes`, `pnpm db:generate`, `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build`, and at checkpoints Playwright against `beam_dev`. A red gate is fixed before the next wave starts.

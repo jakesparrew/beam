@@ -12,7 +12,8 @@
     "db:generate": "pnpm --filter @beam/db generate",
     "db:migrate": "pnpm --filter @beam/db migrate",
     "db:check": "pnpm --filter @beam/db check",
-    "test": "turbo run test"
+    "test": "turbo run test",
+    "db:check-migrations": "pnpm --filter @beam/db check-migrations"
   },
   "dependencies": {
     "@neon/config": "^1.10.0",

@@ -1,0 +1,14 @@
+# dependencies
+node_modules/
+# build output
+.next/
+dist/
+.turbo/
+*.tsbuildinfo
+next-env.d.ts
+# secrets: never commit
+.env
+.env.local
+.env.*.local
+# Neon project link (no secrets, machine-specific)
+.neon

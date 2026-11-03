@@ -46,6 +46,11 @@ function readyList() {
     const clash = activeOwns.map(([id, o]) => [id, ownsOverlap(owns, o)]).find(([, c]) => c);
     out.push({ id: p.id, wave: p.wave, release: p.release, est: p.estimateMinutes, chain: chain(p.id), blockedBy: clash ? `${clash[0]} (${clash[1].join(' ~ ')})` : null });
   }
+  for (const [id, s] of Object.entries(state.packages)) {
+    if (!s.fixer || s.status !== 'pending') continue;
+    const clash = activeOwns.filter(([aid]) => aid !== id).map(([aid, o]) => [aid, ownsOverlap(s.owns, o)]).find(([, c]) => c);
+    out.push({ id, wave: -1, release: 'V1', est: 30, chain: 99999, blockedBy: clash ? `${clash[0]} (${clash[1].join(' ~ ')})` : null });
+  }
   out.sort((a, b) => RANK[a.release] - RANK[b.release] || b.chain - a.chain || a.wave - b.wave);
   return out;
 }
@@ -66,6 +71,16 @@ switch (cmd) {
   case 'merged': { const [id, sha] = a; Object.assign(state.packages[id], { status: 'merged', mergeSha: sha, mergedAt: now() }); save(); console.log(`${id} merged as ${sha}`); break; }
   case 'failed': { const [id, ...note] = a; Object.assign(state.packages[id], { status: 'failed', note: note.join(' '), endedAt: now() }); save(); console.log(`${id} failed`); break; }
   case 'pending': { const [id] = a; Object.assign(state.packages[id], { status: 'pending' }); save(); console.log(`${id} pending`); break; }
+  case 'add-fixer': {
+    // add-fixer <id> <module> <goal...> --from <pkgId,pkgId,...> [--extra <glob,glob>]
+    const fi = a.indexOf('--from'); const ei = a.indexOf('--extra');
+    const [id, module, ...rest] = a.slice(0, fi);
+    const from = a[fi + 1].split(',');
+    const extra = ei >= 0 ? a[ei + 1].split(',') : [];
+    const owns = [...new Set([...from.flatMap(f => (byId[f] ? expandOwns(byId[f]) : state.packages[f]?.owns || [])), ...extra])];
+    state.packages[id] = { status: 'pending', attempts: 0, fixer: true, module, goal: rest.join(' '), from, owns, dependsOn: from.filter(f => byId[f]) };
+    save(); console.log(`${id}: fixer for ${module}, ${owns.length} owned paths from ${from.join(', ')}`); break;
+  }
   case 'set': { const [id, field, ...v] = a; state.packages[id][field] = v.join(' '); save(); break; }
   case 'status':
   default: {

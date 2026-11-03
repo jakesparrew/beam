@@ -14,6 +14,14 @@ node -e "const p=require('./docs/plan/build-packages.json').packages.find(x=>x.i
 node -e "console.log(JSON.stringify(require('./docs/build/ownership.json')[process.argv[1]].owns,null,2))" "$ID"
 ```
 
+**Fixer packages.** If your id starts with `fix-`, you are a fixer: your package is not in
+`build-packages.json` but in `docs/build/state.json` (`packages["<ID>"]`: `module`, `goal`,
+`from` = the packages whose files you inherit, `owns` = your files). Print it with
+`node -e "console.log(JSON.stringify(require('./docs/build/state.json').packages[process.argv[1]],null,2))" "$ID"`.
+Your task is the launch message plus `goal`; the specs of the `from` packages are your context.
+Fix exactly what you are asked, keep every public name and signature unless the task says
+otherwise, and add or adjust tests that prove each fix.
+
 - The second list is the exact set of files you own (placeholders expanded). Create or edit
   only these. You may also add test files whose file name starts with your package id in lower
   case (for example `crm-p3.merge.test.ts`) inside a folder you own (BS-23). Nothing else.

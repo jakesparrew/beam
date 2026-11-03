@@ -2,7 +2,7 @@
 // Writes docs/build/ownership.json from docs/plan/build-packages.json (BS-17), or checks a branch.
 //   node scripts/build/ownership.mjs                      write ownership.json
 //   node scripts/build/ownership.mjs --check <id> <base> [<ref>=HEAD]   list foreign paths, exit 1 if any
-import { loadPlan, expandOwns, writeJson, OWNERSHIP, covers, alwaysAllowed, bs23Allowed, git, readJson } from './lib.mjs';
+import { loadPlan, expandOwns, writeJson, OWNERSHIP, STATE, covers, alwaysAllowed, bs23Allowed, git, readJson } from './lib.mjs';
 
 const plan = loadPlan();
 const args = process.argv.slice(2);
@@ -11,6 +11,8 @@ if (args[0] === '--check') {
   const [, id, base, ref = 'HEAD'] = args;
   const own = readJson(OWNERSHIP, {});
   let owns = own[id]?.owns;
+  // Fixer and split packages are not in the plan: their owns list lives in docs/build/state.json.
+  if (!owns) owns = readJson(STATE, { packages: {} }).packages[id]?.owns;
   if (!owns) {
     const pkg = plan.packages.find(p => p.id === id);
     if (!pkg) { console.error(`unknown package ${id}`); process.exit(2); }

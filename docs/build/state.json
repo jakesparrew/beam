@@ -28,11 +28,16 @@
       "startedAt": "2026-11-03T20:57:09Z"
     },
     "platform-P4": {
-      "status": "running",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "f14e1fc",
       "runId": "wf_dec6bb2d-7af",
-      "startedAt": "2026-11-03T20:57:09Z"
+      "startedAt": "2026-11-03T20:57:09Z",
+      "branchSha": "d2d07db",
+      "endedAt": "2026-11-03T21:17:08Z",
+      "minutes": 20,
+      "mergeSha": "ba5c0bc",
+      "mergedAt": "2026-11-03T21:18:12Z"
     },
     "platform-P5": {
       "status": "pending",
@@ -503,6 +508,10 @@
       "attempts": 0
     },
     "forms-P10": {
+      "status": "pending",
+      "attempts": 0
+    },
+    "platform-P14": {
       "status": "pending",
       "attempts": 0
     }

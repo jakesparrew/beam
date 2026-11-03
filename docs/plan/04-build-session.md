@@ -1077,7 +1077,7 @@ pnpm db:seed                 # second run: every line says "0 created"
 
 The build session is done when every line below is true. The orchestrator checks them in this order after wave 23 and writes the result to `docs/build/wave-log.md` under "Build complete".
 
-1. **All waves merged.** All 122 packages (plus any splits and fixers) of waves 0 to 23 are merged into `claude/focused-hopper-gpky3y` with `--no-ff`; `git log --merges` shows one merge per package; the branch is pushed.
+1. **All waves merged.** All 123 packages (plus any splits and fixers) of waves 0 to 23 are merged into `claude/focused-hopper-gpky3y` with `--no-ff`; `git log --merges` shows one merge per package; the branch is pushed.
 2. **All gates green.** Every wave's gate passed; a final full gate `scripts/build/gate.sh 23` passes on the final tree, and it is run once more with every flag `on` in `beam_dev` (V1 to R4).
 3. **Migrations.** `pnpm db:check-migrations`, `pnpm db:views --check` and `pnpm db:append-only --check` green; `createTestDb({ from: 'migrations' })` equals the schema; `beam_dev` is migrated to the last file; every one of the 24 APPEND tables carries its trigger (`select count(*) from pg_trigger where tgname like '%_append_only'` returns 24 on `beam_dev`).
 4. **Acceptance in fake-provider mode.** Against `beam_dev`, after `pnpm db:seed`, with `INTEGRATIONS=fake` and all flags on, `pnpm test:e2e` is green, including the seven scenario specs and the acceptance specs that encode proposal section 12 (blueprint section 76):

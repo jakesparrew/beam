@@ -704,11 +704,11 @@
       "apps/web/modules/booking/jobs/bookings.ts",
       "apps/web/modules/booking/jobs/attendance.ts",
       "apps/web/modules/booking/jobs/waitlist.ts",
-      "apps/web/app/api/schedule.ts",
-      "apps/web/app/api/bookings.ts",
-      "apps/web/app/api/waitlist.ts",
-      "apps/web/app/api/partner.ts",
-      "apps/web/app/api/webinar.ts",
+      "apps/web/modules/booking/api/schedule.ts",
+      "apps/web/modules/booking/api/bookings.ts",
+      "apps/web/modules/booking/api/waitlist.ts",
+      "apps/web/modules/booking/api/partner.ts",
+      "apps/web/modules/booking/api/webinar.ts",
       "apps/web/modules/booking/schedules/schedule.ts",
       "apps/web/modules/booking/schedules/bookings.ts",
       "apps/web/modules/booking/schedules/attendance.ts",
@@ -1153,7 +1153,7 @@
       "apps/web/modules/booking/actions/templates.ts",
       "apps/web/modules/booking/actions/sessions.ts",
       "apps/web/modules/booking/queries/schedule.ts",
-      "apps/web/app/api/schedule.ts",
+      "apps/web/modules/booking/api/schedule.ts",
       "apps/web/modules/booking/jobs/schedule.ts",
       "apps/web/modules/booking/schedules/schedule.ts",
       "apps/web/modules/booking/seed.ts",
@@ -1183,7 +1183,7 @@
       "apps/web/modules/booking/jobs/schedule.test.ts",
       "apps/web/modules/booking/actions/sessions.test.ts",
       "apps/web/modules/booking/queries/schedule.test.ts",
-      "apps/web/app/api/schedule.test.ts"
+      "apps/web/modules/booking/api/schedule.test.ts"
     ]
   },
   "booking-P3a": {
@@ -1938,7 +1938,7 @@
       "apps/web/modules/booking/queries/waitlist.ts",
       "apps/web/modules/booking/jobs/waitlist.ts",
       "apps/web/modules/booking/schedules/waitlist.ts",
-      "apps/web/app/api/waitlist.ts",
+      "apps/web/modules/booking/api/waitlist.ts",
       "apps/web/modules/booking/server/claim.ts",
       "apps/web/app/api/public/claim/[token]/route.ts",
       "apps/web/app/[locale]/(site)/claim/[token]/page.tsx",
@@ -2435,11 +2435,11 @@
     "owns": [
       "apps/web/app/[locale]/(portal)/account/book/page.tsx",
       "apps/web/app/[locale]/(portal)/account/book/[sessionId]/page.tsx",
-      "apps/web/modules/booking/bookings/page.tsx",
-      "apps/web/modules/booking/bookings/[id]/page.tsx",
-      "apps/web/modules/booking/bookings/[id]/reschedule/page.tsx",
-      "apps/web/modules/booking/bookings/[id]/reschedule/loading.tsx",
-      "apps/web/modules/booking/bookings/[id]/reschedule/error.tsx",
+      "apps/web/app/[locale]/(portal)/account/bookings/page.tsx",
+      "apps/web/app/[locale]/(portal)/account/bookings/[id]/page.tsx",
+      "apps/web/app/[locale]/(portal)/account/bookings/[id]/reschedule/page.tsx",
+      "apps/web/app/[locale]/(portal)/account/bookings/[id]/reschedule/loading.tsx",
+      "apps/web/app/[locale]/(portal)/account/bookings/[id]/reschedule/error.tsx",
       "apps/web/modules/booking/ui/portal/session-list.tsx",
       "apps/web/modules/booking/ui/portal/book-form.tsx",
       "apps/web/modules/booking/ui/portal/guest-fields.tsx",
@@ -2451,7 +2451,11 @@
       "packages/core/src/i18n/messages/nl-BE/booking.json",
       "packages/core/src/i18n/messages/fr-BE/booking.json",
       "apps/web/e2e/booking.spec.ts",
-      "apps/web/e2e/acceptance-v1.spec.ts"
+      "apps/web/e2e/acceptance-v1.spec.ts",
+      "apps/web/app/[locale]/(portal)/account/bookings/loading.tsx",
+      "apps/web/app/[locale]/(portal)/account/bookings/error.tsx",
+      "apps/web/app/[locale]/(portal)/account/bookings/[id]/loading.tsx",
+      "apps/web/app/[locale]/(portal)/account/bookings/[id]/error.tsx"
     ]
   },
   "commerce-P6": {
@@ -2786,7 +2790,9 @@
       "apps/web/e2e/support/acceptance-fixtures.ts",
       "apps/web/test/seams-v1.test.ts",
       "docs/plan/acceptance-v1.md",
-      "docs/build/seam-issues-v1.md"
+      "docs/build/seam-issues-v1.md",
+      "apps/web/test/support/route-map.ts",
+      "apps/web/test/routes-v1.test.ts"
     ]
   },
   "webinar-P1": {
@@ -2828,7 +2834,8 @@
       "packages/core/src/i18n/messages/*/booking.json",
       "packages/email/src/templates/booking/lead-window-open.tsx",
       "packages/email/src/templates/booking/index.ts",
-      "apps/web/app/api/bookings.ts",
+      "apps/web/modules/booking/api/bookings.ts",
+      "apps/web/modules/booking/api/session-cards-lead.test.ts",
       "apps/web/e2e/scenario-3-lead-access.spec.ts",
       "apps/web/modules/booking/actions/lead.test.ts",
       "apps/web/modules/booking/actions/lead.permissions.test.ts",
@@ -2851,7 +2858,7 @@
       "apps/web/modules/automation/queries.ts",
       "apps/web/app/(admin)/admin/automations/groups/page.tsx",
       "packages/core/src/i18n/messages/*/automation.json",
-      "packages/core/src/i18n/messages/engine/step.ts",
+      "apps/web/modules/automation/engine/step.ts",
       "packages/core/src/automation/frequency.test.ts",
       "apps/web/modules/automation/engine/step-frequency.test.ts",
       "apps/web/modules/automation/actions.test.ts",
@@ -2928,7 +2935,7 @@
       "packages/db/src/schema/booking.views.ts",
       "apps/web/modules/booking/server/book.ts",
       "apps/web/modules/booking/jobs/attendance.ts",
-      "apps/web/app/api/webinar.ts",
+      "apps/web/modules/booking/api/webinar.ts",
       "apps/web/modules/booking/ui/ticket-types-form.tsx",
       "apps/web/app/(admin)/admin/sessions/[id]/page.tsx",
       "apps/web/modules/booking/ui/portal/book-form.tsx",
@@ -2937,7 +2944,7 @@
       "apps/web/modules/booking/actions/tickets.test.ts",
       "apps/web/modules/booking/actions/tickets.permissions.test.ts",
       "apps/web/modules/booking/jobs/event-ended.test.ts",
-      "apps/web/app/api/webinar.test.ts"
+      "apps/web/modules/booking/api/webinar.test.ts"
     ]
   },
   "ops-P7": {
@@ -3088,7 +3095,6 @@
     "wave": 15,
     "release": "R2",
     "owns": [
-      "apps/web/modules/webinar/api.ts",
       "apps/web/modules/site/ui/public/event-facts.tsx",
       "apps/web/modules/site/server/render-data.ts",
       "apps/web/modules/site/queries/public.ts",
@@ -3188,7 +3194,7 @@
       "packages/core/src/automation/seeds/waitlist.ts",
       "packages/core/src/automation/seeds/events.ts",
       "packages/db/src/seed/automation.ts",
-      "packages/db/src/engine/step.ts"
+      "apps/web/modules/automation/engine/step.ts"
     ]
   },
   "platform-P13": {
@@ -3199,7 +3205,18 @@
       "apps/web/e2e/acceptance-r2.spec.ts",
       "apps/web/test/seams-r2.test.ts",
       "docs/plan/acceptance-r2.md",
-      "docs/build/seam-issues-r2.md"
+      "docs/build/seam-issues-r2.md",
+      "apps/web/test/routes-r2.test.ts"
+    ]
+  },
+  "platform-P14": {
+    "module": "platform",
+    "wave": 21,
+    "release": "R3",
+    "owns": [
+      "apps/web/test/routes-r3.test.ts",
+      "apps/web/test/seams-r3.test.ts",
+      "docs/build/seam-issues-r3.md"
     ]
   },
   "platform-P9": {
@@ -3361,7 +3378,7 @@
     "owns": [
       "apps/web/modules/booking/actions/partner.ts",
       "apps/web/modules/booking/queries/partner.ts",
-      "apps/web/app/api/partner.ts",
+      "apps/web/modules/booking/api/partner.ts",
       "apps/web/app/(admin)/admin/sessions/holds/page.tsx",
       "packages/core/src/i18n/messages/*/booking.json",
       "apps/web/modules/booking/actions/partner.test.ts",
@@ -3394,9 +3411,9 @@
       "packages/integrations/src/ads/client.ts",
       "packages/integrations/src/ads/fake.ts",
       "packages/db/src/schema/ops.views.ts",
-      "packages/db/src/dashboard/cards.ts",
-      "packages/db/src/dashboard/queries.ts",
-      "packages/db/src/reports/registry.ts",
+      "apps/web/modules/ops/dashboard/cards.ts",
+      "apps/web/modules/ops/dashboard/queries.ts",
+      "apps/web/modules/ops/reports/registry.ts",
       "packages/core/src/i18n/messages/*/ops.json",
       "apps/web/modules/ops/marketing/actions.ts",
       "apps/web/modules/ops/marketing/queries.ts",
@@ -3410,11 +3427,11 @@
       "apps/web/modules/ops/marketing/email-summary.ts",
       "apps/web/modules/ops/marketing/webinar-summary.ts",
       "apps/web/app/(admin)/admin/dashboard/management/page.tsx",
-      "packages/db/src/reports/marketing/page.tsx",
-      "packages/db/src/reports/attribution/page.tsx",
-      "packages/db/src/reports/ads/page.tsx",
-      "packages/db/src/reports/ads/loading.tsx",
-      "packages/db/src/reports/ads/error.tsx",
+      "apps/web/app/(admin)/admin/reports/marketing/page.tsx",
+      "apps/web/app/(admin)/admin/reports/attribution/page.tsx",
+      "apps/web/app/(admin)/admin/reports/ads/page.tsx",
+      "apps/web/app/(admin)/admin/reports/ads/loading.tsx",
+      "apps/web/app/(admin)/admin/reports/ads/error.tsx",
       "apps/web/e2e/ops-marketing.spec.ts",
       "packages/integrations/src/ads/index.ts",
       "apps/web/modules/ops/marketing/attribution.test.ts",
@@ -3423,7 +3440,13 @@
       "apps/web/modules/ops/marketing/management.test.ts",
       "apps/web/modules/ops/marketing/kpis.test.ts",
       "apps/web/modules/ops/marketing/jobs.test.ts",
-      "apps/web/modules/ops/marketing/permissions.test.ts"
+      "apps/web/modules/ops/marketing/permissions.test.ts",
+      "apps/web/app/(admin)/admin/dashboard/management/loading.tsx",
+      "apps/web/app/(admin)/admin/dashboard/management/error.tsx",
+      "apps/web/app/(admin)/admin/reports/marketing/loading.tsx",
+      "apps/web/app/(admin)/admin/reports/marketing/error.tsx",
+      "apps/web/app/(admin)/admin/reports/attribution/loading.tsx",
+      "apps/web/app/(admin)/admin/reports/attribution/error.tsx"
     ]
   },
   "automation-P9": {

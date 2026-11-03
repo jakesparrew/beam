@@ -13,7 +13,7 @@ Each rule: three correct examples, two wrong ones.
 | --- | --- | --- | --- |
 | Table | snake_case plural; PK `id`; FK `<singular>_id` | `persons`, `credit_entries`, `bookings.session_id` | `Person`, `creditEntry` |
 | Enum | `pgEnum('<table>_<column>')` | `bookings_status`, `jobs_lane`, `invoices_kind` | `booking_status_enum`, `Status` |
-| View | `v_<name>`, declared `pgView(name, columns).existing()` with `<name>Sql` beside it | `v_credit_balances`, `v_marketing_reachability`, `v_support_sla` | `credit_balances_view`, `vCreditBalances` |
+| View | `v_<name>`, declared `pgView(name, columns).existing()` with `<name>Sql` beside it | `v_person_credits`, `v_marketing_reachability`, `v_support_sla` | `credit_balances_view`, `vCreditBalances` |
 | Event kind | `<entity>.<past_tense_or_fact>`, declared once in the owner's `events.ts`; `data` keys snake_case | `booking.confirmed`, `order.paid`, `credits.threshold_reached` | `confirmBooking`, `booking.confirm` |
 | Job kind | `<module_or_entity>.<verb_noun>` | `email.send`, `credits.expire_grant`, `campaign.send_chunk` | `sendEmail`, `email.sending` |
 | Permission | `<module>.<action>`, exactly the list of architecture section 4 | `persons.read`, `bookings.override`, `system.jobs` | `crm:read`, `readPersons` |

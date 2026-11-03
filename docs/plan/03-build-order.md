@@ -2,7 +2,7 @@
 
 This file sequences the whole build: V1, then Releases 2, 3 and 4. The machine-readable plan is `docs/plan/build-packages.json`. The orchestrator reads that file; this file explains it. Where the two disagree, the JSON wins and this file is fixed.
 
-**In numbers:** 122 build packages in 24 waves (0 to 23). About 8,900 agent-minutes in total. With at most 6 coding agents at once, about 58 hours of wall-clock time including gates: about 32 hours for V1, 16 for Release 2, 6 for Release 3 and 4 for Release 4.
+**In numbers:** 123 build packages in 24 waves (0 to 23). About 8,970 agent-minutes in total (V1 6,180, R2 1,335, R3 825, R4 630). With at most 6 coding agents at once, about 58 hours of wall-clock time including gates: about 32 hours for V1, 16 for Release 2, 6 for Release 3 and 4 for Release 4.
 
 ## 1. How to read this plan
 
@@ -10,7 +10,7 @@ This file sequences the whole build: V1, then Releases 2, 3 and 4. The machine-r
 - **A wave** is a set of packages that run in parallel. A package only depends on packages of earlier waves. No two packages in one wave own the same file or overlapping globs. This was checked with a script over every `owns` list.
 - **Between waves** the orchestrator merges the package branches in the order the wave lists them, runs the wave gate, commits and pushes. A red gate is fixed before the next wave starts.
 - **At most 6 agents run at once.** A wave with more packages runs in rounds. The orchestrator starts the longest packages first.
-- **Package ids** are the spec ids. Three spec packages were too large for one 30 to 120 minute pass and were split: `booking-P3` into `booking-P3a` and `booking-P3b`, `commerce-P4` into `commerce-P4a` and `commerce-P4b`, `platform-P11` into `platform-P11a` and `platform-P11b`. Two packages are new: `platform-P12` (V1 acceptance spec and seam tests) and `platform-P13` (R2 acceptance spec and seam tests). The specs are updated with all five.
+- **Package ids** are the spec ids. Three spec packages were too large for one 30 to 120 minute pass and were split: `booking-P3` into `booking-P3a` and `booking-P3b`, `commerce-P4` into `commerce-P4a` and `commerce-P4b`, `platform-P11` into `platform-P11a` and `platform-P11b`. Three packages are new: `platform-P12` (V1 acceptance spec and seam tests), `platform-P13` (R2 acceptance spec and seam tests) and `platform-P14` (R3 route and dashboard registry seam tests). The specs are updated with all six.
 
 ### Wave numbers versus the architecture's "Wave 0, 1, 2"
 
@@ -68,7 +68,7 @@ These rules close the gaps the module specs left open. They bind every package a
 9. **Catalogues.** A package edits only its own module's `packages/core/src/i18n/messages/*/<m>.json`. A missing key in another module is listed in the package's commit message and added by that module's next package.
 10. **Releases 2 to 4 are built ahead and switched on by flag.** Every R2 to R4 screen and job sits behind its `ff_<module>_<name>` flag (architecture principle 9). The code lands in waves 12 to 23 right after V1; the flags are switched on in production in the release weeks of the proposal (section 6).
 11. **Estimates** come from the spec where it gives one (ops, webinar, platform Wave 0) and otherwise from the size of the package's file, interface and test lists: 45 to 120 minutes. No package is planned above 120 minutes.
-12. **Mechanical plan check.** `node scripts/plan/validate-build-packages.mjs` validates `build-packages.json` and exits non-zero on any problem (an optional first argument checks another JSON file). The orchestrator runs it before every wave and after every change to the JSON, to a spec's section 12 or to this file. It checks the shape, unique ids, that wave lists match `packages[].wave`, that every `dependsOn` id exists in a strictly earlier wave, no cycles, releases V1, R2, R3 or R4, that V1 never depends on R2 to R4 (and no package depends on a later release), that no two packages of one wave own the same path or overlapping globs, the allowed folders, the forbidden files, that every spec exists, that section 12 headings and the JSON list the same packages with the same release, and that the `platform-P7` placeholder `m` does not collide with another Wave 3 package. Decisions it encodes:
+12. **Mechanical plan check.** `node scripts/plan/validate-build-packages.mjs` validates `build-packages.json` and exits non-zero on any problem (an optional first argument checks another JSON file). The orchestrator runs it before every wave and after every change to the JSON, to a spec's section 12 or to this file. It checks the shape, unique ids, that wave lists match `packages[].wave`, that every `dependsOn` id exists in a strictly earlier wave, no cycles, releases V1, R2, R3 or R4, that V1 never depends on R2 to R4 (and no package depends on a later release), that no two packages of one wave own the same path or overlapping globs, the allowed folders, the forbidden files, that every spec exists, that section 12 headings and the JSON list the same packages with the same release, and that the `platform-P7` placeholder `m` does not collide with another Wave 3 package. Since coverage round 2 it also checks file placement (route files only under `apps/web/app/`, only JSON in the message folder, only schema, seed, SQL and testing code in `packages/db/src/`, no module files owned by another module except `api.ts` stubs; platform PL-93) and edit reach (a package that owns a file an earlier package created depends on that package; platform PL-94). Decisions it encodes:
     - A path is a glob only when it contains `*` or `{` (`*` inside one segment, `**` across segments, `{a,b}` alternatives). `[id]`, `[...x]` and `(group)` are literal Next.js folders. Two owned entries collide when they are equal, when a glob in one matches the other's path, when two globs can match a common path, or when a literal path is a folder of the other's path.
     - Owned paths sit under `apps/`, `packages/`, `e2e/`, `scripts/`, `docs/` or `.github/`. The one exception: the Wave 0 package may own the root tool files `eslint.config.js`, `turbo.json`, `vercel.json`, `renovate.json`, `CLAUDE.md`, `.prettierignore` and `.nvmrc`, because those tools only read them from the root.
     - No package owns a `package.json`, `pnpm-lock.yaml`, `packages/db/migrations/**` or `registry/*.generated.ts`; dependency changes go through `docs/build/dependency-requests/`. A literal path is refused by its file name. A glob is refused only when it reaches the real place of one of these files (`package.json`, `apps/*/package.json`, `packages/*/package.json`, `pnpm-lock.yaml`, `packages/db/migrations/**`, `apps/web/registry/*.generated.ts`), so fixture folders such as `__fixtures__/**` are allowed.
@@ -102,7 +102,7 @@ Wall clock per wave = the longest round of at most 6 agents (longest packages fi
 | 18 | `platform-P13` | The R2 acceptance spec: webinar attendance and replay separation, lead-priority waitlist. | 60 | 2 h 00 | Checkpoint (end of R2). `acceptance-r2.spec.ts` green; scenarios 3 and 5 green. |
 | 19 | `platform-P9`, `crm-P8`, `finance-P8`, `commerce-P9`, `credits-P9` | Partner scope and R3 integrations; B2B pipeline; finance dashboard; Lightspeed import and sales views; referral and partner management. | 240 | 1 h 20 | Partner scope; B2B pipeline board; finance dashboard; Lightspeed import; referral codes and partner figures. |
 | 20 | `crm-P9`, `booking-P9`, `finance-P9`, `ops-P8`, `automation-P9` | Unified inbox; partner holds; deferred revenue and breakage; ads import and marketing dashboards; B2B task journeys. | 330 | 2 h 20 | Unified inbox (email, forms, fake Meta); partner holds on sessions; deferred revenue; Meta and Google Ads data from fakes on the marketing dashboards. |
-| 21 | `email-P9`, `forms-P9`, `webinar-P7`, `site-P9` | Campaign attribution and inbound dispatch; form attribution and landing conversions; webinar marketing KPIs; marketing tags and partner landing pages. | 210 | 2 h 00 | Checkpoint (end of R3). Campaign attribution, landing conversions, webinar marketing KPIs, partner landing pages. |
+| 21 | `email-P9`, `forms-P9`, `webinar-P7`, `site-P9`, `platform-P14` | Campaign attribution and inbound dispatch; form attribution and landing conversions; webinar marketing KPIs; marketing tags and partner landing pages; R3 route and dashboard registry seam tests (platform-P14). | 255 | 2 h 00 | Checkpoint (end of R3). Campaign attribution, landing conversions, webinar marketing KPIs, partner landing pages. |
 | 22 | `platform-P10`, `crm-P10`, `credits-P10`, `email-P10`, `finance-P10`, `site-P10`, `automation-P10`, `webinar-P8`, `ops-P9` | AI read-only SQL and batches; AI replies; repurchase cycles; AI campaign drafts; finance KPIs; Claude translations; visual builder; webinar summaries; churn indicators and custom dashboards. | 495 | 1 h 50 | AI read-only SQL over the `ai` schema with the Claude fake; AI-drafted replies and campaigns; custom dashboards; visual workflow builder; Claude translations. |
 | 23 | `ops-P10`, `forms-P10` | The ai schema, natural-language questions, weekly management summary and forms dashboard sources. | 135 | 2 h 30 | Checkpoint (end of R4). Natural-language questions and the weekly management summary on fake Claude; forms dashboard sources. |
 
@@ -266,6 +266,7 @@ flowchart LR
     forms_P9["forms-P9"]
     webinar_P7["webinar-P7"]
     site_P9["site-P9"]
+    platform_P14["platform-P14"]
   end
   subgraph W22["W22 R4"]
     platform_P10["platform-P10"]
@@ -568,6 +569,9 @@ flowchart LR
   forms_P3 --> site_P9
   site_P8 --> site_P9
   ops_P8 --> webinar_P7
+  ops_P8 --> platform_P14
+  finance_P8 --> platform_P14
+  platform_P12 --> platform_P14
   webinar_P6 --> webinar_P7
   automation_P9 --> automation_P10
   credits_P9 --> credits_P10

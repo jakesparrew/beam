@@ -67,18 +67,18 @@ Twelve modules, same name in every folder (`packages/db/src/schema/<m>.ts`, `pac
 
 | Module | Owns | Release |
 | --- | --- | --- |
-| `platform` | users, roles, auth, jobs, tick, settings, feature flags, audit log, files, webhook inbox, integration log, AI gateway (`ai_requests`, allow-list, budget), admin System page | V1 (Wave 0) |
-| `crm` | persons, merge, sensitive fields, consent, suppressions (the only writer, `crm.addSuppression`), preference centre and unsubscribe routes, activity timeline, tags, segments, tasks, companies and contacts; B2B pipeline (R3); unified inbox (R3) | V1, R3 |
-| `booking` | session templates, sessions, capacity holds, bookings, guests, cancellation rules, waitlist with claim links, lead-priority windows (R2 activation) | V1, R2 |
-| `commerce` | products, price versions, promotions, checkout, orders, payments (`PaymentProvider`), refunds, mandates, POS, abandoned checkout | V1, R2 |
-| `credits` | credit grants (packages), ledger, allocation, expiry, sharing, memberships and renewals | V1 |
-| `finance` | invoices, credit notes, numbering, PDF, Billit sync, finance dashboard | V1, R3 |
-| `forms` | form builder, versions, logic, scoring, result pages, sensitive routing, lead capture with UTM, site embed | V1 |
-| `email` | template registry and system rows, block editor, campaigns, chunked sending, Resend events (bounces and complaints suppressed through `crm.addSuppression`), per-message link tokens, AI drafts (R4) | V1, R4 |
-| `automation` | definitions, groups, enrolments, runs, evaluator, retention and threshold events, visual builder (R4) | V1, R4 |
-| `ops` | action dashboard, management dashboard, person stats, retention lists, imports, exports, privacy requests, retention sweep, ads data (R3), custom dashboards and NL questions (R4) | V1, R3, R4 |
-| `site` | public website pages, versions, Claude-assisted editing, SEO, booking entry points | V1 |
-| `webinar` | webinars on YouTube Live, registrations, watch segments, polls, CTAs, chat, replay and simulive. V1: ops import of WebinarGeek history (import kind `history`, `imports.source = 'webinar_tool'` with the `webinargeek` preset; crm `external_ids` key `webinargeek`); no webinar package before R2 | R2 |
+| `platform` | users, roles, auth, jobs, tick, settings, feature flags, audit log, files, webhook inbox, integration log, AI gateway (`ai_requests`, allow-list, budget), admin System page | V1 (Wave 0 foundation), R2, R3, R4 |
+| `crm` | persons, merge, sensitive fields, consent, suppressions (the only writer, `crm.addSuppression`), preference centre and unsubscribe routes, activity timeline, tags, segments, tasks, companies and contacts; B2B pipeline (R3); unified inbox (R3) | V1, R3, R4 |
+| `booking` | session templates, sessions, capacity holds, bookings, guests, cancellation rules, waitlist with claim links, lead-priority windows (R2 activation) | V1, R2, R3 |
+| `commerce` | products, price versions, promotions, checkout, orders, payments (`PaymentProvider`), refunds, mandates, POS, abandoned checkout | V1, R2, R3 |
+| `credits` | credit grants (packages), ledger, allocation, expiry, sharing, memberships and renewals | V1, R2, R3, R4 |
+| `finance` | invoices, credit notes, numbering, PDF, Billit sync, finance dashboard | V1, R3, R4 |
+| `forms` | form builder, versions, logic, scoring, result pages, sensitive routing, lead capture with UTM, site embed | V1, R2, R3, R4 |
+| `email` | template registry and system rows, block editor, campaigns, chunked sending, Resend events (bounces and complaints suppressed through `crm.addSuppression`), per-message link tokens, AI drafts (R4) | V1, R2, R3, R4 |
+| `automation` | definitions, groups, enrolments, runs, evaluator, retention and threshold events, visual builder (R4) | V1, R2, R3, R4 |
+| `ops` | action dashboard, management dashboard, person stats, retention lists, imports, exports, privacy requests, retention sweep, ads data (R3), custom dashboards and NL questions (R4) | V1, R2, R3, R4 |
+| `site` | public website pages, versions, Claude-assisted editing, SEO, booking entry points | V1, R2, R3, R4 |
+| `webinar` | webinars on YouTube Live, registrations, watch segments, polls, CTAs, chat, replay and simulive. V1: ops import of WebinarGeek history (import kind `history`, `imports.source = 'webinar_tool'` with the `webinargeek` preset; crm `external_ids` key `webinargeek`); no webinar package before R2 | R2, R3, R4 |
 
 ## 2. Core domain model
 

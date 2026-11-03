@@ -463,12 +463,13 @@
     {
       "wave": 21,
       "name": "R3 close: attribution",
-      "goal": "Campaign attribution and inbound dispatch; form attribution and landing conversions; webinar marketing KPIs; marketing tags and partner landing pages.",
+      "goal": "Campaign attribution and inbound dispatch; form attribution and landing conversions; webinar marketing KPIs; marketing tags and partner landing pages; R3 route and dashboard registry seam tests (platform-P14).",
       "packages": [
         "email-P9",
         "forms-P9",
         "webinar-P7",
-        "site-P9"
+        "site-P9",
+        "platform-P14"
       ],
       "gate": [
         "pnpm gen:indexes",
@@ -5972,15 +5973,22 @@
         "apps/web/e2e/support/acceptance-fixtures.ts",
         "apps/web/test/seams-v1.test.ts",
         "docs/plan/acceptance-v1.md",
-        "docs/build/seam-issues-v1.md"
+        "docs/build/seam-issues-v1.md",
+        "apps/web/test/support/route-map.ts",
+        "apps/web/test/routes-v1.test.ts"
       ],
       "exposes": [
         "pnpm test:e2e -- acceptance-v1",
-        "docs/plan/acceptance-v1.md (each proposal test -> spec and test file)"
+        "docs/plan/acceptance-v1.md (each proposal test -> spec and test file)",
+        "resolveRoute(url: string, appDir?: string): { file: string; params: Record<string, string> } | null (apps/web/test/support/route-map.ts)",
+        "assertRoutes(routes: RequiredRoute[]) with RequiredRoute = { url: string; owner: string; needs?: (\"loading\" | \"error\")[] }"
       ],
       "tests": [
         "apps/web/e2e/acceptance-v1.spec.ts: register, book, pay, cancel; package balance updates; member discount; staff changes a booking; email sends correctly (the booking confirmation reaches the sink exactly once, in the person's locale, from `mail.beam.be`, with HTML and plain-text parts and the legal footer, and the timeline shows `email.sent`); CRM timeline; revenue report reflects the order; export works; late-entry skip; unsubscribe within 15 minutes; hard bounce suppressed; lead/customer/member blocks; weighted branched assessment updates the person without newsletter consent; sensitive text excluded from AI; waitlist: no second seat, claim expiry, confirmed seat protected; GDPR: export, deletion propagates, consent history kept, suppression survives an import",
-        "apps/web/test/seams-v1.test.ts: fake Mollie paid -> grant -> booking with a credit -> cancel in policy -> credit back; paid order -> invoice BEAM-2026-000001 -> Billit fake document; form submission -> person -> automation enrolment -> email_messages row in the sink"
+        "apps/web/test/seams-v1.test.ts: fake Mollie paid -> grant -> booking with a credit -> cancel in policy -> credit back; paid order -> invoice BEAM-2026-000001 -> Billit fake document; form submission -> person -> automation enrolment -> email_messages row in the sink",
+        "apps/web/test/routes-v1.test.ts: every V1 URL of the proposal section 12 checklist resolves through resolveRoute to a page.tsx under apps/web/app/ (route groups skipped, [locale] and [id] matched); the portal rows /nl/account/bookings, /nl/account/bookings/<uuid> and /nl/account/bookings/<uuid>/reschedule resolve to booking-P6 files and each has loading.tsx and error.tsx in its own folder; no page.tsx, layout.tsx or route.ts exists anywhere under apps/web/modules/ (gap G11, PL-95)",
+        "apps/web/test/support/route-map.ts self-test inside routes-v1.test.ts: a fixture tree resolves (portal)/account/bookings/[id]/page.tsx for /fr/account/bookings/abc, prefers a static segment over a dynamic one, and returns null for a path only reachable through apps/web/modules/",
+        "apps/web/e2e/acceptance-v1.spec.ts: the cancel and reschedule cases start from the page /nl/account/bookings/<id> (click Cancel, confirm dialog, credit back; click Reschedule, pick a target session), not from a direct action call, so a missing booking-P6 page fails the spec (gap G11)"
       ],
       "estimateMinutes": 90,
       "e2e": true
@@ -6074,6 +6082,7 @@
         "packages/email/src/templates/booking/lead-window-open.tsx",
         "packages/email/src/templates/booking/index.ts",
         "apps/web/modules/booking/api/bookings.ts",
+        "apps/web/modules/booking/api/session-cards-lead.test.ts",
         "apps/web/e2e/scenario-3-lead-access.spec.ts",
         "apps/web/modules/booking/actions/lead.test.ts",
         "apps/web/modules/booking/actions/lead.permissions.test.ts",
@@ -6090,6 +6099,7 @@
         "apps/web/modules/booking/actions/lead.permissions.test.ts: cases as listed in the spec",
         "apps/web/modules/booking/server/lead-book.test.ts: lead books reserved seat, customer refused reserved seat but sees opening time, lead in `customer_release` sees the public opening time, lead guests need general seats, duplicate signal refuses lead seat with `needs_review`",
         "apps/web/modules/booking/jobs/lead-release.test.ts: window end offers to customer queue with `booking.lead_window_open`, then public at `opens_for_public_at`; `public` and `keep_for_leads` rules; waiting lead who buys moves to customer queue keeping `joined_at` with `waitlist.requeued`; offered lead keeps offer; confirmed lead stays confirmed; double run of each release gives the same state",
+        "apps/web/modules/booking/api/session-cards-lead.test.ts: `opensForCustomersAt` is `lead_window_end_at` in phase `lead` with `available_general = 0`; `null` with a free general seat, after the window and for a non-lead-magnet session; the card holds no person data",
         "apps/web/e2e/scenario-3-lead-access.spec.ts: with flag `on` for testers"
       ],
       "estimateMinutes": 60,
@@ -6648,7 +6658,6 @@
         "webinar-P3"
       ],
       "owns": [
-        "apps/web/modules/webinar/api.ts",
         "apps/web/modules/site/ui/public/event-facts.tsx",
         "apps/web/modules/site/server/render-data.ts",
         "apps/web/modules/site/queries/public.ts",
@@ -6885,23 +6894,58 @@
         "site-P8",
         "commerce-P8",
         "automation-P8",
-        "webinar-P6"
+        "webinar-P6",
+        "automation-P7",
+        "platform-P12"
       ],
       "owns": [
         "apps/web/e2e/acceptance-r2.spec.ts",
         "apps/web/test/seams-r2.test.ts",
         "docs/plan/acceptance-r2.md",
-        "docs/build/seam-issues-r2.md"
+        "docs/build/seam-issues-r2.md",
+        "apps/web/test/routes-r2.test.ts"
       ],
       "exposes": [
         "pnpm test:e2e -- acceptance-r2"
       ],
       "tests": [
         "apps/web/e2e/acceptance-r2.spec.ts: registration is not attendance; watch time captured; replay polls and activity stored apart from live; lead and customer windows on a Lead Magnet event; a waiting lead who buys becomes customer without losing a confirmed seat; abandoned checkout recovery email sent once",
-        "apps/web/test/seams-r2.test.ts: webinar.registered -> sequence with late-entry skip; checkout.abandoned -> recovery email -> checkout.completed attribution"
+        "apps/web/test/seams-r2.test.ts: webinar.registered -> sequence with late-entry skip; checkout.abandoned -> recovery email -> checkout.completed attribution",
+        "apps/web/test/seams-r2.test.ts: through the one executor runStep of apps/web/modules/automation/engine/step.ts: a marketing step due at 22:30 Brussels with quiet hours 21:00-08:00 is deferred to 08:00 with a new scheduled row; the third marketing step on one day with maxMarketingPerDay 2 ends skipped_frequency_cap; the abandoned-checkout email step carries the resumeUrl from commerce.getCheckoutRecoveryProps and checkouts.recovery_message_id is set once on two runs (gap G15, PL-96)",
+        "apps/web/test/seams-r2.test.ts: exactly one file named step.ts exports runStep in the repository, at apps/web/modules/automation/engine/step.ts; no step.ts exists under packages/db/src/ or packages/core/src/i18n/ (gap G15, PL-96)",
+        "apps/web/test/routes-r2.test.ts: /admin/automations/rules, /admin/automations/conflicts and /admin/automations/groups resolve to automation-P7 pages through resolveRoute (PL-95)"
       ],
       "estimateMinutes": 60,
       "e2e": true
+    },
+    {
+      "id": "platform-P14",
+      "module": "platform",
+      "release": "R3",
+      "wave": 21,
+      "title": "R3 route and dashboard registry seam tests",
+      "goal": "Prove at the end of Release 3 that the R3 report and dashboard pages are real routes and that the R3 cards and reports are registered in the ops registries that the dashboard and the CSV export read (gap G12). The package edits no other module; a failure is written to docs/build/seam-issues-r3.md as in platform-P12.",
+      "spec": "docs/plan/modules/platform.md",
+      "specSection": "12",
+      "dependsOn": [
+        "platform-P12",
+        "ops-P8",
+        "finance-P8"
+      ],
+      "owns": [
+        "apps/web/test/routes-r3.test.ts",
+        "apps/web/test/seams-r3.test.ts",
+        "docs/build/seam-issues-r3.md"
+      ],
+      "exposes": [
+        "pnpm test -- routes-r3 seams-r3"
+      ],
+      "tests": [
+        "apps/web/test/routes-r3.test.ts: /admin/reports/marketing, /admin/reports/attribution, /admin/reports/ads, /admin/dashboard/management and /admin/finance/dashboard resolve through resolveRoute to page.tsx files under apps/web/app/(admin)/admin/; the four ops pages each have loading.tsx and error.tsx in their own folder; no file exists under packages/db/src/dashboard/ or packages/db/src/reports/ (gap G12, PL-95)",
+        "apps/web/test/seams-r3.test.ts: on PGlite with the demo seed and the ads fakes, the REPORT_CSV map imported from apps/web/modules/ops/reports/registry.ts has the keys marketing, attribution and ads and each yields a header row; getManagementDashboard(ctx) for an owner returns the customers, sales mix, retention and B2B tile groups; a staff user without reports.read gets forbidden from all four pages (gap G12, PL-96)"
+      ],
+      "estimateMinutes": 45,
+      "e2e": false
     },
     {
       "id": "platform-P9",
@@ -7785,6 +7829,7 @@
       "spec": "docs/plan/modules/site.md",
       "specSection": "12",
       "dependsOn": [
+        "site-P4",
         "platform-P5",
         "site-P9"
       ],
@@ -8038,8 +8083,8 @@
         "apps/web/modules/forms/ai-views.test.ts"
       ],
       "exposes": [
-        "ai.v_ai_form_funnel_daily",
-        "ai.v_ai_form_outcomes",
+        "ai.form_funnel_daily",
+        "ai.form_outcomes",
         "forms.funnel",
         "forms.outcomes",
         "forms.conversion"

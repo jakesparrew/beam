@@ -275,6 +275,67 @@ for (const w of waves) {
   }
 }
 
+// ---------- 6b. placement (platform PL-93): a file must sit where the framework or the owner reads it ----------
+// Gaps G11, G12 and G15 of docs/plan/05-coverage.md: pages outside apps/web/app/, module code under packages/db/src/
+// and an executor under the i18n message folder. Each of these builds and passes its own unit tests, but the route
+// does not exist or the edit never reaches the real file.
+const NEXT_SPECIAL = /^(page|layout|loading|error|not-found|global-error|route|template|default)\.(tsx|ts|jsx|js)$/;
+const APP_EXTRA = /^(globals\.css|sitemap\.ts|robots\.ts|manifest\.ts|sw\.ts)$|\.test\.tsx?$/;
+const DB_SRC_OK = /^packages\/db\/src\/((schema|seed|sql|testing)\/.+|index\.ts|enqueue\.ts|testing\.ts)$/;
+const lastSeg = (o) => o.split('/').pop();
+for (const p of pkgs) {
+  for (const o of effectiveOwns(p)) {
+    const base = lastSeg(o);
+    if (o.startsWith('apps/web/') && !o.startsWith('apps/web/app/') && !isGlob(base) && NEXT_SPECIAL.test(base))
+      err(`placement: ${p.id} owns "${o}"; a Next.js ${base} only works under apps/web/app/ (PL-93)`);
+    if (o.startsWith('apps/web/app/') && !isGlob(base) && !NEXT_SPECIAL.test(base) && !APP_EXTRA.test(base))
+      err(`placement: ${p.id} owns "${o}"; apps/web/app/ holds only route files, metadata files and their tests (PL-93)`);
+    if (o.startsWith('packages/core/src/i18n/messages/') && !o.endsWith('.json'))
+      err(`placement: ${p.id} owns "${o}"; the message folder holds only <locale>/<module>.json files (PL-93)`);
+    if (o.startsWith('packages/db/src/') && !isGlob(o) && !DB_SRC_OK.test(o))
+      err(`placement: ${p.id} owns "${o}"; packages/db/src/ holds only schema/, seed/, sql/, testing/ and the three root files (PL-93)`);
+    const m = o.match(/^apps\/web\/modules\/([^/*{]+)\//);
+    if (m && p.module !== 'platform' && m[1] !== p.module && lastSeg(o) !== 'api.ts')
+      err(`placement: ${p.id} (module ${p.module}) owns "${o}" in module ${m[1]}; only platform and api.ts stubs cross module folders (PL-93)`);
+    else if (m && p.module !== 'platform' && m[1] !== p.module)
+      warn(`placement: ${p.id} (module ${p.module}) owns the api.ts of module ${m[1]}; check the cross-module decision that allows it`);
+  }
+}
+
+// ---------- 6c. edit reach (platform PL-94): a later owner of a file must wait for the earlier owner ----------
+// The same literal path owned in two waves means the later package edits what the earlier one created.
+// The later package must reach the earlier one through dependsOn, or it may run before the file exists.
+{
+  const closure = new Map();
+  const reach = (id) => {
+    if (closure.has(id)) return closure.get(id);
+    const s = new Set();
+    closure.set(id, s);
+    for (const d of byId.get(id)?.dependsOn ?? []) {
+      if (!byId.has(d)) continue;
+      s.add(d);
+      for (const x of reach(d)) s.add(x);
+    }
+    return s;
+  };
+  const owners = new Map();
+  for (const p of pkgs) for (const o of effectiveOwns(p)) {
+    if (isGlob(o)) continue;
+    if (!owners.has(o)) owners.set(o, []);
+    owners.get(o).push(p);
+  }
+  for (const [o, list] of owners) {
+    if (list.length < 2) continue;
+    const sorted = [...list].sort((a, b) => a.wave - b.wave);
+    const first = sorted[0];
+    for (const q of sorted.slice(1)) {
+      if (q.id === first.id || q.wave === first.wave) continue; // same wave is a collision, reported in section 6
+      if (!reach(q.id).has(first.id))
+        err(`reach: ${q.id} (wave ${q.wave}) edits "${o}", created by ${first.id} (wave ${first.wave}), but does not depend on it (PL-94)`);
+    }
+  }
+}
+
 // ---------- 7. spec files and section 12 ----------
 const specText = new Map();
 for (const p of pkgs) {

@@ -2188,6 +2188,9 @@ Every view is declared with Drizzle `pgView('<name>').as(sql...)` in `packages/d
 | `v_form_funnel_daily` | forms | V1 | `form_views_daily`, `form_submissions` | views, starts, completions per day |
 | `v_form_conversions` | forms | V1 | `form_submissions`, `bookings`, `orders` | booking and purchase after a form |
 | `v_form_latest_results` | forms | V1 | `form_submissions`, `form_versions`, `forms` | latest outcome per person and form; ops profile |
+| `v_form_kpis_daily` | forms | R3 | `form_submissions`, `v_form_conversions` | per day leads created by forms, completions, CTA clicks, conversions; forms attribution screen (forms-P9) |
+| `v_form_campaign_attribution` | forms | R3 | `form_submissions`, `v_form_conversions`, `ad_spend_daily` | per `utm_campaign` leads, completions, bookings, 30-day revenue and cost per lead (forms-P9) |
+| `ai.form_funnel_daily`, `ai.form_outcomes` | forms | R4 | `v_form_funnel_daily`, `form_submissions`, `form_versions` | non-sensitive form views in the `ai` schema, no person ids (forms-P10); `ai` views carry no `v_` prefix |
 | `v_marketing_reachability` | email | V1 | `persons`, `v_consent_current`, `v_suppression_status` | `is_reachable` per person and marketing purpose; automation, campaigns |
 | `v_campaign_stats` | email | V1 | `campaign_recipients`, `email_messages`, `email_events` | campaign counts and rates |
 | `v_email_attribution` | email | R3 | `email_messages`, `email_events`, `orders` | orders after a campaign click |

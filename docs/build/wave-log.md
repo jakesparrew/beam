@@ -22,3 +22,5 @@ One entry per merge batch and gate (runbook section 5.7, adapted by OD-3).
 ## Wave 1: platform-P2, P3, P4
 
 - Started 20:56 UTC in parallel from `f14e1fc` (runs `wf_e1f35b9a-c3a`, `wf_d92d475c-cb4`, `wf_dec6bb2d-7af`).
+- platform-P4 done in 20 minutes (84 UI tests). Merged as `ba5c0bc`; gate `g02-p4` (merge mode) green in 40 s, peak 1.8 GB.
+- Plan: validation passed (123 packages after the coverage pass added platform-P14), coverage matrix `docs/plan/05-coverage.md` written, four ownership gaps fixed (booking-P6 portal routes, ops-P8 report routes, booking api folder, automation engine step file), plan README and repository README written. A scan of every owns list for misplaced paths found nothing else.

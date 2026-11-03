@@ -62,11 +62,14 @@
       "mergedAt": "2026-11-03T22:28:10Z"
     },
     "platform-P6": {
-      "status": "running",
+      "status": "pending",
       "attempts": 1,
       "baseSha": "19dbd95",
       "runId": "wf_31aa1b94-155",
-      "startedAt": "2026-11-03T22:28:41Z"
+      "startedAt": "2026-11-03T22:28:41Z",
+      "branchSha": "e46229c",
+      "endedAt": "2026-11-03T23:12:38Z",
+      "minutes": 43
     },
     "platform-P7": {
       "status": "merged",

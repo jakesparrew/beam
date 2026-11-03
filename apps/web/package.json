@@ -36,6 +36,7 @@
     "csv-parse": "catalog:",
     "date-fns": "catalog:",
     "dotenv": "catalog:",
+    "drizzle-orm": "catalog:",
     "fast-xml-parser": "catalog:",
     "fflate": "catalog:",
     "mjml": "catalog:",

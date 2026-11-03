@@ -545,7 +545,7 @@
       "attempts": 0
     },
     "fix-w03-platform-1": {
-      "status": "running",
+      "status": "merged",
       "attempts": 1,
       "fixer": true,
       "module": "platform",
@@ -561,7 +561,12 @@
       ],
       "baseSha": "d9f27d0",
       "runId": "wf_c5333037-08e",
-      "startedAt": "2026-11-03T23:04:06Z"
+      "startedAt": "2026-11-03T23:04:06Z",
+      "branchSha": "408c2b4",
+      "endedAt": "2026-11-03T23:06:42Z",
+      "minutes": 6,
+      "mergeSha": "6207554",
+      "mergedAt": "2026-11-03T23:07:47Z"
     }
   }
 }

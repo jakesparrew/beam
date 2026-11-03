@@ -1,13 +1,19 @@
-import { checkDatabase } from "@beam/db";
+import { healthReport } from "@/lib/alerts";
+import { getAppDb } from "@/lib/ctx";
 
-// Always run at request time on the Node.js runtime (node-postgres needs Node).
+// PL-74: public, never cached, Node.js runtime (node-postgres needs Node).
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET() {
-  const database = await checkDatabase();
-  return Response.json(
-    { status: database.ok ? "ok" : "error", checks: { database } },
-    { status: database.ok ? 200 : 503, headers: { "cache-control": "no-store" } },
-  );
+export async function GET(): Promise<Response> {
+  let report;
+  try {
+    report = await healthReport(await getAppDb());
+  } catch (error) {
+    return Response.json(
+      { status: "error", version: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 12) ?? "dev", checks: { database: { ok: false, error: error instanceof Error ? error.message.slice(0, 200) : "error" } } },
+      { status: 503, headers: { "cache-control": "no-store" } },
+    );
+  }
+  return Response.json(report, { status: report.status === "error" ? 503 : 200, headers: { "cache-control": "no-store" } });
 }

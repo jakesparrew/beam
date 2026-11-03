@@ -146,8 +146,11 @@
       "attempts": 0
     },
     "email-P1": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "7835fd3",
+      "runId": "wf_406e8a00-87c",
+      "startedAt": "2026-11-03T23:52:17Z"
     },
     "automation-P1": {
       "status": "pending",
@@ -158,8 +161,11 @@
       "attempts": 0
     },
     "site-P1": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "7835fd3",
+      "runId": "wf_644a077c-2e6",
+      "startedAt": "2026-11-03T23:52:17Z"
     },
     "crm-P2": {
       "status": "pending",

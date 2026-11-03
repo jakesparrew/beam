@@ -69,11 +69,16 @@
       "startedAt": "2026-11-03T22:28:41Z"
     },
     "platform-P7": {
-      "status": "running",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "19dbd95",
       "runId": "wf_f1e7d0b9-38b",
-      "startedAt": "2026-11-03T22:28:41Z"
+      "startedAt": "2026-11-03T22:28:41Z",
+      "branchSha": "c3ebb73",
+      "endedAt": "2026-11-03T23:01:21Z",
+      "minutes": 32,
+      "mergeSha": "22a00d2",
+      "mergedAt": "2026-11-03T23:03:46Z"
     },
     "platform-P8": {
       "status": "pending",
@@ -538,6 +543,22 @@
     "platform-P14": {
       "status": "pending",
       "attempts": 0
+    },
+    "fix-w03-platform-1": {
+      "status": "pending",
+      "attempts": 0,
+      "fixer": true,
+      "module": "platform",
+      "goal": "Make packages/db/test/seed-platform.test.ts accept module default seeds: it must check that DEFAULT_SEEDS / seedDefaults() runs platform first (and that platform's rows are seeded and idempotent), not that the list is exactly ['platform']. Requested by platform-P7 so that each module's packages/db/src/seed/<m>.ts can export its seed.",
+      "from": [
+        "platform-P2"
+      ],
+      "owns": [
+        "packages/db/test/seed-platform.test.ts"
+      ],
+      "dependsOn": [
+        "platform-P2"
+      ]
     }
   }
 }

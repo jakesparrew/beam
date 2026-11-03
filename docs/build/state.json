@@ -2,11 +2,16 @@
   "version": 1,
   "packages": {
     "platform-P1": {
-      "status": "running",
+      "status": "merged",
       "attempts": 2,
       "baseSha": "ad67676",
       "runId": "wf_fd8d3f52-ea1",
-      "startedAt": "2026-11-03T20:27:24Z"
+      "startedAt": "2026-11-03T20:27:24Z",
+      "branchSha": "5d65285",
+      "endedAt": "2026-11-03T20:53:34Z",
+      "minutes": 26,
+      "mergeSha": "d68eeed",
+      "mergedAt": "2026-11-03T20:56:06Z"
     },
     "platform-P2": {
       "status": "pending",

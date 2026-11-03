@@ -3,10 +3,10 @@
   "packages": {
     "platform-P1": {
       "status": "running",
-      "attempts": 1,
-      "baseSha": "8272547",
-      "runId": "wf_ef390e00-e9b",
-      "startedAt": "2026-11-03T20:19:25Z"
+      "attempts": 2,
+      "baseSha": "ad67676",
+      "runId": "wf_fd8d3f52-ea1",
+      "startedAt": "2026-11-03T20:27:24Z"
     },
     "platform-P2": {
       "status": "pending",

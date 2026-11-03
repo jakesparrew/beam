@@ -50,8 +50,11 @@
       "mergedAt": "2026-11-03T21:18:12Z"
     },
     "platform-P5": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "13e0d1d",
+      "runId": "wf_51c79ed8-285",
+      "startedAt": "2026-11-03T21:37:13Z"
     },
     "platform-P6": {
       "status": "pending",

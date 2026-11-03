@@ -31,3 +31,4 @@ One entry per merge batch and gate (runbook section 5.7, adapted by OD-3).
 - A push hung on a stalled GitHub connection; `scripts/build/push.sh` now pushes with a 90 s timeout per attempt and backoff.
 
 ## Wave 2: platform-P5
+- Started 21:37 UTC from `13e0d1d` (run `wf_51c79ed8-285`).

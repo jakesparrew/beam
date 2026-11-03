@@ -90,28 +90,48 @@
       "attempts": 0
     },
     "crm-P1": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "9892b11",
+      "runId": "wf_42f16a56-2ea",
+      "startedAt": "2026-11-03T23:35:56Z"
     },
     "booking-P1": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "9892b11",
+      "runId": "wf_469ee6ff-140",
+      "startedAt": "2026-11-03T23:35:56Z"
     },
     "commerce-P1": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "9892b11",
+      "runId": "wf_a55fc3c3-fdb",
+      "startedAt": "2026-11-03T23:35:56Z"
     },
     "commerce-P2": {
       "status": "pending",
       "attempts": 0
     },
     "credits-P1": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "9892b11",
+      "runId": "wf_cbdfc354-a6e",
+      "startedAt": "2026-11-03T23:35:56Z"
     },
     "credits-P2": {
-      "status": "pending",
-      "attempts": 0
+      "status": "merged",
+      "attempts": 1,
+      "baseSha": "9892b11",
+      "runId": "wf_570324d1-e60",
+      "startedAt": "2026-11-03T23:35:56Z",
+      "branchSha": "7c9ac88",
+      "endedAt": "2026-11-03T23:50:32Z",
+      "minutes": 14,
+      "mergeSha": "b3ca117",
+      "mergedAt": "2026-11-03T23:51:47Z"
     },
     "finance-P1": {
       "status": "pending",
@@ -126,8 +146,11 @@
       "attempts": 0
     },
     "email-P1": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "7835fd3",
+      "runId": "wf_406e8a00-87c",
+      "startedAt": "2026-11-03T23:52:17Z"
     },
     "automation-P1": {
       "status": "pending",
@@ -138,8 +161,11 @@
       "attempts": 0
     },
     "site-P1": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "7835fd3",
+      "runId": "wf_644a077c-2e6",
+      "startedAt": "2026-11-03T23:52:17Z"
     },
     "crm-P2": {
       "status": "pending",
@@ -574,8 +600,8 @@
       "mergedAt": "2026-11-03T23:07:47Z"
     },
     "fix-w03-platform-2": {
-      "status": "pending",
-      "attempts": 0,
+      "status": "merged",
+      "attempts": 1,
       "fixer": true,
       "module": "platform",
       "goal": "Make apps/web/e2e/platform.spec.ts reliable: the 'ten wrong passwords lock the account' test waits on a bare getByRole('alert'), which passes before the sign-in server action completes (Next.js route announcer has role=alert), so attempts overlap the counter read and the restore step.",
@@ -591,7 +617,15 @@
       ],
       "dependsOn": [
         "platform-P6"
-      ]
+      ],
+      "baseSha": "9892b11",
+      "runId": "wf_bc33e658-0f3",
+      "startedAt": "2026-11-03T23:35:56Z",
+      "branchSha": "00fb910",
+      "endedAt": "2026-11-03T23:48:50Z",
+      "minutes": 13,
+      "mergeSha": "5c125ff",
+      "mergedAt": "2026-11-03T23:50:08Z"
     }
   }
 }

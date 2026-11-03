@@ -122,11 +122,16 @@
       "startedAt": "2026-11-03T23:35:56Z"
     },
     "credits-P2": {
-      "status": "running",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "9892b11",
       "runId": "wf_570324d1-e60",
-      "startedAt": "2026-11-03T23:35:56Z"
+      "startedAt": "2026-11-03T23:35:56Z",
+      "branchSha": "7c9ac88",
+      "endedAt": "2026-11-03T23:50:32Z",
+      "minutes": 14,
+      "mergeSha": "b3ca117",
+      "mergedAt": "2026-11-03T23:51:47Z"
     },
     "finance-P1": {
       "status": "pending",

@@ -6,7 +6,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./schema": "./src/schema/index.ts",
-    "./testing": "./src/testing.ts"
+    "./testing": "./src/testing.ts",
+    "./seed": "./src/seed/run.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
@@ -39,6 +40,7 @@
     "drizzle-kit": "catalog:",
     "tsx": "catalog:",
     "typescript": "catalog:",
+    "vite": "catalog:",
     "vitest": "catalog:"
   }
 }

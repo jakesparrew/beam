@@ -7,7 +7,7 @@
     "dev": "next dev -p 3000",
     "build": "next build --webpack",
     "start": "next start",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run"
   },
@@ -38,6 +38,7 @@
     "dotenv": "catalog:",
     "fast-xml-parser": "catalog:",
     "fflate": "catalog:",
+    "mjml": "catalog:",
     "next": "catalog:",
     "next-auth": "catalog:",
     "next-intl": "catalog:",
@@ -76,6 +77,7 @@
     "tailwindcss": "catalog:",
     "tsx": "catalog:",
     "typescript": "catalog:",
+    "vite": "catalog:",
     "vitest": "catalog:"
   }
 }

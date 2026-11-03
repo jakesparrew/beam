@@ -5,8 +5,11 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./_shared": "./src/_shared/types.ts",
+    "./_shared": "./src/_shared/index.ts",
+    "./_shared/*": "./src/_shared/*.ts",
     "./*/fake": "./src/*/fake.ts",
+    "./*/client": "./src/*/client.ts",
+    "./*/types": "./src/*/types.ts",
     "./*": "./src/*/index.ts"
   },
   "scripts": {
@@ -28,6 +31,7 @@
     "@types/node": "catalog:",
     "@vitest/coverage-v8": "catalog:",
     "typescript": "catalog:",
+    "vite": "catalog:",
     "vitest": "catalog:"
   }
 }

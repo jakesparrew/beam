@@ -40,9 +40,13 @@ Read in focused chunks (grep for your module and package id); the plan files are
 ```bash
 git checkout -B "build/$ID" "$BASE"
 cp /home/user/beam/.env.local ./.env.local
+date +%s > .agent-start      # start time for the budget below (git-ignored)
 pnpm install --offline --frozen-lockfile
-pnpm gen:indexes        # skip only if the script's file does not exist yet in BASE
+pnpm gen:indexes        # skip only while apps/web/scripts/gen-indexes.ts does not exist in BASE
 ```
+**Time budget:** twice your package's `estimateMinutes`, at most 240 minutes (DR-20). Check the
+clock (`echo $(( ($(date +%s) - $(cat .agent-start)) / 60 ))` minutes) before each large step.
+Past the budget, stop, commit what you have and report `failed` with what is left.
 
 ## 4. Rules
 1. Edit only the files you own. Never edit any `package.json`, `pnpm-lock.yaml`,
@@ -56,8 +60,11 @@ pnpm gen:indexes        # skip only if the script's file does not exist yet in B
    orchestrator does that after merging. Views are `pgView(...).existing()` with their SQL
    exported as `<name>Sql`.
 3. Registries are generated: declare jobs, schedules, events, permissions, nav, privacy,
-   settings, flags, seeds, templates and merge fields in your module's own files and run
-   `pnpm gen:indexes`. Never write a shared list by hand. Never commit a generated file.
+   settings, flags, seeds, templates and merge fields in your module's top-level facade files
+   with literal keys and run `pnpm gen:indexes`. Never write a shared list by hand. Never commit
+   a generated file. If the facade file is not in your owns list, the registration is already
+   there and points at a function in a sub-folder file you own: implement that function and keep
+   its name and signature.
 4. A request never calls an external service. Provider calls happen in jobs through
    `getIntegrations()` / `ctx` clients; tests use the fakes from
    `@beam/integrations/<provider>/fake` or `createFakeIntegrations()`. No network in tests. No
@@ -81,7 +88,16 @@ pnpm gen:indexes        # skip only if the script's file does not exist yet in B
     branches, reset another branch, or run any command inside `/home/user/beam` (the
     orchestrator's checkout; reading `/home/user/beam/.env.local` once in setup is the only
     exception).
-12. Work in small steps. A single reply has a hard output limit and long silent planning
+12. Next.js 16.4 (DR-21): `apps/web/proxy.ts` exports `proxy` and runs on Node; there is no
+    `middleware.ts`. `params`, `searchParams`, `cookies()`, `headers()` and `draftMode()` return
+    Promises; always `await` them, and type a route handler's second argument as
+    `{ params: Promise<{ ... }> }`. `typedRoutes` is on: `pnpm typecheck` runs `next typegen`
+    first, so `Link` and `redirect` targets are checked. `revalidateTag(tag, 'max')`. Never call
+    `next lint`.
+13. Tailwind v4: no `tailwind.config.*`; theme tokens live in `@beam/config/tailwind-theme.css`
+    and `@beam/ui/tokens.css`. Drizzle 0.45: views are `pgView(name, columns).existing()`; the
+    database uses `casing: 'snake_case'` (camelCase properties map to snake_case columns).
+14. Work in small steps. A single reply has a hard output limit and long silent planning
     wastes it: write code file by file (each tool call under about 300 lines), run the relevant
     tests often, think briefly, move on.
 
@@ -97,6 +113,7 @@ pnpm --filter @beam/web exec vitest run modules/<module> app
 pnpm --filter @beam/core exec vitest run src/<module>
 pnpm --filter @beam/db exec vitest run
 pnpm --filter @beam/web exec playwright test --list      # only if you own e2e specs
+
 node scripts/build/ownership.mjs --check "$ID" "$BASE" HEAD
 ```
 If a suite of another module fails because of your change, fix your change. If it fails

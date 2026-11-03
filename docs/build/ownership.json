@@ -47,7 +47,14 @@
       ".github/workflows/anonymise-staging.yml",
       "docs/plan/conventions.md",
       "CLAUDE.md",
-      "docs/build/dependency-requests/platform-P1.md"
+      "docs/build/dependency-requests/platform-P1.md",
+      "apps/web/e2e/global-setup.ts",
+      "apps/web/e2e/support/a11y.ts",
+      "apps/web/tsconfig.json",
+      "packages/db/tsconfig.json",
+      "packages/db/vitest.config.ts",
+      "apps/web/postcss.config.mjs",
+      "packages/config/src/server-only-stub.ts"
     ]
   },
   "platform-P2": {
@@ -83,7 +90,9 @@
       "packages/db/test/enqueue.test.ts",
       "packages/db/test/append-only.test.ts",
       "packages/db/test/factories.test.ts",
-      "packages/db/test/seed-platform.test.ts"
+      "packages/db/test/seed-platform.test.ts",
+      "packages/db/scripts/views-sql.ts",
+      "packages/db/test/views-sql.test.ts"
     ]
   },
   "platform-P3": {
@@ -140,7 +149,36 @@
       "packages/email/src/templates/platform/password-reset.tsx",
       "packages/email/src/templates/platform/mfa-changed.tsx",
       "packages/email/src/templates/platform/monthly-report.tsx",
-      "packages/email/src/templates/platform/index.ts"
+      "packages/email/src/templates/platform/index.ts",
+      "packages/integrations/src/billit/index.ts",
+      "packages/integrations/src/billit/types.ts",
+      "packages/integrations/src/billit/client.ts",
+      "packages/integrations/src/billit/fake.ts",
+      "packages/integrations/src/_shared/index.ts",
+      "packages/integrations/src/anthropic/index.ts",
+      "packages/integrations/src/slack/index.ts",
+      "packages/integrations/src/betterstack/index.ts",
+      "packages/integrations/src/resend/index.ts",
+      "packages/integrations/src/payments/index.ts",
+      "packages/integrations/src/youtube/index.ts",
+      "packages/integrations/src/ads/index.ts",
+      "packages/core/src/i18n/index.ts",
+      "packages/core/src/ai/index.ts",
+      "packages/core/src/privacy/index.ts",
+      "packages/core/scripts/i18n-check.test.ts",
+      "packages/core/scripts/__fixtures__/**",
+      "packages/core/src/platform/cron.test.ts",
+      "packages/core/src/platform/backoff.test.ts",
+      "packages/core/src/i18n/localized-text.test.ts",
+      "packages/core/src/i18n/t.test.ts",
+      "packages/core/src/ai/context.test.ts",
+      "packages/core/src/ai/features.test.ts",
+      "packages/core/src/ai/pricing.test.ts",
+      "packages/integrations/src/anthropic/fake.test.ts",
+      "packages/core/src/platform/holidays.test.ts",
+      "packages/core/src/platform/sla.test.ts",
+      "packages/integrations/src/betterstack/fake.test.ts",
+      "packages/email/src/render.test.ts"
     ]
   },
   "platform-P4": {
@@ -191,7 +229,6 @@
       "apps/web/lib/*.test.ts",
       "apps/web/instrumentation.ts",
       "apps/web/sentry.server.config.ts",
-      "apps/web/sentry.client.config.ts",
       "apps/web/app/api/health/route.ts",
       "apps/web/app/api/health/route.test.ts",
       "apps/web/app/api/cron/tick/route.ts",
@@ -208,7 +245,15 @@
       "apps/web/modules/platform/jobs.test.ts",
       "apps/web/modules/platform/privacy.test.ts",
       "apps/web/lib/alerts.test.ts",
-      "apps/web/lib/logger.test.ts"
+      "apps/web/lib/logger.test.ts",
+      "apps/web/instrumentation-client.ts",
+      "apps/web/lib/testing.ts",
+      "apps/web/modules/crm/api.ts",
+      "apps/web/modules/email/api.ts",
+      "apps/web/modules/site/api.ts",
+      "apps/web/modules/booking/api.ts",
+      "apps/web/modules/ops/api.ts",
+      "apps/web/modules/platform/schedules.test.ts"
     ]
   },
   "platform-P6": {
@@ -225,7 +270,6 @@
       "apps/web/lib/csp.ts",
       "apps/web/proxy.ts",
       "apps/web/proxy.test.ts",
-      "apps/web/e2e/support/a11y.ts",
       "apps/web/app/api/auth/[...nextauth]/route.ts",
       "apps/web/app/layout.tsx",
       "apps/web/app/page.tsx",
@@ -270,7 +314,19 @@
       "packages/core/src/i18n/messages/nl-BE/platform.json",
       "packages/core/src/i18n/messages/fr-BE/platform.json",
       "packages/core/src/i18n/messages/en/platform.json",
-      "apps/web/e2e/platform.spec.ts"
+      "apps/web/e2e/platform.spec.ts",
+      "apps/web/e2e/support/auth.ts",
+      "apps/web/e2e/support/sink.ts",
+      "apps/web/e2e/support/db.ts",
+      "apps/web/e2e/support/ids.ts",
+      "apps/web/app/globals.css",
+      "apps/web/modules/platform/seed.ts",
+      "apps/web/modules/platform/seed.test.ts",
+      "apps/web/lib/password.test.ts",
+      "apps/web/lib/totp.test.ts",
+      "apps/web/lib/auth.test.ts",
+      "apps/web/lib/action.test.ts",
+      "apps/web/lib/csp.test.ts"
     ]
   },
   "platform-P7": {
@@ -470,7 +526,6 @@
       "apps/web/test/wave0-email.test.ts",
       "apps/web/app/[locale]/(portal)/account/page.tsx",
       "packages/core/src/crm/segment-fields.ts",
-      "apps/web/modules/platform/seed.ts",
       "apps/web/scripts/seed-demo.ts",
       "apps/web/test/registries.test.ts",
       "apps/web/test/gdpr-coverage.test.ts",
@@ -594,7 +649,16 @@
       "apps/web/modules/crm/*/actions.ts",
       "apps/web/modules/crm/*/queries.ts",
       "apps/web/modules/crm/*/api.ts",
-      "apps/web/modules/crm/*/jobs.ts"
+      "apps/web/modules/crm/*/jobs.ts",
+      "packages/core/src/crm/normalise.test.ts",
+      "packages/core/src/crm/status.test.ts",
+      "packages/core/src/crm/consent.test.ts",
+      "packages/core/src/crm/duplicates.test.ts",
+      "packages/core/src/crm/merge-plan.test.ts",
+      "packages/core/src/crm/declarations.test.ts",
+      "apps/web/modules/crm/preference-window.test.ts",
+      "packages/core/src/crm/segments/compile.test.ts",
+      "packages/db/src/schema/crm.test.ts"
     ]
   },
   "booking-P1": {
@@ -674,7 +738,13 @@
       "packages/core/src/commerce/refunds.ts",
       "packages/core/src/commerce/vouchers.ts",
       "packages/core/src/commerce/references.ts",
-      "apps/web/modules/commerce/api.ts"
+      "apps/web/modules/commerce/api.ts",
+      "packages/core/src/commerce/pricing.test.ts",
+      "packages/core/src/commerce/vat.test.ts",
+      "packages/core/src/commerce/state-machine.test.ts",
+      "packages/core/src/commerce/refunds.test.ts",
+      "packages/core/src/commerce/vouchers.test.ts",
+      "packages/db/src/schema/commerce.test.ts"
     ]
   },
   "commerce-P2": {
@@ -688,7 +758,10 @@
       "packages/integrations/src/payments/stripe.ts",
       "packages/integrations/src/payments/viva.ts",
       "packages/integrations/src/payments/select.ts",
-      "packages/integrations/src/payments/index.ts"
+      "packages/integrations/src/payments/index.ts",
+      "packages/integrations/src/payments/mollie.test.ts",
+      "packages/integrations/src/payments/fake.test.ts",
+      "packages/integrations/src/payments/select.test.ts"
     ]
   },
   "credits-P1": {
@@ -745,7 +818,18 @@
       "packages/core/src/finance/transitions.ts",
       "packages/core/src/finance/retention.ts",
       "packages/core/src/finance/settings.ts",
-      "apps/web/modules/finance/api.ts"
+      "apps/web/modules/finance/api.ts",
+      "packages/core/src/finance/vat.test.ts",
+      "packages/core/src/finance/numbering.test.ts",
+      "packages/core/src/finance/ogm.test.ts",
+      "packages/core/src/finance/vat-number.test.ts",
+      "packages/core/src/finance/snapshot.test.ts",
+      "packages/core/src/finance/lines.test.ts",
+      "packages/core/src/finance/immutability.test.ts",
+      "packages/core/src/finance/transitions.test.ts",
+      "packages/core/src/finance/seller.test.ts",
+      "packages/core/src/finance/retention.test.ts",
+      "apps/web/modules/finance/schema.test.ts"
     ]
   },
   "forms-P1": {
@@ -810,7 +894,19 @@
       "packages/integrations/src/resend/fake.ts",
       "packages/integrations/src/resend/webhook.ts",
       "packages/integrations/src/resend/types.ts",
-      "apps/web/modules/email/api.ts"
+      "apps/web/modules/email/api.ts",
+      "packages/integrations/src/resend/index.ts",
+      "packages/core/src/email/blocks.test.ts",
+      "packages/core/src/email/tokens.test.ts",
+      "packages/core/src/email/completeness.test.ts",
+      "packages/core/src/email/campaign-state.test.ts",
+      "packages/core/src/email/message-status.test.ts",
+      "packages/core/src/email/warmup.test.ts",
+      "packages/core/src/email/reachability.test.ts",
+      "packages/core/src/email/send-window.test.ts",
+      "packages/integrations/src/resend/webhook.test.ts",
+      "packages/integrations/src/resend/client.test.ts",
+      "packages/db/src/schema/email.test.ts"
     ]
   },
   "automation-P1": {
@@ -832,7 +928,18 @@
       "packages/core/src/automation/validate.ts",
       "packages/core/src/automation/diff.ts",
       "packages/core/src/automation/webhook.ts",
-      "apps/web/modules/automation/api.ts"
+      "apps/web/modules/automation/api.ts",
+      "packages/core/src/automation/plan.test.ts",
+      "packages/core/src/automation/filter.test.ts",
+      "packages/core/src/automation/conditions.test.ts",
+      "packages/core/src/automation/exclusivity.test.ts",
+      "packages/core/src/automation/re-entry.test.ts",
+      "packages/core/src/automation/exits.test.ts",
+      "packages/core/src/automation/validate.test.ts",
+      "packages/core/src/automation/definition.test.ts",
+      "packages/core/src/automation/webhook.test.ts",
+      "packages/db/src/schema/automation.test.ts",
+      "packages/db/src/schema/automation.append-only.test.ts"
     ]
   },
   "ops-P1": {
@@ -878,7 +985,17 @@
       "apps/web/modules/ops/*/api.ts",
       "packages/core/src/i18n/messages/en/ops.json",
       "packages/core/src/i18n/messages/nl-BE/ops.json",
-      "packages/core/src/i18n/messages/fr-BE/ops.json"
+      "packages/core/src/i18n/messages/fr-BE/ops.json",
+      "packages/core/src/ops/stage.test.ts",
+      "packages/core/src/ops/inactivity.test.ts",
+      "packages/core/src/ops/retention-score.test.ts",
+      "packages/core/src/ops/periods.test.ts",
+      "packages/core/src/ops/business-days.test.ts",
+      "packages/core/src/ops/privacy-order.test.ts",
+      "packages/core/src/ops/import-presets.test.ts",
+      "packages/core/src/ops/csv.test.ts",
+      "packages/core/src/ops/zip.test.ts",
+      "packages/db/src/schema/ops.test.ts"
     ]
   },
   "site-P1": {
@@ -967,7 +1084,10 @@
       "apps/web/app/(admin)/admin/persons/error.tsx",
       "apps/web/app/(admin)/admin/persons/new/page.tsx",
       "apps/web/app/(admin)/admin/persons/[id]/edit/page.tsx",
-      "apps/web/app/(admin)/admin/persons/tags/page.tsx"
+      "apps/web/app/(admin)/admin/persons/tags/page.tsx",
+      "apps/web/modules/crm/persons/persons.test.ts",
+      "apps/web/modules/crm/tags/tags.test.ts",
+      "apps/web/modules/crm/persons/search.test.ts"
     ]
   },
   "crm-P3": {
@@ -993,7 +1113,11 @@
       "apps/web/app/[locale]/(portal)/account/preferences/page.tsx",
       "apps/web/app/(admin)/admin/persons/consent-wordings/page.tsx",
       "packages/email/src/templates/crm/confirm-resubscribe.tsx",
-      "packages/email/src/templates/crm/preference-link.tsx"
+      "packages/email/src/templates/crm/preference-link.tsx",
+      "apps/web/modules/crm/declarations/declarations.test.ts",
+      "apps/web/modules/crm/consent/consent.test.ts",
+      "apps/web/modules/crm/consent/routes.test.ts",
+      "apps/web/modules/crm/portal/portal.test.ts"
     ]
   },
   "crm-P4": {
@@ -1014,7 +1138,11 @@
       "apps/web/modules/crm/ui/sensitive-panel.tsx",
       "apps/web/modules/crm/ui/duplicate-list.tsx",
       "apps/web/app/(admin)/admin/persons/duplicates/page.tsx",
-      "apps/web/app/(admin)/admin/persons/[id]/merge/page.tsx"
+      "apps/web/app/(admin)/admin/persons/[id]/merge/page.tsx",
+      "apps/web/modules/crm/duplicates/duplicates.test.ts",
+      "apps/web/modules/crm/merge/merge.test.ts",
+      "apps/web/modules/crm/merge/merge-coverage.test.ts",
+      "apps/web/modules/crm/sensitive/sensitive.test.ts"
     ]
   },
   "booking-P2": {
@@ -1048,7 +1176,14 @@
       "apps/web/app/(admin)/admin/sessions/templates/[id]/page.tsx",
       "apps/web/app/(admin)/admin/sessions/exceptions/page.tsx",
       "apps/web/app/(admin)/admin/sessions/rules/page.tsx",
-      "apps/web/app/(admin)/admin/sessions/holds/page.tsx"
+      "apps/web/app/(admin)/admin/sessions/holds/page.tsx",
+      "apps/web/modules/booking/actions/templates.test.ts",
+      "apps/web/modules/booking/actions/templates.permissions.test.ts",
+      "apps/web/modules/booking/actions/sessions.permissions.test.ts",
+      "apps/web/modules/booking/jobs/schedule.test.ts",
+      "apps/web/modules/booking/actions/sessions.test.ts",
+      "apps/web/modules/booking/queries/schedule.test.ts",
+      "apps/web/app/api/schedule.test.ts"
     ]
   },
   "booking-P3a": {
@@ -1104,7 +1239,11 @@
       "apps/web/modules/commerce/ui/promotion-form.tsx",
       "packages/core/src/i18n/messages/nl-BE/commerce.json",
       "packages/core/src/i18n/messages/fr-BE/commerce.json",
-      "packages/core/src/i18n/messages/en/commerce.json"
+      "packages/core/src/i18n/messages/en/commerce.json",
+      "apps/web/modules/commerce/server/catalogue.test.ts",
+      "apps/web/modules/commerce/server/promotions.test.ts",
+      "apps/web/modules/commerce/quote.test.ts",
+      "apps/web/modules/commerce/permissions.test.ts"
     ]
   },
   "credits-P3": {
@@ -1141,7 +1280,13 @@
       "apps/web/modules/finance/config.ts",
       "apps/web/modules/finance/events.ts",
       "apps/web/modules/finance/permissions.ts",
-      "apps/web/modules/finance/service/__tests__/**"
+      "apps/web/modules/finance/service/__tests__/**",
+      "apps/web/modules/finance/service/issue-invoice.test.ts",
+      "apps/web/modules/finance/service/invoice-state.test.ts",
+      "apps/web/modules/finance/service/issue-credit-note.test.ts",
+      "apps/web/modules/finance/service/settle.test.ts",
+      "apps/web/modules/finance/numbering.concurrency.test.ts",
+      "apps/web/modules/finance/permissions.test.ts"
     ]
   },
   "forms-P3": {
@@ -1176,7 +1321,8 @@
       "apps/web/modules/forms/service/versions.test.ts",
       "apps/web/modules/forms/jobs.test.ts",
       "apps/web/modules/forms/privacy.test.ts",
-      "apps/web/modules/forms/api.test.ts"
+      "apps/web/modules/forms/api.test.ts",
+      "apps/web/modules/forms/forms-sensitive.test.ts"
     ]
   },
   "email-P2": {
@@ -1199,7 +1345,16 @@
       "packages/email/src/index.ts",
       "packages/email/src/templates/define.ts",
       "packages/email/src/resend.ts",
-      "packages/email/src/templates/email/index.ts"
+      "packages/email/src/templates/email/index.ts",
+      "packages/email/src/blocks/to-mjml.test.ts",
+      "packages/email/src/blocks/to-text.test.ts",
+      "packages/email/src/blocks/personalise.test.ts",
+      "packages/email/src/blocks/compile.test.ts",
+      "packages/email/src/blocks/a11y.test.ts",
+      "packages/email/src/layout/footer.test.ts",
+      "packages/email/src/render.test.ts",
+      "packages/email/src/templates/define.test.ts",
+      "packages/email/src/resend.test.ts"
     ]
   },
   "automation-P2": {
@@ -1218,7 +1373,13 @@
       "apps/web/modules/automation/permissions.ts",
       "apps/web/modules/automation/privacy.ts",
       "apps/web/modules/automation/api.ts",
-      "apps/web/modules/automation/config.ts"
+      "apps/web/modules/automation/config.ts",
+      "apps/web/modules/automation/engine/evaluate.test.ts",
+      "apps/web/modules/automation/engine/enrol.test.ts",
+      "apps/web/modules/automation/engine/exits.test.ts",
+      "apps/web/modules/automation/scenario-2-unsubscribe.test.ts",
+      "apps/web/modules/automation/jobs.test.ts",
+      "apps/web/modules/automation/privacy.test.ts"
     ]
   },
   "ops-P2": {
@@ -1233,7 +1394,14 @@
       "apps/web/modules/ops/stats/actions.ts",
       "apps/web/modules/ops/stats/queries.ts",
       "apps/web/modules/ops/stats/api.ts",
-      "apps/web/modules/ops/stats/digest.ts"
+      "apps/web/modules/ops/stats/digest.ts",
+      "apps/web/modules/ops/stats/compute.test.ts",
+      "apps/web/modules/ops/stats/events.test.ts",
+      "apps/web/modules/ops/stats/cursor.test.ts",
+      "apps/web/modules/ops/stats/jobs.test.ts",
+      "packages/db/src/schema/ops.views.test.ts",
+      "apps/web/modules/ops/stats/digest.test.ts",
+      "apps/web/modules/ops/stats/permissions.test.ts"
     ]
   },
   "site-P2": {
@@ -1287,7 +1455,8 @@
       "apps/web/modules/site/ui/public/blocks/map.tsx",
       "apps/web/modules/site/ui/public/blocks/legal-meta.tsx",
       "apps/web/modules/site/ui/public/block-renderer.test.tsx",
-      "apps/web/e2e/site-public.spec.ts"
+      "apps/web/e2e/site-public.spec.ts",
+      "apps/web/e2e/acceptance-v1.spec.ts"
     ]
   },
   "crm-P5": {
@@ -1309,7 +1478,10 @@
       "apps/web/app/(admin)/admin/segments/loading.tsx",
       "apps/web/app/(admin)/admin/segments/error.tsx",
       "apps/web/app/(admin)/admin/segments/new/page.tsx",
-      "apps/web/app/(admin)/admin/segments/[id]/page.tsx"
+      "apps/web/app/(admin)/admin/segments/[id]/page.tsx",
+      "apps/web/modules/crm/segments/segment-fields.test.ts",
+      "apps/web/modules/crm/segments/segment-events.test.ts",
+      "apps/web/modules/crm/segments/segments.test.ts"
     ]
   },
   "crm-P6": {
@@ -1334,7 +1506,9 @@
       "apps/web/app/(admin)/admin/companies/loading.tsx",
       "apps/web/app/(admin)/admin/companies/error.tsx",
       "apps/web/app/(admin)/admin/companies/new/page.tsx",
-      "apps/web/app/(admin)/admin/companies/[id]/page.tsx"
+      "apps/web/app/(admin)/admin/companies/[id]/page.tsx",
+      "apps/web/modules/crm/tasks/tasks.test.ts",
+      "apps/web/modules/crm/companies/companies.test.ts"
     ]
   },
   "booking-P3b": {
@@ -1387,7 +1561,9 @@
       "apps/web/modules/commerce/jobs.ts",
       "apps/web/modules/commerce/jobs.test.ts",
       "apps/web/modules/commerce/events.ts",
-      "packages/core/src/i18n/messages/*/commerce.json"
+      "packages/core/src/i18n/messages/*/commerce.json",
+      "apps/web/app/api/dev/fake-pay/[id]/route.ts",
+      "apps/web/app/api/dev/fake-pay/[id]/route.test.ts"
     ]
   },
   "credits-P4": {
@@ -1431,7 +1607,12 @@
       "packages/email/src/templates/finance/company-request-decided.tsx",
       "packages/core/src/i18n/messages/en/finance.json",
       "packages/core/src/i18n/messages/nl-BE/finance.json",
-      "packages/core/src/i18n/messages/fr-BE/finance.json"
+      "packages/core/src/i18n/messages/fr-BE/finance.json",
+      "packages/core/src/finance/document-model.test.ts",
+      "apps/web/modules/finance/pdf/render.test.ts",
+      "apps/web/modules/finance/jobs.test.ts",
+      "packages/email/src/templates/finance/templates.test.ts",
+      "apps/web/modules/finance/send-invoice-email.test.ts"
     ]
   },
   "forms-P4": {
@@ -1465,7 +1646,9 @@
       "packages/core/src/i18n/messages/fr-BE/forms.json",
       "packages/email/src/templates/forms/forms-templates.test.ts",
       "apps/web/app/api/public/forms/routes.test.ts",
-      "apps/web/e2e/forms.spec.ts"
+      "apps/web/e2e/forms.spec.ts",
+      "apps/web/modules/forms/ui/public/embed-script.test.ts",
+      "apps/web/modules/forms/ui/public/form-renderer.test.tsx"
     ]
   },
   "email-P3": {
@@ -1495,7 +1678,19 @@
       "apps/web/app/api/public/track/open/route.ts",
       "apps/web/app/api/public/track/click/route.ts",
       "packages/db/src/seed/email.ts",
-      "docs/runbooks/email-dns.md"
+      "docs/runbooks/email-dns.md",
+      "apps/web/modules/email/send.test.ts",
+      "apps/web/modules/email/server/queue-automation.test.ts",
+      "apps/web/modules/email/server/link-token.test.ts",
+      "apps/web/modules/email/server/process-event.test.ts",
+      "apps/web/modules/email/server/tracking.test.ts",
+      "apps/web/modules/email/webhook-route.test.ts",
+      "apps/web/modules/email/server/merge-fields.test.ts",
+      "apps/web/modules/email/reachability-view.test.ts",
+      "apps/web/modules/email/seed.test.ts",
+      "apps/web/modules/email/jobs.test.ts",
+      "apps/web/modules/email/privacy.test.ts",
+      "apps/web/modules/email/permissions.test.ts"
     ]
   },
   "automation-P3": {
@@ -1514,7 +1709,15 @@
       "packages/integrations/src/webhook/fake.ts",
       "docs/runbooks/automations.md",
       "apps/web/modules/automation/jobs.ts",
-      "apps/web/modules/automation/schedules.ts"
+      "apps/web/modules/automation/schedules.ts",
+      "packages/integrations/src/webhook/index.ts",
+      "apps/web/modules/automation/engine/step.test.ts",
+      "apps/web/modules/automation/engine/overdue.test.ts",
+      "apps/web/modules/automation/engine/dead-step.test.ts",
+      "apps/web/modules/automation/engine/sweep.test.ts",
+      "apps/web/modules/automation/engine/bulk.test.ts",
+      "apps/web/modules/automation/engine/webhook.test.ts",
+      "apps/web/modules/automation/jobs.test.ts"
     ]
   },
   "ops-P3": {
@@ -1543,7 +1746,12 @@
       "apps/web/app/(admin)/admin/reports/revenue/loading.tsx",
       "apps/web/app/(admin)/admin/reports/revenue/error.tsx",
       "apps/web/app/(admin)/admin/reports/[report]/csv/route.ts",
-      "apps/web/e2e/ops.spec.ts"
+      "apps/web/e2e/ops.spec.ts",
+      "apps/web/modules/ops/dashboard/cards.test.ts",
+      "apps/web/modules/ops/dashboard/actions.test.ts",
+      "apps/web/modules/ops/reports/revenue.test.ts",
+      "apps/web/modules/ops/reports/liability.test.ts",
+      "apps/web/modules/ops/reports/permissions.test.ts"
     ]
   },
   "ops-P6": {
@@ -1565,7 +1773,15 @@
       "apps/web/app/(admin)/admin/reports/exports/[id]/download/route.ts",
       "apps/web/app/(admin)/admin/privacy/retention/page.tsx",
       "apps/web/app/(admin)/admin/privacy/dpia/page.tsx",
-      "apps/web/e2e/ops-exports.spec.ts"
+      "apps/web/e2e/ops-exports.spec.ts",
+      "apps/web/modules/ops/exports/entities.test.ts",
+      "apps/web/modules/ops/exports/jobs.test.ts",
+      "apps/web/modules/ops/exports/full.test.ts",
+      "apps/web/modules/ops/exports/state.test.ts",
+      "apps/web/modules/ops/exports/retention-coverage.test.ts",
+      "apps/web/modules/ops/exports/sweep.test.ts",
+      "apps/web/modules/ops/exports/dpia.test.ts",
+      "apps/web/modules/ops/exports/permissions.test.ts"
     ]
   },
   "site-P3": {
@@ -1680,7 +1896,9 @@
       "apps/web/modules/crm/audit.test.ts",
       "apps/web/modules/crm/acceptance.test.ts",
       "apps/web/e2e/crm.spec.ts",
-      "apps/web/e2e/scenario-6-sensitive-ai.spec.ts"
+      "apps/web/e2e/scenario-6-sensitive-ai.spec.ts",
+      "apps/web/modules/crm/person360/reception.test.ts",
+      "apps/web/modules/crm/ui/timeline/timeline.test.ts"
     ]
   },
   "booking-P4": {
@@ -1703,7 +1921,12 @@
       "apps/web/app/(admin)/admin/bookings/error.tsx",
       "apps/web/app/(admin)/admin/bookings/new/page.tsx",
       "apps/web/app/(admin)/admin/bookings/[id]/page.tsx",
-      "apps/web/app/(admin)/admin/bookings/checkin/page.tsx"
+      "apps/web/app/(admin)/admin/bookings/checkin/page.tsx",
+      "apps/web/modules/booking/actions/attendance.test.ts",
+      "apps/web/modules/booking/actions/attendance.permissions.test.ts",
+      "apps/web/modules/booking/jobs/attendance.test.ts",
+      "apps/web/modules/booking/queries/attendance.test.ts",
+      "apps/web/e2e/booking.spec.ts"
     ]
   },
   "booking-P5": {
@@ -1729,7 +1952,11 @@
       "packages/email/src/templates/booking/seat-claimed.tsx",
       "packages/email/src/templates/booking/offer-expired.tsx",
       "packages/email/src/templates/booking/index.ts",
-      "apps/web/e2e/scenario-4-seat-claim.spec.ts"
+      "apps/web/e2e/scenario-4-seat-claim.spec.ts",
+      "apps/web/modules/booking/jobs/waitlist.test.ts",
+      "apps/web/modules/booking/actions/waitlist.test.ts",
+      "apps/web/modules/booking/actions/waitlist.permissions.test.ts",
+      "apps/web/modules/booking/server/claim.test.ts"
     ]
   },
   "commerce-P4b": {
@@ -1786,7 +2013,13 @@
       "apps/web/modules/finance/schedules.ts",
       "apps/web/modules/finance/service/billit-sync.ts",
       "apps/web/modules/finance/service/reconcile.ts",
-      "apps/web/modules/finance/service/billit-failure.ts"
+      "apps/web/modules/finance/service/billit-failure.ts",
+      "packages/integrations/src/billit/client.test.ts",
+      "packages/core/src/finance/billit-mapping.test.ts",
+      "apps/web/modules/finance/billit-jobs.test.ts",
+      "apps/web/modules/finance/sync-pending.test.ts",
+      "apps/web/modules/finance/service/reconcile.test.ts",
+      "apps/web/modules/finance/scan-overdue.test.ts"
     ]
   },
   "forms-P5": {
@@ -1836,7 +2069,9 @@
       "apps/web/modules/email/server/segments.ts",
       "apps/web/modules/email/api.ts",
       "apps/web/modules/email/jobs.ts",
-      "apps/web/e2e/scenario-2-fast-unsubscribe.spec.ts"
+      "apps/web/e2e/scenario-2-fast-unsubscribe.spec.ts",
+      "apps/web/modules/email/unsubscribe-links.test.ts",
+      "apps/web/modules/email/server/segments.test.ts"
     ]
   },
   "automation-P4": {
@@ -1861,7 +2096,9 @@
       "packages/db/src/seed/automation.ts",
       "apps/web/modules/automation/seed.ts",
       "apps/web/modules/automation/engine/seed-automations.ts",
-      "apps/web/modules/automation/api.ts"
+      "apps/web/modules/automation/api.ts",
+      "apps/web/modules/automation/seeds/seeds.test.ts",
+      "apps/web/modules/automation/seeded-journeys.test.ts"
     ]
   },
   "site-P4": {
@@ -1939,7 +2176,8 @@
       "apps/web/modules/commerce/events.ts",
       "packages/core/src/i18n/messages/*/commerce.json",
       "apps/web/e2e/commerce.spec.ts",
-      "docs/build/dependency-requests/commerce-P5.md"
+      "docs/build/dependency-requests/commerce-P5.md",
+      "apps/web/modules/commerce/server/checkouts.test.ts"
     ]
   },
   "credits-P6": {
@@ -1983,7 +2221,8 @@
       "packages/core/src/i18n/messages/nl-BE/credits.json",
       "packages/core/src/i18n/messages/fr-BE/credits.json",
       "apps/web/modules/credits/permissions.test.ts",
-      "apps/web/modules/credits/actions.test.ts"
+      "apps/web/modules/credits/actions.test.ts",
+      "apps/web/modules/credits/seed.ts"
     ]
   },
   "finance-P5": {
@@ -2007,7 +2246,12 @@
       "apps/web/app/(admin)/admin/finance/sync/page.tsx",
       "apps/web/app/(admin)/admin/finance/requests/page.tsx",
       "apps/web/app/(admin)/admin/finance/settings/page.tsx",
-      "packages/core/src/i18n/messages/*/finance.json"
+      "packages/core/src/i18n/messages/*/finance.json",
+      "apps/web/modules/finance/actions.test.ts",
+      "apps/web/modules/finance/config.test.ts",
+      "apps/web/modules/finance/service/digest.test.ts",
+      "apps/web/modules/finance/permissions.test.ts",
+      "apps/web/modules/finance/queries.test.ts"
     ]
   },
   "forms-P6": {
@@ -2060,7 +2304,11 @@
       "apps/web/modules/email/queries.ts",
       "apps/web/modules/email/nav.ts",
       "packages/core/src/email/inputs.ts",
-      "packages/core/src/i18n/messages/*/email.json"
+      "packages/core/src/i18n/messages/*/email.json",
+      "apps/web/modules/email/templates.test.ts",
+      "apps/web/modules/email/server/preview.test.ts",
+      "apps/web/modules/email/test-send.test.ts",
+      "apps/web/e2e/email.spec.ts"
     ]
   },
   "automation-P5": {
@@ -2095,7 +2343,9 @@
       "packages/core/src/i18n/messages/en/automation.json",
       "packages/core/src/i18n/messages/nl-BE/automation.json",
       "packages/core/src/i18n/messages/fr-BE/automation.json",
-      "apps/web/e2e/automation.spec.ts"
+      "apps/web/e2e/automation.spec.ts",
+      "apps/web/modules/automation/actions.test.ts",
+      "apps/web/modules/automation/permissions.test.ts"
     ]
   },
   "ops-P4": {
@@ -2133,7 +2383,17 @@
       "apps/web/modules/ops/ui/ChunkedUpload.tsx",
       "apps/web/modules/ops/ui/ImportReport.tsx",
       "docs/runbooks/data-migration.md",
-      "apps/web/e2e/ops-imports.spec.ts"
+      "apps/web/e2e/ops-imports.spec.ts",
+      "apps/web/modules/ops/imports/match.test.ts",
+      "apps/web/modules/ops/imports/appliers.test.ts",
+      "apps/web/modules/ops/imports/webinar-tool.test.ts",
+      "apps/web/modules/ops/imports/state.test.ts",
+      "apps/web/modules/ops/imports/dryrun.test.ts",
+      "apps/web/modules/ops/imports/reconcile.test.ts",
+      "apps/web/modules/ops/imports/jobs.test.ts",
+      "apps/web/modules/ops/imports/suppression-survives.test.ts",
+      "apps/web/modules/ops/imports/cutover.test.ts",
+      "apps/web/modules/ops/imports/permissions.test.ts"
     ]
   },
   "site-P7": {
@@ -2190,7 +2450,8 @@
       "packages/core/src/i18n/messages/en/booking.json",
       "packages/core/src/i18n/messages/nl-BE/booking.json",
       "packages/core/src/i18n/messages/fr-BE/booking.json",
-      "apps/web/e2e/booking.spec.ts"
+      "apps/web/e2e/booking.spec.ts",
+      "apps/web/e2e/acceptance-v1.spec.ts"
     ]
   },
   "commerce-P6": {
@@ -2226,7 +2487,14 @@
       "apps/web/app/[locale]/(portal)/account/orders/[id]/page.tsx",
       "apps/web/app/[locale]/(portal)/account/orders/page.tsx",
       "apps/web/modules/commerce/nav.ts",
-      "packages/core/src/i18n/messages/*/commerce.json"
+      "packages/core/src/i18n/messages/*/commerce.json",
+      "apps/web/modules/commerce/server/refunds.test.ts",
+      "apps/web/modules/commerce/server/withdrawals.test.ts",
+      "apps/web/modules/commerce/server/staff-orders.test.ts",
+      "apps/web/modules/commerce/server/payment-links.test.ts",
+      "apps/web/modules/commerce/server/vouchers.test.ts",
+      "apps/web/modules/commerce/server/attention.test.ts",
+      "apps/web/modules/commerce/jobs.test.ts"
     ]
   },
   "finance-P6": {
@@ -2246,7 +2514,10 @@
       "apps/web/modules/finance/privacy.ts",
       "apps/web/modules/finance/seed.ts",
       "packages/core/src/i18n/messages/*/finance.json",
-      "apps/web/e2e/finance.spec.ts"
+      "apps/web/e2e/finance.spec.ts",
+      "apps/web/modules/finance/portal.test.ts",
+      "apps/web/modules/finance/privacy.test.ts",
+      "apps/web/modules/finance/service/retention.test.ts"
     ]
   },
   "forms-P7": {
@@ -2299,7 +2570,11 @@
       "apps/web/modules/email/nav.ts",
       "packages/core/src/email/inputs.ts",
       "packages/core/src/i18n/messages/*/email.json",
-      "apps/web/e2e/email.spec.ts"
+      "apps/web/e2e/email.spec.ts",
+      "apps/web/modules/email/campaigns.test.ts",
+      "apps/web/modules/email/server/send-chunk.test.ts",
+      "apps/web/modules/email/server/auto-pause.test.ts",
+      "apps/web/modules/email/jobs.test.ts"
     ]
   },
   "automation-P6": {
@@ -2317,7 +2592,9 @@
       "apps/web/modules/automation/ui/automation-timeline.tsx",
       "apps/web/modules/automation/engine/preview.ts",
       "apps/web/e2e/scenario-1-late-entry.spec.ts",
-      "apps/web/e2e/automation-person.spec.ts"
+      "apps/web/e2e/automation-person.spec.ts",
+      "apps/web/modules/automation/person-controls.test.ts",
+      "apps/web/modules/automation/engine/preview.test.ts"
     ]
   },
   "commerce-P7": {
@@ -2342,7 +2619,9 @@
       "apps/web/modules/commerce/jobs.ts",
       "apps/web/modules/commerce/nav.ts",
       "packages/core/src/i18n/messages/*/commerce.json",
-      "apps/web/e2e/commerce.spec.ts"
+      "apps/web/e2e/commerce.spec.ts",
+      "apps/web/modules/commerce/server/pos.test.ts",
+      "apps/web/modules/commerce/server/pos-day.test.ts"
     ]
   },
   "credits-P7": {
@@ -2384,7 +2663,9 @@
       "apps/web/app/(admin)/admin/finance/exports/page.tsx",
       "apps/web/app/(admin)/admin/finance/exports/[id]/route.ts",
       "apps/web/modules/finance/nav.ts",
-      "packages/core/src/i18n/messages/*/finance.json"
+      "packages/core/src/i18n/messages/*/finance.json",
+      "packages/core/src/finance/csv.test.ts",
+      "apps/web/modules/finance/service/exports.test.ts"
     ]
   },
   "email-P7": {
@@ -2411,7 +2692,12 @@
       "apps/web/modules/email/schedules.ts",
       "apps/web/modules/email/nav.ts",
       "packages/core/src/i18n/messages/*/email.json",
-      "apps/web/e2e/email.spec.ts"
+      "apps/web/e2e/email.spec.ts",
+      "apps/web/modules/email/server/reports.test.ts",
+      "apps/web/modules/email/server/complaints.test.ts",
+      "apps/web/modules/email/server/delivery-watch.test.ts",
+      "apps/web/modules/email/resend-message.test.ts",
+      "apps/web/modules/email/person-history.test.ts"
     ]
   },
   "ops-P5": {
@@ -2441,7 +2727,17 @@
       "apps/web/app/[locale]/(portal)/account/privacy/[id]/download/route.ts",
       "packages/email/src/templates/ops/privacy-export-ready.tsx",
       "packages/email/src/templates/ops/privacy-erasure-scheduled.tsx",
-      "apps/web/e2e/scenario-7-deletion.spec.ts"
+      "apps/web/e2e/scenario-7-deletion.spec.ts",
+      "apps/web/modules/ops/privacy/orchestrator.test.ts",
+      "apps/web/modules/ops/privacy/state.test.ts",
+      "apps/web/modules/ops/privacy/portal.test.ts",
+      "apps/web/modules/ops/privacy/external.test.ts",
+      "apps/web/modules/ops/privacy/report.test.ts",
+      "apps/web/modules/ops/privacy/export.test.ts",
+      "apps/web/modules/ops/privacy/restrict.test.ts",
+      "apps/web/modules/ops/privacy/rectify.test.ts",
+      "apps/web/modules/ops/privacy/privacy.test.ts",
+      "apps/web/modules/ops/privacy/permissions.test.ts"
     ]
   },
   "platform-P11a": {
@@ -2533,7 +2829,11 @@
       "packages/email/src/templates/booking/lead-window-open.tsx",
       "packages/email/src/templates/booking/index.ts",
       "apps/web/app/api/bookings.ts",
-      "apps/web/e2e/scenario-3-lead-access.spec.ts"
+      "apps/web/e2e/scenario-3-lead-access.spec.ts",
+      "apps/web/modules/booking/actions/lead.test.ts",
+      "apps/web/modules/booking/actions/lead.permissions.test.ts",
+      "apps/web/modules/booking/server/lead-book.test.ts",
+      "apps/web/modules/booking/jobs/lead-release.test.ts"
     ]
   },
   "automation-P7": {
@@ -2551,7 +2851,12 @@
       "apps/web/modules/automation/queries.ts",
       "apps/web/app/(admin)/admin/automations/groups/page.tsx",
       "packages/core/src/i18n/messages/*/automation.json",
-      "packages/core/src/i18n/messages/engine/step.ts"
+      "packages/core/src/i18n/messages/engine/step.ts",
+      "packages/core/src/automation/frequency.test.ts",
+      "apps/web/modules/automation/engine/step-frequency.test.ts",
+      "apps/web/modules/automation/actions.test.ts",
+      "apps/web/modules/automation/permissions.test.ts",
+      "apps/web/modules/automation/conflicts.test.ts"
     ]
   },
   "credits-P8": {
@@ -2576,7 +2881,8 @@
       "apps/web/app/[locale]/(portal)/account/packages/[grantId]/page.tsx",
       "apps/web/app/[locale]/(portal)/account/packages/page.tsx",
       "packages/email/src/templates/credits/share-invitation.tsx",
-      "packages/core/src/i18n/messages/*/credits.json"
+      "packages/core/src/i18n/messages/*/credits.json",
+      "apps/web/modules/credits/permissions.test.ts"
     ]
   },
   "webinar-P2": {
@@ -2606,7 +2912,11 @@
       "apps/web/modules/webinar/ui/admin/broadcast-panel.tsx",
       "packages/email/src/templates/webinar/rescheduled.tsx",
       "packages/email/src/templates/webinar/cancelled.tsx",
-      "packages/email/src/templates/webinar/index.ts"
+      "packages/email/src/templates/webinar/index.ts",
+      "packages/integrations/src/youtube/index.ts",
+      "apps/web/modules/webinar/server/lifecycle.test.ts",
+      "apps/web/modules/webinar/jobs.test.ts",
+      "apps/web/modules/webinar/permissions.test.ts"
     ]
   },
   "booking-P8": {
@@ -2623,7 +2933,11 @@
       "apps/web/app/(admin)/admin/sessions/[id]/page.tsx",
       "apps/web/modules/booking/ui/portal/book-form.tsx",
       "apps/web/modules/booking/ui/portal/guest-fields.tsx",
-      "packages/core/src/i18n/messages/*/booking.json"
+      "packages/core/src/i18n/messages/*/booking.json",
+      "apps/web/modules/booking/actions/tickets.test.ts",
+      "apps/web/modules/booking/actions/tickets.permissions.test.ts",
+      "apps/web/modules/booking/jobs/event-ended.test.ts",
+      "apps/web/app/api/webinar.test.ts"
     ]
   },
   "ops-P7": {
@@ -2656,7 +2970,16 @@
       "apps/web/app/(admin)/admin/reports/capacity/page.tsx",
       "apps/web/app/(admin)/admin/reports/capacity/loading.tsx",
       "apps/web/app/(admin)/admin/reports/capacity/error.tsx",
-      "apps/web/e2e/ops-retention.spec.ts"
+      "apps/web/e2e/ops-retention.spec.ts",
+      "apps/web/modules/ops/retention/build-list.test.ts",
+      "apps/web/modules/ops/retention/actions.test.ts",
+      "apps/web/modules/ops/retention/jobs.test.ts",
+      "apps/web/modules/ops/reports/no-shows.test.ts",
+      "apps/web/modules/ops/reports/abandoned.test.ts",
+      "apps/web/modules/ops/reports/capacity.test.ts",
+      "apps/web/modules/ops/reports/pipeline.test.ts",
+      "apps/web/modules/ops/dashboard/cards-r2.test.ts",
+      "apps/web/modules/ops/stats/digest-r2.test.ts"
     ]
   },
   "webinar-P3": {
@@ -2688,7 +3011,13 @@
       "packages/email/src/templates/webinar/access.tsx",
       "packages/email/src/templates/webinar/reminder.tsx",
       "packages/email/src/templates/webinar/replay-available.tsx",
-      "packages/email/src/templates/webinar/index.ts"
+      "packages/email/src/templates/webinar/index.ts",
+      "apps/web/modules/webinar/server/registration.test.ts",
+      "apps/web/modules/webinar/merge.test.ts",
+      "apps/web/modules/webinar/seed.test.ts",
+      "apps/web/modules/webinar/seeded-journeys-r2.test.ts",
+      "apps/web/modules/webinar/privacy.test.ts",
+      "apps/web/e2e/webinar-register.spec.ts"
     ]
   },
   "webinar-P4": {
@@ -2709,7 +3038,11 @@
       "apps/web/modules/webinar/events.ts",
       "apps/web/modules/webinar/privacy.ts",
       "docs/privacy/webinar-google.md",
-      "apps/web/scripts/load/webinar-heartbeat.ts"
+      "apps/web/scripts/load/webinar-heartbeat.ts",
+      "apps/web/modules/webinar/heartbeat.test.ts",
+      "apps/web/modules/webinar/replay-access.test.ts",
+      "apps/web/modules/webinar/finalise.test.ts",
+      "apps/web/e2e/webinar-watch.spec.ts"
     ]
   },
   "email-P8": {
@@ -2725,7 +3058,10 @@
       "apps/web/modules/email/ui/editor/BlockInspector.tsx",
       "apps/web/modules/email/server/latest-message.ts",
       "apps/web/modules/email/api.ts",
-      "packages/core/src/i18n/messages/*/email.json"
+      "packages/core/src/i18n/messages/*/email.json",
+      "packages/email/src/blocks/webinar-block.test.ts",
+      "apps/web/modules/email/event-lead-window.test.ts",
+      "apps/web/modules/email/server/latest-message.test.ts"
     ]
   },
   "forms-P8": {
@@ -2786,7 +3122,10 @@
       "apps/web/modules/webinar/actions.ts",
       "apps/web/modules/webinar/queries.ts",
       "apps/web/modules/webinar/events.ts",
-      "apps/web/modules/webinar/privacy.ts"
+      "apps/web/modules/webinar/privacy.ts",
+      "apps/web/modules/webinar/server/interactions.test.ts",
+      "apps/web/modules/webinar/scenario-5.test.ts",
+      "apps/web/e2e/scenario-5-replay-separation.spec.ts"
     ]
   },
   "commerce-P8": {
@@ -2803,7 +3142,9 @@
       "apps/web/modules/commerce/events.ts",
       "apps/web/modules/commerce/queries.ts",
       "packages/core/src/i18n/messages/*/commerce.json",
-      "packages/core/src/commerce/pricing.ts"
+      "packages/core/src/commerce/pricing.ts",
+      "apps/web/modules/commerce/server/recovery.test.ts",
+      "packages/core/src/commerce/pricing.test.ts"
     ]
   },
   "webinar-P6": {
@@ -2827,7 +3168,11 @@
       "apps/web/modules/webinar/api.ts",
       "apps/web/modules/webinar/privacy.ts",
       "apps/web/modules/webinar/nav.ts",
-      "apps/web/modules/webinar/privacy.test.ts"
+      "apps/web/modules/webinar/privacy.test.ts",
+      "apps/web/modules/webinar/server/report.test.ts",
+      "apps/web/modules/webinar/server/preflight.test.ts",
+      "apps/web/modules/webinar/permissions.test.ts",
+      "apps/web/e2e/acceptance-r2-webinar.spec.ts"
     ]
   },
   "automation-P8": {
@@ -2897,7 +3242,9 @@
       "apps/web/app/(admin)/admin/pipeline/loading.tsx",
       "apps/web/app/(admin)/admin/pipeline/error.tsx",
       "apps/web/app/(admin)/admin/pipeline/[id]/page.tsx",
-      "apps/web/app/(admin)/admin/pipeline/playbook/page.tsx"
+      "apps/web/app/(admin)/admin/pipeline/playbook/page.tsx",
+      "apps/web/modules/crm/pipeline/pipeline.test.ts",
+      "apps/web/modules/crm/pipeline/jobs.test.ts"
     ]
   },
   "finance-P8": {
@@ -2912,7 +3259,10 @@
       "apps/web/app/(admin)/admin/finance/dashboard/page.tsx",
       "apps/web/app/(admin)/admin/finance/dashboard/loading.tsx",
       "apps/web/modules/finance/nav.ts",
-      "packages/core/src/i18n/messages/*/finance.json"
+      "packages/core/src/i18n/messages/*/finance.json",
+      "packages/core/src/finance/periods.test.ts",
+      "apps/web/modules/finance/dashboard.test.ts",
+      "apps/web/modules/finance/permissions.test.ts"
     ]
   },
   "commerce-P9": {
@@ -2933,7 +3283,11 @@
       "apps/web/modules/commerce/seed.ts",
       "apps/web/modules/commerce/server/promotions.ts",
       "apps/web/modules/commerce/ui/promotion-form.tsx",
-      "packages/core/src/i18n/messages/*/commerce.json"
+      "packages/core/src/i18n/messages/*/commerce.json",
+      "packages/core/src/commerce/lightspeed.test.ts",
+      "apps/web/modules/commerce/server/lightspeed.test.ts",
+      "apps/web/modules/commerce/views.test.ts",
+      "apps/web/modules/commerce/landing.test.ts"
     ]
   },
   "credits-P9": {
@@ -2993,7 +3347,11 @@
       "packages/integrations/src/meta-messaging/client.ts",
       "packages/integrations/src/meta-messaging/fake.ts",
       "packages/integrations/src/meta-messaging/schemas.ts",
-      "packages/email/src/templates/crm/inbox-reply.tsx"
+      "packages/email/src/templates/crm/inbox-reply.tsx",
+      "packages/integrations/src/meta-messaging/index.ts",
+      "apps/web/modules/crm/inbox/inbox.test.ts",
+      "apps/web/modules/crm/inbox/meta.test.ts",
+      "apps/web/modules/crm/inbox/jobs.test.ts"
     ]
   },
   "booking-P9": {
@@ -3005,7 +3363,9 @@
       "apps/web/modules/booking/queries/partner.ts",
       "apps/web/app/api/partner.ts",
       "apps/web/app/(admin)/admin/sessions/holds/page.tsx",
-      "packages/core/src/i18n/messages/*/booking.json"
+      "packages/core/src/i18n/messages/*/booking.json",
+      "apps/web/modules/booking/actions/partner.test.ts",
+      "apps/web/modules/booking/actions/partner.permissions.test.ts"
     ]
   },
   "finance-P9": {
@@ -3019,7 +3379,8 @@
       "apps/web/modules/finance/api.ts",
       "apps/web/app/(admin)/admin/finance/deferred/page.tsx",
       "apps/web/modules/finance/nav.ts",
-      "packages/core/src/i18n/messages/*/finance.json"
+      "packages/core/src/i18n/messages/*/finance.json",
+      "apps/web/modules/finance/service/deferred.test.ts"
     ]
   },
   "ops-P8": {
@@ -3054,7 +3415,15 @@
       "packages/db/src/reports/ads/page.tsx",
       "packages/db/src/reports/ads/loading.tsx",
       "packages/db/src/reports/ads/error.tsx",
-      "apps/web/e2e/ops-marketing.spec.ts"
+      "apps/web/e2e/ops-marketing.spec.ts",
+      "packages/integrations/src/ads/index.ts",
+      "apps/web/modules/ops/marketing/attribution.test.ts",
+      "apps/web/modules/ops/marketing/ads.test.ts",
+      "apps/web/modules/ops/marketing/funnel.test.ts",
+      "apps/web/modules/ops/marketing/management.test.ts",
+      "apps/web/modules/ops/marketing/kpis.test.ts",
+      "apps/web/modules/ops/marketing/jobs.test.ts",
+      "apps/web/modules/ops/marketing/permissions.test.ts"
     ]
   },
   "automation-P9": {
@@ -3081,7 +3450,9 @@
       "apps/web/modules/email/queries.ts",
       "apps/web/modules/email/ui/CampaignReport.tsx",
       "packages/core/src/i18n/messages/*/email.json",
-      "docs/runbooks/email-dns.md"
+      "docs/runbooks/email-dns.md",
+      "apps/web/modules/email/server/attribution.test.ts",
+      "apps/web/modules/email/server/process-event.test.ts"
     ]
   },
   "forms-P9": {
@@ -3152,7 +3523,8 @@
       "apps/web/modules/platform/ai-sql.test.ts",
       "packages/integrations/src/anthropic/client.ts",
       "packages/integrations/src/anthropic/fake.ts",
-      "apps/web/app/(admin)/admin/system/ai/page.tsx"
+      "apps/web/app/(admin)/admin/system/ai/page.tsx",
+      "packages/core/src/ai/context.test.ts"
     ]
   },
   "crm-P10": {
@@ -3174,7 +3546,9 @@
       "packages/core/src/i18n/messages/*/crm.json",
       "packages/core/src/crm/sensitive-screen.ts",
       "apps/web/modules/crm/inbox/ai-draft.ts",
-      "apps/web/modules/crm/ui/inbox/ai-draft-panel.tsx"
+      "apps/web/modules/crm/ui/inbox/ai-draft-panel.tsx",
+      "packages/core/src/crm/sensitive-screen.test.ts",
+      "apps/web/modules/crm/inbox/ai-draft.test.ts"
     ]
   },
   "credits-P10": {
@@ -3201,7 +3575,8 @@
       "apps/web/modules/email/queries.ts",
       "apps/web/modules/email/jobs.ts",
       "packages/db/src/seed/email.ts",
-      "packages/core/src/i18n/messages/*/email.json"
+      "packages/core/src/i18n/messages/*/email.json",
+      "apps/web/modules/email/server/ai-draft.test.ts"
     ]
   },
   "finance-P10": {
@@ -3212,7 +3587,9 @@
       "packages/core/src/finance/kpis.ts",
       "apps/web/modules/finance/service/kpis.ts",
       "apps/web/modules/finance/api.ts",
-      "apps/web/modules/finance/ai-views.ts"
+      "apps/web/modules/finance/ai-views.ts",
+      "packages/core/src/finance/kpis.test.ts",
+      "apps/web/modules/finance/ai-views.test.ts"
     ]
   },
   "site-P10": {
@@ -3247,7 +3624,8 @@
       "apps/web/e2e/automation-builder.spec.ts",
       "apps/web/modules/automation/actions.ts",
       "apps/web/modules/automation/ui/definition-editor.tsx",
-      "packages/core/src/i18n/messages/*/automation.json"
+      "packages/core/src/i18n/messages/*/automation.json",
+      "packages/core/src/automation/builder.test.ts"
     ]
   },
   "webinar-P8": {
@@ -3280,7 +3658,12 @@
       "apps/web/app/(admin)/admin/dashboard/custom/[id]/loading.tsx",
       "apps/web/app/(admin)/admin/dashboard/custom/[id]/error.tsx",
       "apps/web/modules/ops/ui/WidgetGrid.tsx",
-      "apps/web/modules/ops/ui/WidgetPicker.tsx"
+      "apps/web/modules/ops/ui/WidgetPicker.tsx",
+      "packages/core/src/ops/predict.test.ts",
+      "apps/web/modules/ops/insights/stats-predictions.test.ts",
+      "apps/web/modules/ops/insights/opportunities.test.ts",
+      "apps/web/modules/ops/insights/kpi.test.ts",
+      "apps/web/modules/ops/insights/permissions.test.ts"
     ]
   },
   "ops-P10": {
@@ -3302,7 +3685,12 @@
       "apps/web/app/(admin)/admin/dashboard/summary/loading.tsx",
       "apps/web/app/(admin)/admin/dashboard/summary/error.tsx",
       "packages/core/src/i18n/messages/*/ops.json",
-      "apps/web/e2e/ops-ai.spec.ts"
+      "apps/web/e2e/ops-ai.spec.ts",
+      "packages/core/src/ops/validate-ai-sql.test.ts",
+      "apps/web/modules/ops/ai/ro-role.test.ts",
+      "apps/web/modules/ops/ai/ask.test.ts",
+      "apps/web/modules/ops/ai/summary.test.ts",
+      "apps/web/modules/ops/ai/jobs.test.ts"
     ]
   },
   "forms-P10": {

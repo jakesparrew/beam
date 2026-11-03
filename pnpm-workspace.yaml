@@ -89,6 +89,7 @@ catalog:
   "@tiptap/extension-link": 3.32.2
   # tests
   vitest: 5.1.0
+  vite: 8.3.5
   "@vitest/coverage-v8": 5.1.0
   "@vitejs/plugin-react": 6.2.1
   jsdom: 30.1.3

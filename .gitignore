@@ -27,3 +27,4 @@ coverage/
 .worktrees/
 .claude/worktrees/
 docs/build/logs/
+.agent-start

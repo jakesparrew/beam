@@ -3690,7 +3690,8 @@
       "apps/web/modules/ops/ai/ro-role.test.ts",
       "apps/web/modules/ops/ai/ask.test.ts",
       "apps/web/modules/ops/ai/summary.test.ts",
-      "apps/web/modules/ops/ai/jobs.test.ts"
+      "apps/web/modules/ops/ai/jobs.test.ts",
+      "apps/web/modules/ops/ai/blueprint-questions.test.ts"
     ]
   },
   "forms-P10": {

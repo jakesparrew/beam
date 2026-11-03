@@ -5935,7 +5935,7 @@
       ],
       "tests": [
         "apps/web/scripts/exit-export.test.ts: on PGlite with seed data the export contains every table as CSV plus files and a manifest; sensitive columns stay encrypted; a second run is byte-identical apart from the timestamp",
-        "apps/web/scripts/load-test.ts: run against beam_dev at the V1 checkpoint (booking 200 concurrent on 20 seats, campaign chunk throughput, tick under load); report.ts writes docs/handbook/load-test-results.md"
+        "apps/web/scripts/load-test.ts: the four scenarios of the platform spec (100 concurrent visitors on /nl/account/book for 60 s with p95 below 800 ms and no 5xx; 50 concurrent magic-link requests sent within 2 minutes; 5,000 queued email.send jobs drained within 15 minutes; a 20,000-recipient campaign on the fake Resend adapter within 15 minutes), run against beam_dev at the wave 11 checkpoint and against staging before go-live; report.ts writes docs/handbook/load-test-results.md. Seat oversell under load is booking-P3a book.load.test.ts"
       ],
       "estimateMinutes": 105,
       "e2e": true
@@ -5975,7 +5975,7 @@
         "docs/plan/acceptance-v1.md (each proposal test -> spec and test file)"
       ],
       "tests": [
-        "apps/web/e2e/acceptance-v1.spec.ts: register, book, pay, cancel; package balance updates; member discount; staff changes a booking; CRM timeline; revenue report reflects the order; export works; late-entry skip; unsubscribe within 15 minutes; hard bounce suppressed; lead/customer/member blocks; weighted branched assessment updates the person without newsletter consent; sensitive text excluded from AI; waitlist: no second seat, claim expiry, confirmed seat protected; GDPR: export, deletion propagates, consent history kept, suppression survives an import",
+        "apps/web/e2e/acceptance-v1.spec.ts: register, book, pay, cancel; package balance updates; member discount; staff changes a booking; email sends correctly (the booking confirmation reaches the sink exactly once, in the person's locale, from `mail.beam.be`, with HTML and plain-text parts and the legal footer, and the timeline shows `email.sent`); CRM timeline; revenue report reflects the order; export works; late-entry skip; unsubscribe within 15 minutes; hard bounce suppressed; lead/customer/member blocks; weighted branched assessment updates the person without newsletter consent; sensitive text excluded from AI; waitlist: no second seat, claim expiry, confirmed seat protected; GDPR: export, deletion propagates, consent history kept, suppression survives an import",
         "apps/web/test/seams-v1.test.ts: fake Mollie paid -> grant -> booking with a credit -> cancel in policy -> credit back; paid order -> invoice BEAM-2026-000001 -> Billit fake document; form submission -> person -> automation enrolment -> email_messages row in the sink"
       ],
       "estimateMinutes": 90,
@@ -7979,7 +7979,8 @@
         "apps/web/modules/ops/ai/ro-role.test.ts",
         "apps/web/modules/ops/ai/ask.test.ts",
         "apps/web/modules/ops/ai/summary.test.ts",
-        "apps/web/modules/ops/ai/jobs.test.ts"
+        "apps/web/modules/ops/ai/jobs.test.ts",
+        "apps/web/modules/ops/ai/blueprint-questions.test.ts"
       ],
       "exposes": [
         "validateAiSql(sql: string, opts: { dpiaApproved: Record<DpiaKey, boolean> }): { ok: true; sql: string } | { ok: false; reason: string }",
@@ -7998,6 +7999,7 @@
         "apps/web/modules/ops/ai/ask.test.ts: fake Claude returns SQL; rows capped at 200; `person_id` names never in the second prompt; refusal, timeout and budget paths; `ai_requests` rows written",
         "apps/web/modules/ops/ai/summary.test.ts: prompt contains aggregates only; one batch with one request per locale; collect job re-enqueues while the fake batch is running and stores each locale when ended; regeneration gets a new key; `skipped_budget`",
         "apps/web/modules/ops/ai/jobs.test.ts: double run",
+        "apps/web/modules/ops/ai/blueprint-questions.test.ts: the six example questions of blueprint 40 (top revenue customers this year; campaign with the highest-value customers; bought a 10-session package and did not repurchase; September versus August revenue with the biggest changes; B2B opportunities needing attention; 50 customers to contact this week), each with a recorded SQL answer from the fake gateway, pass `validateAiSql`, run as `beam_ai_ro` on the demo seed and return at least one row with no sensitive, email or phone column",
         "apps/web/e2e/ops-ai.spec.ts: with the fake gateway, \"Which customers generated the most revenue this year?\" renders a table with person links"
       ],
       "estimateMinutes": 90,

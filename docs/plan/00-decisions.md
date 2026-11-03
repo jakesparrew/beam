@@ -70,7 +70,7 @@ These decisions are made. Every spec, package and line of code follows them. Whe
 ## Parallel build rules (how many agents build this at once without collisions)
 
 1. **One owner per file.** Every build package lists the files it creates or edits; no two packages in the same wave touch the same file.
-2. **No dependency changes inside packages.** Wave 0 installs every npm dependency the whole platform needs. A package that needs something else writes it to `docs/build/dependency-requests.md`; the orchestrator adds it between waves.
+2. **No dependency changes inside packages.** Wave 0 installs every npm dependency the whole platform needs. A package that needs something else writes it to `docs/build/dependency-requests/<package-id>.md` (one file per package); the orchestrator adds it between waves.
 3. **No migrations inside packages.** Packages only edit Drizzle schema files (`packages/db/src/schema/<module>.ts`). After each wave is merged, the orchestrator runs `pnpm db:generate` once, commits the migration, and the gate runs `pnpm db:check-migrations`.
 4. **Registries by convention, indexes generated.** Shared lists (schema re-exports, job handlers, permissions, activity event types, navigation, i18n message namespaces, route registries) live in one file per module; a generator script (`pnpm gen:indexes`) writes the index files. Packages never edit generated index files by hand.
 5. **Worktree per package.** Each coding agent works in its own git worktree on branch `build/<package-id>`, runs `pnpm install --offline` (shared pnpm store), and must leave `pnpm typecheck` and its own Vitest suites green before it commits.

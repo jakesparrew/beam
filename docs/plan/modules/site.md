@@ -28,7 +28,7 @@ Coverage of blueprint 10 (portal) and 81 (app). The site owns the portal home an
 | Purchase packages, purchase sessions | commerce `/[locale]/account/shop` and `/account/checkout`; session purchase from booking's book page | V1 |
 | View membership, renew membership | site home membership card; credits `/[locale]/account/membership` (`payMyRenewal` when past due) | V1 |
 | Update personal details | crm `/[locale]/account/profile` | V1 |
-| Manage communication preferences | email `/[locale]/account/preferences` | V1 |
+| Manage communication preferences | crm `/[locale]/account/preferences` (crm-P3; email only supplies the footer links to it) | V1 |
 | View event registrations | booking `/[locale]/account/bookings` (events tab); webinar `/[locale]/account/webinars` | V1, webinars R2 |
 | Access invoices | finance `/[locale]/account/invoices` | V1 |
 | Invite a guest | booking `/[locale]/account/bookings/[id]` (invite a guest), home quick action | V1 (sharing limits R2) |
@@ -522,8 +522,8 @@ Integration classification (blueprint 50 asks Sidestream to state the type of ev
 | Google Ads | API-based, read-only; browser tag after marketing consent | ops R3, site R3 | spend per campaign; conversion tag |
 | Google Analytics | browser tag, consent-gated (GA4, Consent Mode v2) | site V1 | page views; UTM stays in BEAM's own lead data |
 | WordPress | replaced by the native site; temporary one-time WXR file import | site V1 (import), retired at the week-8 DNS switch | pages, posts, media and redirects |
-| Zoom, WebinarGeek | temporary until the native webinar (R2): CSV import presets plus a signed generic JSON webhook | ops V1 (imports, webinar spec decision 11), retired at the R2 switch-over | registrations and attendance on the timeline |
-| Zapier | automation-platform based, temporary: feeds the V1 webinar stopgap webhook; outbound calls from BEAM use the automation `webhook` step (custom-built HTTPS POST to allow-listed hosts) | ops V1, automation V1 | bridge to tools without an API client |
+| Zoom, WebinarGeek | temporary until the native webinar (R2): weekly CSV export imported through ops presets; no API client and no webhook (webinar spec decision 11, ops "No webhooks") | ops V1 (imports), retired at the R2 switch-over | registrations and attendance on the timeline |
+| Zapier | automation-platform based, outbound only: a Zapier catch hook can be the target of the automation `webhook` step (custom-built HTTPS POST to allow-listed hosts); nothing enters BEAM through Zapier | automation V1 | bridge to tools without an API client |
 | Mollie | API + webhooks | commerce V1 | payments, mandates, terminal, refunds |
 | Stripe | API + webhooks, adapter behind `PaymentProvider` | commerce (stub V1, switchable per channel) | alternative provider |
 | Billit | API-based | finance V1 | invoices, credit notes, Peppol |

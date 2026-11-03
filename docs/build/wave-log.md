@@ -21,4 +21,4 @@ One entry per merge batch and gate (runbook section 5.7, adapted by OD-3).
 
 ## Wave 1: platform-P2, P3, P4
 
-- Started 21:02 UTC in parallel from `f14e1fc` (runs `wf_e1f35b9a-c3a`, `wf_d92d475c-cb4`, `wf_dec6bb2d-7af`).
+- Started 20:56 UTC in parallel from `f14e1fc` (runs `wf_e1f35b9a-c3a`, `wf_d92d475c-cb4`, `wf_dec6bb2d-7af`).

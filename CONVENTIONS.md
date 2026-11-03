@@ -46,6 +46,11 @@ Every coding agent reads this page first. The long reference with examples is
     factories; provider fakes only, no network; every job runs twice in `jobs.test.ts`;
     `privacy.test.ts` and `permissions.test.ts` per module. Playwright specs are
     written and listed (`playwright test --list`), never run by a coding agent.
+    In Playwright, never wait on a bare `getByRole("alert")`: Next.js renders a
+    hidden route announcer with `role="alert"`, so the wait passes before your
+    server action finishes. Wait for the action's POST response
+    (`page.waitForResponse`) or for the specific message text, and reset the
+    shared demo rows you touch both before and after the test.
 11. **Before you commit**, run the command list of section 4 of
     `docs/plan/04-build-session.md` (install offline, `gen:indexes`, typecheck,
     eslint on your files, `i18n:check`, your Vitest suites, the ownership check).

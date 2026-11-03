@@ -62,14 +62,16 @@
       "mergedAt": "2026-11-03T22:28:10Z"
     },
     "platform-P6": {
-      "status": "running",
+      "status": "merged",
       "attempts": 2,
       "baseSha": "e878fad",
       "runId": "wf_a2faf98e-e02",
       "startedAt": "2026-11-03T23:16:05Z",
-      "branchSha": "e46229c",
-      "endedAt": "2026-11-03T23:12:38Z",
-      "minutes": 43
+      "branchSha": "d6e7bb3",
+      "endedAt": "2026-11-03T23:21:21Z",
+      "minutes": 48,
+      "mergeSha": "58d8fd8",
+      "mergedAt": "2026-11-03T23:23:56Z"
     },
     "platform-P7": {
       "status": "merged",
@@ -570,6 +572,26 @@
       "minutes": 6,
       "mergeSha": "6207554",
       "mergedAt": "2026-11-03T23:07:47Z"
+    },
+    "fix-w03-platform-2": {
+      "status": "pending",
+      "attempts": 0,
+      "fixer": true,
+      "module": "platform",
+      "goal": "Make apps/web/e2e/platform.spec.ts reliable: the 'ten wrong passwords lock the account' test waits on a bare getByRole('alert'), which passes before the sign-in server action completes (Next.js route announcer has role=alert), so attempts overlap the counter read and the restore step.",
+      "from": [
+        "platform-P6"
+      ],
+      "owns": [
+        "apps/web/e2e/platform.spec.ts",
+        "apps/web/e2e/support/auth.ts",
+        "apps/web/e2e/support/sink.ts",
+        "apps/web/e2e/support/db.ts",
+        "apps/web/e2e/support/ids.ts"
+      ],
+      "dependsOn": [
+        "platform-P6"
+      ]
     }
   }
 }

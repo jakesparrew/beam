@@ -1,0 +1,81 @@
+{
+  "platform": {
+    "errors": {
+      "unauthorized": "Votre session a expiré. Veuillez vous reconnecter.",
+      "forbidden": "Vous n'avez pas l'autorisation de faire ceci.",
+      "validation": "Certains champs ne sont pas remplis correctement. Vérifiez le formulaire et réessayez.",
+      "not_found": "Cet élément n'existe plus ou vous ne pouvez pas l'ouvrir.",
+      "conflict": "Quelqu'un d'autre a modifié ceci entre-temps. Rechargez la page et réessayez.",
+      "rate_limited": "Trop de tentatives. Réessayez dans quelques minutes.",
+      "internal": "Un problème est survenu de notre côté. Réessayez plus tard. Référence : {requestId}"
+    },
+    "shell": {
+      "recovery_codes_left": "{count, plural, =0 {Il ne vous reste aucun code de récupération.} one {Il vous reste # code de récupération.} other {Il vous reste # codes de récupération.}}",
+      "missing_translation": "Traduction manquante"
+    },
+    "permissions": {
+      "settings_write": "Modifier les paramètres de la plateforme et des modules",
+      "users_manage": "Inviter, modifier et désactiver les comptes du personnel et changer leur rôle",
+      "flags_manage": "Activer ou désactiver les feature flags et gérer les testeurs",
+      "system_jobs": "Ouvrir les pages Système : tâches, webhooks, intégrations et registre du support",
+      "ai_use": "Utiliser les assistants IA et consulter l'utilisation de l'IA",
+      "partner_own": "Voir les réservations, parrainages et chiffres propres au partenaire"
+    },
+    "email": {
+      "layout": {
+        "brand": "BEAM Vitality Center",
+        "footer": "Vous recevez cet e-mail parce que vous avez un compte chez BEAM Vitality Center.",
+        "button_fallback": "Si le bouton ne fonctionne pas, copiez ce lien dans votre navigateur :"
+      },
+      "magic_link": {
+        "subject": "Votre lien de connexion BEAM",
+        "preheader": "Connectez-vous en un clic. Le lien est valable {expiresMinutes} minutes.",
+        "heading": "Connectez-vous à votre compte BEAM",
+        "body": "Cliquez sur le bouton ci-dessous pour vous connecter. Le lien est valable {expiresMinutes} minutes et ne fonctionne qu'une seule fois. Si vous n'avez pas demandé ce lien, vous pouvez ignorer cet e-mail.",
+        "cta": "Se connecter"
+      },
+      "staff_invite": {
+        "subject": "Vous êtes invité au back-office BEAM",
+        "preheader": "Définissez votre mot de passe dans les {expiresHours} heures.",
+        "heading": "Bienvenue dans l'équipe BEAM",
+        "body": "Un compte a été créé pour vous dans le back-office BEAM. Choisissez un mot de passe et configurez la vérification en deux étapes. Le lien est valable {expiresHours} heures et ne fonctionne qu'une seule fois.",
+        "cta": "Définir mon mot de passe"
+      },
+      "password_reset": {
+        "subject": "Réinitialisez votre mot de passe BEAM",
+        "preheader": "Le lien est valable {expiresMinutes} minutes.",
+        "heading": "Choisissez un nouveau mot de passe",
+        "body": "Nous avons reçu une demande de réinitialisation de votre mot de passe. Cliquez sur le bouton ci-dessous pour en choisir un nouveau. Le lien est valable {expiresMinutes} minutes. Si vous n'êtes pas à l'origine de cette demande, ignorez cet e-mail : votre mot de passe reste inchangé.",
+        "cta": "Choisir un nouveau mot de passe"
+      },
+      "mfa_changed": {
+        "subject": "Un paramètre de sécurité de votre compte BEAM a changé",
+        "preheader": "Vérifiez qu'il s'agit bien de vous.",
+        "heading": "Avis de sécurité",
+        "body": "{change, select, password_changed {Votre mot de passe a été modifié.} password_reset {Votre mot de passe a été réinitialisé.} mfa_reset {La vérification en deux étapes de votre compte a été réinitialisée.} recovery_codes_regenerated {De nouveaux codes de récupération ont été créés pour votre compte.} other {Un paramètre de sécurité de votre compte a été modifié.}} Si ce n'était pas vous, contactez immédiatement votre administrateur.",
+        "cta": "Vérifier mon compte",
+        "when_label": "Quand"
+      },
+      "monthly_report": {
+        "subject": "Rapport de la plateforme BEAM {period}",
+        "preheader": "Disponibilité, incidents et support pour {period}.",
+        "heading": "Rapport mensuel de la plateforme",
+        "body": "Voici les chiffres de la plateforme BEAM pour {period} : disponibilité, incidents, demandes de support, sauvegardes et utilisation de l'IA.",
+        "cta": "Ouvrir le rapport",
+        "uptime": "Disponibilité",
+        "uptime_target": "Objectif 99,5 %",
+        "uptime_manual": "saisie manuelle",
+        "downtime": "Indisponibilité (minutes)",
+        "incidents": "Incidents de sécurité (critique / élevé / normal)",
+        "support_received": "Demandes de support reçues",
+        "support_resolved": "Demandes de support résolues",
+        "support_breaches": "Délai de réponse dépassé",
+        "dead_jobs": "Tâches d'arrière-plan échouées",
+        "alerts_sent": "Alertes envoyées",
+        "backups": "Sauvegardes (réussies / échouées)",
+        "ai_spend": "Coût de l'IA",
+        "notes": "Remarques"
+      }
+    }
+  }
+}

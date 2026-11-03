@@ -49,3 +49,4 @@ One entry per merge batch and gate (runbook section 5.7, adapted by OD-3).
 
 - 23:35 UTC: started fix-w03-platform-2, credits-P1, commerce-P1, credits-P2, crm-P1, booking-P1 from `9892b11` (6 agents).
 - Foundation review (run `wf_ffea3f4a-fbc`): five reviewers (security, runtime, data, spec, tests) over platform-P1 to P7, each finding checked by an adversarial verifier; confirmed findings become platform fixer packages.
+- fix-w03-platform-2: 13 min, merged as `5c125ff`; gate `g12-fix-w03-platform-2` (merge) green, peak 2914 MB.

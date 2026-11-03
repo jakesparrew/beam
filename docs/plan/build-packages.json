@@ -1418,11 +1418,11 @@
         "apps/web/modules/booking/jobs/bookings.ts",
         "apps/web/modules/booking/jobs/attendance.ts",
         "apps/web/modules/booking/jobs/waitlist.ts",
-        "apps/web/app/api/schedule.ts",
-        "apps/web/app/api/bookings.ts",
-        "apps/web/app/api/waitlist.ts",
-        "apps/web/app/api/partner.ts",
-        "apps/web/app/api/webinar.ts",
+        "apps/web/modules/booking/api/schedule.ts",
+        "apps/web/modules/booking/api/bookings.ts",
+        "apps/web/modules/booking/api/waitlist.ts",
+        "apps/web/modules/booking/api/partner.ts",
+        "apps/web/modules/booking/api/webinar.ts",
         "apps/web/modules/booking/schedules/schedule.ts",
         "apps/web/modules/booking/schedules/bookings.ts",
         "apps/web/modules/booking/schedules/attendance.ts",
@@ -2470,7 +2470,7 @@
         "apps/web/modules/booking/actions/templates.ts",
         "apps/web/modules/booking/actions/sessions.ts",
         "apps/web/modules/booking/queries/schedule.ts",
-        "apps/web/app/api/schedule.ts",
+        "apps/web/modules/booking/api/schedule.ts",
         "apps/web/modules/booking/jobs/schedule.ts",
         "apps/web/modules/booking/schedules/schedule.ts",
         "apps/web/modules/booking/seed.ts",
@@ -2500,7 +2500,7 @@
         "apps/web/modules/booking/jobs/schedule.test.ts",
         "apps/web/modules/booking/actions/sessions.test.ts",
         "apps/web/modules/booking/queries/schedule.test.ts",
-        "apps/web/app/api/schedule.test.ts"
+        "apps/web/modules/booking/api/schedule.test.ts"
       ],
       "exposes": [
         "createTemplates",
@@ -2531,7 +2531,7 @@
         "apps/web/modules/booking/jobs/schedule.test.ts: materialise creates the expected count for 90 days; double run identical; regeneration updates free sessions, keeps booked and manual ones, removes unmatched free ones; closed day removes free sessions and reports booked ones as conflicts; deleting the exception re-inserts them; \"Close this day\" on a Belgian holiday",
         "apps/web/modules/booking/actions/sessions.test.ts: capacity below bookings refused; publish requires complete title and an `event_category` for events; holds cannot drop below their bookings; hold deletion and capacity increase enqueue `waitlist.offer_next`; every session status transition",
         "apps/web/modules/booking/queries/schedule.test.ts: `getDayPrintList` columns incl. the health declaration column, `getOpeningHours` with a special-hours exception",
-        "apps/web/app/api/schedule.test.ts: `nextOpeningAt`: Sunday evening returns Tuesday opening, a `closed` exception is skipped, Easter Monday skipped by default and returned with `includePublicHolidays`"
+        "apps/web/modules/booking/api/schedule.test.ts: `nextOpeningAt`: Sunday evening returns Tuesday opening, a `closed` exception is skipped, Easter Monday skipped by default and returned with `includePublicHolidays`"
       ],
       "estimateMinutes": 75,
       "e2e": false
@@ -4176,7 +4176,7 @@
         "apps/web/modules/booking/queries/waitlist.ts",
         "apps/web/modules/booking/jobs/waitlist.ts",
         "apps/web/modules/booking/schedules/waitlist.ts",
-        "apps/web/app/api/waitlist.ts",
+        "apps/web/modules/booking/api/waitlist.ts",
         "apps/web/modules/booking/server/claim.ts",
         "apps/web/app/api/public/claim/[token]/route.ts",
         "apps/web/app/[locale]/(site)/claim/[token]/page.tsx",
@@ -5193,11 +5193,11 @@
       "owns": [
         "apps/web/app/[locale]/(portal)/account/book/page.tsx",
         "apps/web/app/[locale]/(portal)/account/book/[sessionId]/page.tsx",
-        "apps/web/modules/booking/bookings/page.tsx",
-        "apps/web/modules/booking/bookings/[id]/page.tsx",
-        "apps/web/modules/booking/bookings/[id]/reschedule/page.tsx",
-        "apps/web/modules/booking/bookings/[id]/reschedule/loading.tsx",
-        "apps/web/modules/booking/bookings/[id]/reschedule/error.tsx",
+        "apps/web/app/[locale]/(portal)/account/bookings/page.tsx",
+        "apps/web/app/[locale]/(portal)/account/bookings/[id]/page.tsx",
+        "apps/web/app/[locale]/(portal)/account/bookings/[id]/reschedule/page.tsx",
+        "apps/web/app/[locale]/(portal)/account/bookings/[id]/reschedule/loading.tsx",
+        "apps/web/app/[locale]/(portal)/account/bookings/[id]/reschedule/error.tsx",
         "apps/web/modules/booking/ui/portal/session-list.tsx",
         "apps/web/modules/booking/ui/portal/book-form.tsx",
         "apps/web/modules/booking/ui/portal/guest-fields.tsx",
@@ -5209,7 +5209,11 @@
         "packages/core/src/i18n/messages/nl-BE/booking.json",
         "packages/core/src/i18n/messages/fr-BE/booking.json",
         "apps/web/e2e/booking.spec.ts",
-        "apps/web/e2e/acceptance-v1.spec.ts"
+        "apps/web/e2e/acceptance-v1.spec.ts",
+        "apps/web/app/[locale]/(portal)/account/bookings/loading.tsx",
+        "apps/web/app/[locale]/(portal)/account/bookings/error.tsx",
+        "apps/web/app/[locale]/(portal)/account/bookings/[id]/loading.tsx",
+        "apps/web/app/[locale]/(portal)/account/bookings/[id]/error.tsx"
       ],
       "exposes": [
         "bookingPrivacy"
@@ -6069,7 +6073,7 @@
         "packages/core/src/i18n/messages/*/booking.json",
         "packages/email/src/templates/booking/lead-window-open.tsx",
         "packages/email/src/templates/booking/index.ts",
-        "apps/web/app/api/bookings.ts",
+        "apps/web/modules/booking/api/bookings.ts",
         "apps/web/e2e/scenario-3-lead-access.spec.ts",
         "apps/web/modules/booking/actions/lead.test.ts",
         "apps/web/modules/booking/actions/lead.permissions.test.ts",
@@ -6116,7 +6120,7 @@
         "apps/web/modules/automation/queries.ts",
         "apps/web/app/(admin)/admin/automations/groups/page.tsx",
         "packages/core/src/i18n/messages/*/automation.json",
-        "packages/core/src/i18n/messages/engine/step.ts",
+        "apps/web/modules/automation/engine/step.ts",
         "packages/core/src/automation/frequency.test.ts",
         "apps/web/modules/automation/engine/step-frequency.test.ts",
         "apps/web/modules/automation/actions.test.ts",
@@ -6298,7 +6302,7 @@
         "packages/db/src/schema/booking.views.ts",
         "apps/web/modules/booking/server/book.ts",
         "apps/web/modules/booking/jobs/attendance.ts",
-        "apps/web/app/api/webinar.ts",
+        "apps/web/modules/booking/api/webinar.ts",
         "apps/web/modules/booking/ui/ticket-types-form.tsx",
         "apps/web/app/(admin)/admin/sessions/[id]/page.tsx",
         "apps/web/modules/booking/ui/portal/book-form.tsx",
@@ -6307,7 +6311,7 @@
         "apps/web/modules/booking/actions/tickets.test.ts",
         "apps/web/modules/booking/actions/tickets.permissions.test.ts",
         "apps/web/modules/booking/jobs/event-ended.test.ts",
-        "apps/web/app/api/webinar.test.ts"
+        "apps/web/modules/booking/api/webinar.test.ts"
       ],
       "exposes": [
         "upsertTicketType",
@@ -6319,7 +6323,7 @@
         "apps/web/modules/booking/actions/tickets.test.ts: publish blocked by incomplete names; sales window; member-only type; per-type capacity under the session lock; `max_per_booking`",
         "apps/web/modules/booking/actions/tickets.permissions.test.ts: cases as listed in the spec",
         "apps/web/modules/booking/jobs/event-ended.test.ts: one event per booking, dedupe, attended flag, emitted with `no_show.auto_mark = false`, double run",
-        "apps/web/app/api/webinar.test.ts: upsert creates once and updates title and times, a wrong `sessionId` is refused with `webinar_session_mismatch`, unique `webinar_id`, cancel by `webinarId` sets `cancelled`, returns `{ cancelled: true }` (and `{ cancelled: false }` for an unknown webinar) and is idempotent, booking actions refuse the session with `webinar_session`"
+        "apps/web/modules/booking/api/webinar.test.ts: upsert creates once and updates title and times, a wrong `sessionId` is refused with `webinar_session_mismatch`, unique `webinar_id`, cancel by `webinarId` sets `cancelled`, returns `{ cancelled: true }` (and `{ cancelled: false }` for an unknown webinar) and is idempotent, booking actions refuse the session with `webinar_session`"
       ],
       "estimateMinutes": 45,
       "e2e": false
@@ -6850,7 +6854,7 @@
         "packages/core/src/automation/seeds/waitlist.ts",
         "packages/core/src/automation/seeds/events.ts",
         "packages/db/src/seed/automation.ts",
-        "packages/db/src/engine/step.ts"
+        "apps/web/modules/automation/engine/step.ts"
       ],
       "exposes": [
         "activateReleaseSequences(tx: Tx, release: 'R2' | 'R3'): Promise<{ activated: string[] }>",
@@ -7212,7 +7216,7 @@
       "owns": [
         "apps/web/modules/booking/actions/partner.ts",
         "apps/web/modules/booking/queries/partner.ts",
-        "apps/web/app/api/partner.ts",
+        "apps/web/modules/booking/api/partner.ts",
         "apps/web/app/(admin)/admin/sessions/holds/page.tsx",
         "packages/core/src/i18n/messages/*/booking.json",
         "apps/web/modules/booking/actions/partner.test.ts",
@@ -7298,9 +7302,9 @@
         "packages/integrations/src/ads/client.ts",
         "packages/integrations/src/ads/fake.ts",
         "packages/db/src/schema/ops.views.ts",
-        "packages/db/src/dashboard/cards.ts",
-        "packages/db/src/dashboard/queries.ts",
-        "packages/db/src/reports/registry.ts",
+        "apps/web/modules/ops/dashboard/cards.ts",
+        "apps/web/modules/ops/dashboard/queries.ts",
+        "apps/web/modules/ops/reports/registry.ts",
         "packages/core/src/i18n/messages/*/ops.json",
         "apps/web/modules/ops/marketing/actions.ts",
         "apps/web/modules/ops/marketing/queries.ts",
@@ -7314,11 +7318,11 @@
         "apps/web/modules/ops/marketing/email-summary.ts",
         "apps/web/modules/ops/marketing/webinar-summary.ts",
         "apps/web/app/(admin)/admin/dashboard/management/page.tsx",
-        "packages/db/src/reports/marketing/page.tsx",
-        "packages/db/src/reports/attribution/page.tsx",
-        "packages/db/src/reports/ads/page.tsx",
-        "packages/db/src/reports/ads/loading.tsx",
-        "packages/db/src/reports/ads/error.tsx",
+        "apps/web/app/(admin)/admin/reports/marketing/page.tsx",
+        "apps/web/app/(admin)/admin/reports/attribution/page.tsx",
+        "apps/web/app/(admin)/admin/reports/ads/page.tsx",
+        "apps/web/app/(admin)/admin/reports/ads/loading.tsx",
+        "apps/web/app/(admin)/admin/reports/ads/error.tsx",
         "apps/web/e2e/ops-marketing.spec.ts",
         "packages/integrations/src/ads/index.ts",
         "apps/web/modules/ops/marketing/attribution.test.ts",
@@ -7327,7 +7331,13 @@
         "apps/web/modules/ops/marketing/management.test.ts",
         "apps/web/modules/ops/marketing/kpis.test.ts",
         "apps/web/modules/ops/marketing/jobs.test.ts",
-        "apps/web/modules/ops/marketing/permissions.test.ts"
+        "apps/web/modules/ops/marketing/permissions.test.ts",
+        "apps/web/app/(admin)/admin/dashboard/management/loading.tsx",
+        "apps/web/app/(admin)/admin/dashboard/management/error.tsx",
+        "apps/web/app/(admin)/admin/reports/marketing/loading.tsx",
+        "apps/web/app/(admin)/admin/reports/marketing/error.tsx",
+        "apps/web/app/(admin)/admin/reports/attribution/loading.tsx",
+        "apps/web/app/(admin)/admin/reports/attribution/error.tsx"
       ],
       "exposes": [
         "MetaAdsClient.getCampaignInsights(input: { accountId: string; day: string }): Promise<AdDayRow[]>",

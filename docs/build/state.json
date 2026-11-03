@@ -116,10 +116,10 @@
     },
     "credits-P1": {
       "status": "running",
-      "attempts": 1,
-      "baseSha": "9892b11",
-      "runId": "wf_cbdfc354-a6e",
-      "startedAt": "2026-11-03T23:35:56Z"
+      "attempts": 2,
+      "baseSha": "2200899",
+      "runId": "wf_bba4be41-aca",
+      "startedAt": "2026-11-03T23:55:50Z"
     },
     "credits-P2": {
       "status": "merged",

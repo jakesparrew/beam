@@ -52,3 +52,4 @@ One entry per merge batch and gate (runbook section 5.7, adapted by OD-3).
 - fix-w03-platform-2: 13 min, merged as `5c125ff`; gate `g12-fix-w03-platform-2` (merge) green, peak 2914 MB.
 - credits-P2: 14 min, merged as `b3ca117`; gate `g13-credits-P2` (merge) green, peak 3520 MB.
 - 23:52 UTC: started email-P1, site-P1 from `7835fd3`. Wave 3 checkpoint now green: `fix-w03-platform-2` ran `platform.spec.ts` 4/4 twice against beam_dev (magic link included).
+- credits-P1 attempt 1 done in 18 minutes (102 db tests) but gdpr coverage would fail: its three person-referencing tables were not registered, because credits' `privacy.ts` belonged to credits-P5. Plan amended (OD-9): every module's schema package owns its `privacy.ts`. Attempt 2 (run `wf_bba4be41-aca`) registers the tables. `@beam/db` now exports `./testing/*` and `./seed/*`.

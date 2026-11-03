@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { getDbHandle, type DatabaseDriver } from "./client";
+import { getDbHandle, type DatabaseDriver, type DbHandle } from "./client";
 
 export type DatabaseHealth = {
   ok: boolean;
@@ -12,70 +12,59 @@ export type DatabaseHealth = {
   error?: string;
 };
 
+type MetaRow = { database: string; version: string; now: string | Date };
+type ProbeRow = { value: string };
+
+function rowsOf<T>(result: unknown): T[] {
+  // node-postgres and Neon return { rows }, PGlite returns { rows } as well; guard anyway.
+  if (result && typeof result === "object" && "rows" in result) return (result as { rows: T[] }).rows;
+  return result as T[];
+}
+
 /**
  * Proves the database works end to end: connects, reads server metadata, and
- * writes then reads back a row inside one transaction that is rolled back, so
+ * writes then reads back a row inside a transaction that is rolled back, so
  * the check leaves no data behind.
  */
-export async function checkDatabase(): Promise<DatabaseHealth> {
+export async function checkDatabase(handle?: DbHandle): Promise<DatabaseHealth> {
   const started = performance.now();
-  const handle = getDbHandle();
   const elapsed = () => Math.round(performance.now() - started);
-  const probe = `health-${Math.random().toString(36).slice(2)}`;
-
+  let driver: DatabaseDriver = "pg";
   try {
-    if (handle.driver === "pg") {
-      const client = await handle.pool.connect();
-      try {
-        const meta = await client.query<{ database: string; version: string; now: Date }>(
-          "select current_database() as database, version() as version, now() as now",
-        );
-        await client.query("begin");
-        await client.query("create temporary table beam_health_probe (value text not null) on commit drop");
-        await client.query("insert into beam_health_probe (value) values ($1)", [probe]);
-        const back = await client.query<{ value: string }>("select value from beam_health_probe");
-        await client.query("rollback");
-        const row = meta.rows[0];
-        return {
-          ok: back.rows[0]?.value === probe,
-          driver: "pg",
-          database: row?.database,
-          serverVersion: row?.version.split(" ").slice(0, 2).join(" "),
-          serverTime: row?.now.toISOString(),
-          latencyMs: elapsed(),
-          writeReadRoundTrip: back.rows[0]?.value === probe,
-        };
-      } finally {
-        client.release();
-      }
+    const h = handle ?? (await getDbHandle());
+    driver = h.driver;
+    const probe = `health-${Math.random().toString(36).slice(2)}`;
+    const meta = rowsOf<MetaRow>(
+      await h.db.execute(sql`select current_database() as database, version() as version, now() as now`),
+    )[0];
+
+    let readBack: string | undefined;
+    const rollback = new Error("rollback health probe");
+    try {
+      await h.db.transaction(async (tx) => {
+        await tx.execute(sql`create temporary table beam_health_probe (value text not null) on commit drop`);
+        await tx.execute(sql`insert into beam_health_probe (value) values (${probe})`);
+        readBack = rowsOf<ProbeRow>(await tx.execute(sql`select value from beam_health_probe`))[0]?.value;
+        throw rollback;
+      });
+    } catch (error) {
+      if (error !== rollback) throw error;
     }
 
-    // neon-http: no interactive transactions, so the write/read probe runs as one
-    // atomic batch (a single HTTP transaction) against a temporary table.
-    const db = handle.db;
-    const meta = await db.execute<{ database: string; version: string; now: string }>(
-      sql`select current_database() as database, version() as version, now() as now`,
-    );
-    const [, , readBack] = await db.batch([
-      db.execute(sql`create temporary table beam_health_probe (value text not null) on commit drop`),
-      db.execute(sql`insert into beam_health_probe (value) values (${probe})`),
-      db.execute<{ value: string }>(sql`select value from beam_health_probe`),
-    ]);
-    const row = meta.rows[0];
-    const roundTrip = readBack.rows[0]?.value === probe;
+    const roundTrip = readBack === probe;
     return {
       ok: roundTrip,
-      driver: "neon-http",
-      database: row?.database,
-      serverVersion: row?.version.split(" ").slice(0, 2).join(" "),
-      serverTime: row ? new Date(row.now).toISOString() : undefined,
+      driver,
+      database: meta?.database,
+      serverVersion: meta?.version.split(" ").slice(0, 2).join(" "),
+      serverTime: meta ? new Date(meta.now).toISOString() : undefined,
       latencyMs: elapsed(),
       writeReadRoundTrip: roundTrip,
     };
   } catch (error) {
     return {
       ok: false,
-      driver: handle.driver,
+      driver,
       latencyMs: elapsed(),
       error: error instanceof Error ? error.message : String(error),
     };

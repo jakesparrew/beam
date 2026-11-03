@@ -1,26 +1,38 @@
-import { neon } from "@neondatabase/serverless";
-import { attachDatabasePool } from "@vercel/functions";
-import { drizzle as drizzleNeonHttp } from "drizzle-orm/neon-http";
-import { drizzle as drizzleNodePg } from "drizzle-orm/node-postgres";
-import { Pool } from "pg";
+import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import * as schema from "./schema/index";
 
 /**
- * Database driver selection.
+ * Database access for the whole platform.
  *
- * - "pg" (default): node-postgres over TCP with a connection pool. This is the
- *   recommended driver on Vercel with Fluid compute; `attachDatabasePool` lets
- *   Vercel close idle connections before a function instance is suspended.
- * - "neon-http": Neon's serverless driver over HTTPS (port 443). Used where TCP
- *   port 5432 is not reachable, such as the cloud build sandbox and CI. It does
- *   not support interactive transactions; use `db.batch` for atomic writes there.
+ * All code uses one type, `Db`, and may rely on interactive transactions
+ * (`db.transaction(async (tx) => ...)`) and row locks (`for update`).
+ * The driver is chosen by DATABASE_DRIVER:
+ *
+ * - "pg" (default): node-postgres pool over TCP. Recommended by Neon for
+ *   Vercel Fluid compute; `attachDatabasePool` lets Vercel close idle
+ *   connections before an instance is suspended.
+ * - "neon-ws": Neon's serverless Pool over WebSockets (port 443). Same
+ *   semantics as "pg". Used where TCP 5432 is blocked (cloud sandbox, CI).
+ * - "pglite": PostgreSQL 18 in-process (tests only; see `@beam/db/testing`).
  */
-export type DatabaseDriver = "pg" | "neon-http";
+export type DatabaseDriver = "pg" | "neon-ws" | "pglite";
+export type Schema = typeof schema;
+export type Db = PgDatabase<PgQueryResultHKT, Schema>;
+/** The transaction handle passed to `db.transaction` callbacks. */
+export type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
+/** Anything that can run queries: the database or an open transaction. */
+export type DbOrTx = Db | Tx;
+
+export type DbHandle = {
+  driver: DatabaseDriver;
+  db: Db;
+  close: () => Promise<void>;
+};
 
 export function resolveDriver(): DatabaseDriver {
   const value = process.env.DATABASE_DRIVER ?? "pg";
-  if (value !== "pg" && value !== "neon-http") {
-    throw new Error(`DATABASE_DRIVER must be "pg" or "neon-http", got "${value}"`);
+  if (value !== "pg" && value !== "neon-ws" && value !== "pglite") {
+    throw new Error(`DATABASE_DRIVER must be "pg", "neon-ws" or "pglite", got "${value}"`);
   }
   return value;
 }
@@ -31,29 +43,46 @@ function requireDatabaseUrl(): string {
   return url;
 }
 
-function createPgDb(url: string) {
+async function createPgHandle(url: string): Promise<DbHandle> {
+  const [{ Pool }, { drizzle }, { attachDatabasePool }] = await Promise.all([
+    import("pg"),
+    import("drizzle-orm/node-postgres"),
+    import("@vercel/functions"),
+  ]);
   const pool = new Pool({ connectionString: url, max: 10, idleTimeoutMillis: 10_000 });
   attachDatabasePool(pool);
-  return { driver: "pg" as const, pool, db: drizzleNodePg({ client: pool, schema, casing: "snake_case" }) };
+  const db = drizzle({ client: pool, schema, casing: "snake_case" }) as unknown as Db;
+  return { driver: "pg", db, close: () => pool.end() };
 }
 
-function createNeonHttpDb(url: string) {
-  return { driver: "neon-http" as const, pool: null, db: drizzleNeonHttp({ client: neon(url), schema, casing: "snake_case" }) };
+async function createNeonWsHandle(url: string): Promise<DbHandle> {
+  const [{ Pool, neonConfig }, { drizzle }] = await Promise.all([
+    import("@neondatabase/serverless"),
+    import("drizzle-orm/neon-serverless"),
+  ]);
+  // Node 22+ ships a global WebSocket (it honours NODE_USE_ENV_PROXY=1 for the sandbox proxy).
+  neonConfig.webSocketConstructor = globalThis.WebSocket;
+  const pool = new Pool({ connectionString: url, max: 10 });
+  const db = drizzle({ client: pool, schema, casing: "snake_case" }) as unknown as Db;
+  return { driver: "neon-ws", db, close: () => pool.end() };
 }
 
-type DbHandle = ReturnType<typeof createPgDb> | ReturnType<typeof createNeonHttpDb>;
-
-// One handle per server instance, reused across requests (and across hot reloads in dev).
-const globalForDb = globalThis as unknown as { __beamDb?: DbHandle };
-
-export function getDbHandle(): DbHandle {
-  if (!globalForDb.__beamDb) {
-    const url = requireDatabaseUrl();
-    globalForDb.__beamDb = resolveDriver() === "neon-http" ? createNeonHttpDb(url) : createPgDb(url);
+export async function createDbHandle(driver: DatabaseDriver = resolveDriver(), url?: string): Promise<DbHandle> {
+  if (driver === "pglite") {
+    throw new Error('DATABASE_DRIVER="pglite" is for tests: use createTestDb() from "@beam/db/testing".');
   }
+  const connectionString = url ?? requireDatabaseUrl();
+  return driver === "neon-ws" ? createNeonWsHandle(connectionString) : createPgHandle(connectionString);
+}
+
+// One handle per server instance, reused across requests and hot reloads.
+const globalForDb = globalThis as unknown as { __beamDb?: Promise<DbHandle> };
+
+export function getDbHandle(): Promise<DbHandle> {
+  globalForDb.__beamDb ??= createDbHandle();
   return globalForDb.__beamDb;
 }
 
-export function getDb() {
-  return getDbHandle().db;
+export async function getDb(): Promise<Db> {
+  return (await getDbHandle()).db;
 }

@@ -2,14 +2,17 @@
   "name": "beam-platform",
   "private": true,
   "packageManager": "pnpm@10.28.0",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
     "typecheck": "turbo run typecheck",
     "db:generate": "pnpm --filter @beam/db generate",
     "db:migrate": "pnpm --filter @beam/db migrate",
-    "db:check": "pnpm --filter @beam/db check"
+    "db:check": "pnpm --filter @beam/db check",
+    "test": "turbo run test"
   },
   "dependencies": {
     "@neon/config": "^1.10.0",

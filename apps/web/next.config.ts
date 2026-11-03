@@ -9,7 +9,7 @@ config({ path: [path.join(here, "../../.env.local"), path.join(here, "../../.env
 
 const nextConfig: NextConfig = {
   transpilePackages: ["@beam/db"],
-  serverExternalPackages: ["pg"],
+  serverExternalPackages: ["pg", "@electric-sql/pglite"],
   outputFileTracingRoot: path.join(here, "../.."),
 };
 

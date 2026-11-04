@@ -1,14 +1,14 @@
 /**
  * forms' cross-module door (forms spec section 4 "Cross-module API", 02-data-model section 6.7).
  * Implemented by forms-P3 on top of `./service/*`; signatures are the Wave 0 contract.
- * `countLandingConversions` (R3, forms-P9) and the `FormEmbed` stand-in (forms-P4 replaces it
- * with `export { FormEmbed } from './ui/public/form-embed'`) are still stubs.
+ * `countLandingConversions` (R3, forms-P9) is still a stub; `FormEmbed` is forms-P4's server
+ * component.
  */
 import type { DbOrTx } from "@beam/db";
 import { NotImplementedError } from "@beam/core/errors";
 import type { Locale, LocalizedText } from "@beam/core/i18n";
 import type { AcquisitionSource } from "@beam/core/crm";
-import type { FormEmbedProps, LatestOutcome, PersonSubmissionSummary, PublicFormRef, UtmParams } from "@beam/core/forms";
+import type { LatestOutcome, PersonSubmissionSummary, PublicFormRef, UtmParams } from "@beam/core/forms";
 import { getFormsHealth as formsHealth } from "./service/health";
 import * as reads from "./service/public-queries";
 import { createIdentityToken, hostedFormUrl, IDENTITY_TTL_DAYS, verifyIdentityToken } from "./service/tokens";
@@ -100,7 +100,8 @@ export function getFormsHealth(
   return formsHealth(db, input);
 }
 
-/** Server component for site page blocks (Wave 0 stand-in; forms-P4 replaces it with its re-export). */
-export function FormEmbed(_props: FormEmbedProps): never {
-  throw new NotImplementedError("forms.FormEmbed");
-}
+/**
+ * Server component for site page blocks: renders a published form inline (same origin) with the
+ * site context signed into `embedContext` (forms-P4). Props `{ slug, locale, context }`.
+ */
+export { FormEmbed } from "./ui/public/form-embed";

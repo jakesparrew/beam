@@ -49,6 +49,8 @@ to "Served" with the package id.
 | finance-P2 | finance-P4 | Register `billit.push_payment` (`{ invoiceId }`, key `billit:payment:<id>`) and `billit.push_customer` (`{ partyKey }`, key `billit:customer:<party_key>:<hash8>`). |
 | commerce-P3 | commerce-P4a (owner of `api.ts`) | Wire `getQuote`, `getProductPrice`, `listPublicPrices` and `getProductCards` in `apps/web/modules/commerce/api.ts` to `./server/catalogue` (built with the exact api signatures; api.ts still has the throwing stubs). |
 | commerce-P3 | commerce (owner of `events.ts`) | Declare the event kind `person_price.set`; until then `setPersonPrice` writes only its audit row. |
+| automation-P2 | crm (suppressions) | `addSuppression` pushes the jobId that `automation.requestSuppressionExit` returns into the action's after-commit list (`ctxState(ctx).enqueuedIds`), so `automation.exit_for_suppression` runs in the after() kick (A-23). |
+| automation-P2 | crm (person merge, crm-P4) | The person merge calls `automation.exitPersonEnrolments(tx, { personId: loser, reason: 'merged', actor })` inside its own transaction (A-21). |
 
 ## Served
 

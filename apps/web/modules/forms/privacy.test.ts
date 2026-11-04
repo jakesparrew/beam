@@ -2,12 +2,13 @@
 import { createHash, randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { DbHandle } from "@beam/db";
-import { auditLog, formImportEvents, formImportSources, formLinks, formSensitiveAnswers, formSubmissions, orders } from "@beam/db/schema";
+import { auditLog, emailMessages, formImportEvents, formImportSources, formLinks, formSensitiveAnswers, formSubmissions, orders } from "@beam/db/schema";
 import { createTestDb, makePerson, makeUser } from "@beam/db/testing";
 import { makeOrder } from "@beam/db/testing/commerce-factories";
 import { and, eq, or, sql } from "@/lib/ctx";
 import { rowsOf } from "@/lib/sensitive";
 import { resetRuntime } from "@/lib/testing";
+import { GDPR_REGISTRY } from "@/registry/privacy.generated";
 import { assessment, ASSESSMENT_ANSWERS, createForm, later, publicCtx, setupEnv } from "./forms-p3.fixtures";
 import { formsPrivacy, privacy } from "./privacy";
 import { getResultByToken } from "./service/public-queries";
@@ -85,6 +86,33 @@ describe("erase", () => {
     const [l] = await h.db.select().from(formLinks).where(eq(formLinks.id, link!.id));
     expect(l!.referrerPersonId).toBeNull();
     expect(await h.db.select().from(orders).where(eq(orders.id, order.id))).toHaveLength(1);
+  });
+});
+
+describe("erase with a result email (fix-w09-forms-review finding 1)", () => {
+  it("email's erase runs before forms' erase (ERASE_ORDER) and both succeed: the result email FK is set null", async () => {
+    const address = `erase-mail-${randomUUID().slice(0, 6)}@example.com`;
+    const { sub } = await completedFor(address);
+    const personId = sub.personId!;
+    expect(sub.resultEmailMessageId).not.toBeNull();
+    await h.db.transaction(async (tx) => {
+      await GDPR_REGISTRY.email.erase(tx, personId);
+      await GDPR_REGISTRY.forms.erase(tx, personId);
+    });
+    expect(await h.db.select().from(emailMessages).where(eq(emailMessages.personId, personId))).toHaveLength(0);
+    expect(await h.db.select().from(formSubmissions).where(or(eq(formSubmissions.personId, personId), eq(formSubmissions.id, sub.id)))).toHaveLength(0);
+    expect(await h.db.select().from(formSensitiveAnswers).where(eq(formSensitiveAnswers.personId, personId))).toHaveLength(0);
+  });
+
+  it("email's 730-day sweep deletes a result email the submission still references (the column becomes null)", async () => {
+    const address = `sweep-mail-${randomUUID().slice(0, 6)}@example.com`;
+    const { sub } = await completedFor(address);
+    const messageId = sub.resultEmailMessageId!;
+    await h.db.update(emailMessages).set({ createdAt: new Date("2020-01-01T00:00:00Z") }).where(eq(emailMessages.id, messageId));
+    const swept = await h.db.transaction((tx) => GDPR_REGISTRY.email.sweep!["email.email_messages"]!(tx, new Date("2021-01-01T00:00:00Z")));
+    expect(swept).toBeGreaterThanOrEqual(1);
+    const [after] = await h.db.select().from(formSubmissions).where(eq(formSubmissions.id, sub.id));
+    expect(after!.resultEmailMessageId).toBeNull();
   });
 });
 

@@ -26,7 +26,7 @@ import { isSensitiveKey } from "@beam/core/privacy";
 import { wallClock } from "@beam/core/platform";
 import { IntegrationError } from "@beam/integrations/_shared";
 import type { ClaudeMessage } from "@beam/integrations/anthropic";
-import { actorJson, sql, writeDurably } from "./ctx";
+import { actorJson, ctxState, sql, writeDurably } from "./ctx";
 import type { JobCtx } from "./job-runner";
 import { appEnv } from "./integrations";
 import { claimOnce, notifySlack } from "./alerts";
@@ -84,10 +84,21 @@ async function logRequest(ctx: JobCtx, req: CallClaudeRequest<z.ZodTypeAny | und
     jobId: ctx.job.id || null,
     durationMs: row.durationMs ?? null,
   };
+  // A deferred row is only written after the job's transaction: count it in the job's tally so
+  // the next call of the same job sees it (PL-56 checks before each call).
+  if (ctxState(ctx).durableMode === "deferred") {
+    const tally = pendingUsage.get(ctx) ?? { cents: 0, calls: 0 };
+    tally.cents += row.costCents ?? 0;
+    if (row.status !== "budget_exceeded") tally.calls += 1;
+    pendingUsage.set(ctx, tally);
+  }
   await writeDurably(ctx, async (db) => {
     await db.insert(aiRequests).values(values);
   });
 }
+
+/** Spend and calls of this job's `ai_requests` rows that are still queued (not yet in the table). */
+const pendingUsage = new WeakMap<JobCtx, { cents: number; calls: number }>();
 
 /** Brussels-month spend (cents) and today's call count, from `ai_requests`. */
 export async function aiUsage(tx: DbOrTx): Promise<{ monthCents: number; todayCalls: number }> {
@@ -129,7 +140,9 @@ export async function callClaude<S extends z.ZodTypeAny | undefined = undefined>
     throw new PermanentError("field_not_allowed");
   }
   // PL-56: monthly budget and daily cap.
-  const usage = await aiUsage(ctx.tx);
+  const stored = await aiUsage(ctx.tx);
+  const queued = pendingUsage.get(ctx) ?? { cents: 0, calls: 0 };
+  const usage = { monthCents: stored.monthCents + queued.cents, todayCalls: stored.todayCalls + queued.calls };
   const cap = appEnv() === "production" ? ai.daily_cap_calls : Math.min(ai.daily_cap_calls, NON_PRODUCTION_DAILY_CAP);
   if (usage.monthCents >= ai.monthly_budget_cents || usage.todayCalls >= cap) {
     await logRequest(ctx, anyReq, { id, feature: req.feature, model, status: "budget_exceeded", prompt, error: "budget" });

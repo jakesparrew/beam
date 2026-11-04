@@ -87,10 +87,10 @@
     },
     "platform-P8": {
       "status": "running",
-      "attempts": 3,
-      "baseSha": "1b2926a",
-      "runId": "wf_f1aaa625-34d",
-      "startedAt": "2026-11-04T02:23:03Z",
+      "attempts": 4,
+      "baseSha": "927e5b7",
+      "runId": "wf_aaba28a8-94b",
+      "startedAt": "2026-11-04T02:39:52Z",
       "extraOwns": [
         "apps/web/modules/platform/actions.test.ts",
         "apps/web/modules/platform/ui/login-form.tsx"
@@ -276,11 +276,11 @@
       "attempts": 0
     },
     "booking-P3a": {
-      "status": "red",
-      "attempts": 2,
-      "baseSha": "4ea719a",
-      "runId": "wf_2ca8ac6a-595",
-      "startedAt": "2026-11-04T01:39:10Z",
+      "status": "running",
+      "attempts": 3,
+      "baseSha": "e0ded76",
+      "runId": "wf_6da7025c-935",
+      "startedAt": "2026-11-04T02:39:52Z",
       "branchSha": "074246c",
       "endedAt": "2026-11-04T02:32:02Z",
       "minutes": 39
@@ -953,8 +953,8 @@
       "minutes": 33
     },
     "fix-w05-crm-1": {
-      "status": "pending",
-      "attempts": 0,
+      "status": "running",
+      "attempts": 1,
       "fixer": true,
       "module": "crm",
       "goal": "Register crm templates in packages/email/src/templates/crm/index.ts with samples (latent define.test.ts failure from crm-P3).",
@@ -969,7 +969,10 @@
         "packages/email/src/templates/crm/confirm-resubscribe.tsx",
         "packages/email/src/templates/crm/preference-link.tsx",
         "packages/email/src/templates/crm/fix-w05-crm-1.templates.test.ts"
-      ]
+      ],
+      "baseSha": "e0ded76",
+      "runId": "wf_9e779921-794",
+      "startedAt": "2026-11-04T02:39:52Z"
     }
   }
 }

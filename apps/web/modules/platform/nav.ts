@@ -156,6 +156,20 @@ export const nav = [
     order: 962,
   },
   {
+    // R3 (platform-P9): the partner landing. `/admin` opens the first entry a user may see, so
+    // the order sits after every staff entry and before the help entries: an `external_partner`
+    // (only `partner.own`) lands on `/admin/partner` (credits' partner figures), every other
+    // role keeps its own first page.
+    key: "platform.partner",
+    area: "admin",
+    section: "insights",
+    labelKey: "platform.roles.external_partner",
+    href: "/admin/partner",
+    permission: "partner.own",
+    icon: "briefcase",
+    order: 980,
+  },
+  {
     key: "platform.my_support",
     area: "admin",
     section: "help",

@@ -3,11 +3,18 @@ import { integrationCalls } from "@beam/db/schema";
 import { requireStaff } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
 import { adminLocale, translator } from "@/lib/i18n";
-import { getIntegrationHealth, listIntegrationCalls, type IntegrationProviderName } from "@/modules/platform/queries";
+import { getIntegrationHealth, getTokenIntegrationStatus, listIntegrationCalls, type IntegrationProviderName, type TokenIntegrationStatus } from "@/modules/platform/queries";
 
 const PROVIDERS = integrationCalls.provider.enumValues as readonly string[];
 
-/** `/admin/system/integrations` (`system.jobs`): `v_integration_health` per provider and the last 200 calls. */
+type HealthRow = { provider: string; calls_24h: number; errors_24h: number; last_ok_at: string | null; last_error_at: string | null };
+
+/**
+ * `/admin/system/integrations` (`system.jobs`): `v_integration_health` per provider and the last
+ * 200 calls. R3 (platform-P9): the token integrations (Meta and Google Ads, crm's Meta inbox)
+ * always have a tile, with the token status (env names only, never values) and "data as of"
+ * (the last successful pull or webhook, which may be older than the 24-hour window).
+ */
 export default async function IntegrationsPage({ searchParams }: { searchParams: Promise<{ provider?: string; ok?: string }> }) {
   await requireStaff({ permission: "system.jobs" });
   const sp = await searchParams;
@@ -17,7 +24,18 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
   const db = await getAppDb();
   const provider = PROVIDERS.includes(sp.provider ?? "") ? (sp.provider as IntegrationProviderName) : undefined;
   const ok = sp.ok === "true" ? true : sp.ok === "false" ? false : undefined;
-  const [health, calls] = await Promise.all([getIntegrationHealth(db), listIntegrationCalls(db, { ...(provider ? { provider } : {}), ...(ok !== undefined ? { ok } : {}), limit: 200 })]);
+  const [health24h, tokens, calls] = await Promise.all([
+    getIntegrationHealth(db),
+    getTokenIntegrationStatus(db),
+    listIntegrationCalls(db, { ...(provider ? { provider } : {}), ...(ok !== undefined ? { ok } : {}), limit: 200 }),
+  ]);
+  const health: HealthRow[] = [
+    ...health24h,
+    ...tokens
+      .filter((s) => !health24h.some((h) => h.provider === s.provider))
+      .map((s) => ({ provider: s.provider, calls_24h: 0, errors_24h: 0, last_ok_at: null, last_error_at: null })),
+  ].sort((a, b) => a.provider.localeCompare(b.provider));
+  const tokenOf = (p: string) => tokens.find((s) => s.provider === p);
   const when = (d: Date | string | null) => (d ? new Date(d).toLocaleString(locale, { timeZone: "Europe/Brussels", dateStyle: "short", timeStyle: "medium" }) : "–");
 
   return (
@@ -38,6 +56,7 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
                 <p className={Number(h.errors_24h) > 0 ? "text-destructive" : undefined}>{t("errors_24h", { count: Number(h.errors_24h) })}</p>
                 <p className="text-xs text-muted-foreground">{t("last_ok", { when: when(h.last_ok_at) })}</p>
                 <p className="text-xs text-muted-foreground">{t("last_error", { when: when(h.last_error_at) })}</p>
+                <TokenStatus status={tokenOf(h.provider)} ok={t("ok")} missing={tr("platform.settings.locale_missing")} dataAsOf={(d) => tr("ops.common.data_as_of", { date: when(d) })} />
               </CardContent>
             </Card>
           </li>
@@ -98,5 +117,23 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
         </Table>
       )}
     </div>
+  );
+}
+
+/** R3: the env names a token integration needs, each OK or missing, and the data date. */
+function TokenStatus({ status, ok, missing, dataAsOf }: { status: TokenIntegrationStatus | undefined; ok: string; missing: string; dataAsOf: (d: Date | null) => string }) {
+  if (!status) return null;
+  return (
+    <>
+      <ul className="grid gap-1 text-xs">
+        {status.tokens.map((k) => (
+          <li key={k.name} className="flex items-center justify-between gap-2">
+            <span className="font-mono">{k.name}</span>
+            <Badge variant={k.configured ? "success" : "destructive"}>{k.configured ? ok : missing}</Badge>
+          </li>
+        ))}
+      </ul>
+      <p className="text-xs text-muted-foreground">{dataAsOf(status.dataAsOf)}</p>
+    </>
   );
 }

@@ -158,7 +158,15 @@
       "section_help": "Aide",
       "section_insights": "Analyses",
       "section_reports": "Rapports",
-      "section_website": "Site web"
+      "section_website": "Site web",
+      "section_sales": "Ventes",
+      "section_finance": "Finances",
+      "section_marketing": "Marketing",
+      "section_forms": "Formulaires",
+      "section_email": "E-mail",
+      "section_automation": "Automatisation",
+      "section_webinars": "Webinaires",
+      "section_credits": "Crédits"
     },
     "report": {
       "title": "Signaler un problème",

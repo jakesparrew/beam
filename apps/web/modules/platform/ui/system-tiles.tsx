@@ -111,9 +111,9 @@ export function SystemTiles({ data, labels, locale }: { data: SystemTilesData; l
           </tbody>
         </table>
         <p>{lab(labels, "oldest_pending", { n: oldest ?? 0 })}</p>
-        <a className="underline" href="/admin/system/jobs?status=dead">
+        <Link className="underline" href="/admin/system/jobs?status=dead">
           {lab(labels, "dead_jobs", { count: data.dead })}
-        </a>
+        </Link>
       </Tile>
       <Tile title={lab(labels, "tile_integrations")} tone={data.health.some((h) => h.errors_24h > 0) ? "warn" : "ok"}>
         {data.health.length === 0 ? <p>{lab(labels, "no_calls")}</p> : null}

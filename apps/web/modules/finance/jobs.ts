@@ -4,7 +4,7 @@
  * (`billit.push_customer`, `billit.push_invoice`, `billit.push_credit_note`, `billit.send_peppol`,
  * `billit.push_payment`, `billit.sync_pending`, `billit.reconcile`) and `finance.scan_overdue`;
  * their handlers live in `service/billit-sync.ts` and `service/reconcile.ts`.
- * `finance.build_export` comes with finance-P7.
+ * finance-P7: `finance.build_export` (accountant CSVs, handler in `service/exports.ts`).
  */
 import { z } from "zod";
 import type { DbOrTx, Tx } from "@beam/db";
@@ -34,6 +34,7 @@ import { getOrderBillingDetails } from "./service/billing-details";
 import { pdfFileExists } from "./service/pdf-file";
 import { enqueueFinanceJob, eventSubject, findInvoice, loadInvoice, updateInvoiceState } from "./service/invoice-state";
 import { addDays, issuerSettings } from "./service/issue-invoice";
+import { failExport, runBuildExport } from "./service/exports";
 import { appendReconcileRun, failReconcileRun, RECONCILE_CHUNK, reconcileDocuments, reconcileTail, upsertReconcileRun } from "./service/reconcile";
 
 // ---------------------------------------------------------------------------
@@ -366,6 +367,7 @@ export async function runScanOverdue(ctx: JobCtx) {
 export const InvoiceIdInput = z.object({ invoiceId: z.uuid() });
 export const PushCustomerInput = z.object({ partyKey: z.string().regex(/^(walk_in|(person|company):[0-9a-f-]{36}|vat:[A-Z]{2}[0-9A-Z+*]{2,13})$/) });
 export const SyncPendingInput = z.object({ offset: z.number().int().nonnegative().optional() });
+export const BuildExportInput = z.object({ exportId: z.uuid() });
 
 export const jobs = [
   defineJob({
@@ -390,4 +392,14 @@ export const jobs = [
   defineJob({ kind: "billit.sync_pending", lane: "bulk", priority: 5, maxAttempts: 6, timeoutMs: 120_000, input: SyncPendingInput, run: runSyncPending }),
   defineJob({ kind: "billit.reconcile", lane: "bulk", priority: 9, maxAttempts: 6, timeoutMs: RECONCILE_TIMEOUT_MS, input: ReconcileInput, run: runReconcile }),
   defineJob({ kind: "finance.scan_overdue", lane: "bulk", priority: 9, maxAttempts: 6, input: z.object({}).passthrough(), run: (ctx) => runScanOverdue(ctx) }),
+  defineJob({
+    kind: "finance.build_export",
+    lane: "bulk",
+    priority: 9,
+    maxAttempts: 6,
+    timeoutMs: 60_000,
+    input: BuildExportInput,
+    run: runBuildExport,
+    onDead: (ctx, input, error) => failExport(ctx.tx, input.exportId, error.message),
+  }),
 ];

@@ -2,7 +2,7 @@
  * finance read functions for the back office (finance spec 4.3, finance-P5) and the customer
  * portal (`listMyInvoices`, `getMyInvoice`, `getMyInvoicePdf`, finance-P6). Staff pages check the
  * permission (`invoices.read`) before calling them; portal pages pass the signed-in customer's
- * person id, and the queries filter on it. Every function takes the database first.
+ * person id, and the queries filter on it. `listFinanceExports` (finance-P7) needs `reports.finance`. Every function takes the database first.
  * Explicit columns only; lists are keyset-paginated (50 rows, cursor `issued_at,id`).
  * Search is an exact document number or `ilike` on the customer name inside the period filter.
  */
@@ -34,6 +34,7 @@ import { and, asc, desc, eq, gte, lt, lte, or, sql, type SQL } from "@/lib/ctx";
 import { rowsOf } from "@/lib/sensitive";
 import { getSetting } from "@/lib/settings";
 import { brusselsDay } from "./service/billit-sync";
+import { listExports, type FinanceExportRow } from "./service/exports";
 import { blockedPdfIds } from "./service/pdf-file";
 
 export const INVOICE_PAGE_SIZE = 50;
@@ -432,6 +433,13 @@ export async function getInvoicingIdentity(db: DbOrTx, input: { locale?: Locale 
       return { category, complete: missingLocales.length === 0, missingLocales };
     }),
   };
+}
+
+export type { FinanceExportRow };
+
+/** `/admin/finance/exports` (`reports.finance`, finance-P7): the last 50 exports with status, rows and file expiry. */
+export async function listFinanceExports(db: DbOrTx, input: { now?: Date } = {}): Promise<FinanceExportRow[]> {
+  return listExports(db, { limit: 50, ...(input.now ? { now: input.now } : {}) });
 }
 
 /**

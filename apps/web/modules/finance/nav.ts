@@ -1,9 +1,10 @@
 /**
  * finance navigation (PL-19: an entry renders only when the user holds its permission). Facade read
  * by `pnpm gen:indexes`. finance-P5 adds the V1 back-office screens (finance spec section 5):
- * Overview, Invoices, Billit sync, Requests and Settings. Exports (finance-P7), Dashboard and
- * Deferred revenue (R3) come with their screens, so no entry links to a page that does not exist.
- * "Requests" shows the number of pending company invoice requests.
+ * Overview, Invoices, Billit sync, Requests and Settings; finance-P7 adds Exports
+ * (`reports.finance`) and the portal entry "Invoices" (`/account/invoices`, finance-P6's screen).
+ * Dashboard and Deferred revenue (R3) come with their screens, so no entry links to a page that
+ * does not exist. "Requests" shows the number of pending company invoice requests.
  */
 import { sql, type DbOrTx } from "@/lib/ctx";
 import { rowsOf } from "@/lib/sensitive";
@@ -56,6 +57,16 @@ export const nav = [
     badge: pendingRequests,
   },
   {
+    key: "finance.exports",
+    area: "admin",
+    section: "finance",
+    labelKey: "finance.nav.exports",
+    href: "/admin/finance/exports",
+    permission: "reports.finance",
+    icon: "file-text",
+    order: 540,
+  },
+  {
     key: "finance.settings",
     area: "admin",
     section: "finance",
@@ -64,5 +75,14 @@ export const nav = [
     permission: "invoices.read",
     icon: "settings",
     order: 590,
+  },
+  {
+    key: "finance.my_invoices",
+    area: "portal",
+    section: "account",
+    labelKey: "finance.portal.title",
+    href: "/account/invoices",
+    icon: "receipt",
+    order: 40,
   },
 ] as const;

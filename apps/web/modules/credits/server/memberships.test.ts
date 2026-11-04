@@ -88,10 +88,10 @@ const mandated = new Map<string, string>();
 /** One renewal order per membership and period, like commerce. */
 const renewalOrders = new Map<string, string>();
 
-async function makeOrder(db: DbOrTx, personId: string, totalCents = 4_900, paidAt: Date | null = null) {
+async function makeOrder(db: DbOrTx, personId: string, totalCents = 4_900, paidAt: Date | null = null, channel: "admin" | "recurring" = "admin") {
   const [o] = await db
     .insert(orders)
-    .values({ personId, channel: "admin", subtotalCents: totalCents, vatCents: 0, totalCents, locale: "nl-BE", clientKey: randomUUID(), paidAt })
+    .values({ personId, channel, subtotalCents: totalCents, vatCents: 0, totalCents, locale: "nl-BE", clientKey: randomUUID(), paidAt })
     .returning();
   return o!;
 }
@@ -104,13 +104,14 @@ beforeEach(() => {
   fx.getActiveMandate.mockImplementation((_db: unknown, personId: string) =>
     Promise.resolve(mandated.has(personId) ? { mandateId: mandated.get(personId)!, method: "directdebit", summary: null } : null),
   );
-  const reuse = async (tx: DbOrTx, input: { membershipId: string; personId: string; periodEndOn: string }) => {
+  // Commerce's renewal orders: channel `recurring` for a mandate charge; a link order stands in as `admin` (no terms row needed).
+  const reuse = async (tx: DbOrTx, input: { membershipId: string; personId: string; periodEndOn: string }, channel: "admin" | "recurring" = "admin") => {
     const key = `${input.membershipId}:${input.periodEndOn}`;
-    if (!renewalOrders.has(key)) renewalOrders.set(key, (await makeOrder(tx, input.personId)).id);
+    if (!renewalOrders.has(key)) renewalOrders.set(key, (await makeOrder(tx, input.personId, 4_900, null, channel)).id);
     return renewalOrders.get(key)!;
   };
   fx.createRecurringCharge.mockImplementation(async (tx: DbOrTx, _ctx: unknown, input: { membershipId: string; personId: string; periodEndOn: string }) => ({
-    orderId: await reuse(tx, input),
+    orderId: await reuse(tx, input, "recurring"),
     paymentId: randomUUID(),
   }));
   fx.createRenewalLinkOrder.mockImplementation(async (tx: DbOrTx, _ctx: unknown, input: { membershipId: string; personId: string; periodEndOn: string }) => {
@@ -542,6 +543,18 @@ describe("dunning on the mandate path (rule 50)", () => {
     expect(await getMembershipForPerson(h.db, m.personId)).toMatchObject({ isMember: true, status: "past_due", discountPct: 10 });
   });
 
+  it("fix-w09-credits-review 3: a pay-link checkout failing while past_due waits for the next retry does not skip the mandate retry", async () => {
+    const { m } = await charged();
+    const failAt = days(28);
+    await applyRenewalFailure(tx(), ctxAt(failAt), { membershipId: m.id, paymentId: "tr_mandate_1", reason: "failed" });
+    expect(await applyRenewalFailure(tx(), ctxAt(days(1, failAt)), { membershipId: m.id, paymentId: "tr_paylink_1", reason: "cancelled" })).toMatchObject({
+      applied: false,
+      dunningAttempt: 1,
+    });
+    expect(await row(m.id)).toMatchObject({ status: "past_due", dunningAttempt: 1, nextChargeAt: days(3, failAt) });
+    expect(await scanOne(m.id, days(3, failAt))).toEqual(["retry:2"]);
+  });
+
   it("past_due -> active: applyRenewalPayment after a failure clears dunning", async () => {
     const { m, renewalOrderId } = await charged();
     await applyRenewalFailure(tx(), ctxAt(days(28)), { membershipId: m.id, paymentId: "tr_a", reason: "failed" });
@@ -657,6 +670,30 @@ describe("renewal by payment link (rule 52)", () => {
     expect(await scanOne(m.id, days(10, end))).toEqual(["expired"]);
     expect(await row(m.id)).toMatchObject({ status: "expired", endReason: "not_renewed" });
     expect(fx.cancelRenewalOrder).toHaveBeenCalledWith(expect.anything(), expect.anything(), { orderId, reason: "membership_expired" });
+  });
+
+  it("fix-w09-credits-review 3: an abandoned pay-link checkout keeps the link path: active until the period end, then markPastDue timing and not_renewed", async () => {
+    const { m } = await start();
+    const end = m.currentPeriodEndAt;
+    expect(await scanOne(m.id, days(-7, end))).toEqual(["link_order", "reminder:7"]);
+    // T-5: the customer opens the pay link and abandons the checkout; commerce reports the ended payment.
+    const r = await inTx(days(-5, end), (t, ctx) => applyRenewalFailure(t, ctx, { membershipId: m.id, paymentId: "tr_link_abandoned", reason: "expired" }));
+    expect(r).toMatchObject({ applied: false });
+    expect(await row(m.id)).toMatchObject({ status: "active", dunningAttempt: 0, pastDueSinceAt: null });
+    expect((await eventsOf(m.id)).map((e) => e.kind)).not.toContain("membership.past_due");
+    expect(sends(m.id).map((s) => s.template)).not.toContain("credits.membership_payment_failed");
+    expect(await scanOne(m.id, new Date(end.getTime() + 60_000))).toEqual(["past_due"]);
+    expect(await row(m.id)).toMatchObject({ status: "past_due", dunningAttempt: 1, pastDueSinceAt: end });
+    // Another abandoned checkout while past_due does not raise the dunning attempt or skip the reminders.
+    expect(await inTx(days(1, end), (t, ctx) => applyRenewalFailure(t, ctx, { membershipId: m.id, paymentId: "tr_link_abandoned_2", reason: "failed" }))).toMatchObject({
+      applied: false,
+    });
+    expect(await row(m.id)).toMatchObject({ dunningAttempt: 1 });
+    expect(await scanOne(m.id, days(3, end))).toEqual(["link_reminder:2"]);
+    expect(await scanOne(m.id, days(7, end))).toEqual(["link_reminder:3"]);
+    expect(await scanOne(m.id, days(9, end))).toEqual([]);
+    expect(await scanOne(m.id, days(10, end))).toEqual(["expired"]);
+    expect(await row(m.id)).toMatchObject({ status: "expired", endReason: "not_renewed" });
   });
 
   it("a payment at the desk on the link order renews like any renewal", async () => {

@@ -747,6 +747,20 @@ async function failureSeen(db: DbOrTx, membershipId: string, paymentId: string):
 }
 
 /**
+ * Whether a failed payment on the renewal order can be the recurring charge on the mandate
+ * (rule 50), not an abandoned or failed pay-link checkout (rule 52): never on the link path;
+ * `active` only when the renewal order is commerce's `recurring` order; `past_due` only with a
+ * mandate and a retry in flight (`chargeRenewal` clears `next_charge_at`; while it waits for the
+ * next retry date, a failure can only come from the pay link).
+ */
+async function recurringChargePending(db: DbOrTx, m: MembershipRow): Promise<boolean> {
+  if (isLinkPath(m)) return false;
+  if (m.status === "past_due") return m.mandateId !== null && m.nextChargeAt === null;
+  const [o] = await db.select({ channel: orders.channel }).from(orders).where(eq(orders.id, m.renewalOrderId!));
+  return o?.channel === "recurring";
+}
+
+/**
  * Rule 50a: counts today's (Brussels) `membership.past_due` and `membership.payment_retry_failed`
  * events; exactly at `failed_renewals_alert_per_day` it calls `notifySlack` once
  * (fingerprint `renewals_failed:<YYYY-MM-DD>`).
@@ -779,9 +793,10 @@ export async function alertFailedRenewals(tx: DbOrTx, ctx: Ctx): Promise<{ count
  * (`dunning_attempt = 1`, `past_due_since_at = now`, next charge on day 3); a retry failure
  * raises `dunning_attempt` (next charge on day 7, then none). Each records its event, sends
  * `credits.membership_payment_failed` with the pay link and runs the daily alert check. The same
- * `paymentId` twice, a membership without an open renewal order (already paid) or one that ended
- * changes nothing (`applied: false`; `status` is then `expired` for an ended membership, else
- * `past_due`).
+ * `paymentId` twice, a membership without an open renewal order (already paid), one that ended,
+ * or a failure that cannot be the recurring charge on the mandate (a pay-link checkout, see
+ * `recurringChargePending`) changes nothing (`applied: false`; `status` is then `expired` for an
+ * ended membership, else `past_due`).
  */
 export async function applyRenewalFailure(
   tx: DbOrTx,
@@ -793,6 +808,7 @@ export async function applyRenewalFailure(
   const reported: "past_due" | "expired" = live ? "past_due" : "expired";
   const unchanged = { status: reported, dunningAttempt: m.dunningAttempt, applied: false };
   if (!live || m.renewalOrderId === null) return unchanged;
+  if (!(await recurringChargePending(tx, m))) return unchanged;
   if (await failureSeen(tx, m.id, input.paymentId)) return unchanged;
   const s = await creditsSettings(tx);
   let row: MembershipRow;

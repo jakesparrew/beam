@@ -337,11 +337,16 @@
       "attempts": 0
     },
     "site-P2": {
-      "status": "running",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "1b2926a",
       "runId": "wf_b991b7b6-9ec",
-      "startedAt": "2026-11-04T02:23:03Z"
+      "startedAt": "2026-11-04T02:23:03Z",
+      "branchSha": "782380e",
+      "endedAt": "2026-11-04T03:02:09Z",
+      "minutes": 38,
+      "mergeSha": "e1c68f8",
+      "mergedAt": "2026-11-04T03:16:33Z"
     },
     "crm-P5": {
       "status": "pending",

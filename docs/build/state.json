@@ -372,7 +372,11 @@
       "attempts": 2,
       "baseSha": "1b2926a",
       "runId": "wf_765669e5-601",
-      "startedAt": "2026-11-04T02:23:03Z"
+      "startedAt": "2026-11-04T02:23:03Z",
+      "extraOwns": [
+        "apps/web/modules/credits/api.test.ts",
+        "apps/web/modules/credits/jobs.test.ts"
+      ]
     },
     "finance-P3": {
       "status": "pending",
@@ -957,7 +961,17 @@
       "startedAt": "2026-11-04T01:39:10Z",
       "branchSha": "8a4b0e3",
       "endedAt": "2026-11-04T02:23:03Z",
-      "minutes": 33
+      "minutes": 33,
+      "extraOwns": [
+        "packages/db/src/testing/commerce-factories.ts",
+        "packages/db/src/schema/credits.ts",
+        "apps/web/**/*.test.ts",
+        "apps/web/**/*.test.tsx",
+        "packages/**/*.test.ts",
+        "packages/db/test/**",
+        "apps/web/modules/*/server/*fixtures*.ts",
+        "apps/web/modules/*/*fixtures*.ts"
+      ]
     },
     "fix-w05-crm-1": {
       "status": "merged",

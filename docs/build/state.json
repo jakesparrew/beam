@@ -675,22 +675,28 @@
       "mergedAt": "2026-11-04T09:25:00Z"
     },
     "automation-P4": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "baseSha": "9430fed",
       "runId": "wf_2909acdd-292",
-      "startedAt": "2026-11-04T08:28:25Z"
+      "startedAt": "2026-11-04T08:28:25Z",
+      "branchSha": "16b0a4a",
+      "endedAt": "2026-11-04T09:32:15Z",
+      "minutes": 48
     },
     "site-P4": {
       "status": "pending",
       "attempts": 0
     },
     "site-P6": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "baseSha": "b8c322e",
       "runId": "wf_73ebe2fc-d68",
-      "startedAt": "2026-11-04T09:09:10Z"
+      "startedAt": "2026-11-04T09:09:10Z",
+      "branchSha": "bb7897e",
+      "endedAt": "2026-11-04T09:32:15Z",
+      "minutes": 27
     },
     "commerce-P5": {
       "status": "merged",
@@ -753,7 +759,7 @@
       "mergedAt": "2026-11-04T05:38:04Z"
     },
     "site-P7": {
-      "status": "running",
+      "status": "pending",
       "attempts": 1,
       "baseSha": "ff2da8d",
       "runId": "wf_9963b85d-cdc",
@@ -772,7 +778,7 @@
       "mergedAt": "2026-11-04T09:25:07Z"
     },
     "commerce-P6": {
-      "status": "running",
+      "status": "failed",
       "attempts": 1,
       "baseSha": "9430fed",
       "runId": "wf_a2637747-622",
@@ -835,7 +841,7 @@
       "attempts": 0
     },
     "webinar-P1": {
-      "status": "running",
+      "status": "pending",
       "attempts": 1,
       "baseSha": "ff2da8d",
       "runId": "wf_e5589e85-2b9",

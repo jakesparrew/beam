@@ -12,7 +12,6 @@ to "Served" with the package id.
 | platform-P3 | crm (inbox AI drafts, R3) | `callClaude` feature key is `ai.draft_reply`, not `inbox_draft`. Its fields `thread_messages` and `knowledge_articles` are not in `AI_ALLOWED_FIELDS`: the crm package that builds AI reply drafts decides and documents which fields are sent, and asks platform for an `AI_ALLOWED_FIELDS` addition if needed. |
 | platform-P7 | platform-P6 | Type the `run` of `apps/web/modules/platform/seed.ts` with `SeedCtx` from `apps/web/scripts/seed-demo.ts` (`{ db: DbOrTx, ctx: system Ctx, now: start of the Brussels day, rand: seeded PRNG 20261103, ids: Map }`). |
 | platform-P7 | commerce | `apps/web/modules/commerce/api.ts` re-exports `redeemVoucher` once commerce's actions implement it (02-data-model section 6). |
-| platform-P7 | automation | `PersonAutomationsPanel` in `apps/web/modules/automation/api.ts` is a throwing stand-in; the automation package that builds the person panel replaces it. |
 | platform-P7 | webinar | `WebinarSignup` in `apps/web/modules/webinar/api.ts` is a throwing stand-in; webinar-P3 replaces it. |
 | platform-P7 | ops | `PersonStats` in `apps/web/modules/ops/api.ts` is an open row type until `person_stats` exists; the ops package that creates it narrows the type. |
 | platform-P7 | every module | `packages/db/src/seed/<m>.ts` are documented skeletons without a `seed` export; a module that needs default rows exports `seed = { module, after: ['platform', ...], run }` there (allowed once `fix-w03-platform-1` merges). |
@@ -50,7 +49,6 @@ to "Served" with the package id.
 | booking-P3b | commerce | `refundOrderLine` has no reason for staff forced refunds; booking passes `cancelled_in_policy`. Add `staff_override` if finance needs to tell them apart. |
 | booking-P3b, booking-P5 | booking (owner of `server/order-hooks.ts`) | `releaseOrderBookings` in `server/order-hooks.ts` also moves a claimed offered waitlist entry to `expired` with `payment_not_completed` and enqueues `offer_next` (R44), as `expireReservedRow` in `server/cancel.ts` already does. booking-P5 served the job side: `waitlist.offer_next` and `waitlist.expire_offers` now expire an offered entry whose claimed booking is cancelled; the same-transaction move inside `releaseOrderBookings` stays open. |
 | site-P5 | platform (fixer) | Add `BEAM_ANALYTICS_PRODUCTION: "1"` to the Playwright `webServer.env` in `apps/web/playwright.config.ts`, so `site-consent.spec`'s GA4 test can load gtag. |
-| site-P5 | site-P6 | `PortalSiteChrome` mounts `ConsentProvider` (`getConsentChromeState`, `consentLabels` in `server/consent.ts`), `AnalyticsLoader` with `gaMeasurementId` null and `SwRegister`; its Cookie settings link carries `data-cookie-settings`. |
 | crm-P4 | crm (owner of `packages/core/src/crm/merge-plan.ts`) | Add to `MERGE_STRATEGIES`: `automation_enrolments.person_id: skip`, `privacy_requests.person_id: repoint`, `provider_customers.person_id: repoint`, `retention_list_items.person_id: keep_winner`. Until then they live in `MERGE_STRATEGY_ADDITIONS` in `apps/web/modules/crm/merge/execute.ts`, and an entry in core takes precedence. |
 | finance-P4 | finance (owner of `packages/core/src/finance/index.ts`) | Add `export * from "./billit-mapping"`, then switch `apps/web/modules/finance/service/billit-sync.ts` and `billit-jobs.test.ts` from the relative import to `@beam/core/finance`. |
 | commerce-P4b | commerce (schema fixer) | Make `refunds.created_by_user_id` nullable (null = system refund): rule 22c late-paid refunds and rule 37a `refundOrderLine` from jobs need it. Until then a late-paid renewal refund is recorded on the payment only (`refunded_cents`, status `refunded`, `order.refunded` event) and writes no `refunds` row. |
@@ -82,6 +80,9 @@ to "Served" with the package id.
 | finance-P6 | commerce | Link `/[locale]/account/orders/[id]` to the portal invoice (`getInvoiceForOrder`) and ship `/admin/orders/[id]` with a refund dialog; finance's e2e "staff refund half" test skips itself until that screen exists. |
 | booking-P6 | credits | A listing of grants shared with a person, so the portal booking form can offer "use a package shared with me". |
 | forms-P4 | site | Optionally re-export a client-safe `readStoredUtm`, so forms can stop reading the `beam_utm` sessionStorage key itself. |
+| automation-P4 | crm | Add `engaged`, `package_nearly_used`, `dormant` and `reviewed` to `SYSTEM_TAGS` in `packages/db/src/seed/crm.ts` (automation's seed inserts them meanwhile). |
+| automation-P4 | automation-P5 | Write the catalogue keys `automation.panel.{empty,active,no_active,next_step,ended,timeline}` in the three `automation.json` files; the interim panel uses them. |
+| site-P6 | site (catalogue owner) | `site.account_placeholder.title` and `body` in `site.json` are unused now that the portal home replaced the placeholder; remove them. |
 
 ## Served
 
@@ -119,3 +120,5 @@ to "Served" with the package id.
 | site-P5 | forms (FormEmbed) | FormEmbed may read sessionStorage `beam_utm` through site's `readStoredUtm()` (`apps/web/modules/site/ui/public/utm-capture.tsx`) to attribute UTM on later pages of a visit (rule 40). | forms-P4 (reads the `beam_utm` sessionStorage key directly; see the forms-P4 -> site row) |
 | automation-P3 | forms | Implement `getPublishedFormMeta`; automation's `form_available` condition treats its `NotImplementedError` as "not available" for now. | forms-P3 (already implemented; confirmed by forms-P4) |
 | forms-P1 | forms (next forms package) | FK `form_links.partner_company_id -> companies.id` once crm-P1 merged. | already in `packages/db/src/schema/forms.ts` (confirmed by forms-P4) |
+| platform-P7 | automation | `PersonAutomationsPanel` in `apps/web/modules/automation/api.ts` is a throwing stand-in; the automation package that builds the person panel replaces it. | automation-P4 (interim read-only panel in `api.ts`; automation-P6 re-exports the full one) |
+| site-P5 | site-P6 | `PortalSiteChrome` mounts `ConsentProvider` (`getConsentChromeState`, `consentLabels` in `server/consent.ts`), `AnalyticsLoader` with `gaMeasurementId` null and `SwRegister`; its Cookie settings link carries `data-cookie-settings`. | site-P6 (`ui/portal/site-chrome.tsx`) |

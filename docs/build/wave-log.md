@@ -97,3 +97,13 @@ One entry per merge batch and gate (runbook section 5.7, adapted by OD-3).
 - fix-w04-platform-4: merged as `90cbe19` in batch `g37-batch`.
 - fix-w05-platform-testdb: merged as `45a8275` in batch `g37-batch`.
 - Batch `g37-batch` (fix-w04-platform-4 fix-w05-platform-testdb): merge gate green, peak 6152 MB.
+- fix-w04-platform-4 (37 min: all 27 confirmed review findings fixed or decided, plus the portal nav flags, the proxy 410 and the HIBP test flake) and fix-w05-platform-testdb (22 min: snapshot cache; the web suite went from 410 s to 270 s with a warm cache) landed in batch `g37` (288 s). credits-P4's landing `g36` was red: its tests set a random `mandate_id`, now rejected by the new FK; attempt 3 creates real mandates. Plan: OD-11 (ai_requests retention), OD-12 (job rename). Started credits-P4 attempt 3 and email-P3 from `44a337a`.
+- commerce-P2: 13 min, merged as `7b3fd68`; gate `g38-commerce-P2` (merge) green, peak 4813 MB.
+- commerce-P2 (13 min) landed (`g38`, 93 s with the warm test-db cache). Load average fell to about 5 with four agents, so the limit goes back to six. Started ops-P2 and automation-P2 from `e0b1319`.
+- credits-P4: 70 min, merged as `a945df0`; gate `g39-credits-P4` (merge) green, peak 4061 MB.
+- credits-P4 attempt 3 (8 min, real mandates in tests) landed (`g39`, 261 s). Started ops-P4 from `a945df0`.
+- finance-P2: 28 min, merged as `b8ab7a6`; gate `g40-finance-P2` (merge) green, peak 5989 MB.
+- commerce-P3: 40 min, merged as `9aa2a07`; gate `g41-commerce-P3` (merge) green, peak 6726 MB.
+- finance-P2 (28 min, `g40`) and commerce-P3 (40 min, `g41`) landed. Started commerce-P4a from `9aa2a07`.
+- automation-P2: 36 min, merged as `c1ad2a7`; gate `g42-automation-P2` (merge) green, peak 6892 MB.
+- ops-P2 attempt 1 (38 min) done but two ops-P1 facade tests pinned stubs it implemented; attempt 2 (from `107c9bd`) removes every stub pin in that file. A sweep found one more stub pin (Billit client in platform-P3's shared test), granted to finance-P4. automation-P2 (36 min) landed (`g42`).

@@ -42,6 +42,19 @@ to "Served" with the package id.
 | ops-P1 | ops (fixer) | FK `retention_list_items.task_id -> tasks.id` once crm's `tasks` table exists (`ops.ts` has no later owner). |
 | ops-P1 | ops-P5 | Wire `sweep` in `apps/web/modules/ops/privacy.ts` to ops-P6's `exports/sweep.ts` handlers. |
 | ops-P1 | platform-P8 | Nav section labels `platform.nav.section_insights`, `section_reports`, `section_data`; filter admin and portal nav entries by their optional `flag`. |
+| commerce-P2 | platform (fixer) | `apps/web/lib/integrations.ts` `buildIntegrations` builds `createMollieProvider({ apiKey: MOLLIE_API_KEY, webhookBaseUrl: APP_URL, webhookSecret: MOLLIE_WEBHOOK_SECRET, onCall })` from `@beam/integrations/payments` when the key is present, instead of `notConfigured('mollie')`. |
+| commerce-P2 | commerce-P3 | `config.ts` refines `payment_provider_by_channel` with `unconfiguredChannels(value, process.env)` from `@beam/integrations/payments`, so Stripe or Viva cannot be selected without their keys. |
+| finance-P2 | finance (schema fixer) | `chk_invoices_party` refuses a POS company invoice with billing details but no person and no CRM company (snapshot kind `company`, `person_id` and `company_id` null): allow a company snapshot with a VAT number, or require a CRM company for POS company invoices. |
+| finance-P2 | finance-P3 | Register `finance.render_pdf` (payload `{ invoiceId }`, key `invoice_pdf:<id>`); add catalogue keys `finance.pdf.walk_in` and `finance.pdf.partial_credit`. |
+| finance-P2 | finance-P4 | Register `billit.push_payment` (`{ invoiceId }`, key `billit:payment:<id>`) and `billit.push_customer` (`{ partyKey }`, key `billit:customer:<party_key>:<hash8>`). |
+| commerce-P3 | commerce-P4a (owner of `api.ts`) | Wire `getQuote`, `getProductPrice`, `listPublicPrices` and `getProductCards` in `apps/web/modules/commerce/api.ts` to `./server/catalogue` (built with the exact api signatures; api.ts still has the throwing stubs). |
+| commerce-P3 | commerce (owner of `events.ts`) | Declare the event kind `person_price.set`; until then `setPersonPrice` writes only its audit row. |
+| automation-P2 | crm (suppressions) | `addSuppression` pushes the jobId that `automation.requestSuppressionExit` returns into the action's after-commit list (`ctxState(ctx).enqueuedIds`), so `automation.exit_for_suppression` runs in the after() kick (A-23). |
+| automation-P2 | crm (person merge, crm-P4) | The person merge calls `automation.exitPersonEnrolments(tx, { personId: loser, reason: 'merged', actor })` inside its own transaction (A-21). |
+| ops-P2 | ops-P7 | Add the R2 webinar columns and the `webinars_registered_total` and `webinars_attended_total` sums to `v_person_profile` in `ops.views.ts`, with their `ops.views.test.ts` cases. |
+| orchestrator | finance-P4 | `packages/integrations/src/_shared/platform-p3.shared.test.ts` (line ~69) pins the Billit client stub (`NotImplementedError`); finance-P4 implements the real client, so it also owns that test (granted as extraOwns at launch) and replaces the stub assertion with the client's real contract. |
+| email-P3 | site-P5 | Implement `getLegalLinks`; email footers carry no privacy or terms links until it exists (email handles the `NotImplementedError`). |
+| email-P3 | automation (the package that implements `requestSuppressionExit`) | `crm.addSuppression` calls `automation.requestSuppressionExit` from email's hard-bounce, complaint and soft-bounce handling; it still throws. |
 
 ## Served
 

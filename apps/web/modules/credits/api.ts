@@ -3,9 +3,11 @@
  * another module calls, with its final signature. credits-P3 implements the ledger functions
  * (`consumeCredits`, `releaseCredits`, `checkCredits`, `grantCredits`, `getGrantUsage`,
  * `revokeGrantRemainder`, `getEuroBalance`, `importGrant`, `getPersonCreditSummary`,
- * `getCreditLiabilityAsOf`) on `server/ledger.ts`; the others still throw
- * `NotImplementedError('credits.<fn>')` until the package that lands them (P4 memberships, P5 merge,
- * P8 sharing review). The three R3 referral hooks that V1 code calls at runtime return `null` or
+ * `getCreditLiabilityAsOf`) on `server/ledger.ts`; credits-P4 the membership functions
+ * (`activateMembership`, `applyRenewalPayment`, `applyRenewalFailure`, `cancelMembershipForRefund`,
+ * `getMembershipForPerson`, `getMembershipSummary`, `canStartMembership`, `importMembership`) on
+ * `server/memberships.ts`; the others still throw `NotImplementedError('credits.<fn>')` until the
+ * package that lands them (P5 merge, P8 sharing review). The three R3 referral hooks that V1 code calls at runtime return `null` or
  * nothing until credits-P9. Every write function runs in the caller's transaction.
  */
 import type { DbOrTx, Tx } from "@beam/db";
@@ -14,6 +16,12 @@ import type { LocalizedText } from "@beam/core/i18n";
 import type { AllocationResult, CreditKind, ReleaseReason, SharingReviewRow } from "@beam/core/credits";
 import type { Ctx } from "@/lib/ctx";
 import * as ledger from "./server/ledger";
+/**
+ * The membership service is loaded on first call: it imports commerce, crm and email, whose
+ * import graphs reach booking, and booking imports this file. A static import would close that
+ * cycle while this module is still evaluating (consumers would see a half-initialised module).
+ */
+const membershipService = () => import("./server/memberships");
 
 export type { AllocationResult, CreditKind, GrantSharing, ReleaseReason } from "@beam/core/credits";
 export { InsufficientCreditsError, SharingNotAllowedError, type GrantCreditsInput } from "./server/ledger";
@@ -84,36 +92,36 @@ export function getEuroBalance(
 }
 
 export function activateMembership(
-  _tx: Tx,
-  _ctx: Ctx,
-  _input: { personId: string; productId: string; orderId: string; priceVersionId: string; mandateId: string | null; startsAt: Date },
+  tx: Tx,
+  ctx: Ctx,
+  input: { personId: string; productId: string; orderId: string; priceVersionId: string; mandateId: string | null; startsAt: Date },
 ): Promise<{ membershipId: string; status: "active" | "pending"; created: boolean }> {
-  return notYet("activateMembership");
+  return membershipService().then((m) => m.activateMembership(tx, ctx, input));
 }
 
 export function applyRenewalPayment(
-  _tx: Tx,
-  _ctx: Ctx,
-  _input: { membershipId: string; orderId: string },
+  tx: Tx,
+  ctx: Ctx,
+  input: { membershipId: string; orderId: string },
 ): Promise<{ periodStartAt: Date; periodEndAt: Date; applied: boolean }> {
-  return notYet("applyRenewalPayment");
+  return membershipService().then((m) => m.applyRenewalPayment(tx, ctx, input));
 }
 
 export function applyRenewalFailure(
-  _tx: Tx,
-  _ctx: Ctx,
-  _input: { membershipId: string; paymentId: string; reason: string },
+  tx: Tx,
+  ctx: Ctx,
+  input: { membershipId: string; paymentId: string; reason: string },
 ): Promise<{ status: "past_due" | "expired"; dunningAttempt: number; applied: boolean }> {
-  return notYet("applyRenewalFailure");
+  return membershipService().then((m) => m.applyRenewalFailure(tx, ctx, input));
 }
 
-export function cancelMembershipForRefund(_tx: Tx, _ctx: Ctx, _input: { membershipId: string; reason: string }): Promise<void> {
-  return notYet("cancelMembershipForRefund");
+export function cancelMembershipForRefund(tx: Tx, ctx: Ctx, input: { membershipId: string; reason: string }): Promise<void> {
+  return membershipService().then((m) => m.cancelMembershipForRefund(tx, ctx, input));
 }
 
 export function getMembershipForPerson(
-  _db: DbOrTx,
-  _personId: string,
+  db: DbOrTx,
+  personId: string,
 ): Promise<{
   isMember: boolean;
   membershipId: string | null;
@@ -123,15 +131,15 @@ export function getMembershipForPerson(
   periodEndAt: Date | null;
   cancelAt: Date | null;
 }> {
-  return notYet("getMembershipForPerson");
+  return membershipService().then((m) => m.getMembershipForPerson(db, personId));
 }
 
 export function canStartMembership(
-  _db: DbOrTx,
-  _personId: string,
-  _opts?: { startsOn?: string },
+  db: DbOrTx,
+  personId: string,
+  opts?: { startsOn?: string },
 ): Promise<{ ok: true } | { ok: false; reason: "already_member" | "pending_exists" }> {
-  return notYet("canStartMembership");
+  return membershipService().then((m) => m.canStartMembership(db, personId, opts));
 }
 
 // ops, crm, site, booking, finance ---------------------------------------------------------
@@ -156,9 +164,9 @@ export function importGrant(
 }
 
 export function importMembership(
-  _tx: Tx,
-  _ctx: Ctx,
-  _input: {
+  tx: Tx,
+  ctx: Ctx,
+  input: {
     personId: string;
     productId: string;
     periodEndAt: Date;
@@ -168,7 +176,7 @@ export function importMembership(
     mandateId?: string | null;
   },
 ): Promise<{ membershipId: string; created: boolean }> {
-  return notYet("importMembership");
+  return membershipService().then((m) => m.importMembership(tx, ctx, input));
 }
 
 export function getPersonCreditSummary(
@@ -184,10 +192,10 @@ export function getPersonCreditSummary(
 }
 
 export function getMembershipSummary(
-  _db: DbOrTx,
-  _personId: string,
+  db: DbOrTx,
+  personId: string,
 ): Promise<{ status: string; productName: LocalizedText; currentPeriodEndAt: Date; includedCredits: { kind: CreditKind; remainingUnits: number }[] } | null> {
-  return notYet("getMembershipSummary");
+  return membershipService().then((m) => m.getMembershipSummary(db, personId));
 }
 
 /** Finance month close (D29): the liability as it stood at `at`. */

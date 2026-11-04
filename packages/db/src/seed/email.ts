@@ -1,10 +1,154 @@
 /**
- * email's `defaults` seed profile (runbook 3.4, BS-11). Wave 0 skeleton by platform-P7, with no
- * `seed` export yet, so `seedDefaults()` runs only the modules that seed something (platform's
- * `seed-platform.test.ts` expects exactly `["platform"]` in Wave 0). email adds, when it has system
- * rows to seed (idempotent, `on conflict do nothing`):
+ * email's `defaults` seed profile (runbook 3.4, BS-11; email spec sections 8 and 9), email-P3.
  *
- *   import type { DefaultSeed } from "./run";
- *   export const seed: DefaultSeed = { after: ["finance"], run: async (db, options) => { ... } };
+ * - `retention_policies` rows for the email tables (keys `email.email_messages`,
+ *   `email.email_events`, `email.campaign_recipients`, `email.email_ai_drafts`), inserted
+ *   `on conflict (key) do nothing`, so a staff edit survives. The same rows are declared in
+ *   `apps/web/modules/email/privacy.ts` (`retention`), whose `sweep` handlers use these keys.
+ * - The writers of system templates: `insertSystemTemplate()` creates one `email_templates` row
+ *   (`kind = transactional`, `is_system = true`) and its published version 1 for a registry key;
+ *   `insertSeededTemplate()` does the same for a block-backed template (`seedTemplate()`).
+ *   Both never touch an existing slug, so edited copy survives every reseed. The registry and the
+ *   catalogues live in `@beam/email` and `@beam/core/i18n`; `apps/web/modules/email/seed.ts`
+ *   walks the registry and calls `insertSystemTemplate()` (this package never imports apps/web).
+ *
+ * Settings defaults are the declared defaults of `apps/web/modules/email/config.ts`:
+ * `getSetting()` returns them while no row exists, so no settings row is written here.
  */
-export {};
+import type { RetentionPolicySeed } from "@beam/core/privacy";
+import type { BlockDocument } from "@beam/core/email";
+import type { DbOrTx } from "../client";
+import type { LocalizedText } from "../schema/_shared";
+import { emailTemplates, emailTemplateVersions } from "../schema/email";
+import { eq } from "drizzle-orm";
+import { insertRetentionPolicies } from "./ops";
+import type { DefaultSeed } from "./run";
+
+const ALL_LOCALES = ["nl-BE", "fr-BE", "en"] as const;
+
+/** email's retention policies (email spec section 9; keys follow cross-module convention 4). */
+export const EMAIL_RETENTION_POLICIES: readonly RetentionPolicySeed[] = [
+  {
+    key: "email.email_messages",
+    tableName: "email_messages",
+    days: 730,
+    action: "delete",
+    description: "Email messages after 2 years (campaign messages only once the campaign has a stats snapshot)",
+    runOrder: 410,
+    batchSize: 5000,
+  },
+  { key: "email.email_events", tableName: "email_events", days: 730, action: "delete", description: "Delivery, open and click events after 2 years", runOrder: 400, batchSize: 5000 },
+  {
+    key: "email.campaign_recipients",
+    tableName: "campaign_recipients",
+    days: 730,
+    action: "delete",
+    description: "Campaign audience snapshots 2 years after the campaign finished",
+    runOrder: 405,
+    batchSize: 5000,
+  },
+  { key: "email.email_ai_drafts", tableName: "email_ai_drafts", days: 365, action: "delete", description: "AI campaign drafts after 1 year", runOrder: 420, batchSize: 5000 },
+];
+
+export type SystemTemplateInput = {
+  /** The registry key `<module>.<name>`. */
+  slug: string;
+  name: string;
+  description?: string | null;
+  /** Version 1 copy per slot, from the owning module's catalogue. */
+  copy: Record<string, LocalizedText>;
+  /** The subject per locale (the `subject` slot). */
+  subject: LocalizedText;
+  preheader?: LocalizedText;
+  locales?: readonly string[];
+};
+
+export type SeededTemplateInput = {
+  slug: string;
+  name: string;
+  kind: "transactional" | "marketing";
+  purpose: "newsletter" | "events" | "member_comms" | "b2b" | null;
+  subject: LocalizedText;
+  preheader: LocalizedText;
+  document: BlockDocument;
+};
+
+async function existingTemplate(db: DbOrTx, slug: string): Promise<string | null> {
+  const [row] = await db.select({ id: emailTemplates.id }).from(emailTemplates).where(eq(emailTemplates.slug, slug));
+  return row?.id ?? null;
+}
+
+async function publishVersionOne(
+  db: DbOrTx,
+  templateId: string,
+  version: Omit<typeof emailTemplateVersions.$inferInsert, "templateId" | "version" | "publishedAt">,
+): Promise<void> {
+  const [v] = await db
+    .insert(emailTemplateVersions)
+    .values({ ...version, templateId, version: 1, publishedAt: new Date() })
+    .returning({ id: emailTemplateVersions.id });
+  await db.update(emailTemplates).set({ currentVersionId: v!.id, status: "published", updatedAt: new Date() }).where(eq(emailTemplates.id, templateId));
+}
+
+/**
+ * Creates the system row and published version 1 of a code-backed registry template; an
+ * existing slug is left untouched (`created: false`).
+ */
+export async function insertSystemTemplate(db: DbOrTx, input: SystemTemplateInput): Promise<{ templateId: string; created: boolean }> {
+  const existing = await existingTemplate(db, input.slug);
+  if (existing) return { templateId: existing, created: false };
+  const [row] = await db
+    .insert(emailTemplates)
+    .values({ slug: input.slug, name: input.name, description: input.description ?? null, kind: "transactional", purpose: null, isSystem: true, status: "draft" })
+    .onConflictDoNothing({ target: emailTemplates.slug })
+    .returning({ id: emailTemplates.id });
+  if (!row) return { templateId: (await existingTemplate(db, input.slug))!, created: false };
+  await publishVersionOne(db, row.id, {
+    subject: input.subject,
+    preheader: input.preheader ?? {},
+    copy: input.copy,
+    reactComponent: input.slug,
+    document: null,
+    locales: [...(input.locales ?? ALL_LOCALES)],
+  });
+  return { templateId: row.id, created: true };
+}
+
+/**
+ * Creates a block-backed template with a published version 1 when the slug is absent (the
+ * `seedTemplate()` api of automation and webinar); never touches an existing slug.
+ */
+export async function insertSeededTemplate(db: DbOrTx, input: SeededTemplateInput): Promise<{ templateId: string; created: boolean }> {
+  const existing = await existingTemplate(db, input.slug);
+  if (existing) return { templateId: existing, created: false };
+  const [row] = await db
+    .insert(emailTemplates)
+    .values({
+      slug: input.slug,
+      name: input.name,
+      kind: input.kind,
+      purpose: input.kind === "marketing" ? input.purpose : null,
+      isSystem: input.kind === "transactional",
+      status: "draft",
+    })
+    .onConflictDoNothing({ target: emailTemplates.slug })
+    .returning({ id: emailTemplates.id });
+  if (!row) return { templateId: (await existingTemplate(db, input.slug))!, created: false };
+  const locales = ALL_LOCALES.filter((l) => (input.document.locales[l]?.length ?? 0) > 0);
+  await publishVersionOne(db, row.id, {
+    subject: input.subject,
+    preheader: input.preheader,
+    document: input.document,
+    copy: null,
+    reactComponent: null,
+    locales,
+  });
+  return { templateId: row.id, created: true };
+}
+
+export const seed: DefaultSeed = {
+  after: ["platform", "ops"],
+  run: async (db) => {
+    await insertRetentionPolicies(db, EMAIL_RETENTION_POLICIES);
+  },
+};

@@ -1,89 +1,83 @@
 /**
- * email jobs. Facade read by `pnpm gen:indexes`. Written by platform-P7 on behalf of the email
- * module (platform spec 4.9); email-P1 takes the file over in Wave 1.
+ * email jobs and the Resend webhook handler (email spec section 4 "Jobs"). Facade read by
+ * `pnpm gen:indexes`. email-P3 took over platform-P7's Wave 0 `email.send` behind the same kind,
+ * key (`email:<message_id>`) and payload (`{ emailMessageId, template }`).
  *
- * Wave 0 `email.send`: looks the template key up in the generated `TEMPLATE_REGISTRY`, renders
- * it with `renderEmail()`, applies `EMAIL_SINK` (rewrites `to`), stores the HTML as a
- * `rendered_email` file outside production, loads `attachments` with `readFile()`, passes them,
- * `replyTo` and the headers to the Resend client (the fake under `INTEGRATIONS=fake`), and sets
- * `resend_id`, `sent_at` and status `sent`. A message that is no longer `queued` is left alone,
- * so a second run sends nothing. Suppression, consent and webhooks are email's Wave 1 work.
+ * - `email.send` (fast, 1 for transactional, 5 for automation; 6 attempts): rules 39 to 44 and 59
+ *   (`server/send.ts`). Content problems and Resend 4xx (except 429) are permanent: the message
+ *   is `failed` with its error code and the job goes dead.
+ * - `email.retry_soft_bounce` (fast, 5; 3 attempts): rule 49 (`server/process-event.ts`).
+ * - `email.purge_props` (bulk, 9): `props = null` on messages sent more than 30 days ago, in
+ *   batches of 5,000 (schedule `20 2 * * *`).
+ * - `email.check_domains` (fast, 5): `ResendClient.getDomain()` for both domains; a domain or
+ *   record that is not `verified` posts a High Slack alert (schedule `10 5 * * *`).
+ * - `webhookHandlers`: platform's `webhook.process` calls `processResendEvent()` for `resend`.
  */
 import { z } from "zod";
-import { emailMessages } from "@beam/db/schema";
-import { PermanentError } from "@beam/core/errors";
-import { isLocale } from "@beam/core/i18n";
-import { renderEmail } from "@beam/email/render";
-import { TEMPLATE_REGISTRY } from "@beam/email/templates/registry";
-import type { TemplateDef } from "@beam/email/templates/define";
-import type { EmailAttachment } from "@beam/integrations/resend";
-import { eq } from "@/lib/ctx";
-import { readFile, storeFile } from "@/lib/files";
-import { appEnv } from "@/lib/integrations";
+import { sql } from "@/lib/ctx";
+import { notifySlack } from "@/lib/alerts";
 import { defineJob, type JobCtx } from "@/lib/job-runner";
-import { getSetting } from "@/lib/settings";
+import { rowsOf } from "@/lib/sensitive";
+import { defineWebhookHandler } from "@/lib/webhooks";
+import { processResendEvent, retrySoftBounce } from "./server/process-event";
+import { sendEmailMessage } from "./server/send";
 
-/** Rendered copies are swept after 30 days (`platform.files_rendered_email`). */
-const RENDERED_TTL_MS = 30 * 86_400_000;
+export { sendEmailMessage };
 
 const SendInput = z.object({ emailMessageId: z.string().uuid(), template: z.string().min(1) });
 
-function templateFor(key: string): TemplateDef {
-  const def = (TEMPLATE_REGISTRY as Readonly<Record<string, TemplateDef | undefined>>)[key];
-  if (!def) throw new PermanentError(`unknown_template: ${key}`);
-  return def;
+export const PROPS_TTL_DAYS = 30;
+export const PURGE_BATCH = 5000;
+/** At most this many batches per run; the next night continues. */
+const PURGE_MAX_ROUNDS = 20;
+
+export async function purgeProps(ctx: JobCtx): Promise<{ purged: number }> {
+  const cutoff = new Date(ctx.now.getTime() - PROPS_TTL_DAYS * 86_400_000);
+  let purged = 0;
+  for (let round = 0; round < PURGE_MAX_ROUNDS; round++) {
+    const rows = rowsOf<{ id: string }>(
+      await ctx.tx.execute(sql`
+        update email_messages set props = null, updated_at = now()
+        where id in (select id from email_messages where props is not null and sent_at < ${cutoff} limit ${PURGE_BATCH})
+        returning id`),
+    );
+    purged += rows.length;
+    if (rows.length < PURGE_BATCH) break;
+  }
+  return { purged };
 }
 
-export async function sendEmailMessage(ctx: JobCtx, input: z.infer<typeof SendInput>): Promise<{ status: string; resendId: string | null }> {
-  const [message] = await ctx.tx.select().from(emailMessages).where(eq(emailMessages.id, input.emailMessageId));
-  if (!message) throw new PermanentError(`email_message_not_found: ${input.emailMessageId}`);
-  if (message.status !== "queued") return { status: message.status, resendId: message.resendId };
-  const template = templateFor(input.template);
-  if (!isLocale(message.locale)) throw new PermanentError(`invalid_locale: ${message.locale}`);
-  if (!message.toEmail) throw new PermanentError("email_recipient_missing");
+export const DOMAINS = ["mail.beam.be", "news.beam.be"] as const;
 
-  const rendered = await renderEmail(template, { locale: message.locale, props: message.props ?? {} });
-  const sink = process.env.EMAIL_SINK?.trim();
-  const to = sink || message.toEmail;
-
-  let renderedFileId: string | null = message.renderedFileId;
-  if (appEnv() !== "production") {
-    const stored = await storeFile(ctx, {
-      kind: "rendered_email",
-      name: `${input.template}-${message.id}.html`,
-      mime: "text/html",
-      bytes: new TextEncoder().encode(rendered.html),
-      expiresAt: new Date(ctx.now.getTime() + RENDERED_TTL_MS),
-      ...(message.personId ? { personId: message.personId } : {}),
-    });
-    renderedFileId = stored.fileId;
+export async function checkDomains(ctx: JobCtx): Promise<{ problems: string[] }> {
+  const problems: string[] = [];
+  for (const domain of DOMAINS) {
+    const d = await ctx.integrations.resend.getDomain(domain);
+    const bad = d.records.filter((r) => r.status !== "verified").map((r) => `${r.type} ${r.name}`);
+    if (d.status !== "verified" || bad.length) {
+      problems.push(domain);
+      await notifySlack(ctx, {
+        fingerprint: `email:domain:${domain}`,
+        severity: "high",
+        text: `Email domain ${domain} is ${d.status}${bad.length ? `; records not verified: ${bad.join(", ")}` : ""}. See docs/runbooks/email-dns.md.`,
+      });
+    }
   }
-
-  const attachments: EmailAttachment[] = [];
-  for (const a of message.attachments) {
-    const file = await readFile(ctx.tx, a.fileId);
-    if (!file) throw new PermanentError(`attachment_not_found: ${a.fileId}`);
-    attachments.push({ filename: a.filename, content: file.bytes, contentType: file.mime, ...(a.inline ? { inline: true } : {}) });
-  }
-
-  const config = await getSetting(ctx.tx, "email_config");
-  const { id: resendId } = await ctx.integrations.resend.sendEmail({
-    from: config.senders.transactional,
-    to,
-    subject: rendered.subject,
-    html: rendered.html,
-    text: rendered.text,
-    replyTo: message.replyTo ?? config.senders.reply_to,
-    headers: { ...(message.extraHeaders ?? {}) },
-    ...(attachments.length ? { attachments } : {}),
-    idempotencyKey: `email:${message.id}`,
-  });
-
-  await ctx.tx
-    .update(emailMessages)
-    .set({ status: "sent", resendId, sentAt: ctx.now, subject: rendered.subject, renderedFileId, updatedAt: ctx.now })
-    .where(eq(emailMessages.id, message.id));
-  return { status: "sent", resendId };
+  return { problems };
 }
 
-export const jobs = [defineJob({ kind: "email.send", lane: "fast", priority: 1, input: SendInput, run: sendEmailMessage })];
+export const jobs = [
+  defineJob({ kind: "email.send", lane: "fast", priority: 1, maxAttempts: 6, input: SendInput, run: sendEmailMessage }),
+  defineJob({ kind: "email.retry_soft_bounce", lane: "fast", priority: 5, maxAttempts: 3, input: z.object({ emailMessageId: z.string().uuid() }), run: retrySoftBounce }),
+  defineJob({ kind: "email.purge_props", lane: "bulk", priority: 9, maxAttempts: 3, input: z.object({}).passthrough(), run: purgeProps }),
+  defineJob({ kind: "email.check_domains", lane: "fast", priority: 5, maxAttempts: 3, input: z.object({}).passthrough(), run: checkDomains }),
+];
+
+export const webhookHandlers = [
+  defineWebhookHandler({
+    provider: "resend",
+    handle: async (ctx, event) => {
+      await processResendEvent(ctx, event);
+    },
+  }),
+];

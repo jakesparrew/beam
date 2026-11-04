@@ -7,7 +7,6 @@
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { DbHandle } from "@beam/db";
-import { makePerson } from "@beam/db/testing";
 import { makePaidOrder } from "@beam/db/testing/commerce-factories";
 import { billitParties, invoiceRequests, invoices, orderBillingDetails, persons } from "@beam/db/schema";
 import { eq, inArray, setAppDb, sql } from "@/lib/ctx";

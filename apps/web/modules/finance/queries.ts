@@ -531,7 +531,7 @@ export async function getMyInvoice(db: DbOrTx, input: { personId: string; id: st
     .from(invoices)
     .where(and(eq(invoices.id, input.id), eq(invoices.personId, input.personId)));
   if (!doc) return null;
-  const invoice = doc as InvoiceRecord;
+  const invoice: InvoiceRecord = doc;
   const related = await db
     .select(refColumns)
     .from(invoices)

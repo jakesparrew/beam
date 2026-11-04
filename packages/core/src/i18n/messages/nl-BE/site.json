@@ -1,8 +1,648 @@
 {
   "site": {
+    "admin": {
+      "block": {
+        "availability_preview": {
+          "days": "Dagen vooruit",
+          "kind": "Soort sessie",
+          "name": "Beschikbaarheid"
+        },
+        "booking_cta": {
+          "label": "Knoptekst",
+          "name": "Boekingsknop",
+          "target": "Gaat naar"
+        },
+        "card_grid": {
+          "cards": "Kaarten",
+          "heading": "Titel",
+          "name": "Kaarten"
+        },
+        "contact_details": {
+          "name": "Contactgegevens",
+          "showAddress": "Adres tonen",
+          "showEmail": "E-mail tonen",
+          "showOpeningHours": "Openingsuren tonen",
+          "showPhone": "Telefoon tonen"
+        },
+        "cta": {
+          "button": "Knop",
+          "heading": "Titel",
+          "name": "Oproep tot actie",
+          "text": "Tekst"
+        },
+        "events_list": {
+          "heading": "Titel",
+          "limit": "Aantal getoond",
+          "name": "Evenementenlijst",
+          "showFull": "Volzette evenementen tonen"
+        },
+        "faq": {
+          "heading": "Titel",
+          "items": "Vragen",
+          "name": "Vragen en antwoorden"
+        },
+        "form_embed": {
+          "formSlug": "Formulier",
+          "name": "Formulier"
+        },
+        "hero": {
+          "cta": "Knop",
+          "heading": "Titel",
+          "mediaId": "Afbeelding",
+          "name": "Hero",
+          "subheading": "Ondertitel"
+        },
+        "image": {
+          "caption": "Bijschrift",
+          "mediaId": "Afbeelding",
+          "name": "Afbeelding"
+        },
+        "image_text": {
+          "doc": "Tekst",
+          "imageSide": "Kant van de afbeelding",
+          "mediaId": "Afbeelding",
+          "name": "Afbeelding en tekst"
+        },
+        "legal_meta": {
+          "name": "Versie en datum"
+        },
+        "link": {
+          "page": "Pagina",
+          "portal": "Klantenportaal",
+          "url": "Webadres"
+        },
+        "map": {
+          "linkUrl": "Kaartlink",
+          "mediaId": "Afbeelding",
+          "name": "Kaart"
+        },
+        "posts_list": {
+          "heading": "Titel",
+          "limit": "Aantal getoond",
+          "name": "Blogberichten",
+          "paginate": "Paginalinks tonen"
+        },
+        "pricing_table": {
+          "heading": "Titel",
+          "name": "Prijstabel",
+          "productIds": "Producten",
+          "showMemberPrice": "Ledenprijs tonen"
+        },
+        "rich_text": {
+          "doc": "Tekst",
+          "name": "Tekst"
+        },
+        "side": {
+          "left": "Links",
+          "right": "Rechts"
+        },
+        "target": {
+          "book_day": "Dagsessie boeken",
+          "book_night": "Nacht boeken",
+          "buy_product": "Product kopen",
+          "gift": "Cadeaubon",
+          "session": "Een evenement"
+        },
+        "testimonial": {
+          "authorDetail": "Detail (bv. stad)",
+          "authorName": "Naam",
+          "consentConfirmed": "Deze persoon gaf toestemming om geciteerd te worden",
+          "name": "Getuigenis",
+          "quote": "Citaat"
+        },
+        "video": {
+          "name": "Video",
+          "posterMediaId": "Voorbeeldafbeelding",
+          "title": "Titel",
+          "youtubeId": "YouTube-video-id"
+        },
+        "webinar_signup": {
+          "name": "Webinar-inschrijving",
+          "webinarId": "Webinar"
+        }
+      },
+      "claude": {
+        "ask": "Vraag het Claude",
+        "busy": "Er loopt al een aanvraag voor deze pagina.",
+        "cancel": "Aanvraag annuleren",
+        "error": {
+          "ai_unavailable": "Claude is niet beschikbaar, bewerk manueel.",
+          "budget_exceeded": "AI-budget voor deze maand bereikt, bewerk manueel.",
+          "invalid_output": "Claude gaf een ongeldige pagina terug, probeer een preciezere instructie.",
+          "page_archived": "De pagina werd gearchiveerd voor Claude begon."
+        },
+        "instruction": "Wat moet er veranderen?",
+        "kindEdit": "Deze pagina bewerken",
+        "kindNewPage": "Een nieuwe pagina schrijven",
+        "locales": "Talen",
+        "ready": "Voorstel klaar: bekijken",
+        "running": "Claude schrijft een voorstel…",
+        "timeout": "Dit duurt langer dan verwacht. Kijk later opnieuw.",
+        "title": "Vraag het Claude"
+      },
+      "common": {
+        "cancel": "Annuleren",
+        "confirm": "Bevestigen",
+        "edit": "Bewerken",
+        "loading": "Laden…",
+        "requestId": "Aanvraag-id {id}",
+        "retry": "Opnieuw proberen"
+      },
+      "diff": {
+        "addedLocale": "Nieuwe taal: {language}",
+        "base": "Vergeleken met versie {n}",
+        "changed": "Gewijzigd",
+        "deleted": "Verwijderd",
+        "draftChanged": "Het concept is gewijzigd nadat dit voorstel werd gemaakt.",
+        "editAsDraft": "Als concept bewerken",
+        "identical": "Deze versie is identiek aan de live versie.",
+        "inserted": "Toegevoegd",
+        "instruction": "Instructie",
+        "moved": "Verplaatst",
+        "publish": "Publiceren",
+        "reject": "Afwijzen",
+        "rejectReason": "Reden",
+        "removedLocale": "Verwijderde taal: {language}",
+        "renderedToggle": "Weergegeven pagina's tonen",
+        "requestedBy": "Aangevraagd door {name}",
+        "title": "Versie {n} nakijken",
+        "unchanged": "Ongewijzigd",
+        "warnings": "Controleer voor publicatie"
+      },
+      "editor": {
+        "addBlock": "Blok toevoegen",
+        "archive": "Archiveren",
+        "cancelSchedule": "Planning annuleren",
+        "changeSummary": "Wat is er gewijzigd",
+        "conflict": "Iemand anders heeft deze pagina bewaard; laad opnieuw.",
+        "copyFromNl": "Blokken kopiëren uit nl-BE",
+        "counter": "{count} van {max} tekens",
+        "cover": "Omslagafbeelding",
+        "delete": "Verwijderen",
+        "discardDraft": "Concept verwijderen",
+        "duplicate": "Dupliceren",
+        "excerpt": "Samenvatting",
+        "history": {
+          "empty": "Nog geen versies",
+          "version": "Versie {n}"
+        },
+        "issues": "Voor je kunt publiceren",
+        "keepDraft": "Concept behouden",
+        "materialChange": "Wezenlijke wijziging (klanten moeten opnieuw aanvaarden)",
+        "moveDown": "Omlaag",
+        "moveUp": "Omhoog",
+        "noCustomerData": "Plak geen klantgegevens.",
+        "noIssues": "Klaar om te publiceren",
+        "noRedirect": "Geen doorverwijzing",
+        "noindex": "Verbergen voor zoekmachines",
+        "ogImage": "Afbeelding voor sociale media",
+        "outOfDate": "Na de start van dit concept werd een nieuwere versie gepubliceerd.",
+        "path": "Adres",
+        "pathHelp": "Maximaal 3 delen met woorden in kleine letters, verbonden door koppeltekens.",
+        "preview": "Voorbeeld",
+        "publishNow": "Nu publiceren",
+        "redirectTo": "Oude adressen doorverwijzen naar",
+        "reload": "Opnieuw laden",
+        "restoreArchived": "Pagina herstellen",
+        "restoreVersion": "Deze versie herstellen",
+        "save": "Concept bewaren",
+        "saved": "Concept bewaard",
+        "schedule": "Plannen",
+        "scheduleAt": "Publiceren op",
+        "scheduleFailed": "Geplande publicatie mislukt",
+        "seoDescription": "SEO-beschrijving",
+        "seoTitle": "SEO-titel",
+        "tabContent": "Inhoud",
+        "tabHistory": "Geschiedenis",
+        "tabSeo": "SEO",
+        "tabSettings": "Pagina-instellingen",
+        "unpublish": "Depubliceren",
+        "unsavedCopy": "Je niet-bewaarde tekst"
+      },
+      "import": {
+        "apply": "Import uitvoeren",
+        "col": {
+          "decision": "Beslissing",
+          "message": "Bericht",
+          "oldPath": "Oud adres",
+          "translationGroup": "Vertaalgroep",
+          "type": "Type",
+          "wpStatus": "WordPress-status"
+        },
+        "coverage": "Oude adressen zonder pagina of doorverwijzing",
+        "decision": {
+          "import": "Importeren",
+          "redirect_only": "Enkel doorverwijzen",
+          "skip": "Overslaan"
+        },
+        "defaultLocale": "Standaardtaal",
+        "empty": "Geen imports",
+        "itemStatus": {
+          "error": "Fout",
+          "imported": "Geïmporteerd",
+          "pending": "In afwachting",
+          "skipped": "Overgeslagen"
+        },
+        "parseError": "Het bestand kon niet worden gelezen (regel {line}).",
+        "publishAll": "Volledige geïmporteerde pagina's publiceren",
+        "report": "Verwijderde shortcodes en niet-ondersteunde opmaak",
+        "retry": "Mislukte items opnieuw proberen",
+        "siteOrigin": "Adres van de oude site",
+        "status": {
+          "applying": "Bezig met importeren",
+          "done": "Klaar",
+          "failed": "Mislukt",
+          "parsed": "Klaar om te koppelen",
+          "parsing": "Bestand lezen",
+          "uploaded": "Geüpload"
+        },
+        "title": "WordPress-import",
+        "tooLarge": "Het bestand is groter dan 10 MB; exporteer pagina's, berichten en media apart.",
+        "upload": "WXR-export uploaden"
+      },
+      "issue": {
+        "alt_missing": "Een afbeelding heeft geen alt-tekst in deze taal.",
+        "block_invalid": "Een blok is onvolledig of ongeldig.",
+        "blocks_empty": "Voeg minstens één blok toe.",
+        "blocks_too_many": "Een pagina heeft maximaal 60 blokken.",
+        "company_identification_missing": "De bedrijfsgegevens voor de voettekst zijn onvolledig.",
+        "event_past": "Het evenement heeft plaatsgevonden.",
+        "event_session_missing": "De evenementpagina is niet aan een evenementsessie gekoppeld.",
+        "excerpt_missing": "De samenvatting ontbreekt.",
+        "form_locale_missing": "Het formulier is niet beschikbaar in deze taal.",
+        "form_unavailable": "Het formulier is niet gepubliceerd.",
+        "goLive": "Go-livecontroles",
+        "legal_meta_not_legal": "Het versieblok is enkel voor juridische pagina's.",
+        "legal_name_missing": "De privacyverklaring moet de juridische naam van het bedrijf vermelden.",
+        "legal_page_missing": "Een verplichte juridische pagina ontbreekt.",
+        "link_target_unavailable": "Een gelinkte pagina is niet gepubliceerd.",
+        "locales_empty": "Kies minstens één taal.",
+        "media_missing": "Een afbeelding bestaat niet meer.",
+        "nav_target_hidden": "Een menu-item verwijst naar een pagina die niet zichtbaar is.",
+        "none": "Geen inhoudsproblemen",
+        "opening_hours_missing": "De openingsuren zijn niet ingesteld.",
+        "path_home_only": "Enkel de startpagina gebruikt het lege adres.",
+        "path_invalid": "Het adres is niet geldig.",
+        "path_missing": "Het adres ontbreekt.",
+        "path_reserved": "Dit adres is voorbehouden.",
+        "path_taken": "Een andere pagina gebruikt dit adres al.",
+        "product_inactive": "Een product is niet meer actief.",
+        "product_missing": "Een product bestaat niet.",
+        "schedule_failed": "De geplande publicatie is mislukt.",
+        "seo_description_length": "De SEO-beschrijving moet 50 tot 170 tekens hebben.",
+        "seo_title_length": "De SEO-titel moet 1 tot 70 tekens hebben.",
+        "session_missing": "De evenementsessie bestaat niet.",
+        "title": "Inhoudsproblemen",
+        "title_missing": "De titel ontbreekt.",
+        "title_too_long": "De titel is langer dan 120 tekens.",
+        "webinar_unavailable": "Het webinar is niet gepubliceerd."
+      },
+      "kind": {
+        "blog_index": "Blogoverzicht",
+        "contact": "Contact",
+        "event": "Evenement",
+        "events_index": "Evenementenoverzicht",
+        "home": "Home",
+        "landing": "Landingspagina",
+        "legal": "Juridische pagina",
+        "offer": "Aanbod",
+        "post": "Blogbericht",
+        "pricing": "Prijzen",
+        "standard": "Standaardpagina"
+      },
+      "legalKey": {
+        "accessibility_statement": "Toegankelijkheidsverklaring",
+        "cookie_notice": "Cookieverklaring",
+        "guardian_consent": "Toestemming van de voogd",
+        "privacy_notice": "Privacyverklaring",
+        "terms": "Algemene voorwaarden"
+      },
+      "media": {
+        "allowed": "JPEG, PNG, WebP of GIF, maximaal 10 MB.",
+        "alt": "Alt-tekst",
+        "altComplete": "Alt-tekst volledig",
+        "altIncomplete": "Alt-tekst ontbreekt",
+        "caption": "Bijschrift",
+        "credit": "Bron",
+        "decorative": "Decoratieve afbeelding (geen alt-tekst nodig)",
+        "drop": "Sleep afbeeldingen hierheen of kies bestanden",
+        "empty": "Nog geen afbeeldingen.",
+        "inUse": "Deze afbeelding wordt door een pagina gebruikt en kan niet worden verwijderd.",
+        "notAnImage": "Dit bestand is geen JPEG-, PNG-, WebP- of GIF-afbeelding.",
+        "size": "{width} × {height} px",
+        "title": "Mediabibliotheek",
+        "upload": "Afbeeldingen uploaden",
+        "usage": "{count, plural, =0 {Niet gebruikt} one {Gebruikt op # pagina} other {Gebruikt op # pagina's}}"
+      },
+      "nav": {
+        "imports": "WordPress-import",
+        "media": "Media",
+        "navigation": "Navigatie",
+        "pages": "Pagina's",
+        "redirects": "Doorverwijzingen",
+        "settings": "Instellingen",
+        "website": "Website"
+      },
+      "navigation": {
+        "add": "Item toevoegen",
+        "addChild": "Subitem toevoegen",
+        "conflict": "Iemand anders heeft dit menu bewaard; laad opnieuw.",
+        "empty": "Geen items: de koptekst toont enkel het logo.",
+        "label": "Label",
+        "limits": "Maximaal 8 items, elk met maximaal 12 subitems.",
+        "menu": {
+          "footer": "Voettekst",
+          "header": "Koptekst",
+          "legal": "Juridische links"
+        },
+        "save": "Menu bewaren",
+        "target": "Gaat naar",
+        "title": "Navigatie"
+      },
+      "newPage": {
+        "create": "Pagina maken",
+        "kind": "Soort",
+        "legalKey": "Juridisch document",
+        "locales": "Talen",
+        "session": "Evenementsessie",
+        "slug": "Interne sleutel (slug)",
+        "slugHelp": "Kleine letters, cijfers en koppeltekens. Niet zichtbaar voor bezoekers.",
+        "slugTaken": "Deze slug wordt al door een andere pagina gebruikt.",
+        "title": "Nieuwe pagina",
+        "titlePerLocale": "Titel per taal"
+      },
+      "pages": {
+        "all": "Alle",
+        "col": {
+          "kind": "Soort",
+          "lastPublished": "Laatst gepubliceerd",
+          "live": "Live versie",
+          "status": "Status",
+          "title": "Titel"
+        },
+        "empty": "Nog geen pagina's: maak de startpagina of importeer uit WordPress.",
+        "filterKind": "Soort",
+        "filterStatus": "Status",
+        "new": "Nieuwe pagina",
+        "openRequests": "Lopende Claude-aanvragen",
+        "search": "Pagina's zoeken",
+        "title": "Websitepagina's"
+      },
+      "redirects": {
+        "add": "Doorverwijzing toevoegen",
+        "empty": "Geen doorverwijzingen",
+        "exportCsv": "CSV exporteren",
+        "from": "Van",
+        "lastSeen": "Laatst gezien",
+        "livePath": "Een live pagina gebruikt dit pad.",
+        "permanent": "Permanent",
+        "seen": "Minstens {count} keer gezien",
+        "source": "Bron",
+        "sourceKind": {
+          "archive": "Gearchiveerde pagina",
+          "manual": "Manueel",
+          "rename": "Adreswijziging",
+          "wordpress": "WordPress"
+        },
+        "title": "Doorverwijzingen",
+        "to": "Naar"
+      },
+      "settings": {
+        "adsId": "Google Ads-conversie-id",
+        "analytics": "Analytics",
+        "analyticsOff": "Uit",
+        "analyticsOn": "Aan",
+        "brandVoice": "Merkstem voor Claude",
+        "canonicalOrigin": "Websiteadres",
+        "company": "Bedrijfsgegevens in de voettekst",
+        "editSite": "Bewerken in instellingen",
+        "gaId": "Google Analytics-meet-id",
+        "notSet": "Niet ingesteld",
+        "ogImage": "Standaardafbeelding voor delen",
+        "pixelId": "Meta Pixel-id",
+        "socialLinks": "Sociale links",
+        "title": "Website-instellingen"
+      },
+      "state": {
+        "createdByClaude": "Claude voor {name}",
+        "draft": "Concept",
+        "hasDraft": "Concept",
+        "liveVersion": "Live: versie {n}",
+        "openProposals": "{count, plural, one {# voorstel} other {# voorstellen}}",
+        "proposed": "Voorstel",
+        "published": "Gepubliceerd",
+        "rejected": "Afgewezen",
+        "scheduled": "Gepland op {date}",
+        "superseded": "Naar concept gekopieerd"
+      },
+      "status": {
+        "archived": "Gearchiveerd",
+        "draft": "Concept",
+        "published": "Gepubliceerd"
+      },
+      "warning": {
+        "blocks_removed": "Er worden blokken verwijderd.",
+        "currency_in_text": "De tekst vermeldt een prijs; prijzen komen uit de catalogus.",
+        "legal_page_changed": "Dit wijzigt een juridische pagina.",
+        "path_changed": "Het adres verandert; bij publicatie wordt een doorverwijzing gemaakt.",
+        "text_too_long": "Een tekst is langer dan aanbevolen."
+      }
+    },
+    "blocks": {
+      "availability": {
+        "book": "Boeken",
+        "none": "Geen sessies gepland in deze periode.",
+        "title": "Beschikbaarheid de komende dagen"
+      },
+      "contact": {
+        "address": "Adres",
+        "closed": "Gesloten",
+        "closedOn": "Gesloten: {name}",
+        "closures": "Komende wijzigingen",
+        "email": "E-mail",
+        "openingHours": "Openingsuren",
+        "phone": "Telefoon",
+        "specialHours": "{name}: {opens}-{closes}",
+        "weekday": {
+          "1": "Maandag",
+          "2": "Dinsdag",
+          "3": "Woensdag",
+          "4": "Donderdag",
+          "5": "Vrijdag",
+          "6": "Zaterdag",
+          "7": "Zondag"
+        }
+      },
+      "events": {
+        "available": "Beschikbaar",
+        "cancelled": "Dit evenement werd geannuleerd",
+        "checkAccess": "Controleer je toegang",
+        "empty": "Er zijn momenteel geen komende evenementen.",
+        "fewLeft": "Nog enkele plaatsen",
+        "full": "Volzet",
+        "getTickets": "Tickets",
+        "joinWaitlist": "Op de wachtlijst",
+        "membersOnly": "Enkel voor leden",
+        "more": "Alle evenementen",
+        "past": "Dit evenement heeft plaatsgevonden"
+      },
+      "gift": {
+        "cta": "Geef een cadeaubon"
+      },
+      "legal": {
+        "updated": "Laatst bijgewerkt op {date}",
+        "version": "Versie {n}"
+      },
+      "map": {
+        "open": "Openen in kaarten"
+      },
+      "posts": {
+        "empty": "Nog geen artikels.",
+        "newer": "Nieuwere artikels",
+        "older": "Oudere artikels",
+        "readMore": "Lees meer"
+      },
+      "pricing": {
+        "buy": "Kopen",
+        "from": "Vanaf {amount}",
+        "members": "Leden: {amount}",
+        "sessions": "{count, plural, one {# sessie} other {# sessies}}",
+        "validity": "{days, plural, one {# dag geldig} other {# dagen geldig}}",
+        "vatIncluded": "Btw inbegrepen"
+      },
+      "video": {
+        "consentNote": "De video wordt van YouTube geladen wanneer je op afspelen drukt.",
+        "openOnYoutube": "Bekijk op YouTube",
+        "play": "Video afspelen: {title}"
+      }
+    },
+    "cookies": {
+      "banner": {
+        "acceptAll": "Alles aanvaarden",
+        "body": "We gebruiken noodzakelijke cookies om deze site te laten werken. Met je toestemming gebruiken we ook analytische cookies om ze te verbeteren.",
+        "choose": "Zelf kiezen",
+        "rejectAll": "Alles weigeren",
+        "title": "Cookies op deze website"
+      },
+      "dialog": {
+        "analytics": {
+          "body": "Anonieme statistieken (Vercel Analytics, Google Analytics) die ons helpen de site te verbeteren.",
+          "title": "Analytisch"
+        },
+        "close": "Sluiten",
+        "marketing": {
+          "body": "Meten wat onze advertenties opleveren en een doorverwijscode onthouden.",
+          "title": "Marketing"
+        },
+        "necessary": {
+          "body": "Nodig om de site te laten werken: je taal, je cookiekeuze en aanmelden. Altijd aan.",
+          "title": "Noodzakelijk"
+        },
+        "noticeLink": "Lees de cookieverklaring",
+        "save": "Mijn keuze bewaren",
+        "title": "Cookie-instellingen"
+      }
+    },
     "permissions": {
       "site_edit": "Websitepagina's bewerken",
       "site_publish": "Websitepagina's publiceren"
+    },
+    "portal": {
+      "chrome": {
+        "cookieSettings": "Cookie-instellingen"
+      },
+      "home": {
+        "balance": "Je saldo",
+        "bookFirst": "Boek je eerste sessie",
+        "buyPackage": "Koop een pakket",
+        "claim": "Mijn plaats bevestigen",
+        "expires": "Vervalt op {date}",
+        "greeting": "Hallo {firstName}",
+        "guest": "Gast",
+        "membership": "Je lidmaatschap",
+        "membershipActive": "Actief tot {date}",
+        "membershipPastDue": "Je verlengingsbetaling is achterstallig",
+        "noBookings": "Geen komende boekingen.",
+        "noPackage": "Geen actief pakket.",
+        "offerExpires": "Bevestig voor {time}",
+        "offers": "Er is een plaats vrij voor jou",
+        "quick": {
+          "bookDay": "Boek een dagsessie",
+          "bookNight": "Boek een nacht",
+          "buyPackage": "Koop een pakket",
+          "inviteGuest": "Nodig een gast uit",
+          "invoices": "Facturen bekijken",
+          "preferences": "Communicatievoorkeuren",
+          "profile": "Mijn gegevens"
+        },
+        "quickTitle": "Snel naar",
+        "remaining": "{kind, select, day {{count, plural, one {Nog # dagsessie} other {Nog # dagsessies}}} night {{count, plural, one {Nog # nacht} other {Nog # nachten}}} other {Nog {amount} tegoed}}",
+        "renew": "Verlengen",
+        "unavailableCard": "Tijdelijk niet beschikbaar",
+        "upcoming": "Je volgende bezoeken"
+      },
+      "install": {
+        "body": "Open je boekingen en saldo rechtstreeks vanaf je startscherm.",
+        "button": "Installeren",
+        "dismiss": "Niet nu",
+        "ios": "Tik op Deel en daarna op Zet op beginscherm.",
+        "title": "Installeer de BEAM-app"
+      },
+      "nav": {
+        "home": "Home"
+      },
+      "terms": {
+        "accept": "Aanvaarden",
+        "banner": "We hebben onze algemene voorwaarden bijgewerkt.",
+        "newer": "Er zijn nieuwere voorwaarden gepubliceerd. Laad de pagina opnieuw.",
+        "read": "Lees de nieuwe voorwaarden"
+      }
+    },
+    "public": {
+      "breadcrumb": {
+        "home": "Home"
+      },
+      "footer": {
+        "cookieSettings": "Cookie-instellingen",
+        "enterpriseNumber": "Ondernemingsnummer {number}",
+        "legal": "Juridisch",
+        "newsletterHeading": "Blijf op de hoogte",
+        "social": "Volg ons",
+        "vat": "Btw {number}"
+      },
+      "gone": {
+        "body": "De pagina die je zoekt, werd verwijderd.",
+        "title": "Deze pagina is niet meer beschikbaar"
+      },
+      "languages": {
+        "en": "Engels",
+        "fr-BE": "Frans",
+        "nl-BE": "Nederlands"
+      },
+      "localeSwitch": {
+        "label": "Taal"
+      },
+      "menu": {
+        "close": "Menu sluiten",
+        "open": "Menu openen"
+      },
+      "notFound": {
+        "body": "Deze pagina bestaat niet of is verplaatst.",
+        "home": "Terug naar de startpagina",
+        "title": "Pagina niet gevonden"
+      },
+      "offline": {
+        "body": "Controleer je verbinding en probeer opnieuw.",
+        "title": "Je bent offline"
+      },
+      "preview": {
+        "ribbon": "Voorbeeld, niet gepubliceerd"
+      },
+      "skipLink": "Naar de inhoud",
+      "unavailable": {
+        "body": "Je kunt ze lezen in:",
+        "title": "Deze pagina is niet beschikbaar in het {language}"
+      }
     }
   }
 }

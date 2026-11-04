@@ -1,8 +1,648 @@
 {
   "site": {
+    "admin": {
+      "block": {
+        "availability_preview": {
+          "days": "Jours à venir",
+          "kind": "Type de séance",
+          "name": "Disponibilités"
+        },
+        "booking_cta": {
+          "label": "Texte du bouton",
+          "name": "Bouton de réservation",
+          "target": "Mène vers"
+        },
+        "card_grid": {
+          "cards": "Cartes",
+          "heading": "Titre",
+          "name": "Cartes"
+        },
+        "contact_details": {
+          "name": "Coordonnées",
+          "showAddress": "Afficher l'adresse",
+          "showEmail": "Afficher l'e-mail",
+          "showOpeningHours": "Afficher les heures d'ouverture",
+          "showPhone": "Afficher le téléphone"
+        },
+        "cta": {
+          "button": "Bouton",
+          "heading": "Titre",
+          "name": "Appel à l'action",
+          "text": "Texte"
+        },
+        "events_list": {
+          "heading": "Titre",
+          "limit": "Nombre affiché",
+          "name": "Liste des événements",
+          "showFull": "Afficher les événements complets"
+        },
+        "faq": {
+          "heading": "Titre",
+          "items": "Questions",
+          "name": "Questions et réponses"
+        },
+        "form_embed": {
+          "formSlug": "Formulaire",
+          "name": "Formulaire"
+        },
+        "hero": {
+          "cta": "Bouton",
+          "heading": "Titre",
+          "mediaId": "Image",
+          "name": "Bannière",
+          "subheading": "Sous-titre"
+        },
+        "image": {
+          "caption": "Légende",
+          "mediaId": "Image",
+          "name": "Image"
+        },
+        "image_text": {
+          "doc": "Texte",
+          "imageSide": "Côté de l'image",
+          "mediaId": "Image",
+          "name": "Image et texte"
+        },
+        "legal_meta": {
+          "name": "Version et date"
+        },
+        "link": {
+          "page": "Page",
+          "portal": "Portail client",
+          "url": "Adresse web"
+        },
+        "map": {
+          "linkUrl": "Lien vers la carte",
+          "mediaId": "Image",
+          "name": "Carte"
+        },
+        "posts_list": {
+          "heading": "Titre",
+          "limit": "Nombre affiché",
+          "name": "Articles de blog",
+          "paginate": "Afficher la pagination"
+        },
+        "pricing_table": {
+          "heading": "Titre",
+          "name": "Tableau des prix",
+          "productIds": "Produits",
+          "showMemberPrice": "Afficher le prix membre"
+        },
+        "rich_text": {
+          "doc": "Texte",
+          "name": "Texte"
+        },
+        "side": {
+          "left": "Gauche",
+          "right": "Droite"
+        },
+        "target": {
+          "book_day": "Réserver une séance de jour",
+          "book_night": "Réserver une nuit",
+          "buy_product": "Acheter un produit",
+          "gift": "Bon cadeau",
+          "session": "Un événement"
+        },
+        "testimonial": {
+          "authorDetail": "Détail (p. ex. ville)",
+          "authorName": "Nom",
+          "consentConfirmed": "Cette personne a accepté d'être citée",
+          "name": "Témoignage",
+          "quote": "Citation"
+        },
+        "video": {
+          "name": "Vidéo",
+          "posterMediaId": "Image d'aperçu",
+          "title": "Titre",
+          "youtubeId": "Identifiant de la vidéo YouTube"
+        },
+        "webinar_signup": {
+          "name": "Inscription au webinaire",
+          "webinarId": "Webinaire"
+        }
+      },
+      "claude": {
+        "ask": "Demander à Claude",
+        "busy": "Une demande est déjà en cours pour cette page.",
+        "cancel": "Annuler la demande",
+        "error": {
+          "ai_unavailable": "Claude n'est pas disponible, modifiez manuellement.",
+          "budget_exceeded": "Budget IA atteint pour ce mois, modifiez manuellement.",
+          "invalid_output": "Claude a renvoyé une page non valide, essayez une instruction plus précise.",
+          "page_archived": "La page a été archivée avant que Claude ne commence."
+        },
+        "instruction": "Que faut-il changer ?",
+        "kindEdit": "Modifier cette page",
+        "kindNewPage": "Rédiger une nouvelle page",
+        "locales": "Langues",
+        "ready": "Proposition prête : consulter",
+        "running": "Claude rédige une proposition…",
+        "timeout": "Cela prend plus de temps que prévu. Revenez plus tard.",
+        "title": "Demander à Claude"
+      },
+      "common": {
+        "cancel": "Annuler",
+        "confirm": "Confirmer",
+        "edit": "Modifier",
+        "loading": "Chargement…",
+        "requestId": "Identifiant de la demande {id}",
+        "retry": "Réessayer"
+      },
+      "diff": {
+        "addedLocale": "Nouvelle langue : {language}",
+        "base": "Comparée à la version {n}",
+        "changed": "Modifié",
+        "deleted": "Supprimé",
+        "draftChanged": "Le brouillon a changé après cette proposition.",
+        "editAsDraft": "Modifier comme brouillon",
+        "identical": "Cette version est identique à la version en ligne.",
+        "inserted": "Ajouté",
+        "instruction": "Instruction",
+        "moved": "Déplacé",
+        "publish": "Publier",
+        "reject": "Refuser",
+        "rejectReason": "Motif",
+        "removedLocale": "Langue supprimée : {language}",
+        "renderedToggle": "Afficher les pages rendues",
+        "requestedBy": "Demandée par {name}",
+        "title": "Relire la version {n}",
+        "unchanged": "Inchangé",
+        "warnings": "À vérifier avant publication"
+      },
+      "editor": {
+        "addBlock": "Ajouter un bloc",
+        "archive": "Archiver",
+        "cancelSchedule": "Annuler la planification",
+        "changeSummary": "Ce qui a changé",
+        "conflict": "Quelqu'un d'autre a enregistré cette page ; rechargez.",
+        "copyFromNl": "Copier les blocs depuis nl-BE",
+        "counter": "{count} sur {max} caractères",
+        "cover": "Image de couverture",
+        "delete": "Supprimer",
+        "discardDraft": "Supprimer le brouillon",
+        "duplicate": "Dupliquer",
+        "excerpt": "Extrait",
+        "history": {
+          "empty": "Aucune version pour l'instant",
+          "version": "Version {n}"
+        },
+        "issues": "Avant de pouvoir publier",
+        "keepDraft": "Garder le brouillon",
+        "materialChange": "Modification substantielle (les clients doivent accepter à nouveau)",
+        "moveDown": "Descendre",
+        "moveUp": "Monter",
+        "noCustomerData": "Ne collez pas de données clients.",
+        "noIssues": "Prêt à publier",
+        "noRedirect": "Pas de redirection",
+        "noindex": "Masquer aux moteurs de recherche",
+        "ogImage": "Image de partage social",
+        "outOfDate": "Une version plus récente a été publiée après le début de ce brouillon.",
+        "path": "Adresse",
+        "pathHelp": "Jusqu'à 3 parties de mots en minuscules reliés par des traits d'union.",
+        "preview": "Aperçu",
+        "publishNow": "Publier maintenant",
+        "redirectTo": "Rediriger les anciennes adresses vers",
+        "reload": "Recharger",
+        "restoreArchived": "Restaurer la page",
+        "restoreVersion": "Restaurer cette version",
+        "save": "Enregistrer le brouillon",
+        "saved": "Brouillon enregistré",
+        "schedule": "Planifier",
+        "scheduleAt": "Publier le",
+        "scheduleFailed": "Échec de la publication planifiée",
+        "seoDescription": "Description SEO",
+        "seoTitle": "Titre SEO",
+        "tabContent": "Contenu",
+        "tabHistory": "Historique",
+        "tabSeo": "SEO",
+        "tabSettings": "Paramètres de la page",
+        "unpublish": "Dépublier",
+        "unsavedCopy": "Votre texte non enregistré"
+      },
+      "import": {
+        "apply": "Lancer l'import",
+        "col": {
+          "decision": "Décision",
+          "message": "Message",
+          "oldPath": "Ancienne adresse",
+          "translationGroup": "Groupe de traduction",
+          "type": "Type",
+          "wpStatus": "Statut WordPress"
+        },
+        "coverage": "Anciennes adresses sans page ni redirection",
+        "decision": {
+          "import": "Importer",
+          "redirect_only": "Rediriger uniquement",
+          "skip": "Ignorer"
+        },
+        "defaultLocale": "Langue par défaut",
+        "empty": "Aucun import",
+        "itemStatus": {
+          "error": "Erreur",
+          "imported": "Importé",
+          "pending": "En attente",
+          "skipped": "Ignoré"
+        },
+        "parseError": "Le fichier n'a pas pu être lu (ligne {line}).",
+        "publishAll": "Publier les pages importées complètes",
+        "report": "Shortcodes supprimés et balisage non pris en charge",
+        "retry": "Réessayer les éléments en échec",
+        "siteOrigin": "Adresse de l'ancien site",
+        "status": {
+          "applying": "Import en cours",
+          "done": "Terminé",
+          "failed": "Échoué",
+          "parsed": "Prêt à associer",
+          "parsing": "Lecture du fichier",
+          "uploaded": "Téléversé"
+        },
+        "title": "Import WordPress",
+        "tooLarge": "Le fichier dépasse 10 Mo ; exportez pages, articles et médias séparément.",
+        "upload": "Téléverser l'export WXR"
+      },
+      "issue": {
+        "alt_missing": "Une image n'a pas de texte alternatif dans cette langue.",
+        "block_invalid": "Un bloc est incomplet ou non valide.",
+        "blocks_empty": "Ajoutez au moins un bloc.",
+        "blocks_too_many": "Une page compte au maximum 60 blocs.",
+        "company_identification_missing": "Les données de la société pour le pied de page sont incomplètes.",
+        "event_past": "L'événement a eu lieu.",
+        "event_session_missing": "La page d'événement n'est liée à aucune séance d'événement.",
+        "excerpt_missing": "L'extrait manque.",
+        "form_locale_missing": "Le formulaire n'est pas disponible dans cette langue.",
+        "form_unavailable": "Le formulaire n'est pas publié.",
+        "goLive": "Contrôles de mise en ligne",
+        "legal_meta_not_legal": "Le bloc de version est réservé aux pages juridiques.",
+        "legal_name_missing": "La déclaration de confidentialité doit mentionner la dénomination légale de la société.",
+        "legal_page_missing": "Une page juridique obligatoire manque.",
+        "link_target_unavailable": "Une page liée n'est pas publiée.",
+        "locales_empty": "Choisissez au moins une langue.",
+        "media_missing": "Une image n'existe plus.",
+        "nav_target_hidden": "Un élément de menu pointe vers une page non visible.",
+        "none": "Aucun problème de contenu",
+        "opening_hours_missing": "Les heures d'ouverture ne sont pas définies.",
+        "path_home_only": "Seule la page d'accueil utilise l'adresse vide.",
+        "path_invalid": "L'adresse n'est pas valide.",
+        "path_missing": "L'adresse manque.",
+        "path_reserved": "Cette adresse est réservée.",
+        "path_taken": "Une autre page utilise déjà cette adresse.",
+        "product_inactive": "Un produit n'est plus actif.",
+        "product_missing": "Un produit n'existe pas.",
+        "schedule_failed": "La publication planifiée a échoué.",
+        "seo_description_length": "La description SEO doit compter de 50 à 170 caractères.",
+        "seo_title_length": "Le titre SEO doit compter de 1 à 70 caractères.",
+        "session_missing": "La séance de l'événement n'existe pas.",
+        "title": "Problèmes de contenu",
+        "title_missing": "Le titre manque.",
+        "title_too_long": "Le titre dépasse 120 caractères.",
+        "webinar_unavailable": "Le webinaire n'est pas publié."
+      },
+      "kind": {
+        "blog_index": "Aperçu du blog",
+        "contact": "Contact",
+        "event": "Événement",
+        "events_index": "Aperçu des événements",
+        "home": "Accueil",
+        "landing": "Page d'atterrissage",
+        "legal": "Page juridique",
+        "offer": "Offre",
+        "post": "Article de blog",
+        "pricing": "Tarifs",
+        "standard": "Page standard"
+      },
+      "legalKey": {
+        "accessibility_statement": "Déclaration d'accessibilité",
+        "cookie_notice": "Politique en matière de cookies",
+        "guardian_consent": "Consentement du tuteur",
+        "privacy_notice": "Déclaration de confidentialité",
+        "terms": "Conditions générales"
+      },
+      "media": {
+        "allowed": "JPEG, PNG, WebP ou GIF, 10 Mo maximum.",
+        "alt": "Texte alternatif",
+        "altComplete": "Texte alternatif complet",
+        "altIncomplete": "Texte alternatif manquant",
+        "caption": "Légende",
+        "credit": "Crédit",
+        "decorative": "Image décorative (pas de texte alternatif)",
+        "drop": "Déposez des images ici ou choisissez des fichiers",
+        "empty": "Aucune image pour l'instant.",
+        "inUse": "Cette image est utilisée par une page et ne peut pas être supprimée.",
+        "notAnImage": "Ce fichier n'est pas une image JPEG, PNG, WebP ou GIF.",
+        "size": "{width} × {height} px",
+        "title": "Médiathèque",
+        "upload": "Téléverser des images",
+        "usage": "{count, plural, =0 {Non utilisée} one {Utilisée sur # page} other {Utilisée sur # pages}}"
+      },
+      "nav": {
+        "imports": "Import WordPress",
+        "media": "Médias",
+        "navigation": "Navigation",
+        "pages": "Pages",
+        "redirects": "Redirections",
+        "settings": "Paramètres",
+        "website": "Site web"
+      },
+      "navigation": {
+        "add": "Ajouter un élément",
+        "addChild": "Ajouter un sous-élément",
+        "conflict": "Quelqu'un d'autre a enregistré ce menu ; rechargez.",
+        "empty": "Aucun élément : l'en-tête n'affiche que le logo.",
+        "label": "Libellé",
+        "limits": "Au maximum 8 éléments, chacun avec au maximum 12 sous-éléments.",
+        "menu": {
+          "footer": "Pied de page",
+          "header": "En-tête",
+          "legal": "Liens juridiques"
+        },
+        "save": "Enregistrer le menu",
+        "target": "Mène vers",
+        "title": "Navigation"
+      },
+      "newPage": {
+        "create": "Créer la page",
+        "kind": "Type",
+        "legalKey": "Document juridique",
+        "locales": "Langues",
+        "session": "Séance de l'événement",
+        "slug": "Clé interne (slug)",
+        "slugHelp": "Lettres minuscules, chiffres et traits d'union. Invisible pour les visiteurs.",
+        "slugTaken": "Ce slug est déjà utilisé par une autre page.",
+        "title": "Nouvelle page",
+        "titlePerLocale": "Titre par langue"
+      },
+      "pages": {
+        "all": "Toutes",
+        "col": {
+          "kind": "Type",
+          "lastPublished": "Dernière publication",
+          "live": "Version en ligne",
+          "status": "Statut",
+          "title": "Titre"
+        },
+        "empty": "Aucune page pour l'instant : créez la page d'accueil ou importez depuis WordPress.",
+        "filterKind": "Type",
+        "filterStatus": "Statut",
+        "new": "Nouvelle page",
+        "openRequests": "Demandes Claude en cours",
+        "search": "Rechercher des pages",
+        "title": "Pages du site"
+      },
+      "redirects": {
+        "add": "Ajouter une redirection",
+        "empty": "Aucune redirection",
+        "exportCsv": "Exporter en CSV",
+        "from": "De",
+        "lastSeen": "Vue pour la dernière fois",
+        "livePath": "Une page en ligne utilise ce chemin.",
+        "permanent": "Permanente",
+        "seen": "Vue au moins {count} fois",
+        "source": "Source",
+        "sourceKind": {
+          "archive": "Page archivée",
+          "manual": "Manuelle",
+          "rename": "Changement d'adresse",
+          "wordpress": "WordPress"
+        },
+        "title": "Redirections",
+        "to": "Vers"
+      },
+      "settings": {
+        "adsId": "Identifiant de conversion Google Ads",
+        "analytics": "Statistiques",
+        "analyticsOff": "Désactivées",
+        "analyticsOn": "Activées",
+        "brandVoice": "Ton de la marque pour Claude",
+        "canonicalOrigin": "Adresse du site",
+        "company": "Données de la société dans le pied de page",
+        "editSite": "Modifier dans les paramètres",
+        "gaId": "Identifiant de mesure Google Analytics",
+        "notSet": "Non défini",
+        "ogImage": "Image de partage par défaut",
+        "pixelId": "Identifiant Meta Pixel",
+        "socialLinks": "Liens sociaux",
+        "title": "Paramètres du site"
+      },
+      "state": {
+        "createdByClaude": "Claude pour {name}",
+        "draft": "Brouillon",
+        "hasDraft": "Brouillon",
+        "liveVersion": "En ligne : version {n}",
+        "openProposals": "{count, plural, one {# proposition} other {# propositions}}",
+        "proposed": "Proposition",
+        "published": "Publiée",
+        "rejected": "Refusée",
+        "scheduled": "Planifiée le {date}",
+        "superseded": "Copiée en brouillon"
+      },
+      "status": {
+        "archived": "Archivée",
+        "draft": "Brouillon",
+        "published": "Publiée"
+      },
+      "warning": {
+        "blocks_removed": "Des blocs sont supprimés.",
+        "currency_in_text": "Le texte mentionne un prix ; les prix viennent du catalogue.",
+        "legal_page_changed": "Ceci modifie une page juridique.",
+        "path_changed": "L'adresse change ; une redirection est créée à la publication.",
+        "text_too_long": "Un texte est plus long que recommandé."
+      }
+    },
+    "blocks": {
+      "availability": {
+        "book": "Réserver",
+        "none": "Aucune séance prévue sur cette période.",
+        "title": "Disponibilités des prochains jours"
+      },
+      "contact": {
+        "address": "Adresse",
+        "closed": "Fermé",
+        "closedOn": "Fermé : {name}",
+        "closures": "Changements à venir",
+        "email": "E-mail",
+        "openingHours": "Heures d'ouverture",
+        "phone": "Téléphone",
+        "specialHours": "{name} : {opens}-{closes}",
+        "weekday": {
+          "1": "Lundi",
+          "2": "Mardi",
+          "3": "Mercredi",
+          "4": "Jeudi",
+          "5": "Vendredi",
+          "6": "Samedi",
+          "7": "Dimanche"
+        }
+      },
+      "events": {
+        "available": "Disponible",
+        "cancelled": "Cet événement a été annulé",
+        "checkAccess": "Vérifier votre accès",
+        "empty": "Aucun événement à venir pour le moment.",
+        "fewLeft": "Plus que quelques places",
+        "full": "Complet",
+        "getTickets": "Réserver",
+        "joinWaitlist": "Rejoindre la liste d'attente",
+        "membersOnly": "Réservé aux membres",
+        "more": "Tous les événements",
+        "past": "Cet événement a eu lieu"
+      },
+      "gift": {
+        "cta": "Offrir un bon cadeau"
+      },
+      "legal": {
+        "updated": "Dernière mise à jour le {date}",
+        "version": "Version {n}"
+      },
+      "map": {
+        "open": "Ouvrir dans les cartes"
+      },
+      "posts": {
+        "empty": "Pas encore d'articles.",
+        "newer": "Articles plus récents",
+        "older": "Articles plus anciens",
+        "readMore": "Lire la suite"
+      },
+      "pricing": {
+        "buy": "Acheter",
+        "from": "À partir de {amount}",
+        "members": "Membres : {amount}",
+        "sessions": "{count, plural, one {# séance} other {# séances}}",
+        "validity": "{days, plural, one {Valable # jour} other {Valable # jours}}",
+        "vatIncluded": "TVA comprise"
+      },
+      "video": {
+        "consentNote": "La vidéo se charge depuis YouTube lorsque vous appuyez sur lecture.",
+        "openOnYoutube": "Regarder sur YouTube",
+        "play": "Lire la vidéo : {title}"
+      }
+    },
+    "cookies": {
+      "banner": {
+        "acceptAll": "Tout accepter",
+        "body": "Nous utilisons des cookies nécessaires au fonctionnement du site. Avec votre accord, nous utilisons aussi des cookies analytiques pour l'améliorer.",
+        "choose": "Choisir",
+        "rejectAll": "Tout refuser",
+        "title": "Cookies sur ce site"
+      },
+      "dialog": {
+        "analytics": {
+          "body": "Statistiques anonymes (Vercel Analytics, Google Analytics) qui nous aident à améliorer le site.",
+          "title": "Analytiques"
+        },
+        "close": "Fermer",
+        "marketing": {
+          "body": "Mesurer les résultats de nos annonces et mémoriser un code de parrainage.",
+          "title": "Marketing"
+        },
+        "necessary": {
+          "body": "Indispensables au fonctionnement du site : votre langue, votre choix de cookies et la connexion. Toujours actifs.",
+          "title": "Nécessaires"
+        },
+        "noticeLink": "Lire la politique en matière de cookies",
+        "save": "Enregistrer mon choix",
+        "title": "Paramètres des cookies"
+      }
+    },
     "permissions": {
       "site_edit": "Modifier les pages du site",
       "site_publish": "Publier les pages du site"
+    },
+    "portal": {
+      "chrome": {
+        "cookieSettings": "Paramètres des cookies"
+      },
+      "home": {
+        "balance": "Votre solde",
+        "bookFirst": "Réservez votre première séance",
+        "buyPackage": "Acheter un forfait",
+        "claim": "Confirmer ma place",
+        "expires": "Expire le {date}",
+        "greeting": "Bonjour {firstName}",
+        "guest": "Invité",
+        "membership": "Votre abonnement",
+        "membershipActive": "Actif jusqu'au {date}",
+        "membershipPastDue": "Le paiement de votre renouvellement est en retard",
+        "noBookings": "Aucune réservation à venir.",
+        "noPackage": "Aucun forfait actif.",
+        "offerExpires": "À confirmer avant {time}",
+        "offers": "Une place s'est libérée pour vous",
+        "quick": {
+          "bookDay": "Réserver une séance de jour",
+          "bookNight": "Réserver une nuit",
+          "buyPackage": "Acheter un forfait",
+          "inviteGuest": "Inviter un invité",
+          "invoices": "Voir les factures",
+          "preferences": "Préférences de communication",
+          "profile": "Mes données"
+        },
+        "quickTitle": "Accès rapide",
+        "remaining": "{kind, select, day {{count, plural, one {Encore # séance de jour} other {Encore # séances de jour}}} night {{count, plural, one {Encore # nuit} other {Encore # nuits}}} other {Encore {amount} de crédit}}",
+        "renew": "Renouveler",
+        "unavailableCard": "Temporairement indisponible",
+        "upcoming": "Vos prochaines visites"
+      },
+      "install": {
+        "body": "Accédez à vos réservations et à votre solde depuis votre écran d'accueil.",
+        "button": "Installer",
+        "dismiss": "Pas maintenant",
+        "ios": "Touchez Partager, puis Sur l'écran d'accueil.",
+        "title": "Installez l'application BEAM"
+      },
+      "nav": {
+        "home": "Accueil"
+      },
+      "terms": {
+        "accept": "Accepter",
+        "banner": "Nous avons mis à jour nos conditions générales.",
+        "newer": "De nouvelles conditions ont été publiées. Rechargez la page.",
+        "read": "Lire les nouvelles conditions"
+      }
+    },
+    "public": {
+      "breadcrumb": {
+        "home": "Accueil"
+      },
+      "footer": {
+        "cookieSettings": "Paramètres des cookies",
+        "enterpriseNumber": "Numéro d'entreprise {number}",
+        "legal": "Mentions légales",
+        "newsletterHeading": "Restez informé",
+        "social": "Suivez-nous",
+        "vat": "TVA {number}"
+      },
+      "gone": {
+        "body": "La page que vous cherchez a été supprimée.",
+        "title": "Cette page n'est plus disponible"
+      },
+      "languages": {
+        "en": "anglais",
+        "fr-BE": "français",
+        "nl-BE": "néerlandais"
+      },
+      "localeSwitch": {
+        "label": "Langue"
+      },
+      "menu": {
+        "close": "Fermer le menu",
+        "open": "Ouvrir le menu"
+      },
+      "notFound": {
+        "body": "Cette page n'existe pas ou a été déplacée.",
+        "home": "Retour à l'accueil",
+        "title": "Page introuvable"
+      },
+      "offline": {
+        "body": "Vérifiez votre connexion et réessayez.",
+        "title": "Vous êtes hors ligne"
+      },
+      "preview": {
+        "ribbon": "Aperçu, non publié"
+      },
+      "skipLink": "Aller au contenu",
+      "unavailable": {
+        "body": "Vous pouvez la lire en :",
+        "title": "Cette page n'est pas disponible en {language}"
+      }
     }
   }
 }

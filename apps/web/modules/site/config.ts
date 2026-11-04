@@ -1,7 +1,8 @@
 /**
- * site settings (02-data-model 5.4 and 6.11). Facade read by `pnpm gen:indexes`. Wave 0 by
- * platform-P7; site owns it from site-P1 on. Trade name and legal identity come from platform's
- * `company`, never from `site`.
+ * site settings (site spec section 4, 02-data-model 5.4 and 6.11). Facade read by
+ * `pnpm gen:indexes`. Settings key `site` with the `SiteSettings` schema and defaults from
+ * `@beam/core/site`; edited at platform's `/admin/settings/site` (`settings.write`). Trade name and
+ * legal identity come from platform's `company`, never from `site`. Site has no feature flags in V1.
  */
 import { DEFAULT_SITE_SETTINGS, SiteSettings } from "@beam/core/site";
 import { defineSetting } from "@/lib/settings";

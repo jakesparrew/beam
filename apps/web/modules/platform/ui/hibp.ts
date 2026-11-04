@@ -30,9 +30,11 @@ export async function checkPwnedPassword(
   if (!password) return "unknown";
   const doFetch = opts.fetch ?? globalThis.fetch;
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), opts.timeoutMs ?? HIBP_TIMEOUT_MS);
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     const hash = await sha1Hex(password);
+    // The timeout covers the request only (a slow hash must not abort it before it starts).
+    timer = setTimeout(() => controller.abort(), opts.timeoutMs ?? HIBP_TIMEOUT_MS);
     const prefix = hash.slice(0, 5);
     const response = await doFetch(`${HIBP_RANGE_URL}${prefix}`, {
       headers: { "Add-Padding": "true" },
@@ -44,6 +46,6 @@ export async function checkPwnedPassword(
   } catch {
     return "unknown";
   } finally {
-    clearTimeout(timer);
+    if (timer) clearTimeout(timer);
   }
 }

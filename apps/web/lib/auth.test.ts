@@ -307,6 +307,177 @@ describe("customer magic links and sign-up (PL-11, PL-12)", () => {
     await actions.customerPasswordSignIn({ email: customer.email, password: PASSWORD, locale: "nl-BE" });
     const events = await handle.db.select().from(activityEvents).where(and(eq(activityEvents.personId, person.id), eq(activityEvents.kind, "platform.signed_in")));
     expect(events).toHaveLength(1);
+    expect(events[0]!.dedupeKey).toBe(auth.signedInKey(customer.id, new Date()));
+    expect(events[0]!.dedupeKey).toMatch(new RegExp(`^signin:${customer.id}:\\d{4}-\\d{2}-\\d{2}$`));
     expect(await actions.customerPasswordSignIn({ email: customer.email, password: "nope-nope-nope", locale: "nl-BE" })).toMatchObject({ ok: false, error: { message: "invalid_credentials" } });
+  });
+});
+
+describe("returnTo (open redirect)", () => {
+  it("refuses control characters, backslashes and anything that leaves the origin", () => {
+    for (const bad of ["/\t/evil.com", "/\n/evil.com", "/\r/evil.com", "//evil.com", "/\\evil.com", "https://evil.com", "/\u0000x", "/\u007f/evil.com"]) {
+      expect(auth.safeReturnTo(bad, "/admin")).toBe("/admin");
+    }
+    expect(auth.safeReturnTo("/admin/system/jobs?status=dead#top", "/admin")).toBe("/admin/system/jobs?status=dead#top");
+    expect(auth.safeReturnTo(undefined, "/admin")).toBe("/admin");
+  });
+
+  it("does not hand a tab-smuggled returnTo to the client after the TOTP step", async () => {
+    const { user, secret } = await staffUser();
+    await actions.staffSignIn({ email: user.email, password: PASSWORD });
+    expect(await actions.verifyTotp({ code: generateTotp(secret), returnTo: "/\t/evil.com" })).toEqual({ ok: true, data: { next: "/admin" } });
+  });
+});
+
+describe("lockout after an expired lock (PL-6)", () => {
+  it("restarts the count when a lock has expired, so one typo does not relock the account", async () => {
+    const { user } = await staffUser();
+    const wrong = async () => {
+      freshIp();
+      expect((await actions.staffSignIn({ email: user.email, password: "Wrong-Password-123!" })).ok).toBe(false);
+    };
+    for (let i = 0; i < 10; i++) await wrong();
+    expect((await rowOf(user.id)).lockedUntil).not.toBeNull();
+    await handle.db.update(users).set({ lockedUntil: new Date(Date.now() - 1000) }).where(eq(users.id, user.id));
+    await wrong();
+    const afterTypo = await rowOf(user.id);
+    expect(afterTypo.failedLogins).toBe(1);
+    expect(afterTypo.lockedUntil).toBeNull();
+    for (let i = 0; i < 8; i++) await wrong();
+    expect((await rowOf(user.id)).lockedUntil).toBeNull();
+    await wrong();
+    const relocked = await rowOf(user.id);
+    expect(relocked.failedLogins).toBe(10);
+    expect(relocked.lockedUntil!.getTime()).toBeGreaterThan(Date.now());
+  });
+});
+
+describe("MFA re-enrolment and step-up checks (PL-3, PL-5, PL-6, PL-9)", () => {
+  it("refuses MFA re-enrolment from a password-only session of an enrolled user", async () => {
+    const { user, secret } = await staffUser();
+    await actions.staffSignIn({ email: user.email, password: PASSWORD });
+    const conflict = { ok: false, error: { code: "conflict", message: "mfa_already_enrolled" } };
+    const started = await actions.startMfaEnrolment({});
+    expect(started).toMatchObject(conflict);
+    expect(JSON.stringify(started)).not.toContain(secret);
+    expect(await actions.confirmMfaEnrolment({ code: generateTotp(secret) })).toMatchObject(conflict);
+    expect((await auth.readMfaSecrets(handle.db, user.id)).totpSecret).toBe(secret);
+    const session = await auth.loadSession(handle.db, jar.get(auth.SESSION_COOKIE)!);
+    expect(session?.mfaAt).toBeNull();
+  });
+
+  it("regenerates recovery codes only with a fresh TOTP, voids the old codes and emails platform.mfa_changed", async () => {
+    const { user, secret, codes } = await staffUser();
+    await actions.staffSignIn({ email: user.email, password: PASSWORD });
+    expect((await actions.verifyTotp({ code: generateTotp(secret) })).ok).toBe(true);
+    const nextStep = generateTotp(secret, new Date(Date.now() + 30_000));
+    const wrongCode = nextStep === "000000" ? "111111" : "000000";
+    expect(await actions.regenerateRecoveryCodes({ code: wrongCode })).toMatchObject({ ok: false, error: { code: "validation" } });
+    expect(sent).toHaveLength(0);
+    // The current step was used by the login; the next step's code is fresh.
+    const next = await actions.regenerateRecoveryCodes({ code: nextStep });
+    expect(next.ok).toBe(true);
+    if (!next.ok) return;
+    expect(next.data.recoveryCodes).toHaveLength(10);
+    const audits = await handle.db.select().from(auditLog).where(and(eq(auditLog.action, "auth.recovery_codes_regenerated"), eq(auditLog.entityId, user.id)));
+    expect(audits).toHaveLength(1);
+    expect(sent).toEqual([
+      expect.objectContaining({
+        template: "platform.mfa_changed",
+        data: expect.objectContaining({ change: "recovery_codes_regenerated" }),
+        key: `security_notice:${user.id}:${audits[0]!.id}`,
+      }),
+    ]);
+    jar.clear();
+    await actions.staffSignIn({ email: user.email, password: PASSWORD });
+    expect(await actions.useRecoveryCode({ code: codes[0]! })).toMatchObject({ ok: false, error: { code: "validation" } });
+    expect((await actions.useRecoveryCode({ code: next.data.recoveryCodes[0]! })).ok).toBe(true);
+  });
+
+  it("counts wrong step-up codes and wrong current passwords toward the lockout", async () => {
+    const { user, secret } = await staffUser({ roleKey: "owner" });
+    await actions.staffSignIn({ email: user.email, password: PASSWORD });
+    expect((await actions.verifyTotp({ code: generateTotp(secret) })).ok).toBe(true);
+    const nextStep = generateTotp(secret, new Date(Date.now() + 30_000));
+    expect((await actions.regenerateRecoveryCodes({ code: nextStep === "000000" ? "111111" : "000000" })).ok).toBe(false);
+    expect((await rowOf(user.id)).failedLogins).toBe(1);
+    expect(await actions.changeMyPassword({ currentPassword: "Not-The-Password-1!", newPassword: "Copper-Meadow-Lantern-47?" })).toMatchObject({
+      ok: false,
+      error: { code: "validation", message: "wrong_password" },
+    });
+    expect((await rowOf(user.id)).failedLogins).toBe(2);
+    await handle.db.update(users).set({ lockedUntil: new Date(Date.now() + 15 * 60_000) }).where(eq(users.id, user.id));
+    expect(await actions.changeMyPassword({ currentPassword: PASSWORD, newPassword: "Copper-Meadow-Lantern-47?" })).toMatchObject({ ok: false, error: { message: "locked" } });
+    expect(await actions.regenerateRecoveryCodes({ code: nextStep })).toMatchObject({ ok: false, error: { message: "locked" } });
+  });
+
+  it("queues platform.mfa_changed with props that pass the template schema", async () => {
+    const { templates } = await import("@beam/email/templates/platform");
+    const template = templates.find((t) => t.name === "mfa_changed")!;
+    const { user } = await staffUser();
+    const { makeCtx } = await import("./testing");
+    const ctx = makeCtx(handle.db, { kind: "system", jobId: "" });
+    await ctx.audit({ action: "users.reset_mfa", entityType: "users", entityId: user.id });
+    await auth.notifySecurityChange(ctx, { userId: user.id, email: user.email, locale: "nl-BE", change: "mfa_reset", auditAction: "users.reset_mfa" });
+    expect(template.props.safeParse(sent[0]!.data).success).toBe(true);
+  });
+
+  it("encrypts MFA secrets with settings.security.current_key_version, read in the write's transaction (PL-69)", async () => {
+    const { setCurrentKeyVersion } = await import("./sensitive");
+    const { settings } = await import("@beam/db/schema");
+    process.env.SENSITIVE_DATA_KEY_V2 = randomBytes(32).toString("base64");
+    const { user } = await staffUser({ mfa: false });
+    const [before] = await handle.db.select().from(settings).where(eq(settings.key, "security"));
+    const value = { ...((before?.value as Record<string, unknown> | undefined) ?? {}), current_key_version: 2 };
+    try {
+      setCurrentKeyVersion(1); // an instance that never ran a tick
+      await handle.db.insert(settings).values({ key: "security", value }).onConflictDoUpdate({ target: settings.key, set: { value } });
+      await auth.writeMfaSecrets(handle.db, user.id, { totpSecret: generateTotpSecret(), codes: [] });
+      expect((await rowOf(user.id)).secretKeyVersion).toBe(2);
+    } finally {
+      if (before) await handle.db.update(settings).set({ value: before.value }).where(eq(settings.key, "security"));
+      else await handle.db.delete(settings).where(eq(settings.key, "security"));
+      setCurrentKeyVersion(1);
+      delete process.env.SENSITIVE_DATA_KEY_V2;
+    }
+  });
+});
+
+describe("magic-link sessions and the Auth.js callbacks (PL-11, PL-12, PL-14, spec 4.7)", () => {
+  it("records platform.signed_in (magic_link) once per Brussels day", async () => {
+    const person = await makePerson(handle.db);
+    const customer = await makeUser(handle.db, { audience: "customer", personId: person.id, email: person.email! });
+    // 23:30 UTC on 3 November is already 4 November in Brussels.
+    await auth.insertCustomerSession(handle.db, { sessionToken: `t-${randomUuid()}`, userId: customer.id, now: new Date("2026-11-03T23:30:00Z") });
+    await auth.insertCustomerSession(handle.db, { sessionToken: `t-${randomUuid()}`, userId: customer.id, now: new Date("2026-11-04T08:00:00Z") });
+    const events = await handle.db.select().from(activityEvents).where(and(eq(activityEvents.personId, person.id), eq(activityEvents.kind, "platform.signed_in")));
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ data: { method: "magic_link" }, dedupeKey: `signin:${customer.id}:2026-11-04` });
+    expect(auth.signedInKey(customer.id, new Date("2026-11-03T22:59:00Z"))).toBe(`signin:${customer.id}:2026-11-03`);
+  });
+
+  it("records platform.account_created with the account: dedupe key", async () => {
+    const created = await auth.createCustomerAccount(handle.db, { email: `key-${randomUuid()}@example.com`, locale: "en", cookies: { get: () => undefined } });
+    const [event] = await handle.db.select().from(activityEvents).where(and(eq(activityEvents.personId, created.personId), eq(activityEvents.kind, "platform.account_created")));
+    expect(event!.dedupeKey).toBe(`account:${created.userId}`);
+  });
+
+  it("consumes a magic-link token once and refuses staff and disabled users at the callback", async () => {
+    const { buildAuthConfig } = await import("./auth-config");
+    const cfg = await buildAuthConfig(new Request("http://localhost/api/auth/callback/email?callbackUrl=/fr/account"));
+    const email = `link-${randomUuid()}@example.com`;
+    const created = new Date();
+    const { hashed } = await auth.createVerificationToken(handle.db, email, 15 * 60_000, created);
+    const first = await cfg.adapter!.useVerificationToken!({ identifier: email, token: hashed });
+    expect(first?.expires.getTime()).toBe(created.getTime() + 15 * 60_000);
+    expect(await cfg.adapter!.useVerificationToken!({ identifier: email, token: hashed })).toBeNull();
+
+    const signIn = cfg.callbacks!.signIn! as unknown as (p: { user: unknown }) => unknown;
+    const staff = (await staffUser()).user;
+    const disabled = await makeUser(handle.db, { audience: "customer", status: "disabled" });
+    const active = await makeUser(handle.db, { audience: "customer" });
+    expect(await signIn({ user: await rowOf(staff.id) })).toBe("/fr/account/login/error?error=StaffEmail");
+    expect(await signIn({ user: await rowOf(disabled.id) })).toBe("/fr/account/login/error?error=AccessDenied");
+    expect(await signIn({ user: await rowOf(active.id) })).toBe(true);
   });
 });

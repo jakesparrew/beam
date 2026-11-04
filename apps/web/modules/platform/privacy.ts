@@ -101,7 +101,10 @@ const sweepDelete = (q: (cutoff: string) => ReturnType<typeof sql>) => async (tx
 
 export const retention: readonly RetentionPolicySeed[] = [
   { key: "platform.audit_log", tableName: "audit_log", days: 1826, action: "delete", description: "Audit log rows after 5 years" },
-  { key: "platform.ai_requests", tableName: "ai_requests", days: 30, action: "delete", description: "AI request log after 30 days" },
+  // The prompt, output and person link go at 30 days; the cost rows stay until the previous
+  // month's report (1st, 07:10) and the monthly budget have read them, then go at 62 days.
+  { key: "platform.ai_requests", tableName: "ai_requests", days: 30, action: "anonymise", description: "AI prompts, outputs and person links removed after 30 days" },
+  { key: "platform.ai_requests_rows", tableName: "ai_requests", days: 62, action: "delete", description: "AI request cost rows after 62 days" },
   { key: "platform.webhook_events", tableName: "webhook_events", days: 90, action: "delete", description: "Webhook inbox after 90 days" },
   { key: "platform.integration_calls", tableName: "integration_calls", days: 90, action: "delete", description: "Integration call log after 90 days" },
   { key: "platform.files_export", tableName: "files", days: 7, action: "delete", description: "Export files after 7 days" },
@@ -116,7 +119,11 @@ export const privacy: PrivacyRegistration<Tx> = {
   erase: erasePerson,
   sweep: {
     "platform.audit_log": sweepDelete((c) => sql`delete from audit_log where created_at < ${c}::timestamptz returning id`),
-    "platform.ai_requests": sweepDelete((c) => sql`delete from ai_requests where created_at < ${c}::timestamptz returning id`),
+    "platform.ai_requests": sweepDelete(
+      (c) => sql`update ai_requests set prompt = '', output = null, person_id = null, fields_sent = '{}'
+        where created_at < ${c}::timestamptz and (prompt <> '' or output is not null or person_id is not null) returning id`,
+    ),
+    "platform.ai_requests_rows": sweepDelete((c) => sql`delete from ai_requests where created_at < ${c}::timestamptz returning id`),
     "platform.webhook_events": sweepDelete((c) => sql`delete from webhook_events where received_at < ${c}::timestamptz returning id`),
     "platform.integration_calls": sweepDelete((c) => sql`delete from integration_calls where created_at < ${c}::timestamptz returning id`),
     "platform.files_export": sweepDelete((c) => sql`delete from files where kind = 'export' and created_at < ${c}::timestamptz returning id`),

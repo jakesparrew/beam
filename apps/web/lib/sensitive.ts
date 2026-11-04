@@ -30,14 +30,20 @@ export function setCurrentKeyVersion(version: number): void {
   currentVersion = version;
 }
 
-/** Reads `settings.security.current_key_version` and makes it the version for new writes. */
+/**
+ * Reads `settings.security.current_key_version` in `tx` and returns it (PL-69). It also becomes
+ * this instance's default for `encryptSensitive`/`encryptNote`: `action()` and the job runner
+ * call it at the start of every transaction, so a request-serving instance never keeps writing
+ * an old version. Writers that know their transaction pass the returned version explicitly.
+ */
 export async function loadCurrentKeyVersion(tx: DbOrTx): Promise<number> {
   const rows = rowsOf<{ v: number | string | null }>(
     await tx.execute(sql`select (value->>'current_key_version')::int as v from settings where key = 'security'`),
   );
   const v = Number(rows[0]?.v ?? 1);
-  if (Number.isInteger(v) && v >= 1) currentVersion = v;
-  return currentVersion;
+  if (!Number.isInteger(v) || v < 1) return currentVersion;
+  currentVersion = v;
+  return v;
 }
 
 /** The 32-byte key of a version, or `null` when its env var is missing or malformed. */
@@ -97,8 +103,8 @@ export const sensitiveAad = {
 } as const;
 
 /** The `data` of a sensitive `activity_events` row: `{ body_enc: base64, key_version }`. */
-export function encryptNote(personId: string, body: string): { body_enc: string; key_version: number } {
-  const { valueEnc, keyVersion } = encryptSensitive(body, sensitiveAad.note(personId));
+export function encryptNote(personId: string, body: string, version: number = currentVersion): { body_enc: string; key_version: number } {
+  const { valueEnc, keyVersion } = encryptSensitive(body, sensitiveAad.note(personId), version);
   return { body_enc: Buffer.from(valueEnc).toString("base64"), key_version: keyVersion };
 }
 
@@ -161,6 +167,8 @@ async function checkPurpose(ctx: Ctx, personId: string, purpose: SensitivePurpos
   if (purpose === "subject_result") {
     if (ctx.actor.kind !== "system") throw new ForbiddenError("forbidden: subject_result needs the system actor");
     if (!scope?.submissionIds?.length) throw new ForbiddenError("forbidden: subject_result needs submissionIds");
+    // PL-22: subject_result returns only the form answers of those submissions.
+    if (scope.keys?.length || scope.eventIds?.length) throw new ForbiddenError("forbidden: subject_result reads only formAnswers");
     await assertOwnSubmissions(ctx.tx, personId, scope.submissionIds);
     return;
   }

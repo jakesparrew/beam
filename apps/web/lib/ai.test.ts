@@ -137,9 +137,35 @@ describe("callClaude", () => {
   });
 
   it("the daily cap is 100 calls outside production", async () => {
-    const values = Array.from({ length: 100 }, () => ({ feature: "ai.classify", model: "claude-haiku-5-5", actor: { kind: "system" as const, id: null }, prompt: "x", status: "ok" as const }));
-    await handle.db.insert(aiRequests).values(values);
+    const row = { feature: "ai.classify", model: "claude-haiku-5-5", actor: { kind: "system" as const, id: null }, prompt: "x", status: "ok" as const };
+    await handle.db.insert(aiRequests).values(Array.from({ length: 98 }, () => row));
+    // With 98 calls made, the 99th is allowed (and logged) ...
+    await expect(callClaude(makeJobCtx(handle.db, "platform.check_alerts"), req())).resolves.toMatchObject({ text: expect.any(String) });
+    await handle.db.insert(aiRequests).values(row);
+    // ... with 100 made, the next one is refused.
     await expect(callClaude(makeJobCtx(handle.db, "platform.check_alerts"), req())).rejects.toThrow(/budget/);
+  });
+
+  it("counts the calls a job made earlier in its own transaction against the cap (PL-56)", async () => {
+    await setAi({ daily_cap_calls: 2 });
+    let ok = 0;
+    let refused = 0;
+    await handle.db
+      .transaction(async (tx) => {
+        // A deferred job context, as the runner builds it: logged rows are queued until the job ends.
+        const ctx = makeJobCtx(handle.db, "platform.check_alerts", { tx: tx as never });
+        for (let i = 0; i < 5; i++) {
+          try {
+            await callClaude(ctx, req());
+            ok += 1;
+          } catch (e) {
+            if (!String(e).includes("budget")) throw e;
+            refused += 1;
+          }
+        }
+      })
+      .catch(() => undefined);
+    expect({ ok, refused }).toEqual({ ok: 2, refused: 3 });
   });
 
   it("crossing 80 % of the budget enqueues exactly one Slack job per month", async () => {

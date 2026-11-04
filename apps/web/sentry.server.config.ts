@@ -14,6 +14,7 @@ if (dsn) {
     release: process.env.VERCEL_GIT_COMMIT_SHA,
     tracesSampleRate: 0.1,
     beforeSend: (event) => scrubSentryEvent(event),
+    beforeSendTransaction: (event) => scrubSentryEvent(event),
     beforeBreadcrumb: (crumb) => (crumb.category === "console" ? null : crumb),
   });
 }

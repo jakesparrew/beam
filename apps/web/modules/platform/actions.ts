@@ -64,6 +64,7 @@ import {
   requestMeta,
   safeReturnTo,
   setSessionCookie,
+  signedInKey,
   storeTotpCounter,
   unusedCodeCount,
   useStoredRecoveryCode,
@@ -78,7 +79,7 @@ import { clearFlagCache } from "@/lib/flags";
 import { MAX_FILE_BYTES, IMAGE_MIMES, storeFile } from "@/lib/files";
 import { getSetting, getSettingWithVersion, setSetting } from "@/lib/settings";
 import { rowsOf, sensitiveKey, setCurrentKeyVersion } from "@/lib/sensitive";
-import { checkPasswordPolicy, hashPassword, needsRehash, verifyPassword } from "@/lib/password";
+import { checkPasswordPolicy, dummyHash, hashPassword, needsRehash, verifyPassword } from "@/lib/password";
 import { checkRateLimits } from "@/lib/rate-limit";
 import { generateTotpSecret, totpUri, verifyTotp as checkTotp } from "@/lib/totp";
 import { searchAudit } from "./queries";
@@ -137,7 +138,8 @@ export const staffSignIn = action(
   async (ctx, input): Promise<{ next: "/admin/mfa/verify" | "/admin/mfa/setup" }> => {
     const user = await findUserByEmail(ctx, input.email);
     if (!user || user.audience !== "staff" || user.status !== "active") {
-      await verifyPassword(input.password, null);
+      // PL-7: the same argon2 work as a real account, so timing does not reveal the account.
+      await verifyPassword(input.password, await dummyHash());
       throw invalidCredentials();
     }
     const ok = await verifyPassword(input.password, user.passwordHash);
@@ -245,9 +247,14 @@ export const regenerateRecoveryCodes = action(
   { name: "auth.regenerate_recovery_codes", audience: "staff", input: z.object({ code: z.string().trim().regex(/^\d{6}$/) }), audit: false },
   async (ctx, input): Promise<{ recoveryCodes: string[] }> => {
     const session = pendingSession(ctx);
+    // PL-6: a step-up check counts failures like the login, so a stolen cookie cannot brute-force it.
+    await assertNotLocked(ctx, session.user.id);
     const secrets = await readMfaSecrets(ctx.tx, session.user.id);
     const counter = secrets.totpSecret ? checkTotp(secrets.totpSecret, input.code, ctx.now, { afterCounter: await lastTotpCounter(ctx.tx, session.user.id) }) : null;
-    if (counter === null) throw new AppError("validation", "invalid_code", { code: "invalid_code" });
+    if (counter === null) {
+      await failLogin(ctx, { id: session.user.id, audience: "staff" }, "totp");
+      throw new AppError("validation", "invalid_code", { code: "invalid_code" });
+    }
     await storeTotpCounter(ctx.tx, session.user.id, counter);
     const { codes, stored } = await newRecoveryCodes();
     await writeMfaSecrets(ctx.tx, session.user.id, { ...secrets, codes: stored });
@@ -301,7 +308,8 @@ export const customerPasswordSignIn = action(
   async (ctx, input): Promise<{ next: string }> => {
     const user = await findUserByEmail(ctx, input.email);
     if (!user || user.audience !== "customer" || user.status !== "active" || !user.passwordHash) {
-      await verifyPassword(input.password, null);
+      // PL-7, PL-13: the same argon2 work as a real account, so timing does not reveal the account.
+      await verifyPassword(input.password, await dummyHash());
       throw invalidCredentials();
     }
     if (!(await verifyPassword(input.password, user.passwordHash))) {
@@ -315,8 +323,7 @@ export const customerPasswordSignIn = action(
     const meta = await requestMeta();
     const { token, expires } = await createAuthSession(ctx.tx, { userId: user.id, audience: "customer", roleKey: null, now: ctx.now, ip: ctx.ip, userAgent: meta.userAgent });
     await recordSuccessfulLogin(ctx.tx, user.id, ctx.now);
-    const day = ctx.now.toISOString().slice(0, 10);
-    await ctx.recordEvent({ kind: "platform.signed_in", personId: user.personId!, data: { method: "password" }, dedupeKey: `signed_in:${user.id}:${day}` });
+    await ctx.recordEvent({ kind: "platform.signed_in", personId: user.personId!, data: { method: "password" }, dedupeKey: signedInKey(user.id, ctx.now) });
     await setSessionCookie(token, expires);
     return { next: safeReturnTo(input.returnTo, `/${URL_SEGMENT[input.locale]}/account`) };
   },
@@ -402,7 +409,10 @@ export const changeMyPassword = action(
     const session = actionSession(ctx)!;
     const [user] = await ctx.tx.select().from(users).where(eq(users.id, session.user.id));
     if (!user) throw new AppError("unauthorized");
+    // PL-6: wrong current passwords count toward the lockout, so a hijacked session cannot brute-force it.
+    await assertNotLocked(ctx, user.id);
     if (user.passwordHash && !(await verifyPassword(input.currentPassword ?? "", user.passwordHash))) {
+      await failLogin(ctx, { id: user.id, audience: user.audience }, "password");
       throw new AppError("validation", "wrong_password", { currentPassword: "wrong_password" });
     }
     await assertPolicy(input.newPassword, user.audience, user.email);

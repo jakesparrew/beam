@@ -1,6 +1,6 @@
 import { hash } from "@node-rs/argon2";
 import { describe, expect, it } from "vitest";
-import { checkPasswordPolicy, hashPassword, needsRehash, verifyPassword } from "./password";
+import { checkPasswordPolicy, dummyHash, hashPassword, needsRehash, passwordScore, verifyPassword } from "./password";
 
 describe("password hashing (PL-2)", () => {
   it("hashes with argon2id and the OWASP parameters, and verifies", async () => {
@@ -16,6 +16,14 @@ describe("password hashing (PL-2)", () => {
     expect(await verifyPassword("correct horse battery staple", weak)).toBe(true);
     expect(needsRehash(weak)).toBe(true);
     expect(needsRehash("$2b$10$abcdefghijklmnopqrstuv")).toBe(true);
+  });
+
+  it("dummyHash is one real argon2id hash with the OWASP parameters, so a miss pays the same argon2 work (PL-7)", async () => {
+    const [a, b] = await Promise.all([dummyHash(), dummyHash()]);
+    expect(a).toBe(b);
+    expect(a).toMatch(/^\$argon2id\$v=19\$m=19456,t=2,p=1\$/);
+    expect(needsRehash(a)).toBe(false);
+    expect(await verifyPassword("anything", a)).toBe(false);
   });
 
   it("treats a missing or malformed hash as a mismatch", async () => {
@@ -35,11 +43,23 @@ describe("password policy (PL-1, PL-13)", () => {
     expect(result.reasons).toContain("too_short");
   });
 
-  it("refuses a staff password with a zxcvbn score of 2", async () => {
-    // Long enough, but a dictionary word plus digits: zxcvbn scores it 2 or lower.
-    const result = await checkPasswordPolicy("password12345", { audience: "staff", email: "owner@demo.beam.be" });
+  it("refuses a staff password with a zxcvbn score of 2 and accepts one with 3", async () => {
+    // Boundary fixtures: their scores are checked here so they cannot drift.
+    const staffInputs = ["owner@demo.beam.be", "owner"];
+    expect(await passwordScore("password12345!", staffInputs)).toBe(2);
+    const result = await checkPasswordPolicy("password12345!", { audience: "staff", email: "owner@demo.beam.be" });
     expect(result.ok).toBe(false);
-    expect(result.reasons).toContain("too_weak");
+    expect(result.reasons).toEqual(["too_weak"]);
+    expect(await passwordScore("Summer2024beam", staffInputs)).toBe(3);
+    expect(await checkPasswordPolicy("Summer2024beam", { audience: "staff", email: "owner@demo.beam.be" })).toEqual({ ok: true, reasons: [] });
+  });
+
+  it("accepts a customer password with a zxcvbn score of 2 and refuses one with 1", async () => {
+    const customerInputs = ["a@example.com"];
+    expect(await passwordScore("password12345!", customerInputs)).toBe(2);
+    expect(await checkPasswordPolicy("password12345!", { audience: "customer", email: "a@example.com" })).toEqual({ ok: true, reasons: [] });
+    expect(await passwordScore("qwerty123456", customerInputs)).toBe(1);
+    expect((await checkPasswordPolicy("qwerty123456", { audience: "customer", email: "a@example.com" })).reasons).toEqual(["too_weak"]);
   });
 
   it("refuses a password equal to the email", async () => {

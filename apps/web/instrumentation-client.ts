@@ -5,10 +5,7 @@
  * emails and phone numbers masked (PL-72).
  */
 import * as Sentry from "@sentry/nextjs";
-
-const EMAIL = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
-const PHONE = /(?:\+|00)\d[\d\s./-]{7,}\d|\b0\d{1,3}[\s./-]?\d{2,3}[\s./-]?\d{2}[\s./-]?\d{2}\b/g;
-const mask = (text: string) => text.replace(EMAIL, "[email]").replace(PHONE, "[phone]");
+import { scrubEvent } from "./lib/sentry-scrub";
 
 const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
 
@@ -17,17 +14,9 @@ if (dsn) {
     dsn,
     environment: process.env.NEXT_PUBLIC_APP_ENV ?? "local",
     tracesSampleRate: 0.1,
-    beforeSend(event) {
-      if (event.message) event.message = mask(event.message);
-      if (event.request) {
-        delete event.request.data;
-        delete event.request.cookies;
-      }
-      for (const v of event.exception?.values ?? []) if (v.value) v.value = mask(v.value);
-      for (const b of event.breadcrumbs ?? []) if (b.message) b.message = mask(b.message);
-      if (event.user) event.user = event.user.id ? { id: event.user.id } : {};
-      return event;
-    },
+    // Reset and invite tokens sit in the path and magic-link tokens in the query: every URL is scrubbed.
+    beforeSend: (event) => scrubEvent(event),
+    beforeSendTransaction: (event) => scrubEvent(event),
   });
 }
 

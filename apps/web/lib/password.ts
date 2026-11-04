@@ -4,6 +4,7 @@
  * score and the email rule; the Have I Been Pwned range check runs in the browser
  * (`modules/platform/ui/hibp.ts`), because a request never calls an external service.
  */
+import { randomBytes } from "node:crypto";
 import { hash, verify } from "@node-rs/argon2";
 
 /** PL-2: memoryCost 19456 KiB, timeCost 2, parallelism 1 (argon2id is the library default). */
@@ -24,6 +25,18 @@ export type PasswordPolicyReason = "too_short" | "too_long" | "too_weak" | "same
 
 export async function hashPassword(password: string): Promise<string> {
   return hash(password, ARGON2_OPTIONS);
+}
+
+let dummy: Promise<string> | undefined;
+
+/**
+ * A real argon2id hash of a random password, made once per instance. Sign-in verifies against
+ * it when the account is unknown, disabled or has no password, so every miss pays the same
+ * argon2 work as a real account and timing does not reveal which emails exist (PL-7).
+ */
+export function dummyHash(): Promise<string> {
+  dummy ??= hashPassword(randomBytes(16).toString("hex"));
+  return dummy;
 }
 
 /** True when `password` matches the PHC string. A malformed hash is a mismatch, never a throw. */

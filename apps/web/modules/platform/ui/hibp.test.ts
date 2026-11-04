@@ -31,8 +31,24 @@ describe("HIBP range check (PL-1)", () => {
   });
 
   it("allows submit on timeout or error", async () => {
-    const hang = vi.fn((_url: string, init?: RequestInit) => new Promise<Response>((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(new Error("aborted")))));
-    expect(await checkPwnedPassword("password", { fetch: hang as unknown as typeof globalThis.fetch, timeoutMs: 20 })).toBe("unknown");
+    // Fake timers: the abort comes from the injected timeout, never from a real wait (and a
+    // loaded machine cannot make the abort fire before the request exists).
+    vi.useFakeTimers();
+    try {
+      const hang = vi.fn(
+        (_url: string, init?: RequestInit) =>
+          new Promise<Response>((_resolve, reject) => {
+            if (init?.signal?.aborted) return reject(new Error("aborted"));
+            init?.signal?.addEventListener("abort", () => reject(new Error("aborted")));
+          }),
+      );
+      const verdict = checkPwnedPassword("password", { fetch: hang as unknown as typeof globalThis.fetch, timeoutMs: 1500 });
+      await vi.waitFor(() => expect(hang).toHaveBeenCalledTimes(1));
+      await vi.advanceTimersByTimeAsync(1500);
+      expect(await verdict).toBe("unknown");
+    } finally {
+      vi.useRealTimers();
+    }
     const failing = respond("busy", 503);
     expect(await checkPwnedPassword("password", { fetch: failing as unknown as typeof globalThis.fetch })).toBe("unknown");
     const throwing = vi.fn(() => Promise.reject(new TypeError("network")));

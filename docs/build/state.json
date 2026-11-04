@@ -162,11 +162,11 @@
       "attempts": 0
     },
     "forms-P1": {
-      "status": "red",
-      "attempts": 1,
-      "baseSha": "ea67dfd",
-      "runId": "wf_96f98c7c-518",
-      "startedAt": "2026-11-04T00:06:29Z",
+      "status": "running",
+      "attempts": 2,
+      "baseSha": "4ce9b47",
+      "runId": "wf_19d14d36-abd",
+      "startedAt": "2026-11-04T00:50:47Z",
       "branchSha": "1647dc5",
       "endedAt": "2026-11-04T00:42:35Z",
       "minutes": 17
@@ -177,10 +177,10 @@
     },
     "email-P1": {
       "status": "running",
-      "attempts": 1,
-      "baseSha": "7835fd3",
-      "runId": "wf_406e8a00-87c",
-      "startedAt": "2026-11-03T23:52:17Z"
+      "attempts": 2,
+      "baseSha": "4ce9b47",
+      "runId": "wf_f28adbd9-667",
+      "startedAt": "2026-11-04T00:50:47Z"
     },
     "automation-P1": {
       "status": "running",
@@ -204,8 +204,11 @@
       "startedAt": "2026-11-03T23:52:17Z"
     },
     "crm-P2": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "4ce9b47",
+      "runId": "wf_4a970317-407",
+      "startedAt": "2026-11-04T00:50:47Z"
     },
     "crm-P3": {
       "status": "pending",
@@ -228,8 +231,11 @@
       "attempts": 0
     },
     "credits-P3": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "4ce9b47",
+      "runId": "wf_f3027f2b-e76",
+      "startedAt": "2026-11-04T00:50:47Z"
     },
     "finance-P2": {
       "status": "pending",
@@ -730,11 +736,6 @@
         "apps/web/lib/logger.test.ts",
         "apps/web/instrumentation-client.ts",
         "apps/web/lib/testing.ts",
-        "apps/web/modules/crm/api.ts",
-        "apps/web/modules/email/api.ts",
-        "apps/web/modules/site/api.ts",
-        "apps/web/modules/booking/api.ts",
-        "apps/web/modules/ops/api.ts",
         "apps/web/lib/auth.ts",
         "apps/web/lib/auth-config.ts",
         "apps/web/lib/password.ts",

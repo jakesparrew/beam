@@ -133,7 +133,7 @@ async function enqueueDateRegeneration(ctx: Ctx, onDate: string, exceptionId: st
  * locales; each active one gets its sessions through `sessions.regenerate_template`.
  */
 export const createTemplates = action(
-  { name: "booking.create_templates", audience: "staff", permission: "settings.write", input: CreateTemplatesInput, audit: { entityType: "session_template", entityId: (_i, o: { templateIds: string[] }) => o.templateIds[0] ?? null } },
+  { name: "booking.create_templates", audience: "staff", permission: "settings.write", input: CreateTemplatesInput, audit: { entityType: "session_template", entityId: (_i, o: { templateIds: string[]; warnings: ScheduleWarning[] }) => o.templateIds[0] ?? null } },
   async (ctx, input): Promise<{ templateIds: string[]; warnings: ScheduleWarning[] }> => {
     assertShape(input);
     const starts = [...new Set(input.startTimes)].sort();
@@ -240,7 +240,7 @@ export const setTemplateActive = action(
  * moved). Returns the sessions of the date that keep live bookings (nothing is cancelled).
  */
 export const upsertException = action(
-  { name: "booking.upsert_exception", audience: "staff", permission: "settings.write", input: ExceptionInput, audit: { entityType: "session_exception", entityId: (_i, o: { id: string }) => o.id } },
+  { name: "booking.upsert_exception", audience: "staff", permission: "settings.write", input: ExceptionInput, audit: { entityType: "session_exception", entityId: (_i, o: { id: string; conflicts: DateConflict[] }) => o.id } },
   async (ctx, input): Promise<{ id: string; conflicts: DateConflict[] }> => {
     assertCompleteText(input.name, "name");
     const special = input.kind === "special_hours";

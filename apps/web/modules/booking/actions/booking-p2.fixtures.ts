@@ -8,7 +8,7 @@ import { bookings, capacityHolds, jobs, roles, sessionExceptions, sessionTemplat
 import { makePerson, makeUser } from "@beam/db/testing";
 import { newCheckinCode } from "@beam/core/booking";
 import { createAuthSession, SESSION_COOKIE } from "@/lib/auth";
-import { eq } from "@/lib/ctx";
+import { eq, sql } from "@/lib/ctx";
 
 export const FULL_NAME = { "nl-BE": "Dagsessie", "fr-BE": "Session de jour", en: "Day session" };
 
@@ -61,7 +61,12 @@ export async function clearSchedule(db: DbOrTx): Promise<void> {
   await db.delete(waitlistEntries);
   await db.delete(bookings);
   await db.delete(capacityHolds);
-  await db.delete(sessions);
+  // Order lines are insert-only facts: sessions they point at stay (moved out of the way).
+  await db.delete(sessions).where(sql`not exists (select 1 from order_lines ol where ol.session_id = "sessions"."id")`);
+  await db
+    .update(sessions)
+    .set({ templateId: null, startsAt: sql`${sessions.startsAt} - interval '20 years'`, endsAt: sql`${sessions.endsAt} - interval '20 years'` })
+    .where(sql`${sessions.startsAt} > now() - interval '10 years'`);
   await db.delete(sessionTemplates);
   await db.delete(sessionExceptions);
   await db.delete(jobs);

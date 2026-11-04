@@ -23,7 +23,6 @@ import {
   type CompanySetting,
   type FinanceSetting,
   type FullCustomerSnapshot,
-  type InvoiceLineCategory,
   type OrderLineForInvoice,
 } from "@beam/core/finance";
 import { isLocale, t, type Locale } from "@beam/core/i18n";
@@ -39,20 +38,20 @@ import { markInvoicePaidInternal, paymentSnapshot } from "./settle";
 /** Payment statuses that count as money received for the payment snapshot. */
 const PAID_PAYMENT_STATUSES = ["paid", "refunded", "partially_refunded"] as const;
 
-const FALLBACK_LABELS: Record<string, Record<Locale, string>> = {
+const FALLBACK_LABELS = {
   "finance.pdf.walk_in": { "nl-BE": "Toevallige klant", "fr-BE": "Client de passage", en: "Walk-in customer" },
   "finance.pdf.partial_credit": { "nl-BE": "Gedeeltelijke creditering:", "fr-BE": "Crédit partiel :", en: "Partial credit:" },
 };
 
 /** A finance catalogue label; the built-in copy until finance-P3 adds the `finance.pdf.*` keys. */
-export function financeLabel(locale: Locale, key: keyof typeof FALLBACK_LABELS & string): string {
-  return t.has(locale, key) ? t(locale, key) : FALLBACK_LABELS[key]![locale];
+export function financeLabel(locale: Locale, key: keyof typeof FALLBACK_LABELS): string {
+  return t.has(locale, key) ? t(locale, key) : FALLBACK_LABELS[key][locale];
 }
 
 /** The `company` and `finance` settings as finance reads them. */
 export async function issuerSettings(tx: Tx): Promise<{ company: CompanySetting; finance: FinanceSetting }> {
   const [company, finance] = await Promise.all([getSetting(tx, "company"), getSetting(tx, "finance")]);
-  return { company: company as CompanySetting, finance: finance as FinanceSetting };
+  return { company: company, finance: finance };
 }
 
 /** `YYYY-MM-DD` plus `days` calendar days. */
@@ -194,7 +193,7 @@ async function orderLinesForInvoice(tx: Tx, orderId: string): Promise<OrderLineF
     id: line.id,
     lineNo: line.lineNo,
     productId: line.productId,
-    productKind: line.productKind as InvoiceLineCategory,
+    productKind: line.productKind,
     sku: line.sku,
     description: line.description,
     quantity: line.quantity,

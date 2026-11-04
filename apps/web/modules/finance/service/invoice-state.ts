@@ -78,7 +78,7 @@ const MUTABLE_KEYS = [
 export async function findInvoice(tx: DbOrTx, id: string, opts: { forUpdate?: boolean } = {}): Promise<InvoiceRecord | null> {
   const q = tx.select().from(invoices).where(eq(invoices.id, id));
   const rows = opts.forUpdate ? await q.for("update") : await q;
-  return (rows[0] as InvoiceRecord | undefined) ?? null;
+  return (rows[0]) ?? null;
 }
 
 /** Like `findInvoice`, but a missing document is `not_found`. */
@@ -99,7 +99,7 @@ export async function updateInvoiceState(tx: Tx, id: string, patch: InvoiceMutab
   }
   const current = await loadInvoice(tx, id, { forUpdate: true });
   if (patch.status !== undefined) nextInvoiceStatus(current.kind, current.status, patch.status);
-  assertMutableUpdate(patch as Record<string, unknown>, current, "normal");
+  assertMutableUpdate(patch, current, "normal");
 
   const changes: Record<string, unknown> = {};
   const cur = current as unknown as Record<string, unknown>;
@@ -128,7 +128,7 @@ function sameValue(a: unknown, b: unknown): boolean {
 /** `invoices.issued_by` for the context's actor. */
 export function issuedByOf(ctx: Ctx): IssuedBy {
   const a = actorJson(ctx.actor);
-  return { kind: a.kind as IssuedBy["kind"], id: a.id ?? null };
+  return { kind: a.kind, id: a.id ?? null };
 }
 
 /**

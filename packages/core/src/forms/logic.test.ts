@@ -14,6 +14,7 @@ import {
   sectionOf,
   splitSensitive,
   validateAnswers,
+  validateSection,
   visibleAnswers,
 } from "./logic";
 import type { Answers, Field, FormDefinition, FormScoring, ScoreState } from "./types";
@@ -313,5 +314,33 @@ describe("sensitivity (L6, SE1) and consent purposes", () => {
     expect(isAnswered(false)).toBe(true);
     expect(isAnswered(" ")).toBe(false);
     expect(isAnswered([])).toBe(false);
+  });
+});
+
+describe("U2 with L4: validateSection (fix-w09-forms-review finding 3)", () => {
+  /** s3 holds `detail` (shown when goal = stress, from s1) and `why` (required unless goal = stress). */
+  const cross = (): FormDefinition => {
+    const d = def();
+    d.fields.detail = { ...B, key: "detail", type: "short_text", visibleIf: { field: "goal", op: "eq", value: "stress" } };
+    d.fields.why = { ...B, key: "why", type: "short_text", required: true, visibleIf: { not: { field: "goal", op: "eq", value: "stress" } } };
+    d.sections[2]!.fieldKeys = ["stress", "detail", "why"];
+    return d;
+  };
+
+  it("a field shown by an earlier section's answer keeps its answer", () => {
+    const r = validateSection(cross(), ["s1"], "s3", { goal: "stress", stress: 4, detail: "work" }, NO);
+    expect(r).toEqual({ ok: true, clean: { goal: "stress", stress: 4, detail: "work" } });
+    expect(validateAnswers(cross(), ["s3"], { goal: "stress", stress: 4, detail: "work" }, { final: true }, NO)).toMatchObject({ ok: false });
+  });
+
+  it("a required field hidden by an earlier section's answer does not block the save", () => {
+    expect(validateSection(cross(), ["s1"], "s3", { goal: "stress", stress: 4 }, NO)).toMatchObject({ ok: true });
+    expect(validateSection(cross(), ["s1"], "s3", { goal: "none", stress: 4 }, NO)).toEqual({ ok: false, fields: { why: "required" } });
+  });
+
+  it("reports errors of this section only; earlier invalid or missing answers are context, not errors", () => {
+    const r = validateSection(cross(), ["s1", "s3"], "s3", { goal: "stress", age: 999 }, NO);
+    expect(r).toEqual({ ok: false, fields: { stress: "required" } });
+    expect(validateSection(cross(), ["s1", "s2", "s3"], "s3", { goal: "stress", age: 999, nap: true, stress: 2 }, NO)).toMatchObject({ ok: true });
   });
 });

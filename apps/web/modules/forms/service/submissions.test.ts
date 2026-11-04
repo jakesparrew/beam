@@ -421,3 +421,168 @@ describe("C1 to C5 consent, A5 tags", () => {
     expect((await completedEvent(r.submissionId)).data).toMatchObject({ applied_tag_keys: ["interest:sleep"], funnel: "recovery-assessment" });
   });
 });
+
+describe("fix-w09-forms-review: saveSection reads earlier sections for visibility (finding 3)", () => {
+  /** contact (with `smoker`) -> habits: `cigarettes` shown when smoker, `why_not` required unless smoker. */
+  function twoSections() {
+    const l = lead();
+    const d = l.definition;
+    d.fields.smoker = { key: "smoker", type: "yes_no", label: { en: "Smoker?", "nl-BE": "Roker?", "fr-BE": "Fumeur ?" }, required: false, sensitive: false };
+    d.fields.cigarettes = { key: "cigarettes", type: "short_text", label: { en: "How many?", "nl-BE": "Hoeveel?", "fr-BE": "Combien ?" }, required: false, sensitive: false, visibleIf: { field: "smoker", op: "eq", value: true } };
+    d.fields.why_not = { key: "why_not", type: "short_text", label: { en: "Why not?", "nl-BE": "Waarom niet?", "fr-BE": "Pourquoi pas ?" }, required: true, sensitive: false, visibleIf: { not: { field: "smoker", op: "eq", value: true } } };
+    d.sections[0]!.fieldKeys.push("smoker");
+    d.sections.push({ key: "habits", fieldKeys: ["cigarettes", "why_not"] });
+    return l;
+  }
+
+  it("eq: a section-2 answer shown by a section-1 answer is stored; not: a hidden required field does not block the save", async () => {
+    const { signSubmissionId } = await import("./tokens");
+    const f = await createForm(h.db, twoSections());
+    const s = await start(f.slug);
+    const proof = { fsid: signSubmissionId(s.submissionId) };
+    const ctx = publicCtx(h.db, later(T0, 10));
+    const first = await saveSection(ctx.tx, ctx, { submissionId: s.submissionId, proof, sectionKey: "contact", answers: { email: email(), first_name: "Kim", smoker: true } });
+    expect(first.next).toEqual({ sectionKey: "habits" });
+    const r = await saveSection(ctx.tx, ctx, { submissionId: s.submissionId, proof, sectionKey: "habits", answers: { cigarettes: "five" } });
+    expect(r.next).toMatchObject({ end: true });
+    const sub = await row(s.submissionId);
+    expect(sub.answers).toMatchObject({ smoker: true, cigarettes: "five" });
+    expect(sub.answers).not.toHaveProperty("why_not");
+    expect(sub.path).toEqual(["contact", "habits"]);
+  });
+
+  it("not smoker: the shown required field is still required and the hidden answer is dropped", async () => {
+    const { signSubmissionId } = await import("./tokens");
+    const f = await createForm(h.db, twoSections());
+    const s = await start(f.slug);
+    const proof = { fsid: signSubmissionId(s.submissionId) };
+    const ctx = publicCtx(h.db, later(T0, 10));
+    await saveSection(ctx.tx, ctx, { submissionId: s.submissionId, proof, sectionKey: "contact", answers: { email: email(), first_name: "Kim", smoker: false } });
+    await expect(saveSection(ctx.tx, ctx, { submissionId: s.submissionId, proof, sectionKey: "habits", answers: { cigarettes: "five" } })).rejects.toMatchObject({
+      code: "validation",
+      fields: { why_not: "required" },
+    });
+    await saveSection(ctx.tx, ctx, { submissionId: s.submissionId, proof, sectionKey: "habits", answers: { cigarettes: "five", why_not: "never liked it" } });
+    const sub = await row(s.submissionId);
+    expect(sub.answers).toMatchObject({ why_not: "never liked it" });
+    expect(sub.answers).not.toHaveProperty("cigarettes");
+  });
+});
+
+describe("fix-w09-forms-review: C5 at the save (finding 4)", () => {
+  const ABOUT = { first_name: "Mila", sensitive_consent: true };
+  const SLEEP = { sleep_hours: "5_6", sleep_quality: 2, stress_level: 8, stress_physical: true };
+  const HABITS = { movement: "rarely", screen_time: "gt5", recovery_practices: [], cold_exposure: false };
+  const sensitiveRows = (id: string) => h.db.select().from(formSensitiveAnswers).where(eq(formSensitiveAnswers.submissionId, id));
+
+  it("a 14-year-old's sensitive consent is refused at the save: no sensitive row and no sensitive_processing consent (ID9 on)", async () => {
+    const a = assessment();
+    a.definition.settings.capturePartialLeads = true;
+    const f = await createForm(h.db, a);
+    const s = await start(f.slug);
+    const proof = { resumeToken: s.resumeToken! };
+    const ctx = publicCtx(h.db, later(T0, 10));
+    const about = { ...ABOUT, email: email(), birth_on: "2012-06-01" };
+    const guardian = { code: "validation", fields: { sensitive_consent: "guardian_required" } };
+    await expect(saveSection(ctx.tx, ctx, { submissionId: s.submissionId, proof, sectionKey: "about", answers: about })).rejects.toMatchObject(guardian);
+    // A client that skips ahead anyway: the refused section left no consent on the server, so nothing sensitive is kept.
+    await saveSection(ctx.tx, ctx, { submissionId: s.submissionId, proof, sectionKey: "sleep_stress", answers: { ...about, ...SLEEP } });
+    expect(await sensitiveRows(s.submissionId)).toHaveLength(0);
+    expect(crm.consentCalls.filter((c) => c.purpose === "sensitive_processing")).toHaveLength(0);
+    expect((await row(s.submissionId)).personId).toBeNull();
+  });
+
+  it("a birth date under 16 in a later section erases the sensitive answers already saved; the submit refuses", async () => {
+    const a = assessment();
+    a.definition.sections[0]!.fieldKeys = a.definition.sections[0]!.fieldKeys.filter((k) => k !== "birth_on");
+    a.definition.sections[2]!.fieldKeys.push("birth_on");
+    const f = await createForm(h.db, a);
+    const s = await start(f.slug);
+    const proof = { resumeToken: s.resumeToken! };
+    const ctx = publicCtx(h.db, later(T0, 10));
+    const about = { ...ABOUT, email: email() };
+    await saveSection(ctx.tx, ctx, { submissionId: s.submissionId, proof, sectionKey: "about", answers: about });
+    await saveSection(ctx.tx, ctx, { submissionId: s.submissionId, proof, sectionKey: "sleep_stress", answers: { ...about, ...SLEEP } });
+    expect((await sensitiveRows(s.submissionId)).length).toBeGreaterThan(0);
+    await saveSection(ctx.tx, ctx, { submissionId: s.submissionId, proof, sectionKey: "habits", answers: { ...about, ...SLEEP, ...HABITS, birth_on: "2012-06-01" } });
+    expect(await sensitiveRows(s.submissionId)).toHaveLength(0);
+    expect((await row(s.submissionId)).answers).not.toHaveProperty("sensitive_consent");
+    await expect(submit(s.submissionId, { ...about, ...SLEEP, ...HABITS, birth_on: "2012-06-01" }, { proof })).rejects.toMatchObject({
+      code: "validation",
+      fields: { sensitive_consent: "guardian_required" },
+    });
+    expect(await sensitiveRows(s.submissionId)).toHaveLength(0);
+  });
+});
+
+describe("fix-w09-forms-review: resume after a sensitive section (finding 5)", () => {
+  it("resume points back to the first saved section with sensitive fields; re-answering it lets the submit complete", async () => {
+    const f = await createForm(h.db, assessment());
+    const s = await start(f.slug);
+    const proof = { resumeToken: s.resumeToken! };
+    const ctx = publicCtx(h.db, later(T0, 10));
+    const about = { email: email(), first_name: "Ruben", sensitive_consent: true };
+    const sleep = { sleep_hours: "5_6", sleep_quality: 2, stress_level: 8, stress_physical: true };
+    await saveSection(ctx.tx, ctx, { submissionId: s.submissionId, proof, sectionKey: "about", answers: about });
+    const saved = await saveSection(ctx.tx, ctx, { submissionId: s.submissionId, proof, sectionKey: "sleep_stress", answers: { ...about, ...sleep } });
+    expect(saved.next).toEqual({ sectionKey: "habits" });
+    expect((await row(s.submissionId)).currentSectionKey).toBe("habits");
+
+    const r = (await resumeSubmission(ctx.tx, ctx, { slug: f.slug, token: s.resumeToken! }))!;
+    expect(r.currentSectionKey).toBe("sleep_stress");
+    expect(r.answers).not.toHaveProperty("sleep_hours");
+    const habits = { movement: "rarely", screen_time: "gt5", recovery_practices: [], cold_exposure: false };
+    const done = await submit(s.submissionId, { ...r.answers, ...sleep, ...habits }, { proof });
+    expect(done.resultUrl).toBeTruthy();
+    const keys = (await h.db.select().from(formSensitiveAnswers).where(eq(formSensitiveAnswers.submissionId, s.submissionId))).map((x) => x.fieldKey);
+    expect(keys).toEqual(expect.arrayContaining(["sleep_hours", "sleep_quality", "stress_level"]));
+  });
+
+  it("without a saved sensitive section the stored current section is returned", async () => {
+    const f = await createForm(h.db, assessment());
+    const s = await start(f.slug);
+    const ctx = publicCtx(h.db, later(T0, 10));
+    await saveSection(ctx.tx, ctx, { submissionId: s.submissionId, proof: { resumeToken: s.resumeToken! }, sectionKey: "about", answers: { email: email(), first_name: "An", sensitive_consent: true } });
+    expect((await resumeSubmission(ctx.tx, ctx, { slug: f.slug, token: s.resumeToken! }))!.currentSectionKey).toBe("sleep_stress");
+  });
+});
+
+describe("fix-w09-forms-review: ID9-linked submissions at submit (finding 2)", () => {
+  it("an existing person linked at the save keeps the stored names; the differing values are profile_conflicts", async () => {
+    const { signSubmissionId } = await import("./tokens");
+    const f = await createForm(h.db, lead({ capturePartialLeads: true }));
+    const addr = email();
+    const p = await makePerson(h.db, { email: addr, firstName: "Bram", lastName: "Claes", phone: "+32470000001" });
+    const s = await start(f.slug);
+    const proof = { fsid: signSubmissionId(s.submissionId) };
+    const ctx = publicCtx(h.db, later(T0, 10));
+    await saveSection(ctx.tx, ctx, { submissionId: s.submissionId, proof, sectionKey: "contact", answers: { email: addr, first_name: "Kim" } });
+    expect(await row(s.submissionId)).toMatchObject({ personId: p.id, identifiedBy: "email" });
+    await submit(s.submissionId, { email: addr, first_name: "Kim", last_name: "Janssens", phone: "+32 470 99 99 99" }, { proof });
+    expect(await person(p.id)).toMatchObject({ firstName: "Bram", lastName: "Claes", phone: "+32470000001" });
+    expect(await row(s.submissionId)).toMatchObject({ personId: p.id, identifiedBy: "email", status: "completed" });
+    const data = (await completedEvent(s.submissionId)).data as { profile_conflicts: string[] };
+    expect([...data.profile_conflicts].sort()).toEqual(["firstName", "lastName", "phone"]);
+  });
+
+  it("an email changed between the save and the submit links the submission to the newly typed address", async () => {
+    const { signSubmissionId } = await import("./tokens");
+    const f = await createForm(h.db, lead({ capturePartialLeads: true }));
+    const firstAddr = email();
+    const first = await makePerson(h.db, { email: firstAddr, firstName: "Ann" });
+    const s = await start(f.slug);
+    const proof = { fsid: signSubmissionId(s.submissionId) };
+    const ctx = publicCtx(h.db, later(T0, 10));
+    await saveSection(ctx.tx, ctx, { submissionId: s.submissionId, proof, sectionKey: "contact", answers: { email: firstAddr, first_name: "Kim" } });
+    expect((await row(s.submissionId)).personId).toBe(first.id);
+    const typed = email();
+    await submit(s.submissionId, { email: typed, first_name: "Kim", newsletter: true }, { proof });
+    const sub = await row(s.submissionId);
+    expect(sub).toMatchObject({ identifiedBy: "email", status: "completed" });
+    expect(sub.personId).not.toBe(first.id);
+    expect(await person(sub.personId!)).toMatchObject({ email: typed, firstName: "Kim" });
+    expect(await person(first.id)).toMatchObject({ firstName: "Ann" });
+    expect(await h.db.select().from(consentRecords).where(and(eq(consentRecords.personId, first.id), eq(consentRecords.purpose, "newsletter")))).toHaveLength(0);
+    expect((await completedEvent(s.submissionId)).personId).toBe(sub.personId);
+  });
+});

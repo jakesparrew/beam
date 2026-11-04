@@ -367,7 +367,8 @@ export const formSubmissions = pgTable(
     importEventId: uuid().references((): AnyPgColumn => formImportEvents.id),
     /** ScoreApp or Typeform response id. */
     externalRef: text(),
-    resultEmailMessageId: uuid().references(() => emailMessages.id),
+    /** Set null when email erases or sweeps the message (its row is gone; the detail only reads its status). */
+    resultEmailMessageId: uuid().references(() => emailMessages.id, { onDelete: "set null" }),
     startedAt: tstz().notNull().defaultNow(),
     lastActivityAt: tstz().notNull().defaultNow(),
     completedAt: tstz(),

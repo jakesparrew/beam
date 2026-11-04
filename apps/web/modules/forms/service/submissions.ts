@@ -32,6 +32,7 @@ import {
   SENSITIVE_CONSENT_AGE,
   splitScore,
   validateAnswers,
+  validateSection,
   type Answers,
   type Ending,
   type FormDefinition,
@@ -46,7 +47,7 @@ import { applyTag, fillAcquisitionIfEmpty, findOrCreatePersonByEmail, getPerson,
 import { sendTransactional } from "@/modules/email/api";
 import { buildPrefill, isActiveStaff, mappedKeys, resolveIdentity, tokenFor, type Prefill } from "./identity";
 import { isBotSubmission, limitResultLink, limitStart, limitSubmit, logBotDropped } from "./rate-limit";
-import { deleteSensitiveExcept, hasSensitiveConsent, linkSensitive, scoreKey, sensitiveConsentKey, storeSensitive } from "./sensitive";
+import { deleteSensitiveExcept, hasSensitiveConsent, linkSensitive, scoreKey, sensitiveConsentKey, sensitiveKeysOf, storeSensitive } from "./sensitive";
 import {
   appOrigin,
   createIdentityToken,
@@ -445,7 +446,8 @@ export async function saveSection(
 
   const stored = (l.sub.answers ?? {}) as Answers;
   const merged: Answers = { ...stored, ...i.answers };
-  const v = validateAnswers(l.definition, [i.sectionKey], merged, { final: true }, l.scoring);
+  // L4: this section's visibility reads the answers of the sections before it on the path.
+  const v = validateSection(l.definition, l.sub.path, i.sectionKey, merged, l.scoring);
   if (!v.ok) throw new ValidationError("validation", v.fields);
 
   const sensitiveKeys = new Set(deriveSensitiveKeys(l.definition, l.scoring));
@@ -458,6 +460,17 @@ export async function saveSection(
   const answers: Answers = { ...stored };
   for (const fk of section.fieldKeys) delete answers[fk];
   Object.assign(answers, plainSection);
+  // C5: special-category consent needs 16, also at the save (nothing sensitive of a minor is stored).
+  const consentKey = sensitiveConsentKey(l.definition);
+  const saved = profileOf(l.definition, answers);
+  if (consentKey && answers[consentKey] === true && saved.birthOn && isUnder(saved.birthOn, brusselsDay(ctx.now), SENSITIVE_CONSENT_AGE)) {
+    const held = (await sensitiveKeysOf(tx, [l.sub.id])).get(l.sub.id) ?? [];
+    if (!held.length) throw new ValidationError("validation", { [consentKey]: "guardian_required" });
+    // The birth date came after the sensitive answers: an error would roll this delete back, so the
+    // save erases them and keeps the consent unticked; the submit then refuses with guardian_required.
+    await deleteSensitiveExcept(tx, l.sub.id, []);
+    delete answers[consentKey];
+  }
   // SE2: before the consent is ticked the server discards sensitive answers; the browser keeps them.
   if (Object.keys(sensitiveSection).length && hasSensitiveConsent(l.definition, answers)) {
     await storeSensitive(tx, { submissionId: l.sub.id, personId: l.sub.personId, values: sensitiveSection });
@@ -509,7 +522,22 @@ export async function resumeSubmission(
   } else if (l.definition.settings.resumeEnabled && ctx.now.getTime() - l.sub.lastActivityAt.getTime() > l.definition.settings.resumeDays * DAY_MS) {
     return null;
   }
-  return { submissionId: l.sub.id, answers: (l.sub.answers ?? {}) as Answers, currentSectionKey: l.sub.currentSectionKey };
+  return { submissionId: l.sub.id, answers: (l.sub.answers ?? {}) as Answers, currentSectionKey: resumeSectionOf(l) };
+}
+
+/**
+ * U5 with SE1: resume never returns sensitive answers, and the submit needs them in its body, so
+ * the visitor continues at the first saved section that holds a sensitive field when it comes
+ * before the stored current section (they answer it again); otherwise at the stored one.
+ */
+function resumeSectionOf(l: Loaded): string | null {
+  const current = l.sub.currentSectionKey;
+  const sensitive = new Set(deriveSensitiveKeys(l.definition, l.scoring));
+  const sections = l.definition.sections;
+  const back = l.sub.path.find((k) => sections.find((s) => s.key === k)?.fieldKeys.some((fk) => sensitive.has(fk)));
+  if (!back) return current;
+  const at = (k: string) => sections.findIndex((s) => s.key === k);
+  return current === null || at(back) < at(current) ? back : current;
 }
 
 // ---------------------------------------------------------------------------
@@ -615,12 +643,18 @@ export async function completeSubmission(
     const p = await getPerson(tx, personId);
     if (p?.email && p.email.toLowerCase() !== profile.email) [personId, identifiedBy] = [null, "none"];
   }
+  if (personId && identifiedBy === "email" && profile.email) {
+    // ID9 then ID3: a save-time email link holds only while the submitted email is still that person's.
+    const p = await getPerson(tx, personId);
+    if (p?.email?.toLowerCase() !== profile.email.toLowerCase()) [personId, identifiedBy] = [null, "none"];
+  }
   if (profile.email) await limitSubmit(tx, l.form.id, profile.email, ctx.now);
 
   let conflicts: string[] = [];
   if (personId) {
     await fillAcquisitionIfEmpty(tx, ctx, personId, await acquisitionOf(tx, l));
-    conflicts = await updateProfile(tx, ctx, personId, patchOf(profile), false, await getPersonPrefill(tx, personId));
+    // ID4: an email identification (ID9 at the save) only fills empty fields; session and token overwrite.
+    conflicts = await updateProfile(tx, ctx, personId, patchOf(profile), identifiedBy === "email", await getPersonPrefill(tx, personId));
   } else if (profile.email) {
     // ID3: find or create without profile values, so the conflicts of ID4 compare with the stored ones.
     const r = await linkByEmail(tx, ctx, l, profile.email, {});

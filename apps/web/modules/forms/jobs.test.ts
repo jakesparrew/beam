@@ -72,7 +72,7 @@ describe("runJobTwice", () => {
     const ctx = publicCtx(h.db, OLD);
     const s = await startSubmission(ctx.tx, ctx, { slug: f.slug, locale: "en", url: "https://app.example.com/en/f/x", ip: "203.0.113.2" });
     const sub = publicCtx(h.db, later(OLD, 60));
-    await completeSubmission(sub.tx, sub, { submissionId: s.submissionId, proof: { resumeToken: s.resumeToken! }, answers: { ...ASSESSMENT_ANSWERS, email: `link-${randomUUID().slice(0, 6)}@example.com` } as never, ip: "203.0.113.2", userAgent: "t" });
+    await completeSubmission(sub.tx, sub, { submissionId: s.submissionId, proof: { resumeToken: s.resumeToken! }, answers: { ...ASSESSMENT_ANSWERS, email: `link-${randomUUID().slice(0, 6)}@example.com` }, ip: "203.0.113.2", userAgent: "t" });
     const read = async () => (await h.db.select().from(formSubmissions).where(eq(formSubmissions.id, s.submissionId)))[0]!;
     expect((await read()).resultTokenExpiresAt!.getTime()).toBeLessThan(Date.now());
     let firstVersion = 0;
@@ -108,7 +108,7 @@ describe("runJobTwice", () => {
     const ctx = publicCtx(h.db, OLD);
     const s = await startSubmission(ctx.tx, ctx, { slug: f.slug, locale: "en", url: "https://app.example.com/en/f/x", ip: "203.0.113.3" });
     const sub = publicCtx(h.db, later(OLD, 60));
-    await completeSubmission(sub.tx, sub, { submissionId: s.submissionId, proof: { resumeToken: s.resumeToken! }, answers: { ...ASSESSMENT_ANSWERS, email: addr } as never, ip: "203.0.113.3", userAgent: "t" });
+    await completeSubmission(sub.tx, sub, { submissionId: s.submissionId, proof: { resumeToken: s.resumeToken! }, answers: { ...ASSESSMENT_ANSWERS, email: addr }, ip: "203.0.113.3", userAgent: "t" });
     const now = new Date("2026-11-04T10:00:00Z");
     for (let i = 0; i < 4; i++) {
       const c = publicCtx(h.db, now);

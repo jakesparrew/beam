@@ -5,15 +5,16 @@ import type { DbHandle } from "@beam/db";
 import { activityEvents, consentRecords, emailMessages, formSensitiveAnswers, formSubmissions, persons, tags, vFormLatestResults } from "@beam/db/schema";
 import { createTestDb, makePerson } from "@beam/db/testing";
 import { and, eq } from "@/lib/ctx";
+import type * as CrmApi from "@/modules/crm/api";
 import { resetRuntime } from "@/lib/testing";
 import { assessment, ASSESSMENT_ANSWERS, createForm, later, lead, publicCtx, setupEnv } from "../forms-p3.fixtures";
 
 const crm = vi.hoisted(() => ({ marketingOutcome: null as null | string, consentCalls: [] as { purpose: string; method: string; source: string }[] }));
 vi.mock("@/modules/crm/api", async (importOriginal) => {
-  const real = await importOriginal<typeof import("@/modules/crm/api")>();
+  const real = await importOriginal<typeof CrmApi>();
   return {
     ...real,
-    recordConsent: vi.fn(async (tx: never, ctx: never, input: Parameters<typeof real.recordConsent>[2]) => {
+    recordConsent: vi.fn(async (tx: never, ctx: never, input: Parameters<typeof CrmApi.recordConsent>[2]) => {
       crm.consentCalls.push({ purpose: input.purpose, method: input.method, source: input.source });
       if (crm.marketingOutcome && ["newsletter", "events", "member_comms", "b2b"].includes(input.purpose)) {
         return { recordId: null, outcome: crm.marketingOutcome };
@@ -205,7 +206,7 @@ describe("U11 status machine and U1 to U10", () => {
     });
     const r = await h.db.transaction(async (tx) => {
       const ctx = Object.assign(publicCtx(h.db, new Date("2026-08-02T09:00:00Z")), { tx });
-      return completeSubmission(tx, ctx, { submissionId: s.submissionId, proof: { resumeToken: s.resumeToken! }, answers: { ...ASSESSMENT_ANSWERS, email: p.email! } as never, ip: "203.0.113.5", userAgent: "vitest" });
+      return completeSubmission(tx, ctx, { submissionId: s.submissionId, proof: { resumeToken: s.resumeToken! }, answers: { ...ASSESSMENT_ANSWERS, email: p.email! }, ip: "203.0.113.5", userAgent: "vitest" });
     });
     expect(r.endingKey).toBe("result_reset");
     expect((await row(s.submissionId)).status).toBe("completed");

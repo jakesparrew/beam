@@ -1,6 +1,6 @@
 /** forms-P3: `publishVersion` and the server checks of rule P7 (DPIA gate, CTA targets, outcome tags; cross-module D38). */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import type { DbHandle, Tx } from "@beam/db";
+import type { DbHandle } from "@beam/db";
 import { forms, formVersions, products, tags } from "@beam/db/schema";
 import { createTestDb, makeProduct, makeUser } from "@beam/db/testing";
 import { eq } from "@/lib/ctx";
@@ -42,7 +42,7 @@ async function draftOf(content: ReturnType<typeof assessment>) {
   return { formId: f!.id, versionId: d.versionId };
 }
 
-const publish = (d: { formId: string; versionId: string }, ctx = publisher()) => publishVersion(ctx.tx as Tx, ctx, { ...d, changeNote: "first" });
+const publish = (d: { formId: string; versionId: string }, ctx = publisher()) => publishVersion(ctx.tx, ctx, { ...d, changeNote: "first" });
 
 describe("P7: DPIA gate for versions with sensitive fields", () => {
   it("fails with dpia_not_approved while ops says no, publishes once approved", async () => {

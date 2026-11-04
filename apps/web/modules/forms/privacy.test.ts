@@ -1,7 +1,7 @@
 /** forms-P3: GDPR export, erase and merge (forms spec section 9, scenario 7). */
 import { createHash, randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import type { DbHandle, Tx } from "@beam/db";
+import type { DbHandle } from "@beam/db";
 import { auditLog, formImportEvents, formImportSources, formLinks, formSensitiveAnswers, formSubmissions, orders } from "@beam/db/schema";
 import { createTestDb, makePerson, makeUser } from "@beam/db/testing";
 import { makeOrder } from "@beam/db/testing/commerce-factories";
@@ -30,7 +30,7 @@ async function completedFor(address: string) {
   const ctx = publicCtx(h.db, T0);
   const s = await startSubmission(ctx.tx, ctx, { slug: f.slug, locale: "en", url: "https://app.example.com/en/f/x", ip: "203.0.113.4" });
   const c = publicCtx(h.db, later(T0, 30));
-  const r = await completeSubmission(c.tx, c, { submissionId: s.submissionId, proof: { resumeToken: s.resumeToken! }, answers: { ...ASSESSMENT_ANSWERS, email: address } as never, ip: "203.0.113.4", userAgent: "t" });
+  const r = await completeSubmission(c.tx, c, { submissionId: s.submissionId, proof: { resumeToken: s.resumeToken! }, answers: { ...ASSESSMENT_ANSWERS, email: address }, ip: "203.0.113.4", userAgent: "t" });
   const [sub] = await h.db.select().from(formSubmissions).where(eq(formSubmissions.id, s.submissionId));
   return { f, sub: sub!, resultUrl: r.resultUrl! };
 }
@@ -41,7 +41,7 @@ describe("export", () => {
   it("lists submissions with labels and the sensitive answers decrypted through privacy_export", async () => {
     const address = `export-${randomUUID().slice(0, 6)}@example.com`;
     const { sub, f } = await completedFor(address);
-    const out = (await h.db.transaction((tx) => privacy.export(tx as Tx, sub.personId!))) as {
+    const out = (await h.db.transaction((tx) => privacy.export(tx, sub.personId!))) as {
       form_submissions: { submission_id: string; form_slug: string; answers: { key: string; label: string }[]; outcome: { key: string } | null; entered_by_staff: boolean }[];
       form_sensitive_answers: { key: string; label: string; value: unknown }[];
     };
@@ -76,7 +76,7 @@ describe("erase", () => {
       { sourceId: src!.id, externalId: "someone-else", payload: {}, emailHash: sha("other@example.com") },
     ]);
 
-    const report = await h.db.transaction((tx) => privacy.erase(tx as Tx, personId));
+    const report = await h.db.transaction((tx) => privacy.erase(tx, personId));
     expect(Object.fromEntries(report.map((r) => [r.table, r.rows]))).toMatchObject({ form_submissions: 2, form_import_events: 2, form_links: 1 });
     expect(await h.db.select().from(formSubmissions).where(eq(formSubmissions.personId, personId))).toHaveLength(0);
     expect(await h.db.select().from(formSensitiveAnswers).where(or(eq(formSensitiveAnswers.personId, personId), eq(formSensitiveAnswers.submissionId, sub.id)))).toHaveLength(0);

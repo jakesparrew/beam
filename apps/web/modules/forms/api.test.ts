@@ -41,7 +41,7 @@ async function complete(slug: string, address: string, answers: Record<string, u
   const ctx = publicCtx(h.db, at);
   const s = await startSubmission(ctx.tx, ctx, { slug, locale: "en", url: "https://app.example.com/en/f/x", ip: "203.0.113.6" });
   const c = publicCtx(h.db, later(at, 30));
-  await completeSubmission(c.tx, c, { submissionId: s.submissionId, proof: { resumeToken: s.resumeToken! }, answers: { ...answers, email: address } as never, ip: "203.0.113.6", userAgent: "t" });
+  await completeSubmission(c.tx, c, { submissionId: s.submissionId, proof: { resumeToken: s.resumeToken! }, answers: { ...answers, email: address }, ip: "203.0.113.6", userAgent: "t" });
   return s.submissionId;
 }
 

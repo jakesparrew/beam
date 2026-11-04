@@ -1,6 +1,6 @@
 /** forms-P3: retention sweep handlers (section 9, SE5, cross-module D37). */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import type { DbHandle, Tx } from "@beam/db";
+import type { DbHandle } from "@beam/db";
 import { formImportEvents, formImportSources, formSensitiveAnswers, formSubmissions, formViewsDaily } from "@beam/db/schema";
 import { createTestDb, makePerson, makeUser } from "@beam/db/testing";
 import { eq, inArray } from "@/lib/ctx";
@@ -49,7 +49,7 @@ async function sub(o: { status?: Status; at?: Date; personId?: string | null; ip
   return r!;
 }
 
-const run = (key: keyof typeof sweep, cutoff = CUTOFF) => h.db.transaction((tx) => sweep[key](tx as Tx, cutoff));
+const run = (key: keyof typeof sweep, cutoff = CUTOFF) => h.db.transaction((tx) => sweep[key](tx, cutoff));
 const ids = (rows: { id: string }[]) => rows.map((r) => r.id);
 const existing = async (list: string[]) => ids(await h.db.select({ id: formSubmissions.id }).from(formSubmissions).where(inArray(formSubmissions.id, list)));
 

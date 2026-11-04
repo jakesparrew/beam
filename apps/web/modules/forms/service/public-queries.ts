@@ -104,7 +104,7 @@ export async function listPublishedForms(db: DbOrTx): Promise<PublicFormRef[]> {
     .innerJoin(formVersions, eq(formVersions.id, forms.currentVersionId))
     .where(eq(forms.status, "published"))
     .orderBy(forms.slug);
-  return rows.map((r) => ({ id: r.id, slug: r.slug, kind: r.kind, name: r.name as LocalizedText, locales: r.locales as Locale[] }));
+  return rows.map((r) => ({ id: r.id, slug: r.slug, kind: r.kind, name: r.name, locales: r.locales as Locale[] }));
 }
 
 export async function getPublishedFormMeta(db: DbOrTx, slug: string): Promise<{ formId: string; locales: Locale[] } | null> {
@@ -148,7 +148,7 @@ export async function listPersonSubmissions(db: DbOrTx, personId: string): Promi
       submissionId: s.id,
       formId: s.formId,
       formSlug: slug,
-      formName: name as LocalizedText,
+      formName: name,
       version: v.version,
       status: s.status,
       outcomeKey: s.outcomeKey,
@@ -175,7 +175,7 @@ export async function getLatestOutcomes(db: DbOrTx, personIds: string[]): Promis
   for (const r of rows) {
     const total = r.totalScore === null || r.totalScore === undefined ? null : Number(r.totalScore);
     const list = out.get(r.personId) ?? [];
-    list.push({ formSlug: r.formSlug, outcomeKey: r.outcomeKey!, totalScore: total, completedAt: new Date(r.completedAt as unknown as string | Date) });
+    list.push({ formSlug: r.formSlug, outcomeKey: r.outcomeKey!, totalScore: total, completedAt: new Date(r.completedAt) });
     out.set(r.personId, list);
   }
   return out;

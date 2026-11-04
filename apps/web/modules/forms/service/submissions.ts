@@ -35,8 +35,6 @@ import {
   type Answers,
   type Ending,
   type FormDefinition,
-  type FormKind,
-  type FormLinkChannel,
   type FormScoring,
   type Utm,
 } from "@beam/core/forms";
@@ -46,7 +44,7 @@ import { AppError, and, ConflictError, eq, inArray, NotFoundError, sql, Validati
 import { rowsOf } from "@/lib/sensitive";
 import { applyTag, fillAcquisitionIfEmpty, findOrCreatePersonByEmail, getPerson, getPersonPrefill, recordConsent, updatePersonFields } from "@/modules/crm/api";
 import { sendTransactional } from "@/modules/email/api";
-import { buildPrefill, isActiveStaff, mappedKeys, resolveIdentity, tokenFor, type IdentifiedBy, type Prefill } from "./identity";
+import { buildPrefill, isActiveStaff, mappedKeys, resolveIdentity, tokenFor, type Prefill } from "./identity";
 import { isBotSubmission, limitResultLink, limitStart, limitSubmit, logBotDropped } from "./rate-limit";
 import { deleteSensitiveExcept, hasSensitiveConsent, linkSensitive, scoreKey, sensitiveConsentKey, storeSensitive } from "./sensitive";
 import {
@@ -152,7 +150,7 @@ function baseEventData(l: Loaded, linkKey: string | null) {
     submission_id: s.id,
     form_id: l.form.id,
     form_slug: l.form.slug,
-    form_kind: l.form.kind as FormKind,
+    form_kind: l.form.kind,
     form_version_id: l.version.id,
     version: l.version.version,
     source: s.source as AcquisitionSource,
@@ -235,7 +233,7 @@ export async function startSubmission(tx: Tx, ctx: PublicCtx, i: StartInput): Pr
 
   const utmParams: Record<string, string | undefined> = Object.fromEntries(params.entries());
   for (const [k, v] of Object.entries(embed?.utm ?? {})) if (utmParams[`utm_${k}`] === undefined) utmParams[`utm_${k}`] = v;
-  const utm: Utm = readUtm(utmParams, (activeLink?.utm ?? {}) as Utm);
+  const utm: Utm = readUtm(utmParams, (activeLink?.utm ?? {}));
 
   const referrer = cleanReferrer(i.referrer || params.get("ref") || embed?.referrer || null);
   const embedHost = i.embedHost ? hostOf(i.embedHost) : null;
@@ -245,7 +243,7 @@ export async function startSubmission(tx: Tx, ctx: PublicCtx, i: StartInput): Pr
   const derived = deriveSource({
     src: isAcquisitionSource(src?.trim().toLowerCase()) ? src : undefined,
     utm,
-    linkChannel: (activeLink?.channel ?? undefined) as FormLinkChannel | undefined,
+    linkChannel: (activeLink?.channel ?? undefined),
     linkName: activeLink?.name,
     referrerHost: hostOf(referrer) ?? undefined,
     embedHostIsBeam: embedHost ? embedHost === appHost : null,
@@ -597,7 +595,7 @@ export async function completeSubmission(
   if (hasSensitive && !hasSensitiveConsent(def, clean)) throw new ValidationError("validation", { [consentKey ?? "sensitive_processing"]: "required" });
 
   // ID1, ID2, ID10: who is this?
-  let identifiedBy = l.sub.identifiedBy as IdentifiedBy;
+  let identifiedBy = l.sub.identifiedBy;
   let personId = l.sub.personId;
   let staffUserId = l.sub.enteredByUserId;
   if (identifiedBy === "staff") {
@@ -619,20 +617,18 @@ export async function completeSubmission(
   }
   if (profile.email) await limitSubmit(tx, l.form.id, profile.email, ctx.now);
 
-  let created = false;
   let conflicts: string[] = [];
-  const newlyLinked = !l.sub.personId;
   if (personId) {
     await fillAcquisitionIfEmpty(tx, ctx, personId, await acquisitionOf(tx, l));
     conflicts = await updateProfile(tx, ctx, personId, patchOf(profile), false, await getPersonPrefill(tx, personId));
   } else if (profile.email) {
     // ID3: find or create without profile values, so the conflicts of ID4 compare with the stored ones.
     const r = await linkByEmail(tx, ctx, l, profile.email, {});
-    created = r.created;
     personId = r.personId;
     identifiedBy = "email";
-    conflicts = await updateProfile(tx, ctx, personId, patchOf(profile), !created, await getPersonPrefill(tx, personId));
+    conflicts = await updateProfile(tx, ctx, personId, patchOf(profile), !r.created, await getPersonPrefill(tx, personId));
   }
+  const newlyLinked = !!personId && personId !== l.sub.personId;
   if (identifiedBy !== "staff") staffUserId = null;
 
   // S2 to S8, SE1, S6: score once with the pinned version; sensitive values only encrypted.
@@ -689,7 +685,7 @@ export async function completeSubmission(
     endingKey: ending.key,
     path,
     currentSectionKey: null,
-    ...(identifiedBy === "staff" ? { source: "manual" as FormSubmissionSource } : {}),
+    ...(identifiedBy === "staff" ? { source: "manual" } : {}),
     enteredByUserId: staffUserId,
     appliedTagKeys: applied,
     consentSnapshot: consents.snapshot,
@@ -699,7 +695,7 @@ export async function completeSubmission(
     completedAt: ctx.now,
     lastActivityAt: ctx.now,
   });
-  l.sub = { ...l.sub, personId, identifiedBy, ...(identifiedBy === "staff" ? { source: "manual" } : {}) } as SubmissionRow;
+  l.sub = { ...l.sub, personId, identifiedBy, ...(identifiedBy === "staff" ? { source: "manual" } : {}) };
 
   // E1 to E4: events only with a person, in this transaction, deduped.
   if (personId) {

@@ -37,7 +37,7 @@ async function completed() {
   await completeSubmission(ctx.tx, ctx, {
     submissionId: s.submissionId,
     proof: { resumeToken: s.resumeToken! },
-    answers: { ...ASSESSMENT_ANSWERS, email: `sens-${randomUUID().slice(0, 8)}@example.com` } as never,
+    answers: { ...ASSESSMENT_ANSWERS, email: `sens-${randomUUID().slice(0, 8)}@example.com` },
     ip: "203.0.113.5",
     userAgent: "vitest",
   });
@@ -93,7 +93,7 @@ describe("SE2: discarded before consent", () => {
     const { s } = await begin();
     const ctx = publicCtx(h.db, later(T0, 30));
     await expect(
-      completeSubmission(ctx.tx, ctx, { submissionId: s.submissionId, proof: { resumeToken: s.resumeToken! }, answers: { ...ASSESSMENT_ANSWERS, sensitive_consent: false, email: "nocons@example.com" } as never, ip: "203.0.113.5", userAgent: "t" }),
+      completeSubmission(ctx.tx, ctx, { submissionId: s.submissionId, proof: { resumeToken: s.resumeToken! }, answers: { ...ASSESSMENT_ANSWERS, sensitive_consent: false, email: "nocons@example.com" }, ip: "203.0.113.5", userAgent: "t" }),
     ).rejects.toMatchObject({ code: "validation", fields: { sensitive_consent: "required" } });
     expect(await rowsOf(s.submissionId)).toHaveLength(0);
   });

@@ -30,6 +30,15 @@ to "Served" with the package id.
 | commerce-P1 | commerce (fixer after the platform fixer) | Turn `ORDERS_PENDING_CHECKS` into table checks and add `products_item_category_chk` in `packages/db/src/schema/commerce.ts`. |
 | commerce-P1 | commerce-P3 | `config.ts` imports `CommerceSettings`, `PaymentProviderByChannel` and their defaults from `@beam/core/commerce`. |
 | commerce-P1 | crm, booking, site, credits | Add the FKs `orders.company_id -> companies` (crm), `order_lines.ticket_type_id -> ticket_types` (booking), `orders.terms_version_id -> page_versions` (site), `orders.renewal_membership_id -> memberships` (credits): the owner of the target table asks commerce's schema owner, because the column is in `commerce.ts`. |
+| booking-P1 | platform (fixer) | `schedules.test.ts` and `api/cron/tick/route.test.ts` look only at platform kinds (fix-w04-platform-3); then a booking fixer moves `PLANNED_SCHEDULES` into `schedules` in `apps/web/modules/booking/schedules.ts`. |
+| booking-P1 | booking (fixer) | Register `waitlist_entries` in booking's `privacy.ts` and add the FK `waitlist_entries.person_id -> persons.id` (on delete restrict); FKs `capacity_holds.company_id` and `sessions.partner_company_id -> companies.id` once crm-P1 merged; tighten `sessions_event_category_ck` to `(kind = 'event') = (event_category is not null)` once `makeSession` sets a category. |
+| booking-P1, crm-P1, site-P1 | platform (fix-w04-platform-4) | Admin nav section labels: `platform.nav.section_booking`, `section_customers`, `section_website` (and every other section a module's `nav.ts` declares); the admin layout hides a nav entry whose `flag` is off; nav badge support (crm: own overdue tasks, open unassigned threads). |
+| crm-P1 | platform (fix-w04-platform-4) | Delete `packages/core/src/crm/segment-fields.ts`; `@beam/core/crm` exports `segments/fields.ts` with the same `SEGMENT_ALLOWED_FIELDS`. |
+| crm-P1 | credits (fixer) | `credits.views.ts` exports the `v_person_status` SQL as `vPersonStatusSql`, so crm's `v_status_override_conflicts` turns on. |
+| crm-P1 | ops-P2 | `v_person_profile` (and `PERSON_PROFILE_COLUMNS`) includes every column of crm's `SEGMENT_FIELDS`, including `package_product_ids uuid[]`. |
+| email-P1 | email-P1 (attempt 2) | Register `campaign_recipients` (and the other person-referencing email tables) in email's `privacy.ts` (OD-9) and add `campaign_recipients.person_id -> persons.id` (on delete restrict). |
+| site-P1 | site (fixer) | FK `pages.partner_company_id -> companies.id` (on delete set null) once crm-P1 merged. |
+| forms-P1 | forms (next forms package) | FK `form_links.partner_company_id -> companies.id` once crm-P1 merged. |
 
 ## Served
 

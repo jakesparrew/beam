@@ -24,9 +24,11 @@ import {
   vCreditGrantBalances,
 } from "@beam/db/schema";
 import {
+  addBrusselsDays,
   addCalendarDays,
   anchorDayOf,
   assertMembershipTransition,
+  atWallTimeOf,
   brusselsDateKey,
   brusselsDateOf,
   calendarDaysBetween,
@@ -119,14 +121,7 @@ async function transition(
   });
 }
 
-/** `at` moved `days` Brussels calendar days at the same wall-clock time (DST-safe). */
-export function shiftDays(at: Date, days: number): Date {
-  const date = brusselsDateOf(at);
-  const offset = at.getTime() - startOfDayIn(date).getTime();
-  return new Date(startOfDayIn(addCalendarDays(date, days)).getTime() + offset);
-}
-
-/** One interval before `end` (calendar month or year in Brussels, clamped), for imports. */
+/** One interval before `end` (calendar month or year in Brussels, clamped, same wall-clock time), for imports. */
 export function periodStartBefore(end: Date, interval: Interval): Date {
   const d = brusselsDateOf(end);
   let { year, month } = d;
@@ -138,8 +133,7 @@ export function periodStartBefore(end: Date, interval: Interval): Date {
     }
   } else year -= 1;
   const day = Math.min(d.day, new Date(Date.UTC(year, month, 0)).getUTCDate());
-  const offset = end.getTime() - startOfDayIn(d).getTime();
-  return new Date(startOfDayIn({ year, month, day }).getTime() + offset);
+  return atWallTimeOf(end, { year, month, day });
 }
 
 /** 00:00 Brussels of the day of `at` and of the next day. */
@@ -389,6 +383,17 @@ export async function activateMembership(
   const settings = await creditsSettings(tx);
   const status: "active" | "pending" = input.startsAt.getTime() <= ctx.now.getTime() ? "active" : "pending";
   assertMembershipTransition("new", status);
+  if (status === "active") {
+    // A plan change paid on the old plan's last day (rule 57): `canStartMembership` has checked
+    // that the live row ends at period end on `startsOn` (today or earlier), so it ends now, as
+    // `activatePending` does on the change day, before the new row takes the live slot.
+    const [live] = await tx
+      .select()
+      .from(memberships)
+      .where(and(eq(memberships.personId, input.personId), inArray(memberships.status, LIVE)))
+      .for("update");
+    if (live) await endAtCancel(tx, ctx, live);
+  }
   const period = nextPeriod(input.startsAt, plan.interval, anchorDayOf(input.startsAt));
   const [m] = await tx
     .insert(memberships)
@@ -736,6 +741,20 @@ async function failureSeen(db: DbOrTx, membershipId: string, paymentId: string):
 }
 
 /**
+ * Whether a failed payment on the renewal order can be the recurring charge on the mandate
+ * (rule 50), not an abandoned or failed pay-link checkout (rule 52): never on the link path;
+ * `active` only when the renewal order is commerce's `recurring` order; `past_due` only with a
+ * mandate and a retry in flight (`chargeRenewal` clears `next_charge_at`; while it waits for the
+ * next retry date, a failure can only come from the pay link).
+ */
+async function recurringChargePending(db: DbOrTx, m: MembershipRow): Promise<boolean> {
+  if (isLinkPath(m)) return false;
+  if (m.status === "past_due") return m.mandateId !== null && m.nextChargeAt === null;
+  const [o] = await db.select({ channel: orders.channel }).from(orders).where(eq(orders.id, m.renewalOrderId!));
+  return o?.channel === "recurring";
+}
+
+/**
  * Rule 50a: counts today's (Brussels) `membership.past_due` and `membership.payment_retry_failed`
  * events; exactly at `failed_renewals_alert_per_day` it calls `notifySlack` once
  * (fingerprint `renewals_failed:<YYYY-MM-DD>`).
@@ -768,9 +787,10 @@ export async function alertFailedRenewals(tx: DbOrTx, ctx: Ctx): Promise<{ count
  * (`dunning_attempt = 1`, `past_due_since_at = now`, next charge on day 3); a retry failure
  * raises `dunning_attempt` (next charge on day 7, then none). Each records its event, sends
  * `credits.membership_payment_failed` with the pay link and runs the daily alert check. The same
- * `paymentId` twice, a membership without an open renewal order (already paid) or one that ended
- * changes nothing (`applied: false`; `status` is then `expired` for an ended membership, else
- * `past_due`).
+ * `paymentId` twice, a membership without an open renewal order (already paid), one that ended,
+ * or a failure that cannot be the recurring charge on the mandate (a pay-link checkout, see
+ * `recurringChargePending`) changes nothing (`applied: false`; `status` is then `expired` for an
+ * ended membership, else `past_due`).
  */
 export async function applyRenewalFailure(
   tx: DbOrTx,
@@ -782,6 +802,7 @@ export async function applyRenewalFailure(
   const reported: "past_due" | "expired" = live ? "past_due" : "expired";
   const unchanged = { status: reported, dunningAttempt: m.dunningAttempt, applied: false };
   if (!live || m.renewalOrderId === null) return unchanged;
+  if (!(await recurringChargePending(tx, m))) return unchanged;
   if (await failureSeen(tx, m.id, input.paymentId)) return unchanged;
   const s = await creditsSettings(tx);
   let row: MembershipRow;
@@ -1027,7 +1048,7 @@ export async function extendPeriod(
   checkVersion(m, input.version);
   if (m.status !== "active" && m.status !== "past_due") throw new ConflictError(`membership_${m.status}`);
   const oldEnd = m.currentPeriodEndAt;
-  const newEnd = shiftDays(oldEnd, input.days);
+  const newEnd = addBrusselsDays(oldEnd, input.days);
   await tx.insert(membershipPeriods).values({
     membershipId: m.id,
     personId: m.personId,
@@ -1039,13 +1060,13 @@ export async function extendPeriod(
   });
   const row = await update(tx, ctx, m, {
     currentPeriodEndAt: newEnd,
-    nextChargeAt: m.nextChargeAt ? shiftDays(m.nextChargeAt, input.days) : null,
+    nextChargeAt: m.nextChargeAt ? addBrusselsDays(m.nextChargeAt, input.days) : null,
     cancelAt: m.cancelAt ? newEnd : null,
   });
   if (input.alsoExtendInclusions) {
     for (const g of await currentPeriodGrants(tx, m)) {
       if ((g.status !== "active" && g.status !== "exhausted") || !g.expiresAt) continue;
-      await extend(tx, ctx, { grantId: g.id, newExpiresAt: shiftDays(g.expiresAt, input.days), reason, clientKey: `${input.clientKey}:${g.id}` });
+      await extend(tx, ctx, { grantId: g.id, newExpiresAt: addBrusselsDays(g.expiresAt, input.days), reason, clientKey: `${input.clientKey}:${g.id}` });
     }
   }
   await membershipEvent(ctx, row, "membership.period_extended", eventKey, { days: input.days, period_end_on: dateKey(newEnd) });
@@ -1064,17 +1085,25 @@ export async function extendPeriod(
 // The daily scan and the charge job (rules 45, 48, 50, 52, 53, 56)
 // ---------------------------------------------------------------------------
 
-/** `renewal:<membership_id>:<period_end date>` (attempt 1, architecture) and `...:attempt:<n>` for retries. */
+/** `renewal:<membership_id>:<period_end date>` (attempt 1, architecture; the scan adds `:v<version>`) and `...:attempt:<n>` for retries. */
 export function renewalJobKey(membershipId: string, periodEndOn: string, attempt: number): string {
   return attempt === 1 ? `renewal:${membershipId}:${periodEndOn}` : `renewal:${membershipId}:${periodEndOn}:attempt:${attempt}`;
 }
 
+/**
+ * Enqueues `memberships.charge_renewal`. The scan's attempt 1 carries the membership `version`
+ * (`renewal:<id>:<period_end>:v<version>`): scans of an unchanged row hit the same job, while a
+ * row whose earlier job was used up (cancel then resume, a `no_mandate` run: each bumps
+ * `version`) gets a new one. `chargeRenewal` re-checks `renewal_order_id` and `cancel_at`, so an
+ * extra job charges nothing.
+ */
 async function enqueueCharge(ctx: Ctx, m: MembershipRow, attempt: 1 | 2 | 3): Promise<void> {
   const periodEndOn = dateKey(m.currentPeriodEndAt);
+  const key = renewalJobKey(m.id, periodEndOn, attempt);
   await ctx.enqueue({
     kind: "memberships.charge_renewal",
     payload: { membershipId: m.id, periodEndOn, attempt },
-    key: renewalJobKey(m.id, periodEndOn, attempt),
+    key: attempt === 1 ? `${key}:v${m.version}` : key,
   });
 }
 

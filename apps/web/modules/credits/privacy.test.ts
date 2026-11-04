@@ -5,9 +5,9 @@
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { DbHandle } from "@beam/db";
-import { bookings, creditEntries, creditGrants, creditReconciliationRuns, membershipPeriods, memberships, packageShares } from "@beam/db/schema";
+import { bookings, creditEntries, creditGrants, creditReconciliationRuns, membershipPeriods, memberships, orders, packageShares } from "@beam/db/schema";
 import { createTestDb, makePerson, makeSession } from "@beam/db/testing";
-import { makePaidOrder } from "@beam/db/testing/commerce-factories";
+import { makeOrder, makePaidOrder } from "@beam/db/testing/commerce-factories";
 import { makeCreditGrant, makeEntry, makeMembership } from "@beam/db/testing/credits-factories";
 import { CREDITS_RETENTION_POLICIES } from "@beam/db/seed/credits";
 import { isValidRetentionSeed } from "@beam/core/privacy";
@@ -55,7 +55,8 @@ async function purchaseGrant(personId: string, units = 10) {
 
 describe("registration", () => {
   it("lists the V1 person tables and the NO_PII tables, and is in the generated registry", () => {
-    expect([...privacy.tables].sort()).toEqual(["credit_entries", "credit_grants", "membership_periods", "memberships", "package_shares"]);
+    // A subset: credits-P8 and credits-P9 add `credit_sharing_reviews` and the referral tables (fix-w09-credits-review 4).
+    expect(privacy.tables).toEqual(expect.arrayContaining(["credit_entries", "credit_grants", "membership_periods", "memberships", "package_shares"]));
     expect(noPiiTables.filter((t) => privacy.tables.includes(t))).toEqual([]);
     expect(GDPR_REGISTRY.credits).toBe(privacy);
     for (const t of noPiiTables) expect(NO_PII_TABLES).toContain(t);
@@ -242,6 +243,29 @@ describe("sweep", () => {
     expect(left.map((m) => m.id)).toEqual([young.id]);
     expect(await h.db.select().from(membershipPeriods).where(eq(membershipPeriods.membershipId, old.id))).toEqual([]);
     expect(await h.db.select().from(membershipPeriods).where(eq(membershipPeriods.membershipId, young.id))).toHaveLength(1);
+  });
+
+  it("fix-w09-credits-review 6: credits.memberships does not fail on a renewed membership; it keeps the one a renewal order still links to", async () => {
+    const mk = async () => {
+      const m = await makeMembership(h.db, { status: "expired", startedAt: ago(3_700), currentPeriodEndAt: ago(3_670), endedAt: ago(3_670) });
+      await h.db.insert(membershipPeriods).values({ membershipId: m.id, personId: m.personId, periodStartAt: m.currentPeriodStartAt, periodEndAt: m.currentPeriodEndAt, source: "purchase" });
+      return m;
+    };
+    const renewed = await mk();
+    const plain = await mk();
+    const order = await makeOrder(h.db, {
+      personId: renewed.personId,
+      channel: "recurring",
+      status: "cancelled",
+      renewalMembershipId: renewed.id,
+      renewalPeriodEndOn: "2016-01-01",
+    });
+    const n = await inTx((tx) => sweep["credits.memberships"]!(tx, cutoff(3_653)));
+    expect(n).toBeGreaterThanOrEqual(1);
+    const left = await h.db.select({ id: memberships.id }).from(memberships).where(inArray(memberships.id, [renewed.id, plain.id]));
+    expect(left.map((m) => m.id)).toEqual([renewed.id]);
+    const [o] = await h.db.select({ m: orders.renewalMembershipId, on: orders.renewalPeriodEndOn }).from(orders).where(eq(orders.id, order.id));
+    expect(o).toEqual({ m: renewed.id, on: "2016-01-01" });
   });
 
   it("credits.reconciliation_runs deletes runs older than the cutoff; credits.sharing_reviews has nothing before R2", async () => {

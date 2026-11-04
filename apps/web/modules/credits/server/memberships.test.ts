@@ -15,12 +15,12 @@ import {
   vCreditGrantBalances,
 } from "@beam/db/schema";
 import { createTestDb, makePerson, makeProduct, makeUser } from "@beam/db/testing";
-import { assertMembershipTransition, brusselsDateKey, brusselsDateOf, nextPeriod, startOfDayIn } from "@beam/core/credits";
+import { addBrusselsDays, assertMembershipTransition, brusselsDateKey, brusselsDateOf, nextPeriod, startOfDayIn } from "@beam/core/credits";
 import { LOCALES } from "@beam/core/i18n";
 import { renderEmail } from "@beam/email/render";
 import { TEMPLATE_REGISTRY } from "@beam/email/templates/registry";
 import type { TemplateDef } from "@beam/email/templates/define";
-import { and, asc, createCtx, eq, flushDurableWrites, type Actor, type Ctx } from "@/lib/ctx";
+import { and, asc, createCtx, eq, flushDurableWrites, sql, type Actor, type Ctx } from "@/lib/ctx";
 import type * as Alerts from "@/lib/alerts";
 import type { JobCtx } from "@/lib/job-runner";
 import type * as CommerceApi from "@/modules/commerce/api";
@@ -43,10 +43,10 @@ import {
   getMembershipSummary,
   importMembership,
   lockMembership,
+  periodStartBefore,
   requestCancel,
   resume,
   scanMembership,
-  shiftDays,
   type MembershipRow,
 } from "./memberships";
 import { creditsSettings } from "./ledger";
@@ -88,10 +88,10 @@ const mandated = new Map<string, string>();
 /** One renewal order per membership and period, like commerce. */
 const renewalOrders = new Map<string, string>();
 
-async function makeOrder(db: DbOrTx, personId: string, totalCents = 4_900, paidAt: Date | null = null) {
+async function makeOrder(db: DbOrTx, personId: string, totalCents = 4_900, paidAt: Date | null = null, channel: "admin" | "recurring" = "admin") {
   const [o] = await db
     .insert(orders)
-    .values({ personId, channel: "admin", subtotalCents: totalCents, vatCents: 0, totalCents, locale: "nl-BE", clientKey: randomUUID(), paidAt })
+    .values({ personId, channel, subtotalCents: totalCents, vatCents: 0, totalCents, locale: "nl-BE", clientKey: randomUUID(), paidAt })
     .returning();
   return o!;
 }
@@ -104,13 +104,14 @@ beforeEach(() => {
   fx.getActiveMandate.mockImplementation((_db: unknown, personId: string) =>
     Promise.resolve(mandated.has(personId) ? { mandateId: mandated.get(personId)!, method: "directdebit", summary: null } : null),
   );
-  const reuse = async (tx: DbOrTx, input: { membershipId: string; personId: string; periodEndOn: string }) => {
+  // Commerce's renewal orders: channel `recurring` for a mandate charge; a link order stands in as `admin` (no terms row needed).
+  const reuse = async (tx: DbOrTx, input: { membershipId: string; personId: string; periodEndOn: string }, channel: "admin" | "recurring" = "admin") => {
     const key = `${input.membershipId}:${input.periodEndOn}`;
-    if (!renewalOrders.has(key)) renewalOrders.set(key, (await makeOrder(tx, input.personId)).id);
+    if (!renewalOrders.has(key)) renewalOrders.set(key, (await makeOrder(tx, input.personId, 4_900, null, channel)).id);
     return renewalOrders.get(key)!;
   };
   fx.createRecurringCharge.mockImplementation(async (tx: DbOrTx, _ctx: unknown, input: { membershipId: string; personId: string; periodEndOn: string }) => ({
-    orderId: await reuse(tx, input),
+    orderId: await reuse(tx, input, "recurring"),
     paymentId: randomUUID(),
   }));
   fx.createRenewalLinkOrder.mockImplementation(async (tx: DbOrTx, _ctx: unknown, input: { membershipId: string; personId: string; periodEndOn: string }) => {
@@ -149,7 +150,7 @@ afterEach(() => {
 
 // Tuesday 10 March 2026, 10:00 Brussels (CET).
 const T0 = new Date("2026-03-10T09:00:00.000Z");
-const days = (n: number, from = T0) => shiftDays(from, n);
+const days = (n: number, from = T0) => addBrusselsDays(from, n);
 const ctxAt = (now: Date, actor?: Actor) => makeCtx(h.db, actor ? { now, actor } : { now });
 const tx = () => h.db as unknown as Tx;
 
@@ -226,6 +227,12 @@ const eventsOf = (id: string) =>
     .where(and(eq(activityEvents.refType, "membership"), eq(activityEvents.refId, id)))
     .orderBy(asc(activityEvents.id));
 const jobsByKey = (key: string) => h.db.select().from(jobsTable).where(eq(jobsTable.idempotencyKey, key));
+const chargeJobsOf = (membershipId: string) =>
+  h.db
+    .select()
+    .from(jobsTable)
+    .where(and(eq(jobsTable.kind, "memberships.charge_renewal"), sql`${jobsTable.payload}->>'membershipId' = ${membershipId}`))
+    .orderBy(asc(jobsTable.createdAt), asc(jobsTable.id));
 const auditsOf = (id: string) => h.db.select({ action: auditLog.action }).from(auditLog).where(eq(auditLog.entityId, id)).orderBy(asc(auditLog.id));
 const sends = (membershipId: string) =>
   fx.sendTransactional.mock.calls.map((c) => c[1] as { template: string; key: string; data: Record<string, unknown> }).filter((s) => s.data.membershipId === membershipId);
@@ -285,7 +292,7 @@ describe("activateMembership (rules 45 to 47)", () => {
   it("a mandate sets the first automatic charge 3 days before the period end", async () => {
     const { m } = await start({ mandate: true });
     expect(m.mandateId).not.toBeNull();
-    expect(m.nextChargeAt).toEqual(shiftDays(m.currentPeriodEndAt, -3));
+    expect(m.nextChargeAt).toEqual(addBrusselsDays(m.currentPeriodEndAt, -3));
   });
 
   it("activateMembership twice for one order creates one membership", async () => {
@@ -331,6 +338,34 @@ describe("activateMembership (rules 45 to 47)", () => {
     expect(await grantsOf(next.membershipId)).toHaveLength(1);
   });
 
+  it("fix-w09-credits-review 2: a plan change paid on the old plan's last day ends the old plan and starts the new one at once", async () => {
+    const first = await start();
+    const other = await makePlan();
+    await requestCancel(tx(), ctxAt(days(2)), { membershipId: first.m.id, by: "customer" });
+    const cancelAt = (await row(first.m.id)).cancelAt!;
+    const newStart = startOfDayIn(brusselsDateOf(cancelAt));
+    // Paid at 08:00 Brussels on the change day, before the old plan's cancel_at time and the scan.
+    const paidAt = new Date(newStart.getTime() + 8 * 3_600_000);
+    expect(paidAt.getTime()).toBeLessThan(cancelAt.getTime());
+    const order2 = await makeOrder(h.db, first.personId, 4_900, paidAt);
+    const next = await inTx(paidAt, (t, ctx) =>
+      activateMembership(t, ctx, {
+        personId: first.personId,
+        productId: other.product.id,
+        orderId: order2.id,
+        priceVersionId: other.priceVersionId,
+        mandateId: null,
+        startsAt: newStart,
+      }),
+    );
+    expect(next).toMatchObject({ status: "active", created: true });
+    expect(await row(first.m.id)).toMatchObject({ status: "cancelled", endReason: "cancelled_by_customer" });
+    expect(await row(next.membershipId)).toMatchObject({ status: "active", currentPeriodStartAt: newStart });
+    expect((await grantsOf(next.membershipId)).map((g) => [g.g.creditKind, g.remaining])).toEqual([["day", 4]]);
+    expect(await getMembershipForPerson(h.db, first.personId)).toMatchObject({ isMember: true, membershipId: next.membershipId });
+    expect((await eventsOf(first.m.id)).map((e) => e.kind)).toContain("membership.cancelled");
+  });
+
   it("(new) -> pending with a future start, then pending -> active by the scan on the start date", async () => {
     const startsAt = startOfDayIn(brusselsDateOf(days(5)));
     const { m } = await start({ startsAt });
@@ -371,14 +406,65 @@ async function charged(): Promise<Started & { renewalOrderId: string }> {
 }
 
 describe("renewal by mandate (rules 48, 49)", () => {
-  it("the scan at T-3 enqueues one charge with key renewal:<id>:<period_end>; before T-3 none", async () => {
+  it("the scan at T-3 enqueues one charge with key renewal:<id>:<period_end>:v<version>; before T-3 none", async () => {
     const { m } = await start({ mandate: true });
     expect(await scanOne(m.id, days(-4, m.currentPeriodEndAt))).toEqual([]);
     expect(await scanOne(m.id, days(-3, m.currentPeriodEndAt))).toEqual(["charge"]);
     expect(await scanOne(m.id, days(-3, m.currentPeriodEndAt))).toEqual(["charge"]);
-    const queued = await jobsByKey(`renewal:${m.id}:${endOn(m)}`);
+    const queued = await jobsByKey(`renewal:${m.id}:${endOn(m)}:v${m.version}`);
     expect(queued).toHaveLength(1);
     expect(queued[0]).toMatchObject({ kind: "memberships.charge_renewal", payload: { membershipId: m.id, periodEndOn: endOn(m), attempt: 1 } });
+    expect(await chargeJobsOf(m.id)).toHaveLength(1);
+  });
+
+  it("fix-w09-credits-review 1: cancel at period end then resume after the T-3 charge enqueues a new charge that creates a new renewal order", async () => {
+    const { m } = await start({ mandate: true });
+    const end = m.currentPeriodEndAt;
+    expect(await scanOne(m.id, days(-3, end))).toEqual(["charge"]);
+    const [job1] = await chargeJobsOf(m.id);
+    const p1 = job1!.payload as { membershipId: string; periodEndOn: string; attempt: 1 };
+    expect(await runJob("memberships.charge_renewal", days(-3, end), (ctx) => runChargeRenewal(ctx, p1))).toMatchObject({ charged: true });
+    const firstOrderId = (await row(m.id)).renewalOrderId!;
+    expect(firstOrderId).toBeTruthy();
+
+    await requestCancel(tx(), ctxAt(days(-2, end)), { membershipId: m.id, by: "customer" });
+    expect(fx.cancelRenewalOrder).toHaveBeenCalledWith(expect.anything(), expect.anything(), { orderId: firstOrderId, reason: "membership_cancelled" });
+    renewalOrders.delete(`${m.id}:${endOn(m)}`); // commerce cancelled the order: the next charge opens a new one
+    expect(await row(m.id)).toMatchObject({ renewalOrderId: null });
+    await resume(tx(), ctxAt(days(-2, end)), { membershipId: m.id });
+
+    expect(await scanOne(m.id, days(-1, end))).toEqual(["charge"]);
+    const queued = await chargeJobsOf(m.id);
+    expect(queued).toHaveLength(2);
+    const job2 = queued.find((j) => j.id !== job1!.id)!;
+    expect(job2).toMatchObject({ status: "pending", payload: { membershipId: m.id, periodEndOn: endOn(m), attempt: 1 } });
+    const r = await runJob("memberships.charge_renewal", days(-1, end), (ctx) => runChargeRenewal(ctx, job2.payload as typeof p1));
+    expect(r).toMatchObject({ charged: true });
+    const after = await row(m.id);
+    expect(after.renewalOrderId).toBeTruthy();
+    expect(after.renewalOrderId).not.toBe(firstOrderId);
+    const [o] = await h.db.select({ status: orders.status }).from(orders).where(eq(orders.id, after.renewalOrderId!));
+    expect(o!.status).toBe("pending_payment");
+    // A further scan the same day changes nothing (the open order blocks attempt 1).
+    expect(await scanOne(m.id, days(-1, end))).toEqual([]);
+    expect(await chargeJobsOf(m.id)).toHaveLength(2);
+  });
+
+  it("fix-w09-credits-review 1: a no_mandate charge run does not block the charge once the person adds a new mandate", async () => {
+    const { m, personId } = await start({ mandate: true });
+    const end = m.currentPeriodEndAt;
+    expect(await scanOne(m.id, days(-3, end))).toEqual(["charge"]);
+    const [job1] = await chargeJobsOf(m.id);
+    const p1 = job1!.payload as { membershipId: string; periodEndOn: string; attempt: 1 };
+    const mandateId = mandated.get(personId)!;
+    mandated.delete(personId);
+    expect(await runJob("memberships.charge_renewal", days(-3, end), (ctx) => runChargeRenewal(ctx, p1))).toMatchObject({ charged: false, reason: "no_mandate" });
+    mandated.set(personId, mandateId);
+    expect(await scanOne(m.id, days(-2, end))).toEqual(["charge"]);
+    const job2 = (await chargeJobsOf(m.id)).find((j) => j.id !== job1!.id);
+    expect(job2).toBeDefined();
+    expect(await runJob("memberships.charge_renewal", days(-2, end), (ctx) => runChargeRenewal(ctx, job2!.payload as typeof p1))).toMatchObject({ charged: true });
+    expect((await row(m.id)).renewalOrderId).toBeTruthy();
   });
 
   it("memberships.charge_renewal calls createRecurringCharge once and stores renewal_order_id; a second run charges nothing", async () => {
@@ -411,7 +497,7 @@ describe("renewal by mandate (rules 48, 49)", () => {
     expect(second).toMatchObject({ applied: false });
     const after = await row(m.id);
     expect(after).toMatchObject({ status: "active", currentPeriodStartAt: oldEnd, renewalOrderId: null, dunningAttempt: 0, pastDueSinceAt: null });
-    expect(after.nextChargeAt).toEqual(shiftDays(after.currentPeriodEndAt, -3));
+    expect(after.nextChargeAt).toEqual(addBrusselsDays(after.currentPeriodEndAt, -3));
     expect((await periodsOf(m.id)).map((p) => p.source)).toEqual(["purchase", "renewal"]);
     expect((await grantsOf(m.id)).map((g) => g.g.startsAt)).toEqual([T0, oldEnd]);
     expect((await eventsOf(m.id)).filter((e) => e.kind === "membership.renewed")).toHaveLength(1);
@@ -455,6 +541,18 @@ describe("dunning on the mandate path (rule 50)", () => {
     expect((await eventsOf(m.id)).filter((e) => e.kind === "membership.past_due")).toHaveLength(1);
     // A past_due member keeps member status and pricing (rule 51).
     expect(await getMembershipForPerson(h.db, m.personId)).toMatchObject({ isMember: true, status: "past_due", discountPct: 10 });
+  });
+
+  it("fix-w09-credits-review 3: a pay-link checkout failing while past_due waits for the next retry does not skip the mandate retry", async () => {
+    const { m } = await charged();
+    const failAt = days(28);
+    await applyRenewalFailure(tx(), ctxAt(failAt), { membershipId: m.id, paymentId: "tr_mandate_1", reason: "failed" });
+    expect(await applyRenewalFailure(tx(), ctxAt(days(1, failAt)), { membershipId: m.id, paymentId: "tr_paylink_1", reason: "cancelled" })).toMatchObject({
+      applied: false,
+      dunningAttempt: 1,
+    });
+    expect(await row(m.id)).toMatchObject({ status: "past_due", dunningAttempt: 1, nextChargeAt: days(3, failAt) });
+    expect(await scanOne(m.id, days(3, failAt))).toEqual(["retry:2"]);
   });
 
   it("past_due -> active: applyRenewalPayment after a failure clears dunning", async () => {
@@ -574,6 +672,30 @@ describe("renewal by payment link (rule 52)", () => {
     expect(fx.cancelRenewalOrder).toHaveBeenCalledWith(expect.anything(), expect.anything(), { orderId, reason: "membership_expired" });
   });
 
+  it("fix-w09-credits-review 3: an abandoned pay-link checkout keeps the link path: active until the period end, then markPastDue timing and not_renewed", async () => {
+    const { m } = await start();
+    const end = m.currentPeriodEndAt;
+    expect(await scanOne(m.id, days(-7, end))).toEqual(["link_order", "reminder:7"]);
+    // T-5: the customer opens the pay link and abandons the checkout; commerce reports the ended payment.
+    const r = await inTx(days(-5, end), (t, ctx) => applyRenewalFailure(t, ctx, { membershipId: m.id, paymentId: "tr_link_abandoned", reason: "expired" }));
+    expect(r).toMatchObject({ applied: false });
+    expect(await row(m.id)).toMatchObject({ status: "active", dunningAttempt: 0, pastDueSinceAt: null });
+    expect((await eventsOf(m.id)).map((e) => e.kind)).not.toContain("membership.past_due");
+    expect(sends(m.id).map((s) => s.template)).not.toContain("credits.membership_payment_failed");
+    expect(await scanOne(m.id, new Date(end.getTime() + 60_000))).toEqual(["past_due"]);
+    expect(await row(m.id)).toMatchObject({ status: "past_due", dunningAttempt: 1, pastDueSinceAt: end });
+    // Another abandoned checkout while past_due does not raise the dunning attempt or skip the reminders.
+    expect(await inTx(days(1, end), (t, ctx) => applyRenewalFailure(t, ctx, { membershipId: m.id, paymentId: "tr_link_abandoned_2", reason: "failed" }))).toMatchObject({
+      applied: false,
+    });
+    expect(await row(m.id)).toMatchObject({ dunningAttempt: 1 });
+    expect(await scanOne(m.id, days(3, end))).toEqual(["link_reminder:2"]);
+    expect(await scanOne(m.id, days(7, end))).toEqual(["link_reminder:3"]);
+    expect(await scanOne(m.id, days(9, end))).toEqual([]);
+    expect(await scanOne(m.id, days(10, end))).toEqual(["expired"]);
+    expect(await row(m.id)).toMatchObject({ status: "expired", endReason: "not_renewed" });
+  });
+
   it("a payment at the desk on the link order renews like any renewal", async () => {
     const { m } = await start();
     await scanOne(m.id, days(-7, m.currentPeriodEndAt));
@@ -683,7 +805,7 @@ describe("cancellation (rules 53, 54)", () => {
     await requestCancel(tx(), ctxAt(days(2)), { membershipId: m.id, by: "customer" });
     const resumed = await resume(tx(), ctxAt(days(3)), { membershipId: m.id });
     expect(resumed).toMatchObject({ cancelAt: null, cancelRequestedAt: null, status: "active" });
-    expect(resumed.nextChargeAt).toEqual(shiftDays(m.currentPeriodEndAt, -3));
+    expect(resumed.nextChargeAt).toEqual(addBrusselsDays(m.currentPeriodEndAt, -3));
     expect((await eventsOf(m.id)).map((e) => e.kind)).toEqual(["membership.started", "membership.cancel_requested", "membership.resumed"]);
     expect((await auditsOf(m.id)).map((a) => a.action)).toContain("memberships.resumed");
     await expect(resume(tx(), ctxAt(days(3)), { membershipId: m.id })).rejects.toMatchObject({ code: "conflict" });
@@ -736,20 +858,46 @@ describe("period extension, the V1 pause (rule 55)", () => {
     const staff = staffActor({ userId: (await makeUser(h.db)).id, permissions: ["memberships.write", "credits.adjust"] });
     const clientKey = randomUUID();
     const r = await extendPeriod(tx(), ctxAt(days(5), staff), { membershipId: m.id, days: 14, reason: "injury pause", alsoExtendInclusions: true, clientKey, version: m.version });
-    expect(r).toMatchObject({ created: true, periodEndAt: shiftDays(m.currentPeriodEndAt, 14) });
+    expect(r).toMatchObject({ created: true, periodEndAt: addBrusselsDays(m.currentPeriodEndAt, 14) });
     const after = await row(m.id);
-    expect(after.currentPeriodEndAt).toEqual(shiftDays(m.currentPeriodEndAt, 14));
-    expect(after.nextChargeAt).toEqual(shiftDays(m.nextChargeAt!, 14));
+    expect(after.currentPeriodEndAt).toEqual(addBrusselsDays(m.currentPeriodEndAt, 14));
+    expect(after.nextChargeAt).toEqual(addBrusselsDays(m.nextChargeAt!, 14));
     expect((await periodsOf(m.id)).map((p) => [p.source, p.periodStartAt, p.periodEndAt])).toEqual([
       ["purchase", T0, m.currentPeriodEndAt],
       ["staff_extension", m.currentPeriodEndAt, after.currentPeriodEndAt],
     ]);
     const [g] = await grantsOf(m.id);
-    expect(g!.g.expiresAt).toEqual(shiftDays(m.currentPeriodEndAt, 14));
+    expect(g!.g.expiresAt).toEqual(addBrusselsDays(m.currentPeriodEndAt, 14));
     expect(await grantsOf(m.id)).toHaveLength(1);
     expect((await extendPeriod(tx(), ctxAt(days(5), staff), { membershipId: m.id, days: 14, reason: "injury pause", alsoExtendInclusions: true, clientKey })).created).toBe(false);
     expect((await row(m.id)).currentPeriodEndAt).toEqual(after.currentPeriodEndAt);
     expect((await auditsOf(m.id)).map((a) => a.action)).toContain("memberships.period_extended");
+  });
+
+  it("fix-w09-credits-review 5: an extension from the 25-hour DST day keeps the wall-clock time of the period end", async () => {
+    // Started 25 Sep 2026 10:00 Brussels (CEST): the period ends 25 Oct 10:00 (CET, the 25-hour day).
+    const startsAt = new Date("2026-09-25T08:00:00.000Z");
+    const { m } = await start({ mandate: true, startsAt, now: startsAt });
+    expect(m.currentPeriodEndAt.toISOString()).toBe("2026-10-25T09:00:00.000Z");
+    const staff = staffActor({ userId: (await makeUser(h.db)).id, permissions: ["memberships.write", "credits.adjust"] });
+    const r = await extendPeriod(tx(), ctxAt(new Date("2026-10-01T08:00:00.000Z"), staff), {
+      membershipId: m.id,
+      days: 7,
+      reason: "injury pause",
+      alsoExtendInclusions: true,
+      clientKey: randomUUID(),
+    });
+    expect(r.periodEndAt.toISOString()).toBe("2026-11-01T09:00:00.000Z"); // 1 Nov 10:00 Brussels
+    const after = await row(m.id);
+    expect(after.nextChargeAt!.toISOString()).toBe("2026-10-29T09:00:00.000Z"); // 22 Oct 10:00 CEST + 7 = 29 Oct 10:00 CET
+    const [g] = await grantsOf(m.id);
+    expect(g!.g.expiresAt!.toISOString()).toBe("2026-11-01T09:00:00.000Z");
+  });
+
+  it("fix-w09-credits-review 5: periodStartBefore keeps the wall-clock time across DST", () => {
+    expect(periodStartBefore(new Date("2026-11-25T09:00:00.000Z"), "month").toISOString()).toBe("2026-10-25T09:00:00.000Z");
+    expect(periodStartBefore(new Date("2026-11-25T22:59:59.999Z"), "month").toISOString()).toBe("2026-10-25T22:59:59.999Z");
+    expect(periodStartBefore(new Date("2027-03-28T08:00:00.000Z"), "year").toISOString()).toBe("2026-03-28T09:00:00.000Z");
   });
 
   it("without the tick the inclusion grants keep their expiry; the next renewal starts at the moved end", async () => {
@@ -831,7 +979,7 @@ describe("importMembership (ops imports)", () => {
     const m = await row(first.membershipId);
     expect(m).toMatchObject({ status: "active", source: "import", currentPeriodEndAt: periodEndAt, discountPct: "10.00" });
     expect(brusselsDateKey(m.currentPeriodStartAt)).toBe("2026-02-22");
-    expect(m.nextChargeAt).toEqual(shiftDays(periodEndAt, -3));
+    expect(m.nextChargeAt).toEqual(addBrusselsDays(periodEndAt, -3));
     expect((await periodsOf(m.id)).map((p) => p.source)).toEqual(["import"]);
     expect(await grantsOf(m.id)).toHaveLength(1);
   });

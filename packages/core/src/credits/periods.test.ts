@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { brusselsDateKey } from "./expiry";
-import { addBrusselsDays, anchorDayOf, DEFAULT_DUNNING, dunningSchedule, nextPeriod, renewalLeadDates, renewalReminderDays } from "./periods";
+import { addBrusselsDays, anchorDayOf, atWallTimeOf, DEFAULT_DUNNING, dunningSchedule, nextPeriod, renewalLeadDates, renewalReminderDays } from "./periods";
 
 const key = (d: Date) => brusselsDateKey(d);
 
@@ -110,5 +110,22 @@ describe("renewal dates", () => {
     expect(renewalReminderDays({ interval: "month", hasValidMandate: true, isEnding: true })).toEqual([7]);
     expect(renewalReminderDays({ interval: "year", hasValidMandate: true, isEnding: false, yearlyDays: [14] })).toEqual([14]);
     expect(renewalReminderDays({ interval: "month", hasValidMandate: false, isEnding: false, monthlyDays: [5] })).toEqual([5]);
+  });
+});
+
+describe("addBrusselsDays and atWallTimeOf across DST (fix-w09-credits-review 5)", () => {
+  // End of day 23:59:59.999 Brussels from or into a 23- or 25-hour day stays end of day on the target date.
+  it.each([
+    ["end of 25 Oct (25-hour day) + 7", "2026-10-25T22:59:59.999Z", 7, "2026-11-01T22:59:59.999Z"],
+    ["end of 22 Mar + 7 (into the 23-hour day)", "2026-03-22T22:59:59.999Z", 7, "2026-03-29T21:59:59.999Z"],
+    ["end of 18 Oct + 7 (into the 25-hour day)", "2026-10-18T21:59:59.999Z", 7, "2026-10-25T22:59:59.999Z"],
+    ["end of 29 Mar (23-hour day) - 7", "2026-03-29T21:59:59.999Z", -7, "2026-03-22T22:59:59.999Z"],
+  ])("%s", (_label, from, days, expected) => {
+    expect(addBrusselsDays(new Date(from), days).toISOString()).toBe(expected);
+  });
+
+  it("atWallTimeOf keeps the hour, minute and milliseconds on another date", () => {
+    expect(atWallTimeOf(new Date("2026-11-25T09:00:00.000Z"), { year: 2026, month: 10, day: 25 }).toISOString()).toBe("2026-10-25T09:00:00.000Z");
+    expect(atWallTimeOf(new Date("2026-03-22T22:59:59.999Z"), { year: 2026, month: 3, day: 29 }).toISOString()).toBe("2026-03-29T21:59:59.999Z");
   });
 });

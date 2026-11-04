@@ -337,7 +337,8 @@
       "withdrawal": "Droit de rétractation : vous pouvez vous rétracter des forfaits, abonnements et chèques-cadeaux de cette commande jusqu'au {date}, sans donner de motif, via le formulaire de rétractation sur la page de votre commande. Les séances, nuits et tickets à date fixe en sont exclus."
     },
     "tasks": {
-      "chargeback": "Rétrofacturation sur la commande {reference}"
+      "chargeback": "Rétrofacturation sur la commande {reference}",
+      "late_paid_refund": "Rembourser manuellement le paiement de la commande annulée {reference} : le remboursement automatique a été refusé"
     },
     "order_status": {
       "draft": "Brouillon",

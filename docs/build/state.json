@@ -687,11 +687,14 @@
       "mergedAt": "2026-11-04T17:34:04Z"
     },
     "site-P4": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "baseSha": "b2e6063",
       "runId": "wf_97959bbb-9e8",
-      "startedAt": "2026-11-04T19:49:31Z"
+      "startedAt": "2026-11-04T19:49:31Z",
+      "branchSha": "b2822ad",
+      "endedAt": "2026-11-04T20:30:04Z",
+      "minutes": 34
     },
     "site-P6": {
       "status": "merged",
@@ -750,8 +753,11 @@
       "attempts": 0
     },
     "automation-P5": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "a943df5",
+      "runId": "wf_7eacc5de-e6d",
+      "startedAt": "2026-11-04T20:30:16Z"
     },
     "ops-P4": {
       "status": "merged",
@@ -830,11 +836,14 @@
       "attempts": 0
     },
     "credits-P7": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "baseSha": "b2e6063",
       "runId": "wf_a3ffc854-3d0",
-      "startedAt": "2026-11-04T19:49:31Z"
+      "startedAt": "2026-11-04T19:49:31Z",
+      "branchSha": "88e5e0b",
+      "endedAt": "2026-11-04T20:30:04Z",
+      "minutes": 32
     },
     "finance-P7": {
       "status": "pending",
@@ -1012,11 +1021,14 @@
       "attempts": 0
     },
     "platform-P10": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "baseSha": "b2e6063",
       "runId": "wf_9cb8f8c5-6cb",
-      "startedAt": "2026-11-04T19:49:31Z"
+      "startedAt": "2026-11-04T19:49:31Z",
+      "branchSha": "b798707",
+      "endedAt": "2026-11-04T20:30:04Z",
+      "minutes": 33
     },
     "crm-P10": {
       "status": "pending",
@@ -1729,7 +1741,7 @@
       "mergedAt": "2026-11-04T20:23:46Z"
     },
     "fix-w09-ops-review": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "fixer": true,
       "module": "ops",
@@ -1745,11 +1757,13 @@
         "ops-P5"
       ],
       "branchSha": "08a1afd",
-      "endedAt": "2026-11-04T19:49:31Z",
+      "endedAt": "2026-11-04T20:23:48Z",
       "minutes": 31,
       "baseSha": "fa5ed8b",
       "runId": "wf_8e33788d-601",
-      "startedAt": "2026-11-04T19:49:30Z"
+      "startedAt": "2026-11-04T19:49:30Z",
+      "mergeSha": "709507c",
+      "mergedAt": "2026-11-04T20:37:48Z"
     },
     "fix-w09-site-review": {
       "status": "done",

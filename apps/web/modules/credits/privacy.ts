@@ -16,7 +16,9 @@
  *   Memberships are retained (`expired`, `end_reason = erased` when still live; `notes` nulled);
  *   their periods are retained. The person's uses on other owners' grants stay, pointing at the
  *   anonymised person, so the owner's history stays correct (edge case 26). R2 sharing reviews
- *   and R3 referral rows are added by credits-P8 and credits-P9.
+ *   (credits-P8): the person is removed from every reviewed person set and the notes are nulled;
+ *   a review about the person as guest, on a deleted grant, or left with an empty set is deleted.
+ *   R3 referral rows are added by credits-P9.
  * - `sweep`: one handler per seeded retention key (cross-module D37), at most 5,000 rows per call;
  *   the two accounting-linked keys never touch a record younger than 3653 days (D34).
  */
@@ -50,11 +52,6 @@ const actorLabel = sql.raw(
 
 /** The module's retention rows (the same list the credits defaults seed inserts); ops seeds them from `GDPR_REGISTRY`. */
 export const retention: readonly RetentionPolicySeed[] = CREDITS_RETENTION_POLICIES.map((p) => ({ ...p }));
-
-async function tableExists(tx: DbOrTx, name: string): Promise<boolean> {
-  const [r] = await query<{ t: string | null }>(tx, sql`select to_regclass(${`public.${name}`})::text as t`);
-  return r?.t != null;
-}
 
 /** The older of `cutoff` and the accounting floor (now - 3653 days). */
 const accountingCutoff = (cutoff: Date) => new Date(Math.min(cutoff.getTime(), Date.now() - ACCOUNTING_DAYS * DAY));
@@ -100,9 +97,8 @@ export const sweep: Record<string, (tx: Tx, cutoff: Date) => Promise<number>> = 
     await tx.execute(sql`delete from membership_periods where membership_id = any(${uuidArray(due)})`);
     return affected(tx, sql`delete from memberships where id = any(${uuidArray(due)}) returning id`);
   },
-  /** R2 table (credits-P8); nothing to sweep while it does not exist. */
+  /** R2 (credits-P8): review decisions older than the cutoff (2 years by default). */
   "credits.sharing_reviews": async (tx, cutoff) => {
-    if (!(await tableExists(tx, "credit_sharing_reviews"))) return 0;
     return affected(
       tx,
       sql`delete from credit_sharing_reviews where id in (
@@ -237,6 +233,22 @@ async function erasePerson(tx: Tx, personId: string): Promise<EraseReportRow[]> 
       where g.id = any(${uuidArray(touched)})`);
   }
 
+  // R2 sharing reviews: the person leaves every person set; a guest_hopping review about them and
+  // a review left with an empty set are deleted; the notes of the rest are nulled.
+  const reviewsDeleted = await affected(
+    tx,
+    sql`delete from credit_sharing_reviews
+        where guest_person_id = ${pid} or grant_id = any(${uuidArray(goodwill)})
+           or (guest_person_ids @> array[${pid}] and cardinality(guest_person_ids) = 1)
+        returning id`,
+  );
+  const reviewsRedacted = await affected(
+    tx,
+    sql`update credit_sharing_reviews set guest_person_ids = array_remove(guest_person_ids, ${pid}), note = null
+        where guest_person_ids @> array[${pid}] or grant_id = any(${uuidArray(owned.map((g) => g.id))})
+        returning id`,
+  );
+
   // Goodwill grants: no legal basis to keep them.
   let goodwillEntries = 0;
   let goodwillGrants = 0;
@@ -279,13 +291,15 @@ async function erasePerson(tx: Tx, personId: string): Promise<EraseReportRow[]> 
     { table: "credit_entries", rows: goodwillEntries, action: "deleted" },
     { table: "credit_entries", rows: Number(beneficiary?.n ?? 0), action: "kept" },
     { table: "package_shares", rows: shares, action: "deleted" },
+    { table: "credit_sharing_reviews", rows: reviewsDeleted, action: "deleted" },
+    { table: "credit_sharing_reviews", rows: reviewsRedacted, action: "anonymised" },
     { table: "memberships", rows: memberships, action: "retained_legal" },
     { table: "membership_periods", rows: Number(periods?.n ?? 0), action: "retained_legal" },
   ];
 }
 
 export const privacy: PrivacyRegistration<Tx> = {
-  tables: ["credit_grants", "credit_entries", "memberships", "membership_periods", "package_shares"],
+  tables: ["credit_grants", "credit_entries", "memberships", "membership_periods", "package_shares", "credit_sharing_reviews"],
   export: (tx, personId) => exportPerson(tx, personId),
   erase: (tx, personId) => erasePerson(tx, personId),
   sweep,

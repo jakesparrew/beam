@@ -13,6 +13,7 @@ import { MembershipPaymentFailed, membershipPaymentFailedSample, MembershipPayme
 import { MembershipRenewalReminder, membershipRenewalReminderSample, MembershipRenewalReminderProps } from "./membership-renewal-reminder";
 import { MembershipRenewed, membershipRenewedSample, MembershipRenewedProps } from "./membership-renewed";
 import { MembershipStarted, membershipStartedSample, MembershipStartedProps } from "./membership-started";
+import { ShareInvitation, shareInvitationSample, ShareInvitationProps } from "./share-invitation";
 
 const slots = (name: string) => ({
   subject: `credits.email.${name}.subject`,
@@ -47,4 +48,5 @@ export const templates = [
     sample: membershipCancelConfirmedSample,
     slots: slots("membership_cancel_confirmed"),
   }),
+  defineTemplate({ name: "share_invitation", component: ShareInvitation, props: ShareInvitationProps, sample: shareInvitationSample, slots: slots("share_invitation") }),
 ];

@@ -43,6 +43,7 @@ import * as ledger from "./server/ledger";
 import { canPayRenewal } from "./queries";
 import { lockMembership, renewalJobKey } from "./server/memberships";
 import * as membershipService from "./server/memberships";
+import * as sharing from "./server/sharing";
 
 /** At most 12 active benefits per plan (spec section 2, `membership_plan_benefits`). */
 const MAX_ACTIVE_BENEFITS = 12;
@@ -497,4 +498,57 @@ export const payMyRenewal = action(
     const { redirectUrl } = await startPayment(ctx.tx, ctx, { orderId: m.renewalOrderId, returnPath: "/account/membership" });
     return { redirectUrl };
   },
+);
+
+// ---------------------------------------------------------------------------
+// Sharing (credits-P8, R2: rules 40 to 43). The handlers write their own audit rows.
+// ---------------------------------------------------------------------------
+
+function staffBy(ctx: Ctx): sharing.ShareBy {
+  if (ctx.actor.kind !== "staff") throw new NotFoundError("grant_not_found");
+  return { kind: "staff", userId: ctx.actor.userId };
+}
+
+function ownerBy(ctx: Ctx): sharing.ShareBy {
+  if (ctx.actor.kind !== "customer") throw new NotFoundError("grant_not_found");
+  return { kind: "owner", personId: ctx.actor.personId };
+}
+
+/** Rule 40: mode and monthly guest limit of one grant (audit `credits.sharing_changed`). */
+export const updateGrantSharing = action(
+  { name: "credits.update_sharing", audience: "staff", permission: "credits.adjust", input: sharing.UpdateGrantSharingInput, audit: false },
+  async (ctx, input) => {
+    await assertGrant(ctx, input.grantId);
+    return sharing.updateGrantSharing(ctx.tx, ctx, input);
+  },
+);
+
+/** Rule 41 (staff): a named share on any grant; the grant switches to mode `named`. */
+export const addPackageShare = action(
+  { name: "credits.add_share", audience: "staff", permission: "credits.adjust", input: sharing.AddShareInput, audit: false },
+  async (ctx, input) => sharing.addShare(ctx.tx, ctx, input, staffBy(ctx)),
+);
+
+/** Rule 41 (owner, portal): at most 5 active shares on an own grant in mode `named`. */
+export const addMyPackageShare = action(
+  { name: "credits.portal_add_share", audience: "customer", input: sharing.AddShareInput, audit: false },
+  async (ctx, input) => sharing.addShare(ctx.tx, ctx, input, ownerBy(ctx)),
+);
+
+/** Rule 42 (staff): stops future use of a share; past uses stay. */
+export const revokePackageShare = action(
+  { name: "credits.revoke_share", audience: "staff", permission: "credits.adjust", input: sharing.RevokeShareInput, audit: false },
+  async (ctx, input) => sharing.revokeShare(ctx.tx, ctx, input, staffBy(ctx)),
+);
+
+/** Rule 42 (owner, portal): a share on someone else's grant is `not_found`. */
+export const revokeMyPackageShare = action(
+  { name: "credits.portal_revoke_share", audience: "customer", input: sharing.RevokeShareInput, audit: false },
+  async (ctx, input) => sharing.revokeShare(ctx.tx, ctx, input, ownerBy(ctx)),
+);
+
+/** Rule 43: a decision on a review item; `sharing_disabled` sets mode `none` in the same transaction. */
+export const reviewSharing = action(
+  { name: "credits.review_sharing", audience: "staff", permission: "credits.adjust", input: sharing.ReviewSharingInput, audit: false },
+  async (ctx, input) => sharing.reviewSharing(ctx.tx, ctx, input),
 );

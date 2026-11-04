@@ -39,6 +39,7 @@ import { messagesFor, type Locale, type LocalizedText } from "@beam/core/i18n";
 import { and, asc, desc, eq, inArray, NotFoundError, sql, type SQL } from "@/lib/ctx";
 import { previewBulkExtension as previewBulk, type BulkExtensionFilter } from "./server/bulk-extend";
 import { getPersonCreditSummary } from "./server/ledger";
+import { getMySharesGiven, listSharingReview as listReviewRows, MAX_PORTAL_SHARES, personNames, type MyShareRow, type SharingReviewRow } from "./server/sharing";
 
 export type GrantStatus = "active" | "exhausted" | "expired" | "revoked";
 export type GrantSource = "purchase" | "voucher" | "membership" | "bonus" | "import" | "manual" | "referral" | "transfer";
@@ -699,7 +700,8 @@ function toMyPackage<T extends { remainingUnits: number; baseUnits: number }>(r:
  */
 export async function listGrantsSharedWith(db: DbOrTx, personId: string): Promise<SharedPackage[]> {
   if (!UUID_RE.test(personId)) return [];
-  const usedByMe = sql<number>`(select count(*)::int from credit_entries e where e.grant_id = ${packageShares.grantId} and e.kind = 'consume' and e.beneficiary_person_id = ${personId} and not exists (select 1 from credit_entries r where r.reverses_entry_id = e.id))`;
+  // Net units the reader used on the grant (consumes minus returns), as the ledger caps `max_units` (rule 18).
+  const usedByMe = sql<number>`(select coalesce(-sum(e.quantity), 0)::int from credit_entries e where e.grant_id = ${packageShares.grantId} and e.kind in ('consume', 'release') and e.beneficiary_person_id = ${personId})`;
   const rows = await db
     .select({
       ...myPackageColumns(),
@@ -1040,4 +1042,77 @@ export async function getMyMembership(db: DbOrTx, personId: string, opts: { now?
     canResume: m.status === "active" && !!m.cancelAt && m.cancelAt.getTime() > now.getTime(),
     upcoming: pending ? { membershipId: pending.m.id, planName: pending.planName, startsAt: pending.m.currentPeriodStartAt } : null,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Sharing (credits-P8, R2)
+// ---------------------------------------------------------------------------
+
+export type { MyShareRow, SharingReviewRow };
+
+/** A `v_sharing_review` row with the names staff see (rule 38: full names) and the grant's label. */
+export type SharingReviewItem = SharingReviewRow & {
+  people: { personId: string; name: string }[];
+  /** many_guests: the grant owner and the package name; guest_hopping: the guest. */
+  subjectName: string;
+  ownerPersonId: string | null;
+  productName: LocalizedText | null;
+  grantLabel: LocalizedText | null;
+  sharingMode: "none" | "guests" | "named" | null;
+};
+
+/** `/admin/credits/sharing-review` (`credits.read`): the open review items with names. */
+export async function listSharingReview(db: DbOrTx, opts: { limit?: number } = {}): Promise<SharingReviewItem[]> {
+  const rows = await listReviewRows(db, { limit: opts.limit ?? 100 });
+  const grantIds = rows.map((r) => r.grantId).filter((id): id is string => !!id);
+  const grants = grantIds.length
+    ? await db
+        .select({ id: creditGrants.id, personId: creditGrants.personId, productName: products.name, label: creditGrants.label, sharing: creditGrants.sharing })
+        .from(creditGrants)
+        .leftJoin(products, eq(products.id, creditGrants.productId))
+        .where(inArray(creditGrants.id, grantIds))
+    : [];
+  const byGrant = new Map(grants.map((g) => [g.id, g]));
+  const ids = [...rows.flatMap((r) => r.personIds), ...rows.map((r) => r.guestPersonId).filter((id): id is string => !!id), ...grants.map((g) => g.personId)];
+  const names = await personNames(db, ids);
+  return rows.map((r) => {
+    const g = r.grantId ? byGrant.get(r.grantId) : undefined;
+    const subjectId = g?.personId ?? r.guestPersonId;
+    return {
+      ...r,
+      people: r.personIds.map((personId) => ({ personId, name: names.get(personId) ?? "" })),
+      subjectName: subjectId ? (names.get(subjectId) ?? "") : "",
+      ownerPersonId: g?.personId ?? null,
+      productName: g?.productName ?? null,
+      grantLabel: g?.label ?? null,
+      sharingMode: g?.sharing.mode ?? null,
+    };
+  });
+}
+
+/**
+ * The portal sharing section (R2, `getMyShares`): the shares the reader gave on one of their own
+ * grants (or on all of them), with what each sharee used, and whether another may be added
+ * (mode `named`, active grant, fewer than 5 active shares, rule 41). A grant of someone else is
+ * `not_found`.
+ */
+export async function getMyShares(
+  db: DbOrTx,
+  personId: string,
+  opts: { grantId?: string } = {},
+): Promise<{ shares: MyShareRow[]; canAdd: boolean; maxShares: number; activeCount: number }> {
+  if (!UUID_RE.test(personId)) throw new NotFoundError("person_not_found");
+  let canAdd = false;
+  if (opts.grantId) {
+    if (!UUID_RE.test(opts.grantId)) throw new NotFoundError("grant_not_found");
+    const [g] = await db
+      .select({ personId: creditGrants.personId, status: creditGrants.status, sharing: creditGrants.sharing, kind: creditGrants.creditKind, source: creditGrants.source })
+      .from(creditGrants)
+      .where(eq(creditGrants.id, opts.grantId));
+    if (!g || g.personId !== personId) throw new NotFoundError("grant_not_found");
+    canAdd = g.status === "active" && g.sharing.mode === "named" && g.kind !== "euro" && g.source !== "membership";
+  }
+  const shares = await getMySharesGiven(db, personId, opts);
+  const activeCount = shares.filter((s) => s.status === "active").length;
+  return { shares, canAdd: canAdd && activeCount < MAX_PORTAL_SHARES, maxShares: MAX_PORTAL_SHARES, activeCount };
 }

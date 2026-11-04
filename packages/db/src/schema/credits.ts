@@ -105,6 +105,9 @@ export const membershipPeriodsSource = pgEnum("membership_periods_source", [
   "staff_extension",
 ]);
 export const creditReconciliationRunsStatus = pgEnum("credit_reconciliation_runs_status", ["ok", "mismatch", "error"]);
+/** R2 (credits-P8): the two abuse rules of `v_sharing_review` and a reviewer's decision. */
+export const creditSharingReviewsRule = pgEnum("credit_sharing_reviews_rule", ["many_guests", "guest_hopping"]);
+export const creditSharingReviewsDecision = pgEnum("credit_sharing_reviews_decision", ["ok", "warned", "sharing_disabled"]);
 
 /** The values of `credit_entries.ref_type` (check constraint `credit_entries_ref_type_ck`). */
 export const CREDIT_ENTRY_REF_TYPES = [
@@ -518,5 +521,36 @@ export const creditReconciliationRuns = pgTable(
       "credit_reconciliation_runs_finished_ck",
       sql`(${t.finishedAt} is null) = (${t.status} is null)`,
     ),
+  ],
+);
+
+/**
+ * R2 (credits-P8). One staff decision on a `v_sharing_review` item: rule `many_guests` names the
+ * grant, rule `guest_hopping` the guest; `guest_person_ids` is the set seen when reviewed, so the
+ * item stays hidden until a new person appears. `note` is PII-risk.
+ */
+export const creditSharingReviews = pgTable(
+  "credit_sharing_reviews",
+  {
+    id: id(),
+    rule: creditSharingReviewsRule().notNull(),
+    grantId: uuid().references(() => creditGrants.id),
+    guestPersonId: uuid().references(() => persons.id, { onDelete: "restrict" }),
+    guestPersonIds: uuid().array().notNull(),
+    decision: creditSharingReviewsDecision().notNull(),
+    note: text(),
+    reviewedByUserId: uuid()
+      .notNull()
+      .references(() => users.id),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("credit_sharing_reviews_grant_idx").on(t.grantId),
+    index("credit_sharing_reviews_guest_idx").on(t.guestPersonId),
+    check(
+      "credit_sharing_reviews_subject_ck",
+      sql`(${t.rule} = 'many_guests' and ${t.grantId} is not null and ${t.guestPersonId} is null) or (${t.rule} = 'guest_hopping' and ${t.guestPersonId} is not null and ${t.grantId} is null)`,
+    ),
+    check("credit_sharing_reviews_note_ck", sql`${t.note} is null or length(${t.note}) <= 1000`),
   ],
 );

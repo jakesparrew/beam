@@ -440,7 +440,9 @@ async function loadAllocGrants(tx: DbOrTx, c: AllocContext, lock: boolean): Prom
     : ids.length
       ? await tx.select().from(creditGrants).where(inArray(creditGrants.id, ids)).orderBy(asc(creditGrants.id))
       : [];
-  const grants = rows.filter((g) => g.status === "active" && g.creditKind === c.kind);
+  // A share counts only while its grant is in mode `named` (credits-P8: staff or a review that
+  // turns sharing off stops named use at once, even before the shares are revoked).
+  const grants = rows.filter((g) => g.status === "active" && g.creditKind === c.kind && (g.personId === c.payerPersonId || g.sharing.mode === "named"));
   if (grants.length === 0) return { grants, alloc: [] };
   const gids = grants.map((g) => g.id);
   const balances = await balancesOf(tx, gids);

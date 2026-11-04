@@ -310,14 +310,21 @@ export type LateRefundResult = { refunded: false; failed?: true } | { refunded: 
  * order stays `cancelled` and no credits function is called, so the ended membership is not
  * revived. No invoice was issued (the paid transaction never ran), so no credit note is due; the
  * refund is recorded on the payment (`refunded_cents`, status `refunded`) and on the timeline
- * (`order.refunded`). A provider refusal opens a finance task instead.
+ * (`order.refunded`). A provider refusal opens a finance task instead. The same applies, with
+ * reason `order_expired`, to a `paid` on an `expired` order that it could not finalise (edge
+ * case 4: the euro credit the expiry released no longer covers the rest).
  */
 export async function refundLatePaidOnCancelledOrder(ctx: Ctx & { integrations?: Integrations }, paymentId: string): Promise<LateRefundResult> {
   const tx = ctx.tx;
   const [payment] = await tx.select().from(payments).where(eq(payments.id, paymentId)).for("update");
   if (!payment || payment.status !== "paid" || !payment.providerPaymentId) return { refunded: false };
   const order = await lockOrder(tx, payment.orderId);
-  if (!order || order.status !== "cancelled") return { refunded: false };
+  if (!order) return { refunded: false };
+  // Edge case 4 with euro credit: an `expired` order the late `paid` could not finalise (its
+  // released credit was not available again) keeps nothing, so the payment goes back in full.
+  const expiredUnpaid = order.status === "expired" && (await paidCentsOf(tx, order.id)) < order.totalCents;
+  if (order.status !== "cancelled" && !expiredUnpaid) return { refunded: false };
+  const reason = expiredUnpaid ? "order_expired" : "order_cancelled";
   const amountCents = payment.amountCents - payment.refundedCents;
   if (amountCents <= 0) return { refunded: false };
   let result: { providerRefundId: string; status: "pending" | "refunded" | "failed" };
@@ -325,7 +332,7 @@ export async function refundLatePaidOnCancelledOrder(ctx: Ctx & { integrations?:
     result = await paymentsClient(ctx).refund({
       providerPaymentId: payment.providerPaymentId,
       amountCents,
-      description: `${order.reference} order_cancelled`,
+      description: `${order.reference} ${reason}`,
       idempotencyKey: `late_paid_refund:${payment.id}`,
     });
   } catch (error) {
@@ -362,7 +369,7 @@ export async function refundLatePaidOnCancelledOrder(ctx: Ctx & { integrations?:
       ...subject,
       ref: { type: "payment", id: payment.id },
       dedupeKey: `order:${order.id}:refunded:${payment.id}`,
-      data: { order_id: order.id, amount_cents: amountCents, reason: "order_cancelled" },
+      data: { order_id: order.id, amount_cents: amountCents, reason },
     });
   }
   return { refunded: true, amountCents, providerRefundId: result.providerRefundId };

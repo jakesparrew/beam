@@ -237,6 +237,8 @@ describe("issueRefund", () => {
     grantCredits.mockClear();
     await inTx((tx, ctx) => issueRefund(tx, ctx, { orderId: second.order.id, lines: [{ orderLineId: second.lines[0]!.id, quantity: 1 }], reason: "goodwill", kind: "refund" }));
     expect(releaseCredits).toHaveBeenCalledWith(expect.anything(), expect.anything(), { ref: { type: "order", id: second.order.id }, reason: "refund" });
+    // Review fix 4: credit consumed again after a late paid is keyed by its credit_balance payment.
+    expect(releaseCredits).toHaveBeenCalledWith(expect.anything(), expect.anything(), { ref: { type: "order", id: second.payments[0]!.id }, reason: "refund" });
     expect(grantCredits).not.toHaveBeenCalled();
   });
 

@@ -10,6 +10,7 @@
  *   `applyProviderStatus`, the forward-only state machine (rule 28), which runs the paid
  *   transaction when the order is covered (rule 31) and the failure path otherwise (rule 33).
  */
+import { randomUUID } from "node:crypto";
 import { checkouts, mandates, orders, orderLines, payments, persons, providerCustomers } from "@beam/db/schema";
 import {
   nextPaymentStatus,
@@ -22,12 +23,12 @@ import { formatMoney, t, URL_SEGMENT, type Locale } from "@beam/core/i18n";
 import { IntegrationError } from "@beam/integrations/_shared";
 import type { PaymentProvider } from "@beam/integrations/payments";
 import { appUrl } from "@/lib/auth";
-import { and, eq, inArray, notInArray, sql, ConflictError, NotFoundError, type Ctx, type DbOrTx, type Tx } from "@/lib/ctx";
+import { and, eq, inArray, notInArray, sql, AppError, ConflictError, NotFoundError, type Ctx, type DbOrTx, type Tx } from "@/lib/ctx";
 import { getIntegrations, type Integrations } from "@/lib/integrations";
 import { runJobInline, type JobCtx } from "@/lib/job-runner";
 import { getSetting } from "@/lib/settings";
 import { createTask } from "@/modules/crm/api";
-import { applyRenewalFailure } from "@/modules/credits/api";
+import { applyRenewalFailure, consumeCredits, getEuroBalance } from "@/modules/credits/api";
 import { sendTransactional } from "@/modules/email/api";
 import { commerceSettings, finalizePaidOrder, lockOrder, orderSubject, paidCentsOf, type OrderRow, type PaymentRow } from "./paid";
 
@@ -290,7 +291,8 @@ export async function applyProviderStatus(tx: Tx, ctx: Ctx, payment: PaymentRow,
   if (next === "paid") {
     const order = await lockOrder(tx, payment.orderId);
     if (order && (order.status === "pending_payment" || order.status === "expired")) {
-      const paid = await paidCentsOf(tx, order.id);
+      let paid = await paidCentsOf(tx, order.id);
+      if (order.status === "expired" && paid < order.totalCents) paid += await reconsumeReleasedEuroCredit(tx, ctx, order, order.totalCents - paid);
       if (paid >= order.totalCents) {
         await finalizePaidOrder(tx, ctx, order.id, { paymentId: payment.id });
         becamePaid = true;
@@ -300,6 +302,50 @@ export async function applyProviderStatus(tx: Tx, ctx: Ctx, payment: PaymentRow,
     await onPaymentEnded(tx, ctx, payment, next, reason);
   }
   return { changed: true, becamePaid };
+}
+
+/**
+ * Edge case 4 with euro credit: the expiry released the order's euro credit (its `credit_balance`
+ * payment is `cancelled`), so a late provider `paid` no longer covers the total. When the
+ * person's euro balance still covers the shortfall, it is consumed again as a new, paid
+ * `credit_balance` payment and the order can be finalised. Credits refuses a second consume on a
+ * released order ref (`ref_already_released`), so the re-consume is keyed by the new payment's id
+ * (`ref = {type: 'order', id: <payment id>}`; a full refund releases both refs). Returns the cents
+ * added; 0 leaves the order `expired`, and `refundLatePaidOnCancelledOrder` (after the sync) refunds the
+ * provider payment.
+ */
+async function reconsumeReleasedEuroCredit(tx: Tx, ctx: Ctx, order: OrderRow, shortfallCents: number): Promise<number> {
+  const personId = order.personId;
+  if (!personId || shortfallCents <= 0) return 0;
+  const [released] = await tx
+    .select({ id: payments.id })
+    .from(payments)
+    .where(and(eq(payments.orderId, order.id), eq(payments.provider, "credit_balance"), eq(payments.status, "cancelled")))
+    .limit(1);
+  if (!released) return 0;
+  const balance = await getEuroBalance(tx, personId);
+  if (balance.remainingCents < shortfallCents) return 0;
+  const paymentId = randomUUID();
+  try {
+    // A savepoint: an allocation refusal must not abort the provider status already written.
+    await tx.transaction((sp) =>
+      consumeCredits(sp, ctx, { personId, beneficiaryPersonId: personId, kind: "euro", units: shortfallCents, ref: { type: "order", id: paymentId } }).then(() => undefined),
+    );
+  } catch (error) {
+    if (error instanceof AppError) return 0;
+    throw error;
+  }
+  await tx.insert(payments).values({
+    id: paymentId,
+    orderId: order.id,
+    provider: "credit_balance",
+    method: "credit_balance",
+    status: "paid",
+    amountCents: shortfallCents,
+    paidAt: ctx.now,
+    statusHistory: [{ status: "paid", at: ctx.now.toISOString(), source: "provider" }],
+  });
+  return shortfallCents;
 }
 
 /** The mandate a paid `first` or recurring payment carries (rule 32), keyed by the provider id. */

@@ -1,10 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DbHandle } from "@beam/db";
-import { bookings, waitlistEntries } from "@beam/db/schema";
+import { bookings, creditGrants, waitlistEntries } from "@beam/db/schema";
 import { createTestDb, makePerson, makeUser } from "@beam/db/testing";
 import { makeCreditGrant } from "@beam/db/testing/credits-factories";
-import { eq, type Actor } from "@/lib/ctx";
+import { and, eq, type Actor } from "@/lib/ctx";
 import { resetRuntime, staffActor } from "@/lib/testing";
 import { cancelOrder, createOrder, refundOrderLine } from "@/modules/commerce/api";
 import { getMembershipForPerson } from "@/modules/credits/api";
@@ -99,6 +99,21 @@ async function creditBooking(startsIn = 2 * DAY, sessionOver: Parameters<typeof 
 function cancel(actor: Actor, input: Partial<CancelBookingInput> & Pick<CancelBookingInput, "bookingId" | "by">) {
   return inTx(h.db, actor, (tx, ctx) => cancelBookingRow(tx, ctx, { includeGuests: true, ...input }));
 }
+
+describe("imported credit bookings (R65)", () => {
+  it("an imported credit booking cancelled inside the window gives its unit back as a manual grant", async () => {
+    const session = await openSession(h.db, { startsAt: new Date(Date.now() + 2 * DAY) });
+    const person = await makePerson(h.db);
+    const live = await grantFor(person.id);
+    const booking = await rawBooking(h.db, { sessionId: session.id, personId: person.id, paidWith: "credit", source: "import", bookedByPersonId: person.id });
+    const result = await cancel(customerActor(person.id), { bookingId: booking.id, expectedVersion: booking.version, by: "customer" });
+    expect(result).toMatchObject({ status: "cancelled", creditReleased: true });
+    expect(await releasesOf(h.db, booking.id)).toEqual([]);
+    const restored = (await h.db.select().from(creditGrants).where(and(eq(creditGrants.personId, person.id), eq(creditGrants.source, "manual")))).filter((g) => g.id !== live.id);
+    expect(restored).toHaveLength(1);
+    expect(restored[0]).toMatchObject({ creditKind: session.creditKind, unitsGranted: session.creditCost, expiresAt: live.expiresAt });
+  });
+});
 
 describe("customer cancellation inside the free window (R28)", () => {
   it("tonight path: cancel inside the rules, credit back (cancelled_in_policy), fact, email and waitlist.offer_next", async () => {

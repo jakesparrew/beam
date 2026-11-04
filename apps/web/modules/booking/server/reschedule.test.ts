@@ -1,9 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DbHandle } from "@beam/db";
+import { creditEntries } from "@beam/db/schema";
 import { createTestDb, makePerson, makeUser } from "@beam/db/testing";
 import { makeCreditGrant } from "@beam/db/testing/credits-factories";
-import type { Actor } from "@/lib/ctx";
+import { and, eq, type Actor } from "@/lib/ctx";
 import { resetRuntime, staffActor } from "@/lib/testing";
 import { createOrder, refundOrderLine } from "@/modules/commerce/api";
 import { getMembershipForPerson } from "@/modules/credits/api";
@@ -11,9 +12,12 @@ import { hasValidSubmission } from "@/modules/forms/api";
 import { getCurrentLegalVersion, hasAcceptedCurrentTerms } from "@/modules/site/api";
 import { bookSeats, type BookSeatsInput } from "./book";
 import { DAY, customerActor, fakeCreateOrder, inTx, openSession, sessionProduct, setBookingRules } from "./booking-p3a.fixtures";
-import { bookingById, consumesOf, emailByKey, emailsOfBooking, factsOf, jobsOf, paidOrderBooking, releasesOf } from "./booking-p3b.fixtures";
+import { bookingById, consumesOf, emailByKey, emailsOfBooking, factsOf, jobsOf, paidOrderBooking, rawBooking, releasesOf } from "./booking-p3b.fixtures";
 import { rescheduleRow, type RescheduleInput } from "./reschedule";
 
+// commerce's api barrel re-exports `redeemVoucher` from its actions, whose import graph reaches booking's
+// book.ts: stubbing the actions file keeps that cycle closed, so booking sees the mocked functions.
+vi.mock("@/modules/commerce/actions", () => ({ redeemVoucher: vi.fn() }));
 vi.mock("@/modules/commerce/api", async (orig) => ({ ...(await orig<Record<string, unknown>>()), createOrder: vi.fn(), refundOrderLine: vi.fn() }));
 vi.mock("@/modules/credits/api", async (orig) => ({ ...(await orig<Record<string, unknown>>()), getMembershipForPerson: vi.fn() }));
 vi.mock("@/modules/forms/api", async (orig) => ({ ...(await orig<Record<string, unknown>>()), hasValidSubmission: vi.fn() }));
@@ -100,6 +104,18 @@ describe("reschedule (R31)", () => {
     expect(mail?.props).toMatchObject({ oldDate: expect.any(String), date: expect.any(String) });
     expect(mail?.attachments).toEqual([{ fileId: next.qrFileId, filename: "checkin-qr.png", inline: true }]);
     expect(await jobsOf(h.db, "waitlist.offer_next", `waitlist:${session.id}:offer_next:${booking.id}`)).toHaveLength(1);
+  });
+
+  it("moving an imported credit booking (never consumed, R65) takes no credit: the new row stays an unconsumed import", async () => {
+    const session = await openSession(h.db, inDays(3));
+    const person = await makePerson(h.db);
+    const grant = await makeCreditGrant(h.db, { personId: person.id, units: 5, startsAt: new Date(Date.now() - 30 * DAY), expiresAt: new Date(Date.now() + 60 * DAY) });
+    const booking = await rawBooking(h.db, { sessionId: session.id, personId: person.id, paidWith: "credit", source: "import", bookedByPersonId: person.id });
+    const target = await openSession(h.db, inDays(5));
+    const { newBookingId } = await move(customerActor(person.id), { bookingId: booking.id, expectedVersion: booking.version, targetSessionId: target.id });
+    expect(await bookingById(h.db, newBookingId)).toMatchObject({ status: "confirmed", paidWith: "credit", source: "import" });
+    expect(await consumesOf(h.db, newBookingId)).toHaveLength(0);
+    expect(await h.db.select().from(creditEntries).where(and(eq(creditEntries.grantId, grant.id), eq(creditEntries.kind, "consume")))).toHaveLength(0);
   });
 
   it("customers only inside the free window; staff may move outside it", async () => {

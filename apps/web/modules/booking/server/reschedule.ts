@@ -155,6 +155,7 @@ export async function rescheduleRow(tx: Tx, ctx: Ctx, input: RescheduleInput): P
 
   // Old rows: cancelled, `rescheduled`, credits back (no refund: the order line moves along).
   const payers = new Map<string, string>();
+  const released = new Map<string, number>();
   const cancelled: BookingRow[] = [];
   for (const b of moving) {
     if (b.paidWith === "credit" || b.paidWith === "guest") payers.set(b.id, await creditPayer(tx, b));
@@ -171,7 +172,7 @@ export async function rescheduleRow(tx: Tx, ctx: Ctx, input: RescheduleInput): P
       .where(eq(bookings.id, b.id))
       .returning();
     cancelled.push(row!);
-    if (payers.has(b.id)) await releaseCredits(tx, ctx, { ref: { type: "booking", id: b.id }, reason: "rescheduled" });
+    if (payers.has(b.id)) released.set(b.id, (await releaseCredits(tx, ctx, { ref: { type: "booking", id: b.id }, reason: "rescheduled" })).releasedUnits);
   }
 
   // New rows on the target, owner first; guests point at the new owner row.
@@ -201,7 +202,10 @@ export async function rescheduleRow(tx: Tx, ctx: Ctx, input: RescheduleInput): P
       .returning();
     created.push(row!);
     const payer = payers.get(b.id);
-    if (payer && to.creditKind && to.creditCost > 0) {
+    // R65: an imported row was never consumed (ops imported the balance net of it), so its move
+    // takes nothing either; the new row keeps `source = 'import'` and stays unconsumed.
+    const unconsumedImport = b.source === "import" && (released.get(b.id) ?? 0) === 0;
+    if (payer && to.creditKind && to.creditCost > 0 && !unconsumedImport) {
       try {
         await consumeCredits(tx, ctx, { personId: payer, beneficiaryPersonId: b.personId, kind: to.creditKind, units: to.creditCost, ref: { type: "booking", id }, validAt: to.startsAt });
       } catch (error) {

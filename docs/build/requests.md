@@ -55,7 +55,6 @@ to "Served" with the package id.
 | ops-P4 | platform | Add `setFileExpiry(tx, fileIds, expiresAt)`; until then ops-P4 updates `files.expires_at` directly for its own import parts. |
 | ops-P4 | ops (owner of `ops.json`) | Missing catalogue keys from ops-P4's commit trailer (for example `ops.imports.option.confirm_different_file`, `ops.imports.target.{mode,watched_minutes}`, `ops.imports.error.{past_booking,invalid_status,unknown_tag,...}`). |
 | finance-P3 | finance (owner of `packages/core/src/finance/index.ts`) | Add `export * from "./document-model"`, then switch `apps/web/modules/finance/pdf/render.ts` from the relative path to `@beam/core/finance`. |
-| finance-P3 | finance-P5 | `rerenderInvoicePdf` enqueues `finance.render_pdf` with key `invoice_pdf:<id>:r<n>`; `resendInvoiceEmail` and `sendPaymentReminder` enqueue `finance.send_invoice_email` with reason `resend:<n>` or `reminder:<yyyy-mm-dd>`. |
 | commerce-P4a | commerce (owner of `server/catalogue.ts`) | Record the `person_price.set` event in `setPersonPriceRecord` (the kind is declared now). |
 | booking-P3b | commerce | `refundOrderLine` has no reason for staff forced refunds; booking passes `cancelled_in_policy`. Add `staff_override` if finance needs to tell them apart. |
 | booking-P3b, booking-P5 | booking (owner of `server/order-hooks.ts`) | `releaseOrderBookings` in `server/order-hooks.ts` also moves a claimed offered waitlist entry to `expired` with `payment_not_completed` and enqueues `offer_next` (R44), as `expireReservedRow` in `server/cancel.ts` already does. booking-P5 served the job side: `waitlist.offer_next` and `waitlist.expire_offers` now expire an offered entry whose claimed booking is cancelled; the same-transaction move inside `releaseOrderBookings` stays open. |
@@ -82,6 +81,7 @@ to "Served" with the package id.
 | automation-P3 | platform | Add `webhook` to the `integration_calls_provider` enum, `INTEGRATION_PROVIDERS` (`@beam/integrations/_shared`) and `INTEGRATION_ENUM` in `apps/web/lib/ctx.ts`; until then the call-log entries of `automation.call_webhook` are dropped. |
 | automation-P3 | platform (owner of `.env.example`) | List `AUTOMATION_WEBHOOK_SECRET` in `.env.example` (automation spec section 6). |
 | automation-P3 | forms | Implement `getPublishedFormMeta`; automation's `form_available` condition treats its `NotImplementedError` as "not available" for now. |
+| finance-P5 | finance (finance-P6 or finance-P7) | Link the order on `/admin/finance/invoices/[id]` once commerce ships `/admin/orders/[id]` (typed routes reject the link until then), and add the "Export CSV of this filter" button together with the exports screen. |
 
 ## Served
 
@@ -100,3 +100,4 @@ to "Served" with the package id.
 | orchestrator | finance-P4 | `packages/integrations/src/_shared/platform-p3.shared.test.ts` (line ~69) pins the Billit client stub (`NotImplementedError`); finance-P4 implements the real client, so it also owns that test (granted as extraOwns at launch) and replaces the stub assertion with the client's real contract. | finance-P4 |
 | email-P3 | site-P5 | Implement `getLegalLinks`; email footers carry no privacy or terms links until it exists (email handles the `NotImplementedError`). | site-P5 |
 | email-P3 | automation (the package that implements `requestSuppressionExit`) | `crm.addSuppression` calls `automation.requestSuppressionExit` from email's hard-bounce, complaint and soft-bounce handling; it still throws. | automation-P2 (implemented; the crm side is the automation-P2 -> crm row) |
+| finance-P3 | finance-P5 | `rerenderInvoicePdf` enqueues `finance.render_pdf` with key `invoice_pdf:<id>:r<n>`; `resendInvoiceEmail` and `sendPaymentReminder` enqueue `finance.send_invoice_email` with reason `resend:<n>` or `reminder:<yyyy-mm-dd>`. | finance-P5 |

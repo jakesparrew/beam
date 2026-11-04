@@ -670,11 +670,14 @@
       "startedAt": "2026-11-04T07:39:40Z"
     },
     "finance-P5": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "baseSha": "e2c5e08",
       "runId": "wf_efee6788-f9d",
-      "startedAt": "2026-11-04T07:25:56Z"
+      "startedAt": "2026-11-04T07:25:56Z",
+      "branchSha": "abab573",
+      "endedAt": "2026-11-04T08:05:46Z",
+      "minutes": 40
     },
     "forms-P6": {
       "status": "pending",

@@ -8,11 +8,11 @@
  * a version with sensitive fields publishes only while ops' `isDpiaApproved(tx,
  * 'sensitive_assessment_processing')` is true. The only caller allowed to pass
  * `{ skipDpiaCheck: 'demo_seed' }` is the demo seed (`modules/forms/seed.ts`), whose submissions
- * are fake persons on `beam_dev`. The other P7 checks (CTA targets active, outcome tags exist,
- * slug free) are added by forms-P3 and forms-P5 through `extraIssues`.
+ * are fake persons on `beam_dev`. `publishVersion` (forms-P3, called by forms-P5's action) adds
+ * the other server checks of P7 (CTA targets active, outcome tags exist) through `extraIssues`.
  */
-import type { DbOrTx } from "@beam/db";
-import { forms, formVersions, type FormDefinitionJson, type FormScoringJson } from "@beam/db/schema";
+import type { DbOrTx, Tx } from "@beam/db";
+import { forms, formVersions, tags, type FormDefinitionJson, type FormScoringJson } from "@beam/db/schema";
 import {
   deriveVersionColumns,
   FormDefinition as FormDefinitionSchema,
@@ -25,8 +25,9 @@ import {
   type PublishIssue,
 } from "@beam/core/forms";
 import type { Locale } from "@beam/core/i18n";
-import { and, ConflictError, eq, isNull, NotFoundError, sql, ValidationError } from "@/lib/ctx";
+import { and, ConflictError, eq, inArray, isNull, NotFoundError, sql, ValidationError, type Ctx } from "@/lib/ctx";
 import { isDpiaApproved } from "@/modules/ops/api";
+import { checkCtaTargets, ctaIssues } from "./cta-targets";
 
 /** Publishing refused: `issues` lists every blocking error and the warnings (P1). */
 export class PublishRefusedError extends ValidationError {
@@ -162,4 +163,36 @@ export async function publishFormVersion(
 export async function findDraft(tx: DbOrTx, formId: string) {
   const [row] = await tx.select().from(formVersions).where(and(eq(formVersions.formId, formId), isNull(formVersions.publishedAt)));
   return row ?? null;
+}
+
+/** A staff context (the `action()` context of a staff action). */
+export type StaffCtx = Ctx;
+
+/** P7: outcome `tagKeys` that do not exist in crm's `tags`. */
+export async function missingTagIssues(tx: DbOrTx, scoring: FormScoring): Promise<PublishIssue[]> {
+  const wanted = [...new Set(scoring.outcomes.flatMap((o) => o.tagKeys))];
+  if (!wanted.length) return [];
+  const found = new Set((await tx.select({ key: tags.key }).from(tags).where(inArray(tags.key, wanted))).map((r) => r.key));
+  return scoring.outcomes.flatMap((o) =>
+    o.tagKeys
+      .filter((k) => !found.has(k))
+      .map((k) => ({ level: "error" as const, code: "unknown_outcome" as const, path: `scoring.outcomes.${o.key}.tagKeys`, message: `Tag ${k} does not exist` })),
+  );
+}
+
+/**
+ * P1 to P9 for a staff publish (forms-P5's `publishVersion` action): requires `forms.publish`,
+ * adds the server checks of P7 (CTA targets exist and are active, outcome tags exist) and the
+ * DPIA gate, then publishes in the caller's transaction. Throws `PublishRefusedError` with every
+ * issue.
+ */
+export async function publishVersion(tx: Tx, ctx: StaffCtx, i: { formId: string; versionId: string; changeNote: string }): Promise<{ version: number }> {
+  ctx.require("forms.publish");
+  const [row] = await tx.select().from(formVersions).where(and(eq(formVersions.id, i.versionId), eq(formVersions.formId, i.formId)));
+  if (!row) throw new NotFoundError("version_not_found");
+  const content = parseVersion(row);
+  const extraIssues = [...ctaIssues(await checkCtaTargets(tx, content.definition, ctx.now)), ...(await missingTagIssues(tx, content.scoring))];
+  const publishedByUserId = ctx.actor.kind === "staff" ? ctx.actor.userId : null;
+  const r = await publishFormVersion(tx, { formId: i.formId, versionId: i.versionId, publishedByUserId, changeNote: i.changeNote, now: ctx.now, extraIssues });
+  return { version: r.version };
 }

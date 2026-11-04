@@ -13,6 +13,7 @@ import { createTestDb, makePerson, makeProduct, makeUser } from "@beam/db/testin
 import { ensureTermsVersion, makeOrder, makeOrderLine } from "@beam/db/testing/commerce-factories";
 import type { DbHandle, Tx } from "@beam/db";
 import { activityEvents, checkouts, jobs, orders, payments, promotions, termsAcceptances } from "@beam/db/schema";
+import type * as Catalogue from "./catalogue";
 
 vi.mock("next/headers", () => ({ cookies: () => Promise.resolve({ get: () => undefined, set: () => undefined }), headers: () => Promise.resolve(new Headers()) }));
 vi.mock("next/server", () => ({ after: () => undefined }));
@@ -50,7 +51,7 @@ vi.mock("@/modules/credits/api", async (importOriginal) => ({
 /** Runs before `createOrder`'s own quote (the one with `companyId`), to simulate a concurrent order. */
 const catalogueHook: { beforeOrderQuote: ((db: unknown) => Promise<void>) | null } = { beforeOrderQuote: null };
 vi.mock("./catalogue", async (importOriginal) => {
-  const real = await importOriginal<typeof import("./catalogue")>();
+  const real = await importOriginal<typeof Catalogue>();
   return {
     ...real,
     getQuote: async (db: Parameters<typeof real.getQuote>[0], input: Parameters<typeof real.getQuote>[1]) => {

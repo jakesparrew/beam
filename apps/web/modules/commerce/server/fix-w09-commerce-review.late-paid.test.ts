@@ -168,7 +168,8 @@ describe("late paid after expiry activates the vouchers the expiry voided (revie
     const result = await inTx((tx, ctx) => finalizePaidOrder(tx, ctx, order.id));
     expect(result.delivered).toContainEqual(expect.objectContaining({ orderLineId: line.id, result: "voucher_activated", voucherIds: [voucher.id] }));
     const [v] = await h.db.select().from(vouchers).where(eq(vouchers.id, voucher.id));
-    expect(v).toMatchObject({ status: "active", voidedReason: null, codeLast4: expect.any(String) });
+    expect(v).toMatchObject({ status: "active", voidedReason: null });
+    expect(v!.codeLast4).toHaveLength(4);
     expect(v!.codeHash).toBeTruthy();
     expect(v!.expiresAt).toBeTruthy();
     expect(await orderStatus(order.id)).toBe("paid");

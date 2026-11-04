@@ -174,7 +174,7 @@ export async function loadPlan(db: DbOrTx, productId: string): Promise<Plan> {
     if (e.kind === "euro" || inclusions.some((i) => i.kind === e.kind)) continue;
     inclusions.push({ kind: e.kind, units: e.units });
   }
-  return { id: p.id, name: p.name as LocalizedText, interval: p.recurringInterval, discountPct: p.memberDiscountPct ?? "0", inclusions };
+  return { id: p.id, name: p.name, interval: p.recurringInterval, discountPct: p.memberDiscountPct ?? "0", inclusions };
 }
 
 /**
@@ -219,7 +219,7 @@ async function publicPriceCents(db: DbOrTx, productId: string, at: Date): Promis
 
 async function personLocale(db: DbOrTx, personId: string): Promise<Locale> {
   const [p] = await db.select({ locale: persons.locale }).from(persons).where(eq(persons.id, personId));
-  return (p?.locale ?? "nl-BE") as Locale;
+  return (p?.locale ?? "nl-BE");
 }
 
 /**
@@ -235,7 +235,7 @@ async function sendMembershipEmail(
 ): Promise<void> {
   const locale = await personLocale(ctx.tx, m.personId);
   const [p] = await ctx.tx.select({ name: products.name }).from(products).where(eq(products.id, m.productId));
-  const planName = (p?.name as LocalizedText | undefined)?.[locale] ?? "";
+  const planName = (p?.name)?.[locale] ?? "";
   await sendTransactional(ctx, {
     template: `credits.${name}`,
     personId: m.personId,
@@ -510,9 +510,9 @@ export async function getMembershipSummary(
     .orderBy(asc(vCreditGrantBalances.creditKind));
   return {
     status: pick.m.status,
-    productName: pick.name as LocalizedText,
+    productName: pick.name,
     currentPeriodEndAt: pick.m.currentPeriodEndAt,
-    includedCredits: balances.map((b) => ({ kind: b.kind as CreditKind, remainingUnits: Number(b.remaining) })),
+    includedCredits: balances.map((b) => ({ kind: b.kind, remainingUnits: Number(b.remaining) })),
   };
 }
 
@@ -779,7 +779,8 @@ export async function applyRenewalFailure(
 ): Promise<{ status: "past_due" | "expired"; dunningAttempt: number; applied: boolean }> {
   const m = await lockMembership(tx, input.membershipId);
   const live = m.status === "active" || m.status === "past_due";
-  const unchanged = { status: (live ? "past_due" : "expired") as "past_due" | "expired", dunningAttempt: m.dunningAttempt, applied: false };
+  const reported: "past_due" | "expired" = live ? "past_due" : "expired";
+  const unchanged = { status: reported, dunningAttempt: m.dunningAttempt, applied: false };
   if (!live || m.renewalOrderId === null) return unchanged;
   if (await failureSeen(tx, m.id, input.paymentId)) return unchanged;
   const s = await creditsSettings(tx);
@@ -1126,7 +1127,7 @@ async function dunningStep(tx: DbOrTx, ctx: Ctx, m: MembershipRow, s: CreditsSet
   const due: 1 | 2 | 3 = now >= sched.retry3At.getTime() ? 3 : now >= sched.retry2At.getTime() ? 2 : 1;
   if (due <= m.dunningAttempt) return [];
   if (!isLinkPath(m) && (await getActiveMandate(tx, m.personId))) {
-    await enqueueCharge(ctx, m, due as 2 | 3);
+    await enqueueCharge(ctx, m, due);
     return [`retry:${due}`];
   }
   const row = await update(tx, ctx, m, { dunningAttempt: due });

@@ -20,7 +20,11 @@ import { renderEmail } from "@beam/email/render";
 import { TEMPLATE_REGISTRY } from "@beam/email/templates/registry";
 import type { TemplateDef } from "@beam/email/templates/define";
 import { and, asc, createCtx, eq, flushDurableWrites, type Actor, type Ctx } from "@/lib/ctx";
+import type * as Alerts from "@/lib/alerts";
 import type { JobCtx } from "@/lib/job-runner";
+import type * as CommerceApi from "@/modules/commerce/api";
+import type * as CrmApi from "@/modules/crm/api";
+import type * as EmailApi from "@/modules/email/api";
 import { makeCtx, makeJobCtx, resetRuntime, staffActor } from "@/lib/testing";
 import { runChargeRenewal, runScanRenewals } from "../jobs";
 import { balanceOf, consumeCredits } from "./ledger";
@@ -57,11 +61,11 @@ const fx = vi.hoisted(() => ({
   cancelRenewalOrder: vi.fn(),
 }));
 
-vi.mock("@/modules/email/api", async (orig) => ({ ...(await orig<typeof import("@/modules/email/api")>()), sendTransactional: fx.sendTransactional }));
-vi.mock("@/lib/alerts", async (orig) => ({ ...(await orig<typeof import("@/lib/alerts")>()), notifySlack: fx.notifySlack }));
-vi.mock("@/modules/crm/api", async (orig) => ({ ...(await orig<typeof import("@/modules/crm/api")>()), createTask: fx.createTask }));
+vi.mock("@/modules/email/api", async (orig) => ({ ...(await orig<typeof EmailApi>()), sendTransactional: fx.sendTransactional }));
+vi.mock("@/lib/alerts", async (orig) => ({ ...(await orig<typeof Alerts>()), notifySlack: fx.notifySlack }));
+vi.mock("@/modules/crm/api", async (orig) => ({ ...(await orig<typeof CrmApi>()), createTask: fx.createTask }));
 vi.mock("@/modules/commerce/api", async (orig) => ({
-  ...(await orig<typeof import("@/modules/commerce/api")>()),
+  ...(await orig<typeof CommerceApi>()),
   getActiveMandate: fx.getActiveMandate,
   createRecurringCharge: fx.createRecurringCharge,
   createRenewalLinkOrder: fx.createRenewalLinkOrder,
@@ -222,17 +226,6 @@ async function runJob<T>(kind: "memberships.scan_renewals" | "memberships.charge
   });
   if (ctx) await flushDurableWrites(h.db, ctx);
   return out;
-}
-
-/** Puts an active membership's period end at `end` (start one month before), for scan tests. */
-async function setPeriod(m: MembershipRow, end: Date, patch: Partial<typeof memberships.$inferInsert> = {}): Promise<MembershipRow> {
-  const startAt = shiftDays(end, -30);
-  const [r] = await h.db
-    .update(memberships)
-    .set({ currentPeriodStartAt: startAt, currentPeriodEndAt: end, ...patch })
-    .where(eq(memberships.id, m.id))
-    .returning();
-  return r!;
 }
 
 // ---------------------------------------------------------------------------
@@ -490,7 +483,7 @@ describe("dunning on the mandate path (rule 50)", () => {
       expect(fx.notifySlack).toHaveBeenCalledTimes(i >= 2 ? 1 : 0);
     }
     expect(fx.notifySlack.mock.calls[0]![1]).toMatchObject({ fingerprint: "renewals_failed:2031-06-02", severity: "high" });
-    expect(String(fx.notifySlack.mock.calls[0]![1].text)).toContain("/admin/memberships?status=past_due");
+    expect(String((fx.notifySlack.mock.calls[0]![1] as { text: string }).text)).toContain("/admin/memberships?status=past_due");
     expect(await alertFailedRenewals(tx(), ctxAt(day))).toMatchObject({ count: 4, alerted: false });
   });
 

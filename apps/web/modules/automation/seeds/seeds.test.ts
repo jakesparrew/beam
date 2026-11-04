@@ -302,7 +302,7 @@ describe("seedAutomation on a database", () => {
     for (const t of seedTemplates()) {
       const row = tpl.find((r) => r.slug === t.slug);
       expect(row, t.slug).toMatchObject({ kind: t.kind, purpose: t.purpose, status: "published" });
-      expect([...(row!.locales as string[])].sort(), t.slug).toEqual(["en", "fr-BE", "nl-BE"]);
+      expect([...row!.locales].sort(), t.slug).toEqual(["en", "fr-BE", "nl-BE"]);
     }
   });
 

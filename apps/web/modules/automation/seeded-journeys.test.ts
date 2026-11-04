@@ -14,7 +14,7 @@ import { seedDefaults } from "@beam/db/seed";
 import { createTestDb, makePerson, makeUser } from "@beam/db/testing";
 import { makeCreditGrant, makeMembership } from "@beam/db/testing/credits-factories";
 import { and, asc, eq, sql } from "@/lib/ctx";
-import { makeCtx, makeJobCtx, resetRuntime } from "@/lib/testing";
+import { makeJobCtx, resetRuntime } from "@/lib/testing";
 import type * as EmailApi from "@/modules/email/api";
 import type * as FormsApi from "@/modules/forms/api";
 

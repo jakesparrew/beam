@@ -287,7 +287,7 @@ async function importGroup(tx: Tx, ctx: Ctx, imp: ImportRow, first: ImportItemRo
   const parts = chosen.map((m) => ({ m, c: localeContent(m, imp, mediaByUrl, kind) }));
   let pageId = existingPageId;
   const base: VersionContent = { title: {}, paths: {}, blocks: {}, seo: {}, excerpt: null, coverMediaId: null, locales: [], isMaterialChange: false };
-  let draft = pageId ? await findDraft(tx, pageId) : null;
+  const draft = pageId ? await findDraft(tx, pageId) : null;
   const content: VersionContent = draft ? versionContent(draft) : base;
   if (pageId && !draft) {
     const [page] = await tx.select({ currentVersionId: pages.currentVersionId }).from(pages).where(eq(pages.id, pageId));
@@ -318,7 +318,7 @@ async function importGroup(tx: Tx, ctx: Ctx, imp: ImportRow, first: ImportItemRo
     const [page] = await tx.insert(pages).values({ kind, slug: await uniqueSlug(tx, slugBase), status: "draft" }).returning({ id: pages.id });
     pageId = page!.id;
   }
-  if (draft) draft = await updateDraftContent(tx, draft, next);
+  if (draft) await updateDraftContent(tx, draft, next);
   else await insertDraft(tx, { pageId, content: { ...next, changeSummary: "WordPress import" }, basedOnVersionId: null, userId: imp.createdByUserId });
 
   let created = 0;

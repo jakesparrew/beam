@@ -17,7 +17,7 @@
  *   the link and keep their text.
  */
 import { randomUUID } from "node:crypto";
-import { HTMLElement, Node as HtmlNode, NodeType, parse } from "node-html-parser";
+import { NodeType, parse, type HTMLElement, type Node as HtmlNode } from "node-html-parser";
 import { isSafeHref, normalisePath, type Block, type RichBlockNode, type RichInline, type RichListItem, type RichMark } from "@beam/core/site";
 
 export type ConvertReport = {
@@ -208,7 +208,7 @@ class Converter {
 
   inline(node: HtmlNode, marks: RichMark[], out: Seg[]): void {
     if (node.nodeType === NodeType.TEXT_NODE) {
-      const text = node.text.replace(/[\s ]+/g, " ");
+      const text = node.text.replace(/[\s\u00a0]+/g, " ");
       if (text) out.push({ kind: "inline", node: marks.length ? { type: "text", text, marks: [...marks] } : { type: "text", text } });
       return;
     }
@@ -316,7 +316,7 @@ class Converter {
 
   block(node: HtmlNode): void {
     if (node.nodeType === NodeType.TEXT_NODE) {
-      const raw = node.text.replace(/[\s ]+/g, " ").trim();
+      const raw = node.text.replace(/[\s\u00a0]+/g, " ").trim();
       if (!raw) return;
       const yt = /^https?:\/\/\S+$/.test(raw) ? youtubeIdOf(raw) : null;
       if (yt) return this.video(yt, "");

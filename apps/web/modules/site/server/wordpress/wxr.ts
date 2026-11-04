@@ -118,7 +118,7 @@ function metaOf(item: Node): Map<string, string> {
 function categories(item: Node): { domain: string; nicename: string }[] {
   return ((item.category as unknown[] | undefined) ?? []).map((c) => {
     const node = (typeof c === "object" && c ? c : {}) as Node;
-    return { domain: String(node["@_domain"] ?? ""), nicename: String(node["@_nicename"] ?? "") };
+    return { domain: text(node["@_domain"]), nicename: text(node["@_nicename"]) };
   });
 }
 

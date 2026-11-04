@@ -90,11 +90,16 @@
       "attempts": 0
     },
     "crm-P1": {
-      "status": "running",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "9892b11",
       "runId": "wf_42f16a56-2ea",
-      "startedAt": "2026-11-03T23:35:56Z"
+      "startedAt": "2026-11-03T23:35:56Z",
+      "branchSha": "b2080e4",
+      "endedAt": "2026-11-04T00:45:48Z",
+      "minutes": 58,
+      "mergeSha": "fdf7995",
+      "mergedAt": "2026-11-04T00:49:25Z"
     },
     "booking-P1": {
       "status": "merged",
@@ -157,13 +162,13 @@
       "attempts": 0
     },
     "forms-P1": {
-      "status": "done",
+      "status": "red",
       "attempts": 1,
       "baseSha": "ea67dfd",
       "runId": "wf_96f98c7c-518",
       "startedAt": "2026-11-04T00:06:29Z",
       "branchSha": "1647dc5",
-      "endedAt": "2026-11-04T00:33:51Z",
+      "endedAt": "2026-11-04T00:42:35Z",
       "minutes": 17
     },
     "forms-P2": {

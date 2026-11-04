@@ -687,8 +687,11 @@
       "mergedAt": "2026-11-04T17:34:04Z"
     },
     "site-P4": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "b2e6063",
+      "runId": "wf_97959bbb-9e8",
+      "startedAt": "2026-11-04T19:49:31Z"
     },
     "site-P6": {
       "status": "merged",
@@ -827,8 +830,11 @@
       "attempts": 0
     },
     "credits-P7": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "b2e6063",
+      "runId": "wf_a3ffc854-3d0",
+      "startedAt": "2026-11-04T19:49:31Z"
     },
     "finance-P7": {
       "status": "pending",
@@ -887,8 +893,11 @@
       "attempts": 0
     },
     "webinar-P2": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "b2e6063",
+      "runId": "wf_1adc04ad-c0d",
+      "startedAt": "2026-11-04T19:49:31Z"
     },
     "booking-P8": {
       "status": "pending",
@@ -1003,8 +1012,11 @@
       "attempts": 0
     },
     "platform-P10": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "b2e6063",
+      "runId": "wf_9cb8f8c5-6cb",
+      "startedAt": "2026-11-04T19:49:31Z"
     },
     "crm-P10": {
       "status": "pending",
@@ -1694,7 +1706,7 @@
       "mergedAt": "2026-11-04T19:48:49Z"
     },
     "fix-w09-automation-review": {
-      "status": "running",
+      "status": "done",
       "attempts": 2,
       "fixer": true,
       "module": "automation",
@@ -1710,13 +1722,13 @@
       "baseSha": "d45e197",
       "runId": "wf_46ca04ce-f06",
       "startedAt": "2026-11-04T19:32:44Z",
-      "branchSha": "4b84122",
-      "endedAt": "2026-11-04T18:53:12Z",
-      "minutes": 20
+      "branchSha": "356f882",
+      "endedAt": "2026-11-04T19:49:31Z",
+      "minutes": 12
     },
     "fix-w09-ops-review": {
-      "status": "red",
-      "attempts": 0,
+      "status": "done",
+      "attempts": 1,
       "fixer": true,
       "module": "ops",
       "goal": "Fix every confirmed V1 review finding for ops listed in /tmp/claude-0/-home-user-beam/3ba985b5-31b3-591d-a9fd-e4cfaf9e6555/scratchpad/review-v1/fix-ops.md (read it first): one test per finding, schema changes nullable/default-safe (CONVENTIONS item 6), facades through the caller tx (OD-15). Report per finding: fixed (how) or not fixed (why).",
@@ -1731,12 +1743,15 @@
         "ops-P5"
       ],
       "branchSha": "08a1afd",
-      "endedAt": "2026-11-04T19:32:44Z",
-      "minutes": 31
+      "endedAt": "2026-11-04T19:49:30Z",
+      "minutes": 31,
+      "baseSha": "fa5ed8b",
+      "runId": "wf_8e33788d-601",
+      "startedAt": "2026-11-04T19:49:30Z"
     },
     "fix-w09-site-review": {
-      "status": "red",
-      "attempts": 0,
+      "status": "done",
+      "attempts": 1,
       "fixer": true,
       "module": "site",
       "goal": "Fix every confirmed V1 review finding for site listed in /tmp/claude-0/-home-user-beam/3ba985b5-31b3-591d-a9fd-e4cfaf9e6555/scratchpad/review-v1/fix-site.md (read it first): one test per finding, schema changes nullable/default-safe (CONVENTIONS item 6), facades through the caller tx (OD-15). Report per finding: fixed (how) or not fixed (why).",
@@ -1753,12 +1768,15 @@
         "site-P7"
       ],
       "branchSha": "938aa79",
-      "endedAt": "2026-11-04T19:32:44Z",
-      "minutes": 27
+      "endedAt": "2026-11-04T19:49:31Z",
+      "minutes": 27,
+      "baseSha": "fa5ed8b",
+      "runId": "wf_3a5ca635-7e3",
+      "startedAt": "2026-11-04T19:49:31Z"
     },
     "fix-w09-platform-review": {
-      "status": "red",
-      "attempts": 0,
+      "status": "done",
+      "attempts": 1,
       "fixer": true,
       "module": "platform",
       "goal": "Fix every confirmed V1 review finding for platform listed in /tmp/claude-0/-home-user-beam/3ba985b5-31b3-591d-a9fd-e4cfaf9e6555/scratchpad/review-v1/fix-platform.md (read it first): one test per finding, schema changes nullable/default-safe (CONVENTIONS item 6), facades through the caller tx (OD-15). Report per finding: fixed (how) or not fixed (why).",
@@ -1777,8 +1795,11 @@
         "platform-P9"
       ],
       "branchSha": "4a251ee",
-      "endedAt": "2026-11-04T19:32:44Z",
-      "minutes": 25
+      "endedAt": "2026-11-04T19:49:31Z",
+      "minutes": 25,
+      "baseSha": "fa5ed8b",
+      "runId": "wf_479356ad-6df",
+      "startedAt": "2026-11-04T19:49:30Z"
     }
   }
 }

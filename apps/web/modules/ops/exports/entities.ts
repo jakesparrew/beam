@@ -216,6 +216,9 @@ const ident = (name: string): string => {
 
 export type ExportFilters = { from?: string; to?: string; segmentId?: string };
 
+/** The unique order key of a source: column names over alias `t` and their Postgres types. */
+export type ExportKey = { columns: string[]; types: string[] };
+
 /** One readable source of rows: its columns, the projection and the stable order. */
 export type ExportSource = {
   /** Name of the CSV parts and of the README row (entity name, or table name in a full export). */
@@ -226,6 +229,12 @@ export type ExportSource = {
   select: SQL;
   where: SQL;
   orderBy: SQL;
+  /**
+   * The primary key the chunks page by (keyset, review findings 2 and 4): chunk n+1 reads the rows
+   * after the last key of chunk n, so rows inserted or deleted between the chunk jobs never shift
+   * a part. `null` for a table without a primary key, which falls back to OFFSET.
+   */
+  key: ExportKey | null;
 };
 
 /** The source of an entity export: fixed list, restricted persons out, filters applied. */
@@ -246,6 +255,7 @@ export function entitySource(entity: ExportEntity, filters: ExportFilters = {}):
     select: sql.raw(def.columns.map((c) => `t.${ident(c)}`).join(", ")),
     where: parts.length ? sql.join(parts, sql` and `) : sql`true`,
     orderBy: sql`t.id`,
+    key: { columns: ["id"], types: ["uuid"] },
   };
 }
 
@@ -258,13 +268,18 @@ async function tableColumns(db: DbOrTx, table: string): Promise<ColumnInfo[]> {
   );
 }
 
-async function primaryKey(db: DbOrTx, table: string): Promise<string[]> {
-  const rows = rowsOf<{ column: string }>(
-    await db.execute(sql`select a.attname as "column" from pg_index i
+/** A Postgres type name as `format_type` prints it (`uuid`, `bigint`, `character varying(64)`, an enum name). */
+const SAFE_TYPE = /^[a-z_][a-z0-9_ ]*(\([0-9, ]+\))?$/;
+
+async function primaryKey(db: DbOrTx, table: string): Promise<ExportKey | null> {
+  const rows = rowsOf<{ column: string; type: string }>(
+    await db.execute(sql`select a.attname as "column", format_type(a.atttypid, a.atttypmod) as "type" from pg_index i
       join pg_attribute a on a.attrelid = i.indrelid and a.attnum = any(i.indkey)
       where i.indrelid = ${`public.${table}`}::regclass and i.indisprimary order by array_position(i.indkey, a.attnum)`),
   );
-  return rows.map((r) => r.column);
+  if (!rows.length) return null;
+  for (const r of rows) if (!SAFE_TYPE.test(r.type)) throw new Error(`unsafe type: ${r.type}`);
+  return { columns: rows.map((r) => r.column), types: rows.map((r) => r.type) };
 }
 
 /** Every base table of the full export: the entity tables first (rule 54 order), then the rest by name. */
@@ -290,14 +305,44 @@ export async function fullTableSource(db: DbOrTx, table: string): Promise<Export
     columns.push("is_processing_restricted");
   }
   const pk = await primaryKey(db, table);
-  const order = (pk.length ? pk : [info[0]!.column]).map((c) => `t.${ident(c)}`).join(", ");
-  return { name: table, table, columns, excluded, select: sql.raw(projection.join(", ")), where: sql`true`, orderBy: sql.raw(order) };
+  // A key holding an excluded column (a token) is never written to `data_exports.cursor`: such a
+  // table pages by OFFSET over its key order, as does a table without a primary key (none today,
+  // ordered by its first column).
+  const key = pk && pk.columns.every((c) => !excluded.includes(c)) ? pk : null;
+  const order = (pk ? pk.columns : [info[0]!.column]).map((c) => `t.${ident(c)}`).join(", ");
+  return { name: table, table, columns, excluded, select: sql.raw(projection.join(", ")), where: sql`true`, orderBy: sql.raw(order), key };
 }
 
-/** One chunk of rows as value arrays in `source.columns` order. */
-export async function readChunk(db: DbOrTx, source: ExportSource, offset: number, limit: number): Promise<unknown[][]> {
+/** One chunk: the rows as value arrays in `source.columns` order and the key of its last row (as text). */
+export type ExportChunk = { rows: unknown[][]; lastKey: string[] | null };
+
+/**
+ * One chunk of rows. With a key, the rows after `after` (the `lastKey` of the previous chunk;
+ * `null` for the first chunk) in key order; each value is compared in its own column type. A
+ * source without a key reads `limit` rows at `offset`.
+ */
+export async function readChunk(db: DbOrTx, source: ExportSource, after: readonly string[] | null, limit: number, offset = 0): Promise<ExportChunk> {
+  const table = sql.raw(ident(source.table));
+  if (!source.key) {
+    const rows = rowsOf<Record<string, unknown>>(
+      await db.execute(sql`select ${source.select} from ${table} t where ${source.where} order by ${source.orderBy} limit ${limit} offset ${offset}`),
+    );
+    return { rows: rows.map((r) => source.columns.map((c) => r[c] ?? null)), lastKey: null };
+  }
+  const { columns, types } = source.key;
+  if (after && after.length !== columns.length) throw new Error(`export key mismatch: ${source.name}`);
+  const keyCols = columns.map((c) => `t.${ident(c)}`);
+  const keyText = sql.raw(keyCols.map((c, i) => `${c}::text as "__key_${i}"`).join(", "));
+  const order = sql.raw(keyCols.join(", "));
+  const past = after
+    ? sql` and (${order}) > (${sql.join(after.map((v, i) => sql`${v}::${sql.raw(types[i]!)}`), sql`, `)})`
+    : sql``;
   const rows = rowsOf<Record<string, unknown>>(
-    await db.execute(sql`select ${source.select} from ${sql.raw(ident(source.table))} t where ${source.where} order by ${source.orderBy} limit ${limit} offset ${offset}`),
+    await db.execute(sql`select ${source.select}, ${keyText} from ${table} t where ${source.where}${past} order by ${order} limit ${limit}`),
   );
-  return rows.map((r) => source.columns.map((c) => r[c] ?? null));
+  const last = rows[rows.length - 1];
+  return {
+    rows: rows.map((r) => source.columns.map((c) => r[c] ?? null)),
+    lastKey: last ? columns.map((_, i) => String(last[`__key_${i}`])) : (after ? [...after] : null),
+  };
 }

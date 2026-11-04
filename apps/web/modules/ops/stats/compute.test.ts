@@ -42,7 +42,7 @@ describe("ops stats engine (rules 1-7)", () => {
 
   it("R1 an order of a company never counts for the person; unpaid orders do not count", async () => {
     const p = await makeCustomer(h.db);
-    const [company] = await h.db.execute(sql`insert into companies (name) values ('Example BV') returning id`).then((r) => (r as unknown as { rows: { id: string }[] }).rows);
+    const [company] = await h.db.execute(sql`insert into companies (name) values ('Example BV') returning id`).then((r) => (r as { rows: { id: string }[] }).rows);
     const companyOrder = await makeOrder(h.db, { companyId: company!.id, personId: p.id, status: "paid", paidAt: daysAgo(3) });
     await makeOrderLine(h.db, { orderId: companyOrder.id });
     await makeOrder(h.db, { personId: p.id, status: "pending_payment" });

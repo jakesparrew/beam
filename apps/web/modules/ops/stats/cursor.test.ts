@@ -48,7 +48,7 @@ function hookedTx(hook: (text: string) => Promise<unknown> | undefined): Tx {
         return async (q: SQL) => {
           const text = dialect.sqlToQuery(q).sql;
           const replaced = await hook(text);
-          return replaced ?? (h.db.execute(q) as Promise<unknown>);
+          return replaced ?? (h.db.execute(q));
         };
       }
       const v = Reflect.get(t, prop);

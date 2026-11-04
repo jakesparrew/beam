@@ -64,7 +64,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DAY_MS = 86_400_000;
 
 type Raw = Record<string, unknown>;
-const toDate = (v: unknown): Date | null => (v === null || v === undefined ? null : v instanceof Date ? v : new Date(String(v)));
+const toDate = (v: unknown): Date | null => (v === null || v === undefined ? null : v instanceof Date ? v : new Date(v as string | number));
 const toInt = (v: unknown): number => (v === null || v === undefined ? 0 : Number(v));
 const latest = (...dates: (Date | null)[]): Date | null =>
   dates.reduce<Date | null>((a, d) => (d && (!a || d.getTime() > a.getTime()) ? d : a), null);
@@ -242,7 +242,7 @@ function derive(r: Raw, now: Date, cfg: RetentionDefaults, today: string): Compu
       b2cStageChangedAt: changedAt,
       computedAt: now,
     },
-    stageChange: changed ? { personId, from: oldStage!, to: stage, at: now } : null,
+    stageChange: changed ? { personId, from: oldStage, to: stage, at: now } : null,
     inactivity,
   };
 }

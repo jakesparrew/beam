@@ -10,7 +10,7 @@ import { useState, useTransition, type FormEvent, type ReactNode } from "react";
 import { Alert, AlertDescription, Button, FormField, Input, LocalizedInput, Switch, Textarea } from "@beam/ui";
 import { LOCALES } from "@beam/core/i18n";
 import type { ActionResult } from "@/lib/action";
-import { updateSetting } from "../actions";
+import { setAiSensitiveProcessing, updateSetting } from "../actions";
 import { fill } from "./login-form";
 import { getAt, setAt, type FormFieldSpec } from "./zod-form";
 
@@ -63,6 +63,9 @@ export function Feedback({ ok, error }: { ok: string | null; error: string | nul
   return null;
 }
 
+/** The text of a scalar value for an input (objects never reach scalar fields). */
+const scalarText = (v: unknown): string => (typeof v === "string" || typeof v === "number" || typeof v === "boolean" ? String(v) : "");
+
 /** A field label from the section (`field_<a_b>`) or the dotted path. */
 function fieldLabel(labels: Labels, f: FormFieldSpec): string {
   return labels[`field_${f.path.join("_")}`] ?? f.name.replace(/_/g, " ");
@@ -95,7 +98,7 @@ function FieldInput({ field, value, onChange, labels }: { field: FormFieldSpec; 
     case "literal":
       return (
         <FormField label={label} id={id}>
-          <select className="h-9 rounded-md border bg-background px-2 text-sm" value={value === null || value === undefined ? "" : String(value)} onChange={(e) => onChange(e.target.value === "" && field.nullable ? null : e.target.value)}>
+          <select className="h-9 rounded-md border bg-background px-2 text-sm" value={scalarText(value)} onChange={(e) => onChange(e.target.value === "" && field.nullable ? null : e.target.value)}>
             {field.nullable || field.optional ? <option value="">{lab(labels, "none")}</option> : null}
             {(field.options ?? []).map((o) => (
               <option key={o} value={o}>
@@ -112,7 +115,7 @@ function FieldInput({ field, value, onChange, labels }: { field: FormFieldSpec; 
           <Input
             type="number"
             step={field.kind === "integer" ? 1 : "any"}
-            value={value === null || value === undefined ? "" : String(value)}
+            value={scalarText(value)}
             onChange={(e) => onChange(e.target.value === "" ? (field.nullable ? null : undefined) : Number(e.target.value))}
           />
         </FormField>
@@ -136,7 +139,7 @@ function FieldInput({ field, value, onChange, labels }: { field: FormFieldSpec; 
     default:
       return (
         <FormField label={label} id={id}>
-          <Input value={value === null || value === undefined ? "" : String(value)} onChange={(e) => onChange(e.target.value === "" && field.nullable ? null : e.target.value)} />
+          <Input value={scalarText(value)} onChange={(e) => onChange(e.target.value === "" && field.nullable ? null : e.target.value)} />
         </FormField>
       );
   }
@@ -192,5 +195,86 @@ export function SettingsForm({ settingKey, version, value, fields, labels, error
         </div>
       )}
     </form>
+  );
+}
+
+/**
+ * The sensitive-processing panel of `/admin/settings/ai` (PL-55): switching on needs the owner,
+ * a purpose of at least 20 characters and a DPIA reference (the server also checks ops' DPIA
+ * register); owner or technical_admin may switch it off.
+ */
+export function AiSensitivePanel({
+  enabled,
+  purpose,
+  dpiaReference,
+  enabledBy,
+  enabledAt,
+  canEnable,
+  canDisable,
+  labels,
+  errors,
+}: {
+  enabled: boolean;
+  purpose: string | null;
+  dpiaReference: string | null;
+  enabledBy: string | null;
+  enabledAt: string | null;
+  canEnable: boolean;
+  canDisable: boolean;
+  labels: Labels;
+  errors: Labels;
+}) {
+  const [draftPurpose, setPurpose] = useState(purpose ?? "");
+  const [draftDpia, setDpia] = useState(dpiaReference ?? "");
+  const r = useRun(errors);
+  return (
+    <section className="grid max-w-2xl gap-3 rounded-md border p-4" aria-labelledby="ai-sensitive-title">
+      <h2 id="ai-sensitive-title" className="text-lg font-medium">
+        {lab(labels, "sensitive_title")}
+      </h2>
+      <p className="text-sm text-muted-foreground">{lab(labels, "sensitive_intro")}</p>
+      <p className="text-sm">
+        <strong>{lab(labels, enabled ? "sensitive_on" : "sensitive_off")}</strong>
+        {enabled && enabledAt ? ` · ${lab(labels, "sensitive_enabled_by", { who: enabledBy ?? "–", when: new Date(enabledAt).toLocaleString() })}` : ""}
+      </p>
+      {enabled ? (
+        <>
+          <p className="text-sm">
+            {lab(labels, "purpose")}: {purpose ?? "–"}
+          </p>
+          <p className="text-sm">
+            {lab(labels, "dpia_reference")}: {dpiaReference ?? "–"}
+          </p>
+          {canDisable ? (
+            <div>
+              <Button type="button" variant="destructive" disabled={r.pending} onClick={() => void r.run(() => setAiSensitiveProcessing({ enabled: false }), lab(labels, "sensitive_disabled_done"))}>
+                {lab(labels, "sensitive_disable")}
+              </Button>
+            </div>
+          ) : null}
+        </>
+      ) : canEnable ? (
+        <>
+          <FormField label={lab(labels, "purpose")} hint={lab(labels, "purpose_hint")}>
+            <Textarea value={draftPurpose} onChange={(e) => setPurpose(e.target.value)} rows={3} />
+          </FormField>
+          <FormField label={lab(labels, "dpia_reference")}>
+            <Input value={draftDpia} onChange={(e) => setDpia(e.target.value)} />
+          </FormField>
+          <div>
+            <Button
+              type="button"
+              disabled={r.pending || draftPurpose.trim().length < 20 || draftDpia.trim().length < 3}
+              onClick={() => void r.run(() => setAiSensitiveProcessing({ enabled: true, purpose: draftPurpose.trim(), dpiaReference: draftDpia.trim() }), lab(labels, "sensitive_enabled_done"))}
+            >
+              {lab(labels, "sensitive_enable")}
+            </Button>
+          </div>
+        </>
+      ) : (
+        <p className="text-sm text-muted-foreground">{lab(labels, "sensitive_owner_only")}</p>
+      )}
+      <Feedback ok={r.ok} error={r.error} />
+    </section>
   );
 }

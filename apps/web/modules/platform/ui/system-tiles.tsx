@@ -6,9 +6,26 @@
  * route every 30 seconds.
  */
 import { useEffect } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Badge, Card, CardContent, CardHeader, CardTitle } from "@beam/ui";
-import { lab, type Labels } from "./settings-form";
+import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from "@beam/ui";
+import { replayWebhookEvent } from "../actions";
+import { Feedback, lab, useRun, type Labels } from "./settings-form";
+
+/** Replays a stored webhook event (`/admin/system/webhooks/[id]`, PL-40): a new `webhook.process` job with key `:replay:<n>`. */
+export function ReplayWebhookButton({ webhookEventId, labels, errors }: { webhookEventId: string; labels: Labels; errors: Labels }) {
+  const r = useRun(errors);
+  return (
+    <div className="grid gap-2">
+      <div>
+        <Button type="button" disabled={r.pending} onClick={() => void r.run(() => replayWebhookEvent({ webhookEventId }), lab(labels, "replayed"))}>
+          {lab(labels, "replay")}
+        </Button>
+      </div>
+      <Feedback ok={r.ok} error={r.error} />
+    </div>
+  );
+}
 
 export type SystemTilesData = {
   lastTickAt: string | null;
@@ -108,15 +125,15 @@ export function SystemTiles({ data, labels, locale }: { data: SystemTilesData; l
             </span>
           </p>
         ))}
-        <a className="underline" href="/admin/system/integrations">
+        <Link className="underline" href="/admin/system/integrations">
           {lab(labels, "open_integrations")}
-        </a>
+        </Link>
       </Tile>
       <Tile title={lab(labels, "tile_webhooks")}>
         <p className="text-2xl font-semibold">{data.webhooks24h}</p>
-        <a className="underline" href="/admin/system/webhooks">
+        <Link className="underline" href="/admin/system/webhooks">
           {lab(labels, "open_webhooks")}
-        </a>
+        </Link>
       </Tile>
       <Tile title={lab(labels, "tile_ai")} tone={data.aiSpendCents >= data.aiBudgetCents ? "alert" : data.aiSpendCents >= data.aiBudgetCents * 0.8 ? "warn" : "ok"}>
         <p className="text-2xl font-semibold">{money.format(data.aiSpendCents / 100)}</p>
@@ -127,33 +144,33 @@ export function SystemTiles({ data, labels, locale }: { data: SystemTilesData; l
       </Tile>
       <Tile title={lab(labels, "tile_incidents")} tone={data.openIncidents > 0 ? "alert" : "ok"}>
         <p className="text-2xl font-semibold">{data.openIncidents}</p>
-        <a className="underline" href="/admin/system/incidents">
+        <Link className="underline" href="/admin/system/incidents">
           {lab(labels, "open_incidents")}
-        </a>
+        </Link>
       </Tile>
       <Tile title={lab(labels, "tile_support")} tone={data.openSupport > 0 ? "warn" : "ok"}>
         <p className="text-2xl font-semibold">{data.openSupport}</p>
-        <a className="underline" href="/admin/system/support">
+        <Link className="underline" href="/admin/system/support">
           {lab(labels, "open_support")}
-        </a>
+        </Link>
       </Tile>
       <Tile title={lab(labels, "tile_uptime")} tone={below ? "alert" : "ok"}>
         <p className={below ? "text-2xl font-semibold text-destructive" : "text-2xl font-semibold"}>
           {data.latestUptimePct === null ? "–" : `${new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(data.latestUptimePct)} %`}
           {below ? ` (${lab(labels, "below_target")})` : ""}
         </p>
-        <a className="underline" href="/admin/system/reports">
+        <Link className="underline" href="/admin/system/reports">
           {lab(labels, "open_reports")}
-        </a>
+        </Link>
       </Tile>
       <Tile title={lab(labels, "tile_gate")} tone={data.gate.confirmed === data.gate.total ? "ok" : "warn"}>
         <p className="text-2xl font-semibold">
           {data.gate.confirmed} / {data.gate.total}
         </p>
         <Badge variant={data.gate.confirmed === data.gate.total ? "success" : "warning"}>{lab(labels, data.gate.confirmed === data.gate.total ? "gate_complete" : "gate_open")}</Badge>
-        <a className="underline" href="/admin/system/go-live">
+        <Link className="underline" href="/admin/system/go-live">
           {lab(labels, "open_gate")}
-        </a>
+        </Link>
       </Tile>
     </div>
   );

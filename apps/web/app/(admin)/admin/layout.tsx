@@ -17,7 +17,7 @@ import type { FlagKey, Permission } from "@/registry/types.generated";
 
 type StaffActor = Extract<Actor, { kind: "staff" }>;
 
-/** The entry contract of `modules/*/nav.ts` (see `modules/platform/nav.ts`). */
+// The entry contract of `modules/<m>/nav.ts` (see `modules/platform/nav.ts`).
 type AdminNavEntry = {
   key: string;
   section: string;

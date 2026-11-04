@@ -72,7 +72,7 @@ export async function listForms(db: DbOrTx, filter: { status?: FormStatus; kind?
       id: r.form.id,
       slug: r.form.slug,
       kind: r.form.kind,
-      name: r.form.name as LocalizedText,
+      name: r.form.name,
       status: r.form.status,
       currentVersion: r.version ?? null,
       locales: (r.locales ?? draftOf.get(r.form.id) ?? []) as Locale[],
@@ -153,7 +153,7 @@ export async function getForm(db: DbOrTx, formId: string, now: Date = new Date()
     id: form.id,
     slug: form.slug,
     kind: form.kind,
-    name: form.name as LocalizedText,
+    name: form.name,
     description: form.description,
     status: form.status,
     archivedAt: form.archivedAt,
@@ -239,7 +239,7 @@ export async function linkLocale(db: DbOrTx, formId: string): Promise<Locale> {
     .where(eq(formVersions.formId, formId))
     .orderBy(sql`(${formVersions.id} = ${forms.currentVersionId}) desc`, desc(formVersions.version))
     .limit(1);
-  return ((v?.locales?.[0] as Locale | undefined) ?? "nl-BE") as Locale;
+  return ((v?.locales?.[0] as Locale | undefined) ?? "nl-BE");
 }
 
 /** `/admin/forms/[formId]/links`: tracked links with their URL, starts and completions. */
@@ -293,7 +293,7 @@ type Tree = { readonly [key: string]: string | Tree };
  * `⟦forms.<key>⟧` on the client.
  */
 export function screenLabels(locale: Locale, groups: readonly string[]): Record<string, string> {
-  const root = (MESSAGES[locale]?.forms as Tree | undefined)?.forms as Tree | undefined;
+  const root = (MESSAGES[locale]?.forms)?.forms as Tree | undefined;
   const out: Record<string, string> = {};
   const walk = (node: Tree, prefix: string) => {
     for (const [k, v] of Object.entries(node)) {

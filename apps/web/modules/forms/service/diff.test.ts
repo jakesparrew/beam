@@ -7,7 +7,7 @@ const clone = <X>(x: X): X => JSON.parse(JSON.stringify(x)) as X;
 const T = (en: string) => ({ "nl-BE": `${en} (nl)`, "fr-BE": `${en} (fr)`, en });
 
 function row(version: number, definition: FormDefinition, scoring: FormScoring, locales = ["nl-BE", "fr-BE", "en"]): FormVersionRow {
-  return { id: `v${version}`, version, definition: definition as never, scoring: scoring as never, locales };
+  return { id: `v${version}`, version, definition: definition, scoring: scoring, locales };
 }
 
 const base = () => {

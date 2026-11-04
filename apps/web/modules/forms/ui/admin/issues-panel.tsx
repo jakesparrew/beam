@@ -34,7 +34,7 @@ export function CompletenessBadges({ issues, locales, labels }: { issues: readon
       {locales.map((l) => (
         <li key={l}>
           <Badge variant={missing[l] ? "destructive" : "secondary"}>
-            {l}: {missing[l] ? lbl(labels, "builder.missing_count", { n: missing[l]! }) : lbl(labels, "builder.complete")}
+            {l}: {missing[l] ? lbl(labels, "builder.missing_count", { n: missing[l] }) : lbl(labels, "builder.complete")}
           </Badge>
         </li>
       ))}

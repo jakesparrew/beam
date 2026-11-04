@@ -8,7 +8,7 @@
  */
 import { useState } from "react";
 import type { Dimension, Field, FormDefinition, FormKind, FormScoring, Outcome, Range } from "@beam/core/forms";
-import type { Locale, LocalizedText } from "@beam/core/i18n";
+import type { Locale } from "@beam/core/i18n";
 import { Button, EmptyState, Input, LocalizedInput } from "@beam/ui";
 import { ConditionBuilder, selectClass, type ConditionDimensionRef, type ConditionFieldRef } from "./condition-builder";
 import { ConflictDialog, SaveIndicator, useDraft, type DraftInput } from "./field-tree";
@@ -49,9 +49,9 @@ function Ranges({ ranges, onChange, p }: { ranges: Range[]; onChange: (r: Range[
               {lbl(p.labels, "builder.remove")}
             </Button>
           </div>
-          <LocalizedInput name={`range-${r.key}-label`} value={r.label} locales={p.locales} labels={tl("scoring.range_label")} onChange={(label) => set(i, { label: label as LocalizedText })} />
-          <LocalizedInput name={`range-${r.key}-explanation`} multiline value={r.explanation ?? {}} locales={p.locales} labels={tl("scoring.explanation")} onChange={(v) => set(i, { explanation: v as LocalizedText })} />
-          <LocalizedInput name={`range-${r.key}-recommendation`} multiline value={r.recommendation ?? {}} locales={p.locales} labels={tl("scoring.recommendation")} onChange={(v) => set(i, { recommendation: v as LocalizedText })} />
+          <LocalizedInput name={`range-${r.key}-label`} value={r.label} locales={p.locales} labels={tl("scoring.range_label")} onChange={(label) => set(i, { label: label })} />
+          <LocalizedInput name={`range-${r.key}-explanation`} multiline value={r.explanation ?? {}} locales={p.locales} labels={tl("scoring.explanation")} onChange={(v) => set(i, { explanation: v })} />
+          <LocalizedInput name={`range-${r.key}-recommendation`} multiline value={r.recommendation ?? {}} locales={p.locales} labels={tl("scoring.recommendation")} onChange={(v) => set(i, { recommendation: v })} />
         </div>
       ))}
       <div>
@@ -94,7 +94,7 @@ function DimensionEditor({ d, onChange, onRemove, p }: { d: Dimension; onChange:
           {lbl(p.labels, "builder.remove")}
         </Button>
       </div>
-      <LocalizedInput name={`dim-${d.key}-label`} value={d.label} locales={p.locales} labels={tl("scoring.dimension_label")} onChange={(label) => onChange({ ...d, label: label as LocalizedText })} />
+      <LocalizedInput name={`dim-${d.key}-label`} value={d.label} locales={p.locales} labels={tl("scoring.dimension_label")} onChange={(label) => onChange({ ...d, label: label })} />
       {d.kind === "formula" ? <FormulaInput label={lbl(p.labels, "scoring.formula")} value={d.formula ?? ""} onChange={(formula) => onChange({ ...d, formula })} labels={p.labels} /> : null}
       <Ranges ranges={d.ranges} onChange={(ranges) => onChange({ ...d, ranges })} p={p} />
     </section>
@@ -132,10 +132,10 @@ function OutcomeEditor({ o, onChange, onRemove, p, endings, fields, dims }: { o:
           {lbl(p.labels, "builder.remove")}
         </Button>
       </div>
-      <LocalizedInput name={`outcome-${o.key}-label`} value={o.label} locales={p.locales} labels={tl("scoring.outcome_label")} onChange={(label) => onChange({ ...o, label: label as LocalizedText })} />
+      <LocalizedInput name={`outcome-${o.key}-label`} value={o.label} locales={p.locales} labels={tl("scoring.outcome_label")} onChange={(label) => onChange({ ...o, label: label })} />
       <ConditionBuilder legend={lbl(p.labels, "scoring.when")} value={o.when} onChange={(when) => onChange({ ...o, when: when ?? { all: [] } })} fields={fields} dimensions={dims} labels={p.labels} />
-      <LocalizedInput name={`outcome-${o.key}-explanation`} multiline value={o.explanation ?? {}} locales={p.locales} labels={tl("scoring.explanation")} onChange={(v) => onChange({ ...o, explanation: v as LocalizedText })} />
-      <LocalizedInput name={`outcome-${o.key}-recommendation`} multiline value={o.recommendation ?? {}} locales={p.locales} labels={tl("scoring.recommendation")} onChange={(v) => onChange({ ...o, recommendation: v as LocalizedText })} />
+      <LocalizedInput name={`outcome-${o.key}-explanation`} multiline value={o.explanation ?? {}} locales={p.locales} labels={tl("scoring.explanation")} onChange={(v) => onChange({ ...o, explanation: v })} />
+      <LocalizedInput name={`outcome-${o.key}-recommendation`} multiline value={o.recommendation ?? {}} locales={p.locales} labels={tl("scoring.recommendation")} onChange={(v) => onChange({ ...o, recommendation: v })} />
     </section>
   );
 }

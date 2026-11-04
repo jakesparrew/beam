@@ -26,7 +26,8 @@ function CreateLink({ formId, labels, onDone }: { formId: string; labels: Labels
     <form
       className="grid gap-3 rounded-md border p-3"
       aria-label={lbl(labels, "links.create")}
-      onSubmit={async (e) => {
+      onSubmit={(e) => {
+ void (async () => {
         e.preventDefault();
         setBusy(true);
         setError(null);
@@ -38,7 +39,8 @@ function CreateLink({ formId, labels, onDone }: { formId: string; labels: Labels
           toast.success(lbl(labels, "links.created"));
           onDone();
         } else setError(r.error.fields?.name ? lbl(labels, "links.name_required") : lbl(labels, `builder.error.${r.error.code}`));
-      }}
+      })();
+}}
     >
       <div className="flex flex-wrap items-end gap-3">
         <label className="grid gap-1 text-sm">
@@ -90,14 +92,16 @@ function NameCell({ row, labels, onSaved }: { row: LinkRow; labels: Labels; onSa
   return (
     <form
       className="flex items-center gap-2"
-      onSubmit={async (e) => {
+      onSubmit={(e) => {
+ void (async () => {
         e.preventDefault();
         const r = await updateLink({ linkId: row.id, name });
         if (r.ok) {
           setEditing(false);
           onSaved();
         } else toast.error(lbl(labels, `builder.error.${r.error.code}`));
-      }}
+      })();
+}}
     >
       <Input aria-label={lbl(labels, "links.name")} className="h-8 w-48" value={name} onChange={(e) => setName(e.target.value)} />
       <Button type="submit" size="sm">
@@ -143,14 +147,16 @@ export function LinkTable({ formId, rows, labels }: LinkTableProps) {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      onClick={async () => {
+                      onClick={() => {
+ void (async () => {
                         try {
                           await navigator.clipboard.writeText(r.url);
                           toast.success(lbl(labels, "links.copied"));
                         } catch {
                           toast.error(lbl(labels, "links.copy_failed"));
                         }
-                      }}
+                      })();
+}}
                     >
                       {lbl(labels, "links.copy")}
                     </Button>
@@ -175,11 +181,13 @@ export function LinkTable({ formId, rows, labels }: LinkTableProps) {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      onClick={async () => {
+                      onClick={() => {
+ void (async () => {
                         const res = await updateLink({ linkId: r.id, isActive: !r.isActive });
                         if (res.ok) refresh();
                         else toast.error(lbl(labels, `builder.error.${res.error.code}`));
-                      }}
+                      })();
+}}
                     >
                       {lbl(labels, r.isActive ? "links.deactivate" : "links.activate")}
                     </Button>

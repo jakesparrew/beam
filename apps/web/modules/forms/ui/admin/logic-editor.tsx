@@ -6,7 +6,7 @@
  * form (`end` with an ending). Conditions may reference earlier fields only; sensitive fields are
  * left out of the field list, since logic on them is a publish error (L6).
  */
-import { LOCALES, type Locale, type LocalizedText } from "@beam/core/i18n";
+import { LOCALES, type Locale } from "@beam/core/i18n";
 import type { FormDefinition, FormSettings, LogicRule } from "@beam/core/forms";
 import { Button, Input, LocalizedInput, Switch } from "@beam/ui";
 import { ConditionBuilder, selectClass, type ConditionDimensionRef, type ConditionFieldRef } from "./condition-builder";
@@ -161,7 +161,7 @@ export function SettingsEditor({ settings, onChange, locales, onLocalesChange, l
           />
         </label>
       </div>
-      <LocalizedInput name="submit-label" value={settings.submitLabel} locales={locales} labels={tl("builder.settings.submitLabel")} onChange={(v) => onChange({ ...settings, submitLabel: v as LocalizedText })} />
+      <LocalizedInput name="submit-label" value={settings.submitLabel} locales={locales} labels={tl("builder.settings.submitLabel")} onChange={(v) => onChange({ ...settings, submitLabel: v })} />
     </div>
   );
 }

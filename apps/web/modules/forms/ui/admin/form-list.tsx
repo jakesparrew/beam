@@ -8,6 +8,7 @@
  * message.
  */
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FORM_KINDS, type FormKind } from "@beam/core/forms";
 import { LOCALES, type Locale, type LocalizedText } from "@beam/core/i18n";
@@ -71,12 +72,12 @@ export function FormList({ rows, labels, locale, searchParams, filtered }: FormL
             title={lbl(labels, "list.empty")}
             action={
               <div className="flex gap-2">
-                <a className="underline" href="/admin/forms/new?template=lead&kind=lead">
+                <Link className="underline" href="/admin/forms/new?template=lead&kind=lead">
                   {lbl(labels, "list.template_lead")}
-                </a>
-                <a className="underline" href="/admin/forms/new?template=assessment&kind=assessment">
+                </Link>
+                <Link className="underline" href="/admin/forms/new?template=assessment&kind=assessment">
                   {lbl(labels, "list.template_assessment")}
-                </a>
+                </Link>
               </div>
             }
           />
@@ -102,7 +103,8 @@ export function NewFormForm({ labels, localeNames, initialKind = "lead", initial
   return (
     <form
       className="grid max-w-2xl gap-4"
-      onSubmit={async (e) => {
+      onSubmit={(e) => {
+ void (async () => {
         e.preventDefault();
         setBusy(true);
         const r = await createForm({ slug, kind, name, locales, template });
@@ -110,7 +112,8 @@ export function NewFormForm({ labels, localeNames, initialKind = "lead", initial
         if (r.ok) router.push(`/admin/forms/${r.data.formId}/build` as never);
         else if (r.error.code === "validation") setFields(Object.fromEntries(Object.entries(r.error.fields ?? {}).map(([k, v]) => [k.split(".")[0]!, v.replace(/\W+/g, "_").toLowerCase()])));
         else toast.error(lbl(labels, `builder.error.${r.error.code}`));
-      }}
+      })();
+}}
     >
       <label className="grid gap-1 text-sm">
         {lbl(labels, "new.slug")}
@@ -129,7 +132,7 @@ export function NewFormForm({ labels, localeNames, initialKind = "lead", initial
           ))}
         </select>
       </label>
-      <LocalizedInput name="name" value={name} onChange={(v) => setName(v as LocalizedText)} locales={locales} labels={tl("new.name")} error={fieldError("name")} />
+      <LocalizedInput name="name" value={name} onChange={(v) => setName(v)} locales={locales} labels={tl("new.name")} error={fieldError("name")} />
       <fieldset className="grid gap-2">
         <legend className="text-sm font-medium">{lbl(labels, "new.locales")}</legend>
         {LOCALES.map((l) => (
@@ -190,26 +193,26 @@ export function FormActions(p: FormActionsProps) {
     <div className="grid gap-3">
       <div className="flex flex-wrap gap-2">
         {p.hasDraft ? (
-          <a className="inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm text-primary-foreground" href={`/admin/forms/${p.formId}/build`}>
+          <Link className="inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm text-primary-foreground" href={`/admin/forms/${p.formId}/build`}>
             {lbl(labels, "overview.edit_draft")}
-          </a>
+          </Link>
         ) : (
-          <Button type="button" disabled={busy} onClick={() => run(() => createDraft({ formId: p.formId }), () => router.push(`/admin/forms/${p.formId}/build` as never))}>
+          <Button type="button" disabled={busy} onClick={() => void run(() => createDraft({ formId: p.formId }), () => router.push(`/admin/forms/${p.formId}/build` as never))}>
             {lbl(labels, "overview.create_draft", { n: p.currentVersion ?? 1 })}
           </Button>
         )}
         {p.canPublish && p.status === "published" && !p.isSystem ? (
-          <Button type="button" variant="outline" disabled={busy} onClick={() => window.confirm(lbl(labels, "overview.archive_confirm")) && run(() => archiveForm({ formId: p.formId }))}>
+          <Button type="button" variant="outline" disabled={busy} onClick={() => void (window.confirm(lbl(labels, "overview.archive_confirm")) && run(() => archiveForm({ formId: p.formId })))}>
             {lbl(labels, "overview.archive")}
           </Button>
         ) : null}
         {p.canPublish && p.status === "archived" ? (
-          <Button type="button" variant="outline" disabled={busy} onClick={() => run(() => unarchiveForm({ formId: p.formId }))}>
+          <Button type="button" variant="outline" disabled={busy} onClick={() => void run(() => unarchiveForm({ formId: p.formId }))}>
             {lbl(labels, "overview.unarchive")}
           </Button>
         ) : null}
         {p.canPublish && !p.everPublished && !p.isSystem ? (
-          <Button type="button" variant="destructive" disabled={busy} onClick={() => window.confirm(lbl(labels, "overview.delete_confirm")) && run(() => deleteForm({ formId: p.formId }), () => router.push("/admin/forms" as never))}>
+          <Button type="button" variant="destructive" disabled={busy} onClick={() => void (window.confirm(lbl(labels, "overview.delete_confirm")) && run(() => deleteForm({ formId: p.formId }), () => router.push("/admin/forms")))}>
             {lbl(labels, "overview.delete")}
           </Button>
         ) : null}
@@ -247,13 +250,15 @@ export function RestoreButton({ formId, versionId, labels }: { formId: string; v
       variant="outline"
       size="sm"
       disabled={busy}
-      onClick={async () => {
+      onClick={() => {
+ void (async () => {
         setBusy(true);
         const r = await createDraft({ formId, fromVersionId: versionId });
         setBusy(false);
         if (r.ok) router.push(`/admin/forms/${formId}/build` as never);
         else toast.error(lbl(labels, r.error.code === "conflict" ? "versions.draft_exists" : `builder.error.${r.error.code}`));
-      }}
+      })();
+}}
     >
       {lbl(labels, "versions.restore")}
     </Button>
@@ -267,14 +272,16 @@ export function CopyButton({ text, labels }: { text: string; labels: Labels }) {
       type="button"
       variant="ghost"
       size="sm"
-      onClick={async () => {
+      onClick={() => {
+ void (async () => {
         try {
           await navigator.clipboard.writeText(text);
           toast.success(lbl(labels, "links.copied"));
         } catch {
           toast.error(lbl(labels, "links.copy_failed"));
         }
-      }}
+      })();
+}}
     >
       {lbl(labels, "links.copy")}
     </Button>

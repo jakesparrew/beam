@@ -7,7 +7,7 @@
  * on the overview.
  */
 import { CTA_KINDS, FORM_LIMITS, type Cta, type Ending } from "@beam/core/forms";
-import type { Locale, LocalizedText } from "@beam/core/i18n";
+import type { Locale } from "@beam/core/i18n";
 import { Button, Input, LocalizedInput, Switch } from "@beam/ui";
 import { selectClass } from "./condition-builder";
 import { textLabels } from "./field-editor";
@@ -68,7 +68,7 @@ function CtaRow({ cta, onChange, onRemove, p, broken }: { cta: Cta; onChange: (c
           {lbl(p.labels, `builder.cta_warning.${broken}`)}
         </p>
       ) : null}
-      <LocalizedInput name={`cta-${cta.key}`} value={cta.label} locales={p.locales} labels={tl("builder.ending.cta_label")} onChange={(label) => onChange({ ...cta, label: label as LocalizedText })} />
+      <LocalizedInput name={`cta-${cta.key}`} value={cta.label} locales={p.locales} labels={tl("builder.ending.cta_label")} onChange={(label) => onChange({ ...cta, label: label })} />
     </div>
   );
 }
@@ -105,8 +105,8 @@ export function EndingEditor(p: EndingEditorProps) {
               {lbl(labels, "builder.remove")}
             </Button>
           </div>
-          <LocalizedInput name={`ending-${e.key}-title`} value={e.title} locales={p.locales} labels={tl("builder.ending.title")} onChange={(title) => set(i, { title: title as LocalizedText })} />
-          <LocalizedInput name={`ending-${e.key}-body`} multiline value={e.body} locales={p.locales} labels={tl("builder.ending.body")} onChange={(body) => set(i, { body: body as LocalizedText })} />
+          <LocalizedInput name={`ending-${e.key}-title`} value={e.title} locales={p.locales} labels={tl("builder.ending.title")} onChange={(title) => set(i, { title: title })} />
+          <LocalizedInput name={`ending-${e.key}-body`} multiline value={e.body} locales={p.locales} labels={tl("builder.ending.body")} onChange={(body) => set(i, { body: body })} />
           {e.kind === "redirect" ? (
             <label className="grid gap-1 text-sm">
               {lbl(labels, "builder.ending.redirect_url")}
@@ -156,8 +156,8 @@ export function EndingEditor(p: EndingEditorProps) {
             <legend className="text-sm font-medium">{lbl(labels, "builder.ending.email")}</legend>
             {e.email ? (
               <>
-                <LocalizedInput name={`ending-${e.key}-subject`} value={e.email.subject} locales={p.locales} labels={tl("builder.ending.email_subject")} onChange={(subject) => set(i, { email: { ...e.email!, subject: subject as LocalizedText } })} />
-                <LocalizedInput name={`ending-${e.key}-intro`} multiline value={e.email.intro} locales={p.locales} labels={tl("builder.ending.email_intro")} onChange={(intro) => set(i, { email: { ...e.email!, intro: intro as LocalizedText } })} />
+                <LocalizedInput name={`ending-${e.key}-subject`} value={e.email.subject} locales={p.locales} labels={tl("builder.ending.email_subject")} onChange={(subject) => set(i, { email: { ...e.email!, subject: subject } })} />
+                <LocalizedInput name={`ending-${e.key}-intro`} multiline value={e.email.intro} locales={p.locales} labels={tl("builder.ending.email_intro")} onChange={(intro) => set(i, { email: { ...e.email!, intro: intro } })} />
                 <div>
                   <Button type="button" variant="ghost" size="sm" onClick={() => set(i, { email: undefined })}>
                     {lbl(labels, "builder.ending.remove_email")}

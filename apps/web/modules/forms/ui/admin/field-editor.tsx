@@ -9,7 +9,7 @@
  */
 import { useState } from "react";
 import { FORM_CONSENT_PURPOSES, MAPS_TO, SENSITIVE_KINDS, UTM_PARAMS, type ChoiceOption, type Field, type FormKind } from "@beam/core/forms";
-import type { Locale, LocalizedText } from "@beam/core/i18n";
+import type { Locale } from "@beam/core/i18n";
 import { Button, Input, Label, LocalizedInput, Switch } from "@beam/ui";
 import { ConditionBuilder, selectClass, type ConditionDimensionRef, type ConditionFieldRef } from "./condition-builder";
 import { lbl, type Labels } from "./issues-panel";
@@ -82,7 +82,7 @@ function Options({ options, onChange, p }: { options: ChoiceOption[]; onChange: 
               {lbl(p.labels, "builder.remove")}
             </Button>
           </div>
-          <LocalizedInput name={`option-${i}`} value={o.label} locales={p.locales} labels={tl("builder.field.option_label")} onChange={(label) => onChange(options.map((x, j) => (j === i ? { ...x, label: label as LocalizedText } : x)))} />
+          <LocalizedInput name={`option-${i}`} value={o.label} locales={p.locales} labels={tl("builder.field.option_label")} onChange={(label) => onChange(options.map((x, j) => (j === i ? { ...x, label: label } : x)))} />
           <Scores name={o.key} keys={p.dimensionKeys} value={o.scores} labels={p.labels} onChange={(scores) => onChange(options.map((x, j) => (j === i ? { key: x.key, label: x.label, ...(scores ? { scores } : {}) } : x)))} />
         </div>
       ))}
@@ -132,29 +132,29 @@ export function FieldEditor(p: FieldEditorProps) {
         ) : null}
       </div>
 
-      <LocalizedInput name={`${f.key}-label`} value={f.label} locales={p.locales} labels={tl("builder.field.label")} onChange={(label) => set({ label: label as LocalizedText })} />
-      <LocalizedInput name={`${f.key}-help`} value={f.help ?? {}} locales={p.locales} labels={tl("builder.field.help")} onChange={(help) => set({ help: help as LocalizedText })} />
+      <LocalizedInput name={`${f.key}-label`} value={f.label} locales={p.locales} labels={tl("builder.field.label")} onChange={(label) => set({ label: label })} />
+      <LocalizedInput name={`${f.key}-help`} value={f.help ?? {}} locales={p.locales} labels={tl("builder.field.help")} onChange={(help) => set({ help: help })} />
 
-      {CHOICE.has(f.type) && "options" in f ? <Options options={f.options} onChange={(options) => set({ options } as Partial<Field>)} p={p} /> : null}
+      {CHOICE.has(f.type) && "options" in f ? <Options options={f.options} onChange={(options) => set({ options })} p={p} /> : null}
       {f.type === "multiple_choice" ? (
         <div className="flex gap-4">
-          <NumberProp label={lbl(labels, "builder.field.min_selected")} value={f.minSelected} onChange={(minSelected) => set({ minSelected } as Partial<Field>)} />
-          <NumberProp label={lbl(labels, "builder.field.max_selected")} value={f.maxSelected} onChange={(maxSelected) => set({ maxSelected } as Partial<Field>)} />
+          <NumberProp label={lbl(labels, "builder.field.min_selected")} value={f.minSelected} onChange={(minSelected) => set({ minSelected })} />
+          <NumberProp label={lbl(labels, "builder.field.max_selected")} value={f.maxSelected} onChange={(maxSelected) => set({ maxSelected })} />
         </div>
       ) : null}
       {f.type === "yes_no" ? (
         <div className="grid gap-2">
           <span className="text-sm font-medium">{lbl(labels, "builder.field.scores")}</span>
           <div className="text-xs">{lbl(labels, "builder.field.yes")}</div>
-          <Scores name="yes" keys={p.dimensionKeys} value={f.scores?.yes} labels={labels} onChange={(yes) => set({ scores: { ...f.scores, yes } } as Partial<Field>)} />
+          <Scores name="yes" keys={p.dimensionKeys} value={f.scores?.yes} labels={labels} onChange={(yes) => set({ scores: { ...f.scores, yes } })} />
           <div className="text-xs">{lbl(labels, "builder.field.no")}</div>
-          <Scores name="no" keys={p.dimensionKeys} value={f.scores?.no} labels={labels} onChange={(no) => set({ scores: { ...f.scores, no } } as Partial<Field>)} />
+          <Scores name="no" keys={p.dimensionKeys} value={f.scores?.no} labels={labels} onChange={(no) => set({ scores: { ...f.scores, no } })} />
         </div>
       ) : null}
       {f.type === "rating" ? (
         <label className="grid gap-1 text-sm">
           {lbl(labels, "builder.field.scale")}
-          <select className={selectClass} value={f.scale} onChange={(e) => set({ scale: Number(e.target.value) as 5 | 10 } as Partial<Field>)}>
+          <select className={selectClass} value={f.scale} onChange={(e) => set({ scale: Number(e.target.value) as 5 | 10 })}>
             <option value={5}>5</option>
             <option value={10}>10</option>
           </select>
@@ -162,26 +162,26 @@ export function FieldEditor(p: FieldEditorProps) {
       ) : null}
       {f.type === "number" ? (
         <div className="flex flex-wrap gap-4">
-          <NumberProp label={lbl(labels, "builder.field.min")} value={f.min} onChange={(min) => set({ min } as Partial<Field>)} />
-          <NumberProp label={lbl(labels, "builder.field.max")} value={f.max} onChange={(max) => set({ max } as Partial<Field>)} />
-          <NumberProp label={lbl(labels, "builder.field.step")} value={f.step} onChange={(step) => set({ step } as Partial<Field>)} />
+          <NumberProp label={lbl(labels, "builder.field.min")} value={f.min} onChange={(min) => set({ min })} />
+          <NumberProp label={lbl(labels, "builder.field.max")} value={f.max} onChange={(max) => set({ max })} />
+          <NumberProp label={lbl(labels, "builder.field.step")} value={f.step} onChange={(step) => set({ step })} />
         </div>
       ) : null}
       {f.type === "rating" || f.type === "number" ? (
         <div className="grid gap-1">
           <span className="text-sm font-medium">{lbl(labels, "builder.field.weights")}</span>
-          <Scores name={f.key} keys={p.dimensionKeys} value={f.weights} labels={labels} onChange={(weights) => set({ weights } as Partial<Field>)} />
+          <Scores name={f.key} keys={p.dimensionKeys} value={f.weights} labels={labels} onChange={(weights) => set({ weights })} />
         </div>
       ) : null}
       {f.type === "date" ? (
         <div className="flex gap-4">
           <label className="grid gap-1 text-sm">
             {lbl(labels, "builder.field.min")}
-            <Input type="date" value={f.min ?? ""} onChange={(e) => set({ min: e.target.value || undefined } as Partial<Field>)} />
+            <Input type="date" value={f.min ?? ""} onChange={(e) => set({ min: e.target.value || undefined })} />
           </label>
           <label className="grid gap-1 text-sm">
             {lbl(labels, "builder.field.max")}
-            <Input type="date" value={f.max ?? ""} onChange={(e) => set({ max: e.target.value || undefined } as Partial<Field>)} />
+            <Input type="date" value={f.max ?? ""} onChange={(e) => set({ max: e.target.value || undefined })} />
           </label>
         </div>
       ) : null}
@@ -197,17 +197,17 @@ export function FieldEditor(p: FieldEditorProps) {
               ))}
             </select>
           </label>
-          <LocalizedInput name={`${f.key}-wording`} multiline value={f.wording} locales={p.locales} labels={tl("builder.field.wording")} onChange={(wording) => set({ wording: wording as LocalizedText } as Partial<Field>)} />
+          <LocalizedInput name={`${f.key}-wording`} multiline value={f.wording} locales={p.locales} labels={tl("builder.field.wording")} onChange={(wording) => set({ wording: wording })} />
         </>
       ) : null}
       {f.type === "acknowledgement" ? (
-        <LocalizedInput name={`${f.key}-text`} multiline value={f.text} locales={p.locales} labels={tl("builder.field.ack_text")} onChange={(text) => set({ text: text as LocalizedText } as Partial<Field>)} />
+        <LocalizedInput name={`${f.key}-text`} multiline value={f.text} locales={p.locales} labels={tl("builder.field.ack_text")} onChange={(text) => set({ text: text })} />
       ) : null}
       {f.type === "hidden" ? (
         <div className="flex flex-wrap gap-4">
           <label className="grid gap-1 text-sm">
             {lbl(labels, "builder.field.hidden_from")}
-            <select className={selectClass} value={f.from} onChange={(e) => set({ from: e.target.value as "query" | "constant" } as Partial<Field>)}>
+            <select className={selectClass} value={f.from} onChange={(e) => set({ from: e.target.value as "query" | "constant" })}>
               <option value="query">{lbl(labels, "builder.field.from_query")}</option>
               <option value="constant">{lbl(labels, "builder.field.from_constant")}</option>
             </select>
@@ -215,12 +215,12 @@ export function FieldEditor(p: FieldEditorProps) {
           {f.from === "query" ? (
             <label className="grid gap-1 text-sm">
               {lbl(labels, "builder.field.param")}
-              <Input className="font-mono" value={f.param ?? ""} onChange={(e) => set({ param: e.target.value || undefined } as Partial<Field>)} />
+              <Input className="font-mono" value={f.param ?? ""} onChange={(e) => set({ param: e.target.value || undefined })} />
             </label>
           ) : (
             <label className="grid gap-1 text-sm">
               {lbl(labels, "builder.field.value")}
-              <Input value={f.value ?? ""} onChange={(e) => set({ value: e.target.value } as Partial<Field>)} />
+              <Input value={f.value ?? ""} onChange={(e) => set({ value: e.target.value })} />
             </label>
           )}
         </div>
@@ -228,7 +228,7 @@ export function FieldEditor(p: FieldEditorProps) {
       {f.type === "utm" ? (
         <label className="grid gap-1 text-sm">
           {lbl(labels, "builder.field.param")}
-          <select className={selectClass} value={f.param} onChange={(e) => set({ param: e.target.value } as Partial<Field>)}>
+          <select className={selectClass} value={f.param} onChange={(e) => set({ param: e.target.value })}>
             {UTM_PARAMS.map((x) => (
               <option key={x} value={x}>
                 {x}

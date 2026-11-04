@@ -33,7 +33,9 @@ export function useDraft(initial: DraftInput, kind: FormKind, labels: Labels) {
   const notes = useRef<string[]>([]);
   const first = useRef(true);
   const latest = useRef(content);
-  latest.current = content;
+  useEffect(() => {
+    latest.current = content;
+  }, [content]);
 
   const save = useCallback(async () => {
     setStatus("saving");
@@ -129,11 +131,13 @@ function PublishDialog({ issues, labels, onPublish, disabled }: { issues: Publis
             <Button
               type="button"
               disabled={blocked || busy || !note.trim()}
-              onClick={async () => {
+              onClick={() => {
+ void (async () => {
                 setBusy(true);
                 if (await onPublish(note.trim())) setOpen(false);
                 setBusy(false);
-              }}
+              })();
+}}
             >
               {lbl(labels, "builder.publish_confirm")}
             </Button>
@@ -156,7 +160,7 @@ function newField(type: FieldType, key: string, kind: FormKind): Field {
     case "single_choice":
     case "dropdown":
     case "multiple_choice":
-      return { ...base, type, options: [{ key: "option_1", label: {} }, { key: "option_2", label: {} }] } as Field;
+      return { ...base, type, options: [{ key: "option_1", label: {} }, { key: "option_2", label: {} }] };
     case "rating":
       return { ...base, type, scale: 5 };
     case "consent":
@@ -168,7 +172,7 @@ function newField(type: FieldType, key: string, kind: FormKind): Field {
     case "utm":
       return { ...base, type, param: "utm_source" };
     default:
-      return { ...base, type } as Field;
+      return { ...base, type };
   }
 }
 
@@ -401,8 +405,8 @@ export function FormBuilder({ draft, kind, labels, locale, localeNames, canPubli
             </>
           ) : selSection ? (
             <div className="grid gap-4">
-              <LocalizedInput name={`${selSection.key}-title`} value={selSection.title ?? {}} locales={s.locales} labels={tl("builder.section.title")} onChange={(title) => s.setDefinition({ ...d, sections: d.sections.map((x) => (x.key === selSection.key ? { ...x, title: title as LocalizedText } : x)) })} />
-              <LocalizedInput name={`${selSection.key}-description`} multiline value={selSection.description ?? {}} locales={s.locales} labels={tl("builder.section.description")} onChange={(description) => s.setDefinition({ ...d, sections: d.sections.map((x) => (x.key === selSection.key ? { ...x, description: description as LocalizedText } : x)) })} />
+              <LocalizedInput name={`${selSection.key}-title`} value={selSection.title ?? {}} locales={s.locales} labels={tl("builder.section.title")} onChange={(title) => s.setDefinition({ ...d, sections: d.sections.map((x) => (x.key === selSection.key ? { ...x, title: title } : x)) })} />
+              <LocalizedInput name={`${selSection.key}-description`} multiline value={selSection.description ?? {}} locales={s.locales} labels={tl("builder.section.description")} onChange={(description) => s.setDefinition({ ...d, sections: d.sections.map((x) => (x.key === selSection.key ? { ...x, description: description } : x)) })} />
               <ConditionBuilder legend={lbl(labels, "builder.section.visible_if")} value={selSection.visibleIf} onChange={(visibleIf) => s.setDefinition({ ...d, sections: d.sections.map((x) => (x.key === selSection.key ? { ...x, visibleIf } : x)) })} fields={fieldsBeforeSection(selSection.key, false).map((o) => ref(o.field))} dimensions={dims} labels={labels} />
               <div>
                 <Button type="button" variant="destructive" size="sm" disabled={selSection.fieldKeys.length > 0 || d.sections.length === 1} onClick={() => removeSection(selSection.key)}>
@@ -414,8 +418,8 @@ export function FormBuilder({ draft, kind, labels, locale, localeNames, canPubli
             <p className="text-sm text-muted-foreground">{lbl(labels, "builder.select_hint")}</p>
           )}
           <div className="grid gap-2">
-            <LocalizedInput name="form-title" value={d.title} locales={s.locales} labels={tl("builder.form_title")} onChange={(title) => s.setDefinition({ ...d, title: title as LocalizedText })} />
-            <LocalizedInput name="form-intro" multiline value={d.intro ?? {}} locales={s.locales} labels={tl("builder.form_intro")} onChange={(intro) => s.setDefinition({ ...d, intro: intro as LocalizedText })} />
+            <LocalizedInput name="form-title" value={d.title} locales={s.locales} labels={tl("builder.form_title")} onChange={(title) => s.setDefinition({ ...d, title: title })} />
+            <LocalizedInput name="form-intro" multiline value={d.intro ?? {}} locales={s.locales} labels={tl("builder.form_intro")} onChange={(intro) => s.setDefinition({ ...d, intro: intro })} />
           </div>
         </div>
         <div className="grid content-start gap-4">

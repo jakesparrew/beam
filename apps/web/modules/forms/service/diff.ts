@@ -46,7 +46,7 @@ function keyed<T extends { key: string }>(a: readonly T[], b: readonly T[], skip
   for (const [key, x] of am) {
     const y = bm.get(key);
     if (!y) continue;
-    const props = changedProps(x as Record<string, unknown>, y as Record<string, unknown>, skip);
+    const props = changedProps(x, y, skip);
     if (props.length) changed.push({ key, props });
   }
   return {
@@ -60,7 +60,7 @@ function formLevel(a: FormDefinition, b: FormDefinition): string[] {
   const out: string[] = [];
   if (!same(a.title, b.title)) out.push("title");
   if (!same(a.intro, b.intro)) out.push("intro");
-  for (const p of changedProps(a.settings as Record<string, unknown>, b.settings as Record<string, unknown>)) out.push(`settings.${p}`);
+  for (const p of changedProps(a.settings, b.settings)) out.push(`settings.${p}`);
   return out;
 }
 

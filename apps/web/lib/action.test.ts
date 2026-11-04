@@ -160,9 +160,17 @@ describe("action()", () => {
       { name: "test.limited", audience: "public", input: z.object({ email: z.string() }), rateLimit: (i, { ip }) => ({ route: "login", ip, email: i.email }) },
       handler,
     );
-    for (let i = 0; i < 10; i++) expect((await run({ email: "limit@example.com" })).ok).toBe(true);
-    const result = await run({ email: "limit@example.com" });
-    expect(result).toMatchObject({ ok: false, error: { code: "rate_limited" } });
-    expect(handler).toHaveBeenCalledTimes(10);
+    // The per-IP login limit counts fixed windows aligned to the clock minute: freeze Date a few
+    // seconds after a minute boundary so the 11 calls always fall in one window.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(Math.floor(Date.now() / 60_000) * 60_000 + 5_000);
+    try {
+      for (let i = 0; i < 10; i++) expect((await run({ email: "limit@example.com" })).ok).toBe(true);
+      const result = await run({ email: "limit@example.com" });
+      expect(result).toMatchObject({ ok: false, error: { code: "rate_limited" } });
+      expect(handler).toHaveBeenCalledTimes(10);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

@@ -290,11 +290,16 @@
       "attempts": 0
     },
     "booking-P2": {
-      "status": "running",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "59cad56",
       "runId": "wf_cc3166cb-15d",
-      "startedAt": "2026-11-04T04:08:00Z"
+      "startedAt": "2026-11-04T04:08:00Z",
+      "branchSha": "45de8bc",
+      "endedAt": "2026-11-04T05:29:19Z",
+      "minutes": 51,
+      "mergeSha": "47d21d9",
+      "mergedAt": "2026-11-04T05:37:57Z"
     },
     "booking-P3a": {
       "status": "merged",
@@ -373,14 +378,19 @@
       "mergedAt": "2026-11-04T04:34:57Z"
     },
     "ops-P2": {
-      "status": "running",
+      "status": "merged",
       "attempts": 2,
       "baseSha": "107c9bd",
       "runId": "wf_cb40cfa7-cf0",
       "startedAt": "2026-11-04T04:36:04Z",
       "extraOwns": [
         "apps/web/modules/ops/ops-p1.facades.test.ts"
-      ]
+      ],
+      "branchSha": "25618b5",
+      "endedAt": "2026-11-04T05:29:19Z",
+      "minutes": 44,
+      "mergeSha": "f18eca9",
+      "mergedAt": "2026-11-04T05:37:51Z"
     },
     "site-P2": {
       "status": "merged",
@@ -411,15 +421,24 @@
       "mergedAt": "2026-11-04T02:20:14Z"
     },
     "booking-P3b": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "00a7add",
+      "runId": "wf_9c8e2888-0e0",
+      "startedAt": "2026-11-04T04:41:24Z",
+      "extraOwns": [
+        "apps/web/app/api/health/route.test.ts"
+      ]
     },
     "commerce-P4a": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "baseSha": "9aa2a07",
       "runId": "wf_efbad917-dd8",
-      "startedAt": "2026-11-04T04:28:44Z"
+      "startedAt": "2026-11-04T04:28:44Z",
+      "branchSha": "c25d187",
+      "endedAt": "2026-11-04T05:28:56Z",
+      "minutes": 59
     },
     "credits-P4": {
       "status": "merged",
@@ -438,22 +457,28 @@
       "mergedAt": "2026-11-04T04:03:35Z"
     },
     "finance-P3": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "baseSha": "a869734",
       "runId": "wf_0b991ac7-3f0",
-      "startedAt": "2026-11-04T04:32:30Z"
+      "startedAt": "2026-11-04T04:32:30Z",
+      "branchSha": "8f1b712",
+      "endedAt": "2026-11-04T05:28:56Z",
+      "minutes": 54
     },
     "forms-P4": {
       "status": "pending",
       "attempts": 0
     },
     "email-P3": {
-      "status": "running",
-      "attempts": 1,
-      "baseSha": "44a337a",
-      "runId": "wf_951123d6-336",
-      "startedAt": "2026-11-04T03:52:04Z"
+      "status": "done",
+      "attempts": 2,
+      "baseSha": "fce0c4c",
+      "runId": "wf_c17cfcf7-e69",
+      "startedAt": "2026-11-04T04:50:02Z",
+      "branchSha": "3a3a05d",
+      "endedAt": "2026-11-04T05:28:56Z",
+      "minutes": 84
     },
     "automation-P3": {
       "status": "pending",
@@ -472,8 +497,11 @@
       "attempts": 0
     },
     "site-P5": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "beb4769",
+      "runId": "wf_cc4b715f-5dc",
+      "startedAt": "2026-11-04T05:03:43Z"
     },
     "crm-P7": {
       "status": "pending",
@@ -544,11 +572,16 @@
       "attempts": 0
     },
     "ops-P4": {
-      "status": "running",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "a945df0",
       "runId": "wf_78d41894-79c",
-      "startedAt": "2026-11-04T04:04:07Z"
+      "startedAt": "2026-11-04T04:04:07Z",
+      "branchSha": "5654aaa",
+      "endedAt": "2026-11-04T05:29:19Z",
+      "minutes": 80,
+      "mergeSha": "57aa281",
+      "mergedAt": "2026-11-04T05:38:04Z"
     },
     "site-P7": {
       "status": "pending",
@@ -1100,6 +1133,35 @@
       "minutes": 22,
       "mergeSha": "45a8275",
       "mergedAt": "2026-11-04T03:49:56Z"
+    },
+    "fix-w06-platform-1": {
+      "status": "merged",
+      "attempts": 1,
+      "fixer": true,
+      "module": "platform",
+      "goal": "Freeze the clock in window-dependent platform tests; build the real Mollie provider in lib/integrations.ts when MOLLIE_API_KEY is set.",
+      "from": [
+        "platform-P5",
+        "platform-P6"
+      ],
+      "dependsOn": [],
+      "owns": [
+        "apps/web/lib/action.test.ts",
+        "apps/web/lib/integrations.ts",
+        "apps/web/lib/integrations.test.ts",
+        "apps/web/lib/rate-limit.test.ts",
+        "apps/web/proxy.test.ts",
+        "apps/web/lib/webhooks.test.ts",
+        "apps/web/lib/fix-w06-platform-1.test.ts"
+      ],
+      "baseSha": "beb4769",
+      "runId": "wf_7fcde353-28a",
+      "startedAt": "2026-11-04T05:03:43Z",
+      "branchSha": "a046909",
+      "endedAt": "2026-11-04T05:29:19Z",
+      "minutes": 21,
+      "mergeSha": "574251f",
+      "mergedAt": "2026-11-04T05:37:45Z"
     }
   }
 }

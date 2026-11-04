@@ -16,7 +16,7 @@ import type { IntegrationCallEntry, OnCall } from "@beam/integrations/_shared";
 import { createClaudeClient, createClaudeFake, type ClaudeClient, type ClaudeFake } from "@beam/integrations/anthropic";
 import { createBetterstackClient, createBetterstackFake, type BetterstackClient, type BetterstackFake } from "@beam/integrations/betterstack";
 import { createBillitClient, createBillitFake, type BillitApi, type BillitFake } from "@beam/integrations/billit";
-import { createPaymentsFake, type PaymentProvider, type PaymentsFake } from "@beam/integrations/payments";
+import { createMollieProvider, createPaymentsFake, type PaymentProvider, type PaymentsFake } from "@beam/integrations/payments";
 import { createResendClient, createResendFake, type ResendClient, type ResendFake } from "@beam/integrations/resend";
 import { createSlackClient, createSlackFake, type SlackClient, type SlackFake } from "@beam/integrations/slack";
 
@@ -124,8 +124,14 @@ export function buildIntegrations(env: Env = process.env): Integrations {
   return {
     payments: !real("payments")
       ? fakes().payments
-      : // The Mollie adapter is commerce's (commerce-P4); until it exists the real path is not configured.
-        notConfigured<PaymentProvider>("mollie"),
+      : key("payments")
+        ? createMollieProvider({
+            apiKey: key("payments")!,
+            webhookBaseUrl: env.APP_URL ?? "http://localhost:3000",
+            ...(env.MOLLIE_WEBHOOK_SECRET ? { webhookSecret: env.MOLLIE_WEBHOOK_SECRET } : {}),
+            onCall,
+          })
+        : notConfigured<PaymentProvider>("mollie"),
     resend: !real("resend")
       ? fakes().resend
       : key("resend")

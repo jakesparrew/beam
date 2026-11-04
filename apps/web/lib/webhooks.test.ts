@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTestDb } from "@beam/db/testing";
 import type { DbHandle } from "@beam/db";
 import { integrationCalls, jobs, webhookEvents } from "@beam/db/schema";
@@ -57,14 +57,22 @@ describe("handleWebhook (PL-37 to PL-39)", () => {
   });
 
   it("more than 5 signature failures in 10 minutes raise one Slack alert (5 raise none)", async () => {
-    const slackJobs = () => handle.db.select().from(jobs).where(eq(jobs.kind, "notify.slack"));
-    for (let i = 0; i < 5; i++) await call(request({ id: `bad_${i}` }, "bad"));
-    expect(await slackJobs()).toHaveLength(0);
-    await call(request({ id: "bad_5" }, "bad"));
-    const slack = await slackJobs();
-    expect(slack).toHaveLength(1);
-    expect(slack[0]!.idempotencyKey).toMatch(/^slack:webhook-signature-resend:\d{4}-\d{2}-\d{2}T\d{2}$/);
-    await call(request({ id: "bad_6" }, "bad"));
-    expect(await slackJobs()).toHaveLength(1);
+    // The alert key is per clock hour: freeze Date a few seconds after an hour boundary so the
+    // 6th and 7th failure never straddle one (the 10-minute count runs on the database clock).
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(Math.floor(Date.now() / 3_600_000) * 3_600_000 + 5_000);
+    try {
+      const slackJobs = () => handle.db.select().from(jobs).where(eq(jobs.kind, "notify.slack"));
+      for (let i = 0; i < 5; i++) await call(request({ id: `bad_${i}` }, "bad"));
+      expect(await slackJobs()).toHaveLength(0);
+      await call(request({ id: "bad_5" }, "bad"));
+      const slack = await slackJobs();
+      expect(slack).toHaveLength(1);
+      expect(slack[0]!.idempotencyKey).toMatch(/^slack:webhook-signature-resend:\d{4}-\d{2}-\d{2}T\d{2}$/);
+      await call(request({ id: "bad_6" }, "bad"));
+      expect(await slackJobs()).toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

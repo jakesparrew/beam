@@ -190,6 +190,13 @@
       "when": 1793762650862,
       "tag": "0026_w04",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1793770170266,
+      "tag": "0027_w08_views",
+      "breakpoints": true
     }
   ]
 }

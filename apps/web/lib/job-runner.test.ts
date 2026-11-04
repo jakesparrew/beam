@@ -9,6 +9,7 @@ const state = vi.hoisted(() => ({
   runs: new Map<string, number>(),
   hookCalls: [] as { jobId: string; statusSeen: string; message: string }[],
   hookThrows: false,
+  lateAborted: undefined as boolean | undefined,
 }));
 
 vi.mock("@/registry/jobs.generated", async (importOriginal) => {
@@ -23,6 +24,22 @@ vi.mock("@/registry/jobs.generated", async (importOriginal) => {
     "test.fail": { ...base, kind: "test.fail", input: z.object({}), run: () => Promise.reject(new Error("boom")) },
     "test.permanent": { ...base, kind: "test.permanent", input: z.object({}), run: () => Promise.reject(new Perm("nope")) },
     "test.slow": { ...base, kind: "test.slow", timeoutMs: 50, input: z.object({}), run: () => new Promise((r) => setTimeout(r, 400)) },
+    "test.late": {
+      ...base,
+      kind: "test.late",
+      timeoutMs: 50,
+      input: z.object({}),
+      // Ignores the abort: after its slow "provider call" it writes through ctx.tx and durably (like logRequest).
+      run: async (ctx: { tx: never; signal: AbortSignal }) => {
+        const { enqueue: put } = await import("@beam/db");
+        const { writeDurably } = await import("@/lib/ctx");
+        await new Promise((r) => setTimeout(r, 200));
+        state.lateAborted = ctx.signal.aborted;
+        await put(ctx.tx, { kind: "test.ok", payload: {}, key: "late:tx" });
+        await writeDurably(ctx as never, (db) => put(db, { kind: "test.ok", payload: {}, key: "late:durable" }).then(() => undefined));
+      },
+    },
+    "test.wait": { ...base, kind: "test.wait", input: z.object({}), run: () => new Promise((r) => setTimeout(r, 300)) },
     "test.hook": {
       ...base,
       kind: "test.hook",
@@ -65,7 +82,7 @@ const add = (kind: string, key: string, extra: Partial<Parameters<typeof enqueue
   enqueue(handle.db, { kind, payload: {}, key, ...extra });
 const job = async (id: string) => (await handle.db.select().from(jobs).where(eq(jobs.id, id)))[0]!;
 const run = (extra: Parameters<typeof runJobs>[0] extends infer O ? Partial<O> : never = {}) =>
-  runJobs({ budgetMs: 5000, db: handle.db, integrations, ...extra });
+  runJobs({ budgetMs: 20_000, db: handle.db, integrations, ...extra });
 
 describe("claiming", () => {
   it("claims by priority, then run_at", async () => {
@@ -90,6 +107,50 @@ describe("claiming", () => {
     const [s1, s2] = await Promise.all([run({ tickId: "tick:1" }), run({ tickId: "tick:2" })]);
     expect(s1.succeeded + s2.succeeded).toBe(30);
     for (const id of ids) expect(state.runs.get(id)).toBe(1);
+  });
+
+  it("the claim keeps FOR UPDATE SKIP LOCKED (PGlite cannot show the race, so the statement is pinned)", async () => {
+    const { PgDialect } = await import("drizzle-orm/pg-core");
+    const spy = vi.spyOn(handle.db, "execute");
+    try {
+      await claimJobs(handle.db, "fast", 1, "tick:sql");
+      const query = new PgDialect().sqlToQuery(spy.mock.calls[0]![0] as never).sql.replace(/\s+/g, " ");
+      expect(query).toMatch(/update jobs set status = 'running'.* where id in \( select id from jobs where status = 'pending'.* for update skip locked\)/i);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+});
+
+describe("tick budget (PL-32)", () => {
+  it("starts no claimed job after the budget and hands the unstarted rows back without using an attempt", async () => {
+    const ids: string[] = [];
+    for (let i = 0; i < 6; i++) ids.push((await add("test.wait", `w:${i}`)).id);
+    // Five start at once and take 300 ms; the budget is gone before a worker frees up for the sixth.
+    const summary = await run({ budgetMs: 150, lanes: ["fast"] });
+    const rows = await Promise.all(ids.map(job));
+    const released = rows.filter((r) => r.status === "pending");
+    expect(released.length).toBeGreaterThanOrEqual(1);
+    for (const r of released) expect(r).toMatchObject({ attempts: 0, lockedAt: null, lockedBy: null, startedAt: null });
+    expect(rows.filter((r) => r.status === "succeeded")).toHaveLength(summary.succeeded);
+    expect(summary.succeeded + released.length).toBe(6);
+    expect(summary.ran.fast).toBe(summary.succeeded);
+  });
+});
+
+describe("timeouts (edge case 4)", () => {
+  it("waits for a timed-out handler before rolling back: its late tx write is gone, its late durable write is kept", async () => {
+    const { id } = await add("test.late", "late");
+    await run();
+    // A handler the runner had abandoned would write after this point.
+    await new Promise((r) => setTimeout(r, 400));
+    expect(state.lateAborted).toBe(true);
+    const row = await job(id);
+    expect(row.status).toBe("pending");
+    expect(row.lastError).toContain("timeout");
+    const keys = (await handle.db.select({ key: jobs.idempotencyKey }).from(jobs)).map((r) => r.key);
+    expect(keys).not.toContain("late:tx");
+    expect(keys).toContain("late:durable");
   });
 });
 
@@ -181,6 +242,24 @@ describe("failures", () => {
     const row = await job(id);
     expect(row).toMatchObject({ status: "pending", lastError: "stale lock", attempts: 2, lockedAt: null });
     expect((await job(fresh.id)).status).toBe("running");
+  });
+
+  it("a stale running job with no attempts left turns dead, alerts once and calls onDead (PL-29, PL-30)", async () => {
+    const sentry = fakeSentry();
+    const { id } = await add("test.hook", "stale-dead");
+    await handle.db
+      .update(jobs)
+      .set({ status: "running", lockedAt: new Date(Date.now() - 11 * 60_000), lockedBy: "tick:dead", attempts: 6, maxAttempts: 6 })
+      .where(eq(jobs.id, id));
+    expect(await reclaimStaleLocks(handle.db, { integrations })).toBe(1);
+    const row = await job(id);
+    expect(row).toMatchObject({ status: "dead", lastError: "stale lock", lockedAt: null });
+    expect(row.finishedAt).not.toBeNull();
+    const slack = await handle.db.select().from(jobs).where(eq(jobs.kind, "notify.slack"));
+    expect(slack.map((j) => j.idempotencyKey)).toEqual([`slack:dead:test.hook:${localHourKey(new Date())}`]);
+    expect(sentry.exceptions.filter((e) => e.tags?.job_id === id)).toHaveLength(1);
+    expect(state.hookCalls).toEqual([{ jobId: id, statusSeen: "dead", message: "stale lock" }]);
+    sentry.restore();
   });
 });
 

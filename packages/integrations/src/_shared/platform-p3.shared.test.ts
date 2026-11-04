@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { NotImplementedError, PermanentError } from "@beam/core/errors";
+import { PermanentError } from "@beam/core/errors";
 import { createBillitClient } from "../billit";
 import { digestRequest, errorFromStatus, IntegrationError, isPermanentFailure, scrubError, trackCall, withTimeout, type IntegrationCallEntry } from "./index";
 
@@ -65,10 +65,32 @@ describe("withTimeout and trackCall", () => {
   });
 });
 
-describe("billit Wave 0 client", () => {
-  it("has finance's signature and throws NotImplementedError on every call", async () => {
-    const client = createBillitClient({ baseUrl: "https://api.sandbox.billit.be", apiKey: "x", partyId: "1", onCall: () => undefined });
-    await expect(client.getOrder("1")).rejects.toBeInstanceOf(NotImplementedError);
-    await expect(client.anonymiseCustomer("1")).rejects.toBeInstanceOf(PermanentError);
+describe("billit client (finance-P4)", () => {
+  it("keeps finance's signature, logs the call and maps statuses with the shared rule", async () => {
+    const entries: IntegrationCallEntry[] = [];
+    const responses = [
+      new Response(JSON.stringify({ OrderID: 7, OrderNumber: "BEAM-2026-000001", OrderType: "Invoice", Paid: false, PaidDate: null, TotalIncl: 45, OrderStatus: "ToSend" }), { status: 200 }),
+      new Response("{}", { status: 503 }),
+      new Response("{}", { status: 422 }),
+    ];
+    const client = createBillitClient({
+      baseUrl: "https://api.sandbox.billit.be",
+      apiKey: "x",
+      partyId: "1",
+      onCall: (e) => void entries.push(e),
+      fetch: () => Promise.resolve(responses.shift()!),
+    });
+    await expect(client.getOrder("7")).resolves.toMatchObject({ OrderID: "7", Paid: false, TotalIncl: 45, Status: "ToSend" });
+    const retryable = await client.getOrder("7").catch((e: unknown) => e);
+    expect(retryable).toBeInstanceOf(IntegrationError);
+    expect(isPermanentFailure(retryable)).toBe(false);
+    const permanent = await client.anonymiseCustomer("1").catch((e: unknown) => e);
+    expect(isPermanentFailure(permanent)).toBe(true);
+    expect(permanent).not.toBeInstanceOf(PermanentError);
+    expect(entries.map((e) => [e.provider, e.operation, e.statusCode, e.ok])).toEqual([
+      ["billit", "orders.get", 200, true],
+      ["billit", "orders.get", 503, false],
+      ["billit", "parties.anonymise", 422, false],
+    ]);
   });
 });

@@ -30,7 +30,8 @@ export async function POST(request: Request): Promise<Response> {
   const part = form.get("part");
   const index = Number(form.get("index"));
   const total = Number(form.get("total"));
-  const name = String(form.get("name") ?? "import.csv").replace(/[/\\]/g, "_").slice(0, 160) || "import.csv";
+  const rawName = form.get("name");
+  const name = (typeof rawName === "string" ? rawName : "import.csv").replace(/[/\\]/g, "_").slice(0, 160) || "import.csv";
   if (!(part instanceof Blob)) return json(400, { error: "validation", field: "part" });
   if (!Number.isInteger(total) || total < 1 || total > IMPORT_MAX_PARTS) return json(400, { error: "too_many_parts" });
   if (!Number.isInteger(index) || index < 0 || index >= total) return json(400, { error: "validation", field: "index" });

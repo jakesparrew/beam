@@ -51,7 +51,7 @@ async function lockedImport(ctx: Ctx, importId: string): Promise<ImportRecord> {
   return imp;
 }
 
-const reportOf = (imp: ImportRecord): ImportReport => (imp.report ?? {}) as ImportReport;
+const reportOf = (imp: ImportRecord): ImportReport => (imp.report ?? {});
 const hasMapping = (m: ImportRecord["mapping"]): m is ImportMapping => !!m && "columns" in m && "options" in m;
 
 /** Rule 43 plus the preset: the required targets a mapping still lacks. */
@@ -90,7 +90,7 @@ export const createImport = action(
     if (!first) throw new ValidationError("file_missing", { fileIds: "file_missing" });
 
     const text = new TextDecoder("utf-8").decode(first.bytes.subarray(0, 64 * 1024));
-    const delimiter = detectDelimiter(text.replace(/^﻿/, "").split(/\r\n|\n|\r/)[0] ?? "");
+    const delimiter = detectDelimiter(text.replace(/^\uFEFF/, "").split(/\r\n|\n|\r/)[0] ?? "");
     let header: string[] = [];
     const sample: Record<string, string>[] = [];
     try {
@@ -103,7 +103,7 @@ export const createImport = action(
       if (!(error instanceof CsvParseError) || !header.length) throw new ValidationError("malformed_csv", { file: "malformed_csv" });
     }
     if (!header.length) {
-      const headerOnly = text.replace(/^﻿/, "").split(/\r\n|\n|\r/)[0] ?? "";
+      const headerOnly = text.replace(/^\uFEFF/, "").split(/\r\n|\n|\r/)[0] ?? "";
       header = headerOnly.split(delimiter).map((h) => h.trim().replace(/^"|"$/g, ""));
       if (!header.some(Boolean)) throw new ValidationError("malformed_csv", { file: "malformed_csv" });
     }

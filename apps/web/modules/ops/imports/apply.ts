@@ -95,9 +95,9 @@ export async function applyRow(tx: Tx, ctx: JobCtx, row: ImportRow, opts: { dryR
     // that other modules write through `ctx` roll back with the row (and never wait on a second
     // connection, which an in-process database would deadlock on).
     return await tx.transaction(async (sp) => {
-      ctx.tx = sp as Tx;
+      ctx.tx = sp;
       try {
-        return await applier(sp as Tx, ctx, row, opts);
+        return await applier(sp, ctx, row, opts);
       } finally {
         ctx.tx = outer;
       }

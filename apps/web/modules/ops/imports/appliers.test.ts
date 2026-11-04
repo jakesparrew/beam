@@ -4,19 +4,22 @@ import { activityEvents, bookings, companies, companyContacts, consentRecords, c
 import { createTestDb, makePerson, makeProduct, makeSession } from "@beam/db/testing";
 import { emailHash } from "@beam/core/crm";
 import type { ImportMapping } from "@beam/core/ops";
+import type * as BookingApi from "@/modules/booking/api";
+import type * as CreditsApi from "@/modules/credits/api";
+import type * as CrmApi from "@/modules/crm/api";
 
 vi.mock("@/modules/crm/api", async (orig) => {
-  const m = await orig<typeof import("@/modules/crm/api")>();
+  const m = await orig<typeof CrmApi>();
   return { ...m, updatePersonFields: vi.fn(m.updatePersonFields) };
 });
 // automation's stub throws until its package lands; crm's addSuppression calls it.
 vi.mock("@/modules/automation/api", async (orig) => ({ ...(await orig<Record<string, unknown>>()), requestSuppressionExit: vi.fn().mockResolvedValue({ jobId: null }) }));
 vi.mock("@/modules/credits/api", async (orig) => {
-  const m = await orig<typeof import("@/modules/credits/api")>();
+  const m = await orig<typeof CreditsApi>();
   return { ...m, importGrant: vi.fn(m.importGrant) };
 });
 vi.mock("@/modules/booking/api", async (orig) => {
-  const m = await orig<typeof import("@/modules/booking/api")>();
+  const m = await orig<typeof BookingApi>();
   return { ...m, importBooking: vi.fn(m.importBooking) };
 });
 

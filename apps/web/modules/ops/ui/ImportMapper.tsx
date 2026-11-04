@@ -250,10 +250,10 @@ export function ImportMapper({ importId, kind, header, sample, targets, mapping,
         </p>
       ) : null}
       <div className="flex flex-wrap gap-2">
-        <Button type="button" variant="outline" disabled={busy} onClick={() => run(false)}>
+        <Button type="button" variant="outline" disabled={busy} onClick={() => void run(false)}>
           {labels.saveMapping}
         </Button>
-        <Button type="button" disabled={busy} onClick={() => run(true)}>
+        <Button type="button" disabled={busy} onClick={() => void run(true)}>
           {labels.startDryRun}
         </Button>
       </div>

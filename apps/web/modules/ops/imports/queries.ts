@@ -106,7 +106,7 @@ export async function getImport(db: DbOrTx, importId: string): Promise<ImportDet
     .where(eq(imports.id, importId));
   if (!row) return null;
   const { partFileIds, ...rest } = row;
-  return { ...rest, report: (row.report ?? {}) as ImportReport, reconciliation: (row.reconciliation ?? null) as Reconciliation | null, partCount: 1 + (partFileIds?.length ?? 0) };
+  return { ...rest, report: (row.report ?? {}), reconciliation: (row.reconciliation ?? null) as Reconciliation | null, partCount: 1 + (partFileIds?.length ?? 0) };
 }
 
 export type ImportRowItem = { rowNumber: number; status: ImportRowStatus; dryRunStatus: ImportRowStatus | null; message: string | null; entityType: string | null };
@@ -176,7 +176,7 @@ export async function getCutoverChecklist(db: DbOrTx): Promise<{ steps: CutoverS
         return { ...base, done: gate };
       case "stats": {
         const done = !!statsRun?.at && (!lastImport?.at || statsRun.at.getTime() > lastImport.at.getTime());
-        return { ...base, done, doneAt: done ? statsRun!.at : null };
+        return { ...base, done, doneAt: done ? statsRun.at : null };
       }
       case "import": {
         const match = doneImports.find((i) => i.kind === rule.importKind && (!rule.needsSignOff || !!i.signedOffAt));

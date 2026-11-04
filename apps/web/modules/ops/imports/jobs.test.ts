@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import type { DbHandle, Tx } from "@beam/db";
+import type { DbHandle } from "@beam/db";
 import { companies, importRows, imports, jobs } from "@beam/db/schema";
 import { createTestDb } from "@beam/db/testing";
 import { like } from "drizzle-orm";
@@ -89,7 +89,7 @@ describe("import jobs (ops rule 51, 4.4)", () => {
       let ctx: JobCtx | undefined;
       await expect(
         h.db.transaction(async (tx) => {
-          ctx = makeJobCtx(h.db, "import.process_chunk", { tx: tx as Tx, attempt: 1 });
+          ctx = makeJobCtx(h.db, "import.process_chunk", { tx: tx, attempt: 1 });
           await runImportProcessChunk(ctx, { importId: id, runSeq: 2, mode: "run", offset: 0 });
         }),
       ).rejects.toThrow("process killed");
@@ -140,7 +140,7 @@ describe("import jobs (ops rule 51, 4.4)", () => {
         let ctx: JobCtx | undefined;
         await expect(
           h.db.transaction(async (tx) => {
-            ctx = makeJobCtx(h.db, "import.process_chunk", { tx: tx as Tx, attempt });
+            ctx = makeJobCtx(h.db, "import.process_chunk", { tx: tx, attempt });
             await runImportProcessChunk(ctx, { importId: id, runSeq: 2, mode: "run", offset: 0 });
           }),
         ).rejects.toThrow("database went away");

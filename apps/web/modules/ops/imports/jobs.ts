@@ -88,7 +88,7 @@ export async function loadImport(tx: DbOrTx, importId: string, opts: { lock?: bo
 }
 
 const asMapping = (imp: ImportRecord): ImportMapping => imp.mapping as ImportMapping;
-const reportOf = (imp: ImportRecord): ImportReport => (imp.report ?? {}) as ImportReport;
+const reportOf = (imp: ImportRecord): ImportReport => (imp.report ?? {});
 
 /** Marks the import `failed` in a write that survives the job's rollback (rule 43a). */
 async function failDurably(ctx: JobCtx, importId: string, runSeq: number, code: string, phase: "parse" | "dry" | "run"): Promise<void> {

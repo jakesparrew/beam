@@ -36,7 +36,7 @@ const ERROR_CODES = [
 async function sampleOf(fileId: string, delimiter: ImportMapping["options"]["delimiter"] | null): Promise<Record<string, string>[]> {
   const file = await readFile(await getAppDb(), fileId);
   if (!file) return [];
-  const d = delimiter ?? detectDelimiter(new TextDecoder().decode(file.bytes.subarray(0, 4096)).replace(/^﻿/, "").split(/\r?\n/)[0] ?? "");
+  const d = delimiter ?? detectDelimiter(new TextDecoder().decode(file.bytes.subarray(0, 4096)).replace(/^\uFEFF/, "").split(/\r?\n/)[0] ?? "");
   const out: Record<string, string>[] = [];
   try {
     for await (const r of parseCsvStream([file.bytes], { delimiter: d })) {

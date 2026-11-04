@@ -19,8 +19,12 @@ const STEP_LINKS: Partial<Record<CutoverKey, string>> = {
 
 async function tick(formData: FormData) {
   "use server";
-  const key = String(formData.get("key")) as CutoverKey;
-  const note = String(formData.get("note") ?? "").trim();
+  const text = (name: string) => {
+    const v = formData.get(name);
+    return typeof v === "string" ? v : "";
+  };
+  const key = text("key") as CutoverKey;
+  const note = text("note").trim();
   await setCutoverStep({ key, done: formData.get("done") === "true", ...(note ? { note } : {}) });
   revalidatePath("/admin/imports/cutover");
 }

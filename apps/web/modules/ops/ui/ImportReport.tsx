@@ -197,7 +197,7 @@ export function ImportReport({ importId, kind, status, dryRunFinished, counts, r
                 <textarea name="note" className="rounded-md border p-2" maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} />
               </label>
               <div>
-                <Button type="button" disabled={busy || !note.trim()} onClick={() => call(() => signOffReconciliation({ importId, note }))}>
+                <Button type="button" disabled={busy || !note.trim()} onClick={() => void call(() => signOffReconciliation({ importId, note }))}>
                   {labels.signOff}
                 </Button>
               </div>
@@ -225,12 +225,12 @@ export function ImportReport({ importId, kind, status, dryRunFinished, counts, r
       ) : null}
       <div className="flex flex-wrap gap-2">
         {canRun && ((status === "dry_run" && dryRunFinished) || status === "failed") ? (
-          <Button type="button" disabled={busy} onClick={() => call(() => startImport({ importId, confirmNoSuppressionSource: confirm.suppressions || undefined, confirmDifferentFile: confirm.differentFile || undefined }))}>
+          <Button type="button" disabled={busy} onClick={() => void call(() => startImport({ importId, confirmNoSuppressionSource: confirm.suppressions || undefined, confirmDifferentFile: confirm.differentFile || undefined }))}>
             {labels.run}
           </Button>
         ) : null}
         {status === "uploaded" || status === "dry_run" || status === "running" ? (
-          <Button type="button" variant="outline" disabled={busy} onClick={() => call(() => cancelImport({ importId }))}>
+          <Button type="button" variant="outline" disabled={busy} onClick={() => void call(() => cancelImport({ importId }))}>
             {labels.cancel}
           </Button>
         ) : null}

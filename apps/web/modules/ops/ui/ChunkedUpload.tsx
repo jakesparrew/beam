@@ -63,7 +63,7 @@ export function ChunkedUpload({ labels, defaultKind = "suppressions" }: { labels
 
   const select = "h-9 w-full rounded-md border bg-background px-3 text-sm";
   return (
-    <form onSubmit={submit} className="grid max-w-xl gap-4" aria-busy={busy}>
+    <form onSubmit={(e) => void submit(e)} className="grid max-w-xl gap-4" aria-busy={busy}>
       <label className="grid gap-1 text-sm">
         <span className="font-medium">{labels.kind}</span>
         <select name="kind" className={select} value={kind} onChange={(e) => setKind(e.target.value as ImportKind)} disabled={busy}>

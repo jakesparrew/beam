@@ -136,6 +136,15 @@ export async function reconcilePackages(tx: DbOrTx, importId: string): Promise<R
   return { kind: "packages", mode: l.mode, lines: list, totals: totalsOf(list), mismatches };
 }
 
+function fileEndOf(value: string | null, format: Loaded["dateFormat"]): number | null {
+  try {
+    const d = parseDateCell(value, format);
+    return d ? endOfBrusselsDay(d).getTime() : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Memberships: rows per product against imported memberships; a period end that differs from the file is a mismatch. */
 export async function reconcileMemberships(tx: DbOrTx, importId: string): Promise<Reconciliation> {
   const l = await load(tx, importId);
@@ -156,13 +165,7 @@ export async function reconcileMemberships(tx: DbOrTx, importId: string): Promis
     line.difference = line.unitsInFile - line.unitsGranted;
     lines.set(key, line);
     if (l.mode === "run" && counted && r.entityId) {
-      let fileEnd: number | null = null;
-      try {
-        const d = parseDateCell(r.data.period_end_on ?? null, l.dateFormat);
-        fileEnd = d ? endOfBrusselsDay(d).getTime() : null;
-      } catch {
-        fileEnd = null;
-      }
+      const fileEnd = fileEndOf(r.data.period_end_on ?? null, l.dateFormat);
       const stored = endOf.get(r.entityId)?.getTime() ?? null;
       if (fileEnd !== null && stored !== null && Math.abs(stored - fileEnd) > 86_400_000 && mismatches.length < MISMATCH_CAP) mismatches.push({ row: r.rowNumber, creditKind: null, expected: 1, balance: 0 });
     }

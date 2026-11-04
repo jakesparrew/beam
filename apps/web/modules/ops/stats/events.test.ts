@@ -85,7 +85,7 @@ describe("stage-change events (rule 14)", () => {
 describe("inactivity events (rules 15-18)", () => {
   it("R15 R16 emits the threshold once (deduped by anchor date) and re-arms after a new visit", async () => {
     const p = await makeCustomer(h.db);
-    await makeBooking(h.db, { personId: p.id, startsAt: daysAgo(31), status: "attended" });
+    await makeBooking(h.db, { personId: p.id, startsAt: daysAgo(31.75), status: "attended" });
     await nightly(p.id);
     await nightly(p.id);
     let events = await eventsOf(p.id, "person.inactive_days");
@@ -93,7 +93,8 @@ describe("inactivity events (rules 15-18)", () => {
     expect(events[0]!.data).toMatchObject({ days: 30, has_future_booking: false });
     expect(events[0]!.dedupeKey).toMatch(new RegExp(`^person:${p.id}:inactive:30:\\d{4}-\\d{2}-\\d{2}$`));
     // A newer visit moves the anchor; the same threshold fires again for the new anchor.
-    await makeBooking(h.db, { personId: p.id, startsAt: daysAgo(30), status: "attended" });
+    // Fractional offsets: the thresholds count Brussels calendar days, so whole 24 h offsets can land a day off around a DST change; 31.75 and 30.25 always fall on two different dates that both cross the 30-day threshold.
+    await makeBooking(h.db, { personId: p.id, startsAt: daysAgo(30.25), status: "attended" });
     await nightly(p.id);
     events = await eventsOf(p.id, "person.inactive_days");
     expect(events).toHaveLength(2);

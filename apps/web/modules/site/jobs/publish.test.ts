@@ -9,13 +9,14 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { DbHandle } from "@beam/db";
 import { auditLog, pageRoutes, pages, pageVersions } from "@beam/db/schema";
 import { createTestDb } from "@beam/db/testing";
+import type * as Versions from "../server/versions";
 
 vi.mock("next/cache", () => ({ revalidateTag: () => undefined, unstable_cache: (fn: (...a: unknown[]) => unknown) => fn }));
 vi.mock("next/server", () => ({ after: () => undefined }));
 // A stale read of the version (taken before the page lock), handed out once when set.
-const stale = vi.hoisted(() => ({ row: null as unknown }));
+const stale = vi.hoisted((): { row: unknown } => ({ row: null }));
 vi.mock("../server/versions", async (importOriginal) => {
-  const real = await importOriginal<typeof import("../server/versions")>();
+  const real = await importOriginal<typeof Versions>();
   return {
     ...real,
     getVersionRow: async (...args: Parameters<typeof real.getVersionRow>) => {

@@ -9,8 +9,9 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { encodeConsentCookie } from "@beam/core/site";
+import type * as Consent from "@/modules/site/server/consent";
 
-const req = vi.hoisted(() => ({ path: "/nl" as string | null, cookie: null as string | null }));
+const req = vi.hoisted((): { path: string | null; cookie: string | null } => ({ path: "/nl", cookie: null }));
 
 vi.mock("next/script", () => ({
   default: (props: { id?: string; src?: string }) => <script data-testid={props.id} data-src={props.src} />,
@@ -26,23 +27,23 @@ vi.mock("next/navigation", () => ({
   usePathname: () => req.path ?? "/nl",
   useRouter: () => ({ refresh: () => undefined }),
 }));
-vi.mock("@/lib/ctx", () => ({ getAppDb: async () => ({}) }));
-vi.mock("@/lib/settings", () => ({ getSetting: async () => ({ analytics_enabled: true, ga_measurement_id: "G-TEST1234" }) }));
+vi.mock("@/lib/ctx", () => ({ getAppDb: () => Promise.resolve({}) }));
+vi.mock("@/lib/settings", () => ({ getSetting: () => Promise.resolve({ analytics_enabled: true, ga_measurement_id: "G-TEST1234" }) }));
 vi.mock("@/lib/logger", () => ({
   reportError: (error: unknown) => {
     throw error;
   },
 }));
 vi.mock("@/modules/site/queries", () => ({
-  getNavMenus: async () => ({ header: [], footer: [], legal: [] }),
-  getCompanyFooter: async () => null,
+  getNavMenus: () => Promise.resolve({ header: [], footer: [], legal: [] }),
+  getCompanyFooter: () => Promise.resolve(null),
 }));
 vi.mock("@/modules/site/server/consent", async (importOriginal) => {
-  const real = await importOriginal<typeof import("@/modules/site/server/consent")>();
+  const real = await importOriginal<typeof Consent>();
   return {
     ...real,
     analyticsProductionMode: () => true,
-    getConsentChromeState: async () => ({ bannerVersion: 2, latestMaterialOrdinal: null, cookieNoticeHref: null }),
+    getConsentChromeState: () => Promise.resolve({ bannerVersion: 2, latestMaterialOrdinal: null, cookieNoticeHref: null }),
   };
 });
 vi.mock("@/modules/site/ui/public/site-header", () => ({ SiteHeader: () => <header /> }));

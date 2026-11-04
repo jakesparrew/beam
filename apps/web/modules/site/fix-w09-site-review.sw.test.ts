@@ -40,10 +40,11 @@ const stored = new Map<string, Request>();
 beforeAll(async () => {
   vi.stubGlobal("self", { __SW_MANIFEST: [], addEventListener: (type: string, fn: unknown) => void state.listeners.set(type, fn) });
   vi.stubGlobal("caches", {
-    open: async () => ({
-      keys: async () => [...stored.values()],
-      delete: async (r: Request) => stored.delete(r.url),
-    }),
+    open: () =>
+      Promise.resolve({
+        keys: () => Promise.resolve([...stored.values()]),
+        delete: (r: Request) => Promise.resolve(stored.delete(r.url)),
+      }),
   });
   await import("@/app/sw");
 });

@@ -1536,8 +1536,7 @@
         "apps/web/modules/crm/**",
         "packages/core/src/crm/**",
         "packages/db/src/schema/crm.ts",
-        "packages/email/src/templates/crm/**",
-        "apps/web/app/**/crm/**"
+        "packages/email/src/templates/crm/**"
       ],
       "dependsOn": []
     },
@@ -1552,8 +1551,7 @@
         "apps/web/modules/booking/**",
         "packages/core/src/booking/**",
         "packages/db/src/schema/booking.ts",
-        "packages/email/src/templates/booking/**",
-        "apps/web/app/**/booking/**"
+        "packages/email/src/templates/booking/**"
       ],
       "dependsOn": [
         "commerce-P6"
@@ -1570,8 +1568,7 @@
         "apps/web/modules/commerce/**",
         "packages/core/src/commerce/**",
         "packages/db/src/schema/commerce.ts",
-        "packages/email/src/templates/commerce/**",
-        "apps/web/app/**/commerce/**"
+        "packages/email/src/templates/commerce/**"
       ],
       "dependsOn": [
         "commerce-P6",
@@ -1589,8 +1586,7 @@
         "apps/web/modules/credits/**",
         "packages/core/src/credits/**",
         "packages/db/src/schema/credits.ts",
-        "packages/email/src/templates/credits/**",
-        "apps/web/app/**/credits/**"
+        "packages/email/src/templates/credits/**"
       ],
       "dependsOn": []
     },
@@ -1605,8 +1601,7 @@
         "apps/web/modules/finance/**",
         "packages/core/src/finance/**",
         "packages/db/src/schema/finance.ts",
-        "packages/email/src/templates/finance/**",
-        "apps/web/app/**/finance/**"
+        "packages/email/src/templates/finance/**"
       ],
       "dependsOn": []
     },
@@ -1621,8 +1616,7 @@
         "apps/web/modules/forms/**",
         "packages/core/src/forms/**",
         "packages/db/src/schema/forms.ts",
-        "packages/email/src/templates/forms/**",
-        "apps/web/app/**/forms/**"
+        "packages/email/src/templates/forms/**"
       ],
       "dependsOn": []
     },
@@ -1637,8 +1631,7 @@
         "apps/web/modules/email/**",
         "packages/core/src/email/**",
         "packages/db/src/schema/email.ts",
-        "packages/email/src/templates/email/**",
-        "apps/web/app/**/email/**"
+        "packages/email/src/templates/email/**"
       ],
       "dependsOn": []
     },
@@ -1653,8 +1646,7 @@
         "apps/web/modules/automation/**",
         "packages/core/src/automation/**",
         "packages/db/src/schema/automation.ts",
-        "packages/email/src/templates/automation/**",
-        "apps/web/app/**/automation/**"
+        "packages/email/src/templates/automation/**"
       ],
       "dependsOn": []
     },
@@ -1669,8 +1661,7 @@
         "apps/web/modules/ops/**",
         "packages/core/src/ops/**",
         "packages/db/src/schema/ops.ts",
-        "packages/email/src/templates/ops/**",
-        "apps/web/app/**/ops/**"
+        "packages/email/src/templates/ops/**"
       ],
       "dependsOn": [
         "ops-P5"
@@ -1688,7 +1679,6 @@
         "packages/core/src/site/**",
         "packages/db/src/schema/site.ts",
         "packages/email/src/templates/site/**",
-        "apps/web/app/**/site/**",
         "apps/web/app/sw.ts",
         "apps/web/app/[locale]/(site)/layout.tsx"
       ],

@@ -235,7 +235,7 @@ function PollForm({ webinarId, initial, locales, labels, onDone }: { webinarId: 
 
 export function PollEditor({ webinarId, polls, locales, editable, labels }: { webinarId: string; polls: PollItem[]; locales: Locale[]; editable: boolean; labels: PollEditorLabels }) {
   const router = useRouter();
-  const [editing, setEditing] = useState<string | "new" | null>(null);
+  const [editing, setEditing] = useState<string | null>(null);
   const [message, setMessage] = useState<{ error: boolean; text: string } | null>(null);
 
   async function remove(id: string) {

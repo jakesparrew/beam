@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { Button, FormField, Input } from "@beam/ui";
 import { removePresenter, upsertPresenter } from "../../actions";
-import { Message, failureText, selectClass } from "./webinar-form";
+import { Message, failureText, formText, selectClass } from "./webinar-form";
 
 type Role = "host" | "presenter" | "moderator";
 const ROLES: readonly Role[] = ["host", "presenter", "moderator"];
@@ -71,8 +71,8 @@ export function PresenterList({
     event.preventDefault();
     const form = event.currentTarget;
     const f = new FormData(form);
-    const identity = kind === "user" ? { userId: String(f.get("userId")) } : { email: String(f.get("email") ?? "").trim() };
-    const ok = await act(() => upsertPresenter({ webinarId, ...identity, displayName: String(f.get("displayName") ?? "").trim(), role: String(f.get("role")) }));
+    const identity = kind === "user" ? { userId: formText(f, "userId") } : { email: formText(f, "email") };
+    const ok = await act(() => upsertPresenter({ webinarId, ...identity, displayName: formText(f, "displayName"), role: formText(f, "role") }));
     if (ok) form.reset();
   }
 

@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Route } from "next";
 import { notFound } from "next/navigation";
 import { Badge, buttonVariants } from "@beam/ui";
-import { formatDateTime, type LocalizedText } from "@beam/core/i18n";
+import { formatDateTime } from "@beam/core/i18n";
 import { localMinuteKey, wallClock } from "@beam/core/platform";
 import { requireStaff } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
@@ -66,7 +66,7 @@ export default async function WebinarPage({ params }: { params: Promise<{ id: st
         {tr("webinar.admin.detail.back")}
       </Link>
       <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-2xl font-semibold">{textIn(w.title as LocalizedText, locale) || w.slug}</h1>
+        <h1 className="text-2xl font-semibold">{textIn(w.title, locale) || w.slug}</h1>
         <Badge variant="outline">{tr(`webinar.enum.mode.${w.mode}`)}</Badge>
         <Badge variant={w.status === "cancelled" ? "destructive" : "secondary"}>{tr(`webinar.enum.status.${w.status}`)}</Badge>
         <span className="text-sm text-muted-foreground">{tr("webinar.admin.detail.registrations", { count: detail.registrations })}</span>

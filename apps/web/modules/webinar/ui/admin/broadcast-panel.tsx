@@ -11,7 +11,7 @@ import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { Badge, Button, Checkbox, FormField, Input, Textarea } from "@beam/ui";
 import { archiveWebinar, cancelWebinar, duplicateWebinar, forceLiveState, publishWebinar, setWebinarVideo } from "../../actions";
-import { Message, brusselsToIso, failureText, fieldLines, selectClass } from "./webinar-form";
+import { Message, brusselsToIso, failureText, fieldLines, formText, selectClass } from "./webinar-form";
 
 type Msg = { error: boolean; text: string; lines?: string[] } | null;
 type Result = { ok: true; data: unknown } | { ok: false; error: { code: string; message: string; fields?: Record<string, string> } };
@@ -63,7 +63,7 @@ export function BroadcastPanel(p: BroadcastPanelProps) {
     const f = new FormData(event.currentTarget);
     setPending(true);
     try {
-      const res = await setWebinarVideo({ webinarId: p.webinarId, field: String(f.get("field")), videoId: String(f.get("videoId") ?? "").trim() });
+      const res = await setWebinarVideo({ webinarId: p.webinarId, field: formText(f, "field"), videoId: formText(f, "videoId") });
       if (res.ok) {
         setMessage({ error: false, text: L.setDone });
         setOpen(false);
@@ -231,7 +231,7 @@ export function LifecycleActions(p: LifecycleActionsProps) {
   function onCancel(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const f = new FormData(event.currentTarget);
-    void run("cancel", () => cancelWebinar({ webinarId: p.webinarId, reason: String(f.get("reason") ?? "").trim(), notify: f.get("notify") === "on" }), () => L.cancelled);
+    void run("cancel", () => cancelWebinar({ webinarId: p.webinarId, reason: formText(f, "reason"), notify: f.get("notify") === "on" }), () => L.cancelled);
   }
 
   function onDuplicate(event: FormEvent<HTMLFormElement>) {

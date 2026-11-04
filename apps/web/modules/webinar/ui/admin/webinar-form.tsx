@@ -155,6 +155,9 @@ export type WebinarFormLabels = {
 };
 
 const str = (v: FormDataEntryValue | null): string => (typeof v === "string" ? v.trim() : "");
+
+/** A trimmed text field of a submitted form ("" when absent or a file). */
+export const formText = (f: FormData, name: string): string => str(f.get(name));
 const intOrNull = (v: string): number | null => (v === "" ? null : Number.parseInt(v, 10));
 
 export function WebinarForm({ initial, owners, labels }: { initial: WebinarFormValues; owners: Array<{ id: string; label: string }>; labels: WebinarFormLabels }) {

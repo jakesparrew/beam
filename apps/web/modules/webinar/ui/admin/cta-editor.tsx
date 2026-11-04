@@ -125,7 +125,7 @@ function CtaForm({ webinarId, initial, locales, labels, onDone }: { webinarId: s
 
 export function CtaEditor({ webinarId, ctas, locales, editable, labels }: { webinarId: string; ctas: CtaItem[]; locales: Locale[]; editable: boolean; labels: CtaEditorLabels }) {
   const router = useRouter();
-  const [editing, setEditing] = useState<string | "new" | null>(null);
+  const [editing, setEditing] = useState<string | null>(null);
   const [message, setMessage] = useState<{ error: boolean; text: string } | null>(null);
   const blank: CtaItem = { key: "", label: {}, url: "https://", showAtSec: null, showForSec: 300, sortOrder: ctas.length, isActive: true, shown: { live: 0, replay: 0, on_demand: 0 }, clicked: { live: 0, replay: 0, on_demand: 0 } };
 

@@ -66,3 +66,19 @@ describe("SEGMENT_ALLOWED_FIELDS", () => {
     for (const field of SEGMENT_FIELDS) expect(field.label).toBe(`crm.segments.fields.${field.column}`);
   });
 });
+
+describe("builder labels", () => {
+  it("every field, comparator, event kind and data key label exists in all three catalogues", async () => {
+    const { segmentBuilderLabels } = await import("./queries");
+    const { softTranslator, translator } = await import("@/lib/i18n");
+    for (const locale of ["nl-BE", "fr-BE", "en"] as const) {
+      const labels = segmentBuilderLabels(translator(locale), softTranslator(locale), []);
+      expect(Object.keys(labels.fields)).toEqual([...SEGMENT_ALLOWED_FIELDS]);
+      for (const v of [...Object.values(labels.fields), ...Object.values(labels.comparators), ...Object.values(labels.eventKinds), ...Object.values(labels.dataKeys)]) {
+        expect(v).not.toMatch(/^⟦|^crm\./);
+      }
+      expect(labels.plural.count.other).toContain("7");
+      expect(labels.fieldOptions.status!.map((o) => o.value)).toEqual(["lead", "customer", "member"]);
+    }
+  });
+});

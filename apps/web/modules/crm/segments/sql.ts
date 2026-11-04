@@ -7,12 +7,13 @@
  * Also builds the audience SQL of stored segments (rule 3.39): members minus erased, merged and
  * restricted persons, minus the members of every excluded segment, applied at read time.
  */
-import { compileSegment, segmentAudienceFragment, type SegmentRule, type SqlFragment } from "@beam/core/crm";
+import { compileSegment, segmentAudienceFragment, type SqlFragment } from "@beam/core/crm";
 import { sql, type SQL } from "@/lib/ctx";
 
 /** A Postgres array literal (`{"a","b"}`) with every element quoted and escaped. */
 export function pgArrayLiteral(values: readonly unknown[]): string {
-  const quote = (v: unknown) => (v === null || v === undefined ? "NULL" : `"${String(v).replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`);
+  const text = (v: unknown) => (typeof v === "object" ? JSON.stringify(v) : String(v as string | number | boolean | bigint));
+  const quote = (v: unknown) => (v === null || v === undefined ? "NULL" : `"${text(v).replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`);
   return `{${values.map(quote).join(",")}}`;
 }
 
@@ -27,7 +28,7 @@ export function fragmentToSql(fragment: SqlFragment): SQL {
 }
 
 /** The compiled rule as a boolean expression over `v` (a `v_person_profile` row). Throws `SegmentRuleError`. */
-export function ruleConditionSql(rule: SegmentRule | unknown, now: Date): SQL {
+export function ruleConditionSql(rule: unknown, now: Date): SQL {
   return fragmentToSql(compileSegment(rule, { now }));
 }
 
@@ -35,7 +36,7 @@ export function ruleConditionSql(rule: SegmentRule | unknown, now: Date): SQL {
  * `select v.person_id from v_person_profile v join persons p … where <not erased, merged or
  * restricted> and (<rule>)`: the raw result of a dynamic rule. Throws `SegmentRuleError`.
  */
-export function ruleAudienceSql(rule: SegmentRule | unknown, now: Date): SQL {
+export function ruleAudienceSql(rule: unknown, now: Date): SQL {
   return fragmentToSql(segmentAudienceFragment(rule, { now }));
 }
 
@@ -61,7 +62,7 @@ export function storedAudienceSql(segmentId: string, excludeSegmentIds: readonly
 }
 
 /** The preview audience of an unsaved rule: the rule result minus the members of `excludeIds`. */
-export function previewAudienceSql(rule: SegmentRule | unknown, excludeIds: readonly string[], now: Date): SQL {
+export function previewAudienceSql(rule: unknown, excludeIds: readonly string[], now: Date): SQL {
   return sql`select a.person_id from (${ruleAudienceSql(rule, now)}) a
     where not exists (select 1 from segment_members x where x.person_id = a.person_id and x.segment_id = any(${uuidArray(excludeIds)}))`;
 }

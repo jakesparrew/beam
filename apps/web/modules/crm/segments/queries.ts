@@ -1,7 +1,16 @@
 /** Segment queries (crm spec 4.3), crm-P5. */
 import type { DbOrTx } from "@beam/db";
 import { segments } from "@beam/db/schema";
-import { formatCustomerNumber, segmentAudienceFragment, type SegmentRule } from "@beam/core/crm";
+import {
+  COMPARATORS,
+  CONSENT_PURPOSES,
+  formatCustomerNumber,
+  SEGMENT_ALLOWED_EVENT_KINDS,
+  SEGMENT_EVENT_DATA_KEYS,
+  SEGMENT_FIELDS,
+  segmentAudienceFragment,
+  type SegmentRule,
+} from "@beam/core/crm";
 import { asc, eq, sql } from "@/lib/ctx";
 import { rowsOf } from "@/lib/sensitive";
 import { fragmentText, previewAudienceSql, storedAudienceSql, uuidArray } from "./sql";
@@ -116,4 +125,69 @@ export async function segmentNames(tx: DbOrTx, ids: readonly string[]): Promise<
   if (!ids.length) return {};
   const rows = rowsOf<{ id: string; name: string }>(await tx.execute(sql`select id, name from segments where id = any(${uuidArray(ids)})`));
   return Object.fromEntries(rows.map((r) => [r.id, r.name]));
+}
+
+// ---------------------------------------------------------------------------
+// Builder labels (server side; the client builder takes every string as a prop)
+// ---------------------------------------------------------------------------
+
+type Tr = (key: string, params?: Record<string, string | number>) => string;
+type LabelOption = { value: string; label: string };
+
+const BUILDER_KEYS = [
+  "title_new", "title_edit", "name", "description", "kind", "rules", "add_rule", "add_group", "group_and", "group_or", "not", "remove",
+  "rule_field", "rule_tag", "rule_consent", "rule_in_segment", "rule_event", "tag_has", "tag_has_not", "consent_granted", "consent_not_granted",
+  "in_segment", "not_in_segment", "event_kind", "event_mode", "event_any_mode", "event_where", "event_negate", "value", "values", "days",
+  "from", "to", "exclusions", "sample", "sample_empty", "refresh_now", "refresh_queued", "static_members", "add_member", "add_csv",
+  "remove_member", "cycle", "too_many_rules", "too_deep", "sql",
+] as const;
+
+/**
+ * Every string of the segment builder in one locale. `soft` translates keys of other modules'
+ * catalogues (ops stages) and returns the key itself when missing; the raw value is shown then.
+ */
+export function segmentBuilderLabels(tr: Tr, soft: Tr, tagOptions: LabelOption[]) {
+  const builder = Object.fromEntries(BUILDER_KEYS.map((k) => [k, tr(`crm.segments.builder.${k}`)])) as Record<string, string>;
+  const pluralOf = (key: string, param: string) => ({ one: tr(key, { [param]: 1 }), other: tr(key, { [param]: 7 }) });
+  const opts = (values: readonly string[], prefix: string, t: Tr = tr): LabelOption[] =>
+    values.map((v) => {
+      const key = `${prefix}.${v.replace("-", "_")}`;
+      const label = t(key);
+      return { value: v, label: label === key ? v : label };
+    });
+  const fieldOptions: Record<string, LabelOption[]> = { tags: tagOptions };
+  for (const f of SEGMENT_FIELDS) {
+    if (!f.options) continue;
+    const prefix = { status: "crm.enums.person_status", locale: "crm.enums.locale", acquisition_source: "crm.enums.acquisition_source", b2c_stage: "ops.stage" }[f.column];
+    fieldOptions[f.column] = prefix ? opts(f.options, prefix, prefix.startsWith("ops.") ? soft : tr) : f.options.map((v) => ({ value: v, label: v }));
+  }
+  return {
+    builder,
+    plural: {
+      count: pluralOf("crm.segments.builder.count", "count"),
+      minCount: pluralOf("crm.segments.builder.event_min_count", "count"),
+      withinDays: pluralOf("crm.segments.builder.event_within_days", "days"),
+    },
+    comparators: Object.fromEntries(COMPARATORS.map((c) => [c, tr(`crm.segments.comparators.${c}`)])),
+    fields: Object.fromEntries(SEGMENT_FIELDS.map((f) => [f.column, tr(f.label)])),
+    fieldOptions,
+    eventKinds: Object.fromEntries(SEGMENT_ALLOWED_EVENT_KINDS.map((k) => [k.replace(".", "_"), tr(`crm.segments.event_kinds.${k.replace(".", "_")}`)])),
+    dataKeys: Object.fromEntries([...new Set(Object.values(SEGMENT_EVENT_DATA_KEYS).flat())].map((k) => [k, tr(`crm.segments.data_keys.${k}`)])),
+    purposes: opts(CONSENT_PURPOSES, "crm.enums.consent_purpose"),
+    kinds: opts(["dynamic", "static"], "crm.enums.segment_kind"),
+    modes: opts(["live", "replay", "on_demand"], "crm.enums.activity_mode"),
+    tags: tagOptions,
+    common: {
+      save: tr("crm.common.save"),
+      saving: tr("crm.common.saving"),
+      cancel: tr("crm.common.cancel"),
+      error: tr("crm.common.error"),
+      yes: tr("crm.common.yes"),
+      no: tr("crm.common.no"),
+      loading: tr("crm.common.loading"),
+      search: tr("crm.common.search"),
+      open: tr("crm.common.open"),
+      required: tr("crm.common.required"),
+    },
+  };
 }

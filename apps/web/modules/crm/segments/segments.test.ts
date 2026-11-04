@@ -284,7 +284,7 @@ describe("refresh failures, locking and jobs", () => {
 
     let jobCtx: ReturnType<typeof makeJobCtx> | undefined;
     const run = h.db.transaction(async (t) => {
-      jobCtx = makeJobCtx(h.db, "segments.refresh_one", { tx: t as unknown as Tx });
+      jobCtx = makeJobCtx(h.db, "segments.refresh_one", { tx: t });
       await segJobs.runRefreshSegment(jobCtx, { segmentId: id, reason: "schedule" });
     });
     await expect(run).rejects.toMatchObject({ name: "RetryableError" });
@@ -308,7 +308,7 @@ describe("refresh failures, locking and jobs", () => {
     const locks: number[] = [];
     const refresh = () =>
       h.db.transaction(async (t) => {
-        const result = await api.refreshSegment(t as unknown as Tx, makeCtx(h.db), id, "manual");
+        const result = await api.refreshSegment(t, makeCtx(h.db), id, "manual");
         const [row] = rowsOf<{ n: number }>(await t.execute(sql`select count(*)::int as n from pg_locks where locktype = 'advisory' and granted`));
         locks.push(Number(row!.n));
         return result;

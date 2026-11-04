@@ -2,21 +2,24 @@
  * crm-P5: every `SEGMENT_ALLOWED_EVENT_KINDS` kind exists in the event registry with the
  * writer's exact spelling, every allowed `where` key exists in that kind's declared `data`
  * schema, and no allowed kind is sensitive (rules 3.27, 3.38; decision 48). A kind of a module
- * that has not declared its events yet (its `events.ts` facade is still empty) is pending; as
+ * that has not declared its events yet (no kind of its prefixes is registered) is pending; as
  * soon as that module declares any event, its allowed kinds are checked like the others.
  */
 import { describe, expect, it } from "vitest";
 import type { z } from "zod";
 import { SEGMENT_ALLOWED_EVENT_KINDS, SEGMENT_ARRAY_EVENT_KEYS, SEGMENT_EVENT_DATA_KEYS, SEGMENT_NUMERIC_EVENT_KEYS } from "@beam/core/crm";
 import { EVENTS } from "@/registry/events.generated";
-import { events as formsEvents } from "@/modules/forms/events";
-import { events as webinarEvents } from "@/modules/webinar/events";
 
-/** The writer module of each kind prefix whose facade may still be empty. */
-const LATE_WRITERS: Record<string, { module: string; declared: number }> = {
-  form: { module: "forms", declared: formsEvents.length },
-  assessment: { module: "forms", declared: formsEvents.length },
-  webinar: { module: "webinar", declared: webinarEvents.length },
+/** Kind prefixes of the writers that may not have declared their events yet (forms, webinar). */
+const LATE_WRITERS: Record<string, readonly string[]> = {
+  form: ["form", "assessment"],
+  assessment: ["form", "assessment"],
+  webinar: ["webinar"],
+};
+/** True while the writer of `kind` has no kind at all in the registry (its facade is still empty). */
+const writerNotDeclared = (kind: string): boolean => {
+  const family = LATE_WRITERS[kind.split(".")[0]!];
+  return !!family && !Object.keys(EVENTS).some((k) => family.includes(k.split(".")[0]!));
 };
 
 type Def = { _zod?: { def: Record<string, unknown> } };
@@ -57,8 +60,7 @@ describe("SEGMENT_ALLOWED_EVENT_KINDS", () => {
     const pending: string[] = [];
     for (const kind of SEGMENT_ALLOWED_EVENT_KINDS) {
       if (registry[kind]) continue;
-      const late = LATE_WRITERS[kind.split(".")[0]!];
-      if (late && late.declared === 0) pending.push(kind);
+      if (writerNotDeclared(kind)) pending.push(kind);
       else missing.push(kind);
     }
     expect(missing).toEqual([]);

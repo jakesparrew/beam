@@ -1,6 +1,90 @@
 /**
- * crm navigation (PL-19: an entry renders only when the user holds its permission). Facade read
- * by `pnpm gen:indexes`. Wave 0 skeleton by platform-P7: crm adds its entries with its screens,
- * so no entry links to a page that does not exist yet.
+ * crm navigation (crm spec 5.1 and 5.2; PL-19: an entry renders only when the user holds its
+ * permission). Facade read by `pnpm gen:indexes`. The screens are built by crm-P2 (persons),
+ * crm-P3 (portal pages), crm-P5 (segments), crm-P6 (tasks, companies), crm-P8 (pipeline) and
+ * crm-P9 (inbox). The R3 entries carry `flag`: the shell shows them only while that flag is on.
+ * The badges of spec 5.1 (own overdue tasks, open unassigned threads) need nav badge support
+ * in the shell (requested from platform).
  */
-export const nav = [] as const;
+export const nav = [
+  {
+    key: "crm.persons",
+    area: "admin",
+    section: "customers",
+    labelKey: "crm.nav.persons",
+    href: "/admin/persons",
+    permission: "persons.read",
+    icon: "users",
+    order: 200,
+  },
+  {
+    key: "crm.segments",
+    area: "admin",
+    section: "customers",
+    labelKey: "crm.nav.segments",
+    href: "/admin/segments",
+    permission: "persons.read",
+    icon: "layers",
+    order: 210,
+  },
+  {
+    key: "crm.tasks",
+    area: "admin",
+    section: "customers",
+    labelKey: "crm.nav.tasks",
+    href: "/admin/tasks",
+    permission: "persons.read",
+    icon: "clipboard-list",
+    order: 220,
+  },
+  {
+    key: "crm.companies",
+    area: "admin",
+    section: "customers",
+    labelKey: "crm.nav.companies",
+    href: "/admin/companies",
+    permission: "persons.read",
+    icon: "building",
+    order: 230,
+  },
+  {
+    key: "crm.pipeline",
+    area: "admin",
+    section: "customers",
+    labelKey: "crm.nav.pipeline",
+    href: "/admin/pipeline",
+    permission: "crm.b2b",
+    flag: "ff_crm_pipeline",
+    icon: "briefcase",
+    order: 240,
+  },
+  {
+    key: "crm.inbox",
+    area: "admin",
+    section: "customers",
+    labelKey: "crm.nav.inbox",
+    href: "/admin/inbox",
+    permission: "persons.read",
+    flag: "ff_crm_inbox",
+    icon: "inbox",
+    order: 250,
+  },
+  {
+    key: "crm.profile",
+    area: "portal",
+    section: "account",
+    labelKey: "crm.nav.profile",
+    href: "/account/profile",
+    icon: "user",
+    order: 20,
+  },
+  {
+    key: "crm.preferences",
+    area: "portal",
+    section: "account",
+    labelKey: "crm.nav.preferences",
+    href: "/account/preferences",
+    icon: "mail",
+    order: 30,
+  },
+] as const;

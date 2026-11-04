@@ -12,7 +12,7 @@ import { integrationCalls, type ActorJson, type RoleKey } from "@beam/db/schema"
 import type { webhookEventsProvider } from "@beam/db/schema";
 import { ForbiddenError, PermanentError } from "@beam/core/errors";
 import type { Locale } from "@beam/core/i18n";
-import type { IntegrationCallEntry } from "@beam/integrations/_shared";
+import { INTEGRATION_PROVIDERS, type IntegrationCallEntry } from "@beam/integrations/_shared";
 import type { EventKind, JobKind, Permission } from "../registry/types.generated";
 import { audit as writeAudit, type AuditInput } from "./audit";
 import { recordEvent as writeEvent, type RecordEventInput } from "./events";
@@ -301,20 +301,8 @@ export function createCtx(init: CtxInit): Ctx {
   return ctx;
 }
 
-const INTEGRATION_ENUM = new Set<string>([
-  "mollie",
-  "stripe",
-  "viva",
-  "billit",
-  "resend",
-  "youtube",
-  "meta_ads",
-  "google_ads",
-  "anthropic",
-  "slack",
-  "betterstack",
-  "wordpress",
-]);
+/** The `integration_calls_provider` enum values; entries of any other provider are dropped. */
+const INTEGRATION_ENUM = new Set<string>(INTEGRATION_PROVIDERS);
 
 /** Writes buffered `integration_calls` rows (outside the handler transaction, so a rollback keeps them). */
 export async function writeIntegrationCalls(db: DbOrTx, entries: readonly IntegrationCallEntry[], jobId: string | null): Promise<void> {

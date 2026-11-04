@@ -763,11 +763,14 @@
       "mergedAt": "2026-11-04T05:38:04Z"
     },
     "site-P7": {
-      "status": "running",
+      "status": "done",
       "attempts": 3,
       "baseSha": "cc11b30",
       "runId": "wf_551fa1ea-ffc",
-      "startedAt": "2026-11-04T16:37:09Z"
+      "startedAt": "2026-11-04T16:37:09Z",
+      "branchSha": "586ef63",
+      "endedAt": "2026-11-04T17:50:09Z",
+      "minutes": 50
     },
     "booking-P6": {
       "status": "merged",
@@ -788,7 +791,7 @@
       "runId": "wf_9aeed5b9-948",
       "startedAt": "2026-11-04T16:37:09Z",
       "branchSha": "130cc76",
-      "endedAt": "2026-11-04T16:59:40Z",
+      "endedAt": "2026-11-04T17:50:09Z",
       "minutes": 14
     },
     "finance-P6": {
@@ -832,11 +835,14 @@
       "attempts": 0
     },
     "ops-P5": {
-      "status": "running",
+      "status": "done",
       "attempts": 2,
       "baseSha": "cc11b30",
       "runId": "wf_08b979a8-bd8",
-      "startedAt": "2026-11-04T16:37:09Z"
+      "startedAt": "2026-11-04T16:37:09Z",
+      "branchSha": "f82d94c",
+      "endedAt": "2026-11-04T17:50:09Z",
+      "minutes": 58
     },
     "platform-P11a": {
       "status": "pending",
@@ -851,11 +857,14 @@
       "attempts": 0
     },
     "webinar-P1": {
-      "status": "running",
+      "status": "done",
       "attempts": 3,
       "baseSha": "cc11b30",
       "runId": "wf_d9a61077-6eb",
-      "startedAt": "2026-11-04T16:37:09Z"
+      "startedAt": "2026-11-04T16:37:09Z",
+      "branchSha": "44f66de",
+      "endedAt": "2026-11-04T17:50:09Z",
+      "minutes": 38
     },
     "booking-P7": {
       "status": "pending",
@@ -928,7 +937,7 @@
       "runId": "wf_18c86dc0-afb",
       "startedAt": "2026-11-04T16:37:09Z",
       "branchSha": "74660ad",
-      "endedAt": "2026-11-04T16:59:40Z",
+      "endedAt": "2026-11-04T17:49:02Z",
       "minutes": 22
     },
     "crm-P8": {
@@ -1485,7 +1494,7 @@
       "mergedAt": "2026-11-04T17:37:00Z"
     },
     "fix-w09-commerce-1": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "fixer": true,
       "module": "commerce",
@@ -1501,7 +1510,213 @@
       "dependsOn": [],
       "baseSha": "88d982c",
       "runId": "wf_fad49161-545",
-      "startedAt": "2026-11-04T16:59:40Z"
+      "startedAt": "2026-11-04T16:59:40Z",
+      "branchSha": "a1589fd",
+      "endedAt": "2026-11-04T17:50:09Z",
+      "minutes": 12
+    },
+    "fix-w09-crm-review": {
+      "status": "pending",
+      "attempts": 0,
+      "fixer": true,
+      "module": "crm",
+      "goal": "Fix every confirmed V1 review finding for crm listed in /tmp/claude-0/-home-user-beam/3ba985b5-31b3-591d-a9fd-e4cfaf9e6555/scratchpad/review-v1/fix-crm.md (read it first): one test per finding, schema changes nullable/default-safe (CONVENTIONS item 6), facades through the caller tx (OD-15). Report per finding: fixed (how) or not fixed (why).",
+      "from": [],
+      "owns": [
+        "apps/web/modules/crm/**",
+        "packages/core/src/crm/**",
+        "packages/db/src/schema/crm.ts",
+        "packages/email/src/templates/crm/**",
+        "apps/web/app/**/crm/**",
+        "docs/build/known-red.txt"
+      ],
+      "dependsOn": []
+    },
+    "fix-w09-booking-review": {
+      "status": "pending",
+      "attempts": 0,
+      "fixer": true,
+      "module": "booking",
+      "goal": "Fix every confirmed V1 review finding for booking listed in /tmp/claude-0/-home-user-beam/3ba985b5-31b3-591d-a9fd-e4cfaf9e6555/scratchpad/review-v1/fix-booking.md (read it first): one test per finding, schema changes nullable/default-safe (CONVENTIONS item 6), facades through the caller tx (OD-15). Report per finding: fixed (how) or not fixed (why).",
+      "from": [],
+      "owns": [
+        "apps/web/modules/booking/**",
+        "packages/core/src/booking/**",
+        "packages/db/src/schema/booking.ts",
+        "packages/email/src/templates/booking/**",
+        "apps/web/app/**/booking/**",
+        "docs/build/known-red.txt"
+      ],
+      "dependsOn": [
+        "commerce-P6"
+      ]
+    },
+    "fix-w09-commerce-review": {
+      "status": "pending",
+      "attempts": 0,
+      "fixer": true,
+      "module": "commerce",
+      "goal": "Fix every confirmed V1 review finding for commerce listed in /tmp/claude-0/-home-user-beam/3ba985b5-31b3-591d-a9fd-e4cfaf9e6555/scratchpad/review-v1/fix-commerce.md (read it first): one test per finding, schema changes nullable/default-safe (CONVENTIONS item 6), facades through the caller tx (OD-15). Report per finding: fixed (how) or not fixed (why).",
+      "from": [],
+      "owns": [
+        "apps/web/modules/commerce/**",
+        "packages/core/src/commerce/**",
+        "packages/db/src/schema/commerce.ts",
+        "packages/email/src/templates/commerce/**",
+        "apps/web/app/**/commerce/**",
+        "docs/build/known-red.txt"
+      ],
+      "dependsOn": [
+        "commerce-P6",
+        "fix-w09-commerce-1"
+      ]
+    },
+    "fix-w09-credits-review": {
+      "status": "pending",
+      "attempts": 0,
+      "fixer": true,
+      "module": "credits",
+      "goal": "Fix every confirmed V1 review finding for credits listed in /tmp/claude-0/-home-user-beam/3ba985b5-31b3-591d-a9fd-e4cfaf9e6555/scratchpad/review-v1/fix-credits.md (read it first): one test per finding, schema changes nullable/default-safe (CONVENTIONS item 6), facades through the caller tx (OD-15). Report per finding: fixed (how) or not fixed (why).",
+      "from": [],
+      "owns": [
+        "apps/web/modules/credits/**",
+        "packages/core/src/credits/**",
+        "packages/db/src/schema/credits.ts",
+        "packages/email/src/templates/credits/**",
+        "apps/web/app/**/credits/**",
+        "docs/build/known-red.txt"
+      ],
+      "dependsOn": []
+    },
+    "fix-w09-finance-review": {
+      "status": "pending",
+      "attempts": 0,
+      "fixer": true,
+      "module": "finance",
+      "goal": "Fix every confirmed V1 review finding for finance listed in /tmp/claude-0/-home-user-beam/3ba985b5-31b3-591d-a9fd-e4cfaf9e6555/scratchpad/review-v1/fix-finance.md (read it first): one test per finding, schema changes nullable/default-safe (CONVENTIONS item 6), facades through the caller tx (OD-15). Report per finding: fixed (how) or not fixed (why).",
+      "from": [],
+      "owns": [
+        "apps/web/modules/finance/**",
+        "packages/core/src/finance/**",
+        "packages/db/src/schema/finance.ts",
+        "packages/email/src/templates/finance/**",
+        "apps/web/app/**/finance/**",
+        "docs/build/known-red.txt"
+      ],
+      "dependsOn": []
+    },
+    "fix-w09-forms-review": {
+      "status": "pending",
+      "attempts": 0,
+      "fixer": true,
+      "module": "forms",
+      "goal": "Fix every confirmed V1 review finding for forms listed in /tmp/claude-0/-home-user-beam/3ba985b5-31b3-591d-a9fd-e4cfaf9e6555/scratchpad/review-v1/fix-forms.md (read it first): one test per finding, schema changes nullable/default-safe (CONVENTIONS item 6), facades through the caller tx (OD-15). Report per finding: fixed (how) or not fixed (why).",
+      "from": [],
+      "owns": [
+        "apps/web/modules/forms/**",
+        "packages/core/src/forms/**",
+        "packages/db/src/schema/forms.ts",
+        "packages/email/src/templates/forms/**",
+        "apps/web/app/**/forms/**",
+        "docs/build/known-red.txt"
+      ],
+      "dependsOn": []
+    },
+    "fix-w09-email-review": {
+      "status": "pending",
+      "attempts": 0,
+      "fixer": true,
+      "module": "email",
+      "goal": "Fix every confirmed V1 review finding for email listed in /tmp/claude-0/-home-user-beam/3ba985b5-31b3-591d-a9fd-e4cfaf9e6555/scratchpad/review-v1/fix-email.md (read it first): one test per finding, schema changes nullable/default-safe (CONVENTIONS item 6), facades through the caller tx (OD-15). Report per finding: fixed (how) or not fixed (why).",
+      "from": [],
+      "owns": [
+        "apps/web/modules/email/**",
+        "packages/core/src/email/**",
+        "packages/db/src/schema/email.ts",
+        "packages/email/src/templates/email/**",
+        "apps/web/app/**/email/**",
+        "docs/build/known-red.txt"
+      ],
+      "dependsOn": []
+    },
+    "fix-w09-automation-review": {
+      "status": "pending",
+      "attempts": 0,
+      "fixer": true,
+      "module": "automation",
+      "goal": "Fix every confirmed V1 review finding for automation listed in /tmp/claude-0/-home-user-beam/3ba985b5-31b3-591d-a9fd-e4cfaf9e6555/scratchpad/review-v1/fix-automation.md (read it first): one test per finding, schema changes nullable/default-safe (CONVENTIONS item 6), facades through the caller tx (OD-15). Report per finding: fixed (how) or not fixed (why).",
+      "from": [],
+      "owns": [
+        "apps/web/modules/automation/**",
+        "packages/core/src/automation/**",
+        "packages/db/src/schema/automation.ts",
+        "packages/email/src/templates/automation/**",
+        "apps/web/app/**/automation/**",
+        "docs/build/known-red.txt"
+      ],
+      "dependsOn": []
+    },
+    "fix-w09-ops-review": {
+      "status": "pending",
+      "attempts": 0,
+      "fixer": true,
+      "module": "ops",
+      "goal": "Fix every confirmed V1 review finding for ops listed in /tmp/claude-0/-home-user-beam/3ba985b5-31b3-591d-a9fd-e4cfaf9e6555/scratchpad/review-v1/fix-ops.md (read it first): one test per finding, schema changes nullable/default-safe (CONVENTIONS item 6), facades through the caller tx (OD-15). Report per finding: fixed (how) or not fixed (why).",
+      "from": [],
+      "owns": [
+        "apps/web/modules/ops/**",
+        "packages/core/src/ops/**",
+        "packages/db/src/schema/ops.ts",
+        "packages/email/src/templates/ops/**",
+        "apps/web/app/**/ops/**",
+        "docs/build/known-red.txt"
+      ],
+      "dependsOn": [
+        "ops-P5"
+      ]
+    },
+    "fix-w09-site-review": {
+      "status": "pending",
+      "attempts": 0,
+      "fixer": true,
+      "module": "site",
+      "goal": "Fix every confirmed V1 review finding for site listed in /tmp/claude-0/-home-user-beam/3ba985b5-31b3-591d-a9fd-e4cfaf9e6555/scratchpad/review-v1/fix-site.md (read it first): one test per finding, schema changes nullable/default-safe (CONVENTIONS item 6), facades through the caller tx (OD-15). Report per finding: fixed (how) or not fixed (why).",
+      "from": [],
+      "owns": [
+        "apps/web/modules/site/**",
+        "packages/core/src/site/**",
+        "packages/db/src/schema/site.ts",
+        "packages/email/src/templates/site/**",
+        "apps/web/app/**/site/**",
+        "docs/build/known-red.txt",
+        "apps/web/app/sw.ts",
+        "apps/web/app/[locale]/(site)/layout.tsx"
+      ],
+      "dependsOn": [
+        "site-P7"
+      ]
+    },
+    "fix-w09-platform-review": {
+      "status": "pending",
+      "attempts": 0,
+      "fixer": true,
+      "module": "platform",
+      "goal": "Fix every confirmed V1 review finding for platform listed in /tmp/claude-0/-home-user-beam/3ba985b5-31b3-591d-a9fd-e4cfaf9e6555/scratchpad/review-v1/fix-platform.md (read it first): one test per finding, schema changes nullable/default-safe (CONVENTIONS item 6), facades through the caller tx (OD-15). Report per finding: fixed (how) or not fixed (why).",
+      "from": [],
+      "owns": [
+        "apps/web/lib/**",
+        "packages/core/src/platform/**",
+        "packages/db/src/testing.ts",
+        "packages/db/src/testing/**",
+        "packages/db/test/**",
+        "packages/db/src/schema/platform.ts",
+        "apps/web/modules/platform/**",
+        "packages/integrations/src/_shared/**",
+        "docs/build/known-red.txt"
+      ],
+      "dependsOn": [
+        "platform-P9"
+      ]
     }
   }
 }

@@ -234,7 +234,7 @@ export async function evaluateBatch(tx: Tx, now: Date, opts: EvaluateOptions = {
       .where(inArray(activityEvents.id, gaps))
       .orderBy(asc(activityEvents.id));
     for (const row of rows) {
-      await processEvent(row as EventRow);
+      await processEvent(row);
       cursor.gapSeen(row.id);
     }
   }
@@ -254,7 +254,7 @@ export async function evaluateBatch(tx: Tx, now: Date, opts: EvaluateOptions = {
       .orderBy(asc(activityEvents.id))
       .limit(limit);
     for (const row of page) {
-      await processEvent(row as EventRow);
+      await processEvent(row);
       cursor.processed(row.id);
     }
     if (page.length < limit) break;

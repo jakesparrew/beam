@@ -11,8 +11,9 @@ import { resetRuntime } from "@/lib/testing";
 import { def, makeAutomation, makeEvent, setCursor } from "./engine/automation-p2.fixtures";
 import { writeRun } from "./engine/runs";
 
+import type * as EmailApi from "@/modules/email/api";
 vi.mock("@/modules/email/api", async (orig) => ({
-  ...(await orig<typeof import("@/modules/email/api")>()),
+  ...(await orig<typeof EmailApi>()),
   getReachability: vi.fn(() => Promise.resolve({ isReachable: true, blockedReason: null })),
 }));
 

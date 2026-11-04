@@ -13,8 +13,9 @@ import { resetRuntime } from "@/lib/testing";
 import { def, makeAutomation, makeEvent, makeGroup } from "./automation-p2.fixtures";
 
 const unreachable = new Set<string>();
+import type * as EmailApi from "@/modules/email/api";
 vi.mock("@/modules/email/api", async (orig) => ({
-  ...(await orig<typeof import("@/modules/email/api")>()),
+  ...(await orig<typeof EmailApi>()),
   getReachability: vi.fn(async (tx: Tx, personId: string) => {
     if (unreachable.has(personId)) return { isReachable: false, blockedReason: "no_consent" };
     const r = await tx.execute(sql`select 1 from persons p join suppressions s on s.email_hash = p.email_hash where p.id = ${personId}`);

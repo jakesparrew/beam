@@ -12,8 +12,9 @@ import { asc, eq, sql } from "@/lib/ctx";
 import { makeCtx, resetRuntime } from "@/lib/testing";
 import { def, evaluate, makeAutomation, makeEvent, makeGroup, maxEventId, resetAutomations, setCursor } from "./automation-p2.fixtures";
 
+import type * as EmailApi from "@/modules/email/api";
 vi.mock("@/modules/email/api", async (orig) => ({
-  ...(await orig<typeof import("@/modules/email/api")>()),
+  ...(await orig<typeof EmailApi>()),
   getReachability: vi.fn(() => Promise.resolve({ isReachable: true, blockedReason: null })),
 }));
 
@@ -135,7 +136,7 @@ describe("A-22 exit_on", () => {
   });
 
   it("same_subject exits only the enrolment of that reference; where resolves {{trigger.data.x}}", async () => {
-    const a = await makeAutomation(h.db, {
+    await makeAutomation(h.db, {
       isMarketing: false,
       definition: def({
         subject: "ref",

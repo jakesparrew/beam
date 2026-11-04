@@ -13,15 +13,17 @@ import { readCursor } from "./cursor";
 import { def, evaluate, makeAutomation, makeEvent, makeGroup, maxEventId, resetAutomations, setCursor, type MakeEvent } from "./automation-p2.fixtures";
 
 const dpia = new Map<string, boolean | Error>();
+import type * as EmailApi from "@/modules/email/api";
+import type * as OpsApi from "@/modules/ops/api";
 vi.mock("@/modules/ops/api", async (orig) => ({
-  ...(await orig<typeof import("@/modules/ops/api")>()),
+  ...(await orig<typeof OpsApi>()),
   isDpiaApproved: vi.fn((_db: unknown, key: string) => {
     const v = dpia.get(key) ?? true;
     return v instanceof Error ? Promise.reject(v) : Promise.resolve(v);
   }),
 }));
 vi.mock("@/modules/email/api", async (orig) => ({
-  ...(await orig<typeof import("@/modules/email/api")>()),
+  ...(await orig<typeof EmailApi>()),
   getReachability: vi.fn(() => Promise.resolve({ isReachable: true, blockedReason: null })),
 }));
 

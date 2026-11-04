@@ -15,8 +15,9 @@ import { readCursor } from "./engine/cursor";
 import { jobs } from "./jobs";
 import { schedules } from "./schedules";
 
+import type * as EmailApi from "@/modules/email/api";
 vi.mock("@/modules/email/api", async (orig) => ({
-  ...(await orig<typeof import("@/modules/email/api")>()),
+  ...(await orig<typeof EmailApi>()),
   getReachability: vi.fn(() => Promise.resolve({ isReachable: true, blockedReason: null })),
 }));
 

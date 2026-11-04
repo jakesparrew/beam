@@ -19,7 +19,6 @@ import {
   type AutomationPurpose,
   type Definition,
   type EventView,
-  type PlannedStep,
 } from "@beam/core/automation";
 import { and, eq, sql, type Actor } from "@/lib/ctx";
 import { findPersonIdsByEmailHash } from "@/modules/crm/api";
@@ -69,7 +68,7 @@ export async function endEnrolmentWith(
       endReason: reason,
       nextStepKey: null,
       nextStepAt: null,
-      plan: closePlan(row.plan as PlannedStep[]),
+      plan: closePlan(row.plan),
       updatedAt: sql`now()`,
     })
     .where(eq(automationEnrolments.id, enrolmentId));

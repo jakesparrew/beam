@@ -143,7 +143,7 @@ async function inAudience(tx: Tx, def: Definition, personId: string, locale: str
   if (audience.locales?.length && !audience.locales.includes(locale as never)) return false;
   if (audience.status?.length) {
     const [row] = await tx.select({ status: vPersonStatus.status }).from(vPersonStatus).where(eq(vPersonStatus.personId, personId));
-    if (!row || !audience.status.includes(row.status as never)) return false;
+    if (!row || !audience.status.includes(row.status)) return false;
   }
   const segmentIds = [...(audience.segment_id ? [audience.segment_id] : []), ...(audience.exclude_segment_ids ?? [])];
   if (!segmentIds.length) return true;

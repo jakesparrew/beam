@@ -348,12 +348,18 @@
       "mergedAt": "2026-11-04T02:20:09Z"
     },
     "automation-P2": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "e0b1319",
+      "runId": "wf_e7c7ae6f-ff8",
+      "startedAt": "2026-11-04T03:55:18Z"
     },
     "ops-P2": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "e0b1319",
+      "runId": "wf_c1f39d50-545",
+      "startedAt": "2026-11-04T03:55:18Z"
     },
     "site-P2": {
       "status": "merged",

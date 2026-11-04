@@ -33,8 +33,9 @@ type Client = Queryable & { transaction: <T>(fn: (t: Queryable) => Promise<T>) =
 let h: DbHandle;
 let client: Client;
 let log: string[] = [];
-const origQuery: Client["query"] = (...a) => Reflect.apply(Object.getPrototypeOf(client).query as Client["query"], client, a);
-const origTransaction: Client["transaction"] = (fn) => Reflect.apply(Object.getPrototypeOf(client).transaction as Client["transaction"], client, [fn]);
+const proto = (): Client => Object.getPrototypeOf(client) as Client;
+const origQuery: Client["query"] = (...a) => Reflect.apply(proto().query, client, a);
+const origTransaction: Client["transaction"] = (fn) => Reflect.apply(proto().transaction, client, [fn]);
 
 beforeAll(async () => {
   h = await createTestDb();

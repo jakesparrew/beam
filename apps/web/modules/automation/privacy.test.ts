@@ -109,7 +109,7 @@ describe("automation privacy registration", () => {
 
     const report = await h.db.transaction(async (t) => {
       const rows = await privacy.erase(t, w.id);
-      await GDPR_REGISTRY.crm!.erase(t, w.id);
+      await GDPR_REGISTRY.crm.erase(t, w.id);
       return rows;
     });
     expect(report).toContainEqual({ table: "automation_enrolments", rows: 3, action: "deleted" });

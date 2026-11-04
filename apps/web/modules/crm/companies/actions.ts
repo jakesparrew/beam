@@ -1,15 +1,15 @@
 "use server";
-/** Company and contact actions (crm spec 4.1), implemented by crm-P6. crm-P1 stubs. */
+/**
+ * Company and contact actions (crm spec 4.1, rule 3.45), crm-P6. Permission `crm.b2b`; linking a
+ * new person also needs `persons.write`. Each handler in `./api` writes its own audit row
+ * (`company.save`, `company.contact_link`, `company.contact_update`), so the wrapper's row is off.
+ */
 import { z } from "zod";
-import { NotImplementedError } from "@beam/core/errors";
 import { ACQUISITION_SOURCES } from "@beam/core/crm";
 import { LOCALES } from "@beam/core/i18n";
 import { action } from "@/lib/action";
-
-const todo =
-  <O>(name: string) =>
-  (): Promise<O> =>
-    Promise.reject(new NotImplementedError(name));
+import { searchPersons } from "../persons/queries";
+import { linkStaffContact, saveStaffCompany, updateStaffContact } from "./api";
 
 const Address = z
   .object({ street: z.string().max(200).optional(), number: z.string().max(20).optional(), box: z.string().max(20).optional(), postal_code: z.string().max(20).optional(), city: z.string().max(100).optional(), country: z.string().length(2) })
@@ -35,8 +35,9 @@ export const saveCompany = action(
       isPartner: z.boolean(),
       partnerCommissionPct: z.number().min(0).max(100).optional(),
     }),
+    audit: false,
   },
-  todo<{ companyId: string }>("crm.save_company"),
+  (ctx, input) => saveStaffCompany(ctx, input),
 );
 
 export const linkContact = action(
@@ -62,8 +63,9 @@ export const linkContact = action(
       relationship: z.string().max(200).optional(),
       isPrimary: z.boolean(),
     }),
+    audit: false,
   },
-  todo<{ contactId: string }>("crm.link_contact"),
+  (ctx, input) => linkStaffContact(ctx, input),
 );
 
 const ContactUpdate = z.object({
@@ -75,9 +77,17 @@ const ContactUpdate = z.object({
   endedOn: z.iso.date().optional(),
 });
 
-export const updateContact = action({ name: "crm.update_contact", audience: "staff", permission: "crm.b2b", input: ContactUpdate }, todo<{ contactId: string }>("crm.update_contact"));
+export const updateContact = action({ name: "crm.update_contact", audience: "staff", permission: "crm.b2b", input: ContactUpdate, audit: false }, (ctx, input) =>
+  updateStaffContact(ctx, input),
+);
+
+/** The "existing person" picker of the link-contact form: up to 8 matches (customer number, email, phone or name). */
+export const findContactCandidates = action(
+  { name: "crm.find_contact_candidates", audience: "staff", permission: "persons.read", input: z.object({ q: z.string().trim().min(2).max(100) }), audit: false },
+  async (ctx, input) => (await searchPersons(ctx.tx, input.q, 8)).map((p) => ({ id: p.id, customerNumber: p.customerNumber, name: p.name })),
+);
 
 export const endContact = action(
-  { name: "crm.update_contact", audience: "staff", permission: "crm.b2b", input: z.object({ contactId: z.uuid(), endedOn: z.iso.date() }) },
-  todo<{ contactId: string }>("crm.update_contact"),
+  { name: "crm.update_contact", audience: "staff", permission: "crm.b2b", input: z.object({ contactId: z.uuid(), endedOn: z.iso.date() }), audit: false },
+  (ctx, input) => updateStaffContact(ctx, input),
 );

@@ -425,7 +425,19 @@ export function deriveSensitiveKeys(def: FormDefinition, scoring?: FormScoring):
     for (const f of Object.values(def.fields)) if (reads(f.visibleIf)) add(f.key);
     for (const s of def.sections) if (reads(s.visibleIf)) s.fieldKeys.forEach(add);
   }
-  return Object.keys(def.fields).filter((k) => sens.has(k));
+  return fieldOrder(def).filter((k) => sens.has(k));
+}
+
+/**
+ * Field keys in form order: section by section, then fields not placed in a section (sorted).
+ * Stable whatever the key order of the stored JSON (jsonb reorders object keys).
+ */
+export function fieldOrder(def: FormDefinition): FieldKey[] {
+  const out: FieldKey[] = [];
+  const seen = new Set<string>();
+  for (const s of def.sections) for (const k of s.fieldKeys) if (Object.hasOwn(def.fields, k) && !seen.has(k)) (seen.add(k), out.push(k));
+  for (const k of Object.keys(def.fields).sort()) if (!seen.has(k)) out.push(k);
+  return out;
 }
 
 /** Rule SE1: sensitive answers never go to `form_submissions.answers`. */
@@ -440,7 +452,10 @@ export function splitSensitive(def: FormDefinition, answers: Answers, scoring?: 
 /** The purposes of the consent fields, in field order, without duplicates. */
 export function deriveConsentPurposes(def: FormDefinition): string[] {
   const out: string[] = [];
-  for (const f of Object.values(def.fields)) if (f.type === "consent" && !out.includes(f.purpose)) out.push(f.purpose);
+  for (const k of fieldOrder(def)) {
+    const f = def.fields[k]!;
+    if (f.type === "consent" && !out.includes(f.purpose)) out.push(f.purpose);
+  }
   return out;
 }
 

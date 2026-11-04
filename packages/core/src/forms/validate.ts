@@ -7,9 +7,9 @@
 import type { z } from "zod";
 import { missingLocales, type LocalizedText } from "../i18n/localized-text";
 import type { Locale } from "../i18n/locales";
-import { FormDefinition as FormDefinitionSchema, FormScoring as FormScoringSchema, definitionBytes, FORM_LIMITS } from "./definition";
+import { FormDefinition as FormDefinitionSchema, FormScoring as FormScoringSchema, canonicalHash, definitionBytes, FORM_LIMITS } from "./definition";
 import { expressionRefs, parseExpression } from "./expression";
-import { conditionRefs, deriveSensitiveKeys } from "./logic";
+import { conditionRefs, deriveConsentPurposes, deriveSensitiveKeys } from "./logic";
 import { dimensionFields, dimensionOrder, sensitiveDimensions } from "./scoring";
 import {
   MARKETING_CONSENT_PURPOSES,
@@ -100,6 +100,14 @@ export function validateForPublish(kind: FormKind, def: FormDefinition, scoring:
   if (definitionBytes(def, scoring) > FORM_LIMITS.bytes) early.push({ level: "error", code: "limit_exceeded", path: "", message: `${MESSAGES.limit_exceeded} (256 KB)` });
   if (!d.success || !s.success) return early;
   return [...early, ...new Checker(kind, d.data, s.data, locales).run()];
+}
+
+/**
+ * The derived `form_versions` columns, recomputed on every save (never edited directly):
+ * `sensitive_field_keys` (L6), `consent_purposes` and `definition_hash`.
+ */
+export function deriveVersionColumns(def: FormDefinition, scoring: FormScoring): { sensitiveFieldKeys: string[]; consentPurposes: string[]; definitionHash: string } {
+  return { sensitiveFieldKeys: deriveSensitiveKeys(def, scoring), consentPurposes: deriveConsentPurposes(def), definitionHash: canonicalHash(def, scoring) };
 }
 
 /** True when no issue is an error. */

@@ -9,7 +9,7 @@ import { billitParties, persons, settings, tasks } from "@beam/db/schema";
 import { BILLIT_PAYMENT_METHOD_CODES } from "@beam/integrations/billit";
 import { eq } from "@/lib/ctx";
 import { createFakeIntegrations, runJobTwice, type FakeIntegrations } from "@/lib/testing";
-import { BILLIT_PAYMENT_METHOD_CODES as CORE_CODES } from "../../../../packages/core/src/finance/billit-mapping";
+import { BILLIT_PAYMENT_METHOD_CODES as CORE_CODES } from "@beam/core/finance";
 import { issueCreditNote } from "./api";
 import { financeUser, jobsOf, openInvoice, paidB2c, paidCompany, runJob, setFinanceSettings, slackJobs, withPdf } from "./finance-p4.helpers";
 import { asTx, ctxAt, invoiceRow, NOW, setupDb } from "./service/__tests__/fixtures";

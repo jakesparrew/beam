@@ -17,12 +17,10 @@
 import { createHash } from "node:crypto";
 import type { Tx } from "@beam/db";
 import { billitParties, invoiceRequests, invoices, orderBillingDetails } from "@beam/db/schema";
-import { isAnonymisedSnapshot, reduceSnapshot, type CustomerSnapshot } from "@beam/core/finance";
+import { isAnonymisedSnapshot, reduceSnapshot, toBillitParty, type CustomerSnapshot } from "@beam/core/finance";
 import type { EraseReportRow, PrivacyExport, PrivacyRegistration } from "@beam/core/privacy";
 import { and, asc, desc, eq, inArray, sql, type DbOrTx } from "@/lib/ctx";
 import { rowsOf } from "@/lib/sensitive";
-// Relative until `@beam/core/finance` re-exports billit-mapping (open request of finance-P4).
-import { toBillitParty } from "../../../../packages/core/src/finance/billit-mapping";
 import { sweep } from "./service/retention";
 
 const allowRewrite = (tx: DbOrTx) => tx.execute(sql`set local beam.allow_rewrite = 'on'`);

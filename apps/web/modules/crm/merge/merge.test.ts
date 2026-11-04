@@ -122,12 +122,12 @@ const day = (n: number) => new Date(Date.UTC(2026, 0, n, 9));
 const consent = (personId: string, purpose: "newsletter" | "events", status: "granted" | "withdrawn", recordedAt: Date) =>
   h.db
     .insert(consentRecords)
-    .values({ personId, purpose, status, method: "portal", source: "portal", wordingVersion: `${purpose}@1`, recordedAt, actor: { kind: "system" } })
+    .values({ personId, purpose, status, method: "portal", source: "portal", wordingVersion: `${purpose}@1`, recordedAt, actor: { kind: "system", id: null } })
     .returning()
     .then((r) => r[0]!);
 const makeTag = async (_db: unknown) =>
   (await h.db.insert(tags).values({ key: `t-${randomUUID().slice(0, 8)}`, name: { en: "T", "nl-BE": "T", "fr-BE": "T" } }).returning())[0]!;
-const tagged = async (personId: string, tagId: string) => h.db.insert(personTags).values({ personId, tagId, source: "manual", addedBy: { kind: "system" } });
+const tagged = async (personId: string, tagId: string) => h.db.insert(personTags).values({ personId, tagId, source: "manual", addedBy: { kind: "system", id: null } });
 
 describe("merge (rules 3.30 to 3.34)", () => {
   it("3.30 merges in one transaction: hooks first, generic repoint, candidates merged, login moved, automations exited, audit and events", async () => {
@@ -146,14 +146,14 @@ describe("merge (rules 3.30 to 3.34)", () => {
     await tagged(winner.id, shared.id);
     await tagged(loser.id, shared.id);
     await tagged(loser.id, own.id);
-    const [task] = await h.db.insert(tasks).values({ ownerUserId: owner.id, personId: loser.id, title: "Call back", kind: "call", createdBy: { kind: "system" } }).returning();
+    const [task] = await h.db.insert(tasks).values({ ownerUserId: owner.id, personId: loser.id, title: "Call back", kind: "call", createdBy: { kind: "system", id: null } }).returning();
     const order = await makeOrder(h.db, { personId: loser.id });
     const grant = await makeCreditGrant(h.db, { personId: loser.id });
     const account = await makeUser(h.db, { audience: "customer", personId: loser.id });
     const chained = await makePerson(h.db, { mergedIntoPersonId: loser.id });
     const [a, b] = [winner.id, loser.id].sort();
     const [candidate] = await h.db.insert(personDuplicateCandidates).values({ personAId: a!, personBId: b!, score: 90, reasons: ["email_variant"] }).returning();
-    await h.db.insert(activityEvents).values({ personId: loser.id, kind: "person.created", actor: { kind: "system" }, data: {} });
+    await h.db.insert(activityEvents).values({ personId: loser.id, kind: "person.created", actor: { kind: "system", id: null }, data: {} });
 
     const res = await merge(winner.id, loser.id, { firstName: "loser", email: "loser" });
     expect(res.ok).toBe(true);

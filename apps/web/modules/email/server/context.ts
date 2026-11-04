@@ -58,7 +58,7 @@ export async function footerFor(
     locale: Locale;
     purpose: MarketingPurpose | "transactional";
     personId: string | null;
-    preferenceUrls: { preferencesUrl: string; unsubscribeUrl: string } | null;
+    preferenceUrls: { preferencesUrl: string; unsubscribeUrl: string | null } | null;
   },
 ): Promise<FooterParts | null> {
   const legalLinks = await legalLinksFor(input.locale, tx);

@@ -1,7 +1,14 @@
 /**
- * Per-message link tokens (email spec rule 53; architecture section 10). A fresh 32-byte random
- * token per message, base64url (43 characters); only its sha256 hex is stored
+ * Per-message link tokens (email spec rule 53; architecture section 10). A 32-byte token per
+ * message, base64url (43 characters); only its sha256 hex is stored
  * (`email_messages.link_token_hash`). The raw token exists only in the rendered message.
+ *
+ * `email.send` derives the token from the message id (`linkTokenFor`: HMAC-SHA256 of
+ * `email-link:<message_id>` under a server secret) instead of drawing it fresh, so every attempt
+ * of the same message renders a byte-identical payload under the Resend Idempotency-Key
+ * `email:<message_id>`: a retry after an accepted send is answered with the original send, not a
+ * 409, and the delivered links resolve. It stays unguessable without the secret. `newLinkToken`
+ * (random) remains for callers without a stable id.
  *
  * No Node import (core runs anywhere): randomness from WebCrypto `getRandomValues`, and a small
  * synchronous SHA-256 so `hashLinkToken` stays sync for lookups.
@@ -92,6 +99,20 @@ export function newLinkToken(): { token: string; hash: string } {
   const bytes = new Uint8Array(LINK_TOKEN_BYTES);
   globalThis.crypto.getRandomValues(bytes);
   const token = base64Url(bytes);
+  return { token, hash: hashLinkToken(token) };
+}
+
+/**
+ * The deterministic link token of one message: base64url(HMAC-SHA256(secret,
+ * `email-link:<messageId>`)), 32 bytes in the `LINK_TOKEN_PATTERN` shape, with its sha256 hex.
+ */
+export async function linkTokenFor(messageId: string, secret: string): Promise<{ token: string; hash: string }> {
+  if (!secret) throw new Error("email: the link token secret is empty");
+  if (!messageId) throw new Error("email: a link token needs a message id");
+  const encoder = new TextEncoder();
+  const key = await globalThis.crypto.subtle.importKey("raw", encoder.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const mac = new Uint8Array(await globalThis.crypto.subtle.sign("HMAC", key, encoder.encode(`email-link:${messageId}`)));
+  const token = base64Url(mac);
   return { token, hash: hashLinkToken(token) };
 }
 

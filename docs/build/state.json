@@ -194,11 +194,16 @@
       "mergedAt": "2026-11-04T01:05:29Z"
     },
     "forms-P2": {
-      "status": "running",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "1b2926a",
       "runId": "wf_8e279d47-056",
-      "startedAt": "2026-11-04T02:23:03Z"
+      "startedAt": "2026-11-04T02:23:03Z",
+      "branchSha": "52ec960",
+      "endedAt": "2026-11-04T03:19:38Z",
+      "minutes": 56,
+      "mergeSha": "74e15ad",
+      "mergedAt": "2026-11-04T03:23:24Z"
     },
     "email-P1": {
       "status": "merged",

@@ -6,6 +6,7 @@ import {
   auditLog,
   creditGrants,
   jobs as jobsTable,
+  mandates,
   membershipPeriods,
   membershipPlanInclusions,
   memberships,
@@ -171,6 +172,22 @@ async function makePlan(over: { interval?: "month" | "year"; extraNight?: number
   return { product, priceVersionId: pv!.id };
 }
 
+/** A valid Mollie mandate row (memberships.mandate_id references mandates.id). */
+async function makeMandate(personId: string): Promise<string> {
+  const [m] = await h.db
+    .insert(mandates)
+    .values({
+      personId,
+      provider: "mollie",
+      providerMandateId: `mdt_${randomUUID()}`,
+      providerCustomerId: `cst_${randomUUID()}`,
+      method: "directdebit",
+      status: "valid",
+    })
+    .returning({ id: mandates.id });
+  return m!.id;
+}
+
 type Started = { m: MembershipRow; personId: string; plan: Awaited<ReturnType<typeof makePlan>>; orderId: string };
 
 /** A paid membership started at `startsAt` (default T0), optionally with a mandate. */
@@ -180,7 +197,7 @@ async function start(
   const personId = over.personId ?? (await makePerson(h.db)).id;
   const plan = over.plan ?? (await makePlan({ interval: over.interval, extraNight: over.extraNight }));
   const order = await makeOrder(h.db, personId, plan.product.recurringInterval === "year" ? 49_000 : 4_900, over.startsAt ?? T0);
-  const mandateId = over.mandate ? randomUUID() : null;
+  const mandateId = over.mandate ? await makeMandate(personId) : null;
   if (mandateId) mandated.set(personId, mandateId);
   const r = await activateMembership(tx(), ctxAt(over.now ?? T0), {
     personId,
@@ -807,7 +824,7 @@ describe("importMembership (ops imports)", () => {
     const plan = await makePlan();
     const personId = (await makePerson(h.db)).id;
     const periodEndAt = days(12);
-    const input = { personId, productId: plan.product.id, periodEndAt, idempotencyKey: "import:imp1:row:4", mandateId: randomUUID() };
+    const input = { personId, productId: plan.product.id, periodEndAt, idempotencyKey: "import:imp1:row:4", mandateId: await makeMandate(personId) };
     const first = await importMembership(tx(), ctxAt(T0), input);
     const again = await importMembership(tx(), ctxAt(T0), input);
     expect(again).toEqual({ membershipId: first.membershipId, created: false });

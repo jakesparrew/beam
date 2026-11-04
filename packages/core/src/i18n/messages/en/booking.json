@@ -37,7 +37,9 @@
       "places": "{count, plural, one {# place} other {# places}}",
       "beds": "{count, plural, one {# bed} other {# beds}}",
       "minutes": "{count, plural, one {# minute} other {# minutes}}",
-      "credits": "{count, plural, one {# session} other {# sessions}}"
+      "credits": "{count, plural, one {# session} other {# sessions}}",
+      "saved": "Saved",
+      "saving": "Saving…"
     },
     "kind": {
       "day": "Day session",
@@ -183,7 +185,9 @@
       "webinar_session_mismatch": "This session belongs to another webinar.",
       "session_closed": "This session is closed for booking.",
       "invalid_transition": "This change is not possible in the current state.",
-      "shared_bed_limit": "Only one guest can share your bed."
+      "shared_bed_limit": "Only one guest can share your bed.",
+      "generic": "Something went wrong. Please try again.",
+      "validation": "Please check the fields and try again."
     },
     "calendar": {
       "title": "Sessions",
@@ -269,7 +273,8 @@
       "cancelled_info": "Cancelled on {date}: {reason}",
       "warning_location_overlap": "Another session uses this room at the same time.",
       "warning_outside_business_hours": "This time is outside the public opening hours.",
-      "empty": "No bookings yet."
+      "empty": "No bookings yet.",
+      "revert_no_show": "Undo no-show"
     },
     "templates": {
       "title": "Schedule",
@@ -393,7 +398,8 @@
       "force_release_credit": "Cancel and give the credit back",
       "force_refund": "Cancel and refund",
       "force_reason": "Reason (required)",
-      "empty": "No bookings match these filters."
+      "empty": "No bookings match these filters.",
+      "include_guests": "Also cancel the guests"
     },
     "manual": {
       "title": "New booking",
@@ -440,7 +446,10 @@
       "health_expired": "Health declaration expired",
       "fill_in_form": "Fill in a form",
       "not_arrived": "Not yet arrived",
-      "guests_of": "Guests of {name}"
+      "guests_of": "Guests of {name}",
+      "check_in_override": "Check in anyway",
+      "revert_no_show": "Undo no-show",
+      "scan_hint": "Scan the QR code, or type the code or a name, then press Enter."
     },
     "waitlist": {
       "title": "Waiting lists",
@@ -468,7 +477,11 @@
       "member_badge": "Members",
       "session_label": "{date}, {time}, {kind}, {availability}",
       "closed_day": "Closed: {name}",
-      "empty": "No sessions on this day."
+      "empty": "No sessions on this day.",
+      "price_single": "{price} per session",
+      "filtered": "Showing one schedule only",
+      "open": "View and book",
+      "no_events": "No events planned yet."
     },
     "portalSession": {
       "title": "Book",
@@ -498,7 +511,20 @@
       "book": "Book",
       "join_waitlist": "Join the waiting list",
       "join_customer_queue": "Join the customer queue",
-      "membership_link": "Become a member"
+      "membership_link": "Become a member",
+      "price_label": "Price: {price}",
+      "pay_free": "Free session",
+      "guest_pay_label": "How is this guest paid?",
+      "guest_pay_guest": "With my package",
+      "guest_pay_order": "I pay for my guest",
+      "add_guest": "Add a guest",
+      "remove_guest": "Remove this guest",
+      "guest_number": "Guest {n}",
+      "opens_at": "Booking opens on {date}",
+      "no_pay_option": "There is no way to pay for this session online. Please contact reception.",
+      "waitlist_joined": "You are on the waiting list. We email you as soon as a place frees up.",
+      "when": "When",
+      "where": "Where"
     },
     "portalBookings": {
       "title": "My bookings",
@@ -508,7 +534,14 @@
       "booked_for_guest": "Booked for {name}",
       "guest_of": "Guest of {name}",
       "book": "Book a session",
-      "empty": "No upcoming bookings."
+      "empty": "No upcoming bookings.",
+      "tab_guests": "Guests I booked",
+      "tab_as_guest": "I am a guest",
+      "open": "View booking",
+      "empty_past": "No past bookings.",
+      "empty_events": "No event registrations yet.",
+      "empty_guests": "You have not booked for a guest yet.",
+      "empty_as_guest": "Nobody has booked you as a guest."
     },
     "portalBooking": {
       "title": "My booking",
@@ -526,13 +559,31 @@
       "awaiting_payment": "Awaiting payment until {time}",
       "complete_payment": "Complete payment",
       "pay_at_reception": "Pay at reception",
-      "cancelled": "This booking is cancelled."
+      "cancelled": "This booking is cancelled.",
+      "when": "When",
+      "where": "Where",
+      "payment": "Payment",
+      "status": "Status",
+      "guests": "Guests",
+      "no_guests": "No guests.",
+      "invite_submit": "Invite this guest",
+      "guest_added": "Your guest is added.",
+      "cancelled_ok": "Your booking is cancelled.",
+      "rescheduled_ok": "Your booking is moved.",
+      "booked_ok": "Your booking is confirmed. See you soon!",
+      "cancel_question": "Do you want to cancel this booking?",
+      "keep": "Keep my booking",
+      "back": "All my bookings",
+      "qr_label": "Check-in QR code",
+      "guest_note": "A guest booked through your booking."
     },
     "portalReschedule": {
       "title": "Move my booking",
       "pick": "Choose another session",
       "confirm": "Move my booking",
-      "empty": "No other session available in your free window."
+      "empty": "No other session available in your free window.",
+      "current": "Now booked: {date}",
+      "back": "Back to my booking"
     },
     "portalWaitlist": {
       "title": "My waiting lists",
@@ -641,6 +692,10 @@
         "intro": "The seat for {title} on {date} was not claimed in time and went to the next person.",
         "cta": "View the session"
       }
+    },
+    "new": {
+      "starts_at": "Starts at",
+      "create_draft": "Create as draft"
     }
   }
 }

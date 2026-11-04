@@ -65,6 +65,9 @@ to "Served" with the package id.
 | commerce-P4a | commerce (owner of `server/catalogue.ts`) | Record the `person_price.set` event in `setPersonPriceRecord` (the kind is declared now). |
 | booking-P3b | commerce | `refundOrderLine` has no reason for staff forced refunds; booking passes `cancelled_in_policy`. Add `staff_override` if finance needs to tell them apart. |
 | booking-P3b | booking-P5 (or a booking fixer) | `releaseOrderBookings` in `server/order-hooks.ts` also moves a claimed offered waitlist entry to `expired` with `payment_not_completed` and enqueues `offer_next` (R44), as `expireReservedRow` in `server/cancel.ts` already does. |
+| site-P5 | platform (fixer) | Add `BEAM_ANALYTICS_PRODUCTION: "1"` to the Playwright `webServer.env` in `apps/web/playwright.config.ts`, so `site-consent.spec`'s GA4 test can load gtag. |
+| site-P5 | forms (FormEmbed) | FormEmbed may read sessionStorage `beam_utm` through site's `readStoredUtm()` (`apps/web/modules/site/ui/public/utm-capture.tsx`) to attribute UTM on later pages of a visit (rule 40). |
+| site-P5 | site-P6 | `PortalSiteChrome` mounts `ConsentProvider` (`getConsentChromeState`, `consentLabels` in `server/consent.ts`), `AnalyticsLoader` with `gaMeasurementId` null and `SwRegister`; its Cookie settings link carries `data-cookie-settings`. |
 
 ## Served
 

@@ -421,14 +421,17 @@
       "mergedAt": "2026-11-04T02:20:14Z"
     },
     "booking-P3b": {
-      "status": "running",
+      "status": "done",
       "attempts": 2,
       "baseSha": "61c93a0",
       "runId": "wf_326d0671-3e4",
       "startedAt": "2026-11-04T05:39:11Z",
       "extraOwns": [
         "apps/web/app/api/health/route.test.ts"
-      ]
+      ],
+      "branchSha": "54bf150",
+      "endedAt": "2026-11-04T05:49:58Z",
+      "minutes": 60
     },
     "commerce-P4a": {
       "status": "merged",
@@ -503,11 +506,14 @@
       "attempts": 0
     },
     "site-P5": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "baseSha": "beb4769",
       "runId": "wf_cc4b715f-5dc",
-      "startedAt": "2026-11-04T05:03:43Z"
+      "startedAt": "2026-11-04T05:03:43Z",
+      "branchSha": "41e7bad",
+      "endedAt": "2026-11-04T05:49:58Z",
+      "minutes": 36
     },
     "crm-P7": {
       "status": "pending",

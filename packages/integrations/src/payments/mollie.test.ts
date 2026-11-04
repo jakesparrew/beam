@@ -235,7 +235,9 @@ describe("mollie adapter", () => {
     });
     await expect(p.getPayment("tr_slow0001")).rejects.toMatchObject({ provider: "mollie", operation: "payments.get", retryable: true, statusCode: 429 });
     await expect(p.getPayment("tr_down0001")).rejects.toMatchObject({ retryable: true, statusCode: 503 });
-    await expect(p.createPayment(createInput)).rejects.toMatchObject({ retryable: false, statusCode: 422, message: expect.stringContaining("lower than the minimum") });
+    const err = await p.createPayment(createInput).catch((e: unknown) => e);
+    expect(err).toMatchObject({ retryable: false, statusCode: 422 });
+    expect((err as Error).message).toContain("lower than the minimum");
     await expect(p.getPayment("tr_auth0001")).rejects.toMatchObject({ retryable: false, statusCode: 401 });
   });
 

@@ -232,7 +232,7 @@ export function createMollieProvider(options: MollieProviderOptions): PaymentPro
               message: `mollie ${operation}: unexpected response (${parsed.error.issues.map((i) => i.path.join(".") || "(root)").join(", ")})`,
             });
           }
-          return { value: parsed.data as z.output<S>, statusCode: res.status };
+          return { value: parsed.data, statusCode: res.status };
         },
         timeoutMs,
         { provider: "mollie", operation },

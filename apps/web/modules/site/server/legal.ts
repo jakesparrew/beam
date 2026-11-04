@@ -11,7 +11,6 @@ import { pageRoutes, pages, pageVersions, termsAcceptances, vLegalVersions } fro
 import { LOCALES, type Locale, type LocalizedText } from "@beam/core/i18n";
 import { localePath, richDocToPlainText, type Block, type LegalKey, type TermsContext } from "@beam/core/site";
 import { and, desc, eq, getAppDb, inArray, NotFoundError, ValidationError, type Ctx } from "@/lib/ctx";
-import { resolvePersonIds } from "@/modules/crm/api";
 import { absoluteUrl, canonicalOrigin } from "./urls";
 
 export type CurrentLegalVersion = {
@@ -185,6 +184,8 @@ export async function hasAcceptedCurrentTerms(db: DbOrTx, personId: string): Pro
     .where(eq(vLegalVersions.legalKey, "terms"));
   const ordinalOf = new Map(versions.map((v) => [v.versionId, Number(v.ordinal)]));
   const latestMaterial = versions.filter((v) => v.isMaterialChange).reduce((max, v) => Math.max(max, Number(v.ordinal)), 0);
+  // Loaded on use: crm's api imports this module's barrel (declarations), so a static import is a cycle.
+  const { resolvePersonIds } = await import("@/modules/crm/api");
   const ids = await resolvePersonIds(db, personId);
   if (ids.length === 0) return false;
   const accepted = await db

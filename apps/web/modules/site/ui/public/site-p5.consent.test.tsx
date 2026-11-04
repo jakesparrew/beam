@@ -62,12 +62,12 @@ let fetchMock: ReturnType<typeof vi.fn>;
 beforeEach(() => {
   clearCookies();
   window.sessionStorage.clear();
-  fetchMock = vi.fn(async (_url: string, init: { body: string }) => {
+  fetchMock = vi.fn((_url: string, init: { body: string }) => {
     const body = JSON.parse(init.body) as { action: string; choices: { analytics: boolean; marketing: boolean }; bannerVersion: number };
     const analytics = body.action === "accept_all" || (body.action === "custom" && body.choices.analytics);
     const marketing = body.action === "accept_all" || (body.action === "custom" && body.choices.marketing);
     document.cookie = `beam_consent=${encodeConsentCookie({ k: KEY, v: body.bannerVersion, a: analytics, m: marketing, t: now() })}; Path=/`;
-    return new Response(JSON.stringify({ consentKey: KEY }), { status: 200 });
+    return Promise.resolve(new Response(JSON.stringify({ consentKey: KEY }), { status: 200 }));
   });
   vi.stubGlobal("fetch", fetchMock);
 });
@@ -93,6 +93,7 @@ describe("cookie banner (rules 36-39)", () => {
     const { container } = renderSite(null);
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Accept all" }));
+      await Promise.resolve();
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, init] = fetchMock.mock.calls[0] as [string, { body: string }];
@@ -111,6 +112,7 @@ describe("cookie banner (rules 36-39)", () => {
     const { container } = renderSite(null);
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Reject all" }));
+      await Promise.resolve();
     });
     expect(screen.getByTestId("state").textContent).toBe("false/false");
     expect(container.querySelector("script")).toBeNull();
@@ -138,13 +140,14 @@ describe("cookie banner (rules 36-39)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Footer cookie settings" }));
     const dialog = document.querySelector("dialog[data-cookie-dialog]")!;
     expect(dialog.hasAttribute("open")).toBe(true);
-    const analytics = screen.getByRole("switch", { name: "Analytics" }) as HTMLInputElement;
+    const analytics = screen.getByRole<HTMLInputElement>("switch", { name: "Analytics" });
     expect(analytics.checked).toBe(true);
-    expect((screen.getByRole("switch", { name: "Necessary" }) as HTMLInputElement).disabled).toBe(true);
-    expect((screen.getByRole("switch", { name: "Marketing" }) as HTMLInputElement).checked).toBe(false);
+    expect(screen.getByRole<HTMLInputElement>("switch", { name: "Necessary" }).disabled).toBe(true);
+    expect(screen.getByRole<HTMLInputElement>("switch", { name: "Marketing" }).checked).toBe(false);
     fireEvent.click(analytics);
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Save my choice" }));
+      await Promise.resolve();
     });
     const body = JSON.parse((fetchMock.mock.calls[0] as [string, { body: string }])[1].body) as { action: string; consentKey: string };
     expect(body).toMatchObject({ action: "withdraw", consentKey: KEY });
@@ -165,7 +168,7 @@ describe("analytics helpers", () => {
   it("initialises Consent Mode v2 with only analytics storage granted", () => {
     const win = {} as Parameters<typeof initGtag>[0];
     initGtag(win, "G-ABCD1234");
-    const queue = (win.dataLayer as IArguments[]).map((a) => [...a]);
+    const queue = (win.dataLayer as IArguments[]).map((a): unknown[] => Array.from(a as ArrayLike<unknown>));
     expect(queue[0]).toEqual(["consent", "default", { analytics_storage: "granted", ad_storage: "denied", ad_user_data: "denied", ad_personalization: "denied" }]);
     expect(queue[2]).toEqual(["config", "G-ABCD1234"]);
   });

@@ -104,11 +104,14 @@
       "startedAt": "2026-11-03T23:35:56Z"
     },
     "commerce-P1": {
-      "status": "running",
+      "status": "red",
       "attempts": 1,
       "baseSha": "9892b11",
       "runId": "wf_a55fc3c3-fdb",
-      "startedAt": "2026-11-03T23:35:56Z"
+      "startedAt": "2026-11-03T23:35:56Z",
+      "branchSha": "e2a285c",
+      "endedAt": "2026-11-04T00:07:37Z",
+      "minutes": 35
     },
     "commerce-P2": {
       "status": "pending",
@@ -634,6 +637,24 @@
       "minutes": 13,
       "mergeSha": "5c125ff",
       "mergedAt": "2026-11-03T23:50:08Z"
+    },
+    "fix-w04-commerce-1": {
+      "status": "pending",
+      "attempts": 0,
+      "fixer": true,
+      "module": "commerce",
+      "goal": "Add the persons.id foreign keys commerce-P1 left out (person_prices, promotion_redemptions, checkouts, mandates, provider_customers, vouchers) and register those six tables in apps/web/modules/commerce/privacy.ts (OD-9), so gdpr:coverage stays green with the FKs in place.",
+      "from": [
+        "commerce-P1"
+      ],
+      "owns": [
+        "packages/db/src/schema/commerce.ts",
+        "packages/db/src/schema/commerce.test.ts",
+        "apps/web/modules/commerce/privacy.ts"
+      ],
+      "dependsOn": [
+        "commerce-P1"
+      ]
     }
   }
 }

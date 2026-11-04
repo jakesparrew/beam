@@ -1,4 +1,1 @@
 # <repo path> <fixer id> <reason>; the gate excludes these test files until the fixer lands
-apps/web/lib/sensitive.test.ts fix-w04-platform-3 creates ad-hoc form_submissions/form_sensitive_answers/person_sensitive_fields tables that forms-P1 and crm-P1 now create for real (42P07)
-apps/web/modules/platform/schedules.test.ts fix-w04-platform-3 assumes only platform schedules exist; crm-P1 registers segments.refresh and crm.detect_duplicates
-apps/web/app/api/cron/tick/route.test.ts fix-w04-platform-3 assumes only platform schedules exist

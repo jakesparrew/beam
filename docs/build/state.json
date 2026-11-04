@@ -232,15 +232,21 @@
       "mergedAt": "2026-11-04T00:58:57Z"
     },
     "crm-P2": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "baseSha": "4ce9b47",
       "runId": "wf_4a970317-407",
-      "startedAt": "2026-11-04T00:50:47Z"
+      "startedAt": "2026-11-04T00:50:47Z",
+      "branchSha": "92f2762",
+      "endedAt": "2026-11-04T01:27:36Z",
+      "minutes": 30
     },
     "crm-P3": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "691b7bb",
+      "runId": "wf_9c67e986-ea7",
+      "startedAt": "2026-11-04T01:28:28Z"
     },
     "crm-P4": {
       "status": "pending",
@@ -262,11 +268,14 @@
       "attempts": 0
     },
     "credits-P3": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "baseSha": "4ce9b47",
       "runId": "wf_f3027f2b-e76",
-      "startedAt": "2026-11-04T00:50:47Z"
+      "startedAt": "2026-11-04T00:50:47Z",
+      "branchSha": "abd8f5f",
+      "endedAt": "2026-11-04T01:27:36Z",
+      "minutes": 35
     },
     "finance-P2": {
       "status": "pending",
@@ -277,8 +286,11 @@
       "attempts": 0
     },
     "email-P2": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "691b7bb",
+      "runId": "wf_4a2d8d7d-996",
+      "startedAt": "2026-11-04T01:28:28Z"
     },
     "automation-P2": {
       "status": "pending",
@@ -297,8 +309,11 @@
       "attempts": 0
     },
     "crm-P6": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "691b7bb",
+      "runId": "wf_6d05edb2-430",
+      "startedAt": "2026-11-04T01:28:28Z"
     },
     "booking-P3b": {
       "status": "pending",

@@ -68,6 +68,26 @@ describe("bulk extension (rule 32a)", () => {
     expect(g!.data).toMatchObject({ last_bulk_extension_id: clientKey });
   });
 
+  it("fix-w09-credits-review 5: end-of-day expiries stay 23:59:59.999 Brussels across DST days", async () => {
+    const personId = (await makePerson(h.db)).id;
+    const base = { personId, startsAt: new Date("2026-01-01T00:00:00Z"), source: "import" as const, vatTreatment: "single_purpose" as const, units: 5 };
+    const cases = [
+      { from: "2026-10-25T22:59:59.999Z", to: "2026-11-01T22:59:59.999Z" }, // end of 25 Oct (25-hour day) -> end of 1 Nov
+      { from: "2026-03-22T22:59:59.999Z", to: "2026-03-29T21:59:59.999Z" }, // end of 22 Mar -> end of 29 Mar (23-hour day)
+      { from: "2026-10-18T21:59:59.999Z", to: "2026-10-25T22:59:59.999Z" }, // end of 18 Oct -> end of 25 Oct (25-hour day)
+    ];
+    const grants = [];
+    for (const c of cases) grants.push(await makeCreditGrant(h.db, { ...base, expiresAt: new Date(c.from) }));
+    const clientKey = randomUUID();
+    const dstFilter = { ...filter, sources: [...filter.sources], expiresFromOn: "2026-03-01", expiresToOn: "2026-10-31" };
+    expect(await startBulkExtension(h.db, makeCtx(h.db, staff), { days: 7, reason: "Closed for works", ...dstFilter, clientKey })).toMatchObject({ matched: 3, created: true });
+    await runJobTwice(h.db, "credits.bulk_extend", { bulkExtensionId: clientKey });
+    for (const [i, c] of cases.entries()) {
+      const [g] = await h.db.select({ expiresAt: creditGrants.expiresAt }).from(creditGrants).where(eq(creditGrants.id, grants[i]!.id));
+      expect(g!.expiresAt!.toISOString()).toBe(c.to);
+    }
+  });
+
   it("refuses membership as a source and non-staff actors", async () => {
     const bad = { days: 3, reason: "Holiday", ...filter, sources: ["membership"], clientKey: randomUUID() };
     await expect(startBulkExtension(h.db, makeCtx(h.db, staff), bad)).rejects.toMatchObject({ code: "validation" });

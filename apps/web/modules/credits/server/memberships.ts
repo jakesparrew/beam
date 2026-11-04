@@ -24,9 +24,11 @@ import {
   vCreditGrantBalances,
 } from "@beam/db/schema";
 import {
+  addBrusselsDays,
   addCalendarDays,
   anchorDayOf,
   assertMembershipTransition,
+  atWallTimeOf,
   brusselsDateKey,
   brusselsDateOf,
   calendarDaysBetween,
@@ -119,14 +121,7 @@ async function transition(
   });
 }
 
-/** `at` moved `days` Brussels calendar days at the same wall-clock time (DST-safe). */
-export function shiftDays(at: Date, days: number): Date {
-  const date = brusselsDateOf(at);
-  const offset = at.getTime() - startOfDayIn(date).getTime();
-  return new Date(startOfDayIn(addCalendarDays(date, days)).getTime() + offset);
-}
-
-/** One interval before `end` (calendar month or year in Brussels, clamped), for imports. */
+/** One interval before `end` (calendar month or year in Brussels, clamped, same wall-clock time), for imports. */
 export function periodStartBefore(end: Date, interval: Interval): Date {
   const d = brusselsDateOf(end);
   let { year, month } = d;
@@ -138,8 +133,7 @@ export function periodStartBefore(end: Date, interval: Interval): Date {
     }
   } else year -= 1;
   const day = Math.min(d.day, new Date(Date.UTC(year, month, 0)).getUTCDate());
-  const offset = end.getTime() - startOfDayIn(d).getTime();
-  return new Date(startOfDayIn({ year, month, day }).getTime() + offset);
+  return atWallTimeOf(end, { year, month, day });
 }
 
 /** 00:00 Brussels of the day of `at` and of the next day. */
@@ -1054,7 +1048,7 @@ export async function extendPeriod(
   checkVersion(m, input.version);
   if (m.status !== "active" && m.status !== "past_due") throw new ConflictError(`membership_${m.status}`);
   const oldEnd = m.currentPeriodEndAt;
-  const newEnd = shiftDays(oldEnd, input.days);
+  const newEnd = addBrusselsDays(oldEnd, input.days);
   await tx.insert(membershipPeriods).values({
     membershipId: m.id,
     personId: m.personId,
@@ -1066,13 +1060,13 @@ export async function extendPeriod(
   });
   const row = await update(tx, ctx, m, {
     currentPeriodEndAt: newEnd,
-    nextChargeAt: m.nextChargeAt ? shiftDays(m.nextChargeAt, input.days) : null,
+    nextChargeAt: m.nextChargeAt ? addBrusselsDays(m.nextChargeAt, input.days) : null,
     cancelAt: m.cancelAt ? newEnd : null,
   });
   if (input.alsoExtendInclusions) {
     for (const g of await currentPeriodGrants(tx, m)) {
       if ((g.status !== "active" && g.status !== "exhausted") || !g.expiresAt) continue;
-      await extend(tx, ctx, { grantId: g.id, newExpiresAt: shiftDays(g.expiresAt, input.days), reason, clientKey: `${input.clientKey}:${g.id}` });
+      await extend(tx, ctx, { grantId: g.id, newExpiresAt: addBrusselsDays(g.expiresAt, input.days), reason, clientKey: `${input.clientKey}:${g.id}` });
     }
   }
   await membershipEvent(ctx, row, "membership.period_extended", eventKey, { days: input.days, period_end_on: dateKey(newEnd) });

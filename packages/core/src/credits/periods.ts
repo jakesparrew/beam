@@ -15,8 +15,11 @@ export function anchorDayOf(startedAt: Date): number {
   return brusselsDateOf(startedAt).day;
 }
 
-/** The same Brussels wall-clock time as `like` (to the millisecond) on another calendar date. */
-function atWallTimeOf(like: Date, date: { year: number; month: number; day: number }): Date {
+/**
+ * The same Brussels wall-clock time as `like` (to the millisecond) on another calendar date, so
+ * 23:59:59.999 stays end of day across a 23- or 25-hour DST day.
+ */
+export function atWallTimeOf(like: Date, date: { year: number; month: number; day: number }): Date {
   const w = wallClock(like, BRUSSELS);
   const minute = zonedTimeToUtc({ ...date, hour: w.hour, minute: w.minute }, BRUSSELS);
   const subMinuteMs = ((like.getTime() % 60_000) + 60_000) % 60_000;

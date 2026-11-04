@@ -8,9 +8,9 @@
  */
 import type { DbOrTx } from "@beam/db";
 import { creditBulkExtensions, creditEntries, creditGrants, type BulkExtensionFilterJson } from "@beam/db/schema";
-import { BulkExtendInput } from "@beam/core/credits";
+import { addBrusselsDays, BulkExtendInput } from "@beam/core/credits";
 import { and, asc, ConflictError, eq, inArray, sql, ValidationError, type Ctx, type SQL } from "@/lib/ctx";
-import { addBrusselsDays, extend, lockGrants } from "./ledger";
+import { extend, lockGrants } from "./ledger";
 
 /** Grants handled per job run. */
 export const BULK_EXTEND_CHUNK = 500;

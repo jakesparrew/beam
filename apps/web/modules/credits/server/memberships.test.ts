@@ -15,7 +15,7 @@ import {
   vCreditGrantBalances,
 } from "@beam/db/schema";
 import { createTestDb, makePerson, makeProduct, makeUser } from "@beam/db/testing";
-import { assertMembershipTransition, brusselsDateKey, brusselsDateOf, nextPeriod, startOfDayIn } from "@beam/core/credits";
+import { addBrusselsDays, assertMembershipTransition, brusselsDateKey, brusselsDateOf, nextPeriod, startOfDayIn } from "@beam/core/credits";
 import { LOCALES } from "@beam/core/i18n";
 import { renderEmail } from "@beam/email/render";
 import { TEMPLATE_REGISTRY } from "@beam/email/templates/registry";
@@ -43,10 +43,10 @@ import {
   getMembershipSummary,
   importMembership,
   lockMembership,
+  periodStartBefore,
   requestCancel,
   resume,
   scanMembership,
-  shiftDays,
   type MembershipRow,
 } from "./memberships";
 import { creditsSettings } from "./ledger";
@@ -150,7 +150,7 @@ afterEach(() => {
 
 // Tuesday 10 March 2026, 10:00 Brussels (CET).
 const T0 = new Date("2026-03-10T09:00:00.000Z");
-const days = (n: number, from = T0) => shiftDays(from, n);
+const days = (n: number, from = T0) => addBrusselsDays(from, n);
 const ctxAt = (now: Date, actor?: Actor) => makeCtx(h.db, actor ? { now, actor } : { now });
 const tx = () => h.db as unknown as Tx;
 
@@ -292,7 +292,7 @@ describe("activateMembership (rules 45 to 47)", () => {
   it("a mandate sets the first automatic charge 3 days before the period end", async () => {
     const { m } = await start({ mandate: true });
     expect(m.mandateId).not.toBeNull();
-    expect(m.nextChargeAt).toEqual(shiftDays(m.currentPeriodEndAt, -3));
+    expect(m.nextChargeAt).toEqual(addBrusselsDays(m.currentPeriodEndAt, -3));
   });
 
   it("activateMembership twice for one order creates one membership", async () => {
@@ -497,7 +497,7 @@ describe("renewal by mandate (rules 48, 49)", () => {
     expect(second).toMatchObject({ applied: false });
     const after = await row(m.id);
     expect(after).toMatchObject({ status: "active", currentPeriodStartAt: oldEnd, renewalOrderId: null, dunningAttempt: 0, pastDueSinceAt: null });
-    expect(after.nextChargeAt).toEqual(shiftDays(after.currentPeriodEndAt, -3));
+    expect(after.nextChargeAt).toEqual(addBrusselsDays(after.currentPeriodEndAt, -3));
     expect((await periodsOf(m.id)).map((p) => p.source)).toEqual(["purchase", "renewal"]);
     expect((await grantsOf(m.id)).map((g) => g.g.startsAt)).toEqual([T0, oldEnd]);
     expect((await eventsOf(m.id)).filter((e) => e.kind === "membership.renewed")).toHaveLength(1);
@@ -805,7 +805,7 @@ describe("cancellation (rules 53, 54)", () => {
     await requestCancel(tx(), ctxAt(days(2)), { membershipId: m.id, by: "customer" });
     const resumed = await resume(tx(), ctxAt(days(3)), { membershipId: m.id });
     expect(resumed).toMatchObject({ cancelAt: null, cancelRequestedAt: null, status: "active" });
-    expect(resumed.nextChargeAt).toEqual(shiftDays(m.currentPeriodEndAt, -3));
+    expect(resumed.nextChargeAt).toEqual(addBrusselsDays(m.currentPeriodEndAt, -3));
     expect((await eventsOf(m.id)).map((e) => e.kind)).toEqual(["membership.started", "membership.cancel_requested", "membership.resumed"]);
     expect((await auditsOf(m.id)).map((a) => a.action)).toContain("memberships.resumed");
     await expect(resume(tx(), ctxAt(days(3)), { membershipId: m.id })).rejects.toMatchObject({ code: "conflict" });
@@ -858,20 +858,46 @@ describe("period extension, the V1 pause (rule 55)", () => {
     const staff = staffActor({ userId: (await makeUser(h.db)).id, permissions: ["memberships.write", "credits.adjust"] });
     const clientKey = randomUUID();
     const r = await extendPeriod(tx(), ctxAt(days(5), staff), { membershipId: m.id, days: 14, reason: "injury pause", alsoExtendInclusions: true, clientKey, version: m.version });
-    expect(r).toMatchObject({ created: true, periodEndAt: shiftDays(m.currentPeriodEndAt, 14) });
+    expect(r).toMatchObject({ created: true, periodEndAt: addBrusselsDays(m.currentPeriodEndAt, 14) });
     const after = await row(m.id);
-    expect(after.currentPeriodEndAt).toEqual(shiftDays(m.currentPeriodEndAt, 14));
-    expect(after.nextChargeAt).toEqual(shiftDays(m.nextChargeAt!, 14));
+    expect(after.currentPeriodEndAt).toEqual(addBrusselsDays(m.currentPeriodEndAt, 14));
+    expect(after.nextChargeAt).toEqual(addBrusselsDays(m.nextChargeAt!, 14));
     expect((await periodsOf(m.id)).map((p) => [p.source, p.periodStartAt, p.periodEndAt])).toEqual([
       ["purchase", T0, m.currentPeriodEndAt],
       ["staff_extension", m.currentPeriodEndAt, after.currentPeriodEndAt],
     ]);
     const [g] = await grantsOf(m.id);
-    expect(g!.g.expiresAt).toEqual(shiftDays(m.currentPeriodEndAt, 14));
+    expect(g!.g.expiresAt).toEqual(addBrusselsDays(m.currentPeriodEndAt, 14));
     expect(await grantsOf(m.id)).toHaveLength(1);
     expect((await extendPeriod(tx(), ctxAt(days(5), staff), { membershipId: m.id, days: 14, reason: "injury pause", alsoExtendInclusions: true, clientKey })).created).toBe(false);
     expect((await row(m.id)).currentPeriodEndAt).toEqual(after.currentPeriodEndAt);
     expect((await auditsOf(m.id)).map((a) => a.action)).toContain("memberships.period_extended");
+  });
+
+  it("fix-w09-credits-review 5: an extension from the 25-hour DST day keeps the wall-clock time of the period end", async () => {
+    // Started 25 Sep 2026 10:00 Brussels (CEST): the period ends 25 Oct 10:00 (CET, the 25-hour day).
+    const startsAt = new Date("2026-09-25T08:00:00.000Z");
+    const { m } = await start({ mandate: true, startsAt, now: startsAt });
+    expect(m.currentPeriodEndAt.toISOString()).toBe("2026-10-25T09:00:00.000Z");
+    const staff = staffActor({ userId: (await makeUser(h.db)).id, permissions: ["memberships.write", "credits.adjust"] });
+    const r = await extendPeriod(tx(), ctxAt(new Date("2026-10-01T08:00:00.000Z"), staff), {
+      membershipId: m.id,
+      days: 7,
+      reason: "injury pause",
+      alsoExtendInclusions: true,
+      clientKey: randomUUID(),
+    });
+    expect(r.periodEndAt.toISOString()).toBe("2026-11-01T09:00:00.000Z"); // 1 Nov 10:00 Brussels
+    const after = await row(m.id);
+    expect(after.nextChargeAt!.toISOString()).toBe("2026-10-29T09:00:00.000Z"); // 22 Oct 10:00 CEST + 7 = 29 Oct 10:00 CET
+    const [g] = await grantsOf(m.id);
+    expect(g!.g.expiresAt!.toISOString()).toBe("2026-11-01T09:00:00.000Z");
+  });
+
+  it("fix-w09-credits-review 5: periodStartBefore keeps the wall-clock time across DST", () => {
+    expect(periodStartBefore(new Date("2026-11-25T09:00:00.000Z"), "month").toISOString()).toBe("2026-10-25T09:00:00.000Z");
+    expect(periodStartBefore(new Date("2026-11-25T22:59:59.999Z"), "month").toISOString()).toBe("2026-10-25T22:59:59.999Z");
+    expect(periodStartBefore(new Date("2027-03-28T08:00:00.000Z"), "year").toISOString()).toBe("2026-03-28T09:00:00.000Z");
   });
 
   it("without the tick the inclusion grants keep their expiry; the next renewal starts at the moved end", async () => {
@@ -953,7 +979,7 @@ describe("importMembership (ops imports)", () => {
     const m = await row(first.membershipId);
     expect(m).toMatchObject({ status: "active", source: "import", currentPeriodEndAt: periodEndAt, discountPct: "10.00" });
     expect(brusselsDateKey(m.currentPeriodStartAt)).toBe("2026-02-22");
-    expect(m.nextChargeAt).toEqual(shiftDays(periodEndAt, -3));
+    expect(m.nextChargeAt).toEqual(addBrusselsDays(periodEndAt, -3));
     expect((await periodsOf(m.id)).map((p) => p.source)).toEqual(["import"]);
     expect(await grantsOf(m.id)).toHaveLength(1);
   });

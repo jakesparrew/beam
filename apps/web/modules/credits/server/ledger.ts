@@ -20,7 +20,6 @@ import {
   type CreditEntryRefType,
 } from "@beam/db/schema";
 import {
-  addCalendarDays,
   allocateCredits,
   assertGrantTransition,
   brusselsDateOf,
@@ -122,13 +121,6 @@ export function brusselsMonthWindow(at: Date): { from: Date; to: Date } {
   const d = brusselsDateOf(at);
   const next = d.month === 12 ? { year: d.year + 1, month: 1, day: 1 } : { year: d.year, month: d.month + 1, day: 1 };
   return { from: startOfDayIn({ year: d.year, month: d.month, day: 1 }), to: startOfDayIn(next) };
-}
-
-/** `at` moved `days` Brussels calendar days, keeping the time of day (23:59:59.999 stays end of day across DST). */
-export function addBrusselsDays(at: Date, days: number): Date {
-  const date = brusselsDateOf(at);
-  const offset = at.getTime() - startOfDayIn(date).getTime();
-  return new Date(startOfDayIn(addCalendarDays(date, days)).getTime() + offset);
 }
 
 const isExpiredAt = (g: Pick<GrantRow, "expiresAt">, now: Date) => g.expiresAt !== null && g.expiresAt.getTime() <= now.getTime();

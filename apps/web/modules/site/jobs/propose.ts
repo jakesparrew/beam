@@ -91,6 +91,13 @@ export async function loadProposalRefs(ctx: JobCtx, pageId: string): Promise<Pro
 
 const isInvalidOutput = (e: unknown) => (e instanceof RetryableError || e instanceof PermanentError) && e.message === "invalid_output";
 const isRetryable = (e: unknown) => e instanceof RetryableError || (e instanceof IntegrationError && e.retryable);
+function rawJson(text: string): unknown {
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return null;
+  }
+}
 const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 export async function proposePage(ctx: JobCtx, input: ProposePageInput): Promise<ProposePageResult> {
@@ -130,7 +137,8 @@ export async function proposePage(ctx: JobCtx, input: ProposePageInput): Promise
       // `fieldsSent` lists personal-data fields (PL-53); a proposal sends none (rule 42).
       const res = await callClaude(ctx, { feature: "site.propose_page", model: "opus", system: prompt.system, messages, fieldsSent: [], outputSchema: ProposalOutput, maxTokens: 16000 });
       text = res.text;
-      parsed = res.parsed;
+      // The raw answer, so keys `ProposalOutput` strips (kind, legal key, session) are still checked.
+      parsed = rawJson(res.text) ?? res.parsed;
       lastAiRequestId = res.aiRequestId;
     } catch (error) {
       if (isInvalidOutput(error)) {

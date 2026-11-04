@@ -23,13 +23,13 @@ export async function POST(req: Request): Promise<Response> {
   const url = new URL(req.url);
   return handleWebhook(req, {
     provider: "mollie",
-    verify: async (raw, headers) => {
+    verify: (raw, headers) => {
       const id = new URLSearchParams(raw).get("id")?.trim();
-      if (!id) return { ok: false };
+      if (!id) return Promise.resolve({ ok: false as const });
       const secret = process.env.MOLLIE_WEBHOOK_SECRET;
       const token = url.searchParams.get("t");
       const ok = secret && token ? safeEqual(token, secret) : getIntegrations().payments.verifyWebhook({ headers, rawBody: raw, url });
-      return ok ? { ok: true, externalEventId: `${id}:${Date.now()}`, payload: { id } } : { ok: false };
+      return Promise.resolve(ok ? { ok: true as const, externalEventId: `${id}:${Date.now()}`, payload: { id } } : { ok: false as const });
     },
   });
 }

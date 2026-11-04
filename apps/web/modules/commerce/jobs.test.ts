@@ -12,12 +12,12 @@ import { emailMessages, files, orders, payments } from "@beam/db/schema";
 
 vi.mock("next/headers", () => ({ cookies: () => Promise.resolve({ get: () => undefined }), headers: () => Promise.resolve(new Headers()) }));
 vi.mock("next/server", () => ({ after: () => undefined }));
-const issueInvoice = vi.fn();
+const issueInvoice = vi.fn<(...a: unknown[]) => unknown>();
 vi.mock("@/modules/finance/api", async (importOriginal) => ({
   ...(await importOriginal<object>()),
   issueInvoice: (...a: unknown[]) => issueInvoice(...a),
 }));
-const refundOrderLine = vi.fn();
+const refundOrderLine = vi.fn<(...a: unknown[]) => unknown>();
 vi.mock("@/modules/commerce/api", async (importOriginal) => ({
   ...(await importOriginal<object>()),
   refundOrderLine: (...a: unknown[]) => refundOrderLine(...a),

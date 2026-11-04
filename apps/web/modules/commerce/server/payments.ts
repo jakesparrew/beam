@@ -11,7 +11,6 @@
  *   transaction when the order is covered (rule 31) and the failure path otherwise (rule 33).
  */
 import { checkouts, mandates, orders, orderLines, payments, persons, providerCustomers } from "@beam/db/schema";
-import type { Db } from "@beam/db";
 import {
   nextPaymentStatus,
   type OnlinePaymentProvider,
@@ -157,7 +156,7 @@ export async function startPayment(tx: Tx, ctx: Ctx, input: { orderId: string; r
     const result = await runJobInline<CreatePaymentJobResult>(
       "payments.create",
       { paymentId, redirectUrl: returnUrl },
-      { key: `payment_create:${paymentId}`, requestId: ctx.requestId, db: tx as unknown as Db },
+      { key: `payment_create:${paymentId}`, requestId: ctx.requestId, db: tx },
     );
     if ("checkoutUrl" in result && result.checkoutUrl) return { paymentId, redirectUrl: result.checkoutUrl };
     return { paymentId, redirectUrl: withQuery(returnUrl, "payment", "failed") };

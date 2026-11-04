@@ -19,10 +19,10 @@ vi.mock("next/headers", () => ({ cookies: () => Promise.resolve({ get: () => und
 vi.mock("next/server", () => ({ after: () => undefined }));
 
 const credits = {
-  grantCredits: vi.fn(),
-  activateMembership: vi.fn(),
-  applyRenewalPayment: vi.fn(),
-  applyRenewalFailure: vi.fn(),
+  grantCredits: vi.fn<(...a: unknown[]) => unknown>(),
+  activateMembership: vi.fn<(...a: unknown[]) => unknown>(),
+  applyRenewalPayment: vi.fn<(...a: unknown[]) => unknown>(),
+  applyRenewalFailure: vi.fn<(...a: unknown[]) => unknown>(),
 };
 vi.mock("@/modules/credits/api", async (importOriginal) => ({
   ...(await importOriginal<object>()),
@@ -31,12 +31,12 @@ vi.mock("@/modules/credits/api", async (importOriginal) => ({
   applyRenewalPayment: (...a: unknown[]) => credits.applyRenewalPayment(...a),
   applyRenewalFailure: (...a: unknown[]) => credits.applyRenewalFailure(...a),
 }));
-const confirmBookingsForOrder = vi.fn();
+const confirmBookingsForOrder = vi.fn<(...a: unknown[]) => unknown>();
 vi.mock("@/modules/booking/api", async (importOriginal) => ({
   ...(await importOriginal<object>()),
   confirmBookingsForOrder: (...a: unknown[]) => confirmBookingsForOrder(...a),
 }));
-const issueInvoice = vi.fn();
+const issueInvoice = vi.fn<(...a: unknown[]) => unknown>();
 vi.mock("@/modules/finance/api", async (importOriginal) => ({
   ...(await importOriginal<object>()),
   issueInvoice: (...a: unknown[]) => issueInvoice(...a),
@@ -182,7 +182,8 @@ describe("finalizePaidOrder", () => {
     expect(confirmBookingsForOrder).toHaveBeenCalledTimes(1);
     expect(confirmBookingsForOrder).toHaveBeenCalledWith(expect.anything(), expect.anything(), { orderId: order.id });
     const [active] = await h.db.select().from(vouchers).where(eq(vouchers.id, v!.id));
-    expect(active).toMatchObject({ status: "active", codeLast4: expect.stringMatching(/^[0-9A-Z]{4}$/) });
+    expect(active!.status).toBe("active");
+    expect(active!.codeLast4).toMatch(/^[0-9A-Z]{4}$/);
     expect(active!.codeHash).toMatch(/^[0-9a-f]{64}$/);
     expect(active!.activatedAt?.toISOString()).toBe(NOW.toISOString());
     expect(active!.expiresAt?.toISOString()).toBe(new Date(NOW.getTime() + 730 * 86_400_000).toISOString());

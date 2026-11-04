@@ -8,14 +8,14 @@ import { randomUUID } from "node:crypto";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTestDb, makePerson, makeProduct } from "@beam/db/testing";
 import { makeOrder, makeOrderLine } from "@beam/db/testing/commerce-factories";
-import type { Db, DbHandle } from "@beam/db";
+import type { DbHandle } from "@beam/db";
 import { activityEvents, jobs, orders, payments, webhookEvents } from "@beam/db/schema";
 import { RetryableError } from "@beam/core/errors";
 import type { WebhookHandlerDefinition } from "@/lib/webhooks";
 
 vi.mock("next/headers", () => ({ cookies: () => Promise.resolve({ get: () => undefined }), headers: () => Promise.resolve(new Headers()) }));
 vi.mock("next/server", () => ({ after: () => undefined }));
-const issueInvoice = vi.fn();
+const issueInvoice = vi.fn<(...a: unknown[]) => unknown>();
 vi.mock("@/modules/finance/api", async (importOriginal) => ({
   ...(await importOriginal<object>()),
   issueInvoice: (...a: unknown[]) => issueInvoice(...a),
@@ -60,7 +60,7 @@ const post = (id: string, token: string | null) =>
 /** Runs the registered handler in its own transaction, like `webhook.process`. */
 async function handle(id: string): Promise<void> {
   await h.db.transaction(async (tx) => {
-    const ctx = makeJobCtx(h.db as Db, "webhook.process", { integrations: fake, tx });
+    const ctx = makeJobCtx(h.db, "webhook.process", { integrations: fake, tx });
     await handler().handle(ctx, { id: randomUUID(), payload: { id } });
   });
 }
@@ -102,7 +102,7 @@ describe("POST /api/webhooks/mollie", () => {
     const rows = (await h.db.select().from(webhookEvents)).filter((r) => (r.payload as { id?: string }).id === providerPaymentId);
     expect(rows).toHaveLength(1);
     expect(rows[0]!.externalEventId).toMatch(new RegExp(`^${providerPaymentId}:\\d+$`));
-    expect(await h.db.select().from(jobs).where(and(eq(jobs.kind, "webhook.process"), eq(jobs.id, rows[0]!.jobId!)))).toHaveLength(1);
+    expect(await h.db.select().from(jobs).where(and(eq(jobs.kind, "webhook.process"), eq(jobs.id, rows[0]!.jobId ?? "")))).toHaveLength(1);
   });
 });
 

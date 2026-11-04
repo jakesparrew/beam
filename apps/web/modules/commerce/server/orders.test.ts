@@ -15,7 +15,7 @@ import { activityEvents, invoices, jobs, orderLines, orders, payments, personPri
 vi.mock("next/headers", () => ({ cookies: () => Promise.resolve({ get: () => undefined }), headers: () => Promise.resolve(new Headers()) }));
 vi.mock("next/server", () => ({ after: () => undefined }));
 
-const getCurrentLegalVersion = vi.fn();
+const getCurrentLegalVersion = vi.fn<(...a: unknown[]) => unknown>();
 vi.mock("@/modules/site/api", async (importOriginal) => ({
   ...(await importOriginal<object>()),
   getCurrentLegalVersion: (...a: unknown[]) => getCurrentLegalVersion(...a),
@@ -23,12 +23,12 @@ vi.mock("@/modules/site/api", async (importOriginal) => ({
 
 const noMembership = { isMember: false, membershipId: null, planProductId: null, discountPct: 0, status: null, periodEndAt: null, cancelAt: null };
 const credits = {
-  getMembershipForPerson: vi.fn(),
-  canStartMembership: vi.fn(),
-  getEuroBalance: vi.fn(),
-  consumeCredits: vi.fn(),
-  grantCredits: vi.fn(),
-  activateMembership: vi.fn(),
+  getMembershipForPerson: vi.fn<(...a: unknown[]) => unknown>(),
+  canStartMembership: vi.fn<(...a: unknown[]) => unknown>(),
+  getEuroBalance: vi.fn<(...a: unknown[]) => unknown>(),
+  consumeCredits: vi.fn<(...a: unknown[]) => unknown>(),
+  grantCredits: vi.fn<(...a: unknown[]) => unknown>(),
+  activateMembership: vi.fn<(...a: unknown[]) => unknown>(),
 };
 vi.mock("@/modules/credits/api", async (importOriginal) => ({
   ...(await importOriginal<object>()),

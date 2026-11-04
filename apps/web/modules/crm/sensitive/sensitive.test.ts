@@ -158,6 +158,36 @@ describe("sensitive fields (rules 3.23 to 3.26)", () => {
     expect(JSON.stringify(reads)).not.toContain(body);
   });
 
+  it("3.26 and 3.32 a merged loser's sensitive note is revealed on the winner, read and audited for its owner (fix-w09-crm-review)", async () => {
+    const winner = await makePerson(h.db);
+    const loser = await makePerson(h.db, { mergedIntoPersonId: winner.id });
+    const stranger = await makePerson(h.db);
+    const [loserBody, winnerBody, strangerBody] = [secret(), secret(), secret()];
+    const ctx = makeCtx(h.db, staffActor({ userId: owner.id, roleKey: "owner", permissions: ["*"] }));
+    const loserNote = String((await ctx.recordEvent({ kind: "note.added", personId: loser.id, isSensitive: true, data: encryptNote(loser.id, loserBody) })).id);
+    const winnerNote = String((await ctx.recordEvent({ kind: "note.added", personId: winner.id, isSensitive: true, data: encryptNote(winner.id, winnerBody) })).id);
+    const strangerNote = String((await ctx.recordEvent({ kind: "note.added", personId: stranger.id, isSensitive: true, data: encryptNote(stranger.id, strangerBody) })).id);
+
+    const res = await actions.revealSensitive({ personId: winner.id, eventIds: [loserNote, winnerNote, strangerNote] });
+    expect(res.ok).toBe(true);
+    const notes = (res as { data: { notes: { eventId: string; body: string }[] } }).data.notes;
+    expect(notes).toHaveLength(2);
+    expect(notes).toEqual(expect.arrayContaining([{ eventId: loserNote, body: loserBody }, { eventId: winnerNote, body: winnerBody }]));
+    expect(JSON.stringify(notes)).not.toContain(strangerBody);
+    expect(spies.readSensitive.mock.calls.map((c) => c.slice(1))).toEqual([
+      [winner.id, "staff_view", { eventIds: [winnerNote] }],
+      [loser.id, "staff_view", { eventIds: [loserNote] }],
+    ]);
+    const loserReads = await h.db.select().from(auditLog).where(and(eq(auditLog.personId, loser.id), eq(auditLog.action, "sensitive.read")));
+    expect(JSON.stringify(loserReads)).toContain(loserNote);
+    expect(JSON.stringify(loserReads)).not.toContain(loserBody);
+
+    // only a loser's note: one read, for the loser
+    spies.readSensitive.mockClear();
+    expect(await actions.revealSensitive({ personId: winner.id, eventIds: [loserNote] })).toEqual({ ok: true, data: { fields: {}, notes: [{ eventId: loserNote, body: loserBody }] } });
+    expect(spies.readSensitive.mock.calls.map((c) => c.slice(1))).toEqual([[loser.id, "staff_view", { eventIds: [loserNote] }]]);
+  });
+
   it("3.23 no plaintext in activity_events, and merged or unknown persons are refused", async () => {
     const p = await makePerson(h.db);
     const values = [secret(), secret()];

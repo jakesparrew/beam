@@ -10,7 +10,7 @@ import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { Alert, AlertDescription, Button, Checkbox, FormField, Input, Label, LocalizedInput, type LocalizedInputLabels, type LocalizedValue } from "@beam/ui";
 import { createSession } from "../actions/sessions";
-import { createTemplates, updateTemplate } from "../actions/templates";
+import { createTemplates, setTemplateActive, updateTemplate } from "../actions/templates";
 
 type Locale = "nl-BE" | "fr-BE" | "en";
 const LOCALES: readonly Locale[] = ["nl-BE", "fr-BE", "en"];
@@ -399,5 +399,39 @@ export function SessionForm({
         </Button>
       </div>
     </form>
+  );
+}
+
+/** Activate or deactivate a template (`setTemplateActive`; activation needs a complete name). */
+export function TemplateActiveToggle({ id, isActive, labels }: { id: string; isActive: boolean; labels: { activate: string; deactivate: string; incomplete: string; error: string } }) {
+  const router = useRouter();
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  return (
+    <span className="inline-flex flex-wrap items-center gap-2">
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        disabled={pending}
+        onClick={() => {
+          setPending(true);
+          setError(null);
+          void setTemplateActive({ id, isActive: !isActive })
+            .then((res) => {
+              if (res.ok) router.refresh();
+              else setError(res.error.code === "validation" ? labels.incomplete : labels.error);
+            })
+            .finally(() => setPending(false));
+        }}
+      >
+        {isActive ? labels.deactivate : labels.activate}
+      </Button>
+      {error ? (
+        <span role="alert" className="text-xs text-destructive">
+          {error}
+        </span>
+      ) : null}
+    </span>
   );
 }

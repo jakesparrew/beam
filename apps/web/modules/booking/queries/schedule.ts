@@ -6,7 +6,7 @@
  * (they use `../api.ts`).
  */
 import type { DbOrTx } from "@beam/db";
-import { bookings, capacityHolds, companies, orderLines, orders, persons, products, sessionTemplates, sessions, vSessionAvailability } from "@beam/db/schema";
+import { bookings, capacityHolds, companies, jobs, orderLines, orders, persons, products, sessionTemplates, sessions, vSessionAvailability } from "@beam/db/schema";
 import {
   MATERIALISE_DAYS,
   addDays,
@@ -310,6 +310,15 @@ export async function listHoldableSessions(db: DbOrTx, input: { now?: Date; days
 /** Company names for the partner hold picker (crm `companies`, names only). */
 export function listCompanyOptions(db: DbOrTx): Promise<Array<{ id: string; name: string }>> {
   return db.select({ id: companies.id, name: companies.name }).from(companies).orderBy(asc(companies.name)).limit(500);
+}
+
+/** The status of the template's regeneration job for its current version (`regenerate:<id>:<version>`). */
+export async function getRegenerationStatus(db: DbOrTx, template: { id: string; version: number }): Promise<{ jobId: string; status: string; lastError: string | null } | null> {
+  const [row] = await db
+    .select({ jobId: jobs.id, status: jobs.status, lastError: jobs.lastError })
+    .from(jobs)
+    .where(eq(jobs.idempotencyKey, `regenerate:${template.id}:${template.version}`));
+  return row ?? null;
 }
 
 /** Active session, night and ticket products for the "single-ticket product" pickers (names only). */

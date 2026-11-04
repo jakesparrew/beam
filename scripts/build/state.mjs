@@ -4,6 +4,7 @@
 //   node scripts/build/state.mjs init
 //   node scripts/build/state.mjs status
 //   node scripts/build/state.mjs ready [limit]
+//   node scripts/build/state.mjs pick <n>                    up to n ready packages that do not overlap each other
 //   node scripts/build/state.mjs start <id> <baseSha> [runId]
 //   node scripts/build/state.mjs done <id> <branchSha> [minutes]
 //   node scripts/build/state.mjs merged <id> <mergeSha>
@@ -65,6 +66,23 @@ switch (cmd) {
     const list = readyList();
     for (const r of list.slice(0, limit)) console.log(`${r.blockedBy ? 'WAIT ' : 'READY'} ${r.id.padEnd(16)} ${r.release} w${String(r.wave).padStart(2, '0')} est ${String(r.est).padStart(3)} chain ${String(r.chain).padStart(4)}${r.blockedBy ? '  blocked by ' + r.blockedBy : ''}`);
     if (!list.length) console.log('(nothing ready)');
+    break;
+  }
+  case 'pick': {
+    // pick <n>: up to n ready packages to start together, in ready order, skipping any whose
+    // owns overlap a package already picked (ready only checks against running/unmerged ones).
+    const n = Number(a[0] || 1);
+    const ownsOf = id => (byId[id] ? expandOwns(byId[id]) : state.packages[id]?.owns || []);
+    const picked = [];
+    for (const r of readyList()) {
+      if (picked.length >= n) break;
+      if (r.blockedBy) continue;
+      const clash = picked.find(p => ownsOverlap(ownsOf(r.id), ownsOf(p)));
+      if (clash) { console.log(`SKIP  ${r.id.padEnd(16)} overlaps ${clash}`); continue; }
+      picked.push(r.id);
+      console.log(`PICK  ${r.id.padEnd(16)} ${r.release} chain ${r.chain}`);
+    }
+    if (!picked.length) console.log('(nothing to pick)');
     break;
   }
   case 'start': { const [id, base, run] = a; Object.assign(state.packages[id], { status: 'running', baseSha: base, runId: run || null, startedAt: now(), attempts: (state.packages[id].attempts || 0) + 1 }); save(); console.log(`${id} running from ${base}`); break; }

@@ -1,13 +1,13 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DbHandle } from "@beam/db";
 import { createTestDb, makePerson } from "@beam/db/testing";
-import { brusselsDate } from "@beam/core/booking";
+import { DEFAULT_BOOKING_RULES, brusselsDate } from "@beam/core/booking";
 import { NotImplementedError } from "@beam/core/errors";
 import { resetRuntime } from "@/lib/testing";
 import { hasValidSubmission } from "@/modules/forms/api";
 import { DAY, HOUR, openSession, setBookingRules } from "../server/booking-p3a.fixtures";
 import { rawBooking, unpaidOrderBooking } from "../server/booking-p3b.fixtures";
-import { codeFromScan, getCheckinCard, getCheckinDay, searchCheckin } from "./attendance";
+import { attendanceFlags, codeFromScan, getCheckinCard, getCheckinDay, getSessionAttendees, listManualBookingSessions, searchCheckin } from "./attendance";
 
 vi.mock("@/lib/auth", () => ({ requirePermission: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("@/modules/forms/api", async (orig) => ({ ...(await orig<Record<string, unknown>>()), hasValidSubmission: vi.fn() }));
@@ -121,5 +121,45 @@ describe("getCheckinCard and getCheckinDay", () => {
     const mine = day.find((d) => d.sessionId === s.id);
     expect(mine?.notArrived.map((r) => r.bookingId).sort()).toEqual([owner.id, guest.id, unpaid.booking.id].sort());
     expect(mine?.notArrived.every((r) => r.healthDeclaration.state === "missing")).toBe(true);
+  });
+});
+
+describe("session detail and manual booking helpers", () => {
+  it("lists a session's attendees with guests after their owner and the amount still to pay", async () => {
+    const s = await openSession(h.db, { startsAt: new Date(Date.now() + 4 * HOUR) });
+    const owner = await rawBooking(h.db, { sessionId: s.id, personId: (await makePerson(h.db, { firstName: "Zoe", lastName: "Zeger" })).id });
+    const guest = await rawBooking(h.db, { sessionId: s.id, guestOfBookingId: owner.id, paidWith: "guest", personId: (await makePerson(h.db, { firstName: "Anna", lastName: "Aerts" })).id });
+    const unpaid = await unpaidOrderBooking(h.db, { sessionId: s.id, isPayAtDesk: true });
+    const gone = await rawBooking(h.db, { sessionId: s.id, status: "cancelled", cancelledAt: new Date(), cancelReasonCode: "staff" });
+    const rows = await getSessionAttendees(h.db, s.id);
+    const ids = rows.map((r) => r.bookingId);
+    expect(ids.indexOf(guest.id)).toBe(ids.indexOf(owner.id) + 1);
+    expect(ids[ids.length - 1]).toBe(gone.id);
+    expect(rows.find((r) => r.bookingId === owner.id)).toMatchObject({ guestCount: 1, name: "Zoe Zeger" });
+    expect(rows.find((r) => r.bookingId === guest.id)).toMatchObject({ guestOfName: "Zoe Zeger" });
+    expect(rows.find((r) => r.bookingId === unpaid.booking.id)).toMatchObject({ toPayCents: 2500, isPayAtDesk: true });
+  });
+
+  it("offers the attendance buttons by the check-in rules", () => {
+    const startsAt = new Date("2026-11-04T09:00:00Z");
+    const endsAt = new Date("2026-11-04T11:00:00Z");
+    const at = (iso: string, status: "confirmed" | "attended" | "no_show") => attendanceFlags({ status, startsAt, endsAt }, DEFAULT_BOOKING_RULES, new Date(iso));
+    expect(at("2026-11-04T06:00:00Z", "confirmed")).toMatchObject({ canCheckIn: false, canMarkNoShow: false });
+    expect(at("2026-11-04T08:00:00Z", "confirmed")).toMatchObject({ canCheckIn: true, canMarkNoShow: false });
+    expect(at("2026-11-04T09:30:00Z", "confirmed")).toMatchObject({ canCheckIn: true, canMarkNoShow: true });
+    expect(at("2026-11-04T12:59:00Z", "attended")).toMatchObject({ canUndo: true });
+    expect(at("2026-11-04T13:01:00Z", "attended")).toMatchObject({ canUndo: false });
+    expect(at("2026-11-10T11:00:00Z", "no_show")).toMatchObject({ canRevertNoShow: true });
+    expect(at("2026-11-12T11:00:00Z", "no_show")).toMatchObject({ canRevertNoShow: false });
+  });
+
+  it("lists the wizard's sessions with pay-at-desk from the rules, without cancelled sessions", async () => {
+    const from = new Date(Date.now() + 20 * DAY);
+    const plain = await openSession(h.db, { startsAt: new Date(from.getTime() + HOUR) });
+    const cancelled = await openSession(h.db, { startsAt: new Date(from.getTime() + 2 * HOUR), status: "cancelled", cancelledAt: new Date(), cancelReason: "x" });
+    const rows = await listManualBookingSessions(h.db, { from, to: new Date(from.getTime() + DAY) });
+    expect(rows.map((r) => r.id)).toContain(plain.id);
+    expect(rows.map((r) => r.id)).not.toContain(cancelled.id);
+    expect(rows.find((r) => r.id === plain.id)).toMatchObject({ payAtDeskAllowed: false, availableTotal: 10, creditBalance: null });
   });
 });

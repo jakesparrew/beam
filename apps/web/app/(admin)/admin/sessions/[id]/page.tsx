@@ -8,8 +8,9 @@ import { hasPermission, requireStaff } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
 import { adminLocale, softTranslator, translator } from "@/lib/i18n";
 import { getSetting } from "@/lib/settings";
-import { attendeeListLabels, attendeeRow, bookingErrorLabels, getSession, getSessionAttendees, listHolds, listSessionsInRange } from "@/modules/booking/queries";
+import { attendeeListLabels, attendeeRow, bookingErrorLabels, changeDialogLabels, getSession, getSessionAttendees, listHolds, listSessionsInRange } from "@/modules/booking/queries";
 import { AttendeeList } from "@/modules/booking/ui/attendee-list";
+import { CancelSessionDialog } from "@/modules/booking/ui/cancel-dialog";
 import { DeleteHoldButton, HoldForm } from "@/modules/booking/ui/hold-form";
 import { SessionWaitlistTab } from "@/modules/booking/ui/session-waitlist-tab";
 
@@ -78,6 +79,16 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
             <Link href={`/admin/bookings/new?sessionId=${id}` as Route} className={buttonVariants({ size: "sm" })}>
               {tr("booking.session.manual_booking")}
             </Link>
+          ) : null}
+          {canOverride && !cancelled ? (
+            <CancelSessionDialog
+              sessionId={id}
+              labels={{
+                ...changeDialogLabels(tr, tr("booking.session.cancel_session"), tr("booking.session.cancel_session_reason")),
+                notify: tr("booking.session.cancel_session_notify"),
+                warning: tr("booking.session.cancel_session_confirm"),
+              }}
+            />
           ) : null}
           {canWrite ? (
             <Link href={"/admin/bookings/checkin"} className={buttonVariants({ variant: "outline", size: "sm" })}>

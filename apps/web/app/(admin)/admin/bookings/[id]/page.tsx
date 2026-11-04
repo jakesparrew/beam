@@ -8,12 +8,16 @@ import { hasPermission, requireStaff } from "@/lib/auth";
 import { NotFoundError, getAppDb } from "@/lib/ctx";
 import { adminLocale, softTranslator, translator } from "@/lib/i18n";
 import { getSetting } from "@/lib/settings";
-import { attendeeListLabels, attendeeRow, getBooking, getBookingCreditEntries, getBookingHistory, getCheckinCard, type SessionAttendee, type Tr } from "@/modules/booking/queries";
+import { attendeeListLabels, attendeeRow, changeDialogLabels, getBooking, getBookingCreditEntries, getBookingHistory, getCheckinCard, listManualBookingSessions, type SessionAttendee, type Tr } from "@/modules/booking/queries";
 import { checkinQrSvg } from "@/modules/booking/server/qr";
 import { AttendeeList } from "@/modules/booking/ui/attendee-list";
+import { AddGuestDialog, RescheduleDialog } from "@/modules/booking/ui/cancel-dialog";
 
 const show = (text: LocalizedText | null | undefined, locale: Locale) => text?.[locale] || text?.["nl-BE"] || text?.en || text?.["fr-BE"] || "";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const DAY = 24 * 3_600_000;
+/** Days ahead the reschedule picker lists (R31). */
+const RESCHEDULE_DAYS = 90;
 const fullName = (first: string | null, last: string | null) => [first, last].filter((x) => x && x.trim()).join(" ") || "—";
 
 async function load(id: string) {
@@ -70,6 +74,19 @@ export default async function BookingDetailPage({ params }: { params: Promise<{ 
     guestCount: guests.filter((g) => g.status === "reserved" || g.status === "confirmed").length,
   };
   const row = attendeeRow(attendee, session, rules, { now, locale, tr, canOverride });
+  const isOwner = !booking.guestOfBookingId;
+  const canChange = canWrite && session.status !== "cancelled" && now.getTime() < session.startsAt.getTime();
+  const targets =
+    canChange && booking.status === "confirmed"
+      ? (await listManualBookingSessions(db, { from: now, to: new Date(now.getTime() + RESCHEDULE_DAYS * DAY) }))
+          .filter((s) => s.id !== session.id && s.kind === session.kind && s.status === "open")
+          .map((s) => ({ id: s.id, label: `${formatDate(s.startsAt, locale)} ${brusselsTime(s.startsAt)} · ${show(s.title, locale)} · ${tr("booking.availability.placesLeft", { count: s.availableTotal })}` }))
+      : [];
+  const guestPay: Array<{ value: "guest" | "order" | "free"; label: string }> = [
+    ...(session.creditKind && session.creditCost > 0 ? [{ value: "guest" as const, label: tr("booking.paidWith.guest") }] : []),
+    ...(session.productId ? [{ value: "order" as const, label: tr("booking.manual.pay_order_now") }] : []),
+    ...(canOverride || (!session.productId && !session.creditKind) ? [{ value: "free" as const, label: tr("booking.manual.pay_free") }] : []),
+  ];
 
   return (
     <div className="grid gap-8">
@@ -96,11 +113,36 @@ export default async function BookingDetailPage({ params }: { params: Promise<{ 
             {booking.cancelReasonCode ? <Badge variant="secondary">{tr(`booking.cancelReason.${booking.cancelReasonCode}`)}</Badge> : null}
           </span>
         </div>
+        <div className="flex flex-wrap gap-2">
+          {canChange && booking.status === "confirmed" ? (
+            <RescheduleDialog
+              bookingId={booking.id}
+              expectedVersion={booking.version}
+              targets={targets}
+              labels={{ ...changeDialogLabels(tr, tr("booking.session.reschedule")), target: tr("booking.bookings.session"), choose: tr("booking.manual.session_picker") }}
+            />
+          ) : null}
+          {canChange && isOwner && (booking.status === "confirmed" || booking.status === "reserved") && guestPay.length ? (
+            <AddGuestDialog
+              ownerBookingId={booking.id}
+              isNight={session.kind === "night"}
+              payOptions={guestPay}
+              labels={{
+                ...changeDialogLabels(tr, tr("booking.session.add_guest")),
+                firstName: tr("booking.manual.first_name"),
+                lastName: tr("booking.manual.last_name"),
+                email: tr("booking.manual.email"),
+                sharesBed: tr("booking.portalSession.guest_shares_bed"),
+                payment: tr("booking.manual.payment"),
+              }}
+            />
+          ) : null}
         {canWrite && card?.orderId ? (
           <Link href={`/admin/pos?order=${card.orderId}` as Route} className={buttonVariants({ size: "sm" })}>
             {tr("booking.checkin.take_payment")}
           </Link>
         ) : null}
+        </div>
       </div>
 
       <section aria-labelledby="booking-row" className="grid gap-3">

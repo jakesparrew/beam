@@ -21,6 +21,7 @@ import { checkInWindow, revertNoShowUntil } from "../jobs/attendance";
 import { HEALTH_DECLARATION_FORM } from "../server/declarations";
 import { hasEverAcceptedTerms } from "../server/terms";
 import type { AttendeeListLabels, AttendeeRowView } from "../ui/attendee-list";
+import type { ChangeDialogLabels } from "../ui/cancel-dialog";
 
 /** Rows of a name search (the set is one day, so no index is needed). */
 const SEARCH_LIMIT = 50;
@@ -587,5 +588,18 @@ export function attendeeRow(
     canRevertNoShow: f.canRevertNoShow,
     canCancel: (a.status === "confirmed" || a.status === "reserved" || (a.status === "late_cancelled" && ctx.canOverride)) && ctx.now.getTime() < session.endsAt.getTime(),
     policy,
+  };
+}
+
+/** The texts of a staff change dialog (reschedule, add guest, cancel session). */
+export function changeDialogLabels(tr: Tr, trigger: string, reason: string = tr("booking.manual.reason")): ChangeDialogLabels {
+  return {
+    trigger,
+    title: trigger,
+    reason,
+    confirm: tr("booking.common.confirm"),
+    close: tr("booking.common.close"),
+    reload: tr("booking.common.reload"),
+    errors: { ...bookingErrorLabels(tr), stale_version: tr("booking.common.stale_version") },
   };
 }

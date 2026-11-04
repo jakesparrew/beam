@@ -7,7 +7,7 @@ import { z } from "zod";
 import { LOCALES } from "../i18n/locales";
 import { LocalizedTextSchema } from "../i18n/localized-text";
 import { BlockDocumentSchema } from "./blocks";
-import { MARKETING_PURPOSES, MARKETING_SLUG_PATTERN } from "./types";
+import { MARKETING_PURPOSES, MARKETING_SLUG_PATTERN, TEMPLATE_KINDS, TEMPLATE_STATUSES } from "./types";
 
 export const LocaleSchema = z.enum(LOCALES);
 export const MarketingPurposeSchema = z.enum(MARKETING_PURPOSES);
@@ -35,16 +35,41 @@ export const PublishTemplateVersionInput = z.object({ templateId: uuid, draftUpd
 export const ArchiveTemplateInput = z.object({ templateId: uuid });
 export const DuplicateTemplateInput = z.object({ templateId: uuid, name: z.string().trim().min(1).max(160) });
 
+/** The sample personas of previews and test sends (rule 18: lead, customer, member, assessment outcome). */
+export const SAMPLE_PERSONAS = ["lead", "customer", "member"] as const;
+export type SamplePersona = (typeof SAMPLE_PERSONAS)[number];
+
+/** "Preview as": a real contact (`persons.read`) or a sample persona with an optional assessment outcome key. */
+export const PreviewAsSchema = z.union([
+  z.object({ personId: uuid }).strict(),
+  z.object({ sample: z.enum(SAMPLE_PERSONAS), assessmentOutcome: z.string().trim().min(1).max(80).optional() }).strict(),
+]);
+export type PreviewAs = z.infer<typeof PreviewAsSchema>;
+
 export const SendTestEmailInput = z.object({
   templateId: uuid,
   use: z.enum(["draft", "current"]),
   locales: z.array(LocaleSchema).min(1).max(3),
   to: z.array(z.string().trim().toLowerCase().email()).min(1).max(5),
-  as: z.union([
-    z.object({ personId: uuid }).strict(),
-    z.object({ sample: z.enum(["lead", "customer", "member"]), assessmentOutcome: z.string().min(1).optional() }).strict(),
-  ]),
+  as: PreviewAsSchema,
   campaignId: uuid.optional(),
+});
+
+/** `listTemplates` filters (email-P5): tab, status, search, owning module of a transactional key, page. */
+export const ListTemplatesInput = z.object({
+  kind: z.enum(TEMPLATE_KINDS).optional(),
+  status: z.enum(TEMPLATE_STATUSES).optional(),
+  q: z.string().trim().max(100).optional(),
+  module: z.string().regex(/^[a-z]+$/).optional(),
+  page: z.coerce.number().int().min(1).max(1000).default(1),
+});
+
+/** `getPreview` (email-P5): one locale of the draft or the current version, as a persona (none = lead sample). */
+export const GetPreviewInput = z.object({
+  templateId: uuid,
+  use: z.enum(["draft", "current"]),
+  locale: LocaleSchema,
+  as: PreviewAsSchema.optional(),
 });
 
 export const CreateCampaignInput = z.object({
@@ -116,6 +141,10 @@ export type CreateTemplateInput = z.infer<typeof CreateTemplateInput>;
 export type SaveTemplateDraftInput = z.infer<typeof SaveTemplateDraftInput>;
 export type PublishTemplateVersionInput = z.infer<typeof PublishTemplateVersionInput>;
 export type SendTestEmailInput = z.infer<typeof SendTestEmailInput>;
+export type ListTemplatesInput = z.input<typeof ListTemplatesInput>;
+export type GetPreviewInput = z.infer<typeof GetPreviewInput>;
+export type DuplicateTemplateInput = z.infer<typeof DuplicateTemplateInput>;
+export type ArchiveTemplateInput = z.infer<typeof ArchiveTemplateInput>;
 export type CreateCampaignInput = z.infer<typeof CreateCampaignInput>;
 export type UpdateCampaignInput = z.infer<typeof UpdateCampaignInput>;
 export type ScheduleCampaignInput = z.infer<typeof ScheduleCampaignInput>;

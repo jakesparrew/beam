@@ -9,10 +9,10 @@
  */
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { createTestDb, makePerson, makeProduct } from "@beam/db/testing";
+import { createTestDb, makePerson, makeProduct, makeUser } from "@beam/db/testing";
 import { ensureTermsVersion, makeOrder, makeOrderLine } from "@beam/db/testing/commerce-factories";
 import type { DbHandle, Tx } from "@beam/db";
-import { activityEvents, checkouts, jobs, orders, payments, termsAcceptances } from "@beam/db/schema";
+import { activityEvents, checkouts, jobs, orders, payments, promotions, termsAcceptances } from "@beam/db/schema";
 
 vi.mock("next/headers", () => ({ cookies: () => Promise.resolve({ get: () => undefined, set: () => undefined }), headers: () => Promise.resolve(new Headers()) }));
 vi.mock("next/server", () => ({ after: () => undefined }));
@@ -46,6 +46,23 @@ vi.mock("@/modules/credits/api", async (importOriginal) => ({
   getEuroBalance: (...a: unknown[]) => credits.getEuroBalance(...a),
   consumeCredits: (...a: unknown[]) => credits.consumeCredits(...a),
 }));
+
+/** Runs before `createOrder`'s own quote (the one with `companyId`), to simulate a concurrent order. */
+const catalogueHook: { beforeOrderQuote: ((db: unknown) => Promise<void>) | null } = { beforeOrderQuote: null };
+vi.mock("./catalogue", async (importOriginal) => {
+  const real = await importOriginal<typeof import("./catalogue")>();
+  return {
+    ...real,
+    getQuote: async (db: Parameters<typeof real.getQuote>[0], input: Parameters<typeof real.getQuote>[1]) => {
+      const hook = catalogueHook.beforeOrderQuote;
+      if (hook && "companyId" in input) {
+        catalogueHook.beforeOrderQuote = null;
+        await hook(db);
+      }
+      return real.getQuote(db, input);
+    },
+  };
+});
 
 const co = await import("./checkouts");
 const { startBankTransfer } = await import("./bank-transfer");
@@ -248,6 +265,57 @@ describe("placeOrder (rules 20, 26a to 26c)", () => {
     expect((await checkoutRow(started.checkoutId)).personId).toBe(order!.personId);
     expect(co.canSeeOrder(order!, { personId: null, orderIds: [order!.id] })).toBe(true);
     expect(co.canSeeOrder(order!, { personId: null })).toBe(false);
+  });
+});
+
+describe("placeOrder against a stale or re-priced order (review fixes 8, 9)", () => {
+  it("does not return the pending order of a basket changed since; it is replaced once its payment ended", async () => {
+    const person = await makePerson(h.db);
+    const a = await makeProduct(h.db, { kind: "package", priceCents: 10000 });
+    const b = await makeProduct(h.db, { kind: "item", priceCents: 2500 });
+    const { checkoutId, viewer } = await portalCheckout(person.id, [{ productId: a.id, quantity: 1 }]);
+    const first = await inTx((tx, ctx) => co.placeOrder(tx, ctx, { checkoutId, clientKey: randomUUID(), useEuroCredit: false, acceptTerms: true, expectedTotalCents: 10000 }, viewer));
+    // The checkout stays `started`: the customer changes the basket.
+    const changed = await inTx((tx, ctx) => co.updateCheckout(tx, ctx, { checkoutId, items: [{ productId: b.id, quantity: 2 }] }, viewer));
+    expect(changed.quote.totalCents).toBe(5000);
+    // While the old order's provider payment is live it cannot be cancelled: refused, not the old basket.
+    await expect(inTx((tx, ctx) => co.placeOrder(tx, ctx, { checkoutId, clientKey: randomUUID(), useEuroCredit: false, acceptTerms: true, expectedTotalCents: 5000 }, viewer))).rejects.toMatchObject({
+      code: "conflict",
+      message: "payment_in_progress",
+    });
+    // The payment ended (failed): the stale order is cancelled and a new one placed for the basket shown.
+    await h.db.update(payments).set({ status: "failed" }).where(eq(payments.orderId, first.orderId));
+    const second = await inTx((tx, ctx) => co.placeOrder(tx, ctx, { checkoutId, clientKey: randomUUID(), useEuroCredit: false, acceptTerms: true, expectedTotalCents: 5000 }, viewer));
+    expect(second.orderId).not.toBe(first.orderId);
+    const [old] = await h.db.select().from(orders).where(eq(orders.id, first.orderId));
+    const [fresh] = await h.db.select().from(orders).where(eq(orders.id, second.orderId));
+    expect(old!.status).toBe("cancelled");
+    expect(fresh).toMatchObject({ status: "pending_payment", totalCents: 5000, checkoutId });
+    expect(await checkoutRow(checkoutId)).toMatchObject({ orderId: second.orderId, totalCents: 5000 });
+  });
+
+  it("refuses with price_changed when a promotion is used up between the shown quote and the order", async () => {
+    const staff = await makeUser(h.db);
+    const code = `LAST${randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase()}`;
+    const [promo] = await h.db
+      .insert(promotions)
+      .values({ code, name: { en: "Last", "nl-BE": "Laatste", "fr-BE": "Dernier" }, kind: "percent", value: 10, startsAt: new Date(Date.now() - 3600_000), maxUses: 1, createdByUserId: staff.id })
+      .returning();
+    const person = await makePerson(h.db);
+    const product = await makeProduct(h.db, { kind: "package", priceCents: 10000 });
+    const { checkoutId, viewer } = await portalCheckout(person.id, [{ productId: product.id, quantity: 1 }]);
+    const shown = await inTx((tx, ctx) => co.updateCheckout(tx, ctx, { checkoutId, promoCode: code }, viewer));
+    expect(shown.quote.totalCents).toBe(9000);
+    // A concurrent order takes the last use after placeOrder's early check, before createOrder's locked quote.
+    catalogueHook.beforeOrderQuote = async (db) => {
+      await (db as Tx).update(promotions).set({ usesCount: 1 }).where(eq(promotions.id, promo!.id));
+    };
+    await expect(inTx((tx, ctx) => co.placeOrder(tx, ctx, { checkoutId, clientKey: randomUUID(), useEuroCredit: false, acceptTerms: true, expectedTotalCents: 9000 }, viewer))).rejects.toMatchObject({
+      code: "conflict",
+      message: "price_changed",
+    });
+    expect(catalogueHook.beforeOrderQuote).toBeNull();
+    expect(await h.db.select().from(orders).where(eq(orders.checkoutId, checkoutId))).toHaveLength(0);
   });
 });
 

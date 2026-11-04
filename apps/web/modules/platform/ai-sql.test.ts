@@ -166,7 +166,7 @@ describe("runAiReadOnlyQuery", () => {
   it("works inside the job's own transaction (a savepoint) and leaves it usable", async () => {
     await createTestView();
     await db.transaction(async (tx) => {
-      const c = makeJobCtx(db, "ai.answer_question", { tx: tx as unknown as Tx });
+      const c = makeJobCtx(db, "ai.answer_question", { tx: tx });
       await tx.execute(sql.raw("select 1"));
       expect((await runAiReadOnlyQuery(c, "select count(*) as n from ai.test_people")).columns).toEqual(["n"]);
       await runAiReadOnlyQuery(c, "select email from public.persons", { skipGuard: "test-only" }).catch(() => undefined);
@@ -200,7 +200,7 @@ describe("runAiReadOnlyQuery", () => {
       new Proxy(inner, {
         get(target, prop, receiver) {
           if (prop === "transaction") {
-            return (cb: (q: Tx) => Promise<unknown>) => (target as Tx).transaction((qtx) => cb(wrap(qtx as unknown as Tx)));
+            return (cb: (q: Tx) => Promise<unknown>) => (target).transaction((qtx) => cb(wrap(qtx)));
           }
           if (prop === "execute") {
             return (query: SQL) => {
@@ -210,7 +210,7 @@ describe("runAiReadOnlyQuery", () => {
                 expect(seen).toContain("set local statement_timeout = '5s'");
                 return Promise.reject(Object.assign(new Error("canceling statement due to statement timeout"), { code: "57014" }));
               }
-              return (target as Tx).execute(query);
+              return (target).execute(query);
             };
           }
           return Reflect.get(target, prop, receiver) as unknown;

@@ -11,7 +11,7 @@ import * as core from "@beam/core/site";
 afterEach(() => cleanup());
 
 describe("site api re-exports", () => {
-  it("exposes getPageKindByPath from server/refs and readStoredUtm from @beam/core/site", async () => {
+  it("exposes getPageKindByPath (server/page-kind, re-exported by server/refs) and readStoredUtm from @beam/core/site", async () => {
     const api = await import("./api");
     const refs = await import("./server/refs");
     const utm = await import("./ui/public/utm-capture");

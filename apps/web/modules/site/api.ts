@@ -13,7 +13,7 @@ export { getEventPageUrl, getPageUrl, portalUrl } from "./server/urls";
 export { getSiteSettings } from "./server/settings";
 export { readReferralCode } from "./server/referral";
 /** The kind of the published page at `/<prefix>/<path>` in `locale`, or null (forms rule A2 branch 7). */
-export { getPageKindByPath } from "./server/refs";
+export { getPageKindByPath } from "./server/page-kind";
 /**
  * The visit's stored UTM landing (rule 40). Client-safe itself, but this barrel also carries
  * server-only code: a client component imports it from `@beam/core/site`.

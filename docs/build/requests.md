@@ -11,7 +11,6 @@ to "Served" with the package id.
 | platform-P2 | crm, booking, commerce, finance, forms, email, automation, site (first package of each) | When you create the tables referenced by the Wave 0 contract-table stubs, add the foreign keys noted in the stub comments (companies, session_templates, ticket_types, promotions, checkouts, form_versions, email_template_versions, campaigns, automation_groups, automation_versions, page_versions). |
 | platform-P3 | crm (inbox AI drafts, R3) | `callClaude` feature key is `ai.draft_reply`, not `inbox_draft`. Its fields `thread_messages` and `knowledge_articles` are not in `AI_ALLOWED_FIELDS`: the crm package that builds AI reply drafts decides and documents which fields are sent, and asks platform for an `AI_ALLOWED_FIELDS` addition if needed. |
 | platform-P7 | platform-P6 | Type the `run` of `apps/web/modules/platform/seed.ts` with `SeedCtx` from `apps/web/scripts/seed-demo.ts` (`{ db: DbOrTx, ctx: system Ctx, now: start of the Brussels day, rand: seeded PRNG 20261103, ids: Map }`). |
-| platform-P7 | commerce | `apps/web/modules/commerce/api.ts` re-exports `redeemVoucher` once commerce's actions implement it (02-data-model section 6). |
 | platform-P7 | webinar | `WebinarSignup` in `apps/web/modules/webinar/api.ts` is a throwing stand-in; webinar-P3 replaces it. |
 | platform-P7 | ops | `PersonStats` in `apps/web/modules/ops/api.ts` is an open row type until `person_stats` exists; the ops package that creates it narrows the type. |
 | platform-P7 | every module | `packages/db/src/seed/<m>.ts` are documented skeletons without a `seed` export; a module that needs default rows exports `seed = { module, after: ['platform', ...], run }` there (allowed once `fix-w03-platform-1` merges). |
@@ -46,7 +45,6 @@ to "Served" with the package id.
 | ops-P4 | platform | Add `setFileExpiry(tx, fileIds, expiresAt)`; until then ops-P4 updates `files.expires_at` directly for its own import parts. |
 | ops-P4 | ops (owner of `ops.json`) | Missing catalogue keys from ops-P4's commit trailer (for example `ops.imports.option.confirm_different_file`, `ops.imports.target.{mode,watched_minutes}`, `ops.imports.error.{past_booking,invalid_status,unknown_tag,...}`). |
 | finance-P3 | finance (owner of `packages/core/src/finance/index.ts`) | Add `export * from "./document-model"`, then switch `apps/web/modules/finance/pdf/render.ts` from the relative path to `@beam/core/finance`. |
-| booking-P3b | commerce | `refundOrderLine` has no reason for staff forced refunds; booking passes `cancelled_in_policy`. Add `staff_override` if finance needs to tell them apart. |
 | booking-P3b, booking-P5 | booking (owner of `server/order-hooks.ts`) | `releaseOrderBookings` in `server/order-hooks.ts` also moves a claimed offered waitlist entry to `expired` with `payment_not_completed` and enqueues `offer_next` (R44), as `expireReservedRow` in `server/cancel.ts` already does. booking-P5 served the job side: `waitlist.offer_next` and `waitlist.expire_offers` now expire an offered entry whose claimed booking is cancelled; the same-transaction move inside `releaseOrderBookings` stays open. |
 | site-P5 | platform (fixer) | Add `BEAM_ANALYTICS_PRODUCTION: "1"` to the Playwright `webServer.env` in `apps/web/playwright.config.ts`, so `site-consent.spec`'s GA4 test can load gtag. |
 | crm-P4 | crm (owner of `packages/core/src/crm/merge-plan.ts`) | Add to `MERGE_STRATEGIES`: `automation_enrolments.person_id: skip`, `privacy_requests.person_id: repoint`, `provider_customers.person_id: repoint`, `retention_list_items.person_id: keep_winner`. Until then they live in `MERGE_STRATEGY_ADDITIONS` in `apps/web/modules/crm/merge/execute.ts`, and an entry in core takes precedence. |
@@ -83,6 +81,7 @@ to "Served" with the package id.
 | automation-P4 | crm | Add `engaged`, `package_nearly_used`, `dormant` and `reviewed` to `SYSTEM_TAGS` in `packages/db/src/seed/crm.ts` (automation's seed inserts them meanwhile). |
 | automation-P4 | automation-P5 | Write the catalogue keys `automation.panel.{empty,active,no_active,next_step,ended,timeline}` in the three `automation.json` files; the interim panel uses them. |
 | site-P6 | site (catalogue owner) | `site.account_placeholder.title` and `body` in `site.json` are unused now that the portal home replaced the placeholder; remove them. |
+| commerce-P6 | commerce (owner of `e2e/commerce.spec.ts`) | Add the e2e cases "staff refunds an unused package" and "customer withdraws an unused package within 14 days". |
 
 ## Served
 
@@ -122,3 +121,5 @@ to "Served" with the package id.
 | forms-P1 | forms (next forms package) | FK `form_links.partner_company_id -> companies.id` once crm-P1 merged. | already in `packages/db/src/schema/forms.ts` (confirmed by forms-P4) |
 | platform-P7 | automation | `PersonAutomationsPanel` in `apps/web/modules/automation/api.ts` is a throwing stand-in; the automation package that builds the person panel replaces it. | automation-P4 (interim read-only panel in `api.ts`; automation-P6 re-exports the full one) |
 | site-P5 | site-P6 | `PortalSiteChrome` mounts `ConsentProvider` (`getConsentChromeState`, `consentLabels` in `server/consent.ts`), `AnalyticsLoader` with `gaMeasurementId` null and `SwRegister`; its Cookie settings link carries `data-cookie-settings`. | site-P6 (`ui/portal/site-chrome.tsx`) |
+| platform-P7 | commerce | `apps/web/modules/commerce/api.ts` re-exports `redeemVoucher` once commerce's actions implement it (02-data-model section 6). | commerce-P6 |
+| booking-P3b | commerce | `refundOrderLine` has no reason for staff forced refunds; booking passes `cancelled_in_policy`. Add `staff_override` if finance needs to tell them apart. | commerce-P6 (reason `staff_override`) |

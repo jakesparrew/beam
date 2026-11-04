@@ -1,3 +1,4 @@
 # <repo path> <fixer id> <reason>; the gate excludes these test files until the fixer lands
 apps/web/modules/booking/queries/attendance.test.ts fix-w08-booking-2 crm-P7 made getReceptionCard real; the test still expects the stub's fallback (receptionCard null), CONVENTIONS item 11
 apps/web/modules/booking/fix-w05-schema-1.schedules.test.ts fix-w08-booking-2 asserts the old privacy stub returns {} and [] on a fake tx; booking-P6 made export and erase real (CONVENTIONS item 11)
+apps/web/modules/commerce/server/recurring.test.ts fix-w09-commerce-1 fixed NOW 2026-11-04T10:00Z precedes the price version makeProduct writes at the real clock; fails every day after 10:00 UTC

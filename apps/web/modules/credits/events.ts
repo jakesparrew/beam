@@ -1,7 +1,7 @@
 /**
  * credits timeline events (`defineEvent`, credits spec section 4 "Activity events"). Facade read
- * by `pnpm gen:indexes`. credits-P3 declares the `credits.*` kinds; the `membership.*` kinds come
- * with credits-P4 and the `referral.*` kinds with credits-P9. Every `credits.*` event carries
+ * by `pnpm gen:indexes`. credits-P3 declares the `credits.*` kinds, credits-P4 the `membership.*`
+ * kinds (`data.membership_id` first, ref `membership`); the `referral.*` kinds come with credits-P9. Every `credits.*` event carries
  * `data.credit_kind` (never `data.kind`), ids-only snake_case `data` (cross-module D27) and
  * `ref = { type: 'credit_grant', id }`; dedupe keys are `grant:<id>:<event suffix>`.
  */
@@ -26,6 +26,8 @@ const releaseReason = z.enum([
   "refund",
 ]);
 const isoDate = z.iso.datetime({ offset: true });
+const dateOn = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+const endReason = z.enum(["cancelled_by_customer", "cancelled_by_staff", "refunded", "payment_failed", "not_renewed", "merged", "erased"]);
 
 export const events = [
   defineEvent({
@@ -116,5 +118,63 @@ export const events = [
     kind: "credits.share_revoked",
     subject: "person",
     data: z.object({ grant_id: uuid, credit_kind: creditKind, share_id: uuid, owner_person_id: uuid, shared_with_person_id: uuid }),
+  }),
+  // Memberships (credits-P4). `ref = { type: 'membership', id }`; dedupe keys
+  // `membership:<id>:<event suffix>:<period_end date>`.
+  defineEvent({
+    kind: "membership.started",
+    subject: "person",
+    data: z.object({ membership_id: uuid, product_id: uuid, status: z.enum(["active", "pending"]) }),
+  }),
+  defineEvent({
+    kind: "membership.renewed",
+    subject: "person",
+    data: z.object({ membership_id: uuid, late: z.boolean() }),
+  }),
+  defineEvent({
+    kind: "membership.renewal_due",
+    subject: "person",
+    data: z.object({
+      membership_id: uuid,
+      days: z.number().int().positive(),
+      period_end_on: dateOn,
+      is_ending: z.boolean(),
+      amount_cents: z.number().int().min(0).nullable(),
+    }),
+  }),
+  defineEvent({
+    kind: "membership.past_due",
+    subject: "person",
+    data: z.object({ membership_id: uuid, dunning_attempt: z.number().int().min(1).max(3), payment_id: z.string().min(1).nullable(), via: z.enum(["mandate", "link"]) }),
+  }),
+  defineEvent({
+    kind: "membership.payment_retry_failed",
+    subject: "person",
+    data: z.object({ membership_id: uuid, attempt: z.number().int().min(2).max(3), payment_id: z.string().min(1) }),
+  }),
+  defineEvent({
+    kind: "membership.cancel_requested",
+    subject: "person",
+    data: z.object({ membership_id: uuid, cancel_at: isoDate, requested_by: z.enum(["customer", "staff"]) }),
+  }),
+  defineEvent({
+    kind: "membership.resumed",
+    subject: "person",
+    data: z.object({ membership_id: uuid }),
+  }),
+  defineEvent({
+    kind: "membership.cancelled",
+    subject: "person",
+    data: z.object({ membership_id: uuid, end_reason: endReason }),
+  }),
+  defineEvent({
+    kind: "membership.expired",
+    subject: "person",
+    data: z.object({ membership_id: uuid, end_reason: endReason }),
+  }),
+  defineEvent({
+    kind: "membership.period_extended",
+    subject: "person",
+    data: z.object({ membership_id: uuid, days: z.number().int().min(1).max(90), period_end_on: dateOn }),
   }),
 ];

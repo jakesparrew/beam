@@ -47,7 +47,7 @@ vi.mock("@/modules/credits/api", async (importOriginal) => ({
 
 const co = await import("./checkouts");
 const { createCtx, eq, and } = await import("@/lib/ctx");
-const { makeCtx, makeJobCtx, resetRuntime, createFakeIntegrations } = await import("@/lib/testing");
+const { makeCtx, makeJobCtx, resetRuntime, runJobTwice, createFakeIntegrations } = await import("@/lib/testing");
 
 let h: DbHandle;
 let termsVersionId: string;
@@ -309,6 +309,17 @@ describe("checkouts.mark_abandoned (rules 49, 50)", () => {
     const second = await co.markAbandoned(makeJobCtx(h.db, "checkouts.mark_abandoned"));
     expect(second).toMatchObject({ abandoned: 0, events: 0 });
     expect(await eventsOf("checkout.abandoned", left.checkoutId)).toHaveLength(1);
+  });
+
+  it("runs twice through the job registry with the same result state (double-run)", async () => {
+    const person = await makePerson(h.db);
+    const product = await makeProduct(h.db, { kind: "item", priceCents: 1000 });
+    const c = await portalCheckout(person.id, [{ productId: product.id, quantity: 1 }], twoHoursAgo());
+    const { first, second } = await runJobTwice(h.db, "checkouts.mark_abandoned", {});
+    expect((first as { abandoned: number }).abandoned).toBeGreaterThanOrEqual(1);
+    expect(second).toMatchObject({ abandoned: 0, expired: 0, events: 0 });
+    expect(await checkoutRow(c.checkoutId)).toMatchObject({ status: "abandoned", abandonedReason: "left" });
+    expect(await eventsOf("checkout.abandoned", c.checkoutId)).toHaveLength(1);
   });
 
   it("expires checkouts 30 days after creation from started and abandoned; completed stays final", async () => {

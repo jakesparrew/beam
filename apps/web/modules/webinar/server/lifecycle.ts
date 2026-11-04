@@ -23,7 +23,7 @@ import {
   type WebinarMode,
   type WebinarStatus,
 } from "@beam/core/webinar";
-import { ConflictError, NotFoundError, ValidationError, and, asc, desc, eq, inArray, or, sql, type Ctx, type Tx } from "@/lib/ctx";
+import { ConflictError, NotFoundError, ValidationError, and, asc, desc, eq, inArray, or, sql, type Ctx, type DbOrTx, type Tx } from "@/lib/ctx";
 import { cancelWebinarSession, upsertWebinarSession } from "@/modules/booking/api";
 import { findOrCreatePersonByEmail } from "@/modules/crm/api";
 
@@ -353,7 +353,7 @@ async function writeRescheduleFacts(ctx: Ctx, w: WebinarRow, previousStartsAt: D
 // ---------------------------------------------------------------------------------------------
 
 /** Rule 9 checks: completeness over `locales`, spoken language, future start, a processed video. */
-export async function publishProblems(tx: Tx, w: WebinarRow, now: Date): Promise<Record<string, string>> {
+export async function publishProblems(tx: DbOrTx, w: WebinarRow, now: Date): Promise<Record<string, string>> {
   const [polls, ctas] = await Promise.all([
     tx.select().from(webinarPolls).where(and(eq(webinarPolls.webinarId, w.id), eq(webinarPolls.isActive, true))),
     tx.select().from(webinarCtas).where(and(eq(webinarCtas.webinarId, w.id), eq(webinarCtas.isActive, true))),

@@ -157,6 +157,90 @@ export async function getWebinar(db: DbOrTx, webinarId: string): Promise<Webinar
   };
 }
 
+// ---------------------------------------------------------------------------------------------
+// Admin page labels (server side: the client editors take every text as a prop)
+// ---------------------------------------------------------------------------------------------
+
+type Tr = (key: string, params?: Record<string, string | number>) => string;
+
+const ERROR_KEYS = [
+  "validation", "conflict", "not_found", "forbidden", "unauthorized", "rate_limited", "internal", "stale_version", "slug_taken", "slug_locked",
+  "already_started", "missing_locales", "not_publishable", "never_published", "poll_answered", "cta_shown", "key_taken", "invalid_tag_rules",
+  "invalid_transition", "starts_at_past", "starts_at_required", "on_demand_has_no_start", "video_processing", "video_missing", "live_only",
+  "presenter_exists", "occurrence_count", "webinar_cancelled", "webinar_archived",
+] as const;
+
+/** `webinar.admin.errors.*` keyed by error code or message. */
+export function adminErrorLabels(tr: Tr): Record<string, string> {
+  return Object.fromEntries(ERROR_KEYS.map((k) => [k, tr(`webinar.admin.errors.${k}`)]));
+}
+
+export function localeNames(tr: Tr) {
+  return { "nl-BE": tr("platform.shell.locale_nl"), "fr-BE": tr("platform.shell.locale_fr"), en: tr("platform.shell.locale_en") } as const;
+}
+
+/** `LocalizedInput` labels for a field. */
+export function localizedLabels(tr: Tr, field: string) {
+  return { field, locales: localeNames(tr), missing: tr("webinar.admin.form.locale_missing"), complete: tr("webinar.admin.form.locale_complete") };
+}
+
+export function fieldNames(tr: Tr): Record<string, string> {
+  const f = (k: string) => tr(`webinar.admin.fields.${k}`, k === "poll" || k === "cta" ? { key: "{key}" } : undefined);
+  return Object.fromEntries(["title", "description", "startsAt", "spokenLocale", "video", "tagRules", "poll", "cta"].map((k) => [k, f(k)]));
+}
+
+/** The labels of `WebinarForm` (create and edit). */
+export function webinarFormLabels(tr: Tr) {
+  const g = (k: string) => tr(`webinar.admin.form.${k}`);
+  const modes = ["live", "simulive", "on_demand"] as const;
+  return {
+    mode: g("mode"),
+    modes: Object.fromEntries(modes.map((m) => [m, tr(`webinar.enum.mode.${m}`)])) as Record<(typeof modes)[number], string>,
+    modeHints: Object.fromEntries(modes.map((m) => [m, g(`mode_hint.${m}`)])) as Record<(typeof modes)[number], string>,
+    slug: g("slug"),
+    slugHint: g("slug_hint"),
+    title: localizedLabels(tr, g("title")),
+    description: localizedLabels(tr, g("description")),
+    locales: g("locales"),
+    localeNames: localeNames(tr),
+    spokenLocale: g("spoken_locale"),
+    startsAt: g("starts_at"),
+    startsAtHint: g("starts_at_hint"),
+    duration: g("duration"),
+    owner: g("owner"),
+    seriesKey: g("series_key"),
+    seriesHint: g("series_hint"),
+    replay: g("replay"),
+    isReplayEnabled: g("is_replay_enabled"),
+    isReplayGated: g("is_replay_gated"),
+    replayUntil: g("replay_until"),
+    replayViewLimit: g("replay_view_limit"),
+    onDemandAccessDays: g("on_demand_access_days"),
+    thresholds: g("thresholds"),
+    attendedMinutes: g("attended_minutes"),
+    conversionWindow: g("conversion_window"),
+    interaction: g("interaction"),
+    chatEnabled: g("chat_enabled"),
+    questionsEnabled: g("questions_enabled"),
+    meetUrl: g("meet_url"),
+    meetHint: g("meet_hint"),
+    save: g("save"),
+    saveDraft: g("save_draft"),
+    saving: g("saving"),
+    saved: g("saved"),
+    created: g("created"),
+    errors: adminErrorLabels(tr),
+    missingFor: tr("webinar.admin.detail.missing_for", { field: "{field}", locales: "{locales}" }),
+    fieldNames: fieldNames(tr),
+  };
+}
+
+/** Every webinar row (the first-run empty state of `/admin/webinars`). */
+export async function countWebinars(db: DbOrTx): Promise<number> {
+  const [row] = await db.select({ n: sql<number>`count(*)::int` }).from(webinars);
+  return Number(row?.n ?? 0);
+}
+
 /** Active staff users for the owner and presenter pickers. */
 export async function listStaffOptions(db: DbOrTx): Promise<Array<{ id: string; label: string }>> {
   const rows = await db

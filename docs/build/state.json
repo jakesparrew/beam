@@ -286,11 +286,16 @@
       "mergedAt": "2026-11-04T02:31:55Z"
     },
     "crm-P4": {
-      "status": "running",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "a8d4d68",
       "runId": "wf_aba3a8a6-080",
-      "startedAt": "2026-11-04T05:51:03Z"
+      "startedAt": "2026-11-04T05:51:03Z",
+      "branchSha": "2c74aeb",
+      "endedAt": "2026-11-04T06:46:27Z",
+      "minutes": 38,
+      "mergeSha": "7f6ff93",
+      "mergedAt": "2026-11-04T06:49:10Z"
     },
     "booking-P2": {
       "status": "merged",
@@ -411,11 +416,16 @@
       "mergedAt": "2026-11-04T03:16:33Z"
     },
     "crm-P5": {
-      "status": "running",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "a8d4d68",
       "runId": "wf_04ab041f-c15",
-      "startedAt": "2026-11-04T05:51:03Z"
+      "startedAt": "2026-11-04T05:51:03Z",
+      "branchSha": "993f327",
+      "endedAt": "2026-11-04T06:46:26Z",
+      "minutes": 37,
+      "mergeSha": "c666a80",
+      "mergedAt": "2026-11-04T06:49:07Z"
     },
     "crm-P6": {
       "status": "merged",
@@ -523,14 +533,16 @@
       "attempts": 0
     },
     "site-P5": {
-      "status": "red",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "beb4769",
       "runId": "wf_cc4b715f-5dc",
       "startedAt": "2026-11-04T05:03:43Z",
       "branchSha": "41e7bad",
-      "endedAt": "2026-11-04T06:18:59Z",
-      "minutes": 36
+      "endedAt": "2026-11-04T06:46:26Z",
+      "minutes": 36,
+      "mergeSha": "f8b2d81",
+      "mergedAt": "2026-11-04T06:49:03Z"
     },
     "crm-P7": {
       "status": "pending",
@@ -551,28 +563,43 @@
       "startedAt": "2026-11-04T06:46:08Z"
     },
     "commerce-P4b": {
-      "status": "running",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "a8d4d68",
       "runId": "wf_2ff6ac9b-9de",
-      "startedAt": "2026-11-04T05:51:02Z"
+      "startedAt": "2026-11-04T05:51:02Z",
+      "branchSha": "8ce3986",
+      "endedAt": "2026-11-04T06:46:27Z",
+      "minutes": 52,
+      "mergeSha": "13ab9d3",
+      "mergedAt": "2026-11-04T06:49:20Z"
     },
     "credits-P5": {
-      "status": "running",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "a8d4d68",
       "runId": "wf_8ec46f8c-734",
-      "startedAt": "2026-11-04T05:51:03Z"
+      "startedAt": "2026-11-04T05:51:03Z",
+      "branchSha": "f2c76f6",
+      "endedAt": "2026-11-04T06:46:27Z",
+      "minutes": 44,
+      "mergeSha": "f45d8f5",
+      "mergedAt": "2026-11-04T06:49:13Z"
     },
     "finance-P4": {
-      "status": "running",
+      "status": "merged",
       "attempts": 1,
       "extraOwns": [
         "packages/integrations/src/_shared/platform-p3.shared.test.ts"
       ],
       "baseSha": "a8d4d68",
       "runId": "wf_0e533520-444",
-      "startedAt": "2026-11-04T05:51:02Z"
+      "startedAt": "2026-11-04T05:51:02Z",
+      "branchSha": "611698f",
+      "endedAt": "2026-11-04T06:46:27Z",
+      "minutes": 51,
+      "mergeSha": "1261e6a",
+      "mergedAt": "2026-11-04T06:49:17Z"
     },
     "forms-P5": {
       "status": "pending",

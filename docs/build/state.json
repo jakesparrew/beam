@@ -358,11 +358,14 @@
       "mergedAt": "2026-11-04T04:10:00Z"
     },
     "forms-P3": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "baseSha": "a8d4d68",
       "runId": "wf_46554cd4-776",
-      "startedAt": "2026-11-04T05:51:03Z"
+      "startedAt": "2026-11-04T05:51:03Z",
+      "branchSha": "bbbabd6",
+      "endedAt": "2026-11-04T07:24:41Z",
+      "minutes": 56
     },
     "email-P2": {
       "status": "merged",
@@ -518,11 +521,14 @@
       "startedAt": "2026-11-04T06:46:08Z"
     },
     "ops-P3": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "baseSha": "40fc2b1",
       "runId": "wf_abc46e06-2cc",
-      "startedAt": "2026-11-04T06:46:08Z"
+      "startedAt": "2026-11-04T06:46:08Z",
+      "branchSha": "0528ee4",
+      "endedAt": "2026-11-04T07:24:41Z",
+      "minutes": 36
     },
     "ops-P6": {
       "status": "pending",
@@ -549,18 +555,24 @@
       "attempts": 0
     },
     "booking-P4": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "baseSha": "40fc2b1",
       "runId": "wf_13d43758-2a2",
-      "startedAt": "2026-11-04T06:46:08Z"
+      "startedAt": "2026-11-04T06:46:08Z",
+      "branchSha": "35d9ea6",
+      "endedAt": "2026-11-04T07:24:41Z",
+      "minutes": 35
     },
     "booking-P5": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "baseSha": "40fc2b1",
       "runId": "wf_29f4843d-832",
-      "startedAt": "2026-11-04T06:46:08Z"
+      "startedAt": "2026-11-04T06:46:08Z",
+      "branchSha": "965a4ef",
+      "endedAt": "2026-11-04T07:24:41Z",
+      "minutes": 36
     },
     "commerce-P4b": {
       "status": "merged",
@@ -1236,6 +1248,41 @@
       "minutes": 21,
       "mergeSha": "574251f",
       "mergedAt": "2026-11-04T05:37:45Z"
+    },
+    "fix-w07-booking-1": {
+      "status": "pending",
+      "attempts": 0,
+      "fixer": true,
+      "module": "booking",
+      "goal": "forms-P3 made forms.hasValidSubmission real, so booking-p3a.queries.test.ts (getBookableSession ... tolerates the forms stub) still expects healthDeclaration: null from the throwing stub. Assert the real contract instead (a person without a valid health declaration gets { valid: false, expiresAt: null }; add a case with a valid submission if forms exposes a factory for it), rename the test, and remove the line from docs/build/known-red.txt. CONVENTIONS rule 11: never assert that another package still throws.",
+      "from": [
+        "booking-P3a"
+      ],
+      "owns": [
+        "apps/web/modules/booking/queries/booking-p3a.queries.test.ts",
+        "docs/build/known-red.txt"
+      ],
+      "dependsOn": [
+        "forms-P3"
+      ]
+    },
+    "fix-w07-site-1": {
+      "status": "pending",
+      "attempts": 0,
+      "fixer": true,
+      "module": "site",
+      "goal": "Since site-P5 merged, every email send in the PGlite tests hangs until its time limit: email footerFor(tx, ...) calls legalLinksFor(locale) -> site.getLegalLinks(locale), which reads through getAppDb() outside the open send transaction, and PGlite has one connection, so the read waits for the transaction that waits for it. Fix: (1) site: getLegalLinks(locale, db?: DbOrTx) — when db is given, return loadLegalLinks(db, locale) directly (no unstable_cache, which cannot take a transaction); without it keep the cached app-db read. Add a legal.test.ts case that calls it inside h.db.transaction with the tx and gets the links. (2) email: legalLinksFor(locale, tx) passes the tx through, and footerFor passes its tx. (3) Remove the two fix-w07-site-1 lines from docs/build/known-red.txt and run test/wave0-email.test.ts and modules/email/jobs.test.ts alone (--maxWorkers=1): both must pass, together with modules/site and modules/email.",
+      "from": [
+        "site-P5",
+        "email-P3"
+      ],
+      "owns": [
+        "apps/web/modules/site/server/legal.ts",
+        "apps/web/modules/site/server/legal.test.ts",
+        "apps/web/modules/email/server/context.ts",
+        "docs/build/known-red.txt"
+      ],
+      "dependsOn": []
     }
   }
 }

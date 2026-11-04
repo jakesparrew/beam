@@ -4052,7 +4052,7 @@ export function getCurrentLegalVersion(db: DbOrTx, key: LegalKey): Promise<{ ver
 // text = richDocToPlainText of the live version's blocks per live locale (headings and paragraphs, blank-line separated), for crm's reception print and declarations
 export function recordTermsAcceptance(tx: Tx, ctx: Ctx, input: { personId: string; versionId: string; context: TermsContext; refType?: 'order' | 'booking' | 'user'; refId?: string; ip?: string | null }): Promise<{ acceptanceId: string; created: boolean }>;
 export function hasAcceptedCurrentTerms(db: DbOrTx, personId: string): Promise<boolean>; // signature confirmed for booking R62 and commerce; over crm.resolvePersonIds; true when the latest acceptance is at or after the latest material terms version; false when no terms version is published
-export function getLegalLinks(locale: Locale): Promise<{ privacy: string | null; terms: string | null; cookies: string | null; accessibility: string | null }>; // absolute URLs for email footers and checkout
+export function getLegalLinks(locale: Locale, db?: DbOrTx): Promise<{ privacy: string | null; terms: string | null; cookies: string | null; accessibility: string | null }>; // absolute URLs for email footers and checkout; a caller inside a transaction passes it (OD-15)
 export function getPageUrl(db: DbOrTx, ref: { pageId: string } | { slug: string }, locale: Locale): Promise<string | null>; // absolute URL or null
 export function getEventPageUrl(db: DbOrTx, sessionId: string, locale: Locale): Promise<string | null>; // event page, or the portal booking URL when no page exists
 export type PortalRoute = 'home' | 'book_day' | 'book_night' | 'bookings' | 'waitlist' | 'shop' | 'packages' | 'membership' | 'invoices' | 'preferences' | 'profile';

@@ -3,7 +3,7 @@
  * media rows and a 1x1 PNG. Each test file mocks `next/headers` with its own cookie jar and
  * passes it here.
  */
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import type { Db, DbOrTx } from "@beam/db";
 import { files, jobs, mediaAssets, roles } from "@beam/db/schema";
 import { makeUser } from "@beam/db/testing";
@@ -54,7 +54,7 @@ export const PNG_1X1 = Uint8Array.from(
 export async function makeMedia(db: DbOrTx, alt: LocalizedText = { "nl-BE": "Sauna", "fr-BE": "Sauna", en: "Sauna" }, isDecorative = false) {
   const [file] = await db
     .insert(files)
-    .values({ kind: "image", name: "test.png", mime: "image/png", sizeBytes: PNG_1X1.byteLength, bytes: PNG_1X1, sha256: randomUUID(), isPublic: true })
+    .values({ kind: "image", name: "test.png", mime: "image/png", sizeBytes: PNG_1X1.byteLength, bytes: PNG_1X1, sha256: createHash("sha256").update(randomUUID()).digest("hex"), isPublic: true })
     .returning({ id: files.id });
   const [media] = await db.insert(mediaAssets).values({ fileId: file!.id, alt, isDecorative, width: 1, height: 1 }).returning();
   return media!;

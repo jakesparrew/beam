@@ -7,7 +7,7 @@ import { sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { DbHandle } from "../client";
 import { APPEND_ONLY_TABLES } from "./_shared";
-import { orderLines, orders } from "./commerce";
+import { orderLines } from "./commerce";
 import {
   CREDITS_APPEND_ONLY,
   creditBulkExtensions,
@@ -21,6 +21,7 @@ import {
   packageShares,
 } from "./credits";
 import { createTestDb, makePerson, makeProduct, makeUser } from "../testing";
+import { makeOrder } from "../testing/commerce-factories";
 import { makeCreditGrant, makeEntry, makeMembership } from "../testing/credits-factories";
 import { CREDITS_RETENTION_POLICIES, CREDITS_SETTINGS_DEFAULT, seed, seedCreditsDefaults, seedCreditsDemo } from "../seed/credits";
 import { DEFAULT_SEEDS } from "../seed/index.generated";
@@ -67,24 +68,18 @@ async function makeOrderLine(kind: "package" | "voucher" = "package", quantity =
   const person = await makePerson(h.db);
   const product = await makeProduct(h.db, { kind });
   const unit = 10000;
-  const [order] = await h.db
-    .insert(orders)
-    .values({
-      personId: person.id,
-      channel: "portal",
-      status: "paid",
-      subtotalCents: unit * quantity,
-      vatCents: 0,
-      totalCents: unit * quantity,
-      locale: "nl-BE",
-      clientKey: randomUUID(),
-      paidAt: new Date(),
-    })
-    .returning();
+  const order = await makeOrder(h.db, {
+    personId: person.id,
+    channel: "portal",
+    status: "paid",
+    subtotalCents: unit * quantity,
+    vatCents: 0,
+    totalCents: unit * quantity,
+  });
   const [line] = await h.db
     .insert(orderLines)
     .values({
-      orderId: order!.id,
+      orderId: order.id,
       lineNo: 1,
       productId: product.id,
       sku: product.sku,
@@ -98,7 +93,7 @@ async function makeOrderLine(kind: "package" | "voucher" = "package", quantity =
       pricingTrace: {},
     })
     .returning();
-  return { person, product, order: order!, line: line! };
+  return { person, product, order, line: line! };
 }
 
 const grantValues = (personId: string, extra: Partial<typeof creditGrants.$inferInsert> = {}) => ({

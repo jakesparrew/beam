@@ -235,7 +235,8 @@ async function withdrawMarketing(ctx: Ctx, personId: string, source: string): Pr
   let n = 0;
   for (const purpose of MARKETING_PURPOSES) {
     if (current[purpose]?.status !== "granted") continue;
-    await recordConsent(ctx.tx, ctx, { personId, purpose, status: "withdrawn", method: "staff", source, wordingVersion: source });
+    // crm accepts the fixed wording `restriction` for a withdrawal by a privacy request.
+    await recordConsent(ctx.tx, ctx, { personId, purpose, status: "withdrawn", method: "staff", source, wordingVersion: "restriction" });
     n += 1;
   }
   return n;

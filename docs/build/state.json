@@ -1458,7 +1458,7 @@
       "mergedAt": "2026-11-04T09:08:15Z"
     },
     "fix-w08-booking-2": {
-      "status": "done",
+      "status": "merged",
       "attempts": 2,
       "fixer": true,
       "module": "booking",
@@ -1479,8 +1479,10 @@
       "runId": "wf_140abb37-49a",
       "startedAt": "2026-11-04T16:37:09Z",
       "branchSha": "8a1e858",
-      "endedAt": "2026-11-04T16:59:40Z",
-      "minutes": 8
+      "endedAt": "2026-11-04T17:35:40Z",
+      "minutes": 8,
+      "mergeSha": "a7b0b45",
+      "mergedAt": "2026-11-04T17:37:00Z"
     },
     "fix-w09-commerce-1": {
       "status": "running",

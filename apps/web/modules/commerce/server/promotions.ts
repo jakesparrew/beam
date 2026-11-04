@@ -9,7 +9,7 @@
 import { z } from "zod";
 import { orders, promotionRedemptions, promotions } from "@beam/db/schema";
 import { ORDER_CHANNELS, PRODUCT_KINDS, PROMOTION_KINDS, normalisePromoCode, type OrderChannel, type PromotionRow } from "@beam/core/commerce";
-import { LocalizedTextSchema, missingLocales, type LocalizedText } from "@beam/core/i18n";
+import { LocalizedTextSchema, missingLocales } from "@beam/core/i18n";
 import { and, eq, gt, isNotNull, isNull, lte, ne, or, sql, ConflictError, NotFoundError, ValidationError, type Ctx, type DbOrTx } from "@/lib/ctx";
 import { getPersonStatus, isInSegment } from "@/modules/crm/api";
 
@@ -116,7 +116,7 @@ export async function createPromotionRecord(ctx: Ctx, input: PromotionFieldsValu
 
 const sameJson = (a: unknown, b: unknown) => JSON.stringify(normaliseJson(a)) === JSON.stringify(normaliseJson(b));
 function normaliseJson(v: unknown): unknown {
-  if (Array.isArray(v)) return [...v].map(normaliseJson).sort();
+  if (Array.isArray(v)) return (v as unknown[]).map(normaliseJson).sort();
   if (v && typeof v === "object") return Object.fromEntries(Object.entries(v as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b)).map(([k, x]) => [k, normaliseJson(x)]));
   return v;
 }
@@ -129,7 +129,7 @@ export function lockedFieldChanges(before: PromotionDbRow, after: PromotionColum
   if (before.value !== after.value) changed.push("value");
   if (!sameJson(before.appliesTo, after.appliesTo)) changed.push("appliesTo");
   if ((before.code ?? null) !== (after.code ?? null)) changed.push("code");
-  if (before.startsAt.getTime() !== after.startsAt!.getTime()) changed.push("startsAt");
+  if (before.startsAt.getTime() !== after.startsAt.getTime()) changed.push("startsAt");
   if (!sameJson(before.eligibility, after.eligibility)) changed.push("eligibility");
   return changed;
 }
@@ -165,7 +165,7 @@ export function toPromotionRow(r: PromotionDbRow): PromotionRow {
   return {
     id: r.id,
     code: r.code,
-    name: r.name as LocalizedText,
+    name: r.name,
     kind: r.kind,
     value: r.value,
     appliesTo: { productIds: r.appliesTo.product_ids ?? [], productKinds: r.appliesTo.product_kinds ?? [] },

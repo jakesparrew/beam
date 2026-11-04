@@ -181,8 +181,8 @@ export function productColumns(kind: ProductKind, v: ProductFieldsValue): Produc
 /** Rule 1 and section 8: the locales a product lacks to be (or stay) active. */
 export function productCompleteness(row: Pick<ProductRow, "name" | "description" | "isShopVisible">): { name: Locale[]; description: Locale[] } {
   return {
-    name: missingLocales(row.name as LocalizedText, ALL_LOCALES),
-    description: row.isShopVisible ? missingLocales(row.description as LocalizedText, ALL_LOCALES) : [],
+    name: missingLocales(row.name, ALL_LOCALES),
+    description: row.isShopVisible ? missingLocales(row.description, ALL_LOCALES) : [],
   };
 }
 
@@ -409,7 +409,7 @@ export async function listPublicPrices(db: DbOrTx, input: { productIds?: string[
       productId: p.id,
       sku: p.sku,
       kind: p.kind,
-      name: p.name as LocalizedText,
+      name: p.name,
       publicAmountCents,
       memberAmountCents: priceVersionAt(list, "member", input.at)?.amountCents ?? null,
       vatRatePct: Number(p.vatRatePct),
@@ -455,7 +455,7 @@ export async function getProductCards(tx: DbOrTx, productIds: string[], locale: 
       productId: p.id,
       sku: p.sku,
       kind: p.kind,
-      name: pick(p.name as LocalizedText, locale, `products.name ${p.sku}`),
+      name: pick(p.name, locale, `products.name ${p.sku}`),
       priceCents,
       memberPriceCents: priceVersionAt(list, "member", at)?.amountCents ?? null,
       imageUrl: p.imageFileId ? appUrl(signFileUrl(p.imageFileId, 7 * 24 * 3600)) : null,
@@ -474,7 +474,7 @@ export function toQuoteProduct(p: ProductRow): QuoteProduct {
     id: p.id,
     kind: p.kind,
     sku: p.sku,
-    name: p.name as LocalizedText,
+    name: p.name,
     vatRatePct: Number(p.vatRatePct),
     memberDiscountPct: p.memberDiscountPct === null ? null : Number(p.memberDiscountPct),
     isActive: p.isActive,

@@ -6,7 +6,7 @@
  */
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { applyCustomSql, createTestDb, makePerson, makeUser } from "@beam/db/testing";
-import type { DbHandle, Tx } from "@beam/db";
+import type { DbHandle } from "@beam/db";
 import { auditLog, personPrices, priceVersions, products } from "@beam/db/schema";
 
 vi.mock("next/headers", () => ({ cookies: () => Promise.resolve({ get: () => undefined }), headers: () => Promise.resolve(new Headers()) }));
@@ -120,7 +120,7 @@ describe("price versions (rule 4)", () => {
     const results = await Promise.all(
       amounts.map((amountCents) =>
         h.db.transaction((tx) =>
-          cat.addPriceVersionRecord(createCtx({ tx: tx as Tx, actor: staff, durableMode: "immediate" }), cat.AddPriceVersionInput.parse({ productId: id, audience: "public", amountCents })),
+          cat.addPriceVersionRecord(createCtx({ tx: tx, actor: staff, durableMode: "immediate" }), cat.AddPriceVersionInput.parse({ productId: id, audience: "public", amountCents })),
         ),
       ),
     );

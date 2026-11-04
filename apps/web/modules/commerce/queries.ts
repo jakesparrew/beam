@@ -7,6 +7,7 @@
 import { orders, personPrices, persons, priceVersions, products, promotionRedemptions, promotions, users } from "@beam/db/schema";
 import type { Audience, ProductKind } from "@beam/core/commerce";
 import { priceVersionAt } from "@beam/core/commerce";
+import { messagesFor, TIME_ZONE, type Locale } from "@beam/core/i18n";
 import { and, asc, desc, eq, gt, inArray, isNull, lte, or, sql, type DbOrTx } from "@/lib/ctx";
 import { productCompleteness, toPriceVersionRow, type PersonPriceDbRow, type PriceVersionDbRow, type ProductRow } from "./server/catalogue";
 import type { PromotionDbRow } from "./server/promotions";
@@ -178,6 +179,66 @@ export async function getPromotion(db: DbOrTx, id: string): Promise<PromotionDet
       personName: r.personId ? [r.firstName, r.lastName].filter(Boolean).join(" ") || r.email : null,
       createdAt: r.createdAt,
     })),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Screen helpers for the admin pages (server side)
+// ---------------------------------------------------------------------------
+
+/**
+ * The flat labels of `commerce.<screen>.*` for client forms, later screens winning on equal keys
+ * (for example `["common", "admin_products"]`). Messages with simple `{name}` parameters are
+ * passed raw and filled in by the form; plural messages are formatted by the page.
+ */
+export function commerceLabels(locale: Locale, screens: readonly string[]): Record<string, string> {
+  const tree = (messagesFor(locale, ["commerce"]).commerce ?? {}) as Record<string, unknown>;
+  const out: Record<string, string> = {};
+  for (const screen of screens) {
+    const node = tree[screen];
+    if (!node || typeof node !== "object") continue;
+    for (const [k, v] of Object.entries(node as Record<string, unknown>)) if (typeof v === "string") out[k] = v;
+  }
+  return out;
+}
+
+/** `YYYY-MM-DDTHH:mm` of `date` in Europe/Brussels, for `datetime-local` inputs. */
+export function brusselsInputValue(date: Date | null | undefined): string {
+  if (!date) return "";
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-GB", { timeZone: TIME_ZONE, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
+      .formatToParts(date)
+      .map((p) => [p.type, p.value]),
+  );
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
+}
+
+type Tr = (key: string, params?: Record<string, string | number>) => string;
+type FormOption = { value: string; label: string };
+const opts = (tr: Tr, prefix: string, values: readonly string[]): FormOption[] => values.map((value) => ({ value, label: tr(`commerce.${prefix}.${value}`) }));
+
+/** The select options of the product form, in the staff locale. */
+export function productFormOptions(tr: Tr) {
+  return {
+    kinds: opts(tr, "product_kind", ["session", "night", "package", "membership", "ticket", "item", "voucher"]),
+    vatRates: [0, 6, 12, 21].map((r) => ({ value: String(r), label: tr("commerce.admin_products.vat_value", { rate: r }) })),
+    creditKinds: opts(tr, "credit_kind", ["day", "night"]),
+    intervals: opts(tr, "recurring_interval", ["month", "year"]),
+    includedKinds: opts(tr, "credit_kind", ["day", "night"]),
+    itemCategories: opts(tr, "item_category", ["merchandise", "wellness_product", "other"]),
+    localeNames: { "nl-BE": tr("commerce.common.locale_nl"), "fr-BE": tr("commerce.common.locale_fr"), en: tr("commerce.common.locale_en") },
+  };
+}
+
+/** The select and checkbox options of the promotion form, in the staff locale. */
+export function promotionFormOptions(tr: Tr, locale: Locale, productOptions: Pick<ProductRow, "id" | "sku" | "name">[]) {
+  return {
+    kinds: opts(tr, "promotion_kind", ["percent", "fixed"]),
+    products: productOptions.map((p) => ({ value: p.id, label: `${(p.name as Record<string, string | undefined>)[locale]?.trim() || p.sku} (${p.sku})` })),
+    productKinds: opts(tr, "product_kind", ["session", "night", "package", "membership", "ticket", "item", "voucher"]),
+    statuses: opts(tr, "person_status", ["lead", "customer", "member"]),
+    channels: opts(tr, "channel", ["portal", "site", "admin", "pos", "link"]),
+    localeNames: { "nl-BE": tr("commerce.common.locale_nl"), "fr-BE": tr("commerce.common.locale_fr"), en: tr("commerce.common.locale_en") },
   };
 }
 

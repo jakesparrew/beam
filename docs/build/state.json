@@ -500,14 +500,16 @@
       "mergedAt": "2026-11-04T05:49:25Z"
     },
     "forms-P4": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "9430fed",
       "runId": "wf_0c09a661-7ee",
       "startedAt": "2026-11-04T08:28:25Z",
       "branchSha": "7bb3ab9",
-      "endedAt": "2026-11-04T09:09:31Z",
-      "minutes": 40
+      "endedAt": "2026-11-04T09:11:14Z",
+      "minutes": 40,
+      "mergeSha": "2764ed5",
+      "mergedAt": "2026-11-04T09:25:10Z"
     },
     "email-P3": {
       "status": "merged",
@@ -661,14 +663,16 @@
       "attempts": 0
     },
     "email-P4": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "9430fed",
       "runId": "wf_88daa4d5-5d3",
       "startedAt": "2026-11-04T08:28:25Z",
       "branchSha": "8b82632",
-      "endedAt": "2026-11-04T09:09:09Z",
-      "minutes": 17
+      "endedAt": "2026-11-04T09:11:14Z",
+      "minutes": 17,
+      "mergeSha": "81e6589",
+      "mergedAt": "2026-11-04T09:25:00Z"
     },
     "automation-P4": {
       "status": "running",
@@ -756,14 +760,16 @@
       "startedAt": "2026-11-04T09:10:27Z"
     },
     "booking-P6": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "9430fed",
       "runId": "wf_b20e3745-577",
       "startedAt": "2026-11-04T08:28:24Z",
       "branchSha": "ae75e7e",
-      "endedAt": "2026-11-04T09:09:10Z",
-      "minutes": 36
+      "endedAt": "2026-11-04T09:11:14Z",
+      "minutes": 36,
+      "mergeSha": "4df7b89",
+      "mergedAt": "2026-11-04T09:25:07Z"
     },
     "commerce-P6": {
       "status": "running",
@@ -773,14 +779,16 @@
       "startedAt": "2026-11-04T08:28:25Z"
     },
     "finance-P6": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "9430fed",
       "runId": "wf_551a9fa9-8b5",
       "startedAt": "2026-11-04T08:28:24Z",
       "branchSha": "ce195d1",
-      "endedAt": "2026-11-04T09:09:09Z",
-      "minutes": 35
+      "endedAt": "2026-11-04T09:11:14Z",
+      "minutes": 35,
+      "mergeSha": "1762755",
+      "mergedAt": "2026-11-04T09:25:04Z"
     },
     "forms-P7": {
       "status": "pending",

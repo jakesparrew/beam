@@ -145,3 +145,8 @@ One entry per merge batch and gate (runbook section 5.7, adapted by OD-3).
 - fix-w07-crm-1: merged as `dd9127d` in batch `g59-batch`.
 - fix-w07-booking-1: merged as `c035115` in batch `g59-batch`.
 - Batch `g59-batch` (ops-P6 crm-P7 credits-P6 site-P3 fix-w07-crm-1 fix-w07-booking-1): merge gate green, peak 9920 MB.
+- email-P4: merged as `81e6589` in batch `g60-batch`.
+- finance-P6: merged as `1762755` in batch `g60-batch`.
+- booking-P6: merged as `4df7b89` in batch `g60-batch`.
+- forms-P4: merged as `2764ed5` in batch `g60-batch`.
+- Batch `g60-batch` (email-P4 finance-P6 booking-P6 forms-P4): merge gate green, peak 5400 MB.

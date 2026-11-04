@@ -1,68 +1,69 @@
 /**
- * forms' cross-module door (02-data-model section 6.7). Wave 0 stubs by platform-P7 with the
- * owner's final signatures: each throws `NotImplementedError('forms.<fn>')` until forms
- * implements it. `FormEmbed` moves to `./ui/public/form-embed` when forms builds it; the Wave 0
- * stand-in renders nothing visible and throws.
+ * forms' cross-module door (forms spec section 4 "Cross-module API", 02-data-model section 6.7).
+ * Implemented by forms-P3 on top of `./service/*`; signatures are the Wave 0 contract.
+ * `countLandingConversions` (R3, forms-P9) and the `FormEmbed` stand-in (forms-P4 replaces it
+ * with `export { FormEmbed } from './ui/public/form-embed'`) are still stubs.
  */
 import type { DbOrTx } from "@beam/db";
 import { NotImplementedError } from "@beam/core/errors";
 import type { Locale, LocalizedText } from "@beam/core/i18n";
 import type { AcquisitionSource } from "@beam/core/crm";
 import type { FormEmbedProps, LatestOutcome, PersonSubmissionSummary, PublicFormRef, UtmParams } from "@beam/core/forms";
+import { getFormsHealth as formsHealth } from "./service/health";
+import * as reads from "./service/public-queries";
+import { createIdentityToken, hostedFormUrl, IDENTITY_TTL_DAYS, verifyIdentityToken } from "./service/tokens";
 
 export type { FormEmbedProps, LatestOutcome, PersonSubmissionSummary, PublicFormRef } from "@beam/core/forms";
 
-const notYet = <T>(fn: string): Promise<T> => Promise.reject(new NotImplementedError(`forms.${fn}`));
-
 /** Site pages and pickers (site, automation, email). */
-export function listPublishedForms(_db: DbOrTx): Promise<PublicFormRef[]> {
-  return notYet("listPublishedForms");
+export function listPublishedForms(db: DbOrTx): Promise<PublicFormRef[]> {
+  return reads.listPublishedForms(db);
 }
 
 /** Site publish check for `form_embed` blocks; null when the slug is not a published form. */
-export function getPublishedFormMeta(_db: DbOrTx, _slug: string): Promise<{ formId: string; locales: Locale[] } | null> {
-  return notYet("getPublishedFormMeta");
+export function getPublishedFormMeta(db: DbOrTx, slug: string): Promise<{ formId: string; locales: Locale[] } | null> {
+  return reads.getPublishedFormMeta(db, slug);
 }
 
 /** Outcome keys and labels of the current version. */
-export function listOutcomes(_db: DbOrTx, _formSlug: string): Promise<{ key: string; label: LocalizedText }[]> {
-  return notYet("listOutcomes");
+export function listOutcomes(db: DbOrTx, formSlug: string): Promise<{ key: string; label: LocalizedText }[]> {
+  return reads.listOutcomes(db, formSlug);
 }
 
 /** Person page tab (crm) and portal. Never includes answer values. */
-export function listPersonSubmissions(_db: DbOrTx, _personId: string): Promise<PersonSubmissionSummary[]> {
-  return notYet("listPersonSubmissions");
+export function listPersonSubmissions(db: DbOrTx, personId: string): Promise<PersonSubmissionSummary[]> {
+  return reads.listPersonSubmissions(db, personId);
 }
 
 /** Latest outcome per form for many persons. */
-export function getLatestOutcomes(_db: DbOrTx, _personIds: string[]): Promise<Map<string, LatestOutcome[]>> {
-  return notYet("getLatestOutcomes");
+export function getLatestOutcomes(db: DbOrTx, personIds: string[]): Promise<Map<string, LatestOutcome[]>> {
+  return reads.getLatestOutcomes(db, personIds);
 }
 
 /** Email's assessment outcome block: personId -> latest outcome key of that form. */
-export function listLatestOutcomes(_tx: DbOrTx, _personIds: string[], _formSlug: string): Promise<Map<string, string>> {
-  return notYet("listLatestOutcomes");
+export function listLatestOutcomes(tx: DbOrTx, personIds: string[], formSlug: string): Promise<Map<string, string>> {
+  return reads.listLatestOutcomes(tx, personIds, formSlug);
 }
 
-/** Reception check-in and booking: is there a completed, unexpired submission? */
+/** Reception check-in and booking: is there a completed, unexpired submission (ID11)? */
 export function hasValidSubmission(
-  _db: DbOrTx,
-  _input: { personId: string; formSlug: string },
+  db: DbOrTx,
+  input: { personId: string; formSlug: string },
 ): Promise<{ valid: boolean; completedAt: Date | null; expiresAt: Date | null }> {
-  return notYet("hasValidSubmission");
+  return reads.hasValidSubmission(db, input);
 }
 
-/** Prefill links in emails and on result pages; identification only, never login. */
-export function createPersonToken(_personId: string, _opts?: { formSlug?: string; ttlDays?: number }): string {
-  throw new NotImplementedError("forms.createPersonToken");
+/** Prefill links in emails and on result pages; identification only, never login (ID5, 30 days by default). */
+export function createPersonToken(personId: string, opts?: { formSlug?: string; ttlDays?: number }): string {
+  return createIdentityToken({ personId, formSlug: opts?.formSlug ?? null, ttlSeconds: (opts?.ttlDays ?? IDENTITY_TTL_DAYS) * 86_400 });
 }
 
-export function verifyPersonToken(_token: string): { personId: string; formSlug: string | null; expiresAt: Date; staffUserId: string | null } | null {
-  throw new NotImplementedError("forms.verifyPersonToken");
+export function verifyPersonToken(token: string): { personId: string; formSlug: string | null; expiresAt: Date; staffUserId: string | null } | null {
+  return verifyIdentityToken(token);
 }
 
 /** Absolute hosted-form URL with optional identity token and UTM. */
-export function buildFormUrl(_input: {
+export function buildFormUrl(input: {
   slug: string;
   locale: Locale;
   personId?: string;
@@ -70,26 +71,36 @@ export function buildFormUrl(_input: {
   utm?: UtmParams;
   linkKey?: string;
 }): string {
-  throw new NotImplementedError("forms.buildFormUrl");
+  const utm = input.utm ?? {};
+  return hostedFormUrl(input.slug, input.locale, {
+    pt: input.personId ? createPersonToken(input.personId, { formSlug: input.slug }) : undefined,
+    src: input.src,
+    l: input.linkKey,
+    utm_source: utm.source,
+    utm_medium: utm.medium,
+    utm_campaign: utm.campaign,
+    utm_term: utm.term,
+    utm_content: utm.content,
+  });
 }
 
-/** Site insights (R3). */
+/** Site insights (R3, forms-P9). */
 export function countLandingConversions(
   _db: DbOrTx,
   _input: { from: Date; to: Date },
 ): Promise<{ landingPath: string; utmCampaign: string | null; submissions: number; newPersons: number }[]> {
-  return notYet("countLandingConversions");
+  return Promise.reject(new NotImplementedError("forms.countLandingConversions"));
 }
 
 /** Daily digest and alerts (ops, platform). */
 export function getFormsHealth(
-  _db: DbOrTx,
-  _input: { day: string },
+  db: DbOrTx,
+  input: { day: string },
 ): Promise<{ completions: number; started: number; importFailed: number; importSkipped: number; deadJobs: number; formsWithBrokenCtas: number }> {
-  return notYet("getFormsHealth");
+  return formsHealth(db, input);
 }
 
-/** Server component for site page blocks (Wave 0 stand-in; forms replaces it with its re-export). */
+/** Server component for site page blocks (Wave 0 stand-in; forms-P4 replaces it with its re-export). */
 export function FormEmbed(_props: FormEmbedProps): never {
   throw new NotImplementedError("forms.FormEmbed");
 }

@@ -174,7 +174,7 @@ describe("sensitive fields (rules 3.23 to 3.26)", () => {
     expect(notes).toHaveLength(2);
     expect(notes).toEqual(expect.arrayContaining([{ eventId: loserNote, body: loserBody }, { eventId: winnerNote, body: winnerBody }]));
     expect(JSON.stringify(notes)).not.toContain(strangerBody);
-    expect(spies.readSensitive.mock.calls.map((c) => c.slice(1))).toEqual([
+    expect(spies.readSensitive.mock.calls.map((c: unknown[]) => c.slice(1))).toEqual([
       [winner.id, "staff_view", { eventIds: [winnerNote] }],
       [loser.id, "staff_view", { eventIds: [loserNote] }],
     ]);
@@ -185,7 +185,7 @@ describe("sensitive fields (rules 3.23 to 3.26)", () => {
     // only a loser's note: one read, for the loser
     spies.readSensitive.mockClear();
     expect(await actions.revealSensitive({ personId: winner.id, eventIds: [loserNote] })).toEqual({ ok: true, data: { fields: {}, notes: [{ eventId: loserNote, body: loserBody }] } });
-    expect(spies.readSensitive.mock.calls.map((c) => c.slice(1))).toEqual([[loser.id, "staff_view", { eventIds: [loserNote] }]]);
+    expect(spies.readSensitive.mock.calls.map((c: unknown[]) => c.slice(1))).toEqual([[loser.id, "staff_view", { eventIds: [loserNote] }]]);
   });
 
   it("3.23 no plaintext in activity_events, and merged or unknown persons are refused", async () => {

@@ -3,14 +3,17 @@
  * `payments.create`, `payments.sync`, `commerce.render_receipt` and
  * `commerce.refund_unavailable_lines`. commerce-P4b: `payments.scan_expired`,
  * `payments.charge_recurring`, `payments.cancel`, `commerce.revoke_mandate` and
- * `commerce.erase_provider_customer`. Later commerce packages add their jobs to this file.
+ * `commerce.erase_provider_customer`. commerce-P6: `payments.refund`, `payments.create_link`,
+ * `commerce.issue_voucher_email` and `commerce.expire_vouchers`. Later commerce packages add
+ * their jobs to this file.
  */
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { createTestDb, makePerson, makeProduct } from "@beam/db/testing";
+import { createTestDb, makePerson, makeProduct, makeUser } from "@beam/db/testing";
 import { makeOrder, makeOrderLine } from "@beam/db/testing/commerce-factories";
 import type { DbHandle } from "@beam/db";
-import { emailMessages, files, mandates, orders, payments } from "@beam/db/schema";
+import { activityEvents, emailMessages, files, mandates, orders, payments, refunds, vouchers } from "@beam/db/schema";
+import { deriveVoucherCode, hashVoucherCode } from "@beam/core/commerce";
 import { makeMembership } from "@beam/db/testing/credits-factories";
 
 vi.mock("next/headers", () => ({ cookies: () => Promise.resolve({ get: () => undefined }), headers: () => Promise.resolve(new Headers()) }));
@@ -193,5 +196,74 @@ describe("commerce-P4b jobs run twice", () => {
     expect(second).toEqual(first);
     expect(fake.payments.calls.filter((c) => c.operation === "customers.delete")).toHaveLength(2);
     expect((await fake.payments.getMandate({ customerId, mandateId: mandate.providerMandateId })).status).toBe("invalid");
+  });
+});
+
+describe("commerce-P6 jobs run twice", () => {
+  beforeAll(() => {
+    process.env.VOUCHER_CODE_SECRET ??= "test-jobs-secret";
+  });
+
+  it("payments.refund refunds at the provider once", async () => {
+    const { order, line } = await openOrderWithPayment();
+    const user = await makeUser(h.db);
+    const created = await fake.payments.createPayment({
+      amountCents: 4500,
+      description: order.reference,
+      redirectUrl: "http://localhost/return",
+      webhookUrl: "http://localhost/api/webhooks/mollie",
+      locale: "nl-BE",
+      sequenceType: "oneoff",
+      metadata: { orderId: order.id, paymentId: randomUUID() },
+      idempotencyKey: randomUUID(),
+    });
+    fake.payments.settle(created.providerPaymentId, "paid");
+    await h.db.update(orders).set({ status: "paid", paidAt: new Date() }).where(eq(orders.id, order.id));
+    const [paid] = await h.db.insert(payments).values({ orderId: order.id, provider: "mollie", providerPaymentId: created.providerPaymentId, status: "paid", amountCents: 4500, paidAt: new Date() }).returning();
+    const [refund] = await h.db
+      .insert(refunds)
+      .values({ paymentId: paid!.id, orderId: order.id, amountCents: 4500, reason: "test refund", lines: [{ order_line_id: line.id, quantity: 1, amount_cents: 4500 }], creditAction: "none", status: "pending", createdByUserId: user.id })
+      .returning();
+    const { first, second } = await runJobTwice(h.db, "payments.refund", { refundId: refund!.id }, { integrations: fake });
+    expect(first).toMatchObject({ status: "refunded" });
+    expect(second).toEqual({ skipped: true, status: "refunded" });
+    expect(fake.payments.calls.filter((c) => c.operation === "refunds.create")).toHaveLength(1);
+    expect(await h.db.select().from(emailMessages).where(eq(emailMessages.idempotencyKey, `refund:${refund!.id}:confirmation`))).toHaveLength(1);
+  });
+
+  it("payments.create_link sends one payment-link email", async () => {
+    const person = await makePerson(h.db);
+    const order = await makeOrder(h.db, { personId: person.id, channel: "link", expiresAt: new Date(Date.now() + 14 * 86_400_000) });
+    await makeOrderLine(h.db, { orderId: order.id });
+    const { first, second } = await runJobTwice(h.db, "payments.create_link", { orderId: order.id, email: "payer@example.com", version: order.version }, { integrations: fake });
+    expect(second).toEqual(first);
+    expect(await h.db.select().from(emailMessages).where(eq(emailMessages.idempotencyKey, `pay_link:${order.id}:${order.version}`))).toHaveLength(1);
+  });
+
+  it("commerce.issue_voucher_email sends one voucher email", async () => {
+    const person = await makePerson(h.db);
+    const product = await makeProduct(h.db, { kind: "voucher" });
+    const order = await makeOrder(h.db, { personId: person.id, status: "paid" });
+    const line = await makeOrderLine(h.db, { orderId: order.id, productId: product.id, unitAmountCents: 2500, vatRatePct: "0.00" });
+    const id = randomUUID();
+    const code = await deriveVoucherCode(process.env.VOUCHER_CODE_SECRET!, id);
+    await h.db.insert(vouchers).values({ id, orderLineId: line.id, amountCents: 2500, purchaserPersonId: person.id, recipientEmail: "friend@example.com", status: "active", activatedAt: new Date(), expiresAt: new Date(Date.now() + 730 * 86_400_000), codeHash: await hashVoucherCode(code) });
+    const { first, second } = await runJobTwice(h.db, "commerce.issue_voucher_email", { voucherId: id, n: 0 }, { integrations: fake });
+    expect((second as { emailMessageId: string }).emailMessageId).toBe((first as { emailMessageId: string }).emailMessageId);
+    expect(await h.db.select().from(emailMessages).where(eq(emailMessages.idempotencyKey, `voucher:${id}:email:0`))).toHaveLength(1);
+    expect(await h.db.select().from(files).where(eq(files.name, `voucher-${id}.pdf`))).toHaveLength(1);
+  });
+
+  it("commerce.expire_vouchers expires a voucher once", async () => {
+    const person = await makePerson(h.db);
+    const product = await makeProduct(h.db, { kind: "voucher" });
+    const order = await makeOrder(h.db, { personId: person.id, status: "paid" });
+    const line = await makeOrderLine(h.db, { orderId: order.id, productId: product.id, unitAmountCents: 2500, vatRatePct: "0.00" });
+    const [v] = await h.db.insert(vouchers).values({ orderLineId: line.id, amountCents: 2500, purchaserPersonId: person.id, status: "active", activatedAt: new Date(Date.now() - 800 * 86_400_000), expiresAt: new Date(Date.now() - 60_000) }).returning();
+    const { first, second } = await runJobTwice(h.db, "commerce.expire_vouchers", {}, { integrations: fake });
+    expect((first as { expired: number }).expired).toBeGreaterThanOrEqual(1);
+    expect((second as { expired: number }).expired).toBe(0);
+    expect((await h.db.select().from(vouchers).where(eq(vouchers.id, v!.id)))[0]!.status).toBe("expired");
+    expect(await h.db.select().from(activityEvents).where(eq(activityEvents.dedupeKey, `voucher:${v!.id}:expired`))).toHaveLength(1);
   });
 });

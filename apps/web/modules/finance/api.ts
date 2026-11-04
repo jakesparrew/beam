@@ -1,8 +1,9 @@
 /**
  * finance's cross-module door (finance spec sections 4.1 and 10, 02-data-model section 6.6).
  * finance-P1 declared every function with its final signature; finance-P2 implements issuing,
- * settlement, billing details and the read functions. `getFinanceDigest` lands in finance-P5 and
- * `getFinanceKpis` in finance-P10 and keep throwing `NotImplementedError` until then. Retention is
+ * settlement, billing details and the read functions; finance-P5 implements `getFinanceDigest`
+ * (`service/digest.ts`). `getFinanceKpis` lands in finance-P10 and keeps throwing
+ * `NotImplementedError` until then. Retention is
  * not an api function: finance's `privacy.ts` exports `sweep`. The pure helpers other modules use
  * (`BillingDetailsInput`, `computeLineVat`, `normaliseVatNumber`) come from `@beam/core/finance`.
  *
@@ -17,6 +18,7 @@ import type { BillingDetails, CreditNoteLineInput, FinanceKpis, InvoiceSummary }
 import { and, desc, eq, type Ctx } from "@/lib/ctx";
 import type { DigestSection } from "@/modules/platform/api";
 import { setOrderBillingDetails as setBillingDetails } from "./service/billing-details";
+import { getFinanceDigest as getFinanceDigestService } from "./service/digest";
 import { assertCustomerOwns, enqueueFinanceJob } from "./service/invoice-state";
 import { issueCreditNote as issueCreditNoteService } from "./service/issue-credit-note";
 import { issueInvoice as issueInvoiceService } from "./service/issue-invoice";
@@ -163,9 +165,9 @@ export async function resyncCustomer(tx: Tx, ctx: Ctx, personId: string): Promis
   }
 }
 
-/** For ops.daily_digest. Ids and counts only. */
-export function getFinanceDigest(_db: DbOrTx, _day: string): Promise<DigestSection> {
-  return notYet("getFinanceDigest");
+/** For ops.daily_digest: Billit failed and failing over the alert time, PDF failures, overdue open invoices, last reconcile, nl-BE fallbacks. Ids and counts only. */
+export function getFinanceDigest(db: DbOrTx, day: string): Promise<DigestSection> {
+  return getFinanceDigestService(db, day);
 }
 
 /** R4: KPIs for ops custom dashboards, weekly summary and NL questions. */

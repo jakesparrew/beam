@@ -309,7 +309,7 @@ export async function writeIntegrationCalls(db: DbOrTx, entries: readonly Integr
   const rows = entries
     .filter((e) => INTEGRATION_ENUM.has(e.provider))
     .map((e) => ({
-      provider: e.provider as (typeof integrationCalls.$inferInsert)["provider"],
+      provider: e.provider,
       operation: e.operation,
       requestDigest: e.requestDigest,
       statusCode: e.statusCode,

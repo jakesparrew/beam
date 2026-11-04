@@ -73,3 +73,17 @@ One entry per merge batch and gate (runbook section 5.7, adapted by OD-3).
 - credits-P3: merged as `8be7a14` in batch `g25-batch`.
 - Batch `g25-batch` (fix-w04-platform-3 crm-P2 credits-P3): merge gate green, peak 3823 MB.
 - 01:34 UTC: started fix-w05-schema-1 (deferred FKs and checks for booking, commerce, ops, site, automation; activates booking and ops schedules) from `9a4438b`.
+- 01:35 UTC: the container restarted and stopped all seven running agents (platform-P8, finance-P1, booking-P3a, crm-P3, crm-P6, email-P2, fix-w05-schema-1) before any of them committed. The repository, worktrees, scratchpad and `.env.local` survived. Their uncommitted files were saved as `wip:` commits on their own branches (platform-P8 20 files, finance-P1 30, booking-P3a 11, crm-P6 3, email-P2 3); all seven were relaunched from `4ea719a` at 01:38, the five with saved work continuing from it.
+- finance-P1: 16 min (attempt 2 after the restart; the saved work was complete), merged as `7bf2ac1` with migrations `w04` and the custom `0025_w04_finance_guard` (invoice immutability trigger, finance-P1's request); gate `g26` green in 819 s (tests 586 s under load).
+- email-P2: merged as `3c1eaef` in batch `g27-batch`.
+- crm-P6: merged as `4107cbe` in batch `g27-batch`.
+- Batch `g27-batch` (email-P2 crm-P6): merge gate green, peak 5988 MB.
+- 02:20 UTC: a second container restart stopped platform-P8 (attempt 2, 47 uncommitted files, saved as `wip` commit `3d8ad7d`) and credits-P4 (nothing written). Agent instructions now require a commit after each finished area. Relaunched platform-P8 (attempt 3), credits-P4, and started site-P2 and forms-P2 from `1b2926a`.
+- Done and waiting to land: crm-P3 (38 min), booking-P3a (39 min). fix-w05-schema-1 (33 min) added every deferred FK and check and activated the booking and ops schedules, but its new `orders_terms_chk` breaks 21 tests in five other modules' fixtures (portal orders without a terms version); attempt 2 gets those test files and adds `@beam/db/testing/commerce-factories`.
+- crm-P3: 38 min, merged as `517b02d`; gate `g29-crm-P3` (merge) green, peak 4673 MB.
+- Batch `g28` (crm-P3, booking-P3a) red in email's template registry test (`define.test.ts`, from email-P2): crm-P3's two templates were not registered (no package owned `templates/crm/index.ts`) and booking-P3a's two templates had no `sample`. crm-P3 then landed alone (`g29`) because the changed-tests gate did not select the registry test, leaving a latent failure; fixer `fix-w05-crm-1` registers crm's templates, booking-P3a attempt 3 adds samples. Plan amended (OD-10); full quick gates now run every three or four landings.
+- platform-P8 attempt 3 finished the package (16 min) except one platform-P6 assertion written to fail once P8 implements `reportProblem`; attempt 4 gets that test and the old AdminFrame copy.
+- fix-w05-crm-1: 6 min, merged as `fab14fa`; gate `g31-fix-w05-crm-1` (quick) green, peak 5862 MB.
+- booking-P3a: merged as `03300f6` in batch `g32-batch`.
+- platform-P8: merged as `b0d6020` in batch `g32-batch`.
+- Batch `g32-batch` (booking-P3a platform-P8): merge gate green, peak 5934 MB.

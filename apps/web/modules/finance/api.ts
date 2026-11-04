@@ -1,15 +1,19 @@
 /**
- * finance's cross-module door (02-data-model section 6.6). Wave 0 stubs by platform-P7 with the
- * owner's final signatures: each throws `NotImplementedError('finance.<fn>')` until finance
- * implements it. Retention is not an api function: finance's `privacy.ts` exports `sweep`.
+ * finance's cross-module door (finance spec sections 4.1 and 10, 02-data-model section 6.6).
+ * finance-P1 owns it: every finance function another module calls, with its final signature,
+ * as a typed stub that throws `NotImplementedError('finance.<fn>')` (03-build-order rule 1).
+ * finance-P2 implements issuing, settlement, billing details and the read functions;
+ * `getFinanceDigest` lands in finance-P5 and `getFinanceKpis` in finance-P10. Retention is not
+ * an api function: finance's `privacy.ts` exports `sweep`. The pure helpers other modules use
+ * (`BillingDetailsInput`, `computeLineVat`, `normaliseVatNumber`) come from `@beam/core/finance`.
  */
 import type { DbOrTx, Tx } from "@beam/db";
 import { NotImplementedError } from "@beam/core/errors";
-import type { BillingDetails, FinanceKpis, InvoiceSummary } from "@beam/core/finance";
+import type { BillingDetails, CreditNoteLineInput, FinanceKpis, InvoiceSummary } from "@beam/core/finance";
 import type { Ctx } from "@/lib/ctx";
 import type { DigestSection } from "@/modules/platform/api";
 
-export type { BillingDetails, FinanceKpis, InvoiceSummary } from "@beam/core/finance";
+export type { BillingDetails, CreditNoteLineInput, FinanceKpis, InvoiceSummary } from "@beam/core/finance";
 
 const notYet = <T>(fn: string): Promise<T> => Promise.reject(new NotImplementedError(`finance.${fn}`));
 
@@ -25,8 +29,6 @@ export type IssueInvoiceInput = {
 };
 
 export type IssueInvoiceResult = { status: "issued" | "existing"; invoiceId: string; number: string } | { status: "skipped"; reason: "zero_total" };
-
-export type CreditNoteLineInput = { orderLineId: string; quantity?: number; amountCents?: number };
 
 export type IssueCreditNoteInput = {
   invoiceId?: string;

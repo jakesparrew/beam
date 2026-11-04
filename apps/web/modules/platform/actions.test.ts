@@ -139,9 +139,11 @@ describe("own profile and the support stub", () => {
     expect(await handle.db.select().from(auditLog).where(and(eq(auditLog.action, "users.update_self"), eq(auditLog.entityId, user.id)))).toHaveLength(1);
   });
 
-  it("keeps reportProblem's final signature until platform-P8 implements it", async () => {
+  it("reportProblem validates its input and returns a support reference", async () => {
     await signInOwner();
     expect(await actions.reportProblem({ title: "x", description: "", severity: "normal", pageUrl: "/admin" })).toMatchObject({ ok: false, error: { code: "validation" } });
-    expect(await actions.reportProblem({ title: "Checkout fails", description: "", severity: "high", pageUrl: "/admin" })).toMatchObject({ ok: false, error: { code: "internal" } });
+    const result = await actions.reportProblem({ title: "Checkout fails", description: "", severity: "high", pageUrl: "/admin" });
+    expect(result.ok).toBe(true);
+    expect(result.ok ? result.data.reference : "").toMatch(/^SUP-\d{4}-\d{4}$/);
   });
 });

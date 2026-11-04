@@ -52,6 +52,9 @@ Every coding agent reads this page first. The long reference with examples is
     factories; provider fakes only, no network; every job runs twice in `jobs.test.ts`;
     `privacy.test.ts` and `permissions.test.ts` per module. Playwright specs are
     written and listed (`playwright test --list`), never run by a coding agent.
+    Never assert that another package's stub still throws, or that a registry
+    has exactly the entries of today (later packages implement stubs and add
+    jobs, schedules and templates): assert behaviour that stays true.
     In Playwright, never wait on a bare `getByRole("alert")`: Next.js renders a
     hidden route announcer with `role="alert"`, so the wait passes before your
     server action finishes. Wait for the action's POST response

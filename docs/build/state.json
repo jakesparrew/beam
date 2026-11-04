@@ -142,8 +142,11 @@
       "mergedAt": "2026-11-04T00:38:17Z"
     },
     "commerce-P2": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "d447ab3",
+      "runId": "wf_a89c53db-43a",
+      "startedAt": "2026-11-04T03:39:30Z"
     },
     "credits-P1": {
       "status": "merged",
@@ -298,8 +301,11 @@
       "mergedAt": "2026-11-04T03:00:29Z"
     },
     "commerce-P3": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "d447ab3",
+      "runId": "wf_4e7022ef-505",
+      "startedAt": "2026-11-04T03:39:30Z"
     },
     "credits-P3": {
       "status": "merged",
@@ -314,8 +320,11 @@
       "mergedAt": "2026-11-04T01:33:16Z"
     },
     "finance-P2": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "d447ab3",
+      "runId": "wf_a0872452-35c",
+      "startedAt": "2026-11-04T03:39:30Z"
     },
     "forms-P3": {
       "status": "pending",

@@ -6,7 +6,7 @@
  * (they use `../api.ts`).
  */
 import type { DbOrTx } from "@beam/db";
-import { bookings, capacityHolds, companies, orderLines, orders, persons, sessionTemplates, sessions, vSessionAvailability } from "@beam/db/schema";
+import { bookings, capacityHolds, companies, orderLines, orders, persons, products, sessionTemplates, sessions, vSessionAvailability } from "@beam/db/schema";
 import {
   MATERIALISE_DAYS,
   addDays,
@@ -310,6 +310,17 @@ export async function listHoldableSessions(db: DbOrTx, input: { now?: Date; days
 /** Company names for the partner hold picker (crm `companies`, names only). */
 export function listCompanyOptions(db: DbOrTx): Promise<Array<{ id: string; name: string }>> {
   return db.select({ id: companies.id, name: companies.name }).from(companies).orderBy(asc(companies.name)).limit(500);
+}
+
+/** Active session, night and ticket products for the "single-ticket product" pickers (names only). */
+export async function listProductOptions(db: DbOrTx): Promise<Array<{ id: string; kind: string; sku: string; name: LocalizedText }>> {
+  const rows = await db
+    .select({ id: products.id, kind: products.kind, sku: products.sku, name: products.name })
+    .from(products)
+    .where(and(eq(products.isActive, true), inArray(products.kind, ["session", "night", "ticket"])))
+    .orderBy(asc(products.kind), asc(products.sortOrder), asc(products.sku))
+    .limit(200);
+  return rows.map((r) => ({ ...r, name: r.name as LocalizedText }));
 }
 
 /** The session row (for the edit form and the session actions' pages). */

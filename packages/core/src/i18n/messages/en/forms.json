@@ -90,6 +90,26 @@
         "cta": "View your result",
         "footer": "You receive this email because a new link was requested for this address. Did you not ask for it? Then you can ignore this email."
       }
+    },
+    "builder": {
+      "starter": {
+        "submit": "Send",
+        "thanks_title": "Thank you",
+        "thanks_body": "We received your answers.",
+        "email": "Email address",
+        "first_name": "First name",
+        "newsletter_label": "Newsletter",
+        "newsletter_wording": "Yes, send me the BEAM newsletter. I can unsubscribe at any time.",
+        "question": "How do you rate this?",
+        "questions": "Questions",
+        "result_title": "Your result",
+        "result_body": "Here is your personal result.",
+        "email_subject": "Your result",
+        "email_intro": "Thank you for filling in the form. Here is your result.",
+        "dimension": "Score",
+        "range_low": "Low",
+        "range_high": "High"
+      }
     }
   }
 }

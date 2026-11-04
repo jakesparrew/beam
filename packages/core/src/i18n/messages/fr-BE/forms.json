@@ -90,6 +90,26 @@
         "cta": "Voir votre résultat",
         "footer": "Vous recevez cet e-mail parce qu'un nouveau lien a été demandé pour cette adresse. Vous ne l'avez pas demandé ? Vous pouvez ignorer cet e-mail."
       }
+    },
+    "builder": {
+      "starter": {
+        "submit": "Envoyer",
+        "thanks_title": "Merci",
+        "thanks_body": "Nous avons bien reçu vos réponses.",
+        "email": "Adresse e-mail",
+        "first_name": "Prénom",
+        "newsletter_label": "Newsletter",
+        "newsletter_wording": "Oui, envoyez-moi la newsletter de BEAM. Je peux me désinscrire à tout moment.",
+        "question": "Quelle note donnez-vous ?",
+        "questions": "Questions",
+        "result_title": "Votre résultat",
+        "result_body": "Voici votre résultat personnel.",
+        "email_subject": "Votre résultat",
+        "email_intro": "Merci d'avoir rempli le formulaire. Voici votre résultat.",
+        "dimension": "Score",
+        "range_low": "Bas",
+        "range_high": "Élevé"
+      }
     }
   }
 }

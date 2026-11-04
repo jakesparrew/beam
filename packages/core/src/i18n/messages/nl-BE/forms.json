@@ -90,6 +90,26 @@
         "cta": "Bekijk je resultaat",
         "footer": "Je ontvangt deze e-mail omdat voor dit adres een nieuwe link werd aangevraagd. Heb je dit niet gevraagd? Dan mag je deze e-mail negeren."
       }
+    },
+    "builder": {
+      "starter": {
+        "submit": "Versturen",
+        "thanks_title": "Bedankt",
+        "thanks_body": "We hebben je antwoorden ontvangen.",
+        "email": "E-mailadres",
+        "first_name": "Voornaam",
+        "newsletter_label": "Nieuwsbrief",
+        "newsletter_wording": "Ja, stuur mij de BEAM-nieuwsbrief. Ik kan me op elk moment uitschrijven.",
+        "question": "Hoe beoordeel je dit?",
+        "questions": "Vragen",
+        "result_title": "Jouw resultaat",
+        "result_body": "Hier is je persoonlijke resultaat.",
+        "email_subject": "Jouw resultaat",
+        "email_intro": "Bedankt om het formulier in te vullen. Hier is je resultaat.",
+        "dimension": "Score",
+        "range_low": "Laag",
+        "range_high": "Hoog"
+      }
     }
   }
 }

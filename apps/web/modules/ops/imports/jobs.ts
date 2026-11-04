@@ -61,10 +61,13 @@ export const APPLIERS: Readonly<Record<ImportKind, RowApplier>> = {
   history: applyHistoryRow,
 };
 
-/** The target fields a mapping may use for a kind and source (`IMPORT_TARGETS`, plus the webinar extras). */
+/** The target fields a mapping may use for a kind and source (`IMPORT_TARGETS`; the webinar extras only for `webinar_tool`). */
 export function allowedTargets(kind: ImportKind, source: ImportSource): readonly string[] {
   const base: readonly string[] = IMPORT_TARGETS[kind];
-  return kind === "history" && source === "webinar_tool" ? [...base, ...WEBINAR_EXTRA_TARGETS] : base;
+  if (kind !== "history") return base;
+  const extras: readonly string[] = WEBINAR_EXTRA_TARGETS;
+  const withoutExtras = base.filter((t) => !extras.includes(t));
+  return source === "webinar_tool" ? [...withoutExtras, ...extras] : withoutExtras;
 }
 
 /** The mapped fields of a CSV record: unmapped columns are dropped (ops spec 2.2 `import_rows.data`). */

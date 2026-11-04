@@ -115,3 +115,16 @@ describe("mapping changes during a dry run (review finding 3, rule 44)", () => {
     expect(await actions.startImport({ importId: id })).toMatchObject(conflict("dry_run_first"));
   });
 });
+
+describe("webinar attendance targets (request ops-P4 -> ops)", () => {
+  it("mode and watched_minutes are mapping targets of webinar_tool history imports only", async () => {
+    const { allowedTargets } = await import("./jobs");
+    const webinar = allowedTargets("history", "webinar_tool");
+    expect(webinar).toEqual(expect.arrayContaining(["mode", "watched_minutes"]));
+    expect(new Set(webinar).size).toBe(webinar.length);
+    for (const source of ["spreadsheet", "lightspeed"] as const) {
+      expect(allowedTargets("history", source)).not.toContain("watched_minutes");
+      expect(allowedTargets("history", source)).not.toContain("mode");
+    }
+  });
+});

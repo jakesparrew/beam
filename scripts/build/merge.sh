@@ -14,6 +14,10 @@ for id in "$@"; do
   node scripts/build/ownership.mjs --check "$id" "$base" "build/$id" || { echo "OWNERSHIP $id"; exit 4; }
   wave=$(node -e "const p=require('./docs/plan/build-packages.json');console.log(p.packages.find(x=>x.id==='$id')?.wave??'fix')")
   if ! git merge --no-ff --no-edit -m "merge: $id (wave $wave)" "build/$id"; then
+    # OD-16: parallel fixers each delete their own known-red line; that file merges as a set.
+    if [ "$(git diff --name-only --diff-filter=U)" = "docs/build/known-red.txt" ] && node scripts/build/merge-known-red.mjs; then
+      git add docs/build/known-red.txt && git commit -q --no-edit && continue
+    fi
     echo "CONFLICT in $id"; git diff --name-only --diff-filter=U; git merge --abort; exit 3
   fi
 done

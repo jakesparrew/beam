@@ -37,15 +37,18 @@ const credits = {
   getMembershipForPerson: vi.fn<(...a: unknown[]) => unknown>(),
   canStartMembership: vi.fn<(...a: unknown[]) => unknown>(),
   getEuroBalance: vi.fn<(...a: unknown[]) => unknown>(),
+  consumeCredits: vi.fn<(...a: unknown[]) => unknown>(),
 };
 vi.mock("@/modules/credits/api", async (importOriginal) => ({
   ...(await importOriginal<object>()),
   getMembershipForPerson: (...a: unknown[]) => credits.getMembershipForPerson(...a),
   canStartMembership: (...a: unknown[]) => credits.canStartMembership(...a),
   getEuroBalance: (...a: unknown[]) => credits.getEuroBalance(...a),
+  consumeCredits: (...a: unknown[]) => credits.consumeCredits(...a),
 }));
 
 const co = await import("./checkouts");
+const { startBankTransfer } = await import("./bank-transfer");
 const { createCtx, eq, and } = await import("@/lib/ctx");
 const { makeCtx, makeJobCtx, resetRuntime, runJobTwice, createFakeIntegrations } = await import("@/lib/testing");
 
@@ -70,6 +73,7 @@ beforeEach(() => {
   );
   credits.canStartMembership.mockReset().mockResolvedValue({ ok: true });
   credits.getEuroBalance.mockReset().mockResolvedValue({ remainingCents: 0, grants: [] });
+  credits.consumeCredits.mockReset().mockResolvedValue({ consumed: [] });
 });
 
 type Viewer = Parameters<typeof co.startCheckout>[3];
@@ -397,6 +401,73 @@ describe("payOrder and retryPayment", () => {
       code: "validation",
       fields: { acceptTerms: "required" },
     });
+  });
+});
+
+describe("euro credit on an existing order (review fixes 2, 3, 7)", () => {
+  async function pendingOrder(personId: string, channel: "site" | "portal" = "portal") {
+    const order = await makeOrder(h.db, { personId, channel, totalCents: 5000, subtotalCents: 5000, expiresAt: new Date(Date.now() + 10 * 60_000), termsVersionId });
+    await makeOrderLine(h.db, { orderId: order.id, unitAmountCents: 5000, lineTotalCents: 5000 });
+    return order;
+  }
+  const creditPayments = (orderId: string) => h.db.select().from(payments).where(and(eq(payments.orderId, orderId), eq(payments.provider, "credit_balance")));
+
+  it("a viewer holding the order only through the cookie neither sees nor spends the person's euro credit", async () => {
+    const member = await makePerson(h.db, { email: `victim-${randomUUID().slice(0, 8)}@example.com` });
+    credits.getEuroBalance.mockResolvedValue({ remainingCents: 8000, grants: [] });
+    // A guest-placed site order attached to the member through the email, held in the guest's cookie.
+    const order = await pendingOrder(member.id, "site");
+    const guest = { personId: null, orderIds: [order.id] };
+    expect(await co.getOrderForViewer(h.db, order.id, guest, "en")).toMatchObject({ euroBalanceCents: 0, dueCents: 5000 });
+    const out = await inTx((tx, ctx) => co.payOrder(tx, ctx, { orderId: order.id, clientKey: randomUUID(), useEuroCredit: true }, guest));
+    expect(out.redirectUrl).toContain("fake-pay");
+    expect(credits.consumeCredits).not.toHaveBeenCalled();
+    expect(await creditPayments(order.id)).toHaveLength(0);
+    // A guest who signed in to another account of their own and still holds the cookie: the same.
+    const other = await makePerson(h.db);
+    expect(await co.getOrderForViewer(h.db, order.id, { personId: other.id, orderIds: [order.id] }, "en")).toMatchObject({ euroBalanceCents: 0 });
+    // The member themself sees the balance.
+    expect(await co.getOrderForViewer(h.db, order.id, { personId: member.id }, "en")).toMatchObject({ euroBalanceCents: 8000 });
+  });
+
+  it("the signed-in owner spends their euro credit on the due", async () => {
+    const person = await makePerson(h.db);
+    credits.getEuroBalance.mockResolvedValue({ remainingCents: 2000, grants: [] });
+    const order = await pendingOrder(person.id);
+    await inTx((tx, ctx) => co.payOrder(tx, ctx, { orderId: order.id, clientKey: randomUUID(), useEuroCredit: true }, { personId: person.id }));
+    expect(credits.consumeCredits).toHaveBeenCalledTimes(1);
+    expect(credits.consumeCredits.mock.calls[0]![2]).toMatchObject({ personId: person.id, kind: "euro", units: 2000, ref: { type: "order", id: order.id } });
+    expect(await creditPayments(order.id)).toHaveLength(1);
+  });
+
+  it("does not consume credit on top of a live provider payment that is reused at its amount", async () => {
+    const person = await makePerson(h.db);
+    const order = await pendingOrder(person.id);
+    const viewer = { personId: person.id };
+    const first = await inTx((tx, ctx) => co.payOrder(tx, ctx, { orderId: order.id, clientKey: randomUUID(), useEuroCredit: false }, viewer));
+    expect(first.redirectUrl).toContain("fake-pay");
+    credits.getEuroBalance.mockResolvedValue({ remainingCents: 2000, grants: [] });
+    const again = await inTx((tx, ctx) => co.payOrder(tx, ctx, { orderId: order.id, clientKey: randomUUID(), useEuroCredit: true }, viewer));
+    expect(again.redirectUrl).toBe(first.redirectUrl);
+    expect(credits.consumeCredits).not.toHaveBeenCalled();
+    expect(await creditPayments(order.id)).toHaveLength(0);
+    const all = await h.db.select().from(payments).where(eq(payments.orderId, order.id));
+    expect(all).toHaveLength(1);
+    expect(all[0]!.amountCents).toBe(5000);
+  });
+});
+
+describe("an open bank transfer blocks paying online (review fix 11)", () => {
+  it("payOrder and retryPayment refuse with payment_in_progress and create no provider payment", async () => {
+    const person = await makePerson(h.db);
+    const order = await makeOrder(h.db, { personId: person.id, channel: "portal", totalCents: 4500, subtotalCents: 4500, expiresAt: new Date(Date.now() + 10 * 60_000), termsVersionId });
+    await makeOrderLine(h.db, { orderId: order.id, productKind: "package", unitAmountCents: 4500, lineTotalCents: 4500 });
+    await inTx((tx, ctx) => startBankTransfer(tx, ctx, { orderId: order.id }));
+    const viewer = { personId: person.id };
+    await expect(inTx((tx, ctx) => co.payOrder(tx, ctx, { orderId: order.id, clientKey: randomUUID(), useEuroCredit: false }, viewer))).rejects.toMatchObject({ code: "conflict", message: "payment_in_progress" });
+    await expect(inTx((tx, ctx) => co.retryPayment(tx, ctx, { orderId: order.id, clientKey: randomUUID() }, viewer))).rejects.toMatchObject({ code: "conflict", message: "payment_in_progress" });
+    const rows = await h.db.select().from(payments).where(eq(payments.orderId, order.id));
+    expect(rows.map((p) => p.provider)).toEqual(["bank_transfer"]);
   });
 });
 

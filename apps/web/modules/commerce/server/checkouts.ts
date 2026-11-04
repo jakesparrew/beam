@@ -412,7 +412,16 @@ export async function orderNeedsTerms(db: DbOrTx, order: Pick<OrderRow, "channel
   return order.channel === "link" || order.termsVersionId !== terms.versionId;
 }
 
-/** Rule 25 for an existing order: euro credit pays part or all of what is still due. */
+/** The session proves the order's person: only then is their euro credit shown or spent. */
+function ownsOrderCredit(order: Pick<OrderRow, "personId">, viewer: CheckoutViewer): boolean {
+  return !!order.personId && !!viewer.personId && viewer.personId === order.personId;
+}
+
+/**
+ * Rule 25 for an existing order: euro credit pays part or all of what is still due. While a
+ * provider payment is live, no credit is consumed: `startPayment` reuses that payment at its
+ * amount, so credit on top of it would be paid twice.
+ */
 async function applyEuroCredit(tx: Tx, ctx: Ctx, order: OrderRow): Promise<void> {
   if (!order.personId) return;
   const [used] = await tx
@@ -421,6 +430,12 @@ async function applyEuroCredit(tx: Tx, ctx: Ctx, order: OrderRow): Promise<void>
     .where(and(eq(payments.orderId, order.id), eq(payments.provider, "credit_balance")))
     .limit(1);
   if (used) return;
+  const [live] = await tx
+    .select({ id: payments.id })
+    .from(payments)
+    .where(and(eq(payments.orderId, order.id), inArray(payments.status, [...LIVE_PAYMENT_STATUSES]), notInArray(payments.provider, [...LOCAL_PROVIDERS])))
+    .limit(1);
+  if (live) return;
   const due = order.totalCents - (await paidCentsOf(tx, order.id));
   if (due <= 0) return;
   const balance = await getEuroBalance(tx, order.personId);
@@ -451,7 +466,9 @@ export async function payOrder(tx: Tx, ctx: Ctx, input: z.infer<typeof PayOrderI
     await tx.update(orders).set({ termsVersionId: terms.versionId, updatedAt: ctx.now }).where(eq(orders.id, order.id));
   }
   if (input.billingDetails) await setOrderBillingDetails(tx, ctx, { orderId: order.id, details: input.billingDetails });
-  if (input.useEuroCredit) await applyEuroCredit(tx, ctx, order);
+  // Only the person the session proves may spend their euro credit; a viewer who holds the order
+  // through the `beam_checkout` cookie only (a guest who typed the email) pays without it.
+  if (input.useEuroCredit && ownsOrderCredit(order, viewer)) await applyEuroCredit(tx, ctx, order);
   const { redirectUrl } = await startPayment(tx, ctx, { orderId: order.id });
   return { redirectUrl };
 }
@@ -778,7 +795,7 @@ function lineText(description: unknown, locale: Locale, fallback: string): strin
   return d[locale]?.trim() || Object.values(d).find((v) => v?.trim()) || fallback;
 }
 
-async function orderView(db: DbOrTx, order: OrderRow, locale: Locale): Promise<CustomerOrderView> {
+async function orderView(db: DbOrTx, order: OrderRow, locale: Locale, viewer: CheckoutViewer): Promise<CustomerOrderView> {
   const lines = await db.select().from(orderLines).where(eq(orderLines.orderId, order.id)).orderBy(asc(orderLines.lineNo));
   const pays = await db.select().from(payments).where(eq(payments.orderId, order.id)).orderBy(asc(payments.createdAt));
   const refundRows = await db.select().from(refunds).where(eq(refunds.orderId, order.id)).orderBy(asc(refunds.createdAt));
@@ -800,7 +817,7 @@ async function orderView(db: DbOrTx, order: OrderRow, locale: Locale): Promise<C
     payments: pays.map((p) => ({ id: p.id, method: p.method, provider: p.provider, status: p.status, amountCents: p.amountCents, createdAt: p.createdAt })),
     refunds: refundRows.map((r) => ({ id: r.id, amountCents: r.amountCents, status: r.status, createdAt: r.createdAt })),
     needsTerms: isPending ? await orderNeedsTerms(db, order) : false,
-    euroBalanceCents: isPending && order.personId ? (await getEuroBalance(db, order.personId)).remainingCents : 0,
+    euroBalanceCents: isPending && order.personId && ownsOrderCredit(order, viewer) ? (await getEuroBalance(db, order.personId)).remainingCents : 0,
     isExpired: order.status === "expired" || (isPending && !!order.expiresAt && order.expiresAt.getTime() <= now),
     withdrawalOpen: !!order.withdrawalUntilAt && order.withdrawalUntilAt.getTime() > now,
   };
@@ -811,7 +828,7 @@ export async function getOrderForViewer(db: DbOrTx, orderId: string, viewer: Che
   if (!z.uuid().safeParse(orderId).success) return null;
   const [order] = await db.select().from(orders).where(eq(orders.id, orderId));
   if (!order || !canSeeOrder(order, viewer)) return null;
-  return orderView(db, order, locale);
+  return orderView(db, order, locale, viewer);
 }
 
 export type MyOrderRow = { orderId: string; reference: string; createdAt: Date; totalCents: number; status: OrderRow["status"]; channel: OrderRow["channel"] };

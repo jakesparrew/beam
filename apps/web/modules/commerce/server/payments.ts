@@ -100,7 +100,7 @@ export type CreatePaymentJobResult =
  * page, or the return page when nothing is due or the order is already paid. A live provider
  * payment with a checkout URL is reused (rule 23, edge case 1). A provider outage leaves the
  * order `pending_payment` with a `failed` payment and returns the return page with
- * `?payment=unavailable` (edge case 8).
+ * `?payment=unavailable` (edge case 8). An open bank transfer refuses with `payment_in_progress`.
  */
 export async function startPayment(tx: Tx, ctx: Ctx, input: { orderId: string; returnPath?: string }): Promise<{ paymentId: string | null; redirectUrl: string }> {
   const order = await lockOrder(tx, input.orderId);
@@ -115,6 +115,15 @@ export async function startPayment(tx: Tx, ctx: Ctx, input: { orderId: string; r
     await finalizePaidOrder(tx, ctx, order.id);
     return { paymentId: null, redirectUrl: returnUrl };
   }
+
+  // Rule 23: an open bank transfer is the order's non-final payment (with an open invoice and no
+  // expiry), so the order is not paid online beside it.
+  const [transfer] = await tx
+    .select({ id: payments.id })
+    .from(payments)
+    .where(and(eq(payments.orderId, order.id), eq(payments.provider, "bank_transfer"), inArray(payments.status, ["open", "pending"])))
+    .limit(1);
+  if (transfer) throw new ConflictError("payment_in_progress");
 
   const [live] = await tx
     .select()

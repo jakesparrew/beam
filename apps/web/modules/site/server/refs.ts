@@ -9,7 +9,7 @@ import type { DbOrTx } from "@beam/db";
 import { mediaAssets, pageRoutes, pages, pageVersions, products, redirects, sessions } from "@beam/db/schema";
 import { NotImplementedError } from "@beam/core/errors";
 import { LOCALES, type Locale } from "@beam/core/i18n";
-import { checkPublishable, collectRefs, localePath, type CollectedRefs, type NavItem, type PageKind, type PublishIssue, type RefFacts, type VersionContent } from "@beam/core/site";
+import { checkPublishable, collectRefs, localePath, type CollectedRefs, type NavItem, type PublishIssue, type RefFacts, type VersionContent } from "@beam/core/site";
 import { and, eq, inArray, ne, or, sql } from "@/lib/ctx";
 import { reportError } from "@/lib/logger";
 import { getPublishedFormMeta } from "@/modules/forms/api";

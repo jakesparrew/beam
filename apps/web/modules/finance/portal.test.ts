@@ -9,6 +9,8 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DbHandle } from "@beam/db";
 import { activityEvents, emailMessages, invoiceRequests, invoices } from "@beam/db/schema";
+import { seedCommerceCatalogue } from "@beam/db/seed/commerce";
+import { makePerson } from "@beam/db/testing";
 import { and, eq, setAppDb } from "@/lib/ctx";
 import { resetRuntime } from "@/lib/testing";
 import { paidB2c, setFinanceSettings } from "./finance-p4.helpers";
@@ -34,6 +36,7 @@ vi.mock("@/modules/site/api", async (importOriginal) => ({
 const actions = await import("./actions");
 const queries = await import("./queries");
 const pdfRoute = await import("../../app/[locale]/(portal)/account/invoices/[id]/pdf/route");
+const { runFinanceDemoSeed } = await import("./seed");
 
 let h: DbHandle;
 beforeAll(async () => {
@@ -89,6 +92,23 @@ describe("portal reads", () => {
     const other = await getPdf(theirs.invoiceId);
     expect(other.status).toBe(404);
     expect((await getPdf("00000000-0000-4000-8000-000000000000")).status).toBe(404);
+  });
+});
+
+describe("demo seed", () => {
+  it("gives the seed customer three paid invoices, one open bank-transfer invoice and one credit note; a second run adds nothing", async () => {
+    await seedCommerceCatalogue(h.db, { now: now(), staffUserId: null });
+    const person = await makePerson(h.db);
+    const ids = new Map([["platform.person.customer2", person.id]]);
+    const first = await runFinanceDemoSeed({ db: h.db, now: now(), ids });
+    expect(first.created).toBe(5);
+    const list = await queries.listMyInvoices(h.db, { personId: person.id });
+    expect(list.filter((r) => r.kind === "invoice" && r.status === "paid")).toHaveLength(3);
+    expect(list.filter((r) => r.kind === "invoice" && r.status === "open")).toHaveLength(1);
+    expect(list.filter((r) => r.kind === "credit_note")).toHaveLength(1);
+    const open = list.find((r) => r.status === "open")!;
+    expect((await queries.getMyInvoice(h.db, { personId: person.id, id: open.id }))!.bank).toMatchObject({ paymentReference: expect.stringMatching(/^\+\+\+\d{3}\/\d{4}\/\d{5}\+\+\+$/) });
+    expect(await runFinanceDemoSeed({ db: h.db, now: now(), ids })).toEqual({ created: 0, skipped: 1 });
   });
 });
 

@@ -283,6 +283,8 @@ export async function issueRefund(tx: Tx, ctx: Ctx, input: IssueRefundInput): Pr
     if (payment.provider === "credit_balance" && order.personId) {
       if (a.euroRestore === "release") {
         await releaseCredits(tx, ctx, { ref: { type: "order", id: order.id }, reason: "refund" });
+        // Euro credit consumed again for a late paid after expiry is keyed by its payment (payments.ts).
+        await releaseCredits(tx, ctx, { ref: { type: "order", id: payment.id }, reason: "refund" });
       } else {
         await grantCredits(tx, ctx, {
           personId: order.personId,

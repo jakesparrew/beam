@@ -219,7 +219,7 @@ export async function finalizePaidOrder(tx: Tx, ctx: Ctx, orderId: string, opts:
         delivered.push({ orderLineId: line.id, productKind: line.productKind, result: "membership_activated", membershipId: m.membershipId });
       }
     } else if (line.productKind === "voucher") {
-      const voucherIds = await activateVouchers(tx, line, product.validityDays ?? 730, paidAt);
+      const voucherIds = await activateVouchers(tx, line, product.validityDays ?? 730, paidAt, order.status === "expired");
       delivered.push({ orderLineId: line.id, productKind: line.productKind, result: "voucher_activated", voucherIds });
     } else if (!(DATED_PRODUCT_KINDS as readonly string[]).includes(line.productKind)) {
       delivered.push({ orderLineId: line.id, productKind: line.productKind, result: "none" });
@@ -310,7 +310,13 @@ export async function finalizePaidOrder(tx: Tx, ctx: Ctx, orderId: string, opts:
 }
 
 /** Voucher lines: every `pending` voucher of the line becomes `active` with its code hash (rule 45). */
-async function activateVouchers(tx: Tx, line: OrderLineRow, validityDays: number, paidAt: Date): Promise<string[]> {
+/**
+ * Activates the line's `pending` vouchers and returns the ids of its vouchers that work (activated
+ * now or already `active`), the ones the voucher emails go to. On a late paid after local expiry
+ * (rule 28, edge case 4) the vouchers the expiry voided (`void`, `order_expired`) are activated
+ * too: the one exception to `void` being final (commerce spec 3.1).
+ */
+async function activateVouchers(tx: Tx, line: OrderLineRow, validityDays: number, paidAt: Date, latePaidAfterExpiry: boolean): Promise<string[]> {
   const rows = await tx
     .select()
     .from(vouchers)
@@ -319,8 +325,9 @@ async function activateVouchers(tx: Tx, line: OrderLineRow, validityDays: number
   const secret = process.env.VOUCHER_CODE_SECRET;
   const ids: string[] = [];
   for (const v of rows) {
-    ids.push(v.id);
-    if (v.status !== "pending") continue;
+    if (v.status === "active") ids.push(v.id);
+    const revived = latePaidAfterExpiry && v.status === "void" && v.voidedReason === "order_expired";
+    if (v.status !== "pending" && !revived) continue;
     if (!secret) throw new PermanentError("voucher_code_secret_missing");
     const code = await deriveVoucherCode(secret, v.id);
     await tx
@@ -331,9 +338,11 @@ async function activateVouchers(tx: Tx, line: OrderLineRow, validityDays: number
         expiresAt: new Date(paidAt.getTime() + validityDays * 86_400_000),
         codeHash: await hashVoucherCode(code),
         codeLast4: voucherCodeLast4(code),
+        ...(revived ? { voidedReason: null } : {}),
         updatedAt: paidAt,
       })
       .where(eq(vouchers.id, v.id));
+    ids.push(v.id);
   }
   return ids;
 }

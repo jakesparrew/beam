@@ -254,3 +254,27 @@ describe("withdrawalPlan (rule 54)", () => {
     expect(late.deadlineAt.toISOString()).toBe(day(11).toISOString());
   });
 });
+
+describe("package share against the whole line after a partial refund (review fix 10)", () => {
+  // Package qty 2 x 10 units for 200 EUR; grant A has 5 units used, grant B (refunded first) none.
+  const a: GrantUsage = { grantId: "A", unitsGranted: 10, usedUnits: 5 };
+  const b: GrantUsage = { grantId: "B", unitsGranted: 10, usedUnits: 0 };
+  const line = { orderLineId: "p", productKind: "package" as const, quantity: 2, lineTotalCents: 20_000 };
+
+  it("the second partial refund pays only A's unused units", () => {
+    const first = refundPlan({ lines: [{ ...line, refundQuantity: 1, grants: [a, b] }], payments: [card(20_000)], at: AT });
+    expect(first.lines[0]).toMatchObject({ amountCents: 10_000, grantIds: ["B"] });
+    const second = refundPlan({
+      lines: [{ ...line, refundQuantity: 1, refundedQuantity: 1, refundedCents: 10_000, grants: [a] }],
+      payments: [card(20_000, { refundedCents: 10_000, status: "partially_refunded" })],
+      at: AT,
+    });
+    expect(second.lines[0]).toMatchObject({ amountCents: 5_000, grantIds: ["A"] });
+    expect(second.totalCents).toBe(5_000);
+  });
+
+  it("a withdrawal after a partial refund pays only the unused units of the grants left", () => {
+    const plan = withdrawalPlan({ lines: [{ ...line, refundedCents: 10_000, grants: [a] }], paidAt: day(-3), at: AT });
+    expect(plan.lines[0]).toMatchObject({ outcome: "refund", amountCents: 5_000, grantIds: ["A"] });
+  });
+});

@@ -30,7 +30,10 @@ export type RefundLineInput = {
   refundQuantity: number;
   /** Staff may lower the default; never above what is left of the paid line total. */
   amountCents?: number;
-  /** Package lines: one grant per unit; already revoked grants are left out by the caller. */
+  /**
+   * Package lines: one grant per unit; already revoked grants are left out by the caller. The
+   * pro rata share is still taken against the whole line (`quantity` x units per grant).
+   */
   grants?: GrantUsage[];
   /** Membership lines: the current period, for the pro rata amount of unused days. */
   membershipPeriod?: { startsAt: Date; endsAt: Date };
@@ -117,6 +120,16 @@ function pickGrants(grants: GrantUsage[], count: number): GrantUsage[] {
     .slice(0, count);
 }
 
+/**
+ * The units the whole package line granted: one grant per unit, all with the same units. Taken
+ * from the line's quantity, not from the grants passed in, which leave out the grants already
+ * revoked by an earlier refund (a second partial refund must not pay for used units, rule 37).
+ */
+function lineUnits(line: { quantity: number; grants?: GrantUsage[] | undefined }): number {
+  const unitsPerGrant = (line.grants ?? []).reduce((m, g) => Math.max(m, g.unitsGranted), 0);
+  return line.quantity * unitsPerGrant;
+}
+
 function planLine(line: RefundLineInput, at: Date): { plan: RefundPlanLine; problem?: RefundProblemCode } {
   const refundedCents = line.refundedCents ?? 0;
   const leftCents = Math.max(0, line.lineTotalCents - refundedCents);
@@ -138,7 +151,7 @@ function planLine(line: RefundLineInput, at: Date): { plan: RefundPlanLine; prob
   let defaultCents: number;
   if (line.productKind === "package") {
     const grants = pickGrants(line.grants ?? [], quantity);
-    const totalUnits = (line.grants ?? []).reduce((s, g) => s + g.unitsGranted, 0) || line.quantity;
+    const totalUnits = lineUnits(line) || line.quantity;
     const unusedUnits = grants.reduce((s, g) => s + (g.unitsGranted - g.usedUnits), 0);
     defaultCents = share(line.lineTotalCents, unusedUnits, totalUnits);
     base.grantIds = grants.map((g) => g.grantId);
@@ -273,7 +286,7 @@ export function withdrawalPlan(input: { lines: WithdrawalLineInput[]; paidAt: Da
     if ((DATED_PRODUCT_KINDS as readonly ProductKind[]).includes(line.productKind)) return { ...out, reason: "dated_service" };
     if (line.productKind === "package") {
       const grants = (line.grants ?? []).filter((g) => g.unitsGranted - g.usedUnits > 0);
-      const totalUnits = (line.grants ?? []).reduce((s, g) => s + g.unitsGranted, 0);
+      const totalUnits = lineUnits(line);
       const unused = grants.reduce((s, g) => s + g.unitsGranted - g.usedUnits, 0);
       const amount = Math.min(leftCents, share(line.lineTotalCents, unused, totalUnits));
       if (amount <= 0) return { ...out, reason: "already_refunded" };

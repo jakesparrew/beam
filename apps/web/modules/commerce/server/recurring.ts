@@ -23,7 +23,7 @@ import { IntegrationError } from "@beam/integrations/_shared";
 import type { PaymentProvider } from "@beam/integrations/payments";
 import { and, desc, eq, inArray, ConflictError, NotFoundError, type Ctx, type DbOrTx, type Tx } from "@/lib/ctx";
 import { getIntegrations, type Integrations } from "@/lib/integrations";
-import type { JobCtx } from "@/lib/job-runner";
+import { RetryableError, type JobCtx } from "@/lib/job-runner";
 import { getSetting } from "@/lib/settings";
 import { createTask } from "@/modules/crm/api";
 import { getCurrentLegalVersion } from "@/modules/site/api";
@@ -219,8 +219,9 @@ export type ChargeRecurringResult =
 /**
  * `payments.charge_recurring` (key `charge_recurring:<payment_id>`): creates the recurring
  * payment at the provider with the job key as `Idempotency-Key` and stores its id; the final
- * status comes through the webhook and `payments.sync`. A provider 4xx, or a mandate that is gone
- * locally, fails the payment, which calls `credits.applyRenewalFailure` (rule 33).
+ * status comes through the webhook and `payments.sync`. A provider refusal (a 4xx other than
+ * 401/403), or a mandate that is gone locally, fails the payment, which calls
+ * `credits.applyRenewalFailure` (rule 33). An unparseable 2xx or a 401/403 retries the job.
  */
 export async function chargeRecurringPayment(ctx: JobCtx, input: { paymentId: string }): Promise<ChargeRecurringResult> {
   const tx = ctx.tx;
@@ -249,11 +250,23 @@ export async function chargeRecurringPayment(ctx: JobCtx, input: { paymentId: st
     return { providerPaymentId: created.providerPaymentId, status: payment.status };
   } catch (error) {
     if (error instanceof IntegrationError && !error.retryable) {
-      await applyProviderStatus(tx, ctx, payment, { status: "failed", reason: "provider_rejected" });
-      return { failed: true, reason: "provider_rejected" };
+      if (isProviderRefusal(error)) {
+        await applyProviderStatus(tx, ctx, payment, { status: "failed", reason: "provider_rejected" });
+        return { failed: true, reason: "provider_rejected" };
+      }
+      // An unparseable 2xx (the debit may exist at the provider) or a 401/403 (a BEAM key fault):
+      // the job retries with the same Idempotency-Key, so the provider returns the same payment;
+      // a fault that persists ends as a dead job with an alert, not as a failed renewal.
+      throw new RetryableError(`charge_recurring_unconfirmed: ${error.code ?? error.statusCode ?? "unknown"}`);
     }
     throw error;
   }
+}
+
+/** A genuine provider refusal of the charge: a 4xx other than 401/403 with a parsed error body. */
+function isProviderRefusal(error: IntegrationError): boolean {
+  const status = error.statusCode ?? 0;
+  return error.code !== "invalid_response" && status >= 400 && status < 500 && status !== 401 && status !== 403;
 }
 
 export type CancelPaymentResult = { cancelled: true } | { notCancelable: true } | { skipped: true; status: string };
@@ -297,14 +310,21 @@ export type LateRefundResult = { refunded: false; failed?: true } | { refunded: 
  * order stays `cancelled` and no credits function is called, so the ended membership is not
  * revived. No invoice was issued (the paid transaction never ran), so no credit note is due; the
  * refund is recorded on the payment (`refunded_cents`, status `refunded`) and on the timeline
- * (`order.refunded`). A provider refusal opens a finance task instead.
+ * (`order.refunded`). A provider refusal opens a finance task instead. The same applies, with
+ * reason `order_expired`, to a `paid` on an `expired` order that it could not finalise (edge
+ * case 4: the euro credit the expiry released no longer covers the rest).
  */
 export async function refundLatePaidOnCancelledOrder(ctx: Ctx & { integrations?: Integrations }, paymentId: string): Promise<LateRefundResult> {
   const tx = ctx.tx;
   const [payment] = await tx.select().from(payments).where(eq(payments.id, paymentId)).for("update");
   if (!payment || payment.status !== "paid" || !payment.providerPaymentId) return { refunded: false };
   const order = await lockOrder(tx, payment.orderId);
-  if (!order || order.status !== "cancelled") return { refunded: false };
+  if (!order) return { refunded: false };
+  // Edge case 4 with euro credit: an `expired` order the late `paid` could not finalise (its
+  // released credit was not available again) keeps nothing, so the payment goes back in full.
+  const expiredUnpaid = order.status === "expired" && (await paidCentsOf(tx, order.id)) < order.totalCents;
+  if (order.status !== "cancelled" && !expiredUnpaid) return { refunded: false };
+  const reason = expiredUnpaid ? "order_expired" : "order_cancelled";
   const amountCents = payment.amountCents - payment.refundedCents;
   if (amountCents <= 0) return { refunded: false };
   let result: { providerRefundId: string; status: "pending" | "refunded" | "failed" };
@@ -312,7 +332,7 @@ export async function refundLatePaidOnCancelledOrder(ctx: Ctx & { integrations?:
     result = await paymentsClient(ctx).refund({
       providerPaymentId: payment.providerPaymentId,
       amountCents,
-      description: `${order.reference} order_cancelled`,
+      description: `${order.reference} ${reason}`,
       idempotencyKey: `late_paid_refund:${payment.id}`,
     });
   } catch (error) {
@@ -349,7 +369,7 @@ export async function refundLatePaidOnCancelledOrder(ctx: Ctx & { integrations?:
       ...subject,
       ref: { type: "payment", id: payment.id },
       dedupeKey: `order:${order.id}:refunded:${payment.id}`,
-      data: { order_id: order.id, amount_cents: amountCents, reason: "order_cancelled" },
+      data: { order_id: order.id, amount_cents: amountCents, reason },
     });
   }
   return { refunded: true, amountCents, providerRefundId: result.providerRefundId };

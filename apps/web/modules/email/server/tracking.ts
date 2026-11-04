@@ -22,7 +22,7 @@ import { appOrigin } from "./merge-fields";
 export const TRACKING_WINDOW_DAYS = 365;
 
 /** The 43-byte transparent GIF of the open pixel. */
-export const TRANSPARENT_GIF = Uint8Array.from(Buffer.from("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7", "base64"));
+export const TRANSPARENT_GIF = Uint8Array.from(Buffer.from("R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==", "base64"));
 
 export type UaFamily = "apple_mpp" | "gmail_proxy" | "other";
 

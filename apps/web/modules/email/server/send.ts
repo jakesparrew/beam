@@ -227,6 +227,16 @@ async function loadAttachments(ctx: JobCtx, m: MessageRow, generated: readonly T
   return out;
 }
 
+/** `buildOutgoingEmail()`, with its permanent refusals (`list_unsubscribe_not_https`, ...) as an error code. */
+function buildOutgoing(...args: Parameters<typeof buildOutgoingEmail>): ReturnType<typeof buildOutgoingEmail> | { error: string } {
+  try {
+    return buildOutgoingEmail(...args);
+  } catch (error) {
+    if (error instanceof PermanentError) return { error: error.message.split(":")[0]! };
+    throw error;
+  }
+}
+
 function resendErrorCode(error: IntegrationError): string {
   if (error.statusCode === 422) return "invalid_recipient";
   return `resend_4xx:${error.statusCode ?? "unknown"}`;
@@ -346,7 +356,7 @@ export async function sendEmailMessage(ctx: JobCtx, input: SendJobInput): Promis
   if (attachments.reduce((n, a) => n + a.content.byteLength, 0) > MAX_ATTACHMENT_BYTES) return failMessage(ctx, ref, { status: "failed", error: "attachment_too_large" });
 
   const sender = senderFor(settings, m.fromDomain);
-  const outgoing = buildOutgoingEmail(
+  const outgoing = buildOutgoing(
     {
       messageId: m.id,
       messageKind: m.kind,
@@ -366,6 +376,7 @@ export async function sendEmailMessage(ctx: JobCtx, input: SendJobInput): Promis
       sinkRewrite: !sink.production && sink.sink ? { sink: sink.sink, env: sink.env } : null,
     },
   );
+  if ("error" in outgoing) return failMessage(ctx, ref, { status: "failed", error: outgoing.error });
 
   const renderedFileId = sink.production ? m.renderedFileId : await storeRenderedCopy(ctx, { messageId: m.id, templateKey: tpl.key, html, personId: m.personId });
 

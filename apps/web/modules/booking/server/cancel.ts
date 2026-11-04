@@ -93,7 +93,10 @@ const PAID_ORDER = ["paid", "partially_refunded"];
 
 /** R28, R29, R32, R33: the plan for one row, or throws when the change is not allowed. */
 function planFor(booking: BookingRow, session: SessionRow, input: CancelBookingInput, rules: BookingRules, ctx: Ctx): Plan {
-  if (input.by === "beam") {
+  // R33: a live row of a session BEAM cancelled (its chunks still pending) is a BEAM cancellation,
+  // whoever cancels it first, and before the R29 after-start refusal.
+  const liveOfCancelledSession = session.status === "cancelled" && (booking.status === "reserved" || booking.status === "confirmed") && input.by !== "system";
+  if (input.by === "beam" || liveOfCancelledSession) {
     return { status: "cancelled", code: "session_cancelled", release: usesCredit(booking) ? "session_cancelled" : null, refund: booking.paidWith === "order" ? "session_cancelled" : null };
   }
   if (input.by === "system") {

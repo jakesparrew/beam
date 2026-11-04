@@ -387,7 +387,7 @@
       "attempts": 0
     },
     "credits-P4": {
-      "status": "running",
+      "status": "red",
       "attempts": 3,
       "baseSha": "7b1c11d",
       "runId": "wf_cb3c7ced-194",
@@ -395,7 +395,10 @@
       "extraOwns": [
         "apps/web/modules/credits/api.test.ts",
         "apps/web/modules/credits/jobs.test.ts"
-      ]
+      ],
+      "branchSha": "ebe47a7",
+      "endedAt": "2026-11-04T03:39:30Z",
+      "minutes": 62
     },
     "finance-P3": {
       "status": "pending",
@@ -816,7 +819,7 @@
       "mergedAt": "2026-11-04T01:33:08Z"
     },
     "fix-w04-platform-4": {
-      "status": "running",
+      "status": "merged",
       "attempts": 1,
       "fixer": true,
       "module": "platform",
@@ -945,7 +948,12 @@
       ],
       "baseSha": "7b1c11d",
       "runId": "wf_8b56818b-687",
-      "startedAt": "2026-11-04T03:02:09Z"
+      "startedAt": "2026-11-04T03:02:09Z",
+      "branchSha": "dbefb5d",
+      "endedAt": "2026-11-04T03:45:04Z",
+      "minutes": 37,
+      "mergeSha": "90cbe19",
+      "mergedAt": "2026-11-04T03:49:53Z"
     },
     "fix-w05-schema-1": {
       "status": "merged",
@@ -1025,7 +1033,7 @@
       "mergedAt": "2026-11-04T02:51:43Z"
     },
     "fix-w05-platform-testdb": {
-      "status": "running",
+      "status": "merged",
       "attempts": 1,
       "fixer": true,
       "module": "platform",
@@ -1040,7 +1048,12 @@
       ],
       "baseSha": "ae984c2",
       "runId": "wf_e2f14529-da2",
-      "startedAt": "2026-11-04T03:19:38Z"
+      "startedAt": "2026-11-04T03:19:38Z",
+      "branchSha": "79f29c9",
+      "endedAt": "2026-11-04T03:45:04Z",
+      "minutes": 22,
+      "mergeSha": "45a8275",
+      "mergedAt": "2026-11-04T03:49:56Z"
     }
   }
 }

@@ -94,3 +94,6 @@ One entry per merge batch and gate (runbook section 5.7, adapted by OD-3).
 - forms-P2: 56 min, merged as `74e15ad`; gate `g34-forms-P2` (merge) green, peak 5289 MB.
 - fix-w05-schema-1: 58 min, merged as `2e3c058`, migrations 0026_w04.sql; gate `g35-fix-w05-schema-1` (merge) green, peak 7454 MB.
 - forms-P2 (56 min) landed (`g34`). fix-w05-schema-1 attempt 2 (25 min) landed (`g35`, 854 s): every deferred FK and check, booking and ops schedules active, `@beam/db/testing/commerce-factories` (makeOrder, makeOrderLine, makePaidOrder), the mandate FK, and the fixtures of six modules updated. Started finance-P2, commerce-P3, commerce-P2 from `d447ab3`.
+- fix-w04-platform-4: merged as `90cbe19` in batch `g37-batch`.
+- fix-w05-platform-testdb: merged as `45a8275` in batch `g37-batch`.
+- Batch `g37-batch` (fix-w04-platform-4 fix-w05-platform-testdb): merge gate green, peak 6152 MB.

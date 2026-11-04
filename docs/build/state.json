@@ -759,11 +759,11 @@
       "mergedAt": "2026-11-04T05:38:04Z"
     },
     "site-P7": {
-      "status": "pending",
-      "attempts": 2,
-      "baseSha": "e8be046",
-      "runId": "wf_8d216848-937",
-      "startedAt": "2026-11-04T09:33:01Z"
+      "status": "running",
+      "attempts": 3,
+      "baseSha": "cc11b30",
+      "runId": "wf_551fa1ea-ffc",
+      "startedAt": "2026-11-04T16:37:09Z"
     },
     "booking-P6": {
       "status": "merged",
@@ -778,11 +778,11 @@
       "mergedAt": "2026-11-04T09:25:07Z"
     },
     "commerce-P6": {
-      "status": "failed",
-      "attempts": 2,
+      "status": "running",
+      "attempts": 3,
       "baseSha": "9430fed",
-      "runId": "wf_bc54cf34-5b4",
-      "startedAt": "2026-11-04T09:33:01Z"
+      "runId": "wf_9aeed5b9-948",
+      "startedAt": "2026-11-04T16:37:09Z"
     },
     "finance-P6": {
       "status": "merged",
@@ -825,11 +825,11 @@
       "attempts": 0
     },
     "ops-P5": {
-      "status": "pending",
-      "attempts": 1,
-      "baseSha": "e8be046",
-      "runId": "wf_e267b4aa-3a5",
-      "startedAt": "2026-11-04T09:33:01Z"
+      "status": "running",
+      "attempts": 2,
+      "baseSha": "cc11b30",
+      "runId": "wf_08b979a8-bd8",
+      "startedAt": "2026-11-04T16:37:09Z"
     },
     "platform-P11a": {
       "status": "pending",
@@ -844,11 +844,11 @@
       "attempts": 0
     },
     "webinar-P1": {
-      "status": "pending",
-      "attempts": 2,
-      "baseSha": "e8be046",
-      "runId": "wf_cc288b51-eb8",
-      "startedAt": "2026-11-04T09:33:01Z"
+      "status": "running",
+      "attempts": 3,
+      "baseSha": "cc11b30",
+      "runId": "wf_d9a61077-6eb",
+      "startedAt": "2026-11-04T16:37:09Z"
     },
     "booking-P7": {
       "status": "pending",
@@ -915,11 +915,11 @@
       "attempts": 0
     },
     "platform-P9": {
-      "status": "pending",
-      "attempts": 1,
-      "baseSha": "e8be046",
-      "runId": "wf_6dcb7365-3f7",
-      "startedAt": "2026-11-04T09:33:01Z"
+      "status": "running",
+      "attempts": 2,
+      "baseSha": "cc11b30",
+      "runId": "wf_18c86dc0-afb",
+      "startedAt": "2026-11-04T16:37:09Z"
     },
     "crm-P8": {
       "status": "pending",
@@ -1448,8 +1448,8 @@
       "mergedAt": "2026-11-04T09:08:15Z"
     },
     "fix-w08-booking-2": {
-      "status": "pending",
-      "attempts": 1,
+      "status": "running",
+      "attempts": 2,
       "fixer": true,
       "module": "booking",
       "goal": "crm-P7 made crm getReceptionCard real, so apps/web/modules/booking/queries/attendance.test.ts (getCheckinCard and getCheckinDay: shows the scanned booking with its guests, the payment due and the window flags) still expects receptionCard: null, the fallback booking used while the crm function was a stub. Fix the test, not the code: either vi.mock getReceptionCard from @/modules/crm/api to a card of the contract shape and assert booking passes it through, or assert the real card for the test person (customerNumber, name, status, declarations). Check the other tests in modules/booking for assertions on fallback values of crm, credits or forms functions that are now real (CONVENTIONS item 11) and fix them the same way. Remove the fix-w08-booking-2 line from docs/build/known-red.txt; run modules/booking with one worker. Also: booking-P6 made booking privacy export and erase real, so apps/web/modules/booking/fix-w05-schema-1.schedules.test.ts (lists waitlist_entries next to bookings and keeps the handler shapes) fails: it calls the handlers with a fake tx {} and expects {} and []. Drop or rewrite those two assertions (check the registration shape instead) and remove its known-red line too.",
@@ -1465,9 +1465,9 @@
         "crm-P7",
         "booking-P6"
       ],
-      "baseSha": "e8be046",
-      "runId": "wf_bb91fb45-9c9",
-      "startedAt": "2026-11-04T09:33:01Z"
+      "baseSha": "cc11b30",
+      "runId": "wf_140abb37-49a",
+      "startedAt": "2026-11-04T16:37:09Z"
     }
   }
 }

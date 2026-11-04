@@ -106,6 +106,9 @@ export const filesKind = pgEnum("files_kind", [
   "image",
   "rendered_email",
   "receipt",
+  // Staff documents (request of ops-P6): DPIA register PDFs and other compliance papers, no expiry,
+  // downloaded by `settings.write` staff only (`KIND_PERMISSION` in apps/web/lib/files.ts).
+  "staff_document",
 ]);
 export const aiRequestsStatus = pgEnum("ai_requests_status", [
   "ok",

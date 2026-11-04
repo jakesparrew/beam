@@ -8,6 +8,7 @@
  * `failed` through `writeDurably`, so the mark survives the job's rollback; run-now reruns it.
  */
 import { z } from "zod";
+import { formatDate } from "@beam/core/i18n";
 import { privacyRequests } from "@beam/db/schema";
 import { brusselsDate, ERASE_EXTERNAL_PROVIDERS, ERASE_ORDER } from "@beam/core/ops";
 import { and, eq, writeDurably } from "@/lib/ctx";
@@ -80,7 +81,7 @@ async function exportJob(ctx: JobCtx, input: z.infer<typeof PrivacyExportInput>)
       template: "ops.privacy_export_ready",
       personId: row.personId,
       locale: person.locale,
-      data: { requestId: row.id, expiresOn: brusselsDate(stored.expiresAt), accountUrl: accountPrivacyUrl(person.locale) },
+      data: { requestId: row.id, date: formatDate(brusselsDate(stored.expiresAt), person.locale, "long"), accountUrl: accountPrivacyUrl(person.locale) },
       key: `privacy:${row.id}:r${row.runAttempt}:email:export_ready`,
     });
   }

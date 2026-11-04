@@ -15,7 +15,7 @@
  */
 import type { Tx } from "@beam/db";
 import { privacyRequests, processingRestrictions } from "@beam/db/schema";
-import { URL_SEGMENT, isLocale, type Locale } from "@beam/core/i18n";
+import { URL_SEGMENT, formatDateTime, isLocale, type Locale } from "@beam/core/i18n";
 import {
   brusselsDate,
   ERASE_DELAY_HOURS,
@@ -208,7 +208,7 @@ async function verifyAndApply(ctx: Ctx, row: PrivacyRequestRow, person: PersonIn
           template: "ops.privacy_erasure_scheduled",
           personId: row.personId,
           locale: person.locale,
-          data: { requestId: row.id, scheduledForAt: next.scheduledForAt!.toISOString(), accountUrl: accountPrivacyUrl(person.locale) },
+          data: { requestId: row.id, date: formatDateTime(next.scheduledForAt!, person.locale, "long"), accountUrl: accountPrivacyUrl(person.locale) },
           key: `privacy:${row.id}:email:erasure_scheduled`,
         });
       }

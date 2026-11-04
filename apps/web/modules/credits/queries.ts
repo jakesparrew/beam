@@ -4,7 +4,10 @@
  * (`credits.read`, or `memberships.write` for the membership screens) before calling. Balances
  * come from `v_credit_grant_balances`; nothing here writes. Lists use keyset cursors (opaque
  * base64 of the sort key and id). Staff see full names, actors and reasons (rule 39); notes stay
- * on the detail screens only.
+ * on the detail screens only. credits-P7 adds the customer queries (`getMyPackages`,
+ * `getMyPackage`, `getMyMembership`, `listGrantsSharedWith`): the page passes the signed-in
+ * customer's own `personId`, and nothing staff-only (unit values, VAT, reasons, actors, notes)
+ * is selected for them (rules 37 and 38).
  */
 import type { DbOrTx } from "@beam/db";
 import {
@@ -627,4 +630,411 @@ export type CreditsTiles = Awaited<ReturnType<typeof getCreditsTiles>>;
 export async function getDeskCredits(db: DbOrTx, personId: string) {
   const s = await getPersonCreditSummary(db, personId);
   return { byKind: s.byKind, membership: s.membership, status: s.status };
+}
+
+// ---------------------------------------------------------------------------
+// Customer portal (credits-P7): own data only, the caller passes the actor's personId
+// ---------------------------------------------------------------------------
+
+/** One package as the customer sees it (rule 37: no unit values, VAT, notes or reasons). */
+export type MyPackage = {
+  grantId: string;
+  kind: CreditKind;
+  source: GrantSource;
+  status: GrantStatus;
+  productName: LocalizedText | null;
+  label: LocalizedText | null;
+  remainingUnits: number;
+  baseUnits: number;
+  startsAt: Date;
+  expiresAt: Date | null;
+  statusChangedAt: Date;
+};
+
+/** A package another customer shared with the reader (R2 named sharing; rule 38 owner name). */
+export type SharedPackage = MyPackage & { shareId: string; ownerName: string; maxUnits: number | null; usedByMe: number; unitsForMe: number };
+
+export type MyPackages = {
+  active: MyPackage[];
+  upcoming: MyPackage[];
+  history: MyPackage[];
+  sharedWithMe: SharedPackage[];
+  storeCredit: { remainingCents: number; earliestExpiresAt: Date | null; grants: number };
+};
+
+/** "Anna D.": a guest or an owner as another customer sees them (rule 38). */
+export function firstNameAndInitial(firstName: string | null, lastName: string | null): string {
+  const first = (firstName ?? "").trim();
+  const initial = (lastName ?? "").trim().charAt(0).toUpperCase();
+  return [first, initial ? `${initial}.` : ""].filter(Boolean).join(" ");
+}
+
+const HISTORY_LIMIT = 50;
+
+function myPackageColumns() {
+  return {
+    grantId: vCreditGrantBalances.grantId,
+    kind: vCreditGrantBalances.creditKind,
+    source: vCreditGrantBalances.source,
+    status: vCreditGrantBalances.status,
+    productName: products.name,
+    label: creditGrants.label,
+    remainingUnits: vCreditGrantBalances.remainingUnits,
+    baseUnits: vCreditGrantBalances.baseUnits,
+    startsAt: vCreditGrantBalances.startsAt,
+    expiresAt: vCreditGrantBalances.expiresAt,
+    statusChangedAt: creditGrants.statusChangedAt,
+  };
+}
+
+function toMyPackage<T extends { remainingUnits: number; baseUnits: number }>(r: T): T {
+  return { ...r, remainingUnits: Number(r.remainingUnits), baseUnits: Number(r.baseUnits) };
+}
+
+/**
+ * The grants named-shared with `personId` (active `package_shares` on an active grant of someone
+ * else), with what the reader may still use: the grant's remaining units capped by the share's
+ * `max_units` minus the reader's unreleased uses. The portal booking form offers these as "use a
+ * package shared with me" (booking-P6 request); `getMyPackages` lists them as "Shared with me".
+ */
+export async function listGrantsSharedWith(db: DbOrTx, personId: string): Promise<SharedPackage[]> {
+  if (!UUID_RE.test(personId)) return [];
+  const usedByMe = sql<number>`(select count(*)::int from credit_entries e where e.grant_id = ${packageShares.grantId} and e.kind = 'consume' and e.beneficiary_person_id = ${personId} and not exists (select 1 from credit_entries r where r.reverses_entry_id = e.id))`;
+  const rows = await db
+    .select({
+      ...myPackageColumns(),
+      shareId: packageShares.id,
+      maxUnits: packageShares.maxUnits,
+      ownerFirst: persons.firstName,
+      ownerLast: persons.lastName,
+      usedByMe,
+    })
+    .from(packageShares)
+    .innerJoin(creditGrants, eq(creditGrants.id, packageShares.grantId))
+    .innerJoin(vCreditGrantBalances, eq(vCreditGrantBalances.grantId, packageShares.grantId))
+    .innerJoin(persons, eq(persons.id, creditGrants.personId))
+    .leftJoin(products, eq(products.id, creditGrants.productId))
+    .where(
+      and(
+        eq(packageShares.sharedWithPersonId, personId),
+        eq(packageShares.status, "active"),
+        eq(creditGrants.status, "active"),
+        sql`${creditGrants.personId} <> ${personId}`,
+      ),
+    )
+    .orderBy(sql`${vCreditGrantBalances.expiresAt} asc nulls last`, asc(packageShares.grantId));
+  return rows.map(({ ownerFirst, ownerLast, ...r }) => {
+    const p = toMyPackage(r);
+    const used = Number(r.usedByMe);
+    const cap = r.maxUnits == null ? p.remainingUnits : Math.max(0, r.maxUnits - used);
+    return { ...p, usedByMe: used, unitsForMe: Math.max(0, Math.min(p.remainingUnits, cap)), ownerName: firstNameAndInitial(ownerFirst, ownerLast) };
+  });
+}
+
+/**
+ * `/[locale]/account/packages`: the reader's own day and night packages that are usable now
+ * (`active`), that start later (`upcoming`) and the closed ones (`history`, newest first, at most
+ * 50); every usable euro grant is summed into one store-credit card with the earliest expiry;
+ * `sharedWithMe` from `listGrantsSharedWith`.
+ */
+export async function getMyPackages(db: DbOrTx, personId: string, opts: { now?: Date } = {}): Promise<MyPackages> {
+  if (!UUID_RE.test(personId)) throw new NotFoundError("person_not_found");
+  const now = opts.now ?? new Date();
+  const rows = (
+    await db
+      .select(myPackageColumns())
+      .from(vCreditGrantBalances)
+      .innerJoin(creditGrants, eq(creditGrants.id, vCreditGrantBalances.grantId))
+      .leftJoin(products, eq(products.id, vCreditGrantBalances.productId))
+      .where(eq(vCreditGrantBalances.personId, personId))
+      .orderBy(sql`${vCreditGrantBalances.expiresAt} asc nulls last`, asc(vCreditGrantBalances.startsAt), asc(vCreditGrantBalances.grantId))
+  ).map(toMyPackage);
+  const live = (r: MyPackage) => r.status === "active" && (r.expiresAt === null || r.expiresAt.getTime() > now.getTime());
+  const started = (r: MyPackage) => r.startsAt.getTime() <= now.getTime();
+  const euro = rows.filter((r) => r.kind === "euro" && live(r) && started(r) && r.remainingUnits > 0);
+  const expiries = euro.map((r) => r.expiresAt).filter((d): d is Date => d !== null);
+  return {
+    active: rows.filter((r) => r.kind !== "euro" && live(r) && started(r) && r.remainingUnits > 0),
+    upcoming: rows.filter((r) => live(r) && !started(r)),
+    history: rows
+      .filter((r) => !live(r) || (r.kind !== "euro" && started(r) && r.remainingUnits <= 0))
+      .sort((a, z) => z.statusChangedAt.getTime() - a.statusChangedAt.getTime())
+      .slice(0, HISTORY_LIMIT),
+    sharedWithMe: await listGrantsSharedWith(db, personId),
+    storeCredit: {
+      remainingCents: euro.reduce((n, r) => n + r.remainingUnits, 0),
+      earliestExpiresAt: expiries.length ? new Date(Math.min(...expiries.map((d) => d.getTime()))) : null,
+      grants: euro.length,
+    },
+  };
+}
+
+/** One line of the customer's usage history of a package (rule 37). */
+export type MyUsageRow = {
+  entryId: string;
+  at: Date;
+  kind: "use" | "returned" | "expired" | "adjusted" | "extended" | "revoked" | "transferred";
+  /** Signed units (cents for store credit); 0 for an extension. */
+  quantity: number;
+  sessionTitle: LocalizedText | null;
+  sessionStartsAt: Date | null;
+  /** Who used it: the reader, or a guest as first name and initial (rule 38); null for non-use lines. */
+  usedBy: { you: true } | { you: false; name: string } | null;
+  attendance: Attendance | null;
+  /** A use that was later returned (cancellation in the window, rule 19). */
+  returned: boolean;
+  newExpiresAt: Date | null;
+  orderReference: string | null;
+};
+
+export type MyPackageDetail = {
+  package: MyPackage;
+  isOwner: boolean;
+  ownerName: string | null;
+  sharingMode: "none" | "guests" | "named";
+  usage: MyUsageRow[];
+  /** Guest uses still possible this Brussels month (owner of a `guests` grant), else null. */
+  guestUsesLeft: number | null;
+  /** Store credit: the orders paid with it (date, reference, amount), returned payments left out. */
+  orders: { orderId: string; reference: string; at: Date; amountCents: number }[];
+};
+
+const USAGE_KIND: Partial<Record<string, MyUsageRow["kind"]>> = {
+  consume: "use",
+  release: "returned",
+  expire: "expired",
+  adjust: "adjusted",
+  extend: "extended",
+  revoke: "revoked",
+  transfer_out: "transferred",
+};
+
+/**
+ * `/[locale]/account/packages/[grantId]`: a package of the reader, or one shared with them through
+ * an active share (`NotFoundError` otherwise, the standard portal 404). The owner sees every use
+ * with guests as first name and initial and their attendance; a sharee sees only their own uses.
+ * Staff reasons, actors and unit values never leave this function (rule 37): an adjustment is the
+ * generic "Adjusted by BEAM" line.
+ */
+export async function getMyPackage(db: DbOrTx, personId: string, grantId: string, opts: { now?: Date } = {}): Promise<MyPackageDetail> {
+  if (!UUID_RE.test(grantId) || !UUID_RE.test(personId)) throw new NotFoundError("grant_not_found");
+  const now = opts.now ?? new Date();
+  const [head] = await db
+    .select({ ...myPackageColumns(), ownerId: creditGrants.personId, sharing: creditGrants.sharing, ownerFirst: persons.firstName, ownerLast: persons.lastName })
+    .from(vCreditGrantBalances)
+    .innerJoin(creditGrants, eq(creditGrants.id, vCreditGrantBalances.grantId))
+    .innerJoin(persons, eq(persons.id, creditGrants.personId))
+    .leftJoin(products, eq(products.id, vCreditGrantBalances.productId))
+    .where(eq(vCreditGrantBalances.grantId, grantId));
+  if (!head) throw new NotFoundError("grant_not_found");
+  const isOwner = head.ownerId === personId;
+  if (!isOwner) {
+    const [share] = await db
+      .select({ id: packageShares.id })
+      .from(packageShares)
+      .where(and(eq(packageShares.grantId, grantId), eq(packageShares.sharedWithPersonId, personId), eq(packageShares.status, "active")));
+    if (!share) throw new NotFoundError("grant_not_found");
+  }
+  const { ownerId, sharing, ownerFirst, ownerLast, ...card } = head;
+
+  const released = sql<boolean>`exists (select 1 from credit_entries r where r.reverses_entry_id = ${creditEntries.id})`;
+  const raw = await db
+    .select({
+      entryId: creditEntries.id,
+      at: creditEntries.createdAt,
+      kind: creditEntries.kind,
+      quantity: creditEntries.quantity,
+      refType: creditEntries.refType,
+      refId: creditEntries.refId,
+      data: creditEntries.data,
+      beneficiaryPersonId: creditEntries.beneficiaryPersonId,
+      beneficiaryFirst: persons.firstName,
+      beneficiaryLast: persons.lastName,
+      bookingStatus: bookings.status,
+      sessionTitle: sessions.title,
+      sessionStartsAt: sessions.startsAt,
+      orderReference: orders.reference,
+      isReleased: released,
+    })
+    .from(creditEntries)
+    .leftJoin(persons, eq(persons.id, creditEntries.beneficiaryPersonId))
+    .leftJoin(bookings, and(eq(creditEntries.refType, "booking"), eq(bookings.id, creditEntries.refId)))
+    .leftJoin(sessions, eq(sessions.id, bookings.sessionId))
+    .leftJoin(orders, and(eq(creditEntries.refType, "order"), eq(orders.id, creditEntries.refId)))
+    .where(eq(creditEntries.grantId, grantId))
+    .orderBy(desc(creditEntries.createdAt), desc(creditEntries.id));
+
+  const visible = isOwner ? raw : raw.filter((e) => e.beneficiaryPersonId === personId);
+  const usage: MyUsageRow[] = [];
+  for (const e of visible) {
+    const kind = USAGE_KIND[e.kind];
+    if (!kind) continue;
+    const isUse = e.kind === "consume" || e.kind === "release";
+    const beneficiary = e.beneficiaryPersonId ?? (isUse ? ownerId : null);
+    const newExpires = e.kind === "extend" ? (e.data as { new_expires_at?: string } | null)?.new_expires_at : undefined;
+    usage.push({
+      entryId: e.entryId,
+      at: e.at,
+      kind,
+      quantity: e.quantity,
+      sessionTitle: e.sessionTitle,
+      sessionStartsAt: e.sessionStartsAt,
+      usedBy: !isUse || !beneficiary ? null : beneficiary === personId ? { you: true } : { you: false, name: firstNameAndInitial(e.beneficiaryFirst, e.beneficiaryLast) },
+      attendance: e.kind === "consume" ? (e.isReleased ? "cancelled" : attendanceOf(e.bookingStatus, e.sessionStartsAt, now)) : null,
+      returned: e.kind === "consume" && Boolean(e.isReleased),
+      newExpiresAt: newExpires ? new Date(newExpires) : null,
+      orderReference: e.orderReference,
+    });
+  }
+
+  let guestUsesLeft: number | null = null;
+  if (isOwner && sharing.mode === "guests") {
+    const month = brusselsMonthWindow(now);
+    const refs = new Set(
+      raw
+        .filter((e) => e.kind === "consume" && !e.isReleased && e.beneficiaryPersonId && e.beneficiaryPersonId !== ownerId && e.at >= month.from && e.at < month.to)
+        .map((e) => e.refId),
+    );
+    guestUsesLeft = Math.max(0, sharing.max_guest_uses_per_month - refs.size);
+  }
+  const orderUses =
+    card.kind === "euro"
+      ? raw
+          .filter((e) => e.kind === "consume" && e.refType === "order" && e.refId && !e.isReleased)
+          .map((e) => ({ orderId: e.refId!, reference: e.orderReference ?? "", at: e.at, amountCents: -e.quantity }))
+      : [];
+  return {
+    package: toMyPackage(card),
+    isOwner,
+    ownerName: isOwner ? null : firstNameAndInitial(ownerFirst, ownerLast),
+    sharingMode: sharing.mode,
+    usage,
+    guestUsesLeft,
+    orders: orderUses,
+  };
+}
+
+export type MyMembership = {
+  membershipId: string;
+  version: number;
+  status: MembershipStatus;
+  planName: LocalizedText;
+  productId: string;
+  interval: "month" | "year";
+  memberSince: Date;
+  currentPeriodStartAt: Date;
+  currentPeriodEndAt: Date;
+  cancelAt: Date | null;
+  endedAt: Date | null;
+  endReason: string | null;
+  /** The next renewal date (period end) while the membership renews; null when it ends. */
+  nextRenewalAt: Date | null;
+  /** The open renewal order's total, else the last paid period's amount. */
+  renewalAmountCents: number | null;
+  paymentMethod: { method: string; summary: string | null; status: string } | null;
+  discountPct: number;
+  included: { grantId: string; kind: CreditKind; remainingUnits: number; baseUnits: number; expiresAt: Date | null }[];
+  benefits: { benefitId: string; kind: string; text: LocalizedText }[];
+  periods: { periodStartAt: Date; periodEndAt: Date; source: string; amountCents: number | null }[];
+  /** `payMyRenewal` applies: `past_due`, or a link renewal with an open renewal order. */
+  canPay: boolean;
+  canCancel: boolean;
+  canResume: boolean;
+  /** A `pending` plan that starts after the current one (rule 57's "Change plan"). */
+  upcoming: { membershipId: string; planName: LocalizedText; startsAt: Date } | null;
+};
+
+const LIVE_MEMBERSHIP: MembershipStatus[] = ["active", "past_due"];
+
+/** `payMyRenewal` applies (spec section 4): `past_due`, or `active` paid by link, with an open renewal order. */
+export function canPayRenewal(m: { status: MembershipStatus; renewalOrderStatus: string | null; hasValidMandate: boolean }): boolean {
+  const open = m.renewalOrderStatus === "pending_payment" || m.renewalOrderStatus === "draft";
+  return open && (m.status === "past_due" || (m.status === "active" && !m.hasValidMandate));
+}
+
+/**
+ * `/[locale]/account/membership`: the reader's live membership (`active` or `past_due`), else
+ * their `pending` one, else the last ended one (status shown, no actions); null when they never
+ * had one. Includes this period's inclusion grants, the plan's active benefits, the history of
+ * periods and the pending follow-up plan.
+ */
+export async function getMyMembership(db: DbOrTx, personId: string, opts: { now?: Date } = {}): Promise<MyMembership | null> {
+  if (!UUID_RE.test(personId)) return null;
+  const now = opts.now ?? new Date();
+  const all = await db
+    .select({ m: memberships, planName: products.name })
+    .from(memberships)
+    .innerJoin(products, eq(products.id, memberships.productId))
+    .where(eq(memberships.personId, personId))
+    .orderBy(desc(memberships.startedAt), desc(memberships.id));
+  const chosen =
+    all.find((r) => LIVE_MEMBERSHIP.includes(r.m.status)) ??
+    all.find((r) => r.m.status === "pending") ??
+    all.find((r) => r.m.status === "cancelled" || r.m.status === "expired");
+  if (!chosen) return null;
+  const m = chosen.m;
+  const pending = LIVE_MEMBERSHIP.includes(m.status) ? all.find((r) => r.m.status === "pending") : undefined;
+
+  const included = await db
+    .select({
+      grantId: vCreditGrantBalances.grantId,
+      kind: vCreditGrantBalances.creditKind,
+      remainingUnits: vCreditGrantBalances.remainingUnits,
+      baseUnits: vCreditGrantBalances.baseUnits,
+      expiresAt: vCreditGrantBalances.expiresAt,
+    })
+    .from(vCreditGrantBalances)
+    .where(
+      and(
+        eq(vCreditGrantBalances.membershipId, m.id),
+        sql`${vCreditGrantBalances.startsAt} >= ${m.currentPeriodStartAt.toISOString()}::timestamptz`,
+        sql`${vCreditGrantBalances.startsAt} < ${m.currentPeriodEndAt.toISOString()}::timestamptz`,
+      ),
+    )
+    .orderBy(asc(vCreditGrantBalances.creditKind));
+  const benefits = await db
+    .select({ benefitId: membershipPlanBenefits.id, kind: membershipPlanBenefits.kind, text: membershipPlanBenefits.text })
+    .from(membershipPlanBenefits)
+    .where(and(eq(membershipPlanBenefits.productId, m.productId), eq(membershipPlanBenefits.isActive, true)))
+    .orderBy(asc(membershipPlanBenefits.sortOrder), asc(membershipPlanBenefits.id));
+  const periods = await db
+    .select({ periodStartAt: membershipPeriods.periodStartAt, periodEndAt: membershipPeriods.periodEndAt, source: membershipPeriods.source, amountCents: membershipPeriods.amountCents })
+    .from(membershipPeriods)
+    .where(eq(membershipPeriods.membershipId, m.id))
+    .orderBy(desc(membershipPeriods.periodStartAt));
+  const [renewal] = m.renewalOrderId
+    ? await db.select({ status: orders.status, totalCents: orders.totalCents }).from(orders).where(eq(orders.id, m.renewalOrderId))
+    : [];
+  const [mandate] = m.mandateId
+    ? await db.select({ method: mandates.method, summary: mandates.detailsSummary, status: mandates.status }).from(mandates).where(eq(mandates.id, m.mandateId))
+    : [];
+  const live = LIVE_MEMBERSHIP.includes(m.status);
+  const renewalOpen = !!renewal && (renewal.status === "pending_payment" || renewal.status === "draft");
+  const lastPaid = periods.find((p) => p.amountCents != null)?.amountCents ?? null;
+  const started = all.filter((r) => r.m.status !== "pending").map((r) => r.m.startedAt);
+  return {
+    membershipId: m.id,
+    version: m.version,
+    status: m.status,
+    planName: chosen.planName,
+    productId: m.productId,
+    interval: m.interval,
+    memberSince: started.length ? new Date(Math.min(...started.map((d) => d.getTime()))) : m.startedAt,
+    currentPeriodStartAt: m.currentPeriodStartAt,
+    currentPeriodEndAt: m.currentPeriodEndAt,
+    cancelAt: m.cancelAt,
+    endedAt: m.endedAt,
+    endReason: m.endReason,
+    nextRenewalAt: live && !m.cancelAt ? m.currentPeriodEndAt : null,
+    renewalAmountCents: renewalOpen ? renewal.totalCents : lastPaid,
+    paymentMethod: mandate ? { method: mandate.method, summary: mandate.summary, status: mandate.status } : null,
+    discountPct: Number(m.discountPct),
+    included: included.map((g) => ({ ...g, remainingUnits: Number(g.remainingUnits), baseUnits: Number(g.baseUnits) })),
+    benefits,
+    periods,
+    canPay: canPayRenewal({ status: m.status, renewalOrderStatus: renewal?.status ?? null, hasValidMandate: mandate?.status === "valid" }),
+    canCancel: m.status === "pending" || m.status === "past_due" || (m.status === "active" && !m.cancelAt),
+    canResume: m.status === "active" && !!m.cancelAt && m.cancelAt.getTime() > now.getTime(),
+    upcoming: pending ? { membershipId: pending.m.id, planName: pending.planName, startsAt: pending.m.currentPeriodStartAt } : null,
+  };
 }

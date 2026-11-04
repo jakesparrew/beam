@@ -34,7 +34,7 @@ import { getOrderBillingDetails } from "./service/billing-details";
 import { pdfFileExists } from "./service/pdf-file";
 import { enqueueFinanceJob, eventSubject, findInvoice, loadInvoice, updateInvoiceState } from "./service/invoice-state";
 import { addDays, issuerSettings } from "./service/issue-invoice";
-import { countDocuments, reconcile, upsertReconcileRun } from "./service/reconcile";
+import { appendReconcileRun, failReconcileRun, RECONCILE_CHUNK, reconcileDocuments, reconcileTail, upsertReconcileRun } from "./service/reconcile";
 
 // ---------------------------------------------------------------------------
 // Keys and inputs
@@ -218,7 +218,21 @@ export async function runSendInvoiceEmail(ctx: JobCtx, input: z.infer<typeof Sen
 // billit.reconcile
 // ---------------------------------------------------------------------------
 
-export const ReconcileInput = z.object({ manual: z.number().int().positive().optional() });
+export const ReconcileInput = z.object({
+  manual: z.number().int().positive().optional(),
+  /** Continuations only: the run's Brussels day and the last document the previous chunk checked. */
+  runOn: z.iso.date().optional(),
+  afterId: z.uuid().optional(),
+});
+
+/** `billit.reconcile` timeout: inside the tick's headroom (`maxDuration` 120 s minus its 50 s start budget). */
+export const RECONCILE_TIMEOUT_MS = 60_000;
+/** A chunk stops checking documents after this long and leaves the rest to its continuation. */
+export const RECONCILE_CHUNK_BUDGET_MS = 35_000;
+
+/** Key of the chunk after `afterId`; a manual run keeps its number so it never collides with the scheduled run's chunks. */
+export const reconcileContinuationKey = (runOn: string, afterId: string, manual?: number) =>
+  `billit:reconcile:${runOn}:${manual ? `manual:${manual}:` : ""}after:${afterId}`;
 
 const issueCounts = (issues: readonly { type: string }[]) =>
   Object.entries(issues.reduce<Record<string, number>>((acc, i) => ({ ...acc, [i.type]: (acc[i.type] ?? 0) + 1 }), {}))
@@ -231,28 +245,60 @@ const issueCounts = (issues: readonly { type: string }[]) =>
  * `billit_reconcile_runs` row. A `sequence_gap` raises `sequence-gap:<year>:<kind>` (High); any
  * issue sends the summary `billit-reconcile:<run_on>` (High with an amount mismatch or a gap,
  * else Normal). Billit unreachable: the run is stored as `failed` and the job retries.
+ *
+ * Self-continuing (one job never outlives the tick): each job checks one chunk of at most
+ * `RECONCILE_CHUNK` documents or `RECONCILE_CHUNK_BUDGET_MS`, merges it into the day's run
+ * (`finished_at` null while chunks remain) and enqueues the next chunk with
+ * `billit:reconcile:<run_on>:after:<id>`. Only the last chunk runs the unknown-order scan and the
+ * sequence check, finishes the run and sends the alerts.
  */
-export async function runReconcile(ctx: JobCtx, _input: z.infer<typeof ReconcileInput>) {
+export async function runReconcile(ctx: JobCtx, input: z.infer<typeof ReconcileInput>) {
   const tx = ctx.tx;
   const settings = await financeSettings(tx);
   if (!settings.billit_enabled) return { status: "disabled" as const };
-  const runOn = brusselsDay(ctx.now);
+  const runOn = input.runOn ?? brusselsDay(ctx.now);
   const window = { from: addDays(runOn, -settings.reconcile_lookback_days), to: runOn, now: ctx.now };
+  const first = !input.afterId;
   const startedAt = new Date();
-  let issues;
+  const deadline = startedAt.getTime() + RECONCILE_CHUNK_BUDGET_MS;
+  const api = ctx.integrations.billit;
+
+  let chunk;
+  let tail: Awaited<ReturnType<typeof reconcileTail>> = [];
   try {
-    issues = await reconcile(tx, ctx.integrations.billit, window);
+    chunk = await reconcileDocuments(tx, api, window, { ...(input.afterId ? { afterId: input.afterId } : {}), limit: RECONCILE_CHUNK, deadline, signal: ctx.signal });
+    // The window-wide checks run in the last chunk, or in a chunk of their own when this one used its budget.
+    if (chunk.done && (Date.now() < deadline || !chunk.lastId)) tail = await reconcileTail(tx, api, window, ctx.signal);
+    else chunk = { ...chunk, done: false };
   } catch (error) {
     if (error instanceof IntegrationError) {
-      await writeDurably(ctx, async (db) => void (await upsertReconcileRun(db, { runOn, startedAt, finishedAt: new Date(), status: "failed", checkedCount: 0, issues: [] })));
+      await writeDurably(ctx, async (db) => {
+        if (first) await upsertReconcileRun(db, { runOn, startedAt, finishedAt: new Date(), status: "failed", checkedCount: 0, issues: [] });
+        else await failReconcileRun(db, runOn, new Date());
+      });
       if (isBillitAuthError(error)) await raiseAuthAlert(ctx);
     }
     throw error;
   }
-  const checkedCount = await countDocuments(tx, window);
-  const runId = await upsertReconcileRun(tx, { runOn, startedAt, finishedAt: new Date(), status: issues.length ? "issues" : "ok", checkedCount, issues });
 
-  for (const gap of issues.filter((i) => i.type === "sequence_gap")) {
+  // The first chunk starts the day's run afresh (a re-run the same day overwrites it).
+  if (first) await upsertReconcileRun(tx, { runOn, startedAt, finishedAt: null, status: "ok", checkedCount: 0, issues: [] });
+  const run = await appendReconcileRun(tx, { runOn, startedAt, finishedAt: chunk.done ? new Date() : null, checked: chunk.checked, issues: [...chunk.issues, ...tail] });
+  const runId = run.id;
+  const checkedCount = run.checkedCount;
+
+  if (!chunk.done) {
+    const afterId = chunk.lastId!;
+    await ctx.enqueue({
+      kind: "billit.reconcile",
+      payload: { runOn, afterId, ...(input.manual ? { manual: input.manual } : {}) },
+      key: reconcileContinuationKey(runOn, afterId, input.manual),
+    });
+    return { status: "continued" as const, runId, checkedCount, afterId };
+  }
+
+  const issues = run.issues;
+  for (const gap of tail.filter((i) => i.type === "sequence_gap")) {
     const m = /^(invoice|credit_note) (\d{4}):/.exec(gap.detail);
     if (m) await notifySlack(ctx, { fingerprint: `sequence-gap:${m[2]}:${m[1]}`, severity: "high", text: `Invoice numbering gap: ${gap.detail}` });
   }
@@ -342,6 +388,6 @@ export const jobs = [
   defineJob({ kind: "billit.send_peppol", lane: "fast", priority: 5, maxAttempts: 6, input: InvoiceIdInput, run: runSendPeppol }),
   defineJob({ kind: "billit.push_payment", lane: "fast", priority: 5, maxAttempts: 6, input: InvoiceIdInput, run: runPushPayment }),
   defineJob({ kind: "billit.sync_pending", lane: "bulk", priority: 5, maxAttempts: 6, timeoutMs: 120_000, input: SyncPendingInput, run: runSyncPending }),
-  defineJob({ kind: "billit.reconcile", lane: "bulk", priority: 9, maxAttempts: 6, timeoutMs: 240_000, input: ReconcileInput, run: runReconcile }),
+  defineJob({ kind: "billit.reconcile", lane: "bulk", priority: 9, maxAttempts: 6, timeoutMs: RECONCILE_TIMEOUT_MS, input: ReconcileInput, run: runReconcile }),
   defineJob({ kind: "finance.scan_overdue", lane: "bulk", priority: 9, maxAttempts: 6, input: z.object({}).passthrough(), run: (ctx) => runScanOverdue(ctx) }),
 ];

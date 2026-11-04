@@ -64,3 +64,76 @@ describe("booking templates (booking-P3a)", () => {
     }
   }
 });
+
+const P3B_FIXTURES: Record<string, Array<{ label: string; props: Record<string, unknown>; lines?: string[]; absent?: string[] }>> = {
+  booking_rescheduled: [{ label: "default", props: { ...base, oldDate: "zaterdag 9 januari 2027 om 10:00" } }],
+  booking_cancelled: [
+    { label: "cancelled", props: { ...base, reason: "cancelled" }, absent: ["booking.email.booking_cancelled.payment_expired"] },
+    { label: "payment expired", props: { ...base, reason: "payment_expired" }, lines: ["booking.email.booking_cancelled.payment_expired"] },
+  ],
+  booking_late_cancelled: [{ label: "default", props: { ...base } }],
+  session_cancelled: [
+    {
+      label: "refunded",
+      props: { ...base, refunded: true, creditReleased: false },
+      lines: ["booking.email.session_cancelled.refunded"],
+      absent: ["booking.email.session_cancelled.credit_released"],
+    },
+    {
+      label: "credit released",
+      props: { ...base, refunded: false, creditReleased: true },
+      lines: ["booking.email.session_cancelled.credit_released"],
+      absent: ["booking.email.session_cancelled.refunded"],
+    },
+  ],
+  booking_reminder: [
+    { label: "day", props: { ...base, kind: "day" }, lines: ["booking.email.booking_reminder.intro_day"] },
+    { label: "night", props: { ...base, kind: "night" }, lines: ["booking.email.booking_reminder.intro_night"] },
+  ],
+};
+const P3B_KEYS = Object.keys(P3B_FIXTURES).map((name) => `booking.${name}`);
+/** The templates whose sender passes the check-in QR as an inline attachment (R59). */
+const WITH_QR = new Set(["booking_rescheduled", "booking_reminder"]);
+
+describe("booking templates (booking-P3b)", () => {
+  it("the five P3b keys are registered and their slots exist in all three locales", () => {
+    const keys = templates.map((tpl) => `booking.${tpl.name}`);
+    expect(keys).toEqual(expect.arrayContaining(P3B_KEYS));
+    for (const key of P3B_KEYS) expect(Object.keys(TEMPLATE_REGISTRY)).toContain(key);
+    for (const name of Object.keys(P3B_FIXTURES)) {
+      for (const key of Object.values(byName(name).slots)) {
+        expect(key.startsWith(`booking.email.${name}.`)).toBe(true);
+        for (const locale of LOCALES) expect(t.has(locale, key), `${locale} ${key}`).toBe(true);
+      }
+    }
+  });
+
+  it("props schemas accept the fixtures and refuse missing variant data", () => {
+    for (const [name, variants] of Object.entries(P3B_FIXTURES)) for (const v of variants) expect(byName(name).props.safeParse(v.props).success, `${name} ${v.label}`).toBe(true);
+    expect(byName("booking_rescheduled").props.safeParse(base).success).toBe(false);
+    expect(byName("booking_reminder").props.safeParse(base).success).toBe(false);
+    expect(byName("booking_reminder").props.safeParse({ ...base, kind: "event" }).success).toBe(false);
+  });
+
+  for (const [name, variants] of Object.entries(P3B_FIXTURES)) {
+    for (const variant of variants) {
+      describe(`${name} (${variant.label})`, () => {
+        it.each(LOCALES)("renders in %s", async (locale) => {
+          const out = await renderEmail(byName(name), { locale, props: variant.props });
+          const params = variant.props as Record<string, string>;
+          // The rescheduled subject names the new time, every other subject the session.
+          expect(out.subject).toContain(name === "booking_rescheduled" ? base.date : "Dagsessie");
+          expect(out.html).toContain(`lang="${locale}"`);
+          expect(out.html).not.toMatch(/⟦/);
+          expect(out.text).toContain(variant.props.url as string);
+          const text = out.text.replace(/\s+/g, " ");
+          for (const key of variant.lines ?? []) expect(text).toContain(t(locale, key, params).slice(0, 25));
+          for (const key of variant.absent ?? []) expect(text).not.toContain(t(locale, key, params).slice(0, 25));
+          if (WITH_QR.has(name)) expect(out.html).toContain(`src="${CHECKIN_QR_CID}"`);
+          else expect(out.html).not.toContain(CHECKIN_QR_CID);
+          if (name === "booking_rescheduled") expect(text).toContain("zaterdag 9 januari 2027");
+        });
+      });
+    }
+  }
+});

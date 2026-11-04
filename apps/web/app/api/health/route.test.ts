@@ -52,7 +52,8 @@ async function freshTick() {
 }
 
 describe("GET /api/health (PL-74)", () => {
-  it("200 with the documented shape; a throwing booking stub gives level unknown", async () => {
+  it("200 with the documented shape; a throwing booking health gives level unknown", async () => {
+    booking.impl = () => Promise.reject(new Error("booking health unavailable"));
     const res = await GET();
     expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toBe("no-store");

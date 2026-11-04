@@ -48,6 +48,7 @@ function readyList() {
   }
   for (const [id, s] of Object.entries(state.packages)) {
     if (!s.fixer || s.status !== 'pending') continue;
+    if ((s.dependsOn || []).some(d => state.packages[d]?.status !== 'merged')) continue;
     const clash = activeOwns.filter(([aid]) => aid !== id).map(([aid, o]) => [aid, ownsOverlap(s.owns, o)]).find(([, c]) => c);
     out.push({ id, wave: -1, release: 'V1', est: 30, chain: 99999, blockedBy: clash ? `${clash[0]} (${clash[1].join(' ~ ')})` : null });
   }

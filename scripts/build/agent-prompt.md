@@ -121,6 +121,7 @@ pnpm gen:indexes
 pnpm typecheck
 pnpm exec eslint $(git diff --name-only --diff-filter=ACMR "$BASE" -- '*.ts' '*.tsx' '*.js' '*.mjs')   # once eslint.config.js exists
 pnpm i18n:check                                                                      # once the script exists
+pnpm gdpr:coverage      # every table referencing persons must be in a privacy.ts registration (your module's, if you own it)
 # your Vitest suites, per workspace you touched, for example:
 pnpm --filter @beam/web exec vitest run modules/<module> app
 pnpm --filter @beam/core exec vitest run src/<module>

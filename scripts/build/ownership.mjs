@@ -18,6 +18,9 @@ if (args[0] === '--check') {
     if (!pkg) { console.error(`unknown package ${id}`); process.exit(2); }
     owns = expandOwns(pkg);
   }
+  // Orchestrator-granted extra paths for one attempt (state.json packages[id].extraOwns).
+  const extra = readJson(STATE, { packages: {} }).packages[id]?.extraOwns || [];
+  owns = [...owns, ...extra];
   const files = git('diff', '--name-only', `${base}...${ref}`).split('\n').filter(Boolean);
   const foreign = files.filter(p => !alwaysAllowed(id, p) && !owns.some(e => covers(e, p)) && !bs23Allowed(id, owns, p));
   if (foreign.length) {

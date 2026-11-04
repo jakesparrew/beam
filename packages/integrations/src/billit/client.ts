@@ -95,7 +95,7 @@ export function createBillitClient(opts: BillitClientOptions): BillitApi {
           const text = await res.text().catch(() => "");
           if (!res.ok) throw billitError(req.operation, res.status, errorDetail(text));
           if (!parse) return { value: undefined as T, statusCode: res.status };
-          let json: unknown = null;
+          let json: unknown;
           try {
             json = text ? JSON.parse(text) : null;
           } catch {

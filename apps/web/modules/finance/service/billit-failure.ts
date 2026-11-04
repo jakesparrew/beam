@@ -10,7 +10,7 @@ import type { DbOrTx, Tx } from "@beam/db";
 import { localHourKey } from "@beam/core/platform";
 import { IntegrationError, scrubError } from "@beam/integrations/_shared";
 import { isBillitAuthError } from "@beam/integrations/billit";
-import { enqueueJob, writeDurably, type Ctx, type JobKind } from "@/lib/ctx";
+import { enqueueJob, writeDurably, type Ctx } from "@/lib/ctx";
 import { findInvoice, updateInvoiceState } from "./invoice-state";
 
 /** `billit_last_error`: status or code first, then the scrubbed message, at most 500 characters. */
@@ -44,7 +44,7 @@ export async function recordBillitPaymentFailure(db: DbOrTx, invoiceId: string, 
  * fingerprint per hour.
  */
 export async function enqueueAlertOn(db: DbOrTx, now: Date, input: { fingerprint: string; severity: "critical" | "high" | "normal"; text: string }): Promise<void> {
-  await enqueueJob(db, { kind: "notify.slack" as JobKind, payload: input, key: `slack:${input.fingerprint}:${localHourKey(now)}` });
+  await enqueueJob(db, { kind: "notify.slack", payload: input, key: `slack:${input.fingerprint}:${localHourKey(now)}` });
 }
 
 /**

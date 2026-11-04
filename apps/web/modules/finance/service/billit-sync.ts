@@ -15,7 +15,7 @@
 import { createHash } from "node:crypto";
 import type { DbOrTx } from "@beam/db";
 import { billitParties, companies, invoices, jobs, payments, persons } from "@beam/db/schema";
-import { buildCustomerSnapshot, isAnonymisedSnapshot, type CompanyForBilling, type FullCustomerSnapshot, type InvoiceRecord, type PersonForBilling } from "@beam/core/finance";
+import { buildCustomerSnapshot, isAnonymisedSnapshot, type FullCustomerSnapshot, type InvoiceRecord } from "@beam/core/finance";
 import { localDateKey, wallClock, zonedTimeToUtc } from "@beam/core/platform";
 import { IntegrationError } from "@beam/integrations/_shared";
 import { isBillitAuthError, type BillitApi, type BillitPartyInput } from "@beam/integrations/billit";
@@ -177,10 +177,10 @@ export async function runPushCustomer(ctx: JobCtx, input: { partyKey: string }) 
       .select({ id: persons.id, firstName: persons.firstName, lastName: persons.lastName, email: persons.email, phone: persons.phone, address: persons.address, locale: persons.locale })
       .from(persons)
       .where(eq(persons.id, row.personId));
-    if (p) snapshot = buildCustomerSnapshot({ person: p as PersonForBilling });
+    if (p) snapshot = buildCustomerSnapshot({ person: p });
   } else if (input.partyKey.startsWith("company:") && row.companyId) {
     const [c] = await ctx.tx.select({ id: companies.id, name: companies.name, vatNumber: companies.vatNumber, address: companies.address }).from(companies).where(eq(companies.id, row.companyId));
-    if (c) snapshot = buildCustomerSnapshot({ company: c as CompanyForBilling });
+    if (c) snapshot = buildCustomerSnapshot({ company: c });
   }
   if (!snapshot) return { status: "unchanged" as const };
   const api = ctx.integrations.billit;

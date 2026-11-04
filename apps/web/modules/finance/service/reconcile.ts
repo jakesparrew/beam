@@ -16,7 +16,7 @@
  */
 import type { DbOrTx } from "@beam/db";
 import { billitReconcileRuns, files, invoiceSequences, invoices } from "@beam/db/schema";
-import { formatNumber, type InvoiceKind, type InvoiceRecord, type ReconcileIssue } from "@beam/core/finance";
+import { formatNumber, type InvoiceRecord, type ReconcileIssue } from "@beam/core/finance";
 import { IntegrationError } from "@beam/integrations/_shared";
 import type { BillitApi, BillitOrder } from "@beam/integrations/billit";
 import { and, asc, eq, gte, inArray, lte, sql } from "@/lib/ctx";
@@ -67,7 +67,7 @@ export async function sequenceGaps(tx: DbOrTx, years: readonly number[]): Promis
     if (!ok) {
       issues.push({
         type: "sequence_gap",
-        ...(s.lastNumber > 0 ? { number: formatNumber(s.kind as InvoiceKind, s.year, s.lastNumber) } : {}),
+        ...(s.lastNumber > 0 ? { number: formatNumber(s.kind, s.year, s.lastNumber) } : {}),
         detail: `${s.kind} ${s.year}: last_number ${s.lastNumber}, ${count} documents (numbers ${row?.min ?? "-"}..${row?.max ?? "-"})`,
       });
     }

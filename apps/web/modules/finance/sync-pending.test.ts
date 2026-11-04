@@ -11,7 +11,7 @@ import { createFakeIntegrations, type FakeIntegrations } from "@/lib/testing";
 import { jobsOf, openInvoice, paidB2c, runJob, slackJobs } from "./finance-p4.helpers";
 import { eventsOf, invoiceRow, setupDb } from "./service/__tests__/fixtures";
 
-const commerce = vi.hoisted(() => ({ recordBankTransferPaid: vi.fn(() => Promise.resolve({ applied: true })) }));
+const commerce = vi.hoisted(() => ({ recordBankTransferPaid: vi.fn((_tx: unknown, _ctx: unknown, _input: unknown) => Promise.resolve({ applied: true })) }));
 vi.mock("@/modules/commerce/api", async (importOriginal) => ({ ...(await importOriginal<object>()), recordBankTransferPaid: commerce.recordBankTransferPaid }));
 
 let h: DbHandle;

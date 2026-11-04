@@ -9,7 +9,7 @@ import { makePerson, makeUser } from "@beam/db/testing";
 import { makeOrder, makeOrderLine, makePaidOrder, type LineOverrides } from "@beam/db/testing/commerce-factories";
 import { jobs, settings } from "@beam/db/schema";
 import { FINANCE_SETTING_DEFAULT, type BillingDetails } from "@beam/core/finance";
-import { eq, flushDurableWrites, flushIntegrationLog, sql, type Tx } from "@/lib/ctx";
+import { eq, flushDurableWrites, flushIntegrationLog, sql } from "@/lib/ctx";
 import { loadJobs, type JobCtx } from "@/lib/job-runner";
 import { makeJobCtx, type FakeIntegrations } from "@/lib/testing";
 import { storeFile } from "@/modules/platform/api";
@@ -35,7 +35,7 @@ export async function runJob(
   let error: unknown;
   try {
     await db.transaction(async (tx) => {
-      ctx = makeJobCtx(db, kind, { integrations: opts.integrations, tx: tx as unknown as Tx, ...(opts.now ? { now: opts.now } : {}), ...(opts.key ? { key: opts.key } : {}) });
+      ctx = makeJobCtx(db, kind, { integrations: opts.integrations, tx: tx, ...(opts.now ? { now: opts.now } : {}), ...(opts.key ? { key: opts.key } : {}) });
       result = await def.run(ctx, input);
     });
   } catch (e) {

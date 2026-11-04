@@ -47,7 +47,7 @@ import { applyTag, fillAcquisitionIfEmpty, findOrCreatePersonByEmail, getPerson,
 import { sendTransactional } from "@/modules/email/api";
 import { buildPrefill, isActiveStaff, mappedKeys, resolveIdentity, tokenFor, type Prefill } from "./identity";
 import { isBotSubmission, limitResultLink, limitStart, limitSubmit, logBotDropped } from "./rate-limit";
-import { deleteSensitiveExcept, hasSensitiveConsent, linkSensitive, scoreKey, sensitiveConsentKey, storeSensitive } from "./sensitive";
+import { deleteSensitiveExcept, hasSensitiveConsent, linkSensitive, scoreKey, sensitiveConsentKey, sensitiveKeysOf, storeSensitive } from "./sensitive";
 import {
   appOrigin,
   createIdentityToken,
@@ -460,6 +460,17 @@ export async function saveSection(
   const answers: Answers = { ...stored };
   for (const fk of section.fieldKeys) delete answers[fk];
   Object.assign(answers, plainSection);
+  // C5: special-category consent needs 16, also at the save (nothing sensitive of a minor is stored).
+  const consentKey = sensitiveConsentKey(l.definition);
+  const saved = profileOf(l.definition, answers);
+  if (consentKey && answers[consentKey] === true && saved.birthOn && isUnder(saved.birthOn, brusselsDay(ctx.now), SENSITIVE_CONSENT_AGE)) {
+    const held = (await sensitiveKeysOf(tx, [l.sub.id])).get(l.sub.id) ?? [];
+    if (!held.length) throw new ValidationError("validation", { [consentKey]: "guardian_required" });
+    // The birth date came after the sensitive answers: an error would roll this delete back, so the
+    // save erases them and keeps the consent unticked; the submit then refuses with guardian_required.
+    await deleteSensitiveExcept(tx, l.sub.id, []);
+    delete answers[consentKey];
+  }
   // SE2: before the consent is ticked the server discards sensitive answers; the browser keeps them.
   if (Object.keys(sensitiveSection).length && hasSensitiveConsent(l.definition, answers)) {
     await storeSensitive(tx, { submissionId: l.sub.id, personId: l.sub.personId, values: sensitiveSection });

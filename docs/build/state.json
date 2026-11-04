@@ -290,14 +290,16 @@
       "attempts": 0
     },
     "booking-P2": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "59cad56",
       "runId": "wf_cc3166cb-15d",
       "startedAt": "2026-11-04T04:08:00Z",
       "branchSha": "45de8bc",
-      "endedAt": "2026-11-04T05:03:44Z",
-      "minutes": 51
+      "endedAt": "2026-11-04T05:29:19Z",
+      "minutes": 51,
+      "mergeSha": "47d21d9",
+      "mergedAt": "2026-11-04T05:37:57Z"
     },
     "booking-P3a": {
       "status": "merged",
@@ -376,7 +378,7 @@
       "mergedAt": "2026-11-04T04:34:57Z"
     },
     "ops-P2": {
-      "status": "done",
+      "status": "merged",
       "attempts": 2,
       "baseSha": "107c9bd",
       "runId": "wf_cb40cfa7-cf0",
@@ -385,8 +387,10 @@
         "apps/web/modules/ops/ops-p1.facades.test.ts"
       ],
       "branchSha": "25618b5",
-      "endedAt": "2026-11-04T05:03:43Z",
-      "minutes": 44
+      "endedAt": "2026-11-04T05:29:19Z",
+      "minutes": 44,
+      "mergeSha": "f18eca9",
+      "mergedAt": "2026-11-04T05:37:51Z"
     },
     "site-P2": {
       "status": "merged",
@@ -565,14 +569,16 @@
       "attempts": 0
     },
     "ops-P4": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "a945df0",
       "runId": "wf_78d41894-79c",
       "startedAt": "2026-11-04T04:04:07Z",
       "branchSha": "5654aaa",
-      "endedAt": "2026-11-04T05:28:56Z",
-      "minutes": 80
+      "endedAt": "2026-11-04T05:29:19Z",
+      "minutes": 80,
+      "mergeSha": "57aa281",
+      "mergedAt": "2026-11-04T05:38:04Z"
     },
     "site-P7": {
       "status": "pending",
@@ -1126,7 +1132,7 @@
       "mergedAt": "2026-11-04T03:49:56Z"
     },
     "fix-w06-platform-1": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "fixer": true,
       "module": "platform",
@@ -1149,8 +1155,10 @@
       "runId": "wf_7fcde353-28a",
       "startedAt": "2026-11-04T05:03:43Z",
       "branchSha": "a046909",
-      "endedAt": "2026-11-04T05:28:56Z",
-      "minutes": 21
+      "endedAt": "2026-11-04T05:29:19Z",
+      "minutes": 21,
+      "mergeSha": "574251f",
+      "mergedAt": "2026-11-04T05:37:45Z"
     }
   }
 }

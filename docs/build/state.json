@@ -1479,8 +1479,8 @@
       "minutes": 8
     },
     "fix-w09-commerce-1": {
-      "status": "pending",
-      "attempts": 0,
+      "status": "running",
+      "attempts": 1,
       "fixer": true,
       "module": "commerce",
       "goal": "apps/web/modules/commerce/server/recurring.test.ts (commerce-P4b) fixes NOW = 2026-11-04T10:00Z, but makeProduct writes its price version with validFrom = the real now(), so after 10:00 UTC on 2026-11-04 (and every later day) no price is valid at NOW and 6 of 7 cases fail with ConflictError product_unavailable. Make the test independent of the wall clock: create the price version with validFrom well before NOW (or derive NOW from the real clock), keeping every assertion. Grep the other tests for the same pattern (a fixed NOW with factory rows stamped at the real clock) in modules/commerce and modules/credits and fix them the same way. Remove the fix-w09-commerce-1 line from docs/build/known-red.txt; run modules/commerce and modules/credits with one worker.",
@@ -1492,7 +1492,10 @@
         "apps/web/modules/credits/**/*.test.ts",
         "docs/build/known-red.txt"
       ],
-      "dependsOn": []
+      "dependsOn": [],
+      "baseSha": "88d982c",
+      "runId": "wf_fad49161-545",
+      "startedAt": "2026-11-04T16:59:40Z"
     }
   }
 }

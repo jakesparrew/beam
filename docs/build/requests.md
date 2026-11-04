@@ -47,7 +47,6 @@ to "Served" with the package id.
 | finance-P2 | finance (schema fixer) | `chk_invoices_party` refuses a POS company invoice with billing details but no person and no CRM company (snapshot kind `company`, `person_id` and `company_id` null): allow a company snapshot with a VAT number, or require a CRM company for POS company invoices. |
 | finance-P2 | finance-P3 | Register `finance.render_pdf` (payload `{ invoiceId }`, key `invoice_pdf:<id>`); add catalogue keys `finance.pdf.walk_in` and `finance.pdf.partial_credit`. |
 | commerce-P3 | commerce-P4a (owner of `api.ts`) | Wire `getQuote`, `getProductPrice`, `listPublicPrices` and `getProductCards` in `apps/web/modules/commerce/api.ts` to `./server/catalogue` (built with the exact api signatures; api.ts still has the throwing stubs). |
-| commerce-P3 | commerce (owner of `events.ts`) | Declare the event kind `person_price.set`; until then `setPersonPrice` writes only its audit row. |
 | automation-P2 | crm (suppressions) | `addSuppression` pushes the jobId that `automation.requestSuppressionExit` returns into the action's after-commit list (`ctxState(ctx).enqueuedIds`), so `automation.exit_for_suppression` runs in the after() kick (A-23). |
 | ops-P2 | ops-P7 | Add the R2 webinar columns and the `webinars_registered_total` and `webinars_attended_total` sums to `v_person_profile` in `ops.views.ts`, with their `ops.views.test.ts` cases. |
 | ops-P4 | ops (owner of `packages/core/src/ops/import-targets.ts` and `import-presets.ts`) | Add the targets `mode` and `watched_minutes` to `IMPORT_TARGETS.history` and map the watched-minutes columns in the webinar presets (ops-P4 accepts both already). |
@@ -55,7 +54,6 @@ to "Served" with the package id.
 | ops-P4 | platform | Add `setFileExpiry(tx, fileIds, expiresAt)`; until then ops-P4 updates `files.expires_at` directly for its own import parts. |
 | ops-P4 | ops (owner of `ops.json`) | Missing catalogue keys from ops-P4's commit trailer (for example `ops.imports.option.confirm_different_file`, `ops.imports.target.{mode,watched_minutes}`, `ops.imports.error.{past_booking,invalid_status,unknown_tag,...}`). |
 | finance-P3 | finance (owner of `packages/core/src/finance/index.ts`) | Add `export * from "./document-model"`, then switch `apps/web/modules/finance/pdf/render.ts` from the relative path to `@beam/core/finance`. |
-| commerce-P4a | commerce (owner of `server/catalogue.ts`) | Record the `person_price.set` event in `setPersonPriceRecord` (the kind is declared now). |
 | booking-P3b | commerce | `refundOrderLine` has no reason for staff forced refunds; booking passes `cancelled_in_policy`. Add `staff_override` if finance needs to tell them apart. |
 | booking-P3b, booking-P5 | booking (owner of `server/order-hooks.ts`) | `releaseOrderBookings` in `server/order-hooks.ts` also moves a claimed offered waitlist entry to `expired` with `payment_not_completed` and enqueues `offer_next` (R44), as `expireReservedRow` in `server/cancel.ts` already does. booking-P5 served the job side: `waitlist.offer_next` and `waitlist.expire_offers` now expire an offered entry whose claimed booking is cancelled; the same-transaction move inside `releaseOrderBookings` stays open. |
 | site-P5 | platform (fixer) | Add `BEAM_ANALYTICS_PRODUCTION: "1"` to the Playwright `webServer.env` in `apps/web/playwright.config.ts`, so `site-consent.spec`'s GA4 test can load gtag. |
@@ -64,7 +62,6 @@ to "Served" with the package id.
 | crm-P4 | crm (owner of `packages/core/src/crm/merge-plan.ts`) | Add to `MERGE_STRATEGIES`: `automation_enrolments.person_id: skip`, `privacy_requests.person_id: repoint`, `provider_customers.person_id: repoint`, `retention_list_items.person_id: keep_winner`. Until then they live in `MERGE_STRATEGY_ADDITIONS` in `apps/web/modules/crm/merge/execute.ts`, and an entry in core takes precedence. |
 | crm-P5 | email-P6 | Implement `isSegmentInUse`. Until then crm counts the stub's `NotImplementedError` as "not in use", so the segment archive guard and the list's "used by" column see only automations and other segments. |
 | finance-P4 | finance (owner of `packages/core/src/finance/index.ts`) | Add `export * from "./billit-mapping"`, then switch `apps/web/modules/finance/service/billit-sync.ts` and `billit-jobs.test.ts` from the relative import to `@beam/core/finance`. |
-| finance-P4 | commerce (the package that implements `recordBankTransferPaid`) | `recordBankTransferPaid` still throws (stub); `billit.sync_pending` settles open invoices through it (mocked in `sync-pending.test.ts`). |
 | commerce-P4b | commerce (schema fixer) | Make `refunds.created_by_user_id` nullable (null = system refund): rule 22c late-paid refunds and rule 37a `refundOrderLine` from jobs need it. Until then a late-paid renewal refund is recorded on the payment only (`refunded_cents`, status `refunded`, `order.refunded` event) and writes no `refunds` row. |
 | commerce-P4b | site (the package that implements `getCurrentLegalVersion`) | `getCurrentLegalVersion` still throws `NotImplementedError`; `createRenewalLinkOrder` needs it for `orders_terms_chk` (`recurring.test.ts` mocks it). |
 | forms-P3 | crm (owner of consents) | Let `recordConsent` accept method `staff` with a form wording version (`form:<slug>:v<n>:<key>`) for staff-assisted entry (ID10). Until then forms records these consents with method `form` and source `staff:<user_id>`. |
@@ -82,6 +79,8 @@ to "Served" with the package id.
 | automation-P3 | platform (owner of `.env.example`) | List `AUTOMATION_WEBHOOK_SECRET` in `.env.example` (automation spec section 6). |
 | automation-P3 | forms | Implement `getPublishedFormMeta`; automation's `form_available` condition treats its `NotImplementedError` as "not available" for now. |
 | finance-P5 | finance (finance-P6 or finance-P7) | Link the order on `/admin/finance/invoices/[id]` once commerce ships `/admin/orders/[id]` (typed routes reject the link until then), and add the "Export CSV of this filter" button together with the exports screen. |
+| commerce-P5 | commerce (owner of `server/orders.ts`) | Add `pricingPersonId?: string \| null` to `CreateOrderInput`, so a site guest's order is priced as public while still attached to the person (edge case 23); then `placeOrder` can drop its `login_required` refusal. |
+| commerce-P5 | platform | Add a `commerce` route to `RateLimitRequest` (`commerce:ip:<ip>`, 20 per 60 s, commerce spec 4.2); the public checkout actions use the `api` bucket until then. |
 
 ## Served
 
@@ -101,3 +100,6 @@ to "Served" with the package id.
 | email-P3 | site-P5 | Implement `getLegalLinks`; email footers carry no privacy or terms links until it exists (email handles the `NotImplementedError`). | site-P5 |
 | email-P3 | automation (the package that implements `requestSuppressionExit`) | `crm.addSuppression` calls `automation.requestSuppressionExit` from email's hard-bounce, complaint and soft-bounce handling; it still throws. | automation-P2 (implemented; the crm side is the automation-P2 -> crm row) |
 | finance-P3 | finance-P5 | `rerenderInvoicePdf` enqueues `finance.render_pdf` with key `invoice_pdf:<id>:r<n>`; `resendInvoiceEmail` and `sendPaymentReminder` enqueue `finance.send_invoice_email` with reason `resend:<n>` or `reminder:<yyyy-mm-dd>`. | finance-P5 |
+| commerce-P3 | commerce (owner of `events.ts`) | Declare the event kind `person_price.set`; until then `setPersonPrice` writes only its audit row. | commerce-P4a (kind declared) |
+| commerce-P4a | commerce (owner of `server/catalogue.ts`) | Record the `person_price.set` event in `setPersonPriceRecord` (the kind is declared now). | commerce-P5 (recorded in the `setPersonPrice` action) |
+| finance-P4 | commerce (the package that implements `recordBankTransferPaid`) | `recordBankTransferPaid` still throws (stub); `billit.sync_pending` settles open invoices through it (mocked in `sync-pending.test.ts`). | commerce-P4b (finance can drop the mock in `sync-pending.test.ts`) |

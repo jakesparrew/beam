@@ -656,11 +656,14 @@
       "attempts": 0
     },
     "commerce-P5": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "baseSha": "e2c5e08",
       "runId": "wf_642d0648-c5a",
-      "startedAt": "2026-11-04T07:25:56Z"
+      "startedAt": "2026-11-04T07:25:56Z",
+      "branchSha": "fbc566b",
+      "endedAt": "2026-11-04T08:06:04Z",
+      "minutes": 40
     },
     "credits-P6": {
       "status": "running",

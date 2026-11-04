@@ -13,7 +13,7 @@ import {
   priceVersions,
   vCreditGrantBalances,
 } from "@beam/db/schema";
-import { createTestDb, makePerson, makeProduct } from "@beam/db/testing";
+import { createTestDb, makePerson, makeProduct, makeUser } from "@beam/db/testing";
 import { assertMembershipTransition, brusselsDateKey, brusselsDateOf, nextPeriod, startOfDayIn } from "@beam/core/credits";
 import { LOCALES } from "@beam/core/i18n";
 import { renderEmail } from "@beam/email/render";
@@ -504,5 +504,234 @@ describe("dunning on the mandate path (rule 50)", () => {
     await applyRenewalPayment(tx(), ctxAt(days(28)), { membershipId: m.id, orderId: renewalOrderId });
     expect(await applyRenewalFailure(tx(), ctxAt(days(28)), { membershipId: m.id, paymentId: "tr_after", reason: "failed" })).toMatchObject({ applied: false });
     expect((await row(m.id)).status).toBe("active");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Renewal without a mandate (rule 52) and reminders (rule 56)
+// ---------------------------------------------------------------------------
+
+describe("renewal by payment link (rule 52)", () => {
+  it("order at T-7 with the reminder, second reminder at T-3, past_due at period end, link reminders +3/+7, expired not_renewed at +10", async () => {
+    const { m } = await start();
+    const end = m.currentPeriodEndAt;
+    expect(await scanOne(m.id, days(-8, end))).toEqual([]);
+    expect(await scanOne(m.id, days(-7, end))).toEqual(["link_order", "reminder:7"]);
+    const orderId = (await row(m.id)).renewalOrderId!;
+    expect(fx.createRenewalLinkOrder).toHaveBeenCalledTimes(1);
+    expect(fx.createRenewalLinkOrder.mock.calls[0]![2]).toEqual({ membershipId: m.id, personId: m.personId, productId: m.productId, periodEndOn: endOn(m) });
+    expect(await scanOne(m.id, days(-7, end))).toEqual([]);
+    expect(await scanOne(m.id, days(-3, end))).toEqual(["reminder:3"]);
+    const reminders = sends(m.id).filter((s) => s.template === "credits.membership_renewal_reminder");
+    expect(reminders).toMatchObject([
+      { key: `credits:membership_renewal_reminder:${m.id}:${endOn(m)}:7`, data: { variant: "renews", days: 7, payUrl: `https://beam.example.com/nl-BE/pay/${orderId}`, amountCents: 4_900 } },
+      { key: `credits:membership_renewal_reminder:${m.id}:${endOn(m)}:3`, data: { variant: "renews", days: 3 } },
+    ]);
+    expect(await scanOne(m.id, days(-1, end))).toEqual([]);
+    expect(await scanOne(m.id, new Date(end.getTime() + 60_000))).toEqual(["past_due"]);
+    expect(await row(m.id)).toMatchObject({ status: "past_due", dunningAttempt: 1, pastDueSinceAt: end });
+    expect((await eventsOf(m.id)).find((e) => e.kind === "membership.past_due")?.data).toMatchObject({ via: "link", dunning_attempt: 1 });
+    expect(await scanOne(m.id, days(3, end))).toEqual(["link_reminder:2"]);
+    expect(await scanOne(m.id, days(3, end))).toEqual([]);
+    expect(await scanOne(m.id, days(7, end))).toEqual(["link_reminder:3"]);
+    expect(sends(m.id).filter((s) => s.template === "credits.membership_payment_failed").map((s) => s.data.attempt)).toEqual([1, 2, 3]);
+    expect(await scanOne(m.id, days(10, end))).toEqual(["expired"]);
+    expect(await row(m.id)).toMatchObject({ status: "expired", endReason: "not_renewed" });
+    expect(fx.cancelRenewalOrder).toHaveBeenCalledWith(expect.anything(), expect.anything(), { orderId, reason: "membership_expired" });
+  });
+
+  it("a payment at the desk on the link order renews like any renewal", async () => {
+    const { m } = await start();
+    await scanOne(m.id, days(-7, m.currentPeriodEndAt));
+    const orderId = (await row(m.id)).renewalOrderId!;
+    expect((await applyRenewalPayment(tx(), ctxAt(days(-5, m.currentPeriodEndAt)), { membershipId: m.id, orderId })).applied).toBe(true);
+    expect(await row(m.id)).toMatchObject({ status: "active", renewalOrderId: null, currentPeriodStartAt: m.currentPeriodEndAt });
+  });
+});
+
+describe("renewal reminders (rule 56)", () => {
+  it("yearly plans get membership.renewal_due at 30 and 7 days, once each, with the renewal amount", async () => {
+    const { m } = await start({ mandate: true, interval: "year" });
+    const end = m.currentPeriodEndAt;
+    expect(await scanOne(m.id, days(-31, end))).toEqual([]);
+    expect(await scanOne(m.id, days(-30, end))).toEqual(["reminder:30"]);
+    expect(await scanOne(m.id, days(-29, end))).toEqual([]);
+    expect(await scanOne(m.id, days(-7, end))).toEqual(["reminder:7"]);
+    const due = (await eventsOf(m.id)).filter((e) => e.kind === "membership.renewal_due");
+    expect(due.map((e) => e.data)).toEqual([
+      { membership_id: m.id, days: 30, period_end_on: endOn(m), is_ending: false, amount_cents: 49_000 },
+      { membership_id: m.id, days: 7, period_end_on: endOn(m), is_ending: false, amount_cents: 49_000 },
+    ]);
+    expect(due.map((e) => e.dedupeKey)).toEqual([`membership:${m.id}:renewal_due:30:${endOn(m)}`, `membership:${m.id}:renewal_due:7:${endOn(m)}`]);
+  });
+
+  it("monthly plans with a mandate get no reminder; with cancel_at set they get the 7-day 'ends' reminder", async () => {
+    const { m } = await start({ mandate: true });
+    expect(await scanOne(m.id, days(-7, m.currentPeriodEndAt))).toEqual([]);
+    await requestCancel(tx(), ctxAt(days(1)), { membershipId: m.id, by: "customer" });
+    expect(await scanOne(m.id, days(-7, m.currentPeriodEndAt))).toEqual(["reminder:7"]);
+    expect(sends(m.id).find((s) => s.template === "credits.membership_renewal_reminder")).toMatchObject({ data: { variant: "ends", days: 7 } });
+    expect((await eventsOf(m.id)).find((e) => e.kind === "membership.renewal_due")?.data).toMatchObject({ is_ending: true });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Cancel, resume, refund, extension (rules 27a, 53 to 55)
+// ---------------------------------------------------------------------------
+
+describe("cancellation (rules 53, 54)", () => {
+  it("cancel at period end cancels the open renewal order; active -> cancelled by the scan at cancel_at", async () => {
+    const { m, renewalOrderId } = await charged();
+    const r = await requestCancel(tx(), ctxAt(days(28)), { membershipId: m.id, by: "customer", version: m.version });
+    expect(r.mode).toBe("period_end");
+    expect(fx.cancelRenewalOrder).toHaveBeenCalledWith(expect.anything(), expect.anything(), { orderId: renewalOrderId, reason: "membership_cancelled" });
+    const after = await row(m.id);
+    expect(after).toMatchObject({ status: "active", cancelAt: m.currentPeriodEndAt, cancelRequestedAt: days(28), renewalOrderId: null, nextChargeAt: null, version: m.version + 1 });
+    expect(sends(m.id).filter((s) => s.template === "credits.membership_cancel_confirmed")).toMatchObject([{ data: { immediate: false, endsOn: endOn(m) } }]);
+    expect((await auditsOf(m.id)).map((a) => a.action)).toContain("memberships.cancel_requested");
+    expect(await scanOne(m.id, days(-1, m.currentPeriodEndAt))).toEqual([]);
+    expect(await scanOne(m.id, m.currentPeriodEndAt)).toEqual(["cancelled"]);
+    expect(await row(m.id)).toMatchObject({ status: "cancelled", endReason: "cancelled_by_customer", endedAt: m.currentPeriodEndAt });
+    expect((await auditsOf(m.id)).map((a) => a.action)).toContain("memberships.ended");
+  });
+
+  it("a stale version is refused (conflict)", async () => {
+    const { m } = await start();
+    await expect(requestCancel(tx(), ctxAt(T0), { membershipId: m.id, by: "customer", version: m.version + 5 })).rejects.toMatchObject({ code: "conflict", message: "stale_version" });
+  });
+
+  it("staff cancel at period end ends with cancelled_by_staff", async () => {
+    const { m } = await start();
+    await requestCancel(tx(), ctxAt(days(3), staffActor({ permissions: ["memberships.write"] })), { membershipId: m.id, by: "staff", reason: "moving abroad" });
+    expect(await scanOne(m.id, m.currentPeriodEndAt)).toEqual(["cancelled"]);
+    expect(await row(m.id)).toMatchObject({ status: "cancelled", endReason: "cancelled_by_staff" });
+  });
+
+  it("past_due -> cancelled: a customer cancel while past_due is immediate and cancels the renewal order", async () => {
+    const { m, renewalOrderId } = await charged();
+    await applyRenewalFailure(tx(), ctxAt(days(28)), { membershipId: m.id, paymentId: "tr_pd", reason: "failed" });
+    const r = await requestCancel(tx(), ctxAt(days(29)), { membershipId: m.id, by: "customer" });
+    expect(r.mode).toBe("now");
+    expect(await row(m.id)).toMatchObject({ status: "cancelled", endReason: "cancelled_by_customer", endedAt: days(29), renewalOrderId: null });
+    expect(fx.cancelRenewalOrder).toHaveBeenCalledWith(expect.anything(), expect.anything(), { orderId: renewalOrderId, reason: "membership_cancelled" });
+    expect(await getMembershipForPerson(h.db, m.personId)).toMatchObject({ isMember: false });
+  });
+
+  it("staff may cancel a past_due membership only with mode now", async () => {
+    const { m } = await charged();
+    await applyRenewalFailure(tx(), ctxAt(days(28)), { membershipId: m.id, paymentId: "tr_staff", reason: "failed" });
+    await expect(requestCancel(tx(), ctxAt(days(29)), { membershipId: m.id, by: "staff", reason: "requested" })).rejects.toMatchObject({ code: "conflict" });
+  });
+
+  it("active -> cancelled: staff cancel now keeps the current inclusion grants usable", async () => {
+    const { m } = await start();
+    const staff = staffActor({ permissions: ["memberships.write"] });
+    await expect(cancelNow(tx(), ctxAt(days(5), staff), { membershipId: m.id, by: "staff" })).rejects.toMatchObject({ code: "validation" });
+    await cancelNow(tx(), ctxAt(days(5), staff), { membershipId: m.id, by: "staff", reason: "customer request at the desk" });
+    expect(await row(m.id)).toMatchObject({ status: "cancelled", endReason: "cancelled_by_staff", endedAt: days(5) });
+    expect((await grantsOf(m.id)).map((g) => [g.g.status, g.remaining])).toEqual([["active", 4]]);
+    expect((await auditsOf(m.id)).map((a) => a.action)).toContain("memberships.cancelled_now");
+    expect((await eventsOf(m.id)).at(-1)).toMatchObject({ kind: "membership.cancelled", data: { end_reason: "cancelled_by_staff" } });
+  });
+
+  it("pending -> cancelled: a pending membership is cancelled before its start by the customer or by staff", async () => {
+    const a = await start({ startsAt: days(10) });
+    expect((await requestCancel(tx(), ctxAt(T0), { membershipId: a.m.id, by: "customer" })).mode).toBe("now");
+    expect(await row(a.m.id)).toMatchObject({ status: "cancelled", endReason: "cancelled_by_customer" });
+    const b = await start({ startsAt: days(10) });
+    await cancelNow(tx(), ctxAt(T0), { membershipId: b.m.id, by: "staff", reason: "bought by mistake" });
+    expect(await row(b.m.id)).toMatchObject({ status: "cancelled", endReason: "cancelled_by_staff" });
+    expect(await grantsOf(b.m.id)).toEqual([]);
+  });
+
+  it("resume before cancel_at clears cancel_at and cancel_requested_at", async () => {
+    const { m } = await start({ mandate: true });
+    await requestCancel(tx(), ctxAt(days(2)), { membershipId: m.id, by: "customer" });
+    const resumed = await resume(tx(), ctxAt(days(3)), { membershipId: m.id });
+    expect(resumed).toMatchObject({ cancelAt: null, cancelRequestedAt: null, status: "active" });
+    expect(resumed.nextChargeAt).toEqual(shiftDays(m.currentPeriodEndAt, -3));
+    expect((await eventsOf(m.id)).map((e) => e.kind)).toEqual(["membership.started", "membership.cancel_requested", "membership.resumed"]);
+    expect((await auditsOf(m.id)).map((a) => a.action)).toContain("memberships.resumed");
+    await expect(resume(tx(), ctxAt(days(3)), { membershipId: m.id })).rejects.toMatchObject({ code: "conflict" });
+  });
+});
+
+describe("cancelMembershipForRefund (rule 27a)", () => {
+  it("active -> cancelled (refunded): revokes the unused units of the current period's active inclusion grants only", async () => {
+    const { m, renewalOrderId } = await charged();
+    // Use up the first period's day grant, then renew: the earlier period's grant stays untouched.
+    await consumeCredits(tx(), ctxAt(days(1)), { personId: m.personId, beneficiaryPersonId: m.personId, kind: "day", units: 1, ref: { type: "booking", id: randomUUID() }, validAt: days(1) });
+    await applyRenewalPayment(tx(), ctxAt(days(28)), { membershipId: m.id, orderId: renewalOrderId });
+    const current = (await row(m.id)).currentPeriodStartAt;
+    await consumeCredits(tx(), ctxAt(days(32)), { personId: m.personId, beneficiaryPersonId: m.personId, kind: "day", units: 2, ref: { type: "booking", id: randomUUID() }, validAt: days(32) });
+    await cancelMembershipForRefund(tx(), ctxAt(days(33)), { membershipId: m.id, reason: "refund pro rata" });
+    await cancelMembershipForRefund(tx(), ctxAt(days(33)), { membershipId: m.id, reason: "refund pro rata" });
+    expect(await row(m.id)).toMatchObject({ status: "cancelled", endReason: "refunded" });
+    const grants = await grantsOf(m.id);
+    const earlier = grants.find((g) => g.g.startsAt.getTime() === T0.getTime())!;
+    const now = grants.find((g) => g.g.startsAt.getTime() === current.getTime())!;
+    expect([earlier.g.status, earlier.remaining]).toEqual(["active", 3]);
+    expect([now.g.status, now.remaining]).toEqual(["revoked", 0]);
+    expect((await auditsOf(m.id)).filter((a) => a.action === "memberships.cancelled_now")).toHaveLength(1);
+  });
+
+  it("an exhausted current-period grant is untouched", async () => {
+    const { m } = await start();
+    await consumeCredits(tx(), ctxAt(days(1)), { personId: m.personId, beneficiaryPersonId: m.personId, kind: "day", units: 4, ref: { type: "booking", id: randomUUID() }, validAt: days(1) });
+    await cancelMembershipForRefund(tx(), ctxAt(days(2)), { membershipId: m.id, reason: "refund" });
+    expect((await grantsOf(m.id)).map((g) => [g.g.status, g.remaining])).toEqual([["exhausted", 0]]);
+  });
+
+  it("pending -> cancelled (refunded): no grants exist yet", async () => {
+    const { m } = await start({ startsAt: days(10) });
+    await cancelMembershipForRefund(tx(), ctxAt(T0), { membershipId: m.id, reason: "refund" });
+    expect(await row(m.id)).toMatchObject({ status: "cancelled", endReason: "refunded" });
+  });
+
+  it("past_due -> cancelled (refunded)", async () => {
+    const { m } = await charged();
+    await applyRenewalFailure(tx(), ctxAt(days(28)), { membershipId: m.id, paymentId: "tr_ref", reason: "failed" });
+    await cancelMembershipForRefund(tx(), ctxAt(days(29)), { membershipId: m.id, reason: "refund" });
+    expect(await row(m.id)).toMatchObject({ status: "cancelled", endReason: "refunded" });
+  });
+});
+
+describe("period extension, the V1 pause (rule 55)", () => {
+  it("moves the period end and next_charge_at, writes a staff_extension period and optionally extends the inclusion grants", async () => {
+    const { m } = await start({ mandate: true });
+    const staff = staffActor({ userId: (await makeUser(h.db)).id, permissions: ["memberships.write", "credits.adjust"] });
+    const clientKey = randomUUID();
+    const r = await extendPeriod(tx(), ctxAt(days(5), staff), { membershipId: m.id, days: 14, reason: "injury pause", alsoExtendInclusions: true, clientKey, version: m.version });
+    expect(r).toMatchObject({ created: true, periodEndAt: shiftDays(m.currentPeriodEndAt, 14) });
+    const after = await row(m.id);
+    expect(after.currentPeriodEndAt).toEqual(shiftDays(m.currentPeriodEndAt, 14));
+    expect(after.nextChargeAt).toEqual(shiftDays(m.nextChargeAt!, 14));
+    expect((await periodsOf(m.id)).map((p) => [p.source, p.periodStartAt, p.periodEndAt])).toEqual([
+      ["purchase", T0, m.currentPeriodEndAt],
+      ["staff_extension", m.currentPeriodEndAt, after.currentPeriodEndAt],
+    ]);
+    const [g] = await grantsOf(m.id);
+    expect(g!.g.expiresAt).toEqual(shiftDays(m.currentPeriodEndAt, 14));
+    expect(await grantsOf(m.id)).toHaveLength(1);
+    expect((await extendPeriod(tx(), ctxAt(days(5), staff), { membershipId: m.id, days: 14, reason: "injury pause", alsoExtendInclusions: true, clientKey })).created).toBe(false);
+    expect((await row(m.id)).currentPeriodEndAt).toEqual(after.currentPeriodEndAt);
+    expect((await auditsOf(m.id)).map((a) => a.action)).toContain("memberships.period_extended");
+  });
+
+  it("without the tick the inclusion grants keep their expiry; the next renewal starts at the moved end", async () => {
+    const { m } = await start({ mandate: true });
+    await extendPeriod(tx(), ctxAt(days(5)), { membershipId: m.id, days: 10, reason: "holiday", alsoExtendInclusions: false, clientKey: randomUUID() });
+    const [g] = await grantsOf(m.id);
+    expect(g!.g.expiresAt).toEqual(m.currentPeriodEndAt);
+    const moved = await row(m.id);
+    await inTx(days(-3, moved.currentPeriodEndAt), (t, ctx) => chargeRenewal(t, ctx, { membershipId: m.id, periodEndOn: endOn(moved), attempt: 1 }));
+    const r = await applyRenewalPayment(tx(), ctxAt(days(-3, moved.currentPeriodEndAt)), { membershipId: m.id, orderId: (await row(m.id)).renewalOrderId! });
+    expect(r.periodStartAt).toEqual(moved.currentPeriodEndAt);
+    expect(brusselsDateKey(r.periodEndAt)).toBe("2026-05-20");
+  });
+
+  it("refuses 0 or 91 days", async () => {
+    const { m } = await start();
+    await expect(extendPeriod(tx(), ctxAt(T0), { membershipId: m.id, days: 91, reason: "too long", alsoExtendInclusions: false, clientKey: randomUUID() })).rejects.toMatchObject({ code: "validation" });
   });
 });

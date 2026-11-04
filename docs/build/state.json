@@ -1528,8 +1528,8 @@
       "mergedAt": "2026-11-04T18:09:12Z"
     },
     "fix-w09-crm-review": {
-      "status": "pending",
-      "attempts": 0,
+      "status": "running",
+      "attempts": 1,
       "fixer": true,
       "module": "crm",
       "goal": "Fix every confirmed V1 review finding for crm listed in /tmp/claude-0/-home-user-beam/3ba985b5-31b3-591d-a9fd-e4cfaf9e6555/scratchpad/review-v1/fix-crm.md (read it first): one test per finding, schema changes nullable/default-safe (CONVENTIONS item 6), facades through the caller tx (OD-15). Report per finding: fixed (how) or not fixed (why).",
@@ -1540,7 +1540,10 @@
         "packages/db/src/schema/crm.ts",
         "packages/email/src/templates/crm/**"
       ],
-      "dependsOn": []
+      "dependsOn": [],
+      "baseSha": "fa5ed8b",
+      "runId": "wf_96a4a86f-719",
+      "startedAt": "2026-11-04T18:37:52Z"
     },
     "fix-w09-booking-review": {
       "status": "running",
@@ -1605,8 +1608,8 @@
       "minutes": 23
     },
     "fix-w09-finance-review": {
-      "status": "pending",
-      "attempts": 0,
+      "status": "running",
+      "attempts": 1,
       "fixer": true,
       "module": "finance",
       "goal": "Fix every confirmed V1 review finding for finance listed in /tmp/claude-0/-home-user-beam/3ba985b5-31b3-591d-a9fd-e4cfaf9e6555/scratchpad/review-v1/fix-finance.md (read it first): one test per finding, schema changes nullable/default-safe (CONVENTIONS item 6), facades through the caller tx (OD-15). Report per finding: fixed (how) or not fixed (why).",
@@ -1617,7 +1620,10 @@
         "packages/db/src/schema/finance.ts",
         "packages/email/src/templates/finance/**"
       ],
-      "dependsOn": []
+      "dependsOn": [],
+      "baseSha": "fa5ed8b",
+      "runId": "wf_13c04cd1-3de",
+      "startedAt": "2026-11-04T18:37:52Z"
     },
     "fix-w09-forms-review": {
       "status": "running",

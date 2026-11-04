@@ -8,7 +8,7 @@
  * `getLegalLinks` belong to site-P5.
  */
 import { unstable_cache } from "next/cache";
-import { files, mediaAssets, navMenus, pageRoutes, pages, pageVersions, products, sessions, settings, vLegalVersions } from "@beam/db/schema";
+import { files, mediaAssets, navMenus, pageRoutes, pages, pageVersions, products, sessions, vLegalVersions } from "@beam/db/schema";
 import type { DbOrTx } from "@beam/db";
 import { percentOf } from "@beam/core/commerce";
 import { LOCALES, type Locale, type LocalizedText } from "@beam/core/i18n";
@@ -34,6 +34,7 @@ import {
 } from "@beam/core/site";
 import { and, asc, desc, eq, getAppDb, inArray, sql } from "@/lib/ctx";
 import { reportError } from "@/lib/logger";
+import { getSetting } from "@/lib/settings";
 import { getAvailability, getAvailabilityPreview, getOpeningHours as bookingOpeningHours, listPublicEvents } from "@/modules/booking/api";
 import { getProductPrice } from "@/modules/commerce/api";
 import { bookSessionPath } from "../server/urls";
@@ -132,7 +133,7 @@ function safeBlocks(raw: unknown, versionId: string): Block[] {
   const out: Block[] = [];
   for (const b of raw) {
     const parsed = BlockSchema.safeParse(b);
-    if (parsed.success) out.push(parsed.data as Block);
+    if (parsed.success) out.push(parsed.data);
     else reportError(new Error("site: stored block failed to parse"), { tags: { module: "site" }, extra: { versionId } });
   }
   return out;
@@ -178,7 +179,7 @@ async function loadPageByPath(locale: Locale, path: string): Promise<ResolvedPag
     .innerJoin(pageVersions, eq(pageVersions.id, pages.currentVersionId))
     .where(and(eq(pageRoutes.locale, locale), eq(pageRoutes.path, path)));
   if (!row) return null;
-  return toResolved(row as VersionRow, locale, await pageRoutesOf(db, row.pageId), false);
+  return toResolved(row, locale, await pageRoutesOf(db, row.pageId), false);
 }
 
 /** The live page at `path` (no prefix, `''` = home) in `locale`, or null (tags `site:routes`, `site:page:*`). */
@@ -189,7 +190,7 @@ export async function getPreviewPage(versionId: string, locale: Locale): Promise
   const db = await getAppDb();
   const [row] = await db.select(versionColumns).from(pageVersions).innerJoin(pages, eq(pages.id, pageVersions.pageId)).where(eq(pageVersions.id, versionId));
   if (!row) return null;
-  return toResolved(row as VersionRow, locale, (row as VersionRow).paths ?? {}, true);
+  return toResolved(row, locale, (row).paths ?? {}, true);
 }
 
 /** Live locales and paths of a page plus its title per locale (unavailable page, locale switch). */
@@ -554,9 +555,9 @@ export type OpeningHoursView = {
   note: string | null;
 };
 
-async function readSetting(db: DbOrTx, key: string): Promise<unknown> {
-  const [row] = await db.select({ value: settings.value }).from(settings).where(eq(settings.key, key));
-  return row?.value;
+/** A setting through platform's `getSetting` (its declared default when no row exists). */
+async function readSetting(db: DbOrTx, key: "business_hours" | "company" | "site"): Promise<unknown> {
+  return getSetting(db, key);
 }
 
 async function loadOpeningHours(locale: Locale): Promise<OpeningHoursView> {
@@ -593,7 +594,7 @@ async function loadCompanyFooter(_locale: Locale): Promise<CompanyFooterView> {
   const social = Object.entries(parseSiteSettings(site).social_links)
     .filter((e): e is [string, string] => typeof e[1] === "string" && e[1].startsWith("https://"))
     .map(([key, href]) => ({ key, href }));
-  return { ...companyFooter((company ?? null) as CompanySetting | null), social };
+  return { ...companyFooter((company ?? null)), social };
 }
 
 /** Company identification of the footer (rule 60) and the social links of `settings.site`. */
@@ -604,7 +605,7 @@ export const getPublicSettings = publicCache(
   async (): Promise<{ site: SiteSettings; company: CompanySetting }> => {
     const db = await getAppDb();
     const [company, site] = await Promise.all([readSetting(db, "company"), readSetting(db, "site")]);
-    return { site: parseSiteSettings(site), company: (company ?? {}) as CompanySetting };
+    return { site: parseSiteSettings(site), company: (company ?? {}) };
   },
   "site:getPublicSettings",
   { tags: () => ["site:settings"], revalidate: DYNAMIC_REVALIDATE },

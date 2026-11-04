@@ -61,18 +61,12 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
 
 export default async function SitePage(props: Props) {
   const { locale, result, searchParams } = await resolveFromProps(props);
-  switch (result.kind) {
-    case "redirect":
-      if (result.permanent) permanentRedirect(result.to as never);
-      redirect(result.to as never);
-    case "gone":
-      markGone();
-      notFound();
-    case "not_found":
-      notFound();
-    case "page": {
-      const data = await loadRenderData(result.page, searchParams);
-      return <PageView page={result.page} data={data} tr={translator(locale)} />;
-    }
+  if (result.kind === "redirect") {
+    if (result.permanent) permanentRedirect(result.to as never);
+    redirect(result.to as never);
   }
+  if (result.kind === "gone") markGone();
+  if (result.kind !== "page") notFound();
+  const data = await loadRenderData(result.page, searchParams);
+  return <PageView page={result.page} data={data} tr={translator(locale)} />;
 }

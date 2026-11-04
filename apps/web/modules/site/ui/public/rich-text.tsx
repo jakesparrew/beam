@@ -3,7 +3,7 @@
  * italic, links and hard breaks become React elements; no HTML string is ever injected. External
  * links stay in the same tab with `rel="noopener"` (rule 20).
  */
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import { externalLinkRel, isSafeHref, type RichBlockNode, type RichDoc, type RichInline, type RichListItem } from "@beam/core/site";
 
 function inline(nodes: readonly RichInline[] | undefined): ReactNode[] {
@@ -21,7 +21,7 @@ function inline(nodes: readonly RichInline[] | undefined): ReactNode[] {
         );
       }
     }
-    return <span key={i}>{el}</span>;
+    return <Fragment key={i}>{el}</Fragment>;
   });
 }
 
@@ -34,8 +34,10 @@ function block(node: RichBlockNode, key: number): ReactNode {
     case "paragraph":
       return <p key={key}>{inline(node.content)}</p>;
     case "heading": {
-      const Tag = `h${node.attrs.level}` as "h2" | "h3" | "h4";
-      return <Tag key={key}>{inline(node.content)}</Tag>;
+      const content = inline(node.content);
+      if (node.attrs.level === 2) return <h2 key={key}>{content}</h2>;
+      if (node.attrs.level === 3) return <h3 key={key}>{content}</h3>;
+      return <h4 key={key}>{content}</h4>;
     }
     case "bulletList":
       return (

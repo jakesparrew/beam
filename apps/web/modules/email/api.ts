@@ -1,21 +1,20 @@
 /**
- * email's cross-module door (02-data-model section 6.8). Written by platform-P7 on behalf of the
- * email module, which takes the file over in Wave 1.
+ * email's cross-module door (email spec section 4 "Cross-module API", 02-data-model section
+ * 6.8). Written by platform-P7 with the Wave 0 `sendTransactional`; email-P1 declared every
+ * function another module calls with its final signature; email-P3 implements the sending side:
+ * `sendTransactional`, `queueMarketingEmail`, `queueAutomationEmail`, `getTemplateInfo`,
+ * `getPublishedTemplateInfo`, `listPublishedTemplates`, `seedTemplate`, `getReachability`,
+ * `resolveLinkToken`, `listPersonEmails`, `countBlockedMessages` and `cancelScheduledMessage`.
  *
- * `sendTransactional` is working from Wave 0 (platform spec 4.9): it writes the `email_messages`
- * row (`idempotency_key = key`, status `queued`) and enqueues `email.send` (key
- * `email:<message_id>`, lane fast, priority 1, `run_at = sendAt`) in the caller's transaction,
- * and never calls Resend. `context` is stored and ignored in Wave 0 (merge fields are email's
- * Wave 1 work). Every other function is a stub that throws `NotImplementedError('email.<fn>')`.
+ * The queueing functions only write rows and enqueue inside the caller's transaction
+ * (`ctx.tx`); they never call Resend and never throw for content problems (rule 39).
  *
- * email-P1 completed the list with every function of email spec sections 4 and 10 that another
- * module calls, with its final signature (03-build-order rule 1). Later email packages replace the
- * stub bodies (email-P3 sending and reachability, email-P5 templates, email-P6 campaigns, email-P7
- * history and stats, email-P8 `findLatestMessage`, email-P9 attribution); `PersonEmailHistory`
- * moves to `./ui/PersonEmailHistory` when email-P7 builds it, and this stand-in throws until then.
+ * Still stubs (later email packages): `findLatestMessage` (email-P8), `isSegmentInUse`
+ * (email-P6), `getCampaignStats`, `getEmailHealth` and `PersonEmailHistory` (email-P7),
+ * `getCampaignAttribution` (email-P9).
  */
 import type { DbOrTx, Tx } from "@beam/db";
-import { emailMessages, persons } from "@beam/db/schema";
+import { emailMessages, emailTemplates, emailTemplateVersions } from "@beam/db/schema";
 import { NotImplementedError } from "@beam/core/errors";
 import type { Locale } from "@beam/core/i18n";
 import type {
@@ -30,7 +29,12 @@ import type {
   TemplateInfo,
   TemplateKind,
 } from "@beam/core/email";
-import { eq, ValidationError, type Ctx } from "@/lib/ctx";
+import { and, desc, eq, gte, inArray, sql, type Ctx } from "@/lib/ctx";
+import * as context from "./server/context";
+import * as linkToken from "./server/link-token";
+import * as queue from "./server/queue-automation";
+import * as send from "./server/send";
+import * as templates from "./server/templates-info";
 
 export type {
   AutomationEmailInput,
@@ -47,107 +51,58 @@ export type {
 const notYet = <T>(fn: string): Promise<T> => Promise.reject(new NotImplementedError(`email.${fn}`));
 
 /** The idempotency key of the `email.send` job of a message. */
-export const emailSendJobKey = (emailMessageId: string): string => `email:${emailMessageId}`;
-
-async function recipientOf(tx: DbOrTx, input: SendTransactionalInput): Promise<string> {
-  if (input.to?.trim()) return input.to.trim();
-  if (!input.personId) throw new ValidationError("email_recipient_missing", { to: "required" });
-  const [person] = await tx.select({ email: persons.email }).from(persons).where(eq(persons.id, input.personId));
-  if (!person?.email) throw new ValidationError("email_recipient_missing", { personId: "no_email" });
-  return person.email;
-}
+export const emailSendJobKey = send.emailSendJobKey;
 
 /** Queues one transactional email in the caller's transaction. The same `key` twice is one message and one job. */
-export async function sendTransactional(ctx: Ctx, input: SendTransactionalInput): Promise<{ emailMessageId: string; jobId: string }> {
-  if (!input.key.trim()) throw new ValidationError("email_key_missing", { key: "required" });
-  if (!input.template.trim()) throw new ValidationError("email_template_missing", { template: "required" });
-  const [existing] = await ctx.tx.select({ id: emailMessages.id }).from(emailMessages).where(eq(emailMessages.idempotencyKey, input.key));
-  let emailMessageId = existing?.id;
-  if (!emailMessageId) {
-    const to = await recipientOf(ctx.tx, input);
-    const headers: Record<string, string> = {};
-    if (input.headers?.["In-Reply-To"]) headers["In-Reply-To"] = input.headers["In-Reply-To"];
-    if (input.headers?.References) headers.References = input.headers.References;
-    const [row] = await ctx.tx
-      .insert(emailMessages)
-      .values({
-        personId: input.personId ?? null,
-        toEmail: to,
-        kind: "transactional",
-        fromDomain: "mail.beam.be",
-        locale: input.locale,
-        props: input.data,
-        context: input.context ?? null,
-        attachments: input.attachments ?? [],
-        replyTo: input.replyTo ?? null,
-        extraHeaders: Object.keys(headers).length ? headers : null,
-        sendAt: input.sendAt ?? null,
-        idempotencyKey: input.key,
-        status: "queued",
-      })
-      .onConflictDoNothing({ target: emailMessages.idempotencyKey })
-      .returning({ id: emailMessages.id });
-    emailMessageId =
-      row?.id ?? (await ctx.tx.select({ id: emailMessages.id }).from(emailMessages).where(eq(emailMessages.idempotencyKey, input.key)))[0]!.id;
-  }
-  const job = await ctx.enqueue({
-    kind: "email.send",
-    payload: { emailMessageId, template: input.template },
-    key: emailSendJobKey(emailMessageId),
-    lane: "fast",
-    priority: 1,
-    ...(input.sendAt ? { runAt: input.sendAt } : {}),
-  });
-  return { emailMessageId, jobId: job.id };
+export function sendTransactional(ctx: Ctx, input: SendTransactionalInput): Promise<{ emailMessageId: string; jobId: string }> {
+  return send.sendTransactional(ctx, input);
 }
 
-// Stubs (email Wave 1 and later) ----------------------------------------------------------
-
-/** Marketing templates (automation rule A-31). */
-export function queueMarketingEmail(_ctx: Ctx, _input: AutomationEmailInput): Promise<AutomationEmailResult> {
-  return notYet("queueMarketingEmail");
+/** Marketing templates, and registry templates with `loadProps` sent as a commercial message (rule 39a, D54). */
+export function queueMarketingEmail(ctx: Ctx, input: AutomationEmailInput): Promise<AutomationEmailResult> {
+  return queue.queueMarketingEmail(ctx, input);
 }
 
-/** Transactional templates sent by automation steps. */
-export function queueAutomationEmail(_ctx: Ctx, _input: AutomationEmailInput): Promise<AutomationEmailResult> {
-  return notYet("queueAutomationEmail");
+/** Transactional templates sent by automation steps (rule 39a). */
+export function queueAutomationEmail(ctx: Ctx, input: AutomationEmailInput): Promise<AutomationEmailResult> {
+  return queue.queueAutomationEmail(ctx, input);
 }
 
 /** The current published version of a template. */
-export function getTemplateInfo(_db: DbOrTx, _slug: string): Promise<TemplateInfo | null> {
-  return notYet("getTemplateInfo");
+export function getTemplateInfo(db: DbOrTx, slug: string): Promise<TemplateInfo | null> {
+  return templates.getTemplateInfo(db, slug);
 }
 
-export function getPublishedTemplateInfo(_db: DbOrTx, _slugs: string[]): Promise<Map<string, TemplateInfo>> {
-  return notYet("getPublishedTemplateInfo");
+export function getPublishedTemplateInfo(db: DbOrTx, slugs: string[]): Promise<Map<string, TemplateInfo>> {
+  return templates.getPublishedTemplateInfo(db, slugs);
 }
 
 /** crm preference and unsubscribe routes; never writes. */
 export function resolveLinkToken(
-  _db: DbOrTx,
-  _token: string,
+  db: DbOrTx,
+  token: string,
 ): Promise<{ emailMessageId: string; personId: string; purpose: MarketingPurpose | null; locale: Locale; sentAt: Date } | null> {
-  return notYet("resolveLinkToken");
+  return linkToken.resolveLinkToken(db, token);
 }
 
 export function listPublishedTemplates(
-  _db: DbOrTx,
-  _q?: string,
+  db: DbOrTx,
+  q?: string,
 ): Promise<{ slug: string; name: string; kind: TemplateKind; purpose: MarketingPurpose | null; locales: Locale[] }[]> {
-  return notYet("listPublishedTemplates");
+  return templates.listPublishedTemplates(db, q);
 }
 
 /** Creates the template and a published version 1 when the slug is absent; never touches an existing slug. */
-export function seedTemplate(_tx: Tx, _input: SeedTemplateInput): Promise<{ templateId: string; created: boolean }> {
-  return notYet("seedTemplate");
+export function seedTemplate(tx: Tx, input: SeedTemplateInput): Promise<{ templateId: string; created: boolean }> {
+  return templates.seedTemplate(tx, input);
 }
 
 export function getReachability(
-  _tx: DbOrTx,
-  _personId: string,
-  _purpose: MarketingPurpose,
+  tx: DbOrTx,
+  personId: string,
+  purpose: MarketingPurpose,
 ): Promise<{ isReachable: boolean; blockedReason: "erased" | "no_email" | "restricted" | "suppressed" | "withdrawn" | "no_consent" | null }> {
-  return notYet("getReachability");
+  return context.getReachability(tx, personId, purpose);
 }
 
 /** R2, commerce. */
@@ -158,8 +113,9 @@ export function findLatestMessage(
   return notYet("findLatestMessage");
 }
 
-export function cancelScheduledMessage(_ctx: Ctx, _input: { messageId: string }): Promise<{ cancelled: boolean }> {
-  return notYet("cancelScheduledMessage");
+/** Rule 59: a still-queued message becomes `failed` with `cancelled`; `email.send` then skips it. */
+export function cancelScheduledMessage(ctx: Ctx, input: { messageId: string }): Promise<{ cancelled: boolean }> {
+  return send.cancelScheduledMessage(ctx, input);
 }
 
 /** crm archive guard: campaigns not terminal using the segment as audience or exclusion. */
@@ -167,17 +123,56 @@ export function isSegmentInUse(_db: DbOrTx, _segmentId: string): Promise<boolean
   return notYet("isSegmentInUse");
 }
 
-export function listPersonEmails(_db: DbOrTx, _personId: string, _page?: number): Promise<{ items: PersonEmailRow[]; nextPage: number | null }> {
-  return notYet("listPersonEmails");
+export const PERSON_EMAILS_PAGE_SIZE = 50;
+
+/** Every message to the person, newest first, 50 per page (rule 63). `page` starts at 1. */
+export async function listPersonEmails(db: DbOrTx, personId: string, page = 1): Promise<{ items: PersonEmailRow[]; nextPage: number | null }> {
+  const p = Math.max(1, Math.floor(page));
+  const rows = await db
+    .select({
+      emailMessageId: emailMessages.id,
+      slug: emailTemplates.slug,
+      subject: emailMessages.subject,
+      status: emailMessages.status,
+      queuedAt: emailMessages.queuedAt,
+      sentAt: emailMessages.sentAt,
+      openedAt: emailMessages.openedAt,
+      clickedAt: emailMessages.clickedAt,
+      campaignId: emailMessages.campaignId,
+      jobTemplate: sql<string | null>`(select j.payload->>'template' from jobs j where j.idempotency_key = 'email:' || ${emailMessages.id}::text limit 1)`,
+    })
+    .from(emailMessages)
+    .leftJoin(emailTemplateVersions, eq(emailTemplateVersions.id, emailMessages.templateVersionId))
+    .leftJoin(emailTemplates, eq(emailTemplates.id, emailTemplateVersions.templateId))
+    .where(eq(emailMessages.personId, personId))
+    .orderBy(desc(emailMessages.createdAt), desc(emailMessages.id))
+    .limit(PERSON_EMAILS_PAGE_SIZE + 1)
+    .offset((p - 1) * PERSON_EMAILS_PAGE_SIZE);
+  const items = rows.slice(0, PERSON_EMAILS_PAGE_SIZE).map((r) => ({
+    emailMessageId: r.emailMessageId,
+    templateSlug: r.slug ?? r.jobTemplate ?? "",
+    subject: r.subject,
+    status: r.status,
+    queuedAt: r.queuedAt,
+    sentAt: r.sentAt,
+    openedAt: r.openedAt,
+    clickedAt: r.clickedAt,
+    campaignId: r.campaignId,
+  }));
+  return { items, nextPage: rows.length > PERSON_EMAILS_PAGE_SIZE ? p + 1 : null };
 }
 
 export function getCampaignStats(_db: DbOrTx, _campaignIds: string[]): Promise<CampaignStats[]> {
   return notYet("getCampaignStats");
 }
 
-/** ops daily digest. */
-export function countBlockedMessages(_db: DbOrTx, _since: Date): Promise<number> {
-  return notYet("countBlockedMessages");
+/** ops daily digest: messages blocked for a missing translation since `since`. */
+export async function countBlockedMessages(db: DbOrTx, since: Date): Promise<number> {
+  const [row] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(emailMessages)
+    .where(and(inArray(emailMessages.status, ["blocked_translation"]), gte(emailMessages.updatedAt, since)));
+  return Number(row?.n ?? 0);
 }
 
 export function getEmailHealth(

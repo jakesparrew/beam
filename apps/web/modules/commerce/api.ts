@@ -4,7 +4,10 @@
  * order rule 1); a function whose package has not landed yet throws
  * `NotImplementedError('commerce.<fn>')`. commerce-P3 serves `getQuote`, `getProductPrice`,
  * `listPublicPrices` and `getProductCards` (`./server/catalogue`); commerce-P4a `createOrder`,
- * `startPayment`, `getOrderStatus`, `getPersonCommerceSummary` and `listPersonOrders`. `quote` is the pure core function, re-exported.
+ * `startPayment`, `getOrderStatus`, `getPersonCommerceSummary` and `listPersonOrders`; commerce-P4b
+ * `cancelOrder` and `cancelRenewalOrder` (`./server/cancel`), the renewal functions
+ * (`./server/recurring`, `./server/payment-links`), `recordBankTransferPaid`
+ * (`./server/bank-transfer`) and `revokeMandatesForPerson` (`./server/mandates`). `quote` is the pure core function, re-exported.
  * `redeemVoucher` is re-exported from `./actions` once commerce-P6 builds that server action
  * (actions are `export {}` until then; DM-13).
  */
@@ -35,6 +38,11 @@ import type { CreateOrderInput, CreateOrderResult } from "./server/orders";
 const catalogueService = () => import("./server/catalogue");
 const orderService = () => import("./server/orders");
 const paymentService = () => import("./server/payments");
+const cancelService = () => import("./server/cancel");
+const recurringService = () => import("./server/recurring");
+const payLinkService = () => import("./server/payment-links");
+const bankTransferService = () => import("./server/bank-transfer");
+const mandateService = () => import("./server/mandates");
 
 export { quote } from "@beam/core/commerce";
 export type {
@@ -83,8 +91,13 @@ export function getOrderStatus(db: DbOrTx, orderId: string): Promise<{ status: O
   return orderService().then((m) => m.getOrderStatus(db, orderId));
 }
 
-export function cancelOrder(_tx: Tx, _ctx: Ctx, _input: { orderId: string; reason: string }): Promise<{ cancelled: boolean }> {
-  return notYet("cancelOrder");
+/**
+ * Rule 22b: cancels a `draft` or `pending_payment` order with its releases; `{ cancelled: false }`
+ * for a non-cancellable order (other status, live provider payment), never a throw for its
+ * status (cross-module D31). An open bank-transfer invoice is credited in the same transaction.
+ */
+export function cancelOrder(tx: Tx, ctx: Ctx, input: { orderId: string; reason: string }): Promise<{ cancelled: boolean }> {
+  return cancelService().then((m) => m.cancelOrder(tx, ctx, input));
 }
 
 export function refundOrderLine(
@@ -97,48 +110,55 @@ export function refundOrderLine(
 
 // credits: membership renewals ------------------------------------------------------
 
+/** Creates or reuses the period's renewal order, inserts a new recurring payment and enqueues `payments.charge_recurring`. */
 export function createRecurringCharge(
-  _tx: Tx,
-  _ctx: Ctx,
-  _input: { membershipId: string; personId: string; productId: string; mandateId: string; periodEndOn: string },
+  tx: Tx,
+  ctx: Ctx,
+  input: { membershipId: string; personId: string; productId: string; mandateId: string; periodEndOn: string },
 ): Promise<{ orderId: string; paymentId: string }> {
-  return notYet("createRecurringCharge");
+  return recurringService().then((m) => m.createRecurringCharge(tx, ctx, input));
 }
 
+/** Channel `link`; idempotent per membership and period. */
 export function createRenewalLinkOrder(
-  _tx: Tx,
-  _ctx: Ctx,
-  _input: { membershipId: string; personId: string; productId: string; periodEndOn: string },
+  tx: Tx,
+  ctx: Ctx,
+  input: { membershipId: string; personId: string; productId: string; periodEndOn: string },
 ): Promise<{ orderId: string; payUrl: string }> {
-  return notYet("createRenewalLinkOrder");
+  return recurringService().then((m) => m.createRenewalLinkOrder(tx, ctx, input));
 }
 
-export function getPayLinkForOrder(_tx: Tx, _ctx: Ctx, _input: { orderId: string }): Promise<{ payUrl: string; expiresAt: Date }> {
-  return notYet("getPayLinkForOrder");
+/** Rule 41: the same URL while the link is valid, a new one only after it expired. */
+export function getPayLinkForOrder(tx: Tx, ctx: Ctx, input: { orderId: string }): Promise<{ payUrl: string; expiresAt: Date }> {
+  return payLinkService().then((m) => m.getPayLinkForOrder(tx, ctx, input));
 }
 
-export function cancelRenewalOrder(_tx: Tx, _ctx: Ctx, _input: { orderId: string; reason: string }): Promise<void> {
-  return notYet("cancelRenewalOrder");
+/** Rule 22c: `cancelOrder` without the `payment_in_progress` refusal; open recurring payments are cancelled by `payments.cancel`. */
+export function cancelRenewalOrder(tx: Tx, ctx: Ctx, input: { orderId: string; reason: string }): Promise<void> {
+  return cancelService().then((m) => m.cancelRenewalOrder(tx, ctx, input));
 }
 
-export function getActiveMandate(_db: DbOrTx, _personId: string): Promise<{ mandateId: string; method: string; summary: string | null } | null> {
-  return notYet("getActiveMandate");
+/** The person's latest `valid` mandate (`mandateId` is `mandates.id`). */
+export function getActiveMandate(db: DbOrTx, personId: string): Promise<{ mandateId: string; method: string; summary: string | null } | null> {
+  return recurringService().then((m) => m.getActiveMandate(db, personId));
 }
 
 // finance: bank transfers -------------------------------------------------------------
 
+/** Rule 43a: settles the open transfer and runs the paid transaction; idempotent on the order. */
 export function recordBankTransferPaid(
-  _tx: Tx,
-  _ctx: Ctx,
-  _input: { orderId: string; paidOn: string; reference: string },
+  tx: Tx,
+  ctx: Ctx,
+  input: { orderId: string; paidOn: string; reference: string },
 ): Promise<{ applied: boolean }> {
-  return notYet("recordBankTransferPaid");
+  return bankTransferService().then((m) => m.recordBankTransferPaid(tx, ctx, input));
 }
 
 // ops: erasure ----------------------------------------------------------------------------
 
-export function revokeMandatesForPerson(_tx: Tx, _ctx: Ctx, _personId: string): Promise<{ revoked: number }> {
-  return notYet("revokeMandatesForPerson");
+/** Ops rule 62: marks every valid mandate revoked and enqueues `commerce.revoke_mandate` per mandate. */
+export function revokeMandatesForPerson(tx: Tx, ctx: Ctx, personId: string): Promise<{ revoked: number }> {
+  return mandateService().then((m) => m.revokeMandatesForPerson(tx, ctx, personId));
 }
 
 // automation (R2) -------------------------------------------------------------------------

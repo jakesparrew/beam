@@ -6,6 +6,10 @@
  * `mollie` webhook handler, which runs the same `syncPayment()` inside platform's
  * `webhook.process` transaction. `commerce.refund_unavailable_lines` is declared here because the
  * paid transaction enqueues it; it refunds through `refundOrderLine`, which commerce-P6 lands.
+ *
+ * commerce-P4b: `payments.scan_expired` (every minute), `payments.charge_recurring`,
+ * `payments.cancel`, `commerce.revoke_mandate` and `commerce.erase_provider_customer`. After every
+ * sync (job and webhook) a provider `paid` for a cancelled order is refunded in full (edge case 36).
  */
 import { z } from "zod";
 import { files, orders, persons } from "@beam/db/schema";
@@ -18,13 +22,21 @@ import { defineWebhookHandler } from "@/lib/webhooks";
 import { sendTransactional } from "@/modules/email/api";
 import { refundOrderLine } from "./api";
 import { orderPageUrl } from "./server/paid";
-import { createProviderPayment, syncPayment } from "./server/payments";
+import { createProviderPayment, syncPayment, type SyncResult } from "./server/payments";
+import { scanExpired } from "./server/expiry";
+import { cancelProviderPayment, chargeRecurringPayment, refundLatePaidOnCancelledOrder } from "./server/recurring";
+import { eraseProviderCustomer, revokeMandateAtProvider } from "./server/mandates";
 import { loadReceiptInput, renderReceiptPdf } from "./ui/receipt-pdf";
 
 export const PaymentsCreateInput = z.object({ paymentId: z.uuid(), redirectUrl: z.string().url().optional() });
 export const PaymentsSyncInput = z.object({ providerPaymentId: z.string().min(1) });
 export const RenderReceiptInput = z.object({ orderId: z.uuid() });
 export const RefundUnavailableLinesInput = z.object({ orderId: z.uuid(), orderLineIds: z.array(z.uuid()).min(1) });
+export const ScanExpiredInput = z.object({}).passthrough();
+export const ChargeRecurringInput = z.object({ paymentId: z.uuid() });
+export const PaymentsCancelInput = z.object({ paymentId: z.uuid() });
+export const RevokeMandateInput = z.object({ mandateId: z.uuid() });
+export const EraseProviderCustomerInput = z.object({ providerCustomerId: z.string().min(1), mandateIds: z.array(z.string().min(1)) });
 
 /** `payments.create` (inline at checkout, key `payment_create:<payment_id>`). */
 export function runPaymentsCreate(ctx: JobCtx, input: z.infer<typeof PaymentsCreateInput>) {
@@ -32,8 +44,40 @@ export function runPaymentsCreate(ctx: JobCtx, input: z.infer<typeof PaymentsCre
 }
 
 /** `payments.sync` (return-page polls and `payments.scan_expired`; key `payment_sync:<id>:<minute>`). */
-export function runPaymentsSync(ctx: JobCtx, input: z.infer<typeof PaymentsSyncInput>) {
-  return syncPayment(ctx, input.providerPaymentId);
+export async function runPaymentsSync(ctx: JobCtx, input: z.infer<typeof PaymentsSyncInput>): Promise<SyncResult> {
+  const result = await syncPayment(ctx, input.providerPaymentId);
+  await afterSync(ctx, result);
+  return result;
+}
+
+/** Edge case 36: a provider `paid` that reached a cancelled (renewal) order is refunded in full. */
+async function afterSync(ctx: Parameters<typeof refundLatePaidOnCancelledOrder>[0], result: SyncResult): Promise<void> {
+  if (!result.ignored && result.status === "paid") await refundLatePaidOnCancelledOrder(ctx, result.paymentId);
+}
+
+/** `payments.scan_expired` (every minute; rules 22, 22a, 34). */
+export function runScanExpired(ctx: JobCtx) {
+  return scanExpired(ctx);
+}
+
+/** `payments.charge_recurring` (key `charge_recurring:<payment_id>`). */
+export function runChargeRecurring(ctx: JobCtx, input: z.infer<typeof ChargeRecurringInput>) {
+  return chargeRecurringPayment(ctx, input);
+}
+
+/** `payments.cancel` (key `payment_cancel:<payment_id>`). */
+export function runPaymentsCancel(ctx: JobCtx, input: z.infer<typeof PaymentsCancelInput>) {
+  return cancelProviderPayment(ctx, input);
+}
+
+/** `commerce.revoke_mandate` (key `mandate_revoke:<mandate_id>`). */
+export function runRevokeMandate(ctx: JobCtx, input: z.infer<typeof RevokeMandateInput>) {
+  return revokeMandateAtProvider(ctx, input);
+}
+
+/** `commerce.erase_provider_customer` (key `mollie_customer:<provider_customer_id>:delete`). */
+export function runEraseProviderCustomer(ctx: JobCtx, input: z.infer<typeof EraseProviderCustomerInput>) {
+  return eraseProviderCustomer(ctx, input);
 }
 
 const RECEIPT_STATUSES = new Set(["paid", "partially_refunded", "refunded"]);
@@ -100,6 +144,11 @@ export const jobs = [
   defineJob({ kind: "payments.sync", lane: "fast", priority: 1, maxAttempts: 6, input: PaymentsSyncInput, run: runPaymentsSync }),
   defineJob({ kind: "commerce.render_receipt", lane: "fast", priority: 5, maxAttempts: 6, input: RenderReceiptInput, run: runRenderReceipt }),
   defineJob({ kind: "commerce.refund_unavailable_lines", lane: "fast", priority: 2, maxAttempts: 6, input: RefundUnavailableLinesInput, run: runRefundUnavailableLines }),
+  defineJob({ kind: "payments.scan_expired", lane: "fast", priority: 3, maxAttempts: 3, input: ScanExpiredInput, run: runScanExpired }),
+  defineJob({ kind: "payments.charge_recurring", lane: "fast", priority: 2, maxAttempts: 6, input: ChargeRecurringInput, run: runChargeRecurring }),
+  defineJob({ kind: "payments.cancel", lane: "fast", priority: 2, maxAttempts: 6, input: PaymentsCancelInput, run: runPaymentsCancel }),
+  defineJob({ kind: "commerce.revoke_mandate", lane: "fast", priority: 3, maxAttempts: 6, input: RevokeMandateInput, run: runRevokeMandate }),
+  defineJob({ kind: "commerce.erase_provider_customer", lane: "fast", priority: 5, maxAttempts: 6, input: EraseProviderCustomerInput, run: runEraseProviderCustomer }),
 ];
 
 /**
@@ -113,7 +162,7 @@ export const webhookHandlers = [
     handle: async (ctx, event) => {
       const id = (event.payload as { id?: unknown } | null)?.id;
       if (typeof id !== "string") return;
-      await syncPayment(ctx, id);
+      await afterSync(ctx, await syncPayment(ctx, id));
     },
   }),
 ];

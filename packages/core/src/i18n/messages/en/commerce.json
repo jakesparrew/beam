@@ -337,7 +337,8 @@
       "withdrawal": "Right of withdrawal: you may withdraw from the packages, memberships and gift vouchers of this order until {date}, without giving a reason, through the withdrawal form on your order page. Dated sessions, nights and tickets are exempt."
     },
     "tasks": {
-      "chargeback": "Chargeback on order {reference}"
+      "chargeback": "Chargeback on order {reference}",
+      "late_paid_refund": "Refund the payment of cancelled order {reference} by hand: the automatic refund was refused"
     },
     "order_status": {
       "draft": "Draft",

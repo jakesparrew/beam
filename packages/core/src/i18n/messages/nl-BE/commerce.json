@@ -337,7 +337,8 @@
       "withdrawal": "Herroepingsrecht: je kunt de pakketten, abonnementen en cadeaubonnen van deze bestelling tot en met {date} zonder opgave van reden herroepen via het herroepingsformulier op je bestelpagina. Sessies, nachten en tickets op een vaste datum zijn uitgesloten."
     },
     "tasks": {
-      "chargeback": "Terugboeking op bestelling {reference}"
+      "chargeback": "Terugboeking op bestelling {reference}",
+      "late_paid_refund": "Betaling van geannuleerde bestelling {reference} manueel terugbetalen: de automatische terugbetaling werd geweigerd"
     },
     "order_status": {
       "draft": "Concept",

@@ -14,17 +14,8 @@ export type ReleaseReason =
   | "order_expired"
   | "refund";
 
-/** How a grant may be shared (credits rule 2; rows from R2). */
-export type GrantSharing = {
-  mode: "none" | "guests" | "named";
-  max_guests_per_month?: number | null;
-  named_person_ids?: string[];
-};
-
-/** The result of the pure allocation over a person's usable grants. */
-export type AllocationResult =
-  | { ok: true; allocations: { grantId: string; quantity: number }[]; remainingUnits: number }
-  | { ok: false; reason: "insufficient" | "guest_limit" | "not_shareable" | "share_limit"; needed: number; available: number };
+// `GrantSharing` and `AllocationResult` are the spec shapes of `schemas.ts` and `allocate.ts`
+// (credits section 4), re-exported by `index.ts`; the Wave 0 guesses that stood here are gone.
 
 export type SharingReviewRow = {
   personId: string;

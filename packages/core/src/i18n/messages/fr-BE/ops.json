@@ -5,6 +5,710 @@
       "reports_finance": "Voir les rapports financiers",
       "dashboards_manage": "Créer et partager des tableaux de bord personnalisés",
       "privacy_run": "Traiter les demandes de confidentialité : export, effacement et limitation"
+    },
+    "nav": {
+      "dashboard": "Tableau de bord",
+      "retention": "Fidélisation",
+      "pipeline": "Pipeline",
+      "management": "Direction",
+      "custom": "Mes tableaux de bord",
+      "ask": "Poser une question",
+      "summary": "Résumé hebdomadaire",
+      "reports": "Rapports",
+      "reports_revenue": "Chiffre d’affaires",
+      "reports_no_shows": "Absences et annulations",
+      "reports_abandoned": "Paniers abandonnés",
+      "reports_capacity": "Taux d’occupation",
+      "reports_marketing": "Marketing",
+      "reports_attribution": "Attribution des campagnes",
+      "reports_ads": "Publicités",
+      "imports": "Importations",
+      "exports": "Exports",
+      "privacy": "Demandes de confidentialité",
+      "retention_policies": "Durées de conservation",
+      "dpia": "Registre des AIPD",
+      "account_privacy": "Confidentialité"
+    },
+    "common": {
+      "retry": "Réessayer",
+      "request_id": "Identifiant de la requête : {id}",
+      "error_title": "Cette page n’a pas pu se charger",
+      "loading": "Chargement…",
+      "open_person": "Ouvrir la personne",
+      "download_csv": "Télécharger le CSV",
+      "no_data": "Aucune donnée",
+      "data_as_of": "Données au {date}"
+    },
+    "dashboard": {
+      "title": "Aujourd’hui",
+      "create_task": "Créer une tâche",
+      "task_created": "Tâche créée",
+      "task_exists": "Une tâche existe déjà pour cette personne",
+      "open_list": "Ouvrir la liste",
+      "count": "{count, plural, one {# personne} other {# personnes}}",
+      "view": {
+        "today": "Aujourd’hui",
+        "week": "Cette semaine"
+      },
+      "card": {
+        "packages_nearing_completion": {
+          "title": "Forfaits presque épuisés",
+          "empty": "Rien ne demande votre attention aujourd’hui",
+          "row": "{remaining} sur {total} restant(s)"
+        },
+        "vip_inactive": {
+          "title": "Clients à forte valeur inactifs",
+          "empty": "Rien ne demande votre attention aujourd’hui",
+          "row": "{days} jours sans visite"
+        },
+        "new_leads_follow_up": {
+          "title": "Nouveaux prospects à suivre",
+          "empty": "Rien ne demande votre attention aujourd’hui",
+          "row": "Prospect depuis le {date}"
+        },
+        "b2b_proposals": {
+          "title": "Propositions B2B à suivre",
+          "empty": "Rien ne demande votre attention aujourd’hui",
+          "row": "{company} : {stage}"
+        },
+        "memberships_expiring": {
+          "title": "Abonnements qui se terminent",
+          "empty": "Rien ne demande votre attention aujourd’hui",
+          "row": "Se termine le {date}"
+        },
+        "failed_payments": {
+          "title": "Paiements échoués",
+          "empty": "Rien ne demande votre attention aujourd’hui",
+          "row": "{amount} le {date}"
+        },
+        "webinar_leads_not_booked": {
+          "title": "Prospects webinaire sans réservation",
+          "empty": "Rien ne demande votre attention aujourd’hui",
+          "row": "Inscrit le {date}"
+        },
+        "unused_packages_expiring": {
+          "title": "Forfaits inutilisés qui expirent",
+          "empty": "Rien ne demande votre attention aujourd’hui",
+          "row": "{remaining} restant(s), expire le {date}"
+        },
+        "shared_package_abuse": {
+          "title": "Forfaits partagés à vérifier",
+          "empty": "Rien ne demande votre attention aujourd’hui",
+          "row": "{guests} invités en 30 jours"
+        },
+        "overdue_tasks": {
+          "title": "Tâches en retard",
+          "empty": "Rien ne demande votre attention aujourd’hui",
+          "row": "Échéance {date}"
+        },
+        "overdue_privacy_requests": {
+          "title": "Demandes de confidentialité proches de l’échéance",
+          "empty": "Rien ne demande votre attention aujourd’hui",
+          "row": "{kind}, échéance le {date}"
+        }
+      }
+    },
+    "period": {
+      "day": "Jour",
+      "week": "Semaine",
+      "month": "Mois en cours",
+      "ytd": "Année en cours",
+      "last_30d": "30 derniers jours",
+      "last_90d": "90 derniers jours",
+      "previous": "Période précédente",
+      "change": "Évolution",
+      "change_blank": "Pas de comparaison : la période précédente était à 0"
+    },
+    "stage": {
+      "lead": "Prospect",
+      "engaged_lead": "Prospect engagé",
+      "experienced": "A découvert",
+      "first_visit": "Première visite",
+      "first_purchase": "Premier achat",
+      "active": "Actif",
+      "repeat": "Client fidèle",
+      "member": "Membre / forte valeur",
+      "retention": "À fidéliser",
+      "lost": "Perdu"
+    },
+    "pipeline": {
+      "title": "Pipeline B2C",
+      "high_value": "Forte valeur",
+      "empty": "Aucune personne à cette étape"
+    },
+    "retention": {
+      "title": "Liste de fidélisation de la semaine",
+      "empty": "Tout le monde est sur la bonne voie cette semaine",
+      "create_all": "Créer toutes les tâches",
+      "rebuild": "Recalculer",
+      "dismiss_action": "Écarter",
+      "reason": {
+        "visiting_less": "Vient moins souvent",
+        "package_nearly_finished": "Forfait presque épuisé",
+        "package_finished_no_repurchase": "Forfait épuisé, pas de rachat",
+        "package_expiring": "Forfait bientôt expiré",
+        "high_value_inactive": "Client à forte valeur inactif",
+        "membership_renewal_due": "Renouvellement d’abonnement",
+        "purchased_never_booked": "Acheté sans réservation",
+        "unused_sessions": "Séances non utilisées"
+      },
+      "task_title": {
+        "visiting_less": "Prendre contact : vient moins souvent",
+        "package_nearly_finished": "Proposer un nouveau forfait",
+        "package_finished_no_repurchase": "Relancer : forfait épuisé",
+        "package_expiring": "Rappeler : forfait bientôt expiré",
+        "high_value_inactive": "Appeler un client à forte valeur",
+        "membership_renewal_due": "Discuter du renouvellement de l’abonnement",
+        "purchased_never_booked": "Aider à une première réservation",
+        "unused_sessions": "Inviter à utiliser les séances restantes"
+      },
+      "dismiss": {
+        "not_relevant": "Pas pertinent",
+        "already_contacted": "Déjà contacté",
+        "do_not_contact": "Ne pas contacter",
+        "other": "Autre"
+      }
+    },
+    "reports": {
+      "title": "Rapports",
+      "intro": "Chaque rapport exclut les personnes de test et peut être téléchargé en CSV.",
+      "show_as_table": "Afficher en tableau",
+      "vat": {
+        "incl": "TVA comprise",
+        "excl": "Hors TVA"
+      },
+      "channel": {
+        "portal": "Portail client",
+        "site": "Site web",
+        "admin": "Personnel",
+        "pos": "Accueil",
+        "link": "Lien de paiement",
+        "recurring": "Récurrent"
+      },
+      "product_kind": {
+        "package": "Forfaits",
+        "night": "Nuits",
+        "session": "Séances",
+        "membership": "Abonnements",
+        "item": "Produits",
+        "ticket": "Billets d’événement",
+        "voucher": "Bons cadeaux",
+        "refund": "Remboursements"
+      },
+      "revenue": {
+        "title": "Chiffre d’affaires",
+        "empty": "Aucune commande payée sur cette période",
+        "net": "Chiffre d’affaires net",
+        "daily": "90 derniers jours",
+        "by_kind": "Ventes par type de produit",
+        "by_channel": "Ventes par canal",
+        "summary": "Chiffre d’affaires net {amount}, {change} par rapport à la période précédente",
+        "column": {
+          "day": "Jour",
+          "channel": "Canal",
+          "product_kind": "Type de produit",
+          "orders": "Commandes",
+          "gross": "Brut",
+          "vat": "TVA",
+          "refunds": "Remboursements",
+          "net": "Net"
+        },
+        "filter": {
+          "period": "Période",
+          "vat": "TVA"
+        }
+      },
+      "liability": {
+        "title": "Crédits prépayés en cours",
+        "intro": "Ce qui reste dû en séances, nuits et crédit en euros, pour le comptable.",
+        "credit_kind": "Type de crédit",
+        "remaining_units": "Unités restantes",
+        "value": "Valeur",
+        "vat_treatment": "Traitement TVA",
+        "as_of": "Au {date}",
+        "empty": "Aucun crédit en cours"
+      }
+    },
+    "imports": {
+      "title": "Importations",
+      "empty": "Aucune importation. Commencez par les désinscriptions.",
+      "new": "Nouvelle importation",
+      "upload": "Téléverser le CSV",
+      "save_mapping": "Enregistrer la correspondance",
+      "start_dry_run": "Lancer l’essai",
+      "start_run": "Lancer l’importation",
+      "cancel": "Annuler l’importation",
+      "sign_off": "Valider le rapprochement",
+      "download_errors": "Télécharger les lignes en erreur",
+      "kind": {
+        "persons": "Personnes",
+        "suppressions": "Désinscriptions",
+        "consents": "Consentements",
+        "tags": "Étiquettes",
+        "companies": "Entreprises",
+        "bookings": "Réservations futures",
+        "packages": "Soldes des forfaits",
+        "memberships": "Abonnements",
+        "history": "Historique"
+      },
+      "source": {
+        "simplybook": "SimplyBook",
+        "lightspeed": "Lightspeed",
+        "mailchimp": "Mailchimp",
+        "spreadsheet": "Tableur",
+        "event_db": "Base de données d’événements",
+        "b2b_list": "Liste B2B",
+        "webinar_tool": "Outil de webinaire",
+        "assessment_tool": "Outil d’évaluation",
+        "other": "Autre"
+      },
+      "status": {
+        "uploaded": "Téléversé",
+        "dry_run": "Essai",
+        "running": "En cours",
+        "done": "Terminé",
+        "failed": "Échoué",
+        "cancelled": "Annulé"
+      },
+      "row_status": {
+        "pending": "En attente",
+        "imported": "Importé",
+        "updated": "Mis à jour",
+        "skipped": "Ignoré",
+        "error": "Erreur"
+      },
+      "target": {
+        "external_id": "Identifiant externe",
+        "email": "E-mail",
+        "phone": "Téléphone",
+        "first_name": "Prénom",
+        "last_name": "Nom",
+        "locale": "Langue",
+        "birth_on": "Date de naissance",
+        "street": "Rue",
+        "postal_code": "Code postal",
+        "city": "Commune",
+        "country": "Pays",
+        "preferred_channel": "Canal préféré",
+        "company_name": "Nom de l’entreprise",
+        "created_at": "Date de création d’origine",
+        "source_campaign": "Campagne d’origine",
+        "scope": "Portée",
+        "reason": "Motif",
+        "suppressed_at": "Désinscrit le",
+        "purpose": "Finalité",
+        "status": "Statut",
+        "recorded_at": "Enregistré le",
+        "wording_version": "Version du texte",
+        "source": "Source",
+        "tag_key": "Étiquette",
+        "name": "Nom",
+        "vat_number": "Numéro de TVA",
+        "website": "Site web",
+        "industry": "Secteur",
+        "size": "Taille",
+        "contact_email": "E-mail du contact",
+        "contact_position": "Fonction du contact",
+        "contact_decision_role": "Rôle décisionnel du contact",
+        "session_starts_at": "Début de la séance",
+        "session_kind": "Type de séance",
+        "paid_with": "Payé avec",
+        "product_sku": "Code produit",
+        "units_remaining": "Unités restantes",
+        "units_original": "Unités d’origine",
+        "expires_on": "Expire le",
+        "unit_value_cents": "Valeur unitaire (centimes)",
+        "period_end_on": "Fin de période le",
+        "started_on": "Commencé le",
+        "history_kind": "Type d’historique",
+        "occurred_at": "Survenu le",
+        "description": "Description",
+        "amount_cents": "Montant (centimes)",
+        "product_kind": "Type de produit",
+        "campaign": "Campagne",
+        "webinar_title": "Titre du webinaire",
+        "webinar_starts_at": "Début du webinaire",
+        "outcome_key": "Résultat",
+        "unmapped": "Ne pas importer"
+      },
+      "option": {
+        "delimiter": "Séparateur",
+        "date_format": "Format de date",
+        "default_locale": "Langue par défaut",
+        "overwrite": "Écraser les champs remplis",
+        "consent_purpose": "Finalité du consentement",
+        "consent_wording_version": "Version du texte de consentement",
+        "product": "Produit",
+        "credit_kind": "Type de crédit",
+        "tag_key": "Étiquette pour tout le fichier",
+        "preset": "Correspondance prédéfinie",
+        "confirm_no_suppression_source": "Aucune source de désinscriptions n’existe"
+      },
+      "report": {
+        "title": "Rapport",
+        "dry_run_title": "Rapport d’essai",
+        "rows": "{count, plural, one {# ligne} other {# lignes}}",
+        "new_persons": "Nouvelles personnes",
+        "matched_persons": "Personnes reconnues",
+        "duplicates_in_file": "Doublons dans le fichier",
+        "invalid_emails": "Adresses e-mail invalides",
+        "unknown_products": "Produits inconnus",
+        "suppressed_skipped": "Adresses désinscrites, consentement ignoré",
+        "over_capacity": "Au-delà de la capacité",
+        "partial": "Partiel : annulé en cours d’exécution",
+        "reconciliation": "Rapprochement",
+        "units_in_file": "Unités dans le fichier",
+        "units_granted": "Unités accordées",
+        "difference": "Différence",
+        "signed_off": "Validé par {name} le {date}"
+      },
+      "error": {
+        "missing_email": "E-mail manquant",
+        "invalid_email": "E-mail invalide",
+        "suppressed": "Adresse désinscrite : consentement non importé",
+        "erased": "Personne effacée : ligne ignorée",
+        "existing": "Déjà importé",
+        "no_session": "Aucune séance à ce moment",
+        "over_capacity": "Importé au-delà de la capacité",
+        "unknown_product": "Produit inconnu",
+        "invalid_date": "Date invalide",
+        "invalid_number": "Nombre invalide",
+        "malformed_csv": "Le fichier n’est pas un CSV valide",
+        "missing_targets": "Associez d’abord les colonnes obligatoires : {targets}",
+        "go_live_gate": "Terminez d’abord le contrôle de mise en production",
+        "dry_run_first": "Lancez d’abord un essai avec cette correspondance",
+        "suppressions_first": "Importez d’abord les désinscriptions, ou confirmez qu’aucune source n’existe",
+        "another_running": "Une autre importation est en cours"
+      }
+    },
+    "cutover": {
+      "go_live_gate_complete": "Contrôle de mise en production terminé",
+      "invoice_issuer_settings_complete": "Identité de facturation complète",
+      "legal_texts_reviewed": "Textes juridiques relus dans les trois langues",
+      "dpia_sensitive_processing_decided": "AIPD traitement sensible décidée et formulaire santé publié",
+      "suppressions_imported": "Désinscriptions importées",
+      "persons_imported": "Personnes importées",
+      "consents_imported": "Consentements importés",
+      "tags_imported": "Étiquettes importées",
+      "companies_imported": "Entreprises importées",
+      "history_imported": "Historique importé",
+      "packages_imported": "Soldes des forfaits importés",
+      "packages_reconciled": "Soldes des forfaits rapprochés et validés",
+      "memberships_imported": "Abonnements importés",
+      "future_bookings_imported": "Réservations futures importées",
+      "stats_recomputed": "Statistiques clients recalculées",
+      "old_tools_frozen": "Anciens outils figés (lecture seule)",
+      "dns_switched": "DNS basculé",
+      "title": "Liste de bascule",
+      "progress": "{done} étapes sur {total} terminées"
+    },
+    "exports": {
+      "title": "Exports",
+      "empty": "Aucun export pour l’instant",
+      "new": "Nouvel export",
+      "download": "Télécharger",
+      "expires": "Expire le {date}",
+      "kind": {
+        "entity": "Une entité (CSV)",
+        "full": "Export complet des données"
+      },
+      "status": {
+        "queued": "En file d’attente",
+        "running": "En cours",
+        "done": "Prêt",
+        "failed": "Échoué",
+        "expired": "Expiré"
+      },
+      "entity": {
+        "persons": "Personnes",
+        "companies": "Entreprises",
+        "company_contacts": "Contacts d’entreprise",
+        "tags": "Étiquettes",
+        "consents": "Consentements",
+        "suppressions": "Désinscriptions",
+        "bookings": "Réservations",
+        "sessions": "Séances",
+        "orders": "Commandes",
+        "order_lines": "Lignes de commande",
+        "payments": "Paiements",
+        "refunds": "Remboursements",
+        "invoices": "Factures",
+        "credit_grants": "Crédits accordés",
+        "credit_entries": "Registre des crédits",
+        "memberships": "Abonnements",
+        "form_submissions": "Réponses aux formulaires",
+        "email_messages": "E-mails",
+        "campaigns": "Campagnes",
+        "tasks": "Tâches",
+        "activity_events": "Événements de la chronologie"
+      }
+    },
+    "privacy": {
+      "title": "Demandes de confidentialité",
+      "empty": "Aucune demande de confidentialité",
+      "new": "Nouvelle demande",
+      "due_on": "Échéance le {date}",
+      "due_soon": "Échéance proche",
+      "verify": "Vérifier",
+      "run_now": "Exécuter maintenant",
+      "cancel": "Annuler la demande",
+      "complete_rectification": "Marquer comme corrigé",
+      "lift_restriction": "Lever la limitation",
+      "verification_note": "Comment l’identité a-t-elle été vérifiée ?",
+      "acknowledge_warnings": "J’ai lu les avertissements",
+      "scheduled_for": "L’effacement commence le {date}",
+      "manual_followup": "Suivi manuel nécessaire",
+      "kind": {
+        "export": "Export des données",
+        "erase": "Effacement",
+        "restrict": "Limitation",
+        "rectify": "Rectification",
+        "object": "Opposition au marketing"
+      },
+      "status": {
+        "received": "Reçue",
+        "verified": "Vérifiée",
+        "running": "En cours",
+        "done": "Terminée",
+        "failed": "Échouée",
+        "cancelled": "Annulée"
+      },
+      "requested_by": {
+        "customer": "Client",
+        "staff": "Personnel",
+        "system": "Durée de conservation"
+      },
+      "warning": {
+        "active_membership": "La personne a un abonnement actif",
+        "credits_remaining": "La personne a encore des crédits",
+        "future_bookings": "La personne a des réservations futures",
+        "open_invoices": "La personne a des factures ouvertes",
+        "open_orders": "La personne a des commandes ouvertes"
+      },
+      "step": {
+        "external": "Systèmes externes",
+        "finalise": "Rapport",
+        "module": {
+          "platform": "Plateforme",
+          "crm": "Clients",
+          "booking": "Réservations",
+          "commerce": "Boutique et paiements",
+          "credits": "Crédits et abonnements",
+          "finance": "Factures",
+          "forms": "Formulaires",
+          "email": "E-mail",
+          "automation": "Automatisations",
+          "ops": "Rapports et confidentialité",
+          "site": "Site web",
+          "webinar": "Webinaires"
+        }
+      },
+      "outcome": {
+        "done": "Effectué",
+        "not_found": "Introuvable",
+        "failed": "Échec : suivi manuel",
+        "provider_retains": "Conservé par le prestataire selon ses propres obligations légales"
+      },
+      "action": {
+        "deleted": "Supprimé",
+        "anonymised": "Anonymisé",
+        "retained_legal": "Conservé pour une obligation légale",
+        "kept": "Conservé"
+      },
+      "legal_basis": {
+        "accounting_law": "Droit comptable belge (10 ans)",
+        "accountability": "Preuve du traitement de la demande (RGPD article 5(2))",
+        "suppression": "Désinscription conservée pour ne plus jamais vous contacter",
+        "consent": "Votre consentement",
+        "contract": "Le contrat conclu avec vous",
+        "legitimate_interest": "Intérêt légitime"
+      },
+      "restriction_reason": {
+        "accuracy_contested": "Exactitude contestée",
+        "unlawful_processing": "Traitement illicite",
+        "needed_for_legal_claims": "Nécessaire à une action en justice",
+        "objection_pending": "Opposition en cours d’examen"
+      },
+      "rectify_field": {
+        "first_name": "Prénom",
+        "last_name": "Nom",
+        "email": "Adresse e-mail",
+        "phone": "Numéro de téléphone",
+        "birth_on": "Date de naissance",
+        "address": "Adresse",
+        "locale": "Langue",
+        "company_name": "Entreprise"
+      },
+      "portal": {
+        "title": "Votre vie privée",
+        "intro": "Ici, vous pouvez télécharger vos données, les faire corriger, limiter leur utilisation ou supprimer votre compte.",
+        "export_title": "Télécharger mes données",
+        "export_body": "Nous préparons un fichier avec toutes vos données. Vous recevez un e-mail quand il est prêt ; le téléchargement reste disponible 7 jours.",
+        "export_button": "Demander mes données",
+        "download": "Télécharger",
+        "erase_title": "Supprimer mon compte",
+        "erase_body": "Nous supprimons votre profil 24 heures après votre demande. D’ici là, vous pouvez annuler.",
+        "erase_retained": "Nous conservons ce que la loi exige : les factures pendant la durée légale et une empreinte de votre adresse e-mail pour ne plus jamais vous envoyer de marketing.",
+        "erase_confirm_label": "Tapez {word} pour confirmer",
+        "erase_confirm_word": "SUPPRIMER",
+        "erase_button": "Supprimer mon compte",
+        "erase_scheduled": "Votre compte sera supprimé le {date}.",
+        "cancel_erasure": "Annuler la suppression",
+        "restrict_title": "Limiter l’utilisation de mes données",
+        "restrict_body": "Nous n’utilisons plus vos données pour le marketing et l’analyse. Vos réservations, paiements et factures continuent.",
+        "restrict_button": "Limiter l’utilisation",
+        "object_title": "S’opposer au marketing",
+        "object_body": "Vous ne recevez plus de newsletters ni de messages marketing. Vous pouvez toujours réserver et recevoir les messages de service.",
+        "object_button": "Arrêter le marketing",
+        "rectify_title": "Demander une correction",
+        "rectify_body": "Choisissez ce qui est inexact. Notre équipe vous contacte pour le corriger.",
+        "rectify_button": "Envoyer la demande",
+        "requests_title": "Vos demandes",
+        "empty": "Vous n’avez aucune demande en cours",
+        "preference_centre": "Choisissez les e-mails que vous recevez",
+        "rate_limited": "Vous avez déjà fait plusieurs demandes aujourd’hui. Réessayez demain.",
+        "wrong_word": "Tapez le mot exactement comme indiqué"
+      },
+      "readme": {
+        "title": "Vos données chez BEAM",
+        "intro": "Ce fichier contient les données personnelles que BEAM détient sur vous, en JSON (lisible par machine) et en fichiers CSV par partie de la plateforme.",
+        "purposes_title": "Pourquoi nous traitons vos données",
+        "recipients_title": "Qui reçoit vos données",
+        "retention_title": "Combien de temps nous les conservons",
+        "source_title": "D’où viennent vos données",
+        "complaint_title": "Votre droit de porter plainte",
+        "complaint_body": "Vous pouvez introduire une plainte auprès de l’{authority} : {url}",
+        "portable_note": "Les fichiers JSON sont votre copie portable (RGPD article 20).",
+        "days": "{count, plural, one {# jour} other {# jours}}",
+        "role": {
+          "database": "Hébergement de la base de données",
+          "hosting": "Hébergement de l’application",
+          "email": "Envoi des e-mails",
+          "payments": "Paiements",
+          "invoicing": "Facturation et Peppol",
+          "webinar_video": "Vidéo des webinaires",
+          "ai": "Fonctions d’IA, uniquement les champs documentés"
+        },
+        "data": {
+          "database": "Toutes les données de la plateforme",
+          "hosting": "Trafic en transit, aucune donnée client stockée",
+          "email": "Votre adresse, l’e-mail et les événements de livraison",
+          "payments": "Données de paiement",
+          "invoicing": "Données client et de facturation",
+          "webinar_video": "Données de connexion pendant le visionnage",
+          "ai": "Uniquement les champs documentés par fonction"
+        },
+        "purpose": {
+          "bookings": "Vos réservations",
+          "payments": "Paiements",
+          "invoicing": "Factures",
+          "packages_and_memberships": "Forfaits et abonnements",
+          "customer_service": "Service client",
+          "legal_obligations": "Obligations légales"
+        }
+      }
+    },
+    "retention_policy": {
+      "ops_marketing_contact": "Contacts marketing sans achat",
+      "ops_marketing_profile": "Profils clients sans activité",
+      "forms_form_sensitive_answers": "Réponses sensibles aux évaluations",
+      "forms_form_submissions": "Réponses aux formulaires",
+      "webinar_watch_segments": "Temps de visionnage des webinaires",
+      "webinar_webinar_interactions": "Chat et sondages des webinaires",
+      "webinar_webinar_registrations": "Inscriptions aux webinaires",
+      "finance_invoices": "Factures",
+      "finance_invoice_requests": "Demandes de facture",
+      "finance_billit_reconcile_runs": "Rapprochements Billit",
+      "finance_finance_exports": "Exports pour le comptable",
+      "crm_declarations_superseded": "Déclarations remplacées",
+      "automation_automation_runs": "Historique des automatisations",
+      "automation_automation_enrolments": "Inscriptions aux automatisations terminées",
+      "crm_duplicate_candidates_closed": "Contrôles de doublons clôturés",
+      "crm_tasks_closed": "Tâches clôturées",
+      "crm_inbox_resolved": "Conversations de la boîte de réception résolues",
+      "platform_audit_log": "Journal d’audit",
+      "platform_ai_requests": "Requêtes d’IA",
+      "platform_webhook_events": "Webhooks des prestataires",
+      "platform_integration_calls": "Journaux d’intégration",
+      "platform_jobs": "Tâches en arrière-plan",
+      "ops_import_rows": "Lignes d’importation",
+      "platform_files_export": "Fichiers d’export",
+      "platform_files_rendered_email": "Copies des e-mails envoyés",
+      "ops_nl_questions": "Questions posées à l’IA",
+      "ops_data_exports": "Exports de données",
+      "ops_retention_lists": "Listes de fidélisation hebdomadaires",
+      "ops_privacy_requests": "Demandes de confidentialité",
+      "crm_suppressions": "Empreintes des désinscriptions",
+      "crm_consent_records": "Historique des consentements"
+    },
+    "dpia": {
+      "sensitive_assessment_processing": {
+        "title": "Traitement des évaluations sensibles",
+        "description": "Réponses santé et bien-être des évaluations et leur utilisation par l’IA"
+      },
+      "behavioural_scoring": {
+        "title": "Score comportemental automatisé",
+        "description": "Indicateurs de départ et de rachat et scores d’opportunité"
+      },
+      "ai_customer_ranking": {
+        "title": "Classement des clients par l’IA",
+        "description": "Questions à l’IA qui classent les clients"
+      },
+      "watch_time_profiling": {
+        "title": "Profilage du temps de visionnage",
+        "description": "Temps de visionnage des webinaires dans les segments et parcours comportementaux"
+      },
+      "b2b_prospecting": {
+        "title": "Prospection B2B avancée",
+        "description": "Non utilisé dans cette version"
+      },
+      "voice_ai": {
+        "title": "IA vocale",
+        "description": "Non utilisé dans cette version"
+      },
+      "register_title": "Registre des AIPD",
+      "gates": "Conditionne : {features}",
+      "decision_note_required": "Une note de décision est obligatoire",
+      "status": {
+        "not_started": "Non commencée",
+        "in_progress": "En cours",
+        "approved": "Approuvée",
+        "rejected": "Rejetée",
+        "not_required": "Non requise"
+      }
+    },
+    "digest": {
+      "title": "Résumé quotidien BEAM du {date}",
+      "email": "E-mail : {sent} envoyés, {bounced} rejetés, {complained} plaintes, taux de rejet {rate}",
+      "blocked_translation": "Bloqués faute de traduction : {count}",
+      "automation": "Automatisations : {failed} exécutions échouées, {skipped} traductions ignorées, {stuck} inscriptions bloquées, retard {lag}",
+      "payments": "Paiements échoués : {count}",
+      "privacy": "Demandes de confidentialité proches de l’échéance : {due}, à suivre manuellement : {manual}",
+      "imports": "Importations : {done} terminées, {failed} échouées",
+      "no_handler": "Durées de conservation sans gestionnaire : {keys}",
+      "segments": "Erreurs d’actualisation des segments : {count}",
+      "forms": "Formulaires : {completions} complétés, {starts} commencés, {import_failures} importations échouées, {broken_ctas} appels à l’action cassés",
+      "check_form": "Vérifier le formulaire {slug} : {views} vues, 0 complété",
+      "booking": "Réservations : générées jusqu’au {date}, {offers} offres en retard, {reservations} réservations en retard, {unsent} confirmations non envoyées",
+      "webinars": "Webinaires dans les 48 prochaines heures : {count}",
+      "ads": "Données publicitaires au {date}",
+      "unavailable": "{section} : indisponible"
+    },
+    "email": {
+      "privacy_export_ready": {
+        "subject": "Vos données sont prêtes à être téléchargées",
+        "heading": "Votre export de données est prêt",
+        "body": "Vous avez demandé une copie de vos données. Connectez-vous à votre compte pour la télécharger. Le téléchargement reste disponible jusqu’au {date}.",
+        "button": "Télécharger mes données",
+        "footer": "Vous n’avez rien demandé ? Contactez-nous immédiatement."
+      },
+      "privacy_erasure_scheduled": {
+        "subject": "Votre compte va être supprimé",
+        "heading": "Nous allons supprimer votre compte",
+        "body": "Votre compte et vos données personnelles seront supprimés le {date}. D’ici là, vous pouvez annuler depuis votre compte.",
+        "retained": "Nous conservons les factures pendant la durée légale et une empreinte de votre adresse e-mail, afin que vous ne receviez plus jamais de marketing.",
+        "button": "Annuler la suppression"
+      }
     }
   }
 }

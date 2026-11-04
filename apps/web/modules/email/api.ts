@@ -7,6 +7,12 @@
  * `email:<message_id>`, lane fast, priority 1, `run_at = sendAt`) in the caller's transaction,
  * and never calls Resend. `context` is stored and ignored in Wave 0 (merge fields are email's
  * Wave 1 work). Every other function is a stub that throws `NotImplementedError('email.<fn>')`.
+ *
+ * email-P1 completed the list with every function of email spec sections 4 and 10 that another
+ * module calls, with its final signature (03-build-order rule 1). Later email packages replace the
+ * stub bodies (email-P3 sending and reachability, email-P5 templates, email-P6 campaigns, email-P7
+ * history and stats, email-P8 `findLatestMessage`, email-P9 attribution); `PersonEmailHistory`
+ * moves to `./ui/PersonEmailHistory` when email-P7 builds it, and this stand-in throws until then.
  */
 import type { DbOrTx, Tx } from "@beam/db";
 import { emailMessages, persons } from "@beam/db/schema";
@@ -68,6 +74,7 @@ export async function sendTransactional(ctx: Ctx, input: SendTransactionalInput)
         personId: input.personId ?? null,
         toEmail: to,
         kind: "transactional",
+        fromDomain: "mail.beam.be",
         locale: input.locale,
         props: input.data,
         context: input.context ?? null,
@@ -185,4 +192,9 @@ export function getCampaignAttribution(
   _input: { from: Date; to: Date },
 ): Promise<{ campaignId: string | null; automationId: string | null; name: string; orders: number; revenueCents: number; firstPurchases: number }[]> {
   return notYet("getCampaignAttribution");
+}
+
+/** Server component rendered by crm as the "Emails" tab of `/admin/persons/[id]` (stand-in until email-P7). */
+export function PersonEmailHistory(_props: { personId: string }): never {
+  throw new NotImplementedError("email.PersonEmailHistory");
 }

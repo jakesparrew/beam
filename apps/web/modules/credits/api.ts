@@ -1,112 +1,86 @@
 /**
  * credits' cross-module door (02-data-model section 6.5, credits spec section 4). Every function
- * another module calls, with its final signature (Wave 0 stubs by platform-P7, completed by
- * credits-P1): each throws `NotImplementedError('credits.<fn>')` until the credits package that
- * lands it (P3 ledger, P4 memberships, P5 merge, P8 sharing review). The three R3 referral hooks
- * that V1 code calls at runtime return `null` or nothing until credits-P9.
+ * another module calls, with its final signature. credits-P3 implements the ledger functions
+ * (`consumeCredits`, `releaseCredits`, `checkCredits`, `grantCredits`, `getGrantUsage`,
+ * `revokeGrantRemainder`, `getEuroBalance`, `importGrant`, `getPersonCreditSummary`,
+ * `getCreditLiabilityAsOf`) on `server/ledger.ts`; the others still throw
+ * `NotImplementedError('credits.<fn>')` until the package that lands them (P4 memberships, P5 merge,
+ * P8 sharing review). The three R3 referral hooks that V1 code calls at runtime return `null` or
+ * nothing until credits-P9. Every write function runs in the caller's transaction.
  */
 import type { DbOrTx, Tx } from "@beam/db";
 import { NotImplementedError } from "@beam/core/errors";
 import type { LocalizedText } from "@beam/core/i18n";
-import type { AllocationResult, CreditKind, GrantSharing, ReleaseReason, SharingReviewRow } from "@beam/core/credits";
-import { ConflictError, type Ctx } from "@/lib/ctx";
+import type { AllocationResult, CreditKind, ReleaseReason, SharingReviewRow } from "@beam/core/credits";
+import type { Ctx } from "@/lib/ctx";
+import * as ledger from "./server/ledger";
 
 export type { AllocationResult, CreditKind, GrantSharing, ReleaseReason } from "@beam/core/credits";
+export { InsufficientCreditsError, SharingNotAllowedError, type GrantCreditsInput } from "./server/ledger";
 
 const notYet = <T>(fn: string): Promise<T> => Promise.reject(new NotImplementedError(`credits.${fn}`));
 
-export class InsufficientCreditsError extends ConflictError {
-  override readonly name: string = "InsufficientCreditsError";
-  constructor(
-    readonly kind: CreditKind,
-    readonly needed: number,
-    readonly available: number,
-    readonly reason: "insufficient" | "guest_limit" | "not_shareable" | "share_limit" = "insufficient",
-  ) {
-    super(`insufficient_credits: ${reason}`);
-  }
-}
-
-/** Booking R55: reason `guest_limit`, `not_shareable` or `share_limit`. */
-export class SharingNotAllowedError extends InsufficientCreditsError {
-  override readonly name: string = "SharingNotAllowedError";
-}
-
-export type GrantCreditsInput = {
-  personId: string;
-  kind: CreditKind;
-  units: number;
-  source: "purchase" | "voucher" | "bonus" | "manual" | "import" | "referral";
-  productId?: string;
-  orderLineId?: string;
-  lineUnitIndex?: number;
-  voucherId?: string;
-  refundId?: string;
-  unitValueCents?: number;
-  vatRatePct?: number | null;
-  sharing?: GrantSharing;
-  label?: LocalizedText;
-  startsAt?: Date;
-  expiresAt: Date | null;
-  reason?: string;
-  /** The full idempotency key, e.g. `grant:order_line:<id>:<n>`, `grant:voucher:<id>`. */
-  key: string;
-  data?: { original_units?: number; legacy_source?: string; legacy_id?: string; import_id?: string };
-};
-
 // booking and commerce ------------------------------------------------------------------
 
+/**
+ * booking (kind day | night, ref booking, `validAt` = session start) and commerce (kind euro, ref
+ * order, `personId = beneficiaryPersonId` = the buyer). Throws `InsufficientCreditsError` or
+ * `SharingNotAllowedError` (both `conflict`); a retried ref returns its existing entries.
+ */
 export function consumeCredits(
-  _tx: Tx,
-  _ctx: Ctx,
-  _input: { personId: string; beneficiaryPersonId: string; kind: CreditKind; units: number; ref: { type: "booking" | "order"; id: string }; validAt?: Date },
+  tx: Tx,
+  ctx: Ctx,
+  input: { personId: string; beneficiaryPersonId: string; kind: CreditKind; units: number; ref: { type: "booking" | "order"; id: string }; validAt?: Date },
 ): Promise<{ entries: { entryId: string; grantId: string; quantity: number }[]; remainingUnits: number }> {
-  return notYet("consumeCredits");
+  return ledger.consumeCredits(tx, ctx, input);
 }
 
+/** Gives back every unreleased consume of a booking or order (rules 20, 24 to 26). */
 export function releaseCredits(
-  _tx: Tx,
-  _ctx: Ctx,
-  _input: { ref: { type: "booking" | "order"; id: string }; reason: ReleaseReason },
+  tx: Tx,
+  ctx: Ctx,
+  input: { ref: { type: "booking" | "order"; id: string }; reason: ReleaseReason },
 ): Promise<{ releasedUnits: number }> {
-  return notYet("releaseCredits");
+  return ledger.releaseCredits(tx, ctx, input);
 }
 
+/** No locks; for UI pre-checks only. */
 export function checkCredits(
-  _db: DbOrTx,
-  _input: { personId: string; beneficiaryPersonId: string; kind: CreditKind; units: number; validAt: Date },
+  db: DbOrTx,
+  input: { personId: string; beneficiaryPersonId: string; kind: CreditKind; units: number; validAt: Date },
 ): Promise<AllocationResult> {
-  return notYet("checkCredits");
+  return ledger.checkCredits(db, input);
 }
 
 // commerce: paid, refund and redemption transactions ------------------------------------
 
-export function grantCredits(_tx: Tx, _ctx: Ctx, _input: GrantCreditsInput): Promise<{ grantId: string; created: boolean }> {
-  return notYet("grantCredits");
+/** One grant per call (purchases: one per unit of the line); idempotent per `key`. */
+export function grantCredits(tx: Tx, ctx: Ctx, input: ledger.GrantCreditsInput): Promise<{ grantId: string; created: boolean }> {
+  return ledger.grantCredits(tx, ctx, input);
 }
 
 export function getGrantUsage(
-  _db: DbOrTx,
-  _orderLineId: string,
+  db: DbOrTx,
+  orderLineId: string,
 ): Promise<{
   grants: { grantId: string; unitsGranted: number; usedUnits: number; remainingUnits: number; status: "active" | "exhausted" | "expired" | "revoked"; unitValueCents: number }[];
 }> {
-  return notYet("getGrantUsage");
+  return ledger.getGrantUsage(db, orderLineId);
 }
 
 export function revokeGrantRemainder(
-  _tx: Tx,
-  _ctx: Ctx,
-  _input: { orderLineId: string; grantIds?: string[]; refundId?: string; reason: string },
+  tx: Tx,
+  ctx: Ctx,
+  input: { orderLineId: string; grantIds?: string[]; refundId?: string; reason: string },
 ): Promise<{ revokedUnits: number; grants: { grantId: string; revokedUnits: number }[] }> {
-  return notYet("revokeGrantRemainder");
+  return ledger.revokeGrantRemainder(tx, ctx, input);
 }
 
 export function getEuroBalance(
-  _db: DbOrTx,
-  _personId: string,
+  db: DbOrTx,
+  personId: string,
 ): Promise<{ remainingCents: number; grants: { grantId: string; remainingCents: number; expiresAt: Date | null }[] }> {
-  return notYet("getEuroBalance");
+  return ledger.getEuroBalance(db, personId);
 }
 
 export function activateMembership(
@@ -162,10 +136,11 @@ export function canStartMembership(
 
 // ops, crm, site, booking, finance ---------------------------------------------------------
 
+/** Key stored as `grant:<idempotencyKey>` (ops passes `import:<import_id>:row:<row_number>`). */
 export function importGrant(
-  _tx: Tx,
-  _ctx: Ctx,
-  _input: {
+  tx: Tx,
+  ctx: Ctx,
+  input: {
     personId: string;
     productId: string | null;
     creditKind: CreditKind;
@@ -177,7 +152,7 @@ export function importGrant(
     legacyId?: string;
   },
 ): Promise<{ grantId: string; created: boolean }> {
-  return notYet("importGrant");
+  return ledger.importGrant(tx, ctx, input);
 }
 
 export function importMembership(
@@ -197,15 +172,15 @@ export function importMembership(
 }
 
 export function getPersonCreditSummary(
-  _db: DbOrTx,
-  _personId: string,
+  db: DbOrTx,
+  personId: string,
 ): Promise<{
   byKind: { kind: CreditKind; remainingUnits: number; nextExpiresAt: Date | null }[];
   membership: { id: string; status: string; periodEndAt: Date; planName: LocalizedText } | null;
   status: "lead" | "customer" | "member";
   derivedStatus: "lead" | "customer" | "member";
 }> {
-  return notYet("getPersonCreditSummary");
+  return ledger.getPersonCreditSummary(db, personId);
 }
 
 export function getMembershipSummary(
@@ -215,11 +190,12 @@ export function getMembershipSummary(
   return notYet("getMembershipSummary");
 }
 
+/** Finance month close (D29): the liability as it stood at `at`. */
 export function getCreditLiabilityAsOf(
-  _db: DbOrTx,
-  _at: Date,
+  db: DbOrTx,
+  at: Date,
 ): Promise<{ kind: CreditKind; vatTreatment: string; vatRatePct: number | null; remainingUnits: number; remainingValueCents: number }[]> {
-  return notYet("getCreditLiabilityAsOf");
+  return ledger.getCreditLiabilityAsOf(db, at);
 }
 
 export function onPersonsMerged(_tx: Tx, _ctx: Ctx, _input: { winnerPersonId: string; loserPersonId: string }): Promise<void> {

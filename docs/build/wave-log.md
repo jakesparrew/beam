@@ -63,3 +63,13 @@ One entry per merge batch and gate (runbook section 5.7, adapted by OD-3).
 - Started forms-P1 (attempt 2), email-P1 (attempt 2: privacy registration, deferred FK, review finding on `email_messages.rendered_file_id`), credits-P3, crm-P2 from `4ce9b47`.
 - site-P1: 42 min, merged as `4219fa2`, migrations 0013_w04.sql 0014_w04_views.sql 0015_w04_protect.sql; gate `g21-site-P1` (merge) green, peak 7167 MB.
 - forms-P1: 26 min, merged as `f721080`, migrations 0016_w04.sql 0017_w04_views.sql; gate `g22-forms-P1` (merge) green, peak 4668 MB.
+- 01:06 UTC: started fix-w04-platform-3 (frozen platform tests and factories), platform-P8 (admin screens; also the module nav requests) and finance-P1 from `11fffe1`. fix-w04-platform-4 (27 review findings) runs after platform-P8 and the fixer land.
+- email-P1: merged as `77efa64` in batch `g23-batch`.
+- automation-P1: merged as `ae87a59` in batch `g23-batch`.
+- Batch `g23-batch` (email-P1 automation-P1): migrations 0018_w04.sql 0019_w04_views.sql 0020_w04_protect.sql; merge gate green, peak 6616 MB.
+- ops-P1: 44 min, merged as `4705b59`, migrations 0021_w04.sql 0022_w04_protect.sql; gate `g24-ops-P1` (merge) green, peak 6764 MB.
+- fix-w04-platform-3: merged as `f2e4b0a` in batch `g25-batch`.
+- crm-P2: merged as `f935750` in batch `g25-batch`.
+- credits-P3: merged as `8be7a14` in batch `g25-batch`.
+- Batch `g25-batch` (fix-w04-platform-3 crm-P2 credits-P3): merge gate green, peak 3823 MB.
+- 01:34 UTC: started fix-w05-schema-1 (deferred FKs and checks for booking, commerce, ops, site, automation; activates booking and ops schedules) from `9a4438b`.

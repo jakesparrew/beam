@@ -135,7 +135,7 @@ describe("GET /admin/reports/[report]/csv (reports.read, audited)", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toContain("text/csv");
     expect(res.headers.get("cache-control")).toContain("no-store");
-    const text = (await res.text()).replace(/^﻿/, "");
+    const text = (await res.text()).replace(/^\uFEFF/, "");
     const lines = text.trim().split(/\r?\n/);
     expect(lines[0]).toContain("day");
     expect(lines[0]).toContain("net_cents");
@@ -151,6 +151,6 @@ describe("GET /admin/reports/[report]/csv (reports.read, audited)", () => {
     await asStaff(["reports.read"]);
     const res = await csv("liability");
     expect(res.status).toBe(200);
-    expect((await res.text()).replace(/^﻿/, "")).toMatch(/^as_of[,;]credit_kind/);
+    expect((await res.text()).replace(/^\uFEFF/, "")).toMatch(/^as_of[,;]credit_kind/);
   });
 });

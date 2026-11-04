@@ -31,7 +31,7 @@ export async function computeCreditLiability(db: DbOrTx, input: { at?: Date; now
   const past = input.at !== undefined && brusselsDate(input.at) < brusselsDate(input.now) && input.at < input.now;
   let rows: LiabilityRow[];
   if (past) {
-    rows = (await getCreditLiabilityAsOf(db, input.at!)).map((r) => ({ ...r, kind: r.kind as CreditKind }));
+    rows = await getCreditLiabilityAsOf(db, input.at!);
   } else {
     const view = await db
       .select({
@@ -44,7 +44,7 @@ export async function computeCreditLiability(db: DbOrTx, input: { at?: Date; now
       .from(vCreditLiability)
       .orderBy(asc(vCreditLiability.creditKind), asc(vCreditLiability.vatTreatment), asc(vCreditLiability.vatRatePct));
     rows = view.map((r) => ({
-      kind: r.kind as CreditKind,
+      kind: r.kind,
       vatTreatment: String(r.vatTreatment),
       vatRatePct: r.vatRatePct === null ? null : Number(r.vatRatePct),
       remainingUnits: Number(r.remainingUnits),

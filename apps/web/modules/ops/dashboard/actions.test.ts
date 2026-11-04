@@ -6,15 +6,16 @@
  * the next business day at 10:00 Brussels (booking hours, closed days, Belgian holidays), and two
  * concurrent clicks returning one task.
  */
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import type { DbHandle, Tx } from "@beam/db";
 import { sessionExceptions, tasks } from "@beam/db/schema";
 import { t } from "@beam/core/i18n";
 import { createTestDb, makeUser } from "@beam/db/testing";
+import type * as CrmApi from "@/modules/crm/api";
 
-const crm = vi.hoisted(() => ({ createTask: undefined as unknown as ReturnType<typeof vi.fn> }));
+const crm = vi.hoisted(() => ({ createTask: undefined as unknown as Mock<typeof CrmApi.createTask> }));
 vi.mock("@/modules/crm/api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/modules/crm/api")>();
+  const actual = await importOriginal<typeof CrmApi>();
   crm.createTask = vi.fn(actual.createTask);
   return { ...actual, createTask: crm.createTask };
 });

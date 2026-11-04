@@ -247,8 +247,9 @@ function normalise(v: unknown): string | number | null {
   if (v === null || v === undefined) return null;
   if (typeof v === "number" || typeof v === "string") return v;
   if (v instanceof Date) return v.toISOString();
-  if (typeof v === "object" && v && "en" in v) return String((v as Record<string, unknown>).en);
-  return String(v);
+  if (typeof v === "object" && "en" in v) return String((v as Record<string, unknown>).en);
+  if (typeof v === "object") return JSON.stringify(v);
+  return typeof v === "boolean" || typeof v === "bigint" ? String(v) : null;
 }
 
 // ---------------------------------------------------------------------------------------------

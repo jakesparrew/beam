@@ -785,14 +785,16 @@
       "mergedAt": "2026-11-04T09:25:07Z"
     },
     "commerce-P6": {
-      "status": "done",
+      "status": "merged",
       "attempts": 3,
       "baseSha": "9430fed",
       "runId": "wf_9aeed5b9-948",
       "startedAt": "2026-11-04T16:37:09Z",
       "branchSha": "130cc76",
-      "endedAt": "2026-11-04T17:50:09Z",
-      "minutes": 14
+      "endedAt": "2026-11-04T17:54:49Z",
+      "minutes": 14,
+      "mergeSha": "eb0ef6e",
+      "mergedAt": "2026-11-04T18:09:07Z"
     },
     "finance-P6": {
       "status": "merged",
@@ -835,14 +837,16 @@
       "attempts": 0
     },
     "ops-P5": {
-      "status": "done",
+      "status": "merged",
       "attempts": 2,
       "baseSha": "cc11b30",
       "runId": "wf_08b979a8-bd8",
       "startedAt": "2026-11-04T16:37:09Z",
       "branchSha": "f82d94c",
-      "endedAt": "2026-11-04T17:50:09Z",
-      "minutes": 58
+      "endedAt": "2026-11-04T17:54:49Z",
+      "minutes": 58,
+      "mergeSha": "2e397bd",
+      "mergedAt": "2026-11-04T18:09:14Z"
     },
     "platform-P11a": {
       "status": "pending",
@@ -857,14 +861,16 @@
       "attempts": 0
     },
     "webinar-P1": {
-      "status": "done",
+      "status": "merged",
       "attempts": 3,
       "baseSha": "cc11b30",
       "runId": "wf_d9a61077-6eb",
       "startedAt": "2026-11-04T16:37:09Z",
       "branchSha": "44f66de",
-      "endedAt": "2026-11-04T17:50:09Z",
-      "minutes": 38
+      "endedAt": "2026-11-04T17:54:49Z",
+      "minutes": 38,
+      "mergeSha": "754228a",
+      "mergedAt": "2026-11-04T18:09:17Z"
     },
     "booking-P7": {
       "status": "pending",
@@ -931,14 +937,16 @@
       "attempts": 0
     },
     "platform-P9": {
-      "status": "done",
+      "status": "merged",
       "attempts": 2,
       "baseSha": "cc11b30",
       "runId": "wf_18c86dc0-afb",
       "startedAt": "2026-11-04T16:37:09Z",
       "branchSha": "74660ad",
-      "endedAt": "2026-11-04T17:49:02Z",
-      "minutes": 22
+      "endedAt": "2026-11-04T17:54:49Z",
+      "minutes": 22,
+      "mergeSha": "",
+      "mergedAt": "2026-11-04T18:09:09Z"
     },
     "crm-P8": {
       "status": "pending",
@@ -1494,7 +1502,7 @@
       "mergedAt": "2026-11-04T17:37:00Z"
     },
     "fix-w09-commerce-1": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "fixer": true,
       "module": "commerce",
@@ -1512,8 +1520,10 @@
       "runId": "wf_fad49161-545",
       "startedAt": "2026-11-04T16:59:40Z",
       "branchSha": "a1589fd",
-      "endedAt": "2026-11-04T17:50:09Z",
-      "minutes": 12
+      "endedAt": "2026-11-04T17:54:49Z",
+      "minutes": 12,
+      "mergeSha": "e8aed3c",
+      "mergedAt": "2026-11-04T18:09:12Z"
     },
     "fix-w09-crm-review": {
       "status": "pending",

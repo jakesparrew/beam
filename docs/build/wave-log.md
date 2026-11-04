@@ -153,3 +153,9 @@ One entry per merge batch and gate (runbook section 5.7, adapted by OD-3).
 - automation-P4: 48 min, merged as `8904915`; gate `g65-automation-P4` (merge) green, peak 6028 MB.
 - site-P6: 27 min, merged as `d314bcf`; gate `g66-site-P6` (merge) green, peak 2604 MB.
 - fix-w08-booking-2: 8 min, merged as `a7b0b45`; gate `g67-fix-w08-booking-2` (merge) green, peak 2413 MB.
+- commerce-P6: merged as `eb0ef6e` in batch `g72-batch`.
+- platform-P9: merged as `` in batch `g72-batch`.
+- fix-w09-commerce-1: merged as `e8aed3c` in batch `g72-batch`.
+- ops-P5: merged as `2e397bd` in batch `g72-batch`.
+- webinar-P1: merged as `754228a` in batch `g72-batch`.
+- Batch `g72-batch` (commerce-P6 platform-P9 fix-w09-commerce-1 ops-P5 webinar-P1): migrations 0030_w19.sql 0031_w19_views.sql 0032_w19_protect.sql; merge gate green, peak 5156 MB.

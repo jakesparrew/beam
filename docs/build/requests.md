@@ -53,6 +53,8 @@ to "Served" with the package id.
 | automation-P2 | crm (person merge, crm-P4) | The person merge calls `automation.exitPersonEnrolments(tx, { personId: loser, reason: 'merged', actor })` inside its own transaction (A-21). |
 | ops-P2 | ops-P7 | Add the R2 webinar columns and the `webinars_registered_total` and `webinars_attended_total` sums to `v_person_profile` in `ops.views.ts`, with their `ops.views.test.ts` cases. |
 | orchestrator | finance-P4 | `packages/integrations/src/_shared/platform-p3.shared.test.ts` (line ~69) pins the Billit client stub (`NotImplementedError`); finance-P4 implements the real client, so it also owns that test (granted as extraOwns at launch) and replaces the stub assertion with the client's real contract. |
+| email-P3 | site-P5 | Implement `getLegalLinks`; email footers carry no privacy or terms links until it exists (email handles the `NotImplementedError`). |
+| email-P3 | automation (the package that implements `requestSuppressionExit`) | `crm.addSuppression` calls `automation.requestSuppressionExit` from email's hard-bounce, complaint and soft-bounce handling; it still throws. |
 
 ## Served
 

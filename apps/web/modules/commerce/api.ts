@@ -24,10 +24,17 @@ import type {
   Quote,
 } from "@beam/core/commerce";
 import type { Ctx } from "@/lib/ctx";
-import * as catalogue from "./server/catalogue";
-import * as orders from "./server/orders";
 import type { CreateOrderInput, CreateOrderResult } from "./server/orders";
-import * as payments from "./server/payments";
+
+/**
+ * The catalogue, order and payment services are loaded on first call: they import booking, credits, crm,
+ * email, finance and site, whose import graphs reach booking, and booking imports this file. A
+ * static import would close that cycle while this module is still evaluating (and would hand
+ * the real functions to a module that a test mocks this file for).
+ */
+const catalogueService = () => import("./server/catalogue");
+const orderService = () => import("./server/orders");
+const paymentService = () => import("./server/payments");
 
 export { quote } from "@beam/core/commerce";
 export type {
@@ -55,7 +62,7 @@ export function getQuote(
   db: DbOrTx,
   args: { personId: string | null; companyId?: string | null; items: CartItem[]; promoCode?: string | null; channel: OrderChannel; at?: Date },
 ): Promise<Quote> {
-  return catalogue.getQuote(db, args);
+  return catalogueService().then((m) => m.getQuote(db, args));
 }
 
 /**
@@ -64,16 +71,16 @@ export function getQuote(
  * `order_lines.data.booking_ids` and booking is never called (rule 21, cross-module D21).
  */
 export function createOrder(tx: Tx, ctx: Ctx, input: CreateOrderInput): Promise<CreateOrderResult> {
-  return orders.createOrder(tx, ctx, input);
+  return orderService().then((m) => m.createOrder(tx, ctx, input));
 }
 
 /** Inline `payments.create`; `redirectUrl` = the provider page, or the return page when nothing is due. */
 export function startPayment(tx: Tx, ctx: Ctx, input: { orderId: string; returnPath?: string }): Promise<{ paymentId: string | null; redirectUrl: string }> {
-  return payments.startPayment(tx, ctx, input);
+  return paymentService().then((m) => m.startPayment(tx, ctx, input));
 }
 
 export function getOrderStatus(db: DbOrTx, orderId: string): Promise<{ status: OrderStatus; paidAt: Date | null; dueCents: number }> {
-  return orders.getOrderStatus(db, orderId);
+  return orderService().then((m) => m.getOrderStatus(db, orderId));
 }
 
 export function cancelOrder(_tx: Tx, _ctx: Ctx, _input: { orderId: string; reason: string }): Promise<{ cancelled: boolean }> {
@@ -157,15 +164,15 @@ export function getPersonCommerceSummary(
   db: DbOrTx,
   personId: string,
 ): Promise<{ paidOrders: number; paidCents: number; lastPaidAt: Date | null; openOrders: number; activeVouchers: number }> {
-  return orders.getPersonCommerceSummary(db, personId);
+  return orderService().then((m) => m.getPersonCommerceSummary(db, personId));
 }
 
 export function listPersonOrders(tx: DbOrTx, personId: string, opts: { limit: number }): Promise<OrderSummary[]> {
-  return orders.listPersonOrders(tx, personId, opts);
+  return orderService().then((m) => m.listPersonOrders(tx, personId, opts));
 }
 
 export function getProductPrice(db: DbOrTx, productId: string, audience: Audience, at?: Date): Promise<{ priceVersionId: string; amountCents: number } | null> {
-  return catalogue.getProductPrice(db, productId, audience, at);
+  return catalogueService().then((m) => m.getProductPrice(db, productId, audience, at));
 }
 
 export function listPublicPrices(
@@ -186,11 +193,11 @@ export function listPublicPrices(
     isActive: boolean;
   }>
 > {
-  return catalogue.listPublicPrices(db, input);
+  return catalogueService().then((m) => m.listPublicPrices(db, input));
 }
 
 export function getProductCards(tx: DbOrTx, productIds: string[], locale: Locale): Promise<ProductCard[]> {
-  return catalogue.getProductCards(tx, productIds, locale);
+  return catalogueService().then((m) => m.getProductCards(tx, productIds, locale));
 }
 
 export function countOrdersByLanding(

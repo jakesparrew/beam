@@ -30,11 +30,17 @@ import { appUrl } from "@/lib/auth";
 import { and, eq, inArray, ne, sql, type Ctx, type DbOrTx, type JobKind, type Tx } from "@/lib/ctx";
 import { loadJobs } from "@/lib/job-runner";
 import { getSetting } from "@/lib/settings";
-import { confirmBookingsForOrder } from "@/modules/booking/api";
 import { activateMembership, applyRenewalPayment, grantCredits, onOrderPaidForReferrals } from "@/modules/credits/api";
 import { sendTransactional } from "@/modules/email/api";
 import { issueInvoice } from "@/modules/finance/api";
 import { getCustomerAccount } from "@/modules/platform/api";
+
+/**
+ * booking's api is loaded on first use: booking's own order flow imports commerce's api, so a
+ * static import would close the cycle booking -> commerce -> booking while either module is
+ * still evaluating (and would defeat the module mocks of either side's tests).
+ */
+const bookingApi = () => import("@/modules/booking/api");
 
 export type OrderRow = typeof orders.$inferSelect;
 export type OrderLineRow = typeof orderLines.$inferSelect;
@@ -225,7 +231,7 @@ export async function finalizePaidOrder(tx: Tx, ctx: Ctx, orderId: string, opts:
   let unavailableOrderLineIds: string[] = [];
   const datedLines = lines.filter((l) => (DATED_PRODUCT_KINDS as readonly string[]).includes(l.productKind));
   if (datedLines.length) {
-    const r = await confirmBookingsForOrder(tx, ctx, { orderId });
+    const r = await (await bookingApi()).confirmBookingsForOrder(tx, ctx, { orderId });
     unavailableOrderLineIds = r.unavailableOrderLineIds;
     for (const l of datedLines) {
       delivered.push({ orderLineId: l.id, productKind: l.productKind, result: unavailableOrderLineIds.includes(l.id) ? "booking_unavailable" : "booking_confirmed" });

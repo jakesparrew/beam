@@ -98,7 +98,7 @@ describe("crm audit rows (spec 7)", () => {
     ok(await actions.updatePerson({ personId: p.id, version: p.version, patch: { firstName: "Changed" } }));
     expect((await latest("person.update")).personId).toBe(p.id);
 
-    const empty = await makePerson(h.db, { acquisition: {} as never });
+    const empty = await makePerson(h.db, { acquisition: {} });
     ok(await actions.fillAcquisition({ personId: empty.id, acquisition: { source: "event" } }));
     const acq = await latest("person.acquisition");
     expect(acq.oldValue).not.toBeUndefined();

@@ -70,7 +70,7 @@ test("a sensitive note is stored encrypted and shown only as a placeholder", asy
 
 test("toAiContext and stored ai_requests never carry the sensitive answer or the note", async () => {
   const [profile] = await e2eRows<Record<string, unknown>>(sql`select * from v_person_profile where person_id = ${personId}`);
-  const context = toAiContext({ ...(profile ?? {}), free_text: FREE_TEXT, note: NOTE, sleep: "bad", medical: NOTE } as never);
+  const context = toAiContext({ ...(profile ?? {}), free_text: FREE_TEXT, note: NOTE, sleep: "bad", medical: NOTE });
   const json = JSON.stringify(context);
   expect(json).not.toContain(FREE_TEXT);
   expect(json).not.toContain(NOTE);

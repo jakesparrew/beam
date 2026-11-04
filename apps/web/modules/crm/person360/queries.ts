@@ -81,7 +81,7 @@ async function overrideConfirmed(tx: DbOrTx, personId: string, override: PersonS
     )
     .orderBy(desc(activityEvents.occurredAt), desc(activityEvents.id))
     .limit(1);
-  const data = (row?.data ?? null) as { status?: string; derived_status?: string } | null;
+  const data = (row?.data ?? null);
   return !!data && data.status === override && data.derived_status === derived;
 }
 
@@ -161,9 +161,9 @@ async function build(tx: DbOrTx, p: typeof persons.$inferSelect, now: Date): Pro
       overrideAt: p.statusOverrideAt,
       showConflictBanner,
     },
-    tags: tagRows.map((t) => ({ ...t, name: t.name as Record<string, string | undefined> })),
+    tags: tagRows.map((t) => ({ ...t, name: t.name })),
     companies: companyRows,
     reception,
-    sensitiveKeys: sensitive.map((s) => ({ key: s.key as SensitiveFieldKey, updatedAt: s.updatedAt })),
+    sensitiveKeys: sensitive.map((s) => ({ key: s.key, updatedAt: s.updatedAt })),
   };
 }

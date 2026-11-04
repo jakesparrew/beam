@@ -99,7 +99,7 @@ function crmParams(item: TimelineItem, locale: Locale, l: Lookups): Record<strin
     case "sensitive.updated":
       return { key: enumLabel(locale, "sensitive_key", d.key) };
     case "declaration.accepted":
-      return { version: String(d.document_version ?? "") };
+      return { version: typeof d.document_version === "number" ? String(d.document_version) : "" };
     case "company.contact_linked":
     case "company.contact_unlinked":
       return { company: l.contacts.get(str(d.contact_id) ?? "") ?? "—" };

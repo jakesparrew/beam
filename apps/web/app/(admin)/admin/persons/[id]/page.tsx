@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { buttonVariants } from "@beam/ui";
@@ -79,8 +80,8 @@ export default async function Person360Page({ params }: { params: Promise<{ id: 
       safePanel(() => listInvoicesForPerson(db, person.id)),
       safePanel(() => getPersonStats(db, person.id)),
       safePanel(() => listPersonEnrolments(db, person.id)),
-      safePanel(async () => await PersonEmailHistory({ personId: person.id })),
-      safePanel(async () => await PersonAutomationsPanel({ personId: person.id })),
+      safePanel(() => Promise.resolve<ReactNode>(PersonEmailHistory({ personId: person.id }))),
+      safePanel(() => Promise.resolve<ReactNode>(PersonAutomationsPanel({ personId: person.id }))),
       safePanel(() => listPersonSegments(db, person.id)),
       safePanel(() => listTasks(db, { userId: actor.userId, scope: canAllTasks ? "all" : "mine", personId: person.id, status: "open" })),
       safePanel(() => listStaffForAssignment(db, { permission: "persons.read" })),
@@ -188,11 +189,11 @@ export default async function Person360Page({ params }: { params: Promise<{ id: 
           </Link>
         ) : null}
         {canMerge ? (
-          <Link href={"/admin/persons/duplicates" as never} className={buttonVariants({ variant: "outline", size: "sm" })}>
+          <Link href={"/admin/persons/duplicates"} className={buttonVariants({ variant: "outline", size: "sm" })}>
             {a("merge_with")}
           </Link>
         ) : null}
-        <Link href={"/admin/sessions" as never} className={buttonVariants({ variant: "outline", size: "sm" })}>
+        <Link href={"/admin/sessions"} className={buttonVariants({ variant: "outline", size: "sm" })}>
           {a("book")}
         </Link>
       </nav>

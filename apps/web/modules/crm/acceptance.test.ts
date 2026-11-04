@@ -146,7 +146,7 @@ describe("crm acceptance (proposal section 12, scenarios of section 11)", () => 
     const page = await listTimeline(h.db, { personId: p.id });
     expect(JSON.stringify(page)).not.toContain(body);
     const [row] = await h.db.select().from(activityEvents).where(eq(activityEvents.personId, p.id));
-    expect(Object.keys(row!.data).sort()).toEqual(["body_enc", "key_version"]);
+    expect(Object.keys(row!.data as Record<string, unknown>).sort()).toEqual(["body_enc", "key_version"]);
   });
 
   it('V1 waitlist "the same person cannot take a second seat": an email variant is flagged as a likely duplicate (3.1, 3.28)', async () => {

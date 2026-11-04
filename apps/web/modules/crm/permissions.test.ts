@@ -136,7 +136,7 @@ describe("crm permissions (spec 7)", () => {
   });
 
   it.each(CUSTOMER_ACTIONS)("%s refuses a staff session", async (_name, call) => {
-    await signInWith(PERMISSIONS as readonly string[]);
+    await signInWith(PERMISSIONS);
     const result = await call({});
     expect(result).toMatchObject({ ok: false, error: { code: "unauthorized" } });
   });

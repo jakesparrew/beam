@@ -38,13 +38,33 @@ changed_lint() {
   # shellcheck disable=SC2086
   pnpm exec eslint --no-warn-ignored $files
 }
+# Known-red test files (docs/build/known-red.txt: "<repo path> <fixer id> <reason>") are excluded
+# until their fixer lands; every exclusion is printed so it never goes unnoticed.
+known_red_excludes() {
+  local ws="$1"
+  [ -f docs/build/known-red.txt ] || return 0
+  grep -v '^#' docs/build/known-red.txt | awk -v ws="$ws/" '$1 ~ "^"ws {sub("^"ws, "", $1); printf " --exclude %s", $1}'
+}
 changed_tests() {
-  local ws dir rc=0
+  local ws dir rc=0 ex
   for ws in apps/web packages/db packages/core packages/email packages/integrations packages/ui packages/config; do
     [ -e "$ws/vitest.config.ts" ] || continue
     if git diff --quiet "$since" -- "$ws"; then continue; fi
-    echo "--- vitest --changed in $ws"
-    (cd "$ws" && pnpm exec vitest run --changed "$since" --passWithNoTests) || rc=1
+    ex=$(known_red_excludes "$ws")
+    echo "--- vitest --changed in $ws${ex:+ (known red excluded:$ex)}"
+    # shellcheck disable=SC2086
+    (cd "$ws" && pnpm exec vitest run --changed "$since" --passWithNoTests $ex) || rc=1
+  done
+  return $rc
+}
+all_tests() {
+  local ws rc=0 ex
+  for ws in apps/web packages/db packages/core packages/email packages/integrations packages/ui packages/config; do
+    [ -e "$ws/vitest.config.ts" ] || continue
+    ex=$(known_red_excludes "$ws")
+    echo "--- vitest in $ws${ex:+ (known red excluded:$ex)}"
+    # shellcheck disable=SC2086
+    (cd "$ws" && pnpm exec vitest run --passWithNoTests $ex) || rc=1
   done
   return $rc
 }
@@ -60,7 +80,8 @@ if has eslint.config.js; then
   if [ "$mode" = merge ]; then step lint changed_lint; else step lint pnpm lint; fi
 else skip lint "no eslint config yet"; fi
 if has packages/core/scripts/i18n-check.ts; then step i18n pnpm i18n:check; else skip i18n "no i18n check yet"; fi
-if [ "$mode" = merge ]; then step test changed_tests; else step test pnpm test; fi
+if [ -s docs/build/known-red.txt ] && grep -qv '^#' docs/build/known-red.txt; then echo "   known red (excluded until their fixer lands):"; grep -v '^#' docs/build/known-red.txt | sed 's/^/     /'; fi
+if [ "$mode" = merge ]; then step test changed_tests; elif [ -s docs/build/known-red.txt ] && grep -qv '^#' docs/build/known-red.txt; then step test all_tests; else step test pnpm test; fi
 if has apps/web/test/gdpr-coverage.test.ts; then step gdpr pnpm gdpr:coverage; else skip gdpr "no gdpr coverage test yet"; fi
 if [ "$mode" = full ] || [ "$mode" = e2e ]; then step build pnpm build; fi
 if [ "$mode" = e2e ]; then

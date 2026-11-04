@@ -1,17 +1,19 @@
-import { notFound } from "next/navigation";
-import { formatDate, formatDateTime, formatMoney, localeFromSegment, URL_SEGMENT } from "@beam/core/i18n";
+import { notFound, redirect } from "next/navigation";
+import { formatDate, formatDateTime, formatMoney, localeFromSegment, t, URL_SEGMENT } from "@beam/core/i18n";
 import { requireCustomer } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
 import { translator } from "@/lib/i18n";
-import { getMyOrder, readViewer } from "@/modules/commerce/queries";
+import { withdrawOrder } from "@/modules/commerce/actions";
+import { getMyOrder, getWithdrawalPreviewFor, readViewer } from "@/modules/commerce/queries";
 import { OrderLinesTable } from "@/modules/commerce/ui/quote-lines";
 
 /**
  * `/[locale]/account/orders/[id]` (section 5.2): lines, payments, refunds and the withdrawal
  * deadline when it applies (rule 54, `#withdrawal`); a pending order links to its payment page.
- * The withdrawal action and the invoice links arrive with commerce-P6 and finance.
+ * commerce-P6: the withdrawal form (the lines the plan can refund or hand to customer service,
+ * dated services shown as exempt, a confirmation checkbox) submits `withdrawOrder`.
  */
-export default async function AccountOrderDetailPage({ params }: { params: Promise<{ locale: string; id: string }> }) {
+export default async function AccountOrderDetailPage({ params, searchParams }: { params: Promise<{ locale: string; id: string }>; searchParams: Promise<{ withdrawn?: string; error?: string }> }) {
   const { locale: segment, id } = await params;
   const locale = localeFromSegment(segment);
   if (!locale) notFound();
@@ -21,6 +23,20 @@ export default async function AccountOrderDetailPage({ params }: { params: Promi
   const order = await getMyOrder(await getAppDb(), id, { personId: (await readViewer(actor)).personId }, locale);
   if (!order) notFound();
   const withdrawalOpen = order.withdrawalOpen;
+  const sp = await searchParams;
+  const db = await getAppDb();
+  const plan = withdrawalOpen ? await getWithdrawalPreviewFor(db, order.orderId) : null;
+  const choosable = plan ? plan.lines.filter((l) => l.outcome !== "refused").map((l) => l.orderLineId) : [];
+  const here = `/${seg}/account/orders/${order.orderId}`;
+  const errorText = (code: string) => (t.has(locale, `commerce.errors.${code}`) ? tr(`commerce.errors.${code}`) : tr("commerce.common.error"));
+  const lineName = (lineId: string) => order.lines.find((l) => l.id === lineId)?.description ?? "";
+
+  async function onWithdraw(form: FormData) {
+    "use server";
+    const lineIds = choosable.filter((lineId) => form.get(`line_${lineId}`) === "on");
+    const r = await withdrawOrder({ orderId: id, lineIds });
+    redirect(`${here}?${r.ok ? "withdrawn=1" : `error=${encodeURIComponent(r.error.message)}`}#withdrawal` as never);
+  }
 
   return (
     <article aria-labelledby="order-title" className="grid max-w-3xl gap-6">
@@ -47,9 +63,55 @@ export default async function AccountOrderDetailPage({ params }: { params: Promi
         <OrderLinesTable locale={locale} lines={order.lines} totalCents={order.totalCents} />
       </section>
       {withdrawalOpen ? (
-        <p id="withdrawal" className="rounded-md border p-3">
-          {tr("commerce.my_orders.withdrawal_until", { date: formatDate(order.withdrawalUntilAt!, locale, "long") })}
-        </p>
+        <section id="withdrawal" aria-labelledby="withdrawal-title" className="grid gap-3 rounded-md border p-4">
+          <h2 id="withdrawal-title" className="text-lg font-semibold">
+            {tr("commerce.withdrawal.title")}
+          </h2>
+          <p>{tr("commerce.my_orders.withdrawal_until", { date: formatDate(order.withdrawalUntilAt!, locale, "long") })}</p>
+          <p className="text-sm">{tr("commerce.withdrawal.intro")}</p>
+          <div role="status" aria-live="polite">
+            {sp.withdrawn ? <p className="rounded-md border p-3 text-sm">{tr("commerce.withdrawal.done")}</p> : null}
+            {sp.error ? (
+              <p id="withdrawal-error" className="rounded-md border border-destructive p-3 text-sm">
+                {tr("commerce.withdrawal.failed", { message: errorText(sp.error) })}
+              </p>
+            ) : null}
+          </div>
+          {plan && choosable.length ? (
+            <form action={onWithdraw} className="grid gap-3" aria-describedby={sp.error ? "withdrawal-error" : undefined}>
+              <fieldset className="grid gap-2">
+                <legend className="sr-only">{tr("commerce.withdrawal.title")}</legend>
+                {plan.lines.map((l) => (
+                  <label key={l.orderLineId} className="flex min-h-11 items-center gap-2">
+                    {l.outcome === "refused" ? (
+                      <span aria-hidden="true" className="size-5" />
+                    ) : (
+                      <input type="checkbox" name={`line_${l.orderLineId}`} defaultChecked className="size-5" />
+                    )}
+                    <span>
+                      {lineName(l.orderLineId)}
+                      {" · "}
+                      {l.outcome === "refund"
+                        ? tr("commerce.withdrawal.line_refund", { amount: formatMoney(l.amountCents, locale) })
+                        : l.outcome === "task"
+                          ? tr("commerce.withdrawal.line_task")
+                          : l.reason === "dated_service"
+                            ? tr("commerce.withdrawal.line_dated")
+                            : tr("commerce.withdrawal.line_used")}
+                    </span>
+                  </label>
+                ))}
+              </fieldset>
+              <label className="flex min-h-11 items-center gap-2">
+                <input type="checkbox" name="confirm" required className="size-5" />
+                <span>{tr("commerce.withdrawal.confirm")}</span>
+              </label>
+              <button type="submit" className="min-h-11 w-fit rounded-md border px-5 font-medium">
+                {tr("commerce.withdrawal.submit")}
+              </button>
+            </form>
+          ) : null}
+        </section>
       ) : null}
       <section aria-labelledby="order-payments" className="grid gap-2">
         <h2 id="order-payments" className="text-lg font-semibold">

@@ -5,12 +5,31 @@
  * Later commerce packages add the order, checkout, POS and attention queries here.
  * commerce-P5: the customer reads of the shop, checkout, order payment, return and orders pages
  * (`./server/checkouts`), each filtered on the viewer (session person or signed viewer cookie).
+ * commerce-P6: the staff order reads (`listOrders`, `getOrder`), the refund and withdrawal
+ * previews, the attention feed and the pay page read (`getPayOrderByToken`).
  */
-import { orders, personPrices, persons, priceVersions, products, promotionRedemptions, promotions, users } from "@beam/db/schema";
+import {
+  activityEvents,
+  companies,
+  orderLines,
+  orders,
+  payments,
+  personPrices,
+  persons,
+  priceVersions,
+  products,
+  promotionRedemptions,
+  promotions,
+  refunds,
+  users,
+  vouchers,
+} from "@beam/db/schema";
+import type { InvoiceSummary } from "@beam/core/finance";
+import { getInvoiceForOrder } from "@/modules/finance/api";
 import type { Audience, ProductKind } from "@beam/core/commerce";
 import { priceVersionAt } from "@beam/core/commerce";
 import { messagesFor, TIME_ZONE, type Locale } from "@beam/core/i18n";
-import { and, asc, desc, eq, gt, inArray, isNull, lte, or, sql, type DbOrTx } from "@/lib/ctx";
+import { and, asc, desc, eq, gt, gte, inArray, isNull, lt, lte, or, sql, type DbOrTx, type SQL } from "@/lib/ctx";
 import { productCompleteness, toPriceVersionRow, type PersonPriceDbRow, type PriceVersionDbRow, type ProductRow } from "./server/catalogue";
 import type { PromotionDbRow } from "./server/promotions";
 
@@ -268,3 +287,159 @@ export {
   SHOP_KINDS,
 } from "./server/checkouts";
 export type { CheckoutView, CheckoutLineView, CheckoutViewer, CustomerOrderView, MyOrderRow, MyVoucherRow, ShopProduct } from "./server/checkouts";
+
+// ---------------------------------------------------------------------------
+// Staff order reads (commerce-P6, section 5.1)
+// ---------------------------------------------------------------------------
+
+export type OrderListRow = {
+  id: string;
+  reference: string;
+  createdAt: Date;
+  channel: OrderRow["channel"];
+  status: OrderRow["status"];
+  totalCents: number;
+  paidCents: number;
+  personId: string | null;
+  personName: string | null;
+  personEmail: string | null;
+  companyName: string | null;
+};
+
+type OrderRow = typeof orders.$inferSelect;
+
+export type ListOrdersInput = {
+  status?: OrderRow["status"];
+  channel?: OrderRow["channel"];
+  personId?: string;
+  from?: Date;
+  to?: Date;
+  /** Reference, email or name. */
+  q?: string;
+  /** `<created_at ISO>_<id>` of the last row of the previous page. */
+  cursor?: string;
+  limit?: number;
+};
+
+/** `listOrders(db, ...)`: keyset on `(created_at, id)` descending, 50 per page; drafts included. */
+export async function listOrders(db: DbOrTx, input: ListOrdersInput = {}): Promise<{ rows: OrderListRow[]; nextCursor: string | null }> {
+  const limit = Math.max(1, Math.min(200, input.limit ?? 50));
+  const conds: SQL[] = [];
+  if (input.status) conds.push(eq(orders.status, input.status));
+  if (input.channel) conds.push(eq(orders.channel, input.channel));
+  if (input.personId) conds.push(eq(orders.personId, input.personId));
+  if (input.from) conds.push(gte(orders.createdAt, input.from));
+  if (input.to) conds.push(lt(orders.createdAt, input.to));
+  const q = input.q?.trim();
+  if (q) {
+    const like = `%${q.replace(/[%_\\]/g, (m) => `\\${m}`)}%`;
+    conds.push(sql`(${orders.reference} ilike ${like} or ${persons.email} ilike ${like} or (coalesce(${persons.firstName}, '') || ' ' || coalesce(${persons.lastName}, '')) ilike ${like})`);
+  }
+  if (input.cursor) {
+    const [at, id] = input.cursor.split("_");
+    const when = at ? new Date(at) : null;
+    if (when && !Number.isNaN(when.getTime()) && id) conds.push(sql`(${orders.createdAt}, ${orders.id}) < (${when.toISOString()}::timestamptz, ${id}::uuid)`);
+  }
+  const rows = await db
+    .select({
+      id: orders.id,
+      reference: orders.reference,
+      createdAt: orders.createdAt,
+      channel: orders.channel,
+      status: orders.status,
+      totalCents: orders.totalCents,
+      personId: orders.personId,
+      firstName: persons.firstName,
+      lastName: persons.lastName,
+      email: persons.email,
+      companyName: companies.name,
+      paidCents: sql<number>`(select coalesce(sum(p.amount_cents), 0)::int from payments p where p.order_id = ${orders.id} and p.status in ('paid','partially_refunded','refunded'))`,
+    })
+    .from(orders)
+    .leftJoin(persons, eq(persons.id, orders.personId))
+    .leftJoin(companies, eq(companies.id, orders.companyId))
+    .where(conds.length ? and(...conds) : undefined)
+    .orderBy(desc(orders.createdAt), desc(orders.id))
+    .limit(limit + 1);
+  const page = rows.slice(0, limit).map((r) => ({
+    id: r.id,
+    reference: r.reference,
+    createdAt: r.createdAt,
+    channel: r.channel,
+    status: r.status,
+    totalCents: r.totalCents,
+    paidCents: Number(r.paidCents),
+    personId: r.personId,
+    personName: r.personId ? [r.firstName, r.lastName].filter(Boolean).join(" ") || r.email : null,
+    personEmail: r.email ?? null,
+    companyName: r.companyName ?? null,
+  }));
+  const last = page.at(-1);
+  return { rows: page, nextCursor: rows.length > limit && last ? `${last.createdAt.toISOString()}_${last.id}` : null };
+}
+
+export type OrderDetail = {
+  order: OrderRow;
+  person: { id: string; name: string; email: string | null } | null;
+  companyName: string | null;
+  lines: (typeof orderLines.$inferSelect)[];
+  payments: (typeof payments.$inferSelect)[];
+  refunds: (typeof refunds.$inferSelect)[];
+  vouchers: (typeof vouchers.$inferSelect)[];
+  invoice: InvoiceSummary | null;
+  events: { id: string; kind: string; occurredAt: Date }[];
+  paidCents: number;
+  refundedCents: number;
+  dueCents: number;
+};
+
+/** `getOrder(db, id)` with lines, payments, refunds, vouchers, the invoice and the order's timeline events. */
+export async function getOrder(db: DbOrTx, id: string): Promise<OrderDetail | null> {
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
+  const [order] = await db.select().from(orders).where(eq(orders.id, id));
+  if (!order) return null;
+  const [person] = order.personId
+    ? await db.select({ id: persons.id, firstName: persons.firstName, lastName: persons.lastName, email: persons.email }).from(persons).where(eq(persons.id, order.personId))
+    : [];
+  const [company] = order.companyId ? await db.select({ name: companies.name }).from(companies).where(eq(companies.id, order.companyId)) : [];
+  const lines = await db.select().from(orderLines).where(eq(orderLines.orderId, id)).orderBy(asc(orderLines.lineNo));
+  const pays = await db.select().from(payments).where(eq(payments.orderId, id)).orderBy(asc(payments.createdAt));
+  const refundRows = await db.select().from(refunds).where(eq(refunds.orderId, id)).orderBy(asc(refunds.createdAt));
+  const lineIds = lines.map((l) => l.id);
+  const voucherRows = lineIds.length ? await db.select().from(vouchers).where(inArray(vouchers.orderLineId, lineIds)).orderBy(asc(vouchers.createdAt)) : [];
+  const events = await db
+    .select({ id: activityEvents.id, kind: activityEvents.kind, occurredAt: activityEvents.occurredAt })
+    .from(activityEvents)
+    .where(and(eq(activityEvents.refType, "order"), eq(activityEvents.refId, id)))
+    .orderBy(desc(activityEvents.occurredAt))
+    .limit(50);
+  const paidCents = pays.filter((p) => ["paid", "partially_refunded", "refunded"].includes(p.status)).reduce((s, p) => s + p.amountCents, 0);
+  const refundedCents = pays.reduce((s, p) => s + p.refundedCents, 0);
+  return {
+    order,
+    person: person ? { id: person.id, name: [person.firstName, person.lastName].filter(Boolean).join(" ") || (person.email ?? "—"), email: person.email } : null,
+    companyName: company?.name ?? null,
+    lines,
+    payments: pays,
+    refunds: refundRows,
+    vouchers: voucherRows,
+    invoice: await getInvoiceForOrder(db, id),
+    events: events.map((e) => ({ id: String(e.id), kind: e.kind, occurredAt: e.occurredAt })),
+    paidCents,
+    refundedCents,
+    dueCents: Math.max(0, order.totalCents - paidCents),
+  };
+}
+
+export { getRefundPreview } from "./server/refunds";
+export { getWithdrawalPreview, withdrawalBlocker } from "./server/withdrawals";
+
+/** The withdrawal plan of an order by id (the customer's order page), or null without a right. */
+export async function getWithdrawalPreviewFor(db: DbOrTx, orderId: string) {
+  const [row] = await db.select().from(orders).where(eq(orders.id, orderId));
+  if (!row) return null;
+  const { getWithdrawalPreview } = await import("./server/withdrawals");
+  return getWithdrawalPreview(db, row);
+}
+export { getAttentionFeed, groupAttention, listPaymentAttention, ATTENTION_KINDS, type AttentionKind, type AttentionRow } from "./server/attention";
+export { getPayOrderByToken, type PayPageView } from "./server/payment-links";

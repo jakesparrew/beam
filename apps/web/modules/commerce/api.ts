@@ -8,8 +8,8 @@
  * `cancelOrder` and `cancelRenewalOrder` (`./server/cancel`), the renewal functions
  * (`./server/recurring`, `./server/payment-links`), `recordBankTransferPaid`
  * (`./server/bank-transfer`) and `revokeMandatesForPerson` (`./server/mandates`). `quote` is the pure core function, re-exported.
- * `redeemVoucher` is re-exported from `./actions` once commerce-P6 builds that server action
- * (actions are `export {}` until then; DM-13).
+ * commerce-P6: `refundOrderLine` (`./server/refunds`), `listPaymentAttention`
+ * (`./server/attention`) and the `redeemVoucher` server action re-exported from `./actions` (DM-13).
  */
 import type { DbOrTx, Tx } from "@beam/db";
 import { NotImplementedError } from "@beam/core/errors";
@@ -43,6 +43,8 @@ const recurringService = () => import("./server/recurring");
 const payLinkService = () => import("./server/payment-links");
 const bankTransferService = () => import("./server/bank-transfer");
 const mandateService = () => import("./server/mandates");
+const refundService = () => import("./server/refunds");
+const attentionService = () => import("./server/attention");
 
 export { quote } from "@beam/core/commerce";
 export type {
@@ -100,12 +102,17 @@ export function cancelOrder(tx: Tx, ctx: Ctx, input: { orderId: string; reason: 
   return cancelService().then((m) => m.cancelOrder(tx, ctx, input));
 }
 
+/**
+ * Rule 37a: refunds the full line, needs no staff permission, never calls booking back and is
+ * idempotent per line and reason. `staff_override` marks a staff-forced refund booking starts
+ * outside its policy, so finance can tell it from an in-policy cancellation.
+ */
 export function refundOrderLine(
-  _tx: Tx,
-  _ctx: Ctx,
-  _input: { orderLineId: string; reason: "cancelled_in_policy" | "session_cancelled" | "seat_no_longer_available" },
+  tx: Tx,
+  ctx: Ctx,
+  input: { orderLineId: string; reason: "cancelled_in_policy" | "session_cancelled" | "seat_no_longer_available" | "staff_override" },
 ): Promise<{ refundId: string | null; amountCents: number }> {
-  return notYet("refundOrderLine");
+  return refundService().then((m) => m.refundOrderLine(tx, ctx, input));
 }
 
 // credits: membership renewals ------------------------------------------------------
@@ -176,9 +183,13 @@ export function getCheckoutRecoveryProps(
 
 // ops, crm, email, site -------------------------------------------------------------------
 
-export function listPaymentAttention(_db: DbOrTx, _opts: { limit: number }): Promise<PaymentAttentionItem[]> {
-  return notYet("listPaymentAttention");
+/** The action dashboard feed (`v_payment_attention`); `reason` is the feed kind. */
+export function listPaymentAttention(db: DbOrTx, opts: { limit: number }): Promise<PaymentAttentionItem[]> {
+  return attentionService().then((m) => m.listPaymentAttention(db, opts));
 }
+
+// credits' portal packages page: the redeem field submits commerce's own server action (DM-13).
+export { redeemVoucher } from "./actions";
 
 export function getPersonCommerceSummary(
   db: DbOrTx,

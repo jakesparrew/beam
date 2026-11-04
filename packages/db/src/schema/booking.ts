@@ -22,7 +22,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { newCheckinCode } from "@beam/core/booking";
 import { orderLines, products } from "./commerce";
-import { persons } from "./crm";
+import { companies, persons } from "./crm";
 import { localized, timestamps, id, tstz } from "./_shared";
 import { files, users } from "./platform";
 
@@ -158,8 +158,7 @@ export const sessions = pgTable(
     productId: uuid().references((): AnyPgColumn => products.id),
     status: sessionsStatus().notNull().default("open"),
     eventCategory: sessionsEventCategory(),
-    // FK to companies is added once crm creates `companies` (requested in booking-P1's report).
-    partnerCompanyId: uuid(),
+    partnerCompanyId: uuid().references((): AnyPgColumn => companies.id, { onDelete: "set null" }),
     publishedAt: tstz(),
     hasManualChanges: boolean().notNull().default(false),
     isMemberOnly: boolean().notNull().default(false),
@@ -213,9 +212,8 @@ export const sessions = pgTable(
     check("sessions_seats_ck", sql`${t.kind} = 'night' or ${t.capacitySeats} is not null`),
     check("sessions_credit_cost_ck", sql`${t.creditCost} between 0 and 10`),
     check("sessions_cancelled_at_ck", sql`(${t.status} = 'cancelled') = (${t.cancelledAt} is not null)`),
-    // Only events carry a category; an event needs one before it is published (R50, enforced
-    // by `publishSession`), so drafts may still lack it.
-    check("sessions_event_category_ck", sql`${t.kind} = 'event' or ${t.eventCategory} is null`),
+    // Exactly the events carry a category (data model, `sessions` checks).
+    check("sessions_event_category_ck", sql`(${t.kind} = 'event') = (${t.eventCategory} is not null)`),
   ],
 );
 
@@ -232,8 +230,7 @@ export const capacityHolds = pgTable(
       .references(() => sessions.id, { onDelete: "cascade" }),
     kind: capacityHoldsKind().notNull(),
     quantity: integer().notNull(),
-    // FK to companies is added once crm creates `companies` (requested in booking-P1's report).
-    companyId: uuid(),
+    companyId: uuid().references((): AnyPgColumn => companies.id, { onDelete: "set null" }),
     note: text(),
     createdByUserId: uuid().references(() => users.id),
     ...timestamps(),
@@ -377,9 +374,9 @@ export const waitlistEntries = pgTable(
     sessionId: uuid()
       .notNull()
       .references(() => sessions.id),
-    // The FK to persons.id (on delete restrict) is added together with the `waitlist_entries`
-    // registration in booking's privacy.ts (booking-P6's file), so gdpr:coverage stays green.
-    personId: uuid().notNull(),
+    personId: uuid()
+      .notNull()
+      .references(() => persons.id, { onDelete: "restrict" }),
     queue: waitlistEntriesQueue().notNull().default("public"),
     state: waitlistEntriesState().notNull().default("waiting"),
     joinedAt: tstz().notNull().defaultNow(),

@@ -25,7 +25,7 @@ import {
   uuid,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
-import { orderLines, orders, priceVersions, products } from "./commerce";
+import { mandates, orderLines, orders, priceVersions, products } from "./commerce";
 import { persons } from "./crm";
 import { users } from "./platform";
 import {
@@ -198,8 +198,8 @@ export const memberships = pgTable(
     cancelRequestedAt: tstz(),
     endedAt: tstz(),
     endReason: membershipsEndReason(),
-    // The FK to commerce `mandates.id` is added once commerce has created that table.
-    mandateId: uuid(),
+    /** The SEPA mandate of a direct-debit membership; set null when the mandate row goes. */
+    mandateId: uuid().references((): AnyPgColumn => mandates.id, { onDelete: "set null" }),
     priceVersionId: uuid().references(() => priceVersions.id),
     firstOrderId: uuid().references(() => orders.id),
     renewalOrderId: uuid().references(() => orders.id),

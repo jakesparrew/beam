@@ -8,6 +8,7 @@ import { randomUUID } from "node:crypto";
 import type { Db, DbOrTx, Tx } from "@beam/db";
 import { orderLines, orders, products, settings } from "@beam/db/schema";
 import { makePerson, makeProduct, makeSession, type SessionRow } from "@beam/db/testing";
+import { ensureTermsVersion, TERMS_CHANNELS } from "@beam/db/testing/commerce-factories";
 import { DEFAULT_BOOKING_RULES, type BookingRules } from "@beam/core/booking";
 import { createCtx, eq, type Actor, type Ctx } from "@/lib/ctx";
 import type { CreateOrderInput } from "@/modules/commerce/api";
@@ -50,7 +51,8 @@ export type CreateOrderCall = CreateOrderInput;
 /**
  * A `createOrder` double: one `orders` row (`pending_payment`, `expires_at` = `input.expiresAt`
  * or now + 30 min) and one `order_lines` row per item with `data.booking_ids`; returns the line
- * ids in item order. The same `clientKey` twice returns the existing order (`isExisting`).
+ * ids in item order. A `portal`, `site` or `link` order carries the database's terms version
+ * (`ensureTermsVersion`). The same `clientKey` twice returns the existing order (`isExisting`).
  */
 export function fakeCreateOrder(calls: CreateOrderCall[] = []) {
   return async (tx: Tx, _ctx: Ctx, input: CreateOrderInput) => {
@@ -82,6 +84,8 @@ export function fakeCreateOrder(calls: CreateOrderCall[] = []) {
         locale: input.locale,
         clientKey: input.clientKey,
         expiresAt,
+        // orders_terms_chk: the real createOrder stores the accepted terms version of a portal order.
+        ...(TERMS_CHANNELS.includes(input.channel) ? { termsVersionId: (await ensureTermsVersion(tx)).id } : {}),
       })
       .returning();
     const lineIds: string[] = [];

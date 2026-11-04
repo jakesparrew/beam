@@ -8,10 +8,10 @@
  * data columns are `person_id` everywhere, `import_rows.data`, `imported_history.description`
  * and `data`, and `nl_questions.question`.
  *
- * `retention_list_items.task_id` has no FK yet: crm's `tasks` table is not in BASE (requested).
+ * `retention_list_items.task_id` references crm's `tasks` (on delete set null, fix-w05-schema-1).
  */
 import { sql } from "drizzle-orm";
-import { boolean, check, date, index, integer, jsonb, numeric, pgEnum, pgTable, smallint, text, unique, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { boolean, check, date, index, integer, jsonb, numeric, pgEnum, pgTable, smallint, text, unique, uniqueIndex, uuid, type AnyPgColumn } from "drizzle-orm/pg-core";
 import {
   B2C_STAGES,
   DATA_EXPORT_KINDS,
@@ -37,7 +37,7 @@ import {
   type PrivacyWarning,
 } from "@beam/core/ops";
 import { orders } from "./commerce";
-import { persons } from "./crm";
+import { persons, tasks } from "./crm";
 import { files, users } from "./platform";
 import { createdAt, id, timestamps, tstz } from "./_shared";
 
@@ -415,8 +415,7 @@ export const retentionListItems = pgTable(
     primaryReason: text().notNull(),
     reasons: text().array().notNull(),
     detail: jsonb().$type<Record<string, unknown>>().notNull().default({}),
-    // FK to crm `tasks.id` once crm has created `tasks` (not in BASE).
-    taskId: uuid(),
+    taskId: uuid().references((): AnyPgColumn => tasks.id, { onDelete: "set null" }),
     actionedAt: tstz(),
     actionedByUserId: uuid().references(() => users.id),
     dismissedAt: tstz(),

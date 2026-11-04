@@ -3,6 +3,7 @@
  * the append-only guard of `imported_history` and the idempotent seed, on a fresh PGlite
  * database built from the TypeScript schema.
  */
+import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { CUTOVER_STEPS, DPIA_KEYS, RETENTION_DEFAULTS } from "@beam/core/ops";
@@ -24,6 +25,7 @@ import {
   retentionLists,
   retentionPolicies,
 } from "./ops";
+import { tasks } from "./crm";
 import { files, settings } from "./platform";
 import { createTestDb, makePerson, makeUser } from "../testing";
 import { DEFAULT_SEEDS } from "../seed/index.generated";
@@ -283,5 +285,25 @@ describe("ops defaults seed", () => {
     const rows = await h.db.select().from(retentionPolicies).where(eq(retentionPolicies.key, "commerce.checkouts_test"));
     expect(rows).toHaveLength(1);
     expect(rows[0]!.runOrder).toBe(60);
+  });
+});
+
+describe("retention_list_items.task_id -> tasks (fix-w05-schema-1)", () => {
+  it("rejects an unknown task and keeps the item when its task is deleted (set null)", async () => {
+    const [list] = await h.db.insert(retentionLists).values({ weekStartOn: "2026-11-09", size: 25, thresholds: {}, generatedAt: new Date() }).returning();
+    const p = await makePerson(h.db);
+    const item = { listId: list!.id, personId: p.id, score: 70, primaryReason: "visiting_less", reasons: ["visiting_less"] };
+    const err = await pgError(h.db.insert(retentionListItems).values({ ...item, rank: 1, taskId: randomUUID() }));
+    expect(err.code, err.message).toBe("23503");
+    expect(`${err.constraint ?? ""} ${err.message}`).toContain("retention_list_items_task_id_tasks_id_fk");
+
+    const [task] = await h.db
+      .insert(tasks)
+      .values({ ownerUserId: userId, personId: p.id, title: "Call back", kind: "follow_up", source: "retention", createdBy: { kind: "job", id: null } })
+      .returning();
+    const [row] = await h.db.insert(retentionListItems).values({ ...item, rank: 1, taskId: task!.id }).returning();
+    await h.db.delete(tasks).where(eq(tasks.id, task!.id));
+    const [after] = await h.db.select().from(retentionListItems).where(eq(retentionListItems.id, row!.id));
+    expect(after!.taskId).toBeNull();
   });
 });

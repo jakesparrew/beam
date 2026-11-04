@@ -6,7 +6,7 @@ import { randomUUID } from "node:crypto";
 import { eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { DbHandle, DbOrTx } from "../client";
-import { orderLines, orders, type productsKind } from "./commerce";
+import { orderLines, type productsKind } from "./commerce";
 import { persons } from "./crm";
 import {
   vCreditGrantBalances,
@@ -17,6 +17,7 @@ import {
   vPersonStatus,
 } from "./credits.views";
 import { createTestDb, makePerson, makeProduct, makeSession } from "../testing";
+import { makeOrder as insertOrder } from "../testing/commerce-factories";
 import { makeCreditGrant, makeEntry, makeMembership } from "../testing/credits-factories";
 
 let h: DbHandle;
@@ -37,25 +38,20 @@ async function makeOrder(
 ) {
   const total = opts.totalCents ?? 5000;
   const status = opts.status ?? "paid";
-  const [order] = await db
-    .insert(orders)
-    .values({
-      personId,
-      channel: "portal",
-      status,
-      subtotalCents: total,
-      vatCents: 0,
-      totalCents: total,
-      locale: "nl-BE",
-      clientKey: randomUUID(),
-      paidAt: opts.paidAt === undefined ? (status === "pending_payment" ? null : new Date()) : opts.paidAt,
-    })
-    .returning();
+  const order = await insertOrder(db, {
+    personId,
+    channel: "portal",
+    status,
+    subtotalCents: total,
+    vatCents: 0,
+    totalCents: total,
+    paidAt: opts.paidAt === undefined ? (status === "pending_payment" ? null : new Date()) : opts.paidAt,
+  });
   for (const [i, kind] of kinds.entries()) {
     const product = await makeProduct(db, { kind });
     const amount = i === 0 ? total : 0;
     await db.insert(orderLines).values({
-      orderId: order!.id,
+      orderId: order.id,
       lineNo: i + 1,
       productId: product.id,
       sku: product.sku,
@@ -72,7 +68,7 @@ async function makeOrder(
       pricingTrace: {},
     });
   }
-  return order!;
+  return order;
 }
 
 const balance = async (grantId: string) =>

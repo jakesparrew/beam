@@ -135,9 +135,9 @@ describe("jobs.ts and schedules.ts", () => {
     }
   });
 
-  it("plans the eight schedules of spec 4.5 and registers none yet; every planned kind has a job", () => {
-    expect(schedules).toEqual([]);
-    expect(PLANNED_SCHEDULES.map((s) => `${s.kind} ${s.cron}`).sort()).toEqual(
+  it("registers the eight schedules of spec 4.5; every scheduled kind has a job", () => {
+    expect(PLANNED_SCHEDULES).toBe(schedules);
+    expect(schedules.map((s) => `${s.kind} ${s.cron}`).sort()).toEqual(
       [
         "privacy.retention_sweep 0 1 * * *",
         "ops.refresh_person_stats 0 4 * * *",
@@ -150,8 +150,8 @@ describe("jobs.ts and schedules.ts", () => {
       ].sort(),
     );
     const kinds = new Set<string>(jobs.map((j) => j.kind));
-    for (const s of PLANNED_SCHEDULES) expect(kinds.has(s.kind), s.kind).toBe(true);
-    expect(PLANNED_SCHEDULES.find((s) => s.kind === "ops.refresh_recent_stats")!.catchUp).toBe(false);
+    for (const s of schedules) expect(kinds.has(s.kind), s.kind).toBe(true);
+    expect(schedules.find((s) => s.kind === "ops.refresh_recent_stats")!.catchUp).toBe(false);
   });
 });
 

@@ -25,7 +25,7 @@ import {
 } from "drizzle-orm/pg-core";
 import type { Block, NavItem, PageSeo, SiteAuditFinding } from "@beam/core/site";
 import { sessions } from "./booking";
-import { persons } from "./crm";
+import { companies, persons } from "./crm";
 import { files, localeEnum, users } from "./platform";
 import { createdAt, id, localized, timestamps, tstz, type Locale } from "./_shared";
 
@@ -143,9 +143,8 @@ export const pages = pgTable(
     currentVersionId: uuid().references((): AnyPgColumn => pageVersions.id),
     legalKey: pagesLegalKey(),
     sessionId: uuid().references(() => sessions.id, { onDelete: "set null" }),
-    // R3. FK to `companies.id` (on delete set null) is added by the site package that next
-    // edits this file once crm has created `companies` (it does not exist in Wave 4).
-    partnerCompanyId: uuid(),
+    // R3.
+    partnerCompanyId: uuid().references((): AnyPgColumn => companies.id, { onDelete: "set null" }),
     firstPublishedAt: tstz(),
     archivedAt: tstz(),
     archivedByUserId: uuid().references(() => users.id),

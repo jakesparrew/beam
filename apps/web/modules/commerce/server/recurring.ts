@@ -18,7 +18,7 @@
 import { randomUUID } from "node:crypto";
 import { mandates, orderLines, orders, payments, persons, products } from "@beam/db/schema";
 import { newOrderReference, nextPaymentStatus, vatOf, type OnlinePaymentProvider, type PricingTrace } from "@beam/core/commerce";
-import { t, type Locale } from "@beam/core/i18n";
+import { t } from "@beam/core/i18n";
 import { IntegrationError } from "@beam/integrations/_shared";
 import type { PaymentProvider } from "@beam/integrations/payments";
 import { and, desc, eq, inArray, ConflictError, NotFoundError, type Ctx, type DbOrTx, type Tx } from "@/lib/ctx";
@@ -96,7 +96,7 @@ async function insertRenewalOrder(tx: Tx, ctx: Ctx, input: RenewalInput, channel
       discountCents: 0,
       vatCents: vat,
       totalCents: amount,
-      locale: person.locale as Locale,
+      locale: person.locale,
       clientKey: randomUUID(),
       expiresAt: new Date(brusselsMidnight(input.periodEndOn).getTime() + RENEWAL_GRACE_DAYS * 86_400_000),
       renewalMembershipId: input.membershipId,

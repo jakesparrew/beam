@@ -92,7 +92,7 @@ export const sweep: Record<string, (tx: Tx, cutoff: Date) => Promise<number>> = 
 
 const iso = (d: Date | null | undefined) => (d ? d.toISOString() : null);
 
-function csvCell(v: unknown): string {
+function csvCell(v: string | number | null | undefined): string {
   const s = v === null || v === undefined ? "" : String(v);
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }

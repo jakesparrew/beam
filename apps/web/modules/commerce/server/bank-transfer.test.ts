@@ -33,8 +33,8 @@ afterAll(async () => {
   await h.close();
 });
 beforeEach(() => {
-  issueInvoice.mockReset().mockImplementation((_tx: unknown, _ctx: unknown, input: { status?: string }) =>
-    Promise.resolve({ status: input.status === "paid" ? "existing" : "issued", invoiceId: randomUUID(), number: "BEAM-2026-000042" }),
+  issueInvoice.mockReset().mockImplementation((...a: unknown[]) =>
+    Promise.resolve({ status: (a[2] as { status?: string }).status === "paid" ? "existing" : "issued", invoiceId: randomUUID(), number: "BEAM-2026-000042" }),
   );
 });
 

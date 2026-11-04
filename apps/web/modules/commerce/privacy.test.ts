@@ -86,7 +86,7 @@ async function remainingReferences(personId: string): Promise<string[]> {
       join information_schema.key_column_usage kcu on kcu.constraint_name = tc.constraint_name and kcu.constraint_schema = tc.constraint_schema
       join information_schema.constraint_column_usage ccu on ccu.constraint_name = tc.constraint_name and ccu.constraint_schema = tc.constraint_schema
       where tc.constraint_type = 'FOREIGN KEY' and tc.table_schema = 'public' and ccu.table_name = 'persons'`),
-  ).filter((c) => (privacy.tables as readonly string[]).includes(c.table));
+  ).filter((c) => privacy.tables.includes(c.table));
   const left: string[] = [];
   for (const c of cols) {
     const n = rowsOf<{ n: number }>(await h.db.execute(sql`select count(*)::int as n from ${sql.identifier(c.table)} where ${sql.identifier(c.column)} = ${personId}::uuid`))[0]!.n;
@@ -175,7 +175,7 @@ describe("commerce privacy registration", () => {
     const person = await makePerson(h.db);
     const order = await makeOrder(h.db, { personId: person.id, channel: "portal" });
     await h.db.insert(payments).values({ orderId: order.id, provider: "mollie", providerPaymentId: `tr_live${randomUUID().slice(0, 8)}`, status: "open", amountCents: 4500 });
-    await expect(h.db.transaction((tx) => privacy.erase(tx, person.id))).rejects.toMatchObject({ message: expect.stringContaining("live_payment") });
+    await expect(h.db.transaction((tx) => privacy.erase(tx, person.id))).rejects.toThrow(/live_payment/);
     expect((await h.db.select().from(orders).where(eq(orders.id, order.id)))[0]!.personId).toBe(person.id);
   });
 

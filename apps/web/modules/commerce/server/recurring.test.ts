@@ -144,7 +144,7 @@ describe("payments.charge_recurring", () => {
     const spy = vi.spyOn(fake.payments, "createRecurringPayment");
     const key = `charge_recurring:${r.paymentId}`;
     const result = await h.db.transaction((tx) => chargeRecurringPayment(makeJobCtx(h.db, "payments.charge_recurring", { tx, integrations: fake, key }), { paymentId: r.paymentId }));
-    expect(result).toMatchObject({ providerPaymentId: expect.stringMatching(/^tr_/) });
+    expect((result as { providerPaymentId: string }).providerPaymentId).toMatch(/^tr_/);
     expect(spy).toHaveBeenCalledTimes(1);
     expect(spy.mock.calls[0]![0]).toMatchObject({
       customerId: mandate.providerCustomerId,

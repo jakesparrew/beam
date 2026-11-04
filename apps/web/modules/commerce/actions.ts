@@ -12,10 +12,13 @@
  * link, cancellation, refund, voucher and receipt actions, the customer's `withdrawOrder` and
  * `redeemVoucher`, and the pay page's `payByToken` (`./server/{staff-orders,refunds,withdrawals,
  * vouchers,payment-links}`).
+ * commerce-P7 adds the front desk: `posSell`, `posPayOrder`, `posCancelTerminal`, the terminal
+ * dialog's `pollPosPayment`, the walk-in `posCreateWalkIn`, and `closePosDay` / `reopenPosDay`
+ * (`./server/{pos,pos-day}`).
  */
 import { z } from "zod";
 import { action } from "@/lib/action";
-import { searchPersons } from "@/modules/crm/api";
+import { createPersonWithoutEmail, searchPersons } from "@/modules/crm/api";
 import { readReferralCode } from "@/modules/site/api";
 import {
   AddPriceVersionInput,
@@ -61,6 +64,8 @@ import {
 } from "./server/staff-orders";
 import { redeemVoucher as redeemVoucherRecord, resendVoucher as resendVoucherRecord, voidVoucher as voidVoucherRecord } from "./server/vouchers";
 import { withdrawOrder as withdrawOrderRecord } from "./server/withdrawals";
+import { getPosPaymentState, posCancelTerminal as posCancelTerminalRecord, posPayOrder as posPayOrderRecord, posSell as posSellRecord } from "./server/pos";
+import { closePosDay as closePosDayRecord, reopenPosDay as reopenPosDayRecord } from "./server/pos-day";
 
 export const createProduct = action(
   { name: "commerce.create_product", audience: "staff", permission: "pricing.write", input: CreateProductInput, audit: false },
@@ -335,4 +340,93 @@ export const payByToken = action(
     const out = await payByTokenRecord(ctx.tx, ctx, input);
     return { redirectUrl: out.redirectUrl };
   },
+);
+
+// ---------------------------------------------------------------------------
+// Front-desk POS and day close (commerce-P7, rules 21, 26b, 42 to 44, 55)
+// ---------------------------------------------------------------------------
+
+const PosMethod = z.enum(["terminal", "cash", "bank_transfer"]);
+const PosPaymentFields = {
+  method: PosMethod,
+  terminalId: z.string().trim().min(1).max(100).optional(),
+  cashReceivedCents: z.number().int().min(0).max(10_000_000).optional(),
+  useEuroCredit: z.boolean().default(false),
+  billingDetails: BillingDetailsInput.optional(),
+  clientKey: z.uuid(),
+};
+
+const PosSellInput = z.object({
+  personId: z.uuid().nullable().optional(),
+  items: z.array(CartItem).min(1).max(30),
+  promoCode: z.string().trim().max(40).nullable().optional(),
+  ...PosPaymentFields,
+});
+
+export const posSell = action(
+  { name: "commerce.pos_sell", audience: "staff", permission: "commerce.sell", input: PosSellInput, audit: false },
+  (ctx, input) => posSellRecord(ctx.tx, ctx, input),
+);
+
+export const posPayOrder = action(
+  { name: "commerce.pos_pay_order", audience: "staff", permission: "commerce.sell", input: z.object({ orderId: z.uuid(), ...PosPaymentFields }), audit: false },
+  (ctx, input) => posPayOrderRecord(ctx.tx, ctx, input),
+);
+
+export const posCancelTerminal = action(
+  { name: "commerce.pos_cancel_terminal", audience: "staff", permission: "commerce.sell", input: z.object({ paymentId: z.uuid() }), audit: false },
+  async (ctx, input) => {
+    await posCancelTerminalRecord(ctx.tx, ctx, input);
+    return { ok: true as const };
+  },
+);
+
+/** The terminal dialog polls this every 2 s (database only; the webhook moves the payment). */
+export const pollPosPayment = action(
+  { name: "commerce.poll_pos_payment", audience: "staff", permission: "commerce.sell", input: z.object({ paymentId: z.uuid() }), audit: false },
+  async (ctx, input) => {
+    const state = await getPosPaymentState(ctx.tx, input.paymentId);
+    if (!state) throw new ValidationError("validation", { paymentId: "not_found" });
+    return state;
+  },
+);
+
+/** A walk-in buyer known only by name (rule 42 needs a person for sessions and packages). */
+export const posCreateWalkIn = action(
+  {
+    name: "commerce.pos_create_walk_in",
+    audience: "staff",
+    permission: "commerce.sell",
+    input: z.object({ firstName: z.string().trim().min(1).max(100), lastName: z.string().trim().max(100).optional(), phone: z.string().trim().max(40).optional() }),
+    audit: false,
+  },
+  (ctx, input) =>
+    createPersonWithoutEmail(ctx.tx, ctx, {
+      firstName: input.firstName,
+      ...(input.lastName ? { lastName: input.lastName } : {}),
+      ...(input.phone ? { phone: input.phone } : {}),
+      locale: ctx.locale,
+      acquisition: { source: "walk_in" },
+    }),
+);
+
+const BusinessDay = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+
+export const closePosDay = action(
+  {
+    name: "commerce.close_pos_day",
+    audience: "staff",
+    permission: "commerce.sell",
+    input: z.object({ businessDayOn: BusinessDay, countedCashCents: z.number().int().min(0).max(10_000_000), note: z.string().trim().max(1000).optional() }),
+    audit: false,
+  },
+  async (ctx, input) => {
+    const out = await closePosDayRecord(ctx.tx, ctx, input);
+    return { differenceCents: out.differenceCents };
+  },
+);
+
+export const reopenPosDay = action(
+  { name: "commerce.reopen_pos_day", audience: "staff", permission: "commerce.refund", input: z.object({ businessDayOn: BusinessDay, reason: Reason }), audit: false },
+  (ctx, input) => reopenPosDayRecord(ctx.tx, ctx, input),
 );

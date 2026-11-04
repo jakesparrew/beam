@@ -4,7 +4,8 @@
  * with their screens (commerce-P6, commerce-P7), so no entry links to a page that does not exist.
  * An entry has one permission: the catalogue entries use `pricing.write`; staff with only
  * `commerce.sell` reach the read-only product list from the POS and order screens. commerce-P6 adds
- * the orders list and the payment attention feed (`commerce.sell`).
+ * the orders list and the payment attention feed (`commerce.sell`). commerce-P7 adds the front-desk
+ * POS and its day close (`commerce.sell`).
  */
 export const nav = [
   {
@@ -46,5 +47,25 @@ export const nav = [
     permission: "commerce.sell",
     icon: "alert-triangle",
     order: 310,
+  },
+  {
+    key: "commerce.pos",
+    area: "admin",
+    section: "sales",
+    labelKey: "commerce.nav.pos",
+    href: "/admin/pos",
+    permission: "commerce.sell",
+    icon: "shopping-cart",
+    order: 290,
+  },
+  {
+    key: "commerce.pos_day",
+    area: "admin",
+    section: "sales",
+    labelKey: "commerce.nav.pos_day",
+    href: "/admin/pos/day",
+    permission: "commerce.sell",
+    icon: "banknote",
+    order: 295,
   },
 ] as const;

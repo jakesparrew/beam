@@ -73,7 +73,8 @@ export function mergeFieldProblems(texts: readonly string[], source: MergeFieldR
   return out;
 }
 
-export type LinkUrls = { preferencesUrl: string; unsubscribeUrl: string };
+/** The message's crm links; `unsubscribeUrl` is null for transactional mail (the token falls back). */
+export type LinkUrls = { preferencesUrl: string; unsubscribeUrl: string | null };
 
 /** `APP_URL` (the public origin), without a trailing slash. */
 export function appOrigin(): string {

@@ -70,8 +70,12 @@ const exists = async (table: typeof cookieConsents | typeof termsAcceptances, id
 describe("retention sweep (ops rule 68)", () => {
   it("runs active policies by run_order; keep and inactive policies are skipped; a key without handler records no_handler", async () => {
     const calls: string[] = [];
-    const handler = (key: string) => async () => void calls.push(key) ?? 0;
-    const registry = { crm: { sweep: { "crm.t_a": async () => (await handler("crm.t_a")(), 0), "crm.t_b": async () => (await handler("crm.t_b")(), 0), "crm.t_c": async () => (await handler("crm.t_c")(), 0), "crm.t_keep": async () => (await handler("crm.t_keep")(), 0), "crm.t_off": async () => (await handler("crm.t_off")(), 0) } } };
+    const handler = (key: string) => () => {
+      calls.push(key);
+      return Promise.resolve(0);
+    };
+    const keys = ["crm.t_a", "crm.t_b", "crm.t_c", "crm.t_keep", "crm.t_off"];
+    const registry = { crm: { sweep: Object.fromEntries(keys.map((k) => [k, handler(k)])) } };
     await policy("crm.t_a", { runOrder: 30 });
     await policy("crm.t_b", { runOrder: 10 });
     await policy("crm.t_c", { runOrder: 20 });
@@ -95,7 +99,7 @@ describe("retention sweep (ops rule 68)", () => {
   it("re-calls a module handler while it returns a full batch; an error stops only that policy", async () => {
     const sizes = [2, 2, 1];
     const cutoffs: Date[] = [];
-    let rewrite: string[] = [];
+    const rewrite: string[] = [];
     const registry = {
       crm: {
         sweep: {
@@ -122,7 +126,6 @@ describe("retention sweep (ops rule 68)", () => {
     expect(await policyRow("crm.t_batch")).toMatchObject({ lastRunRows: 5, lastRunStatus: "ok" });
     expect((await policyRow("crm.t_boom")).lastRunStatus).toBe("error");
     // outside the handler the session setting is off again
-    rewrite = [];
     expect(rowsOf<{ v: string | null }>(await h.db.execute(sql`select current_setting('beam.allow_rewrite', true) as v`))[0]!.v ?? "").not.toBe("on");
   });
 

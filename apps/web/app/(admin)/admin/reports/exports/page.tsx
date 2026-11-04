@@ -57,7 +57,7 @@ export default async function ExportsPage({ searchParams }: { searchParams: Prom
         </Alert>
       ) : null}
 
-      <form action={submit} className="grid max-w-3xl gap-4 rounded-md border p-4" aria-labelledby="new-export">
+      <form action={submit} className="grid max-w-3xl gap-4 rounded-md border p-4" aria-labelledby="new-export" data-testid="new-export">
         <h2 id="new-export" className="text-lg font-medium">
           {tr("ops.exports.new")}
         </h2>
@@ -130,7 +130,7 @@ export default async function ExportsPage({ searchParams }: { searchParams: Prom
                     <td className="px-3 py-2">
                       {mayDownload ? (
                         <span className="flex flex-wrap items-center gap-3">
-                          <a href={`/admin/reports/exports/${x.id}/download`} className={buttonVariants({ variant: "outline", size: "sm" })} download>
+                          <a href={`/admin/reports/exports/${x.id}/download`} className={buttonVariants({ variant: "outline", size: "sm" })} download data-testid="export-download" data-export-id={x.id}>
                             {tr("ops.exports.download")}
                           </a>
                           <span className="text-muted-foreground">{tr("ops.exports.expires", { date: day.format(x.expiresAt!) })}</span>

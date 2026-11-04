@@ -41,6 +41,7 @@ import {
   type TemplateRef,
   type ValidationRefs,
 } from "@beam/core/automation";
+import { messagesFor, type Locale } from "@beam/core/i18n";
 import { and, asc, desc, eq, gte, lt, lte, or, sql, type Actor, type SQL } from "@/lib/ctx";
 import { getSetting } from "@/lib/settings";
 import { EVENTS } from "@/registry/events.generated";
@@ -523,13 +524,32 @@ export async function listGroupOptions(db: DbOrTx): Promise<{ key: string; name:
   return db.select({ key: automationGroups.key, name: automationGroups.name, isExclusive: automationGroups.isExclusive }).from(automationGroups).orderBy(asc(automationGroups.priority), asc(automationGroups.key));
 }
 
-/** How many active enrolments run on an older version than the current one (the publish dialog's "migrate N"). */
+/** Active enrolments of an automation: after the next publish they all run on an older version (the publish dialog's "migrate N"). */
 export async function countMigratableEnrolments(db: DbOrTx, automationId: string): Promise<number> {
   if (!isUuid(automationId)) return 0;
   const [row] = await db
     .select({ n: sql<number>`count(*)`.mapWith(Number) })
     .from(automationEnrolments)
-    .innerJoin(automations, eq(automations.id, automationEnrolments.automationId))
     .where(and(eq(automationEnrolments.automationId, automationId), eq(automationEnrolments.status, "active")));
   return row?.n ?? 0;
+}
+
+// ---------------------------------------------------------------------------
+// Labels for the screens
+// ---------------------------------------------------------------------------
+
+/**
+ * The `automation` catalogue strings under the given prefixes (`["editor", "issue"]`), flattened
+ * and keyed without `automation.` (`editor.save`), for client components that receive their
+ * strings as props.
+ */
+export function automationLabels(locale: Locale, prefixes: readonly string[]): Record<string, string> {
+  const tree = (messagesFor(locale, ["automation"]) as Record<string, unknown>).automation as Record<string, unknown> | undefined;
+  const out: Record<string, string> = {};
+  const walk = (node: unknown, path: string) => {
+    if (typeof node === "string") out[path] = node;
+    else if (node && typeof node === "object") for (const [k, v] of Object.entries(node)) walk(v, path ? `${path}.${k}` : k);
+  };
+  for (const p of prefixes) walk(tree?.[p], p);
+  return out;
 }

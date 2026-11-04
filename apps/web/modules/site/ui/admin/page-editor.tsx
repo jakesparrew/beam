@@ -6,6 +6,7 @@
  * the version history, and the controls Save draft (Ctrl+S), Preview, Publish now, Schedule,
  * Unpublish, Archive (with a redirect target) and Restore. Publish controls are hidden without
  * `site.publish`. A save conflict keeps the unsaved text in a side panel for copying (edge case 1).
+ * The Claude panel (site-P4) is mounted in the side column; it hides itself without `ai.use`.
  */
 import { useCallback, useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
 import type { Route } from "next";
@@ -16,6 +17,7 @@ import { EXCERPT_KINDS, issuesByLocale, LEGAL_KEYS, PAGE_KINDS, prefixFromLocale
 import { archivePage, cancelScheduledPublish, createPage, discardDraft, publishVersion, restoreArchivedPage, saveDraft, unpublishPage } from "../../actions/pages";
 import type { EditorPickers, PageEditorData, SiteAdminLabels } from "../../queries/admin";
 import { BlockListEditor } from "./block-list-editor";
+import { ClaudePanel } from "./claude-panel";
 import { LinkPicker, lbl, MediaPicker, OptionSelect, selectClass } from "./pickers";
 import type { RichTextLabels } from "./rich-text-editor";
 import { SeoFields } from "./seo-fields";
@@ -40,7 +42,7 @@ export type PageEditorProps = {
   rich: RichTextLabels;
   canPublish: boolean;
   staffLocale: Locale;
-  /** Slot for the Claude panel (site-P4). */
+  /** Replaces the Claude panel (site-P4), which the editor mounts by default. */
   claudePanel?: ReactNode;
 };
 
@@ -387,7 +389,7 @@ export function PageEditor({ data, pickers, L, rich, canPublish, staffLocale, cl
             ))}
           </ul>
         </section>
-        {claudePanel}
+        {claudePanel ?? (archived ? null : <ClaudePanel pageId={data.page.pageId} L={L} locales={content.locales} />)}
       </aside>
     </div>
   );

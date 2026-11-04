@@ -162,14 +162,16 @@
       "attempts": 0
     },
     "forms-P1": {
-      "status": "running",
+      "status": "merged",
       "attempts": 2,
       "baseSha": "4ce9b47",
       "runId": "wf_19d14d36-abd",
       "startedAt": "2026-11-04T00:50:47Z",
-      "branchSha": "1647dc5",
-      "endedAt": "2026-11-04T00:42:35Z",
-      "minutes": 17
+      "branchSha": "3c3034b",
+      "endedAt": "2026-11-04T01:00:31Z",
+      "minutes": 26,
+      "mergeSha": "f721080",
+      "mergedAt": "2026-11-04T01:05:29Z"
     },
     "forms-P2": {
       "status": "pending",

@@ -62,3 +62,4 @@ One entry per merge batch and gate (runbook section 5.7, adapted by OD-3).
 - Batch `g18` (forms-P1, crm-P1) red in one forms view test: a cancelled booking inserted without `cancelled_at` violates booking-P1's `bookings_cancelled_ck` (forms-P1 was built before booking-P1 merged). crm-P1 then landed alone (`g20`); forms-P1 attempt 2 fixes its test inserts and adds the companies FK. Three platform tests are known red (`docs/build/known-red.txt`) until `fix-w04-platform-3` lands.
 - Started forms-P1 (attempt 2), email-P1 (attempt 2: privacy registration, deferred FK, review finding on `email_messages.rendered_file_id`), credits-P3, crm-P2 from `4ce9b47`.
 - site-P1: 42 min, merged as `4219fa2`, migrations 0013_w04.sql 0014_w04_views.sql 0015_w04_protect.sql; gate `g21-site-P1` (merge) green, peak 7167 MB.
+- forms-P1: 26 min, merged as `f721080`, migrations 0016_w04.sql 0017_w04_views.sql; gate `g22-forms-P1` (merge) green, peak 4668 MB.

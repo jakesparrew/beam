@@ -328,11 +328,16 @@
       "mergedAt": "2026-11-04T01:33:16Z"
     },
     "finance-P2": {
-      "status": "running",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "d447ab3",
       "runId": "wf_a0872452-35c",
-      "startedAt": "2026-11-04T03:39:30Z"
+      "startedAt": "2026-11-04T03:39:30Z",
+      "branchSha": "f3a46d6",
+      "endedAt": "2026-11-04T04:08:00Z",
+      "minutes": 28,
+      "mergeSha": "b8ab7a6",
+      "mergedAt": "2026-11-04T04:10:00Z"
     },
     "forms-P3": {
       "status": "pending",

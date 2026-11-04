@@ -12,7 +12,6 @@ to "Served" with the package id.
 | platform-P3 | crm (inbox AI drafts, R3) | `callClaude` feature key is `ai.draft_reply`, not `inbox_draft`. Its fields `thread_messages` and `knowledge_articles` are not in `AI_ALLOWED_FIELDS`: the crm package that builds AI reply drafts decides and documents which fields are sent, and asks platform for an `AI_ALLOWED_FIELDS` addition if needed. |
 | platform-P7 | platform-P6 | Type the `run` of `apps/web/modules/platform/seed.ts` with `SeedCtx` from `apps/web/scripts/seed-demo.ts` (`{ db: DbOrTx, ctx: system Ctx, now: start of the Brussels day, rand: seeded PRNG 20261103, ids: Map }`). |
 | platform-P7 | commerce | `apps/web/modules/commerce/api.ts` re-exports `redeemVoucher` once commerce's actions implement it (02-data-model section 6). |
-| platform-P7 | forms | `FormEmbed` in `apps/web/modules/forms/api.ts` is a throwing stand-in; the forms package that builds the embed replaces it. |
 | platform-P7 | automation | `PersonAutomationsPanel` in `apps/web/modules/automation/api.ts` is a throwing stand-in; the automation package that builds the person panel replaces it. |
 | platform-P7 | webinar | `WebinarSignup` in `apps/web/modules/webinar/api.ts` is a throwing stand-in; webinar-P3 replaces it. |
 | platform-P7 | ops | `PersonStats` in `apps/web/modules/ops/api.ts` is an open row type until `person_stats` exists; the ops package that creates it narrows the type. |
@@ -33,7 +32,6 @@ to "Served" with the package id.
 | crm-P1 | platform (fix-w04-platform-4) | Delete `packages/core/src/crm/segment-fields.ts`; `@beam/core/crm` exports `segments/fields.ts` with the same `SEGMENT_ALLOWED_FIELDS`. |
 | crm-P1 | ops-P2 | `v_person_profile` (and `PERSON_PROFILE_COLUMNS`) includes every column of crm's `SEGMENT_FIELDS`, including `package_product_ids uuid[]`. |
 | email-P1 | email-P1 (attempt 2) | Register `campaign_recipients` (and the other person-referencing email tables) in email's `privacy.ts` (OD-9) and add `campaign_recipients.person_id -> persons.id` (on delete restrict). |
-| forms-P1 | forms (next forms package) | FK `form_links.partner_company_id -> companies.id` once crm-P1 merged. |
 | ops-P1 | ops and booking (fixer after fix-w04-platform-3) | Move `PLANNED_SCHEDULES` into `schedules` in `apps/web/modules/ops/schedules.ts` and `apps/web/modules/booking/schedules.ts` (no later package of either module owns that file) once platform's schedule tests filter to platform kinds. |
 | ops-P1 | ops (fixer) | FK `retention_list_items.task_id -> tasks.id` once crm's `tasks` table exists (`ops.ts` has no later owner). |
 | ops-P1 | platform-P8 | Nav section labels `platform.nav.section_insights`, `section_reports`, `section_data`; filter admin and portal nav entries by their optional `flag`. |
@@ -52,7 +50,6 @@ to "Served" with the package id.
 | booking-P3b | commerce | `refundOrderLine` has no reason for staff forced refunds; booking passes `cancelled_in_policy`. Add `staff_override` if finance needs to tell them apart. |
 | booking-P3b, booking-P5 | booking (owner of `server/order-hooks.ts`) | `releaseOrderBookings` in `server/order-hooks.ts` also moves a claimed offered waitlist entry to `expired` with `payment_not_completed` and enqueues `offer_next` (R44), as `expireReservedRow` in `server/cancel.ts` already does. booking-P5 served the job side: `waitlist.offer_next` and `waitlist.expire_offers` now expire an offered entry whose claimed booking is cancelled; the same-transaction move inside `releaseOrderBookings` stays open. |
 | site-P5 | platform (fixer) | Add `BEAM_ANALYTICS_PRODUCTION: "1"` to the Playwright `webServer.env` in `apps/web/playwright.config.ts`, so `site-consent.spec`'s GA4 test can load gtag. |
-| site-P5 | forms (FormEmbed) | FormEmbed may read sessionStorage `beam_utm` through site's `readStoredUtm()` (`apps/web/modules/site/ui/public/utm-capture.tsx`) to attribute UTM on later pages of a visit (rule 40). |
 | site-P5 | site-P6 | `PortalSiteChrome` mounts `ConsentProvider` (`getConsentChromeState`, `consentLabels` in `server/consent.ts`), `AnalyticsLoader` with `gaMeasurementId` null and `SwRegister`; its Cookie settings link carries `data-cookie-settings`. |
 | crm-P4 | crm (owner of `packages/core/src/crm/merge-plan.ts`) | Add to `MERGE_STRATEGIES`: `automation_enrolments.person_id: skip`, `privacy_requests.person_id: repoint`, `provider_customers.person_id: repoint`, `retention_list_items.person_id: keep_winner`. Until then they live in `MERGE_STRATEGY_ADDITIONS` in `apps/web/modules/crm/merge/execute.ts`, and an entry in core takes precedence. |
 | finance-P4 | finance (owner of `packages/core/src/finance/index.ts`) | Add `export * from "./billit-mapping"`, then switch `apps/web/modules/finance/service/billit-sync.ts` and `billit-jobs.test.ts` from the relative import to `@beam/core/finance`. |
@@ -66,12 +63,11 @@ to "Served" with the package id.
 | ops-P3 | booking | Add a closed-days read to booking's api (for example `listClosedDays(db, from, to)`), so ops stops reading `session_exceptions` directly. |
 | automation-P3 | platform | Add `webhook` to the `integration_calls_provider` enum, `INTEGRATION_PROVIDERS` (`@beam/integrations/_shared`) and `INTEGRATION_ENUM` in `apps/web/lib/ctx.ts`; until then the call-log entries of `automation.call_webhook` are dropped. |
 | automation-P3 | platform (owner of `.env.example`) | List `AUTOMATION_WEBHOOK_SECRET` in `.env.example` (automation spec section 6). |
-| automation-P3 | forms | Implement `getPublishedFormMeta`; automation's `form_available` condition treats its `NotImplementedError` as "not available" for now. |
 | finance-P5 | finance (finance-P6 or finance-P7) | Link the order on `/admin/finance/invoices/[id]` once commerce ships `/admin/orders/[id]` (typed routes reject the link until then), and add the "Export CSV of this filter" button together with the exports screen. |
 | commerce-P5 | commerce (owner of `server/orders.ts`) | Add `pricingPersonId?: string \| null` to `CreateOrderInput`, so a site guest's order is priced as public while still attached to the person (edge case 23); then `placeOrder` can drop its `login_required` refusal. |
 | commerce-P5 | platform | Add a `commerce` route to `RateLimitRequest` (`commerce:ip:<ip>`, 20 per 60 s, commerce spec 4.2); the public checkout actions use the `api` bucket until then. |
 | ops-P6 | ops-P5 | Wire `sweep` in `apps/web/modules/ops/privacy.ts` to `OPS_SWEEP` (`exports/sweep.ts`) and implement `createPrivacyRequest`; until then the `marketing_profile` and `marketing_contact` policies record `error` because the stub throws. |
-| ops-P6 | forms, webinar (R2), crm (R3 inbox) | Add `sweep[key]` handlers for their seeded retention keys; until then the sweep records `no_handler` (they are listed in `HANDLER_PENDING` in `retention-coverage.test.ts`). finance-P6 and booking-P6 added theirs. |
+| ops-P6 | webinar (R2), crm (R3 inbox) | Add `sweep[key]` handlers for their seeded retention keys; until then the sweep records `no_handler` (they are listed in `HANDLER_PENDING` in `retention-coverage.test.ts`). finance-P6 and booking-P6 added theirs; forms registered all seven in forms-P3. |
 | ops-P6 | platform | Add a files kind for staff documents; DPIA register PDFs are stored as kind `import`, with no expiry, for now. |
 | ops-P6 | ops (owner of `ops.json`) | Missing catalogue keys `ops.retention_policy.status.no_handler`, `ops.dpia.{purpose,risks,measures,decision_note,document,ai_features_title}` and `ops.exports.column.{rows,created_by,expires}`. |
 | credits-P6 | credits (owner of `api.ts`) | Re-export `DeskCreditsBadge` and `DeskCreditsLine` from `./ui/desk-credits-badge` in `apps/web/modules/credits/api.ts` for booking-P4's check-in desk. |
@@ -85,6 +81,7 @@ to "Served" with the package id.
 | finance-P6 | finance-P7 (owner of `nav.ts`) | Add a portal nav entry for `/account/invoices` (labelKey `finance.portal.title`). |
 | finance-P6 | commerce | Link `/[locale]/account/orders/[id]` to the portal invoice (`getInvoiceForOrder`) and ship `/admin/orders/[id]` with a refund dialog; finance's e2e "staff refund half" test skips itself until that screen exists. |
 | booking-P6 | credits | A listing of grants shared with a person, so the portal booking form can offer "use a package shared with me". |
+| forms-P4 | site | Optionally re-export a client-safe `readStoredUtm`, so forms can stop reading the `beam_utm` sessionStorage key itself. |
 
 ## Served
 
@@ -118,3 +115,7 @@ to "Served" with the package id.
 | platform-P3 | email (AI campaign drafts, R4) | `callClaude` feature key is `ai.draft_email`, not `email.draft_email`. | email-P4 (`AI_DRAFT_EMAIL_FEATURE` in email `jobs.ts`; email spec section 6 amended) |
 | booking-P4 | booking (owner of `booking.json`) | Add the catalogue keys `booking.checkin.check_in_override`, `booking.checkin.revert_no_show`, `booking.checkin.scan_hint`, `booking.session.revert_no_show` and `booking.bookings.include_guests` (the pages fall back to existing keys). | booking-P6 |
 | booking-P1 | booking (fixer) | Register `waitlist_entries` in booking's `privacy.ts` and add the FK `waitlist_entries.person_id -> persons.id` (on delete restrict); FKs `capacity_holds.company_id` and `sessions.partner_company_id -> companies.id` once crm-P1 merged; tighten `sessions_event_category_ck` to `(kind = 'event') = (event_category is not null)` once `makeSession` sets a category. | booking-P6 (privacy registration with export and erase) |
+| platform-P7 | forms | `FormEmbed` in `apps/web/modules/forms/api.ts` is a throwing stand-in; the forms package that builds the embed replaces it. | forms-P4 (`api.ts` re-exports `./ui/public/form-embed`) |
+| site-P5 | forms (FormEmbed) | FormEmbed may read sessionStorage `beam_utm` through site's `readStoredUtm()` (`apps/web/modules/site/ui/public/utm-capture.tsx`) to attribute UTM on later pages of a visit (rule 40). | forms-P4 (reads the `beam_utm` sessionStorage key directly; see the forms-P4 -> site row) |
+| automation-P3 | forms | Implement `getPublishedFormMeta`; automation's `form_available` condition treats its `NotImplementedError` as "not available" for now. | forms-P3 (already implemented; confirmed by forms-P4) |
+| forms-P1 | forms (next forms package) | FK `form_links.partner_company_id -> companies.id` once crm-P1 merged. | already in `packages/db/src/schema/forms.ts` (confirmed by forms-P4) |

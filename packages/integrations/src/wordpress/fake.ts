@@ -44,7 +44,7 @@ export function createWordpressFake(files: Record<string, FakeWordpressFile> = {
     const bytes = file.bytes ?? fakePng();
     const headers = new Headers({ "content-type": file.mime ?? "image/png" });
     if (file.contentLength !== undefined) headers.set("content-length", String(file.contentLength));
-    return Promise.resolve(new Response(bytes, { status, headers }));
+    return Promise.resolve(new Response(new Blob([new Uint8Array(bytes)]), { status, headers }));
   };
   return {
     fetch: stub,

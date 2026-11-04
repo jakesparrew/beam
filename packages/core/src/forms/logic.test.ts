@@ -321,8 +321,8 @@ describe("U2 with L4: validateSection (fix-w09-forms-review finding 3)", () => {
   /** s3 holds `detail` (shown when goal = stress, from s1) and `why` (required unless goal = stress). */
   const cross = (): FormDefinition => {
     const d = def();
-    d.fields.detail = { ...B, key: "detail", type: "short_text", visibleIf: { field: "goal", op: "eq", value: "stress" } } as Field;
-    d.fields.why = { ...B, key: "why", type: "short_text", required: true, visibleIf: { not: { field: "goal", op: "eq", value: "stress" } } } as Field;
+    d.fields.detail = { ...B, key: "detail", type: "short_text", visibleIf: { field: "goal", op: "eq", value: "stress" } };
+    d.fields.why = { ...B, key: "why", type: "short_text", required: true, visibleIf: { not: { field: "goal", op: "eq", value: "stress" } } };
     d.sections[2]!.fieldKeys = ["stress", "detail", "why"];
     return d;
   };

@@ -42,7 +42,6 @@ to "Served" with the package id.
 | ops-P2 | ops-P7 | Add the R2 webinar columns and the `webinars_registered_total` and `webinars_attended_total` sums to `v_person_profile` in `ops.views.ts`, with their `ops.views.test.ts` cases. |
 | ops-P4 | ops (owner of `packages/core/src/ops/import-targets.ts` and `import-presets.ts`) | Add the targets `mode` and `watched_minutes` to `IMPORT_TARGETS.history` and map the watched-minutes columns in the webinar presets (ops-P4 accepts both already). |
 | ops-P4 | crm | `upsertPersonFromImport` accepts `street`, `country`, `preferredChannel` and an `onlyEmpty` option (ops rule 46); today street and country of a persons file are not written. |
-| ops-P4 | platform | Add `setFileExpiry(tx, fileIds, expiresAt)`; until then ops-P4 updates `files.expires_at` directly for its own import parts. |
 | ops-P4 | ops (owner of `ops.json`) | Missing catalogue keys from ops-P4's commit trailer (for example `ops.imports.option.confirm_different_file`, `ops.imports.target.{mode,watched_minutes}`, `ops.imports.error.{past_booking,invalid_status,unknown_tag,...}`). |
 | finance-P3 | finance (owner of `packages/core/src/finance/index.ts`) | Add `export * from "./document-model"`, then switch `apps/web/modules/finance/pdf/render.ts` from the relative path to `@beam/core/finance`. |
 | booking-P3b, booking-P5 | booking (owner of `server/order-hooks.ts`) | `releaseOrderBookings` in `server/order-hooks.ts` also moves a claimed offered waitlist entry to `expired` with `payment_not_completed` and enqueues `offer_next` (R44), as `expireReservedRow` in `server/cancel.ts` already does. booking-P5 served the job side: `waitlist.offer_next` and `waitlist.expire_offers` now expire an offered entry whose claimed booking is cancelled; the same-transaction move inside `releaseOrderBookings` stays open. |
@@ -62,8 +61,7 @@ to "Served" with the package id.
 | finance-P5 | finance (finance-P6 or finance-P7) | Link the order on `/admin/finance/invoices/[id]` once commerce ships `/admin/orders/[id]` (typed routes reject the link until then), and add the "Export CSV of this filter" button together with the exports screen. |
 | commerce-P5 | commerce (owner of `server/orders.ts`) | Add `pricingPersonId?: string \| null` to `CreateOrderInput`, so a site guest's order is priced as public while still attached to the person (edge case 23); then `placeOrder` can drop its `login_required` refusal. |
 | commerce-P5 | platform | Add a `commerce` route to `RateLimitRequest` (`commerce:ip:<ip>`, 20 per 60 s, commerce spec 4.2); the public checkout actions use the `api` bucket until then. |
-| ops-P6 | ops-P5 | Wire `sweep` in `apps/web/modules/ops/privacy.ts` to `OPS_SWEEP` (`exports/sweep.ts`) and implement `createPrivacyRequest`; until then the `marketing_profile` and `marketing_contact` policies record `error` because the stub throws. |
-| ops-P6 | webinar (R2), crm (R3 inbox) | Add `sweep[key]` handlers for their seeded retention keys; until then the sweep records `no_handler` (they are listed in `HANDLER_PENDING` in `retention-coverage.test.ts`). finance-P6 and booking-P6 added theirs; forms registered all seven in forms-P3. |
+| ops-P6 | crm (R3 inbox) | Add `sweep[key]` handlers for their seeded retention keys; until then the sweep records `no_handler` (they are listed in `HANDLER_PENDING` in `retention-coverage.test.ts`). finance-P6 and booking-P6 added theirs; forms registered all seven in forms-P3; webinar-P1 added its three. |
 | ops-P6 | platform | Add a files kind for staff documents; DPIA register PDFs are stored as kind `import`, with no expiry, for now. |
 | ops-P6 | ops (owner of `ops.json`) | Missing catalogue keys `ops.retention_policy.status.no_handler`, `ops.dpia.{purpose,risks,measures,decision_note,document,ai_features_title}` and `ops.exports.column.{rows,created_by,expires}`. |
 | credits-P6 | credits (owner of `api.ts`) | Re-export `DeskCreditsBadge` and `DeskCreditsLine` from `./ui/desk-credits-badge` in `apps/web/modules/credits/api.ts` for booking-P4's check-in desk. |
@@ -82,6 +80,13 @@ to "Served" with the package id.
 | automation-P4 | automation-P5 | Write the catalogue keys `automation.panel.{empty,active,no_active,next_step,ended,timeline}` in the three `automation.json` files; the interim panel uses them. |
 | site-P6 | site (catalogue owner) | `site.account_placeholder.title` and `body` in `site.json` are unused now that the portal home replaced the placeholder; remove them. |
 | commerce-P6 | commerce (owner of `e2e/commerce.spec.ts`) | Add the e2e cases "staff refunds an unused package" and "customer withdraws an unused package within 14 days". |
+| platform-P9 | platform (owner of `packages/integrations/src/_shared/types.ts` and `apps/web/lib/ctx.ts`) | Add `meta` and `webhook` to `INTEGRATION_PROVIDERS` and `INTEGRATION_ENUM` (the enum values are in the schema since platform-P9); until then those call-log entries are dropped. |
+| platform-P9 | platform (owner of `platform.json`) | Missing catalogue keys `platform.nav.partner`, `platform.integrations.token_ok`, `token_missing`, `data_as_of`. |
+| webinar-P1 | crm (owner of `merge-plan.ts`) | Optional: list `webinar_presenters.person_id` as `skip` (webinar's `mergePersons` settles presenter rows). |
+| webinar-P1 | ops (owner of `retention-coverage.test.ts`) | Remove the three webinar keys from `HANDLER_PENDING`; their sweep handlers exist now. |
+| ops-P5 | ops (owner of `ops.json`) | Missing catalogue keys `ops.privacy.{col_person,col_due,col_requested_by,progress_title,report_title,cancel_reason,lift_reason}`. |
+| ops-P5 | crm | crm's api barrel imports ops' api; the cycle makes `vi.mock('@/modules/crm/api')` hand ops modules the real module. Break the cycle (a lazy import). |
+| site-P7 | site (owner of `ui/admin/pages-table.tsx` and `site.json`) | Add `["/admin/site/imports", "nav.imports"]` to `SECTIONS` of `SiteSectionNav`; missing keys `site.admin.import.col.counts`, `site.admin.import.col.appliedAt`. |
 
 ## Served
 
@@ -123,3 +128,5 @@ to "Served" with the package id.
 | site-P5 | site-P6 | `PortalSiteChrome` mounts `ConsentProvider` (`getConsentChromeState`, `consentLabels` in `server/consent.ts`), `AnalyticsLoader` with `gaMeasurementId` null and `SwRegister`; its Cookie settings link carries `data-cookie-settings`. | site-P6 (`ui/portal/site-chrome.tsx`) |
 | platform-P7 | commerce | `apps/web/modules/commerce/api.ts` re-exports `redeemVoucher` once commerce's actions implement it (02-data-model section 6). | commerce-P6 |
 | booking-P3b | commerce | `refundOrderLine` has no reason for staff forced refunds; booking passes `cancelled_in_policy`. Add `staff_override` if finance needs to tell them apart. | commerce-P6 (reason `staff_override`) |
+| ops-P6 | ops-P5 | Wire `sweep` in `apps/web/modules/ops/privacy.ts` to `OPS_SWEEP` (`exports/sweep.ts`) and implement `createPrivacyRequest`; until then the `marketing_profile` and `marketing_contact` policies record `error` because the stub throws. | ops-P5 |
+| ops-P4 | platform | Add `setFileExpiry(tx, fileIds, expiresAt)`; until then ops-P4 updates `files.expires_at` directly for its own import parts. | platform-P9 (`setFileExpiry` in platform `api.ts`) |

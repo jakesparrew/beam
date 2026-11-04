@@ -763,13 +763,13 @@
       "mergedAt": "2026-11-04T05:38:04Z"
     },
     "site-P7": {
-      "status": "failed",
+      "status": "done",
       "attempts": 3,
       "baseSha": "cc11b30",
       "runId": "wf_551fa1ea-ffc",
       "startedAt": "2026-11-04T16:37:09Z",
-      "branchSha": "586ef63",
-      "endedAt": "2026-11-04T17:50:09Z",
+      "branchSha": "6d94c1b",
+      "endedAt": "2026-11-04T18:09:54Z",
       "minutes": 50
     },
     "booking-P6": {

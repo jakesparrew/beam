@@ -63,6 +63,8 @@ to "Served" with the package id.
 | finance-P3 | finance-P4 | Register `billit.push_invoice` and `billit.push_credit_note` (render_pdf enqueues them with keys `billit:invoice:<id>` and `billit:credit_note:<id>`). |
 | finance-P3 | finance-P5 | `rerenderInvoicePdf` enqueues `finance.render_pdf` with key `invoice_pdf:<id>:r<n>`; `resendInvoiceEmail` and `sendPaymentReminder` enqueue `finance.send_invoice_email` with reason `resend:<n>` or `reminder:<yyyy-mm-dd>`. |
 | commerce-P4a | commerce (owner of `server/catalogue.ts`) | Record the `person_price.set` event in `setPersonPriceRecord` (the kind is declared now). |
+| booking-P3b | commerce | `refundOrderLine` has no reason for staff forced refunds; booking passes `cancelled_in_policy`. Add `staff_override` if finance needs to tell them apart. |
+| booking-P3b | booking-P5 (or a booking fixer) | `releaseOrderBookings` in `server/order-hooks.ts` also moves a claimed offered waitlist entry to `expired` with `payment_not_completed` and enqueues `offer_next` (R44), as `expireReservedRow` in `server/cancel.ts` already does. |
 
 ## Served
 

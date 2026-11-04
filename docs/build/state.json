@@ -939,7 +939,7 @@
       "startedAt": "2026-11-04T03:02:09Z"
     },
     "fix-w05-schema-1": {
-      "status": "running",
+      "status": "merged",
       "attempts": 3,
       "fixer": true,
       "module": "platform",
@@ -972,9 +972,9 @@
       "baseSha": "7b1c11d",
       "runId": "wf_9ff94187-845",
       "startedAt": "2026-11-04T03:02:09Z",
-      "branchSha": "8a4b0e3",
-      "endedAt": "2026-11-04T02:23:03Z",
-      "minutes": 33,
+      "branchSha": "dfe270c",
+      "endedAt": "2026-11-04T03:24:04Z",
+      "minutes": 58,
       "extraOwns": [
         "packages/db/src/testing/commerce-factories.ts",
         "packages/db/src/schema/credits.ts",
@@ -984,7 +984,9 @@
         "packages/db/test/**",
         "apps/web/modules/*/server/*fixtures*.ts",
         "apps/web/modules/*/*fixtures*.ts"
-      ]
+      ],
+      "mergeSha": "2e3c058",
+      "mergedAt": "2026-11-04T03:38:32Z"
     },
     "fix-w05-crm-1": {
       "status": "merged",

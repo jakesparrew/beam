@@ -19,7 +19,7 @@ vi.mock("@/modules/email/api", async (orig) => {
     const res = await ctx.tx.execute(q`insert into email_messages (person_id, kind, enrolment_id, locale, idempotency_key)
       values (${input.personId}::uuid, 'transactional', ${input.enrolmentId}::uuid, 'nl-BE', ${input.idempotencyKey})
       on conflict (idempotency_key) do update set updated_at = now() returning id::text as id`);
-    return { messageId: (res as unknown as { rows: { id: string }[] }).rows[0]!.id, status: "queued", created: true, templateVersionId: "v" };
+    return { messageId: (res as { rows: { id: string }[] }).rows[0]!.id, status: "queued", created: true, templateVersionId: "v" };
   });
   return {
     ...(await orig<typeof EmailApi>()),

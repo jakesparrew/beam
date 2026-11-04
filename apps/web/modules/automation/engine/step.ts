@@ -424,7 +424,7 @@ function triggerEvent(e: LockedEnrolment): EventView | null {
     refId: t.ref_id,
     isSensitive: false,
     data: t.data,
-  } as EventView;
+  };
 }
 
 async function runEnrolStep(tx: Tx, actor: Actor, e: LockedEnrolment, step: EnrolStep, now: Date): Promise<StepOutcome> {

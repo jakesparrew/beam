@@ -19,7 +19,7 @@ import type * as EmailApi from "@/modules/email/api";
 const state = vi.hoisted(() => ({
   templates: new Map<string, { templateVersionId: string; kind: "marketing" | "transactional"; purpose: "newsletter" | "events" | null; locales: string[] }>(),
   unreachable: new Set<string>(),
-  queueStatus: "queued" as "queued" | "skipped_unreachable" | "skipped_translation",
+  queueStatus: "queued",
   opening: null as Date | null,
 }));
 
@@ -31,7 +31,7 @@ vi.mock("@/modules/email/api", async (orig) => {
       const res = await ctx.tx.execute(q`insert into email_messages (person_id, kind, enrolment_id, locale, idempotency_key)
         values (${input.personId}::uuid, 'transactional', ${input.enrolmentId}::uuid, 'nl-BE', ${`${kind}:${input.idempotencyKey}`})
         on conflict (idempotency_key) do update set updated_at = now() returning id::text as id`);
-      const messageId = (res as unknown as { rows: { id: string }[] }).rows[0]!.id;
+      const messageId = (res as { rows: { id: string }[] }).rows[0]!.id;
       return { messageId, status: state.queueStatus, created: true, templateVersionId: "00000000-0000-4000-8000-0000000000aa" };
     });
   return {

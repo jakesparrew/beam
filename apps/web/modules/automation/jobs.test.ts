@@ -18,6 +18,7 @@ import { jobs } from "./jobs";
 import { schedules } from "./schedules";
 
 import type * as EmailApi from "@/modules/email/api";
+import type * as WebhookMod from "@beam/integrations/webhook";
 vi.mock("@/modules/email/api", async (orig) => ({
   ...(await orig<typeof EmailApi>()),
   getReachability: vi.fn(() => Promise.resolve({ isReachable: true, blockedReason: null })),
@@ -25,7 +26,7 @@ vi.mock("@/modules/email/api", async (orig) => ({
 // No network: the job's webhook client is the fake.
 const webhookFake = vi.hoisted(() => ({ calls: 0 }));
 vi.mock("@beam/integrations/webhook", async (orig) => {
-  const m = await orig<typeof import("@beam/integrations/webhook")>();
+  const m = await orig<typeof WebhookMod>();
   const fake = m.createWebhookFake();
   return {
     ...m,

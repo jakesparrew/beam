@@ -60,6 +60,20 @@ describe("upsertRedirect", () => {
     expect(audit).toBeTruthy();
   });
 
+  it("stores a site-relative target as given, with its query and fragment (only the loop check normalises)", async () => {
+    const res = await upsertRedirect({ fromPath: "/nl/actie", to: { url: " /nl/account/book?kind=night " }, isPermanent: false });
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    const [row] = await h.db.select().from(redirects).where(eq(redirects.id, res.data.id));
+    expect(row?.toUrl).toBe("/nl/account/book?kind=night");
+    const co = await upsertRedirect({ fromPath: "/nl/actie-dag", to: { url: "/nl/checkout?sku=DAY10&from=/nl/x#Pay" }, isPermanent: false });
+    expect(co.ok).toBe(true);
+    if (!co.ok) return;
+    const [coRow] = await h.db.select().from(redirects).where(eq(redirects.id, co.data.id));
+    expect(coRow?.toUrl).toBe("/nl/checkout?sku=DAY10&from=/nl/x#Pay");
+    expect(await upsertRedirect({ fromPath: "/nl/loopq", to: { url: "/nl/LoopQ?x=1" }, isPermanent: true })).toMatchObject({ ok: false, error: { code: "validation", fields: { to: "loop" } } });
+  });
+
   it("refuses a path a live page uses (conflict) and the reserved prefixes (validation)", async () => {
     expect(await upsertRedirect({ fromPath: "/nl/dagsessies/", to: { url: "/nl/elders" }, isPermanent: true })).toMatchObject({ ok: false, error: { code: "conflict", message: "live_path" } });
     expect(await upsertRedirect({ fromPath: "/admin/site", to: { url: "/nl" }, isPermanent: true })).toMatchObject({ ok: false, error: { code: "validation" } });

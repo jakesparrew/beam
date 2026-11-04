@@ -17,6 +17,7 @@ const SECTIONS = [
   ["/admin/site/navigation", "nav.navigation"],
   ["/admin/site/media", "nav.media"],
   ["/admin/site/redirects", "nav.redirects"],
+  ["/admin/site/imports", "nav.imports"],
   ["/admin/site/settings", "nav.settings"],
 ] as const;
 

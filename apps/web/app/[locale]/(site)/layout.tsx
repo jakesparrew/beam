@@ -2,14 +2,14 @@ import type { ReactNode } from "react";
 import { cookies, headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { localeFromSegment, type Locale } from "@beam/core/i18n";
-import { CONSENT_COOKIE, localePath, parseSiteSettings } from "@beam/core/site";
+import { analyticsAllowedOnPath, CONSENT_COOKIE, gaIdFor, localePath, parseSiteSettings } from "@beam/core/site";
 import { getAppDb } from "@/lib/ctx";
 import { translator } from "@/lib/i18n";
 import { reportError } from "@/lib/logger";
 import { getSetting } from "@/lib/settings";
 import { getCompanyFooter, getNavMenus, type CompanyFooterView, type PublicNavMenus } from "@/modules/site/queries";
 import { analyticsProductionMode, consentLabels, getConsentChromeState, type ConsentChromeState } from "@/modules/site/server/consent";
-import { AnalyticsLoader, gaIdFor } from "@/modules/site/ui/public/analytics-loader";
+import { AnalyticsLoader } from "@/modules/site/ui/public/analytics-loader";
 import { ConsentProvider } from "@/modules/site/ui/public/consent-provider";
 import { SiteFooter } from "@/modules/site/ui/public/site-footer";
 import { SiteHeader } from "@/modules/site/ui/public/site-header";
@@ -22,7 +22,9 @@ import { UtmCapture } from "@/modules/site/ui/public/utm-capture";
  * and company identification; around it `ConsentProvider` (cookie banner and settings dialog,
  * opened by the footer's `data-cookie-settings` button), the consent-gated analytics loader with
  * the request nonce, UTM capture and the service worker registration. A failing menu, settings
- * or consent read renders the chrome without it (reported), never an error page.
+ * or consent read renders the chrome without it (reported), never an error page. No analytics
+ * script loads on a page whose URL carries a credential (claim, preference centre, payment link,
+ * form result link; `analyticsAllowedOnPath`), nor when the requested path is unknown.
  */
 async function safe<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
   try {
@@ -68,6 +70,7 @@ export default async function SiteLayout({ children, params }: { children: React
   const nonce = h.get("x-nonce");
   const requested = (h.get("x-pathname") ?? "").split("?")[0] ?? "";
   const pagePath = requested.startsWith(`/${segment}`) ? requested : localePath(locale, "");
+  const analyticsAllowed = analyticsAllowedOnPath(requested);
   return (
     <ConsentProvider
       locale={locale}
@@ -91,7 +94,7 @@ export default async function SiteLayout({ children, params }: { children: React
         </main>
         <SiteFooter locale={locale} footer={menus.footer} legal={menus.legal} company={company} tr={tr} pagePath={pagePath} />
       </div>
-      <AnalyticsLoader nonce={nonce} gaMeasurementId={gaId} />
+      {analyticsAllowed ? <AnalyticsLoader nonce={nonce} gaMeasurementId={gaId} /> : null}
       <UtmCapture />
       <SwRegister />
     </ConsentProvider>

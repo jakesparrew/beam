@@ -8,36 +8,11 @@
  * removes the stored values.
  */
 import { useEffect } from "react";
-import type { UtmParams } from "@beam/core/forms";
+import { UTM_STORAGE_KEY, utmFromSearch, type StoredUtm } from "@beam/core/site";
 import { useConsent } from "./consent-provider";
 
-export const UTM_STORAGE_KEY = "beam_utm";
-const UTM_KEYS = ["source", "medium", "campaign", "term", "content"] as const;
-
-export type StoredUtm = { utm: UtmParams; landingPath: string };
-
-/** The `utm_*` values of a query string (at most 200 characters each). */
-export function utmFromSearch(search: string): UtmParams {
-  const params = new URLSearchParams(search);
-  const out: UtmParams = {};
-  for (const key of UTM_KEYS) {
-    const v = params.get(`utm_${key}`);
-    if (v && v.length <= 200) out[key] = v;
-  }
-  return out;
-}
-
-/** The stored landing of this visit, or null (no consent, nothing stored, storage blocked). */
-export function readStoredUtm(storage: Pick<Storage, "getItem"> | null = typeof window === "undefined" ? null : window.sessionStorage): StoredUtm | null {
-  try {
-    const raw = storage?.getItem(UTM_STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as StoredUtm;
-    return parsed && typeof parsed.landingPath === "string" && parsed.utm && typeof parsed.utm === "object" ? parsed : null;
-  } catch {
-    return null;
-  }
-}
+// The helpers live in `@beam/core/site` (client-safe; forms reads the stored landing there).
+export { readStoredUtm, UTM_STORAGE_KEY, utmFromSearch, type StoredUtm } from "@beam/core/site";
 
 export function UtmCapture() {
   const { analytics } = useConsent();

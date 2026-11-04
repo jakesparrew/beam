@@ -57,14 +57,24 @@ async function liveRoutes(tx: Tx, pageId: string): Promise<Partial<Record<Locale
  * Publishes a draft or proposed version in the caller's transaction (rule 7): lock the page, check
  * (rules 5-6, `PublishBlockedError`), set the version `published`, point the page at it, rewrite
  * `page_routes`, add `rename` redirects from changed paths (rule 11), delete redirects whose source
- * is now a live path of the page, and audit `site.page.publish`.
+ * is now a live path of the page, and audit `site.page.publish`. With `expectedScheduledAt` (the
+ * scheduled job) the version's `scheduled_publish_at` must still equal it once the page is locked,
+ * or `conflict` "schedule_changed".
  */
-export async function publishVersionTx(tx: Tx, ctx: Ctx, versionId: string, opts: { scheduledBy?: string }): Promise<{ publishedAt: Date }> {
+export async function publishVersionTx(
+  tx: Tx,
+  ctx: Ctx,
+  versionId: string,
+  opts: { scheduledBy?: string; expectedScheduledAt?: Date },
+): Promise<{ publishedAt: Date }> {
   const first = await getVersionOrThrow(tx, versionId);
   const page = await lockPage(tx, first.pageId);
   const version = await getVersionOrThrow(tx, versionId);
   if (version.state === "published" || version.publishedAt) throw new ConflictError("already_published");
   if (version.state !== "draft" && version.state !== "proposed") throw new ConflictError(`version_${version.state}`);
+  // The scheduled job publishes only the schedule it was enqueued for, checked under the page lock,
+  // so a cancel or reschedule that committed first wins.
+  if (opts.expectedScheduledAt && version.scheduledPublishAt?.getTime() !== opts.expectedScheduledAt.getTime()) throw new ConflictError("schedule_changed");
   if (page.status === "archived") throw new ConflictError("page_archived");
 
   const issues = await checkVersion(tx, page, version);

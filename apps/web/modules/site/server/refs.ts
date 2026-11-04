@@ -9,7 +9,7 @@ import type { DbOrTx } from "@beam/db";
 import { mediaAssets, pageRoutes, pages, pageVersions, products, redirects, sessions } from "@beam/db/schema";
 import { NotImplementedError } from "@beam/core/errors";
 import { LOCALES, type Locale } from "@beam/core/i18n";
-import { checkPublishable, collectRefs, localePath, type CollectedRefs, type NavItem, type PageKind, type PublishIssue, type RefFacts, type VersionContent } from "@beam/core/site";
+import { checkPublishable, collectRefs, localePath, type CollectedRefs, type NavItem, type PublishIssue, type RefFacts, type VersionContent } from "@beam/core/site";
 import { and, eq, inArray, ne, or, sql } from "@/lib/ctx";
 import { reportError } from "@/lib/logger";
 import { getPublishedFormMeta } from "@/modules/forms/api";
@@ -135,24 +135,8 @@ export function checkVersion(db: DbOrTx, page: Pick<PageRow, "id" | "kind" | "le
   return checkContent(db, page, versionContent(version));
 }
 
-/**
- * The kind of the live page at `path` in `locale` (forms rule A2 branch 7: a form on a BEAM
- * landing page). `path` is the site path with or without the locale prefix (`/nl/actie`,
- * `actie`, `''` for home); null when no published page holds it.
- */
-export async function getPageKindByPath(db: DbOrTx, locale: Locale, path: string): Promise<PageKind | null> {
-  const prefix = localePath(locale, "");
-  let clean = path.split("?")[0]!.split("#")[0]!.toLowerCase();
-  if (clean === prefix || clean.startsWith(`${prefix}/`)) clean = clean.slice(prefix.length);
-  clean = clean.replace(/^\/+|\/+$/g, "");
-  const [row] = await db
-    .select({ kind: pages.kind })
-    .from(pageRoutes)
-    .innerJoin(pages, eq(pages.id, pageRoutes.pageId))
-    .where(and(eq(pageRoutes.locale, locale), eq(pageRoutes.path, clean), eq(pages.status, "published")))
-    .limit(1);
-  return (row?.kind) ?? null;
-}
+/** Lives in `page-kind.ts` so `api.ts` can re-export it without loading forms and webinar. */
+export { getPageKindByPath } from "./page-kind";
 
 export type HiddenNavTarget = { menu: "header" | "footer" | "legal"; itemId: string; pageId: string; locale: Locale };
 

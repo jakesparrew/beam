@@ -482,7 +482,7 @@ export const termsAcceptances = pgTable(
     ),
     check(
       "terms_acceptances_ref_type_ck",
-      sql`${t.refType} is null or ${t.refType} in ('order', 'booking', 'user')`,
+      sql`${t.refType} is null or ${t.refType} in ('order', 'booking', 'user', 'waitlist_entry')`,
     ),
   ],
 );

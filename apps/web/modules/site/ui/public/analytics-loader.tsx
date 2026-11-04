@@ -11,16 +11,14 @@
  */
 import Script from "next/script";
 import { useEffect } from "react";
+import { isGaMeasurementId } from "@beam/core/site";
 import { useConsent } from "./consent-provider";
 
-const GA_ID_RE = /^G-[A-Z0-9]{4,12}$/;
-
-/** The GA4 id to load on this page, or null (production, switched on, valid id). */
-export function gaIdFor(input: { isProduction: boolean; analyticsEnabled: boolean; gaMeasurementId: string | null | undefined }): string | null {
-  if (!input.isProduction || !input.analyticsEnabled) return null;
-  const id = input.gaMeasurementId?.trim() ?? "";
-  return GA_ID_RE.test(id) ? id : null;
-}
+/**
+ * Re-exported for client code; server code (the site layout) imports it from `@beam/core/site`,
+ * because a function of a `"use client"` module cannot be called on the server.
+ */
+export { gaIdFor } from "@beam/core/site";
 
 type GtagWindow = Window & { dataLayer?: unknown[]; gtag?: (...args: unknown[]) => void } & Record<string, unknown>;
 
@@ -41,7 +39,7 @@ export function initGtag(win: GtagWindow, id: string): void {
 
 export function AnalyticsLoader({ nonce, gaMeasurementId, vercel = true }: { nonce?: string | null; gaMeasurementId?: string | null; vercel?: boolean }) {
   const { analytics } = useConsent();
-  const gaId = gaMeasurementId && GA_ID_RE.test(gaMeasurementId) ? gaMeasurementId : null;
+  const gaId = isGaMeasurementId(gaMeasurementId) ? gaMeasurementId : null;
 
   // The queue works in either order: gtag.js adopts an existing `dataLayer`, and a later
   // `initGtag` pushes into the one gtag.js created.

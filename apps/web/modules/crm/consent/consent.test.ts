@@ -275,6 +275,24 @@ describe("suppression lifecycle (rules 3.19 to 3.22)", () => {
 });
 
 describe("staff consent actions", () => {
+  it("recordConsent accepts method staff with a form wording version for staff-assisted entry (forms ID10, fix-w09-crm-review)", async () => {
+    const p = await person();
+    const out = await api.recordConsent(tx(), sys(), {
+      personId: p.id,
+      purpose: "newsletter",
+      status: "granted",
+      method: "staff",
+      source: `staff:${owner.id}`,
+      wordingVersion: "form:intake:v2:newsletter",
+    });
+    expect(out.outcome).toBe("recorded");
+    expect((await records(p.id))[0]).toMatchObject({ purpose: "newsletter", method: "staff", lawfulBasis: "consent", wordingVersion: "form:intake:v2:newsletter", source: `staff:${owner.id}` });
+    // a staff grant with a purpose wording stays b2b on legitimate interest only
+    await expect(
+      api.recordConsent(tx(), sys(), { personId: p.id, purpose: "events", status: "granted", method: "staff", source: `staff:${owner.id}`, wordingVersion: "events@1" }),
+    ).rejects.toMatchObject({ code: "validation" });
+  });
+
   it("recordStaffConsent grants only b2b on legitimate interest and audits consent.change", async () => {
     const p = await person();
     const b2b = await actions.recordStaffConsent({ personId: p.id, purpose: "b2b", status: "granted" });

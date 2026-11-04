@@ -19,6 +19,7 @@ import {
   normaliseEmail,
   purposesToWithdraw,
   validateConsentInput,
+  isFormWordingVersion,
   brusselsDay,
   type ConsentMethod,
   type ConsentOutcome,
@@ -67,7 +68,9 @@ export async function recordConsent(tx: Tx, ctx: EventCtx, input: RecordConsentI
   const lawfulBasis: LawfulBasis = input.lawfulBasis ?? "consent";
   const valid = validateConsentInput({ purpose: input.purpose, status: input.status, method: input.method, wordingVersion: input.wordingVersion, lawfulBasis });
   if (!valid.ok) throw new ValidationError(valid.reason, { wordingVersion: valid.reason });
-  if (input.status === "granted" && (input.method === "portal" || input.method === "preference_centre" || input.method === "staff")) {
+  // A staff-assisted form entry (forms ID10) carries the form's wording version, which forms owns.
+  const formWording = isFormWordingVersion(input.wordingVersion);
+  if (input.status === "granted" && (input.method === "portal" || input.method === "preference_centre" || (input.method === "staff" && !formWording))) {
     await assertPublishedWording(tx, input.wordingVersion);
   }
   const person = await activePerson(tx, input.personId);
@@ -95,7 +98,7 @@ export async function recordConsent(tx: Tx, ctx: EventCtx, input: RecordConsentI
     const forever = supp.some((s) => (s.scope === "all" || s.scope === purpose) && (s.scope === "all" || s.reason !== "unsubscribe"));
     if (forever) return { recordId: null, outcome: "skipped_suppressed" };
     const blocked = isSuppressedFor({ purpose, suppressions: supp, currentConsent: current });
-    if (blocked && input.method === "form" && formGrantNeedsConfirmation({ purpose, suppressions: supp, currentConsent: current })) {
+    if (blocked && (input.method === "form" || (input.method === "staff" && formWording)) && formGrantNeedsConfirmation({ purpose, suppressions: supp, currentConsent: current })) {
       await sendResubscribeConfirmation(tx, ctx, person, purpose);
       return { recordId: null, outcome: "needs_confirmation" };
     }

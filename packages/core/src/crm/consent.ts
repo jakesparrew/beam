@@ -107,6 +107,11 @@ export function importGrantDecision(input: {
 const WORDING_RE = /^(newsletter|events|member_comms|b2b|assessment_result|sensitive_processing|ai_processing)@([1-9][0-9]*)$/;
 const FORM_WORDING_RE = /^form:[a-z0-9][a-z0-9_-]*:v[1-9][0-9]*:[a-z0-9_]+$/;
 
+/** A form wording version `form:<slug>:v<version>:<field_key>` (forms owns the wording). */
+export function isFormWordingVersion(value: string): boolean {
+  return FORM_WORDING_RE.test(value);
+}
+
 /** `<purpose>@<version>` parsed, or null. */
 export function parseWordingVersion(value: string): { purpose: ConsentPurpose; version: number } | null {
   const m = WORDING_RE.exec(value);
@@ -117,8 +122,9 @@ export function parseWordingVersion(value: string): { purpose: ConsentPurpose; v
  * Rule 3.14: which `wording_version` strings a grant may carry. `portal` and
  * `preference_centre` need `<purpose>@<version>` of the same purpose; `form` also accepts
  * `form:<slug>:v<version>:<field_key>`; `import` also accepts `legacy-import`; staff grants
- * are `b2b` with legitimate interest only. Withdrawals carry `unsubscribe`, `complaint`,
- * `restriction` or a wording version.
+ * are `b2b` with legitimate interest only, or, for staff-assisted form entry (forms ID10), a
+ * form wording version with lawful basis `consent`. Withdrawals carry `unsubscribe`,
+ * `complaint`, `restriction` or a wording version.
  */
 export function validateConsentInput(input: {
   purpose: ConsentPurpose;
@@ -135,6 +141,9 @@ export function validateConsentInput(input: {
     return { ok: false, reason: "invalid_wording_version" };
   }
   if (method === "staff") {
+    if (FORM_WORDING_RE.test(wordingVersion)) {
+      return (input.lawfulBasis ?? "consent") === "consent" ? { ok: true } : { ok: false, reason: "staff_form_grant_consent_only" };
+    }
     if (purpose !== "b2b" || input.lawfulBasis !== "legitimate_interest") return { ok: false, reason: "staff_grant_b2b_legitimate_interest_only" };
     return ownMatches ? { ok: true } : { ok: false, reason: "invalid_wording_version" };
   }

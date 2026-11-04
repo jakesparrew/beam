@@ -14,6 +14,9 @@ import { expireReservedRow } from "./cancel";
 import { SignInRequiredError, claimKey, claimSeatRow } from "./claim";
 import { confirmOrderBookings } from "./order-hooks";
 
+// commerce's api barrel re-exports `redeemVoucher` from its actions, whose import graph reaches booking's
+// book.ts: stubbing the actions file keeps that cycle closed, so booking sees the mocked createOrder.
+vi.mock("@/modules/commerce/actions", () => ({ redeemVoucher: vi.fn() }));
 vi.mock("@/modules/commerce/api", async (orig) => ({ ...(await orig<Record<string, unknown>>()), createOrder: vi.fn() }));
 
 let h: DbHandle;

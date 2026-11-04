@@ -15,8 +15,13 @@ import { bookSeats, type BookSeatsInput } from "./book";
 import { DAY, customerActor, fakeCreateOrder, inTx, openSession, sessionProduct, setBookingRules, type CreateOrderCall } from "./booking-p3a.fixtures";
 
 vi.mock("@/modules/commerce/api", async (orig) => ({ ...(await orig<Record<string, unknown>>()), createOrder: vi.fn() }));
+// commerce's api barrel re-exports `redeemVoucher` from its actions, whose import graph reaches this
+// module's book.ts: stubbing the actions file keeps that cycle closed, so book.ts sees the mocked createOrder.
+vi.mock("@/modules/commerce/actions", () => ({ redeemVoucher: vi.fn() }));
 vi.mock("@/modules/credits/api", async (orig) => ({ ...(await orig<Record<string, unknown>>()), getMembershipForPerson: vi.fn() }));
-vi.mock("@/modules/forms/api", async (orig) => ({ ...(await orig<Record<string, unknown>>()), hasValidSubmission: vi.fn() }));
+// forms' api barrel reaches book.ts too (through ops' privacy registry and email's merge fields), so
+// loading the original inside the factory would hand declarations.ts the unmocked function.
+vi.mock("@/modules/forms/api", () => ({ hasValidSubmission: vi.fn() }));
 vi.mock("@/modules/site/api", async (orig) => ({
   ...(await orig<Record<string, unknown>>()),
   getCurrentLegalVersion: vi.fn(),

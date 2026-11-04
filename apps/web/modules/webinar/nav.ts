@@ -1,6 +1,18 @@
 /**
- * webinar navigation (PL-19: an entry renders only when the user holds its permission). Facade read
- * by `pnpm gen:indexes`. Wave 0 skeleton by platform-P7: webinar adds its entries with its screens,
- * so no entry links to a page that does not exist yet.
+ * webinar navigation (PL-19: an entry renders only when the user holds its permission, the same
+ * permission that guards the page). Facade read by `pnpm gen:indexes`: `key` and `area` are
+ * literals. webinar-P2 adds the staff entry "Webinars" (`/admin/webinars`, `webinars.host`);
+ * webinar-P3 adds the portal entry behind `ff_webinar_portal`.
  */
-export const nav = [] as const;
+export const nav = [
+  {
+    key: "webinar.webinars",
+    area: "admin",
+    section: "webinar",
+    labelKey: "webinar.nav.webinars",
+    href: "/admin/webinars",
+    permission: "webinars.host",
+    icon: "video",
+    order: 100,
+  },
+] as const;

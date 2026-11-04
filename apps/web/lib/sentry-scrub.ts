@@ -1,16 +1,22 @@
 /**
  * Scrubbing shared by the browser and server Sentry configs (PL-72). It has no server-only
  * imports, so `instrumentation-client.ts` can use it. Besides emails and phone numbers in free
- * text, it removes secrets from URLs: path tokens (`/admin/reset-password/<token>`,
- * `/admin/invite/<token>`) become `[token]` and the query string and fragment are dropped (magic
- * links carry `token` and `email` there). URLs appear in `request.url`, transaction names,
+ * text, it removes secrets from URLs: path tokens become `[token]` and the query string and
+ * fragment are dropped (magic links carry `token` and `email` there). The token routes are
+ * `/admin/reset-password/<token>`, `/admin/invite/<token>`, `/<locale>/preferences/<token>`,
+ * `/<locale>/claim/<token>`, `/<locale>/pay/<token>`, `/<locale>/f/<slug>/r/<token>`,
+ * `/api/public/unsubscribe/<token>`, `/api/public/preferences/<token>`,
+ * `/api/public/claim/<token>` and `/api/public/forms/result/<token>/...` (portal
+ * `/account/preferences` has nothing after it, so it is left alone). URLs appear in `request.url`, transaction names,
  * the `url.full` / `http.url` span data and navigation/fetch breadcrumbs.
  */
 
 const EMAIL = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
 // International or Belgian numbers: +32 470 12 34 56, 0470/12.34.56, 0032470123456.
 const PHONE = /(?:\+|00)\d[\d\s./-]{7,}\d|\b0\d{1,3}[\s./-]?\d{2,3}[\s./-]?\d{2}[\s./-]?\d{2}\b/g;
-const PATH_TOKEN = /\/(reset-password|invite)\/[^/?#]+/g;
+const PATH_TOKEN = /\/(reset-password|invite|preferences|claim|unsubscribe|pay|result)\/[^/?#]+/g;
+// Form result links: `/f/<slug>/r/<token>`.
+const FORM_RESULT_TOKEN = /(\/f\/[^/?#]+\/r)\/[^/?#]+/g;
 
 /** Masks email addresses and phone numbers in free text. */
 export function maskText(text: string): string {
@@ -22,7 +28,7 @@ export function scrubUrl<T>(value: T): T {
   if (typeof value !== "string") return value;
   const cut = value.search(/[?#]/);
   const base = cut >= 0 ? value.slice(0, cut) : value;
-  return maskText(base.replace(PATH_TOKEN, "/$1/[token]")) as T;
+  return maskText(base.replace(PATH_TOKEN, "/$1/[token]").replace(FORM_RESULT_TOKEN, "$1/[token]")) as T;
 }
 
 const URL_KEYS = ["url", "url.full", "http.url", "from", "to", "http.target", "url.path"] as const;

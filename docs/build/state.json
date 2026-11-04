@@ -902,11 +902,19 @@
       "attempts": 0
     },
     "webinar-P2": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "baseSha": "b2e6063",
       "runId": "wf_1adc04ad-c0d",
-      "startedAt": "2026-11-04T19:49:31Z"
+      "startedAt": "2026-11-04T19:49:31Z",
+      "extraOwns": [
+        "packages/core/src/i18n/messages/en/webinar.json",
+        "packages/core/src/i18n/messages/fr-BE/webinar.json",
+        "packages/core/src/i18n/messages/nl-BE/webinar.json"
+      ],
+      "branchSha": "62c585b",
+      "endedAt": "2026-11-04T21:08:19Z",
+      "minutes": 46
     },
     "booking-P8": {
       "status": "pending",

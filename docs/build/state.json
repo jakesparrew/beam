@@ -86,8 +86,11 @@
       "mergedAt": "2026-11-03T23:03:46Z"
     },
     "platform-P8": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "11fffe1",
+      "runId": "wf_e98e1fa8-c23",
+      "startedAt": "2026-11-04T01:06:43Z"
     },
     "crm-P1": {
       "status": "merged",
@@ -158,8 +161,11 @@
       "mergedAt": "2026-11-03T23:51:47Z"
     },
     "finance-P1": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "11fffe1",
+      "runId": "wf_a5b32d09-654",
+      "startedAt": "2026-11-04T01:06:43Z"
     },
     "forms-P1": {
       "status": "merged",
@@ -677,8 +683,8 @@
       "mergedAt": "2026-11-03T23:50:08Z"
     },
     "fix-w04-platform-3": {
-      "status": "pending",
-      "attempts": 0,
+      "status": "running",
+      "attempts": 1,
       "fixer": true,
       "module": "platform",
       "goal": "Unblock module schema packages: frozen platform tests and factories that assume Wave 0 tables (see the launch notes).",
@@ -696,7 +702,10 @@
         "apps/web/app/api/cron/tick/route.test.ts",
         "packages/core/src/credits/types.ts"
       ],
-      "dependsOn": []
+      "dependsOn": [],
+      "baseSha": "11fffe1",
+      "runId": "wf_0ad13661-c56",
+      "startedAt": "2026-11-04T01:06:43Z"
     },
     "fix-w04-platform-4": {
       "status": "pending",

@@ -2364,7 +2364,8 @@
         "apps/web/modules/crm/declarations/declarations.test.ts",
         "apps/web/modules/crm/consent/consent.test.ts",
         "apps/web/modules/crm/consent/routes.test.ts",
-        "apps/web/modules/crm/portal/portal.test.ts"
+        "apps/web/modules/crm/portal/portal.test.ts",
+        "packages/email/src/templates/crm/index.ts"
       ],
       "exposes": [
         "recordConsent",
@@ -5829,7 +5830,8 @@
         "apps/web/modules/ops/privacy/restrict.test.ts",
         "apps/web/modules/ops/privacy/rectify.test.ts",
         "apps/web/modules/ops/privacy/privacy.test.ts",
-        "apps/web/modules/ops/privacy/permissions.test.ts"
+        "apps/web/modules/ops/privacy/permissions.test.ts",
+        "packages/email/src/templates/ops/index.ts"
       ],
       "exposes": [
         "createPrivacyRequest",
@@ -6194,7 +6196,8 @@
         "apps/web/app/[locale]/(portal)/account/packages/page.tsx",
         "packages/email/src/templates/credits/share-invitation.tsx",
         "packages/core/src/i18n/messages/*/credits.json",
-        "apps/web/modules/credits/permissions.test.ts"
+        "apps/web/modules/credits/permissions.test.ts",
+        "packages/email/src/templates/credits/index.ts"
       ],
       "exposes": [
         "updateGrantSharing",
@@ -7174,7 +7177,8 @@
         "apps/web/app/(admin)/admin/partner/page.tsx",
         "apps/web/app/[locale]/(portal)/account/referrals/page.tsx",
         "packages/email/src/templates/credits/referral-reward.tsx",
-        "packages/core/src/i18n/messages/*/credits.json"
+        "packages/core/src/i18n/messages/*/credits.json",
+        "packages/email/src/templates/credits/index.ts"
       ],
       "exposes": [
         "referrals.manage",
@@ -7232,7 +7236,8 @@
         "packages/integrations/src/meta-messaging/index.ts",
         "apps/web/modules/crm/inbox/inbox.test.ts",
         "apps/web/modules/crm/inbox/meta.test.ts",
-        "apps/web/modules/crm/inbox/jobs.test.ts"
+        "apps/web/modules/crm/inbox/jobs.test.ts",
+        "packages/email/src/templates/crm/index.ts"
       ],
       "exposes": [
         "ingestInboundEmail",

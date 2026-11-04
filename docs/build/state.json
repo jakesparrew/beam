@@ -87,10 +87,14 @@
     },
     "platform-P8": {
       "status": "running",
-      "attempts": 2,
-      "baseSha": "4ea719a",
-      "runId": "wf_df074f99-4d2",
-      "startedAt": "2026-11-04T01:39:09Z"
+      "attempts": 3,
+      "baseSha": "1b2926a",
+      "runId": "wf_f1aaa625-34d",
+      "startedAt": "2026-11-04T02:23:03Z",
+      "extraOwns": [
+        "apps/web/modules/platform/actions.test.ts",
+        "apps/web/modules/platform/ui/login-form.tsx"
+      ]
     },
     "crm-P1": {
       "status": "merged",
@@ -185,8 +189,11 @@
       "mergedAt": "2026-11-04T01:05:29Z"
     },
     "forms-P2": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "1b2926a",
+      "runId": "wf_8e279d47-056",
+      "startedAt": "2026-11-04T02:23:03Z"
     },
     "email-P1": {
       "status": "merged",
@@ -249,11 +256,16 @@
       "mergedAt": "2026-11-04T01:33:11Z"
     },
     "crm-P3": {
-      "status": "running",
+      "status": "merged",
       "attempts": 2,
       "baseSha": "4ea719a",
       "runId": "wf_24fe5aca-1d7",
-      "startedAt": "2026-11-04T01:39:10Z"
+      "startedAt": "2026-11-04T01:39:10Z",
+      "branchSha": "990b28b",
+      "endedAt": "2026-11-04T02:28:49Z",
+      "minutes": 38,
+      "mergeSha": "517b02d",
+      "mergedAt": "2026-11-04T02:31:55Z"
     },
     "crm-P4": {
       "status": "pending",
@@ -264,11 +276,14 @@
       "attempts": 0
     },
     "booking-P3a": {
-      "status": "running",
+      "status": "red",
       "attempts": 2,
       "baseSha": "4ea719a",
       "runId": "wf_2ca8ac6a-595",
-      "startedAt": "2026-11-04T01:39:10Z"
+      "startedAt": "2026-11-04T01:39:10Z",
+      "branchSha": "074246c",
+      "endedAt": "2026-11-04T02:32:02Z",
+      "minutes": 39
     },
     "commerce-P3": {
       "status": "pending",
@@ -315,8 +330,11 @@
       "attempts": 0
     },
     "site-P2": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "1b2926a",
+      "runId": "wf_b991b7b6-9ec",
+      "startedAt": "2026-11-04T02:23:03Z"
     },
     "crm-P5": {
       "status": "pending",
@@ -344,10 +362,10 @@
     },
     "credits-P4": {
       "status": "running",
-      "attempts": 1,
-      "baseSha": "3785228",
-      "runId": "wf_4dc7e038-7bc",
-      "startedAt": "2026-11-04T02:12:33Z"
+      "attempts": 2,
+      "baseSha": "1b2926a",
+      "runId": "wf_765669e5-601",
+      "startedAt": "2026-11-04T02:23:03Z"
     },
     "finance-P3": {
       "status": "pending",
@@ -897,7 +915,7 @@
       ]
     },
     "fix-w05-schema-1": {
-      "status": "running",
+      "status": "done",
       "attempts": 2,
       "fixer": true,
       "module": "platform",
@@ -929,7 +947,29 @@
       ],
       "baseSha": "4ea719a",
       "runId": "wf_523fa3f5-e74",
-      "startedAt": "2026-11-04T01:39:10Z"
+      "startedAt": "2026-11-04T01:39:10Z",
+      "branchSha": "8a4b0e3",
+      "endedAt": "2026-11-04T02:23:03Z",
+      "minutes": 33
+    },
+    "fix-w05-crm-1": {
+      "status": "pending",
+      "attempts": 0,
+      "fixer": true,
+      "module": "crm",
+      "goal": "Register crm templates in packages/email/src/templates/crm/index.ts with samples (latent define.test.ts failure from crm-P3).",
+      "from": [
+        "crm-P3"
+      ],
+      "dependsOn": [
+        "crm-P3"
+      ],
+      "owns": [
+        "packages/email/src/templates/crm/index.ts",
+        "packages/email/src/templates/crm/confirm-resubscribe.tsx",
+        "packages/email/src/templates/crm/preference-link.tsx",
+        "packages/email/src/templates/crm/fix-w05-crm-1.templates.test.ts"
+      ]
     }
   }
 }

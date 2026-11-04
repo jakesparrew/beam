@@ -6,8 +6,9 @@
  * its own audit row with the spec's audit name (section 7), so the wrapper's automatic row is off
  * (`audit: false`): one audit row per staff action. Ledger writes go through `server/ledger.ts`,
  * membership writes through `server/memberships.ts` (row lock, `version` check). Old and new
- * values carry balances, dates and statuses, never notes or other personal data. The customer
- * actions (`cancelMyMembership`, `resumeMyMembership`, `payMyRenewal`) come with credits-P7.
+ * values carry balances, dates and statuses, never notes or other personal data. credits-P7 adds
+ * the customer actions on the reader's own membership (`cancelMyMembership`, `resumeMyMembership`,
+ * `payMyRenewal`); a membership of someone else is `not_found`.
  */
 import { z } from "zod";
 import { creditGrants, membershipPlanBenefits, membershipPlanInclusions, memberships, persons, products } from "@beam/db/schema";
@@ -34,11 +35,12 @@ import {
 } from "@beam/core/credits";
 import { action } from "@/lib/action";
 import { and, ConflictError, eq, NotFoundError, sql, ValidationError, type Ctx } from "@/lib/ctx";
-import { getActiveMandate } from "@/modules/commerce/api";
+import { getActiveMandate, getOrderStatus, startPayment } from "@/modules/commerce/api";
 import { searchPersons } from "@/modules/crm/api";
 import { translator } from "@/lib/i18n";
 import { previewBulkExtension, startBulkExtension } from "./server/bulk-extend";
 import * as ledger from "./server/ledger";
+import { canPayRenewal } from "./queries";
 import { lockMembership, renewalJobKey } from "./server/memberships";
 import * as membershipService from "./server/memberships";
 
@@ -431,5 +433,68 @@ export const updateMembershipNotes = action(
       newValue: { has_notes: !!notes, length: notes?.length ?? 0 },
     });
     return { version: row!.version };
+  },
+);
+
+// ---------------------------------------------------------------------------
+// Customer portal (credits-P7): own membership only
+// ---------------------------------------------------------------------------
+
+const MyMembershipInput = z.object({ membershipId: z.string().uuid(), version: z.number().int().min(1) });
+
+/** The reader's membership under its row lock; another person's (or a missing) one is `not_found` (the portal 404). */
+async function lockOwnMembership(ctx: Ctx, membershipId: string) {
+  if (ctx.actor.kind !== "customer") throw new NotFoundError("membership_not_found");
+  const personId = ctx.actor.personId;
+  const m = await lockMembership(ctx.tx, membershipId).catch((error: unknown) => {
+    if (error instanceof NotFoundError) throw new NotFoundError("membership_not_found");
+    throw error;
+  });
+  if (m.personId !== personId) throw new NotFoundError("membership_not_found");
+  return m;
+}
+
+/**
+ * Rule 53 from the portal: an `active` membership ends at period end (`cancel_at`); a `pending`
+ * or `past_due` one ends at once (`cancelled_by_customer`, the unpaid period is never charged).
+ * The audit rows carry the customer actor. Returns when it ends, for the confirmation.
+ */
+export const cancelMyMembership = action(
+  { name: "memberships.portal_cancel", audience: "customer", input: MyMembershipInput, audit: false },
+  async (ctx, input) => {
+    const m = await lockOwnMembership(ctx, input.membershipId);
+    if (m.version !== input.version) throw new ConflictError("stale_version");
+    const r = await membershipService.requestCancel(ctx.tx, ctx, { membershipId: m.id, by: "customer", version: input.version });
+    const endsAt = r.mode === "period_end" ? (r.membership.cancelAt ?? r.membership.currentPeriodEndAt) : (r.membership.endedAt ?? ctx.now);
+    return { mode: r.mode, status: r.membership.status, version: r.membership.version, endsAt: endsAt.toISOString() };
+  },
+);
+
+/** Rule 53: the customer takes back a cancellation before `cancel_at`. */
+export const resumeMyMembership = action(
+  { name: "memberships.portal_resume", audience: "customer", input: MyMembershipInput, audit: false },
+  async (ctx, input) => {
+    const m = await lockOwnMembership(ctx, input.membershipId);
+    if (m.version !== input.version) throw new ConflictError("stale_version");
+    const row = await membershipService.resume(ctx.tx, ctx, { membershipId: m.id, version: input.version });
+    return { status: row.status, version: row.version };
+  },
+);
+
+/**
+ * Pays the open renewal order of a `past_due` membership, or of an `active` one renewed by link
+ * (no valid mandate), through commerce's inline payment (`startPayment`, return to the membership
+ * page). Anything else is `conflict` (`nothing_to_pay`).
+ */
+export const payMyRenewal = action(
+  { name: "memberships.portal_pay", audience: "customer", input: z.object({ membershipId: z.string().uuid() }), audit: false },
+  async (ctx, input) => {
+    const m = await lockOwnMembership(ctx, input.membershipId);
+    if (!m.renewalOrderId) throw new ConflictError("nothing_to_pay");
+    const order = await getOrderStatus(ctx.tx, m.renewalOrderId);
+    const mandate = m.status === "active" ? await getActiveMandate(ctx.tx, m.personId) : null;
+    if (!canPayRenewal({ status: m.status, renewalOrderStatus: order.status, hasValidMandate: !!mandate })) throw new ConflictError("nothing_to_pay");
+    const { redirectUrl } = await startPayment(ctx.tx, ctx, { orderId: m.renewalOrderId, returnPath: "/account/membership" });
+    return { redirectUrl };
   },
 );

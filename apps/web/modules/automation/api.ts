@@ -1,8 +1,11 @@
 /**
  * automation's cross-module door (automation spec 4.7, 02-data-model section 6.9). automation-P2
- * implements every function; `PersonAutomationsPanel` stays the Wave 0 stand-in until
- * automation-P6 builds the person panel (`./ui/person-automations-panel`).
+ * implements every function. `PersonAutomationsPanel` is automation-P4's read-only interim
+ * panel (platform-P7 request: no throwing stand-in); automation-P6 replaces it with
+ * `export { PersonAutomationsPanel } from './ui/person-automations-panel'` (staff controls,
+ * preview drawer, outcome filters).
  */
+import { createElement as el, type ReactElement, type ReactNode } from "react";
 import type { DbOrTx, Tx } from "@beam/db";
 import {
   automationEnrolments,
@@ -11,9 +14,9 @@ import {
   automationVersions,
   vPersonAutomationTimeline,
 } from "@beam/db/schema";
-import { NotImplementedError } from "@beam/core/errors";
+import { formatDateTime, type Locale } from "@beam/core/i18n";
 import type { AutomationTimelineItem, EnrolResult, PersonEnrolmentSummary } from "@beam/core/automation";
-import { and, desc, enqueueJob, eq, gt, inArray, lt, sql, type Actor, type Ctx } from "@/lib/ctx";
+import { and, desc, enqueueJob, eq, getAppDb, gt, inArray, lt, sql, type Actor, type Ctx } from "@/lib/ctx";
 import { evaluatorLagSeconds } from "./engine/cursor";
 import { enrol, IN_USE_STATUSES, loadAutomations } from "./engine/enrol";
 import { exitPersonEnrolments as exitAll } from "./engine/exits";
@@ -192,7 +195,68 @@ export async function countAutomationIssues(
   };
 }
 
-/** Server component rendered by crm in the person page "Automations" tab (Wave 0 stand-in until automation-P6). */
-export function PersonAutomationsPanel(_props: { personId: string }): never {
-  throw new NotImplementedError("automation.PersonAutomationsPanel");
+export type PersonAutomationsPanelProps = {
+  personId: string;
+  /** Defaults to the app database (tests pass theirs). */
+  db?: DbOrTx;
+  /** Defaults to the signed-in staff user's locale. */
+  locale?: Locale;
+};
+
+/**
+ * Server component rendered by crm in the person page "Automations" tab (spec 5, A-41). Interim
+ * read-only version (automation-P4): active journeys with next step and due time, ended journeys
+ * with their end reason, and the automation timeline, newest first. Labels are the
+ * `automation.panel.*`, `automation.outcome.*` and `automation.end_reason.*` catalogue keys
+ * (automation-P5 writes them; `softTranslator` shows the key until then). Times in Europe/Brussels.
+ */
+export async function PersonAutomationsPanel(props: PersonAutomationsPanelProps): Promise<ReactElement> {
+  const { adminLocale, softTranslator } = await import("@/lib/i18n");
+  const db = props.db ?? (await getAppDb());
+  const locale = props.locale ?? (await adminLocale());
+  const tr = softTranslator(locale);
+  const [enrolments, timeline] = await Promise.all([listPersonEnrolments(db, props.personId), getTimelineItems(db, props.personId, { limit: 100 })]);
+  const when = (d: Date | null) => (d ? formatDateTime(d, locale) : "");
+  const endReason = (r: string | null) => (r ? tr(`automation.end_reason.${r.split(":")[0]}`) : "");
+  if (!enrolments.length && !timeline.length) {
+    return el("div", { "data-testid": "automation-panel" }, el("p", { "data-testid": "automation-panel-empty" }, tr("automation.panel.empty")));
+  }
+  const section = (key: string, body: ReactNode) =>
+    el("section", { "aria-labelledby": `automation-panel-${key}`, "data-testid": `automation-panel-${key}` }, el("h3", { id: `automation-panel-${key}` }, tr(`automation.panel.${key}`)), body);
+  const item = (e: PersonEnrolmentSummary, detail: string) =>
+    el("li", { key: e.enrolmentId, "data-enrolment-id": e.enrolmentId }, el("strong", null, e.automationName), " ", el("span", null, detail));
+  const active = enrolments.filter((e) => e.status === "active");
+  const ended = enrolments.filter((e) => e.status !== "active");
+  return el(
+    "div",
+    { "data-testid": "automation-panel" },
+    section(
+      "active",
+      active.length
+        ? el("ul", null, ...active.map((e) => item(e, e.nextStepKey ? `${tr("automation.panel.next_step")}: ${e.nextStepKey}, ${when(e.nextStepAt)}` : "")))
+        : el("p", null, tr("automation.panel.no_active")),
+    ),
+    ended.length ? section("ended", el("ul", null, ...ended.map((e) => item(e, `${endReason(e.endReason)}, ${when(e.endedAt)}`)))) : null,
+    section(
+      "timeline",
+      el(
+        "ol",
+        null,
+        ...timeline.map((t) =>
+          el(
+            "li",
+            { key: t.id, "data-outcome": t.outcome },
+            el("time", { dateTime: t.occurredAt.toISOString() }, when(t.occurredAt)),
+            " ",
+            el("strong", null, t.automationName),
+            t.stepKey ? ` / ${t.stepKey}` : "",
+            " ",
+            el("span", null, tr(`automation.outcome.${t.outcome}`)),
+            t.outcome === "exited" && t.endReason ? ` (${endReason(t.endReason)})` : "",
+            t.reason && t.outcome !== "exited" ? el("small", null, ` ${t.reason}`) : null,
+          ),
+        ),
+      ),
+    ),
+  );
 }

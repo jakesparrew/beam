@@ -361,11 +361,16 @@
       "mergedAt": "2026-11-04T02:20:09Z"
     },
     "automation-P2": {
-      "status": "running",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "e0b1319",
       "runId": "wf_e7c7ae6f-ff8",
-      "startedAt": "2026-11-04T03:55:18Z"
+      "startedAt": "2026-11-04T03:55:18Z",
+      "branchSha": "1f6d3c8",
+      "endedAt": "2026-11-04T04:32:30Z",
+      "minutes": 36,
+      "mergeSha": "c1ad2a7",
+      "mergedAt": "2026-11-04T04:34:57Z"
     },
     "ops-P2": {
       "status": "running",

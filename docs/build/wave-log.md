@@ -105,3 +105,4 @@ One entry per merge batch and gate (runbook section 5.7, adapted by OD-3).
 - finance-P2: 28 min, merged as `b8ab7a6`; gate `g40-finance-P2` (merge) green, peak 5989 MB.
 - commerce-P3: 40 min, merged as `9aa2a07`; gate `g41-commerce-P3` (merge) green, peak 6726 MB.
 - finance-P2 (28 min, `g40`) and commerce-P3 (40 min, `g41`) landed. Started commerce-P4a from `9aa2a07`.
+- automation-P2: 36 min, merged as `c1ad2a7`; gate `g42-automation-P2` (merge) green, peak 6892 MB.

@@ -52,7 +52,7 @@ export default async function SessionsPage({ searchParams }: { searchParams: Pro
           title: show(b.title, locale),
           kindLabel: b.eventCategory ? tr(`booking.eventCategory.${b.eventCategory}`) : tr(`booking.kind.${b.kind}`),
           status: b.status,
-          statusLabel: b.status === "open" ? null : b.status === "closed" ? tr("booking.day.close_session") : tr("booking.status.cancelled"),
+          statusLabel: b.status === "open" ? null : tr(`booking.availability.${b.status}`),
           booked: tr("booking.calendar.booked_of_capacity", { booked: b.booked, capacity: b.capacity }),
           held: b.held > 0 ? tr("booking.calendar.held", { count: b.held }) : null,
           waiting: b.waiting > 0 ? tr("booking.calendar.waiting", { count: b.waiting }) : null,

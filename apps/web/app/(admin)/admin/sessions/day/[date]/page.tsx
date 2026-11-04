@@ -39,7 +39,7 @@ export default async function SessionDayPage({ params }: { params: Promise<{ dat
     title: show(s.title, locale),
     kindLabel: s.eventCategory ? tr(`booking.eventCategory.${s.eventCategory}`) : tr(`booking.kind.${s.kind}`),
     status: s.status,
-    statusLabel: s.status === "open" ? tr("booking.session.published") : s.status === "closed" ? tr("booking.day.close_session") : tr("booking.status.cancelled"),
+    statusLabel: s.status === "open" ? (s.publishedAt ? tr("booking.availability.available") : tr("booking.session.draft")) : tr(`booking.availability.${s.status}`),
     capacity: s.capacity,
     used: s.capacity - s.availableTotal,
     bookedLabel: tr("booking.session.capacity_label", { booked: s.booked, capacity: s.capacity }),

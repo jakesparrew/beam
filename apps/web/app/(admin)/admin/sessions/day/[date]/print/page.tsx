@@ -33,7 +33,7 @@ export default async function SessionDayPrintPage({ params }: { params: Promise<
           <h2 id={`s-${s.sessionId}`} className="text-lg font-semibold">
             {brusselsTime(s.startsAt)}–{brusselsTime(s.endsAt)} · {show(s.title, locale)}
             {s.location ? ` · ${s.location}` : ""}
-            {s.status === "closed" ? ` · ${tr("booking.day.close_session")}` : ""}
+            {s.status === "closed" ? ` · ${tr("booking.availability.closed")}` : ""}
           </h2>
           <table className="w-full border-collapse text-sm">
             <thead>

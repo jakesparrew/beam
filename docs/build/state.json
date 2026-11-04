@@ -501,12 +501,18 @@
       "mergedAt": "2026-11-04T05:49:23Z"
     },
     "automation-P3": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "40fc2b1",
+      "runId": "wf_942f7006-bb6",
+      "startedAt": "2026-11-04T06:46:08Z"
     },
     "ops-P3": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "40fc2b1",
+      "runId": "wf_abc46e06-2cc",
+      "startedAt": "2026-11-04T06:46:08Z"
     },
     "ops-P6": {
       "status": "pending",
@@ -531,12 +537,18 @@
       "attempts": 0
     },
     "booking-P4": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "40fc2b1",
+      "runId": "wf_13d43758-2a2",
+      "startedAt": "2026-11-04T06:46:08Z"
     },
     "booking-P5": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "40fc2b1",
+      "runId": "wf_29f4843d-832",
+      "startedAt": "2026-11-04T06:46:08Z"
     },
     "commerce-P4b": {
       "status": "running",

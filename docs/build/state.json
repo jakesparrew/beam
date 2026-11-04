@@ -549,7 +549,7 @@
       "runId": "wf_15fff030-3fe",
       "startedAt": "2026-11-04T07:25:56Z",
       "branchSha": "2f24c57",
-      "endedAt": "2026-11-04T08:27:37Z",
+      "endedAt": "2026-11-04T08:43:40Z",
       "minutes": 47
     },
     "site-P3": {
@@ -559,7 +559,7 @@
       "runId": "wf_b3115b8e-5a6",
       "startedAt": "2026-11-04T07:39:40Z",
       "branchSha": "2580d61",
-      "endedAt": "2026-11-04T08:27:37Z",
+      "endedAt": "2026-11-04T08:28:34Z",
       "minutes": 50
     },
     "site-P5": {
@@ -581,7 +581,7 @@
       "runId": "wf_f1bc1a00-de8",
       "startedAt": "2026-11-04T07:25:56Z",
       "branchSha": "366e229",
-      "endedAt": "2026-11-04T08:27:37Z",
+      "endedAt": "2026-11-04T08:28:34Z",
       "minutes": 58
     },
     "booking-P4": {
@@ -692,7 +692,7 @@
       "runId": "wf_ab6341df-fc4",
       "startedAt": "2026-11-04T07:39:40Z",
       "branchSha": "c756854",
-      "endedAt": "2026-11-04T08:27:37Z",
+      "endedAt": "2026-11-04T08:28:34Z",
       "minutes": 46
     },
     "finance-P5": {
@@ -1340,7 +1340,7 @@
       "runId": "wf_0bb98cdf-cd9",
       "startedAt": "2026-11-04T08:06:30Z",
       "branchSha": "3ee3476",
-      "endedAt": "2026-11-04T08:27:37Z",
+      "endedAt": "2026-11-04T08:28:35Z",
       "minutes": 17
     },
     "fix-w07-site-1": {
@@ -1391,8 +1391,26 @@
       "runId": "wf_60b1f82c-090",
       "startedAt": "2026-11-04T08:06:30Z",
       "branchSha": "4243a44",
-      "endedAt": "2026-11-04T08:27:37Z",
+      "endedAt": "2026-11-04T08:28:35Z",
       "minutes": 8
+    },
+    "fix-w08-booking-2": {
+      "status": "pending",
+      "attempts": 0,
+      "fixer": true,
+      "module": "booking",
+      "goal": "crm-P7 made crm getReceptionCard real, so apps/web/modules/booking/queries/attendance.test.ts (getCheckinCard and getCheckinDay: shows the scanned booking with its guests, the payment due and the window flags) still expects receptionCard: null, the fallback booking used while the crm function was a stub. Fix the test, not the code: either vi.mock getReceptionCard from @/modules/crm/api to a card of the contract shape and assert booking passes it through, or assert the real card for the test person (customerNumber, name, status, declarations). Check the other tests in modules/booking for assertions on fallback values of crm, credits or forms functions that are now real (CONVENTIONS item 11) and fix them the same way. Remove the fix-w08-booking-2 line from docs/build/known-red.txt; run modules/booking with one worker.",
+      "from": [
+        "booking-P4"
+      ],
+      "owns": [
+        "apps/web/modules/booking/queries/attendance.test.ts",
+        "apps/web/modules/booking/**/*.test.ts",
+        "docs/build/known-red.txt"
+      ],
+      "dependsOn": [
+        "crm-P7"
+      ]
     }
   }
 }

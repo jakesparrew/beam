@@ -31,7 +31,9 @@ otherwise, and add or adjust tests that prove each fix.
 - Every id in `dependsOn` is already merged into `BASE`; `docs/build/state.json` gives each
   one's merge commit. A function you need from a module whose implementing package has not
   merged exists as a typed stub in `apps/web/modules/<m>/api.ts` (from platform-P7): call it
-  with that exact signature and mock it in your tests with `vi.mock`. Never change another
+  with that exact signature and mock it in your tests with `vi.mock` (also where your code
+  catches the stub's `NotImplementedError` and falls back: a test that asserts the fallback
+  value breaks the day the real function lands; CONVENTIONS item 11). Never change another
   module's stub.
 
 **Requests from earlier packages.** Read `docs/build/requests.md`. Every row under "Open" whose

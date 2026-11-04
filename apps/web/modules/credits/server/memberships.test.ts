@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DbHandle, DbOrTx, Tx } from "@beam/db";
 import {
   activityEvents,
@@ -116,6 +116,30 @@ beforeEach(() => {
     Promise.resolve({ payUrl: `https://beam.example.com/nl-BE/pay/${input.orderId}`, expiresAt: new Date("2099-01-01T00:00:00Z") }),
   );
   fx.cancelRenewalOrder.mockImplementation(() => Promise.resolve());
+});
+
+const MEMBERSHIP_TEMPLATES = [
+  "membership_started",
+  "membership_renewal_reminder",
+  "membership_renewed",
+  "membership_payment_failed",
+  "membership_expired",
+  "membership_cancel_confirmed",
+] as const;
+
+/** Every send of every test: `sendTransactional(ctx, { template, personId, locale, data, key })` with a section 8 key. */
+afterEach(() => {
+  for (const [ctx, input] of fx.sendTransactional.mock.calls as [Ctx, { template: string; personId: string; locale: string; data: Record<string, unknown>; key: string }][]) {
+    expect(ctx.tx).toBeDefined();
+    const name = input.template.replace(/^credits\./, "");
+    expect(MEMBERSHIP_TEMPLATES as readonly string[]).toContain(name);
+    expect(input.template).toBe(`credits.${name}`);
+    expect(input.key.startsWith(`credits:${name}:${String(input.data.membershipId)}:`)).toBe(true);
+    expect(LOCALES as readonly string[]).toContain(input.locale);
+    expect(input.personId).toMatch(/^[0-9a-f-]{36}$/);
+    const tpl = (TEMPLATE_REGISTRY as unknown as Record<string, TemplateDef>)[input.template]!;
+    expect(tpl.props.safeParse(input.data).success, input.template).toBe(true);
+  }
 });
 
 // Tuesday 10 March 2026, 10:00 Brussels (CET).
@@ -733,5 +757,158 @@ describe("period extension, the V1 pause (rule 55)", () => {
   it("refuses 0 or 91 days", async () => {
     const { m } = await start();
     await expect(extendPeriod(tx(), ctxAt(T0), { membershipId: m.id, days: 91, reason: "too long", alsoExtendInclusions: false, clientKey: randomUUID() })).rejects.toMatchObject({ code: "validation" });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Reads, imports, erasure row
+// ---------------------------------------------------------------------------
+
+describe("getMembershipForPerson and getMembershipSummary", () => {
+  it("active and past_due are members with the discount snapshot; cancelled is not", async () => {
+    const active = await start();
+    expect(await getMembershipForPerson(h.db, active.personId)).toEqual({
+      isMember: true,
+      membershipId: active.m.id,
+      planProductId: active.plan.product.id,
+      discountPct: 10,
+      status: "active",
+      periodEndAt: active.m.currentPeriodEndAt,
+      cancelAt: null,
+    });
+    const pastDue = await charged();
+    await applyRenewalFailure(tx(), ctxAt(days(28)), { membershipId: pastDue.m.id, paymentId: "tr_read", reason: "failed" });
+    expect(await getMembershipForPerson(h.db, pastDue.personId)).toMatchObject({ isMember: true, status: "past_due", discountPct: 10 });
+    const cancelled = await start();
+    await cancelNow(tx(), ctxAt(days(1)), { membershipId: cancelled.m.id, by: "customer" });
+    expect(await getMembershipForPerson(h.db, cancelled.personId)).toEqual({
+      isMember: false,
+      membershipId: null,
+      planProductId: null,
+      discountPct: 0,
+      status: null,
+      periodEndAt: null,
+      cancelAt: null,
+    });
+    expect(await getMembershipForPerson(h.db, (await makePerson(h.db)).id)).toMatchObject({ isMember: false });
+  });
+
+  it("getMembershipSummary gives the plan, period end and this period's included units", async () => {
+    const { m, plan } = await start({ extraNight: 2 });
+    await consumeCredits(tx(), ctxAt(days(1)), { personId: m.personId, beneficiaryPersonId: m.personId, kind: "day", units: 1, ref: { type: "booking", id: randomUUID() }, validAt: days(1) });
+    expect(await getMembershipSummary(h.db, m.personId)).toEqual({
+      status: "active",
+      productName: plan.product.name,
+      currentPeriodEndAt: m.currentPeriodEndAt,
+      includedCredits: [
+        { kind: "day", remainingUnits: 3 },
+        { kind: "night", remainingUnits: 2 },
+      ],
+    });
+    expect(await getMembershipSummary(h.db, (await makePerson(h.db)).id)).toBeNull();
+  });
+});
+
+describe("importMembership (ops imports)", () => {
+  it("imported -> active: period end minus one interval, inclusions only for the running period; a re-run returns the same row", async () => {
+    const plan = await makePlan();
+    const personId = (await makePerson(h.db)).id;
+    const periodEndAt = days(12);
+    const input = { personId, productId: plan.product.id, periodEndAt, idempotencyKey: "import:imp1:row:4", mandateId: randomUUID() };
+    const first = await importMembership(tx(), ctxAt(T0), input);
+    const again = await importMembership(tx(), ctxAt(T0), input);
+    expect(again).toEqual({ membershipId: first.membershipId, created: false });
+    const m = await row(first.membershipId);
+    expect(m).toMatchObject({ status: "active", source: "import", currentPeriodEndAt: periodEndAt, discountPct: "10.00" });
+    expect(brusselsDateKey(m.currentPeriodStartAt)).toBe("2026-02-22");
+    expect(m.nextChargeAt).toEqual(shiftDays(periodEndAt, -3));
+    expect((await periodsOf(m.id)).map((p) => p.source)).toEqual(["import"]);
+    expect(await grantsOf(m.id)).toHaveLength(1);
+  });
+
+  it("imported -> cancelled and imported -> expired end with not_renewed and get no grants", async () => {
+    const plan = await makePlan();
+    for (const status of ["cancelled", "expired"] as const) {
+      const personId = (await makePerson(h.db)).id;
+      const r = await importMembership(tx(), ctxAt(T0), { personId, productId: plan.product.id, periodEndAt: days(-40), idempotencyKey: `import:imp2:${status}`, status });
+      expect(await row(r.membershipId)).toMatchObject({ status, endReason: "not_renewed", endedAt: days(-40) });
+      expect(await grantsOf(r.membershipId)).toEqual([]);
+    }
+  });
+});
+
+describe("erasure rows of the status machine (handled by credits-P5's privacy.erase)", () => {
+  it.each(["active", "past_due", "pending"] as const)("%s -> expired is allowed only with end_reason erased", (from) => {
+    expect(() => assertMembershipTransition(from, "expired", { endReason: "erased" })).not.toThrow();
+    if (from !== "past_due") expect(() => assertMembershipTransition(from, "expired", { endReason: "payment_failed" })).toThrow();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Concurrency, job double runs, templates
+// ---------------------------------------------------------------------------
+
+describe("locks and jobs", () => {
+  it("a parallel scan and renewal webhook on one membership serialise on the row lock", async () => {
+    const { m } = await start();
+    await scanOne(m.id, days(-7, m.currentPeriodEndAt));
+    const orderId = (await row(m.id)).renewalOrderId!;
+    const at = new Date(m.currentPeriodEndAt.getTime() + 60_000);
+    const [scanned, paid] = await Promise.all([scanOne(m.id, at), inTx(at, (t, ctx) => applyRenewalPayment(t, ctx, { membershipId: m.id, orderId }))]);
+    expect(paid.applied).toBe(true);
+    const after = await row(m.id);
+    expect(after).toMatchObject({ status: "active", currentPeriodStartAt: m.currentPeriodEndAt, renewalOrderId: null, dunningAttempt: 0 });
+    expect((await periodsOf(m.id)).filter((p) => p.source === "renewal")).toHaveLength(1);
+    expect(Array.isArray(scanned)).toBe(true);
+  });
+
+  it("memberships.scan_renewals twice the same day changes nothing the second time", async () => {
+    const { m } = await start();
+    const at = days(-7, m.currentPeriodEndAt);
+    const first = await runJob("memberships.scan_renewals", at, (ctx) => runScanRenewals(ctx, {}));
+    expect(first.actions[m.id]).toEqual(["link_order", "reminder:7"]);
+    const snapshot = { row: await row(m.id), events: (await eventsOf(m.id)).length, sends: sends(m.id).length };
+    const second = await runJob("memberships.scan_renewals", at, (ctx) => runScanRenewals(ctx, {}));
+    expect(second.actions[m.id]).toBeUndefined();
+    expect(await row(m.id)).toEqual(snapshot.row);
+    expect((await eventsOf(m.id)).length).toBe(snapshot.events);
+    expect(sends(m.id).length).toBe(snapshot.sends);
+    expect(second.errors.filter((e) => e.membershipId === m.id)).toEqual([]);
+  });
+
+  it("memberships.charge_renewal twice creates one charge", async () => {
+    const { m } = await start({ mandate: true });
+    const at = days(-3, m.currentPeriodEndAt);
+    const payload = { membershipId: m.id, periodEndOn: endOn(m), attempt: 1 as const };
+    const first = await runJob("memberships.charge_renewal", at, (ctx) => runChargeRenewal(ctx, payload));
+    const afterFirst = await row(m.id);
+    const second = await runJob("memberships.charge_renewal", at, (ctx) => runChargeRenewal(ctx, payload));
+    expect(first).toMatchObject({ charged: true });
+    expect(second).toMatchObject({ charged: false });
+    expect(await row(m.id)).toEqual(afterFirst);
+    expect(fx.createRecurringCharge).toHaveBeenCalledTimes(1);
+  });
+
+  it("lockMembership refuses an unknown id (not_found)", async () => {
+    await expect(lockMembership(h.db, randomUUID())).rejects.toMatchObject({ code: "not_found" });
+  });
+
+  it("the balance of a membership grant follows the ledger", async () => {
+    const { m } = await start();
+    const [g] = await grantsOf(m.id);
+    expect(await balanceOf(h.db, g!.g.id)).toBe(4);
+  });
+});
+
+describe("membership templates", () => {
+  const registry = TEMPLATE_REGISTRY as unknown as Record<string, TemplateDef>;
+  it.each(MEMBERSHIP_TEMPLATES.flatMap((name) => LOCALES.map((locale) => [name, locale] as const)))("credits.%s renders its sample in %s", async (name, locale) => {
+    const tpl = registry[`credits.${name}`];
+    expect(tpl, name).toBeDefined();
+    const out = await renderEmail({ source: "code", template: tpl!, locale, props: tpl!.sample });
+    expect(out.subject.trim()).not.toBe("");
+    expect(out.subject).not.toMatch(/[{}⟦]/);
+    expect(out.html).toContain(`lang="${locale}"`);
+    expect(out.text.length).toBeGreaterThan(40);
   });
 });

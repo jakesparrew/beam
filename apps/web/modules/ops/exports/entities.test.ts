@@ -99,7 +99,7 @@ describe("restricted persons (ops rule 54)", () => {
 
     const ids = async (source: Awaited<ReturnType<typeof fullTableSource>>, column = "id") => {
       const at = source.columns.indexOf(column);
-      return (await readChunk(h.db, source, 0, 5000)).map((r) => String(r[at]));
+      return (await readChunk(h.db, source, null, 5000)).rows.map((r) => String(r[at]));
     };
     const personIds = await ids(entitySource("persons"));
     expect(personIds).toContain(free.id);
@@ -112,7 +112,7 @@ describe("restricted persons (ops rule 54)", () => {
     expect(lineOrders).not.toContain(restrictedOrder.id);
 
     const full = await fullTableSource(h.db, "persons");
-    const rows = await readChunk(h.db, full, 0, 5000);
+    const { rows } = await readChunk(h.db, full, null, 5000);
     const flag = full.columns.indexOf("is_processing_restricted");
     const byId = new Map(rows.map((r) => [String(r[0]), r[flag]]));
     expect(byId.get(restricted.id)).toBe(true);
@@ -121,7 +121,7 @@ describe("restricted persons (ops rule 54)", () => {
 
   it("applies the date filters in Europe/Brussels days", async () => {
     const p = await makePerson(h.db, { createdAt: new Date("2026-03-10T23:30:00Z") }); // 11 March in Brussels
-    const ids = async (from: string, to: string) => (await readChunk(h.db, entitySource("persons", { from, to }), 0, 5000)).map((r) => String(r[0]));
+    const ids = async (from: string, to: string) => (await readChunk(h.db, entitySource("persons", { from, to }), null, 5000)).rows.map((r) => String(r[0]));
     expect(await ids("2026-03-11", "2026-03-11")).toContain(p.id);
     expect(await ids("2026-03-10", "2026-03-10")).not.toContain(p.id);
   });

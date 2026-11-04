@@ -35,6 +35,7 @@ import {
 } from "@beam/core/ops";
 import { action } from "@/lib/action";
 import { and, ConflictError, eq, inArray, sql, ValidationError, type Ctx } from "@/lib/ctx";
+import { rowsOf } from "@/lib/sensitive";
 import { isGoLiveGateComplete, readFile } from "@/modules/platform/api";
 import { allowedTargets, autoTickCutover, FILE_RETENTION_DAYS, loadImport, type ImportRecord } from "./jobs";
 import type { Reconciliation } from "./reconcile";
@@ -129,6 +130,8 @@ export const saveImportMapping = action(
   async (ctx, input): Promise<{ ok: boolean; missingTargets: string[] }> => {
     const imp = await lockedImport(ctx, input.importId);
     if (imp.status !== "uploaded" && imp.status !== "dry_run") throw new ConflictError("import_locked");
+    // Rule 44: the dry run parses with the mapping it started with; finalise sets finished_at under the same row lock.
+    if (imp.status === "dry_run" && !imp.finishedAt) throw new ConflictError("dry_run_in_progress");
     const allowed = allowedTargets(imp.kind, imp.source);
     for (const [column, target] of Object.entries(input.mapping.columns)) {
       if (!imp.header.includes(column)) throw new ValidationError("unknown_column", { mapping: "unknown_column" });
@@ -160,7 +163,8 @@ export const startDryRun = action(
     const missing = missingFor(imp, imp.mapping);
     if (missing.length) throw new ValidationError("missing_targets", { mapping: missing.join(",") });
     const runSeq = imp.runSeq + 1;
-    const { dry_run: _dry, mapping_hash: _hash, ...report } = reportOf(imp);
+    const { dry_run: _dry, mapping_hash: _hash, ...kept } = reportOf(imp);
+    const report: ImportReport = { ...kept, dry_run_mapping_hash: mappingHash(imp.mapping) };
     await ctx.tx
       .update(imports)
       .set({ status: "dry_run", isDryRun: true, runSeq, startedAt: ctx.now, finishedAt: null, counts: {}, report, updatedAt: ctx.now })
@@ -221,6 +225,9 @@ export const startImport = action(
     } else {
       throw new ConflictError("import_not_runnable");
     }
+    // Rule 52: the retention sweep removed the rows of an import finished 30 days ago; the run would apply nothing.
+    const [stored] = rowsOf<{ n: number }>(await ctx.tx.execute(sql`select count(*)::int as n from import_rows where import_id = ${imp.id}::uuid`));
+    if (Number(stored?.n ?? 0) !== imp.rowCount) throw new ConflictError("dry_run_stale");
     if (!(await isGoLiveGateComplete(ctx.tx))) throw new ConflictError("go_live_gate");
 
     if ((NEEDS_SUPPRESSIONS_FIRST as readonly string[]).includes(imp.kind) && !(await suppressionsReady(ctx))) {

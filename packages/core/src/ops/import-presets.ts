@@ -138,7 +138,14 @@ export const IMPORT_PRESETS = {
     externalIdKey: "webinargeek",
     provider: "webinargeek",
     historyKind: "webinar_attendance",
-    columns: { Email: "email", "Watched at": "occurred_at", "Webinar title": "webinar_title", "Broadcast date": "webinar_starts_at", "Webinar ID": "external_id" },
+    columns: {
+      Email: "email",
+      "Watched at": "occurred_at",
+      "Webinar title": "webinar_title",
+      "Broadcast date": "webinar_starts_at",
+      "Webinar ID": "external_id",
+      "Watched minutes": "watched_minutes",
+    },
   },
   zoom_registrants: {
     source: "webinar_tool",
@@ -156,7 +163,14 @@ export const IMPORT_PRESETS = {
     dateFormat: "mm/dd/yyyy",
     provider: "zoom",
     historyKind: "webinar_attendance",
-    columns: { Email: "email", "Join Time": "occurred_at", Topic: "webinar_title", "Start Time": "webinar_starts_at", "Webinar ID": "external_id" },
+    columns: {
+      Email: "email",
+      "Join Time": "occurred_at",
+      Topic: "webinar_title",
+      "Start Time": "webinar_starts_at",
+      "Webinar ID": "external_id",
+      "Time in Session (minutes)": "watched_minutes",
+    },
   },
 } as const satisfies Record<string, ImportPreset>;
 

@@ -61,10 +61,13 @@ export const APPLIERS: Readonly<Record<ImportKind, RowApplier>> = {
   history: applyHistoryRow,
 };
 
-/** The target fields a mapping may use for a kind and source (`IMPORT_TARGETS`, plus the webinar extras). */
+/** The target fields a mapping may use for a kind and source (`IMPORT_TARGETS`; the webinar extras only for `webinar_tool`). */
 export function allowedTargets(kind: ImportKind, source: ImportSource): readonly string[] {
   const base: readonly string[] = IMPORT_TARGETS[kind];
-  return kind === "history" && source === "webinar_tool" ? [...base, ...WEBINAR_EXTRA_TARGETS] : base;
+  if (kind !== "history") return base;
+  const extras: readonly string[] = WEBINAR_EXTRA_TARGETS;
+  const withoutExtras = base.filter((t) => !extras.includes(t));
+  return source === "webinar_tool" ? [...withoutExtras, ...extras] : withoutExtras;
 }
 
 /** The mapped fields of a CSV record: unmapped columns are dropped (ops spec 2.2 `import_rows.data`). */
@@ -288,7 +291,9 @@ export async function runImportFinalise(ctx: JobCtx, input: z.infer<typeof Impor
   if (input.mode === "dry") {
     if (imp.status !== "dry_run") return { skipped: imp.status };
     report.dry_run = runReport;
-    report.mapping_hash = mappingHash(asMapping(imp));
+    // Rule 44: the hash of the mapping the rows were parsed with, not of the mapping at finalise time.
+    report.mapping_hash = report.dry_run_mapping_hash ?? mappingHash(asMapping(imp));
+    delete report.dry_run_mapping_hash;
     await tx
       .update(imports)
       .set({ report, counts, reconciliation, finishedAt: imp.finishedAt ?? ctx.now, updatedAt: ctx.now })

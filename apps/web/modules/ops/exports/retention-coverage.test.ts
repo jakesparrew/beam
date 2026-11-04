@@ -30,22 +30,6 @@ const byKey = (key: string) => policies.find((p) => p.key === key);
  * by itself (the assertion only accepts a listed key while its handler is missing).
  */
 const HANDLER_PENDING: Readonly<Record<string, string>> = {
-  "forms.form_sensitive_answers": "forms (privacy sweep handlers)",
-  "forms.form_submissions": "forms",
-  "forms.form_submissions_anonymous_abandoned": "forms",
-  "forms.form_sensitive_answers_unlinked": "forms",
-  "forms.form_submissions_ip_hash": "forms",
-  "forms.form_import_events": "forms",
-  "forms.form_views_daily": "forms",
-  "finance.invoices": "finance (privacy sweep handlers)",
-  "finance.invoice_requests": "finance",
-  "finance.billit_reconcile_runs": "finance",
-  "finance.finance_exports": "finance",
-  "webinar.watch_segments": "webinar (R2)",
-  "webinar.webinar_interactions": "webinar (R2)",
-  "webinar.webinar_registrations": "webinar (R2)",
-  "booking.waitlist_entries": "booking (privacy sweep handlers)",
-  "booking.bookings_free_text": "booking",
   "crm.inbox_resolved": "crm (R3 inbox)",
 };
 

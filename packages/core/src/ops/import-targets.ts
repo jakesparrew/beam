@@ -100,6 +100,9 @@ export const IMPORT_TARGETS = {
     "webinar_title",
     "webinar_starts_at",
     "outcome_key",
+    // Webinar attendance (source `webinar_tool` only; ops' `allowedTargets` hides them for other sources).
+    "mode",
+    "watched_minutes",
   ],
 } as const satisfies Record<ImportKind, readonly string[]>;
 

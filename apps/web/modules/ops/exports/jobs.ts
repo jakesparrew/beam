@@ -43,7 +43,8 @@ const OPEN_STATUSES = ["queued", "running"] as const;
 // Exports
 // ---------------------------------------------------------------------------
 
-export type ExportPart = { name: string; fileId: string; rows: number; source: string };
+/** A written part; `lastKey` is the order key of its last row, where the next chunk of its source starts. */
+export type ExportPart = { name: string; fileId: string; rows: number; source: string; lastKey?: string[] | null };
 /** `data_exports.cursor`: the full export's table list, the parts written and the counts per source. */
 export type ExportCursor = { tables?: string[]; parts: ExportPart[]; counts: Record<string, number>; excluded: Record<string, string[]> };
 
@@ -107,11 +108,17 @@ async function exportChunk(ctx: JobCtx, input: z.infer<typeof ExportChunkInput>)
   const name = `${source.name}-${n + 1}.csv`;
   let part = cursor.parts.find((p) => p.name === name);
   if (!part) {
-    const rows = await readChunk(ctx.tx, source, input.offset, EXPORT_CHUNK_ROWS);
+    // Keyset paging (review findings 2 and 4): chunk n starts after the last key of part n (chunk n-1).
+    // `offset` stays the chunk index of the job key and the part name; it reads rows only for a
+    // source without a primary key, or a previous part written before parts carried their key.
+    const previous = n > 0 ? cursor.parts.find((p) => p.name === `${source.name}-${n}.csv`) : undefined;
+    if (n > 0 && !previous) throw new PermanentError("export_previous_part_missing");
+    const keyset = source.key && (n === 0 || !!previous?.lastKey) ? source : { ...source, key: null };
+    const { rows, lastKey } = await readChunk(ctx.tx, keyset, previous?.lastKey ?? null, EXPORT_CHUNK_ROWS, input.offset);
     const bytes = await collectBytes(toCsv(source.columns, rows));
     if (bytes.byteLength > EXPORT_PART_MAX_BYTES) throw new PermanentError("export_part_too_large");
     const { fileId } = await storeFile(ctx, { kind: "export", name, mime: "text/csv", bytes, expiresAt: new Date(ctx.now.getTime() + EXPORT_EXPIRY_DAYS * DAY_MS) });
-    part = { name, fileId, rows: rows.length, source: source.name };
+    part = { name, fileId, rows: rows.length, source: source.name, lastKey };
     cursor.parts.push(part);
     cursor.counts[source.name] = (cursor.counts[source.name] ?? 0) + rows.length;
     cursor.excluded[source.name] = source.excluded;

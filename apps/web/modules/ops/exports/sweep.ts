@@ -32,8 +32,15 @@ function batchedDelete(table: string, where: (cutoff: Date) => ReturnType<typeof
     count(tx, sql`with gone as (delete from ${t} where ctid in (select ctid from ${t} where ${where(cutoff)} limit ${OPS_SWEEP_BATCH}) returning 1) select count(*)::int as n from gone`);
 }
 
-/** `ops.import_rows` (30 days). */
-export const sweepImportRows: Handler = batchedDelete("import_rows", (c) => sql`created_at < ${iso(c)}::timestamptz`);
+/**
+ * `ops.import_rows` (30 days, rule 52): rows of imports that are no longer in flight and finished
+ * before the cutoff. An unfinished dry run or real run keeps its rows whatever their age, so a run
+ * never starts on rows the sweep removed (`startImport` also refuses with `dry_run_stale`).
+ */
+export const sweepImportRows: Handler = batchedDelete(
+  "import_rows",
+  (c) => sql`import_id in (select id from imports where status <> 'running' and finished_at is not null and finished_at < ${iso(c)}::timestamptz)`,
+);
 
 /** `ops.nl_questions` (30 days, R4 table; empty until then). */
 export const sweepNlQuestions: Handler = batchedDelete("nl_questions", (c) => sql`created_at < ${iso(c)}::timestamptz`);

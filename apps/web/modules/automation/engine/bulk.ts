@@ -17,7 +17,7 @@ import type { Tx } from "@beam/db";
 import { automationEnrolments, automations, automationVersions, segmentMembers } from "@beam/db/schema";
 import { OVERDUE_LIMIT_MS, planSteps, startPlan, TIME_SENSITIVE_STEP_TYPES, utcMinuteBucket, type PlannedStep } from "@beam/core/automation";
 import { and, asc, eq, gt, lte, ne, type Ctx, type JobKind } from "@/lib/ctx";
-import { lockEnrolment, skipStep } from "./advance";
+import { lockEnrolment, lockEnrolmentPerson, skipStep } from "./advance";
 import { enrol, loadAutomations } from "./enrol";
 import { endEnrolment, endEnrolmentWith, versionDefinition } from "./exits";
 import { runDedupeKey, writeRun } from "./runs";
@@ -137,6 +137,8 @@ export async function migrateEnrolments(tx: Tx, ctx: Ctx, input: MigrateInput, o
   let migrated = 0;
   for (const { id } of rows) {
     await tx.transaction(async (sp) => {
+      // Person first, then the enrolment (advance.ts header).
+      if (!(await lockEnrolmentPerson(sp, id))) return;
       const [old] = await sp.select().from(automationEnrolments).where(eq(automationEnrolments.id, id)).for("update");
       if (!old || old.status !== "active") return;
       if (def.anchor !== "enrolment" && !old.anchorAt) return;

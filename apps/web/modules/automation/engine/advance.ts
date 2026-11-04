@@ -9,6 +9,13 @@
  * - `recordDeadStep` is the `onDead` hook of `automation.step` and `automation.call_webhook`
  *   (PL-29a) and the sweep fallback (A-35): one `failed` run per step, then the advance.
  *
+ * Lock order (person, then enrolment): every path that locks an enrolment and may then reach
+ * crm (tag, untag, set_field, status_override, an `enrol` step) first locks the enrolment's
+ * person with `lockEnrolmentPerson`, as the evaluator does (enrol() locks the person, then the
+ * domain holder enrolment). The step job, the dead-step hook and the version migration take it
+ * before `lockEnrolment` / their enrolment `FOR UPDATE`; crm's `lockActivePerson` then re-takes
+ * a lock the transaction already holds. The opposite order deadlocks with the evaluator.
+ *
  * Dedupe keys: a step outcome is `run:<enrolment_id>:<step_key>:<outcome>`; a re-plan of the
  * same step (anchor moved, A-27a; deferred by quiet hours, A-32) writes its extra `scheduled`
  * row with `run:<enrolment_id>:<step_key>:scheduled:<qualifier>:<YYYY-MM-DDTHH:mm>`.
@@ -27,6 +34,17 @@ import { eq, sql, type Actor } from "@/lib/ctx";
 import { rowsOf } from "@/lib/sensitive";
 import { endEnrolmentWith, versionDefinition } from "./exits";
 import { runDedupeKey, writeRun, type NewRun } from "./runs";
+
+/**
+ * Locks the person of an enrolment `FOR UPDATE` (the first lock of the person-then-enrolment
+ * order, see the header). False when the enrolment does not exist.
+ */
+export async function lockEnrolmentPerson(tx: Tx, enrolmentId: string): Promise<boolean> {
+  const r = await tx.execute(
+    sql`select p.id from persons p join automation_enrolments e on e.person_id = p.id where e.id = ${enrolmentId}::uuid for update of p`,
+  );
+  return rowsOf(r).length > 0;
+}
 
 /** An enrolment locked for a step decision, with its automation and definition. */
 export type LockedEnrolment = {
@@ -218,6 +236,7 @@ export async function recordDeadStep(
   kind: DeadJobKind = "automation.step",
 ): Promise<{ written: boolean; advanced: boolean }> {
   const tx = ctx.tx;
+  if (!(await lockEnrolmentPerson(tx, input.enrolmentId))) return { written: false, advanced: false };
   const e = await lockEnrolment(tx, input.enrolmentId);
   if (!e) return { written: false, advanced: false };
   if (kind === "automation.step" && e.status !== "active") return { written: false, advanced: false };

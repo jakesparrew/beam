@@ -58,7 +58,7 @@ import { getCheckoutRecoveryProps, markCheckoutRecoveryMessage } from "@/modules
 import { applyTag, createTask, removeTag, setStatusOverride, updatePersonFields } from "@/modules/crm/api";
 import { getPublishedTemplateInfo, getReachability, queueAutomationEmail, queueMarketingEmail } from "@/modules/email/api";
 import { listStaffForAssignment, notifySlack } from "@/modules/platform/api";
-import { advance, lockEnrolment, replanDedupeKey, skipStep, storePlan, writeStepRun, type LockedEnrolment } from "./advance";
+import { advance, lockEnrolment, lockEnrolmentPerson, replanDedupeKey, skipStep, storePlan, writeStepRun, type LockedEnrolment } from "./advance";
 import { enrol, loadAutomations } from "./enrol";
 import { activeEnrolmentsOf, endEnrolmentWith } from "./exits";
 import { loadFacts, needsOf } from "./facts";
@@ -170,6 +170,8 @@ export async function runStep(tx: Tx, input: RunStepInput, opts: RunStepOptions 
   const ctx = opts.ctx ?? createCtx({ tx, actor: { kind: "system", jobId: "" }, now: input.now });
   const actor = ctx.actor;
   const now = input.now;
+  // Person first, then the enrolment: the evaluator's order (advance.ts header).
+  if (!(await lockEnrolmentPerson(tx, input.enrolmentId))) return { status: "noop", reason: "missing" };
   const e = await lockEnrolment(tx, input.enrolmentId);
   if (!e) return { status: "noop", reason: "missing" };
   if (e.status !== "active") return { status: "noop", reason: "ended" };

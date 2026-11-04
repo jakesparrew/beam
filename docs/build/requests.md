@@ -59,7 +59,7 @@ to "Served" with the package id.
 | finance-P3 | finance-P5 | `rerenderInvoicePdf` enqueues `finance.render_pdf` with key `invoice_pdf:<id>:r<n>`; `resendInvoiceEmail` and `sendPaymentReminder` enqueue `finance.send_invoice_email` with reason `resend:<n>` or `reminder:<yyyy-mm-dd>`. |
 | commerce-P4a | commerce (owner of `server/catalogue.ts`) | Record the `person_price.set` event in `setPersonPriceRecord` (the kind is declared now). |
 | booking-P3b | commerce | `refundOrderLine` has no reason for staff forced refunds; booking passes `cancelled_in_policy`. Add `staff_override` if finance needs to tell them apart. |
-| booking-P3b | booking-P5 (or a booking fixer) | `releaseOrderBookings` in `server/order-hooks.ts` also moves a claimed offered waitlist entry to `expired` with `payment_not_completed` and enqueues `offer_next` (R44), as `expireReservedRow` in `server/cancel.ts` already does. |
+| booking-P3b, booking-P5 | booking (owner of `server/order-hooks.ts`) | `releaseOrderBookings` in `server/order-hooks.ts` also moves a claimed offered waitlist entry to `expired` with `payment_not_completed` and enqueues `offer_next` (R44), as `expireReservedRow` in `server/cancel.ts` already does. booking-P5 served the job side: `waitlist.offer_next` and `waitlist.expire_offers` now expire an offered entry whose claimed booking is cancelled; the same-transaction move inside `releaseOrderBookings` stays open. |
 | site-P5 | platform (fixer) | Add `BEAM_ANALYTICS_PRODUCTION: "1"` to the Playwright `webServer.env` in `apps/web/playwright.config.ts`, so `site-consent.spec`'s GA4 test can load gtag. |
 | site-P5 | forms (FormEmbed) | FormEmbed may read sessionStorage `beam_utm` through site's `readStoredUtm()` (`apps/web/modules/site/ui/public/utm-capture.tsx`) to attribute UTM on later pages of a visit (rule 40). |
 | site-P5 | site-P6 | `PortalSiteChrome` mounts `ConsentProvider` (`getConsentChromeState`, `consentLabels` in `server/consent.ts`), `AnalyticsLoader` with `gaMeasurementId` null and `SwRegister`; its Cookie settings link carries `data-cookie-settings`. |
@@ -69,6 +69,17 @@ to "Served" with the package id.
 | finance-P4 | commerce (the package that implements `recordBankTransferPaid`) | `recordBankTransferPaid` still throws (stub); `billit.sync_pending` settles open invoices through it (mocked in `sync-pending.test.ts`). |
 | commerce-P4b | commerce (schema fixer) | Make `refunds.created_by_user_id` nullable (null = system refund): rule 22c late-paid refunds and rule 37a `refundOrderLine` from jobs need it. Until then a late-paid renewal refund is recorded on the payment only (`refunded_cents`, status `refunded`, `order.refunded` event) and writes no `refunds` row. |
 | commerce-P4b | site (the package that implements `getCurrentLegalVersion`) | `getCurrentLegalVersion` still throws `NotImplementedError`; `createRenewalLinkOrder` needs it for `orders_terms_chk` (`recurring.test.ts` mocks it). |
+| forms-P3 | crm (owner of consents) | Let `recordConsent` accept method `staff` with a form wording version (`form:<slug>:v<n>:<key>`) for staff-assisted entry (ID10). Until then forms records these consents with method `form` and source `staff:<user_id>`. |
+| forms-P3 | forms (schema owner, forms-P9) | Add `form_submissions.partner_company_id` so a signed embed-context partner can persist, and add `pendingConfirmation?` to `FormConsentSnapshotJson`. |
+| forms-P3 | site | Add a lookup of a page's kind by path, so rule A2 branch 7 (landing page) can be derived for BEAM landing pages. |
+| booking-P4 | crm-P7 | Export the `ReceptionCard` component through crm's `api.ts` and implement `getReceptionCard`. Until then the check-in desk shows its data as text lines, or nothing while the function is a stub. |
+| booking-P4 | credits | Export `DeskCreditsBadge` through credits' `api.ts` for the check-in desk; the desk shows no credit badge until it exists. |
+| booking-P4 | booking (owner of `queries/bookings.ts`) | Add `paidWith` and `source` filters to `listBookings`; `/admin/bookings` offers only person, status and date filters until then. |
+| booking-P4 | booking (owner of `booking.json`) | Add the catalogue keys `booking.checkin.check_in_override`, `booking.checkin.revert_no_show`, `booking.checkin.scan_hint`, `booking.session.revert_no_show` and `booking.bookings.include_guests` (the pages fall back to existing keys). |
+| booking-P5 | platform | Add a `claim` route to `RateLimitRequest` (`claim:ip:<ip>`, 20 per 60 s, booking spec 4.2); `claimSeat`, `declineOffer` and `requestClaimSignIn` use the `api` route for now. |
+| booking-P5 | site | Add refType `waitlist_entry` to `RecordTermsAcceptanceInput` (R62); terms accepted at a waitlist join are recorded without a refType for now. |
+| ops-P3 | ops (owner of `ops.json`) | Add `ops.reports.liability.kind.{day,night,euro}` and `ops.reports.liability.vat.{single_purpose,multi_purpose,not_applicable}`; the revenue page shows the raw value until then. |
+| ops-P3 | booking | Add a closed-days read to booking's api (for example `listClosedDays(db, from, to)`), so ops stops reading `session_exceptions` directly. |
 
 ## Served
 

@@ -6,21 +6,23 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createTestDb, makePerson } from "@beam/db/testing";
 import type { DbHandle } from "@beam/db";
-import { EMAIL_TOKENS, newBlockId, type Block, type BlockDocument } from "@beam/core/email";
+import { EMAIL_TOKENS, newBlockId, type Block, type BlockDocument, type LeafBlock } from "@beam/core/email";
 import { LOCALES, type Locale } from "@beam/core/i18n";
 import { makeCtx, resetRuntime } from "@/lib/testing";
+import type * as Sensitive from "@/lib/sensitive";
+import type * as FormsApi from "@/modules/forms/api";
 
 const outcomes = vi.hoisted(() => ({ byPerson: new Map<string, string>(), calls: [] as string[] }));
 vi.mock("@/modules/forms/api", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/modules/forms/api")>()),
-  listLatestOutcomes: vi.fn(async (_tx: unknown, personIds: string[], formSlug: string) => {
+  ...(await importOriginal<typeof FormsApi>()),
+  listLatestOutcomes: vi.fn((_tx: unknown, personIds: string[], formSlug: string) => {
     outcomes.calls.push(formSlug);
-    return new Map(personIds.flatMap((id) => (outcomes.byPerson.has(id) ? [[id, outcomes.byPerson.get(id)!] as const] : [])));
+    return Promise.resolve(new Map(personIds.flatMap((id) => (outcomes.byPerson.has(id) ? [[id, outcomes.byPerson.get(id)!] as const] : []))));
   }),
 }));
 const sensitive = vi.hoisted(() => ({ reads: 0 }));
 vi.mock("@/lib/sensitive", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/sensitive")>();
+  const actual = await importOriginal<typeof Sensitive>();
   return {
     ...actual,
     readSensitive: vi.fn(async (...args: Parameters<typeof actual.readSensitive>) => {
@@ -42,7 +44,7 @@ let templateId: string;
 const FORM = "stress-check";
 const ids = { status: "dynStatus1", outcome: "dynOutcom1" };
 
-const para = (markdown: string): Block => ({ id: newBlockId(), type: "text", markdown });
+const para = (markdown: string): LeafBlock => ({ id: newBlockId(), type: "text", markdown });
 function document(): BlockDocument {
   const locales: Partial<Record<Locale, Block[]>> = {};
   for (const l of LOCALES) {

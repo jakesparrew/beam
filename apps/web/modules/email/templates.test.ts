@@ -6,15 +6,16 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import { createTestDb, makeUser } from "@beam/db/testing";
 import type { DbHandle } from "@beam/db";
 import { auditLog, campaigns, emailTemplates, emailTemplateVersions, settings } from "@beam/db/schema";
-import { newBlockId, type Block, type BlockDocument } from "@beam/core/email";
+import { newBlockId, type Block, type BlockDocument, type LeafBlock } from "@beam/core/email";
 import { LOCALES, type Locale } from "@beam/core/i18n";
 import { eq } from "@/lib/ctx";
 import { createFakeIntegrations, makeCtx, makeJobCtx, resetRuntime, staffActor } from "@/lib/testing";
+import type * as AutomationApi from "@/modules/automation/api";
 
 const inUse = vi.hoisted(() => ({ slugs: new Set<string>() }));
 vi.mock("@/modules/automation/api", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/modules/automation/api")>()),
-  isTemplateInUse: vi.fn(async (_tx: unknown, slug: string) => inUse.slugs.has(slug)),
+  ...(await importOriginal<typeof AutomationApi>()),
+  isTemplateInUse: vi.fn((_tx: unknown, slug: string) => Promise.resolve(inUse.slugs.has(slug))),
 }));
 
 const { sendTransactional } = await import("./api");
@@ -40,7 +41,7 @@ beforeEach(() => inUse.slugs.clear());
 const staff = () => makeCtx(h.db, staffActor({ userId, permissions: ["email.write", "email.send"] }));
 const all = (text: string) => Object.fromEntries(LOCALES.map((l) => [l, `${text} ${l}`])) as Record<Locale, string>;
 const heading = (text: string): Block => ({ id: newBlockId(), type: "heading", level: 1, text });
-const para = (markdown: string): Block => ({ id: newBlockId(), type: "text", markdown });
+const para = (markdown: string): LeafBlock => ({ id: newBlockId(), type: "text", markdown });
 const docOf = (perLocale: (l: Locale) => Block[], locales: readonly Locale[] = LOCALES): BlockDocument => ({
   schemaVersion: 1,
   locales: Object.fromEntries(locales.map((l) => [l, perLocale(l)])),

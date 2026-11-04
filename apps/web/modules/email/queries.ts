@@ -15,14 +15,39 @@
 import type { DbOrTx } from "@beam/db";
 import { ForbiddenError } from "@beam/core/errors";
 import { GetPreviewInput, ListTemplatesInput, type GetPreviewInput as GetPreviewArgs, type ListTemplatesInput as ListTemplatesArgs } from "@beam/core/email";
+import { emailTemplates, users } from "@beam/db/schema";
+import { MESSAGES, type Locale } from "@beam/core/i18n";
 import { eq } from "@/lib/ctx";
-import { emailTemplates } from "@beam/db/schema";
 import { buildPreview, personRecipient, samplePersona, type PreviewResult } from "./server/preview";
 import { draftVersionOf, listTemplateRows, loadTemplateDetail, loadTemplateVersion, transactionalModules, versionById, type TemplateDetail } from "./server/templates";
 
 export type { PreviewResult, PreviewWarning, RecipientContext } from "./server/preview";
 export type { TemplateDetail, TemplateListRow } from "./server/templates";
 export { samplePersona } from "./server/preview";
+
+/**
+ * Every message under `prefix` (`email.editor`) in `locale`, flattened to `{ key: text }` with
+ * keys relative to the prefix: the label set handed to the editor's client components (ICU
+ * `{name}` placeholders stay and are filled on the client).
+ */
+export function catalogueSection(locale: Locale, prefix: string): Record<string, string> {
+  const [module, ...path] = prefix.split(".");
+  let node: unknown = (MESSAGES as unknown as Record<string, Record<string, unknown>>)[locale]?.[module!];
+  for (const segment of [module!, ...path]) node = node && typeof node === "object" ? (node as Record<string, unknown>)[segment] : undefined;
+  const out: Record<string, string> = {};
+  const walk = (n: unknown, at: string) => {
+    if (typeof n === "string") out[at] = n;
+    else if (n && typeof n === "object") for (const [k, v] of Object.entries(n)) walk(v, at ? `${at}.${k}` : k);
+  };
+  walk(node, "");
+  return out;
+}
+
+/** The staff user's own address (the test send dialog's default recipient). */
+export async function staffEmailOf(db: DbOrTx, userId: string): Promise<string> {
+  const [u] = await db.select({ email: users.email }).from(users).where(eq(users.id, userId));
+  return u?.email ?? "";
+}
 
 export async function listTemplates(db: DbOrTx, input: ListTemplatesArgs = {}) {
   const args = ListTemplatesInput.parse(input);

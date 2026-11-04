@@ -168,8 +168,13 @@ export function versionTexts(version: Pick<VersionRow, "subject" | "preheader" |
     walkBlocks(blocks ?? [], (b) => {
       if (b.type === "heading") push(b.text);
       else if (b.type === "text") push(b.markdown);
-      else if (b.type === "button") (push(b.label), push(b.href));
-      else if (b.type === "image") (push(b.alt), push(b.href));
+      else if (b.type === "button") {
+        push(b.label);
+        push(b.href);
+      } else if (b.type === "image") {
+        push(b.alt);
+        push(b.href);
+      }
       else if (b.type === "product" || b.type === "event") push(b.ctaLabel);
     });
   }
@@ -520,7 +525,7 @@ export async function sendTestEmailRecord(ctx: Ctx, input: SendTestEmailInput): 
           templateVersionId: version.id,
           campaignId,
           locale,
-          props: (def?.sample as Record<string, unknown> | undefined) ?? {},
+          props: def?.sample ?? {},
           context,
           attachments: [],
           idempotencyKey: `test:${version.id}:${ctx.requestId}:${n}`,

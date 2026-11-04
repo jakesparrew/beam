@@ -12,7 +12,9 @@
  *   the accessibility and size warnings.
  * - `archiveTemplate` (`email.send`), `duplicateTemplate` (`email.write`).
  * - `sendTestEmail` (`email.write`; `persons.read` too for a real contact): staff addresses only.
- * - `uploadImage`: platform's `files.upload_image` (accepts `email.write`), for the editor.
+ * - `uploadImage` (`email.write`): an editor image as a public `files` row of kind `image`
+ *   through platform's `storeFile` (`image/png|jpeg|gif|webp`, at most 2 MB, rule 22), audited
+ *   `files.upload_image` like platform's own upload action.
  * - `previewTemplate` (`email.write`, read-only): the editor's live preview.
  * email-P6 adds the campaign actions.
  */
@@ -27,8 +29,8 @@ import {
   SendTestEmailInput,
 } from "@beam/core/email";
 import { action } from "@/lib/action";
-import { actorHasPermission } from "@/lib/ctx";
-import { uploadImage as platformUploadImage } from "@/modules/platform/actions";
+import { actorHasPermission, ValidationError } from "@/lib/ctx";
+import { storeFile } from "@/modules/platform/api";
 import { getPreview } from "./queries";
 import {
   archiveTemplateRecord,
@@ -83,7 +85,20 @@ export const previewTemplate = action(
   },
 );
 
-/** Images of the block editor go through platform's `uploadImage` (`files.upload_image`, rule 22). */
-export async function uploadImage(form: FormData) {
-  return platformUploadImage(form);
-}
+/** Editor images may be at most 2 MB (rule 22; the editor refuses larger files before upload too). */
+const MAX_EDITOR_IMAGE_BYTES = 2 * 1024 * 1024;
+const EDITOR_IMAGE_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp"] as const;
+
+export const uploadImage = action(
+  { name: "files.upload_image", audience: "staff", permission: "email.write", input: z.instanceof(FormData), audit: false },
+  async (ctx, form): Promise<{ fileId: string; url: string }> => {
+    const file = form.get("file");
+    if (!(file instanceof Blob)) throw new ValidationError("file_required", { file: "required" });
+    if (file.size > MAX_EDITOR_IMAGE_BYTES) throw new ValidationError("file_too_large", { file: "too_large" });
+    if (!(EDITOR_IMAGE_TYPES as readonly string[]).includes(file.type)) throw new ValidationError("image_type_not_allowed", { file: "type_not_allowed" });
+    const name = (file as Blob & { name?: string }).name ?? "image";
+    const { fileId, sha256 } = await storeFile(ctx, { kind: "image", name, mime: file.type, bytes: new Uint8Array(await file.arrayBuffer()), isPublic: true });
+    await ctx.audit({ action: "files.upload_image", entityType: "files", entityId: fileId, newValue: { name, mime: file.type, size_bytes: file.size, sha256 } });
+    return { fileId, url: `/api/public/files/${fileId}` };
+  },
+);

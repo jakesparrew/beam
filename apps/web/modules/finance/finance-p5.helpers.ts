@@ -25,7 +25,7 @@ export function cookieStore(jar: Map<string, string>) {
 /** Signs in a staff user of `roleKey` whose role carries the seeded grants (or `permissions`). */
 export async function signInStaff(jar: Map<string, string>, db: Db, roleKey: RoleKey, permissions?: readonly string[]) {
   const user = await makeUser(db, { roleKey });
-  const grants = permissions ?? DEFAULT_ROLE_GRANTS[roleKey] ?? [];
+  const grants = permissions ?? (DEFAULT_ROLE_GRANTS as Partial<Record<RoleKey, readonly string[]>>)[roleKey] ?? [];
   await db.update(roles).set({ permissions: [...grants] }).where(eq(roles.key, roleKey));
   const { token } = await createAuthSession(db, { userId: user.id, audience: "staff", roleKey, now: new Date(), mfaAt: new Date() });
   jar.set(SESSION_COOKIE, token);

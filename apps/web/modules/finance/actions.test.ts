@@ -172,7 +172,8 @@ describe("markInvoicePaid", () => {
     expect(commerce.recordBankTransferPaid).toHaveBeenCalledTimes(1);
     const audit = await auditRows(h.db, "invoice.marked_paid", doc.invoiceId);
     expect(audit).toHaveLength(1);
-    expect(audit[0]).toMatchObject({ oldValue: { status: "open" }, newValue: expect.objectContaining({ status: "paid" }) });
+    expect(audit[0]?.oldValue).toEqual({ status: "open" });
+    expect(audit[0]?.newValue).toMatchObject({ status: "paid" });
   });
 
   it("after the Billit push enqueues billit.push_payment", async () => {

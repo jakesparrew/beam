@@ -228,7 +228,7 @@ export async function getInvoice(db: DbOrTx, id: string): Promise<InvoiceDetail 
     payments: paymentRows.map((p) => ({ ...p, provider: String(p.provider), status: String(p.status) })),
     refunds: refundRows.map((r) => ({ ...r, status: String(r.status) })),
     jobs: jobRows.map((j) => ({ ...j, kind: String(j.kind), status: String(j.status) })),
-    requests: requestRows.map(({ billing, ...r }) => ({ ...r, status: String(r.status), legalName: (billing as BillingDetails).legalName })),
+    requests: requestRows.map(({ billing, ...r }) => ({ ...r, status: String(r.status), legalName: billing.legalName })),
     lastReminderAt: lastReminder?.createdAt ?? null,
   };
 }

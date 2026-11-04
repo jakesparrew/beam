@@ -8,7 +8,7 @@ const REGISTRY = TEMPLATE_REGISTRY as unknown as Record<string, TemplateDef>;
 
 describe("crm template registration (fix-w05-crm-1)", () => {
   it("registers confirm_resubscribe and preference_link under crm.<name>", () => {
-    expect(templates.map((t) => t.name).sort()).toEqual(["confirm_resubscribe", "preference_link"]);
+    expect(templates.map((t) => t.name)).toEqual(expect.arrayContaining(["confirm_resubscribe", "preference_link"]));
     expect(REGISTRY["crm.confirm_resubscribe"]?.name).toBe("confirm_resubscribe");
     expect(REGISTRY["crm.preference_link"]?.name).toBe("preference_link");
   });

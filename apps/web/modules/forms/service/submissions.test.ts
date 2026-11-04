@@ -515,6 +515,38 @@ describe("fix-w09-forms-review: C5 at the save (finding 4)", () => {
   });
 });
 
+describe("fix-w09-forms-review: resume after a sensitive section (finding 5)", () => {
+  it("resume points back to the first saved section with sensitive fields; re-answering it lets the submit complete", async () => {
+    const f = await createForm(h.db, assessment());
+    const s = await start(f.slug);
+    const proof = { resumeToken: s.resumeToken! };
+    const ctx = publicCtx(h.db, later(T0, 10));
+    const about = { email: email(), first_name: "Ruben", sensitive_consent: true };
+    const sleep = { sleep_hours: "5_6", sleep_quality: 2, stress_level: 8, stress_physical: true };
+    await saveSection(ctx.tx, ctx, { submissionId: s.submissionId, proof, sectionKey: "about", answers: about });
+    const saved = await saveSection(ctx.tx, ctx, { submissionId: s.submissionId, proof, sectionKey: "sleep_stress", answers: { ...about, ...sleep } });
+    expect(saved.next).toEqual({ sectionKey: "habits" });
+    expect((await row(s.submissionId)).currentSectionKey).toBe("habits");
+
+    const r = (await resumeSubmission(ctx.tx, ctx, { slug: f.slug, token: s.resumeToken! }))!;
+    expect(r.currentSectionKey).toBe("sleep_stress");
+    expect(r.answers).not.toHaveProperty("sleep_hours");
+    const habits = { movement: "rarely", screen_time: "gt5", recovery_practices: [], cold_exposure: false };
+    const done = await submit(s.submissionId, { ...r.answers, ...sleep, ...habits }, { proof });
+    expect(done.resultUrl).toBeTruthy();
+    const keys = (await h.db.select().from(formSensitiveAnswers).where(eq(formSensitiveAnswers.submissionId, s.submissionId))).map((x) => x.fieldKey);
+    expect(keys).toEqual(expect.arrayContaining(["sleep_hours", "sleep_quality", "stress_level"]));
+  });
+
+  it("without a saved sensitive section the stored current section is returned", async () => {
+    const f = await createForm(h.db, assessment());
+    const s = await start(f.slug);
+    const ctx = publicCtx(h.db, later(T0, 10));
+    await saveSection(ctx.tx, ctx, { submissionId: s.submissionId, proof: { resumeToken: s.resumeToken! }, sectionKey: "about", answers: { email: email(), first_name: "An", sensitive_consent: true } });
+    expect((await resumeSubmission(ctx.tx, ctx, { slug: f.slug, token: s.resumeToken! }))!.currentSectionKey).toBe("sleep_stress");
+  });
+});
+
 describe("fix-w09-forms-review: ID9-linked submissions at submit (finding 2)", () => {
   it("an existing person linked at the save keeps the stored names; the differing values are profile_conflicts", async () => {
     const { signSubmissionId } = await import("./tokens");

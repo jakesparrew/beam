@@ -522,7 +522,22 @@ export async function resumeSubmission(
   } else if (l.definition.settings.resumeEnabled && ctx.now.getTime() - l.sub.lastActivityAt.getTime() > l.definition.settings.resumeDays * DAY_MS) {
     return null;
   }
-  return { submissionId: l.sub.id, answers: (l.sub.answers ?? {}) as Answers, currentSectionKey: l.sub.currentSectionKey };
+  return { submissionId: l.sub.id, answers: (l.sub.answers ?? {}) as Answers, currentSectionKey: resumeSectionOf(l) };
+}
+
+/**
+ * U5 with SE1: resume never returns sensitive answers, and the submit needs them in its body, so
+ * the visitor continues at the first saved section that holds a sensitive field when it comes
+ * before the stored current section (they answer it again); otherwise at the stored one.
+ */
+function resumeSectionOf(l: Loaded): string | null {
+  const current = l.sub.currentSectionKey;
+  const sensitive = new Set(deriveSensitiveKeys(l.definition, l.scoring));
+  const sections = l.definition.sections;
+  const back = l.sub.path.find((k) => sections.find((s) => s.key === k)?.fieldKeys.some((fk) => sensitive.has(fk)));
+  if (!back) return current;
+  const at = (k: string) => sections.findIndex((s) => s.key === k);
+  return current === null || at(back) < at(current) ? back : current;
 }
 
 // ---------------------------------------------------------------------------

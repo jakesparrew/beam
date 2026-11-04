@@ -1537,8 +1537,7 @@
         "packages/core/src/crm/**",
         "packages/db/src/schema/crm.ts",
         "packages/email/src/templates/crm/**",
-        "apps/web/app/**/crm/**",
-        "docs/build/known-red.txt"
+        "apps/web/app/**/crm/**"
       ],
       "dependsOn": []
     },
@@ -1554,8 +1553,7 @@
         "packages/core/src/booking/**",
         "packages/db/src/schema/booking.ts",
         "packages/email/src/templates/booking/**",
-        "apps/web/app/**/booking/**",
-        "docs/build/known-red.txt"
+        "apps/web/app/**/booking/**"
       ],
       "dependsOn": [
         "commerce-P6"
@@ -1573,8 +1571,7 @@
         "packages/core/src/commerce/**",
         "packages/db/src/schema/commerce.ts",
         "packages/email/src/templates/commerce/**",
-        "apps/web/app/**/commerce/**",
-        "docs/build/known-red.txt"
+        "apps/web/app/**/commerce/**"
       ],
       "dependsOn": [
         "commerce-P6",
@@ -1593,8 +1590,7 @@
         "packages/core/src/credits/**",
         "packages/db/src/schema/credits.ts",
         "packages/email/src/templates/credits/**",
-        "apps/web/app/**/credits/**",
-        "docs/build/known-red.txt"
+        "apps/web/app/**/credits/**"
       ],
       "dependsOn": []
     },
@@ -1610,8 +1606,7 @@
         "packages/core/src/finance/**",
         "packages/db/src/schema/finance.ts",
         "packages/email/src/templates/finance/**",
-        "apps/web/app/**/finance/**",
-        "docs/build/known-red.txt"
+        "apps/web/app/**/finance/**"
       ],
       "dependsOn": []
     },
@@ -1627,8 +1622,7 @@
         "packages/core/src/forms/**",
         "packages/db/src/schema/forms.ts",
         "packages/email/src/templates/forms/**",
-        "apps/web/app/**/forms/**",
-        "docs/build/known-red.txt"
+        "apps/web/app/**/forms/**"
       ],
       "dependsOn": []
     },
@@ -1644,8 +1638,7 @@
         "packages/core/src/email/**",
         "packages/db/src/schema/email.ts",
         "packages/email/src/templates/email/**",
-        "apps/web/app/**/email/**",
-        "docs/build/known-red.txt"
+        "apps/web/app/**/email/**"
       ],
       "dependsOn": []
     },
@@ -1661,8 +1654,7 @@
         "packages/core/src/automation/**",
         "packages/db/src/schema/automation.ts",
         "packages/email/src/templates/automation/**",
-        "apps/web/app/**/automation/**",
-        "docs/build/known-red.txt"
+        "apps/web/app/**/automation/**"
       ],
       "dependsOn": []
     },
@@ -1678,8 +1670,7 @@
         "packages/core/src/ops/**",
         "packages/db/src/schema/ops.ts",
         "packages/email/src/templates/ops/**",
-        "apps/web/app/**/ops/**",
-        "docs/build/known-red.txt"
+        "apps/web/app/**/ops/**"
       ],
       "dependsOn": [
         "ops-P5"
@@ -1698,7 +1689,6 @@
         "packages/db/src/schema/site.ts",
         "packages/email/src/templates/site/**",
         "apps/web/app/**/site/**",
-        "docs/build/known-red.txt",
         "apps/web/app/sw.ts",
         "apps/web/app/[locale]/(site)/layout.tsx"
       ],
@@ -1721,8 +1711,7 @@
         "packages/db/test/**",
         "packages/db/src/schema/platform.ts",
         "apps/web/modules/platform/**",
-        "packages/integrations/src/_shared/**",
-        "docs/build/known-red.txt"
+        "packages/integrations/src/_shared/**"
       ],
       "dependsOn": [
         "platform-P9"

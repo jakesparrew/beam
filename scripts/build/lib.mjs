@@ -73,6 +73,8 @@ export function alwaysAllowed(id, p) {
   if (/\.generated\.ts$/.test(p)) return true;
   if (p === 'packages/db/src/schema/index.ts') return true;
   if (p === `docs/build/dependency-requests/${id}.md`) return true;
+  // OD-16: fixers remove their own known-red lines; merge.sh merges the file as a set.
+  if (p === 'docs/build/known-red.txt' && id.startsWith('fix-')) return true;
   return false;
 }
 

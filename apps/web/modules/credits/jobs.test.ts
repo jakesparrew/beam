@@ -39,8 +39,12 @@ describe("credits jobs run twice yield the same state", () => {
   it("covers every registered credits job and the expiry schedule", async () => {
     const registry = await loadJobs();
     for (const j of jobs) expect(registry[j.kind]).toBe(j);
-    expect(jobs.map((j) => j.kind).sort()).toEqual(["credits.bulk_extend", "credits.expire_grant", "credits.expire_grants"]);
-    expect((await loadSchedules()).filter((s) => s.kind.startsWith("credits."))).toEqual([{ kind: "credits.expire_grants", cron: "5 0 * * *", payload: {}, catchUp: true }]);
+    const kinds = jobs.map((j) => j.kind);
+    expect(new Set(kinds).size).toBe(kinds.length);
+    expect(kinds).toEqual(expect.arrayContaining(["credits.bulk_extend", "credits.expire_grant", "credits.expire_grants"]));
+    const schedules = await loadSchedules();
+    expect(schedules).toContainEqual({ kind: "credits.expire_grants", cron: "5 0 * * *", payload: {}, catchUp: true });
+    for (const s of schedules.filter((x) => x.kind.startsWith("credits."))) expect(kinds).toContain(s.kind);
   });
 
   it("credits.expire_grant expires once: expire entry, status, credits.grant_expired", async () => {

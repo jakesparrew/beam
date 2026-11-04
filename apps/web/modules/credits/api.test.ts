@@ -3,18 +3,15 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { DbHandle, Tx } from "@beam/db";
 import { creditEntries, creditGrants, orderLines, orders } from "@beam/db/schema";
 import { createTestDb, makePerson, makeProduct, type ProductRow } from "@beam/db/testing";
-import { NotImplementedError } from "@beam/core/errors";
 import { computeExpiresAt } from "@beam/core/credits";
 import { asc, eq } from "@/lib/ctx";
 import { makeCtx, resetRuntime } from "@/lib/testing";
 import {
-  activateMembership,
   checkCredits,
   consumeCredits,
   getCreditLiabilityAsOf,
   getEuroBalance,
   getGrantUsage,
-  getMembershipForPerson,
   getPersonCreditSummary,
   grantCredits,
   importGrant,
@@ -242,12 +239,8 @@ describe("liability and refunds", () => {
   });
 });
 
-describe("functions of later packages", () => {
-  it("membership functions still throw NotImplementedError; referral hooks are inert", async () => {
-    await expect(getMembershipForPerson(h.db, randomUUID())).rejects.toBeInstanceOf(NotImplementedError);
-    await expect(
-      activateMembership(tx(), ctx(), { personId: randomUUID(), productId: randomUUID(), orderId: randomUUID(), priceVersionId: randomUUID(), mandateId: null, startsAt: NOW }),
-    ).rejects.toBeInstanceOf(NotImplementedError);
+describe("referral hooks of later packages", () => {
+  it("resolveReferralCode is inert until the referral package lands", async () => {
     expect(await resolveReferralCode(h.db, "ABCDEF")).toBeNull();
   });
 });

@@ -373,7 +373,7 @@
       "mergedAt": "2026-11-04T04:34:57Z"
     },
     "ops-P2": {
-      "status": "red",
+      "status": "done",
       "attempts": 2,
       "baseSha": "107c9bd",
       "runId": "wf_cb40cfa7-cf0",
@@ -481,8 +481,11 @@
       "attempts": 0
     },
     "site-P5": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "beb4769",
+      "runId": "wf_cc4b715f-5dc",
+      "startedAt": "2026-11-04T05:03:43Z"
     },
     "crm-P7": {
       "status": "pending",
@@ -1111,8 +1114,8 @@
       "mergedAt": "2026-11-04T03:49:56Z"
     },
     "fix-w06-platform-1": {
-      "status": "pending",
-      "attempts": 0,
+      "status": "running",
+      "attempts": 1,
       "fixer": true,
       "module": "platform",
       "goal": "Freeze the clock in window-dependent platform tests; build the real Mollie provider in lib/integrations.ts when MOLLIE_API_KEY is set.",
@@ -1129,7 +1132,10 @@
         "apps/web/proxy.test.ts",
         "apps/web/lib/webhooks.test.ts",
         "apps/web/lib/fix-w06-platform-1.test.ts"
-      ]
+      ],
+      "baseSha": "beb4769",
+      "runId": "wf_7fcde353-28a",
+      "startedAt": "2026-11-04T05:03:43Z"
     }
   }
 }

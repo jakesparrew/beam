@@ -288,7 +288,9 @@ export async function runImportFinalise(ctx: JobCtx, input: z.infer<typeof Impor
   if (input.mode === "dry") {
     if (imp.status !== "dry_run") return { skipped: imp.status };
     report.dry_run = runReport;
-    report.mapping_hash = mappingHash(asMapping(imp));
+    // Rule 44: the hash of the mapping the rows were parsed with, not of the mapping at finalise time.
+    report.mapping_hash = report.dry_run_mapping_hash ?? mappingHash(asMapping(imp));
+    delete report.dry_run_mapping_hash;
     await tx
       .update(imports)
       .set({ report, counts, reconciliation, finishedAt: imp.finishedAt ?? ctx.now, updatedAt: ctx.now })

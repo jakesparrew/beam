@@ -34,6 +34,8 @@ export type RunReport = {
 /** `imports.report`: `ImportReport`. */
 export type ImportReport = {
   mapping_hash?: string;
+  /** The mapping hash the running dry run parsed with (set by `startDryRun`, copied into `mapping_hash` by the dry finalise). */
+  dry_run_mapping_hash?: string;
   dry_run?: RunReport;
   run?: RunReport;
   error?: string;

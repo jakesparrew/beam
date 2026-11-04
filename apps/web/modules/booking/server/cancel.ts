@@ -7,7 +7,7 @@
  * `waitlist.offer_next` (R34).
  */
 import type { Tx } from "@beam/db";
-import { bookings, orderLines, orders, persons, sessions, waitlistEntries } from "@beam/db/schema";
+import { bookings, creditGrants, orderLines, orders, persons, sessions, waitlistEntries } from "@beam/db/schema";
 import {
   BookingConflictError,
   SessionFullError,
@@ -25,7 +25,7 @@ import { ForbiddenError } from "@beam/core/errors";
 import { NotFoundError, ValidationError, actorHasPermission, and, asc, eq, gt, inArray, lte, or, sql, type Ctx } from "@/lib/ctx";
 import { getSetting } from "@/lib/settings";
 import { cancelOrder, refundOrderLine } from "@/modules/commerce/api";
-import { releaseCredits } from "@/modules/credits/api";
+import { grantCredits, releaseCredits } from "@/modules/credits/api";
 import { sendTransactional } from "@/modules/email/api";
 import { LIVE_STATUSES, lockSession, readAvailabilityRow, type BookingRow, type SessionRow } from "./book";
 import { recordBookingFact } from "./facts";
@@ -93,7 +93,10 @@ const PAID_ORDER = ["paid", "partially_refunded"];
 
 /** R28, R29, R32, R33: the plan for one row, or throws when the change is not allowed. */
 function planFor(booking: BookingRow, session: SessionRow, input: CancelBookingInput, rules: BookingRules, ctx: Ctx): Plan {
-  if (input.by === "beam") {
+  // R33: a live row of a session BEAM cancelled (its chunks still pending) is a BEAM cancellation,
+  // whoever cancels it first, and before the R29 after-start refusal.
+  const liveOfCancelledSession = session.status === "cancelled" && (booking.status === "reserved" || booking.status === "confirmed") && input.by !== "system";
+  if (input.by === "beam" || liveOfCancelledSession) {
     return { status: "cancelled", code: "session_cancelled", release: usesCredit(booking) ? "session_cancelled" : null, refund: booking.paidWith === "order" ? "session_cancelled" : null };
   }
   if (input.by === "system") {
@@ -127,6 +130,34 @@ function planFor(booking: BookingRow, session: SessionRow, input: CancelBookingI
   return { status: "late_cancelled", code, release: outcome.releaseCredit ? "late_cancel_released" : null, refund: null };
 }
 
+/**
+ * R65: an imported credit row was never consumed (ops imported the balance net of it), so a
+ * release finds nothing; the unit ops already deducted comes back as a `manual` grant of the
+ * payer, valid as long as their latest grant of that kind (no expiry when none is live). Key
+ * `grant:import-booking-release:<booking id>`.
+ */
+async function restoreImportedUnit(ctx: Ctx, booking: BookingRow, session: SessionRow, reason: ReleaseReason): Promise<boolean> {
+  if (booking.source !== "import" || !session.creditKind || session.creditCost <= 0) return false;
+  const personId = booking.paidWith === "guest" ? (booking.bookedByPersonId ?? booking.personId) : booking.personId;
+  const [latest] = await ctx.tx
+    .select({ expiresAt: creditGrants.expiresAt })
+    .from(creditGrants)
+    .where(and(eq(creditGrants.personId, personId), eq(creditGrants.creditKind, session.creditKind)))
+    .orderBy(sql`${creditGrants.expiresAt} desc nulls first`)
+    .limit(1);
+  const expiresAt = latest?.expiresAt && latest.expiresAt.getTime() > ctx.now.getTime() ? latest.expiresAt : null;
+  await grantCredits(ctx.tx, ctx, {
+    source: "manual",
+    personId,
+    kind: session.creditKind,
+    units: session.creditCost,
+    expiresAt,
+    reason,
+    key: `grant:import-booking-release:${booking.id}`,
+  });
+  return true;
+}
+
 /** Applies a plan to one locked row: status, credits, refund, fact and email (not the order cancel). */
 async function applyPlan(ctx: Ctx, booking: BookingRow, session: SessionRow, plan: Plan, opts: { by: CancelBy; reason?: string; notify: boolean; skipRefund?: boolean }): Promise<RowOutcome> {
   const tx = ctx.tx;
@@ -148,7 +179,7 @@ async function applyPlan(ctx: Ctx, booking: BookingRow, session: SessionRow, pla
   let creditReleased = false;
   if (plan.release && usesCredit(booking)) {
     const { releasedUnits } = await releaseCredits(tx, ctx, { ref: { type: "booking", id: booking.id }, reason: plan.release });
-    creditReleased = releasedUnits > 0;
+    creditReleased = releasedUnits > 0 || (await restoreImportedUnit(ctx, booking, session, plan.release));
   }
   let refundRequested = false;
   let unpaidOrderId: string | null = null;

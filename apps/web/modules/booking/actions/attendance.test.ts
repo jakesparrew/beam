@@ -1,8 +1,10 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTestDb, makePerson, makeUser } from "@beam/db/testing";
+import { makeCreditGrant } from "@beam/db/testing/credits-factories";
 import type { DbHandle } from "@beam/db";
 import { bookings, roles } from "@beam/db/schema";
 import { DEFAULT_BOOKING_RULES } from "@beam/core/booking";
+import type * as CreditsApi from "@/modules/credits/api";
 
 const jar = new Map<string, string>();
 vi.mock("next/headers", () => ({
@@ -25,7 +27,7 @@ const { createAuthSession, SESSION_COOKIE } = await import("@/lib/auth");
 const { eq, setAppDb } = await import("@/lib/ctx");
 const { resetRuntime } = await import("@/lib/testing");
 const { releaseCredits } = await import("@/modules/credits/api");
-const { DAY, HOUR, openSession, setBookingRules } = await import("../server/booking-p3a.fixtures");
+const { DAY, HOUR, inTx, openSession, setBookingRules } = await import("../server/booking-p3a.fixtures");
 const { bookingById, factsOf, rawBooking, unpaidOrderBooking } = await import("../server/booking-p3b.fixtures");
 
 let h: DbHandle;
@@ -200,6 +202,32 @@ describe("markNoShow and revertNoShow (R37)", () => {
     const b = await rawBooking(h.db, { sessionId: (await runningSession()).id, paidWith: "credit" });
     expect(await actions.markNoShow({ bookingId: b.id })).toMatchObject({ ok: true });
     expect(releaseCredits).toHaveBeenCalledWith(expect.anything(), expect.anything(), { ref: { type: "booking", id: b.id }, reason: "no_show_released" });
+  });
+
+  it("a no-show whose credit was released is not turned into attended (revert or check-in); a kept credit is", async () => {
+    const actual = await vi.importActual<typeof CreditsApi>("@/modules/credits/api");
+    const creditRow = async () => {
+      const session = await runningSession();
+      const person = await makePerson(h.db);
+      await makeCreditGrant(h.db, { personId: person.id, units: 3, startsAt: ago(30 * DAY), expiresAt: ahead(60 * DAY) });
+      const b = await rawBooking(h.db, { sessionId: session.id, personId: person.id, paidWith: "credit" });
+      await inTx(h.db, { kind: "system", jobId: "test" }, (tx, ctx) =>
+        actual.consumeCredits(tx, ctx, { personId: person.id, beneficiaryPersonId: person.id, kind: session.creditKind!, units: session.creditCost, ref: { type: "booking", id: b.id }, validAt: session.startsAt }),
+      );
+      return b;
+    };
+
+    const kept = await creditRow();
+    expect(await actions.markNoShow({ bookingId: kept.id })).toMatchObject({ ok: true, data: { status: "no_show" } });
+    expect(await actions.revertNoShow({ bookingId: kept.id })).toMatchObject({ ok: true, data: { status: "attended" } });
+
+    await setBookingRules(h.db, { no_show: { ...DEFAULT_BOOKING_RULES.no_show, releases_credit: true } });
+    vi.mocked(releaseCredits).mockImplementationOnce(actual.releaseCredits);
+    const released = await creditRow();
+    expect(await actions.markNoShow({ bookingId: released.id })).toMatchObject({ ok: true, data: { status: "no_show" } });
+    expect(await actions.revertNoShow({ bookingId: released.id })).toMatchObject(conflict("invalid_transition"));
+    expect(await actions.checkIn({ bookingId: released.id })).toMatchObject(conflict("invalid_transition"));
+    expect(await bookingById(h.db, released.id)).toMatchObject({ status: "no_show", attendedAt: null });
   });
 
   it("reverts a no-show to attended within revert_no_show_days", async () => {

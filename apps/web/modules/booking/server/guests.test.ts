@@ -12,7 +12,7 @@ import { hasValidSubmission } from "@/modules/forms/api";
 import { getCurrentLegalVersion, hasAcceptedCurrentTerms } from "@/modules/site/api";
 import { confirmBookingsForOrder } from "../api/bookings";
 import { bookSeats } from "./book";
-import { DAY, customerActor, fakeCreateOrder, inTx, openSession, sessionProduct, setBookingRules } from "./booking-p3a.fixtures";
+import { DAY, customerActor, fakeCreateOrder, fakeSettledCreateOrder, inTx, openSession, sessionProduct, setBookingRules } from "./booking-p3a.fixtures";
 import { bookingById, consumesOf, emailByKey, factsOf } from "./booking-p3b.fixtures";
 import { addGuestRow, type AddGuestInput } from "./guests";
 
@@ -108,6 +108,26 @@ describe("addGuestRow (R54-R56)", () => {
     await inTx(h.db, system, (tx, ctx) => confirmBookingsForOrder(tx, ctx, { orderId: res.orderId }));
     expect((await bookingById(h.db, guest.id)).status).toBe("confirmed");
     expect(await h.db.select().from(emailMessages).where(eq(emailMessages.toEmail, guestEmail))).toHaveLength(1);
+  });
+
+  it("an order-paid guest whose order commerce settles inside createOrder is confirmed at once, without a reserved fact", async () => {
+    const product = await sessionProduct(h.db);
+    const session = await openSession(h.db, { ...FREE, productId: product.id });
+    const owner = await makePerson(h.db, { firstName: "Ann" });
+    const ownerRow = await inTx(h.db, staffActor({ userId: staffUserId, permissions: ["bookings.write", "bookings.override"] }), (tx, ctx) =>
+      bookSeats(tx, ctx, { sessionId: session.id, personId: owner.id, payWith: "free", reason: "host", clientKey: randomUUID(), source: "admin", by: "staff" }),
+    );
+    vi.mocked(createOrder).mockImplementationOnce(fakeSettledCreateOrder());
+    const res = await add(customerActor(owner.id), { ownerBookingId: ownerRow.bookingIds[0]!, guest: { firstName: "Dirk", lastName: "Gast", email: email(), payWith: "order" } });
+    expect(res.kind).toBe("confirmed");
+    const guest = await bookingById(h.db, res.bookingId);
+    expect(guest).toMatchObject({ status: "confirmed", paidWith: "order", reservedUntil: null });
+    expect(guest.orderLineId).not.toBeNull();
+    const kinds = (await factsOf(h.db, guest.id)).map((f) => f.kind);
+    expect(kinds).not.toContain("booking.reserved");
+    expect(kinds.filter((k) => k === "booking.confirmed")).toHaveLength(1);
+    expect(kinds).toContain("booking.guest_added");
+    expect(await emailByKey(h.db, `booking:${guest.id}:confirmed`)).toBeDefined();
   });
 
   it("a guest paid from the owner's shareable credits consumes the owner's grant for the guest", async () => {

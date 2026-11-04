@@ -12,11 +12,16 @@ import * as credits from "@/modules/credits/api";
 import { hasValidSubmission } from "@/modules/forms/api";
 import { getCurrentLegalVersion, hasAcceptedCurrentTerms, recordTermsAcceptance } from "@/modules/site/api";
 import { bookSeats, type BookSeatsInput } from "./book";
-import { DAY, customerActor, fakeCreateOrder, inTx, openSession, sessionProduct, setBookingRules, type CreateOrderCall } from "./booking-p3a.fixtures";
+import { DAY, customerActor, fakeCreateOrder, fakeSettledCreateOrder, inTx, openSession, sessionProduct, setBookingRules, type CreateOrderCall } from "./booking-p3a.fixtures";
 
 vi.mock("@/modules/commerce/api", async (orig) => ({ ...(await orig<Record<string, unknown>>()), createOrder: vi.fn() }));
+// commerce's api barrel re-exports `redeemVoucher` from its actions, whose import graph reaches this
+// module's book.ts: stubbing the actions file keeps that cycle closed, so book.ts sees the mocked createOrder.
+vi.mock("@/modules/commerce/actions", () => ({ redeemVoucher: vi.fn() }));
 vi.mock("@/modules/credits/api", async (orig) => ({ ...(await orig<Record<string, unknown>>()), getMembershipForPerson: vi.fn() }));
-vi.mock("@/modules/forms/api", async (orig) => ({ ...(await orig<Record<string, unknown>>()), hasValidSubmission: vi.fn() }));
+// forms' api barrel reaches book.ts too (through ops' privacy registry and email's merge fields), so
+// loading the original inside the factory would hand declarations.ts the unmocked function.
+vi.mock("@/modules/forms/api", () => ({ hasValidSubmission: vi.fn() }));
 vi.mock("@/modules/site/api", async (orig) => ({
   ...(await orig<Record<string, unknown>>()),
   getCurrentLegalVersion: vi.fn(),
@@ -120,12 +125,35 @@ describe("credit bookings (R17)", () => {
     spy.mockRestore();
   });
 
-  it("a shared package: the sharee books for themself with paid_with guest against the owner's grant (R55)", async () => {
+  it("a customer cannot pay with another person's shareable package through grantOwnerPersonId", async () => {
+    const session = await openSession(h.db);
+    const owner = await makePerson(h.db);
+    const other = await makePerson(h.db);
+    const g = await grantFor(owner.id, 5, { sharing: { mode: "guests", max_guest_uses_per_month: 4, allowed_person_ids: [] } });
+    await expect(
+      book(customerActor(other.id), { sessionId: session.id, personId: other.id, payWith: "guest", grantOwnerPersonId: owner.id }),
+    ).rejects.toMatchObject({ code: "conflict", reason: "sharing_not_allowed" });
+    // Also as the payer of a guest row.
+    await grantFor(other.id, 5);
+    await expect(
+      book(customerActor(other.id), {
+        sessionId: session.id,
+        personId: other.id,
+        payWith: "credit",
+        grantOwnerPersonId: owner.id,
+        guests: [{ firstName: "Gast", lastName: "Twee", payWith: "guest" }],
+      }),
+    ).rejects.toMatchObject({ reason: "sharing_not_allowed" });
+    expect(await rowsOf(session.id)).toHaveLength(0);
+    expect(await h.db.select().from(creditEntries).where(and(eq(creditEntries.grantId, g.id), eq(creditEntries.kind, "consume")))).toHaveLength(0);
+  });
+
+  it("staff book a sharee for themself with paid_with guest against the owner's grant (R55)", async () => {
     const session = await openSession(h.db);
     const owner = await makePerson(h.db);
     const sharee = await makePerson(h.db);
     const g = await grantFor(owner.id, 5, { sharing: { mode: "guests", max_guest_uses_per_month: 4, allowed_person_ids: [] } });
-    await book(customerActor(sharee.id), { sessionId: session.id, personId: sharee.id, payWith: "guest", grantOwnerPersonId: owner.id });
+    await book(staff(), { sessionId: session.id, personId: sharee.id, payWith: "guest", grantOwnerPersonId: owner.id });
     const [row] = await rowsOf(session.id);
     expect(row).toMatchObject({ personId: sharee.id, paidWith: "guest", status: "confirmed" });
     const [entry] = await h.db.select().from(creditEntries).where(and(eq(creditEntries.refId, row!.id), eq(creditEntries.kind, "consume")));
@@ -166,6 +194,34 @@ describe("order bookings (R18)", () => {
     }
     expect(new Set(rows.map((r) => r.orderLineId)).size).toBe(3);
     expect(await h.db.select().from(emailMessages).where(eq(emailMessages.personId, owner.id))).toHaveLength(0);
+  });
+
+  it("an order commerce settles inside createOrder (nothing due) confirms the rows without a checkout or a reserved fact", async () => {
+    const product = await sessionProduct(h.db);
+    const session = await openSession(h.db, { productId: product.id, creditKind: null, creditCost: 0 });
+    const owner = await makePerson(h.db);
+    vi.mocked(createOrder).mockImplementationOnce(fakeSettledCreateOrder(orderCalls));
+    const result = await book(customerActor(owner.id), {
+      sessionId: session.id,
+      personId: owner.id,
+      payWith: "order",
+      useEuroCredit: true,
+      guests: [{ firstName: "Gast", lastName: "Betaald", payWith: "order" }],
+    });
+    expect(result.kind).toBe("confirmed");
+    const rows = await rowsOf(session.id);
+    expect(rows).toHaveLength(2);
+    expect(result.bookingIds.sort()).toEqual(rows.map((r) => r.id).sort());
+    for (const r of rows) {
+      expect(r).toMatchObject({ status: "confirmed", reservedUntil: null });
+      expect(r.orderLineId).not.toBeNull();
+    }
+    const kinds = (await eventsOf(owner.id)).map((e) => e.kind);
+    expect(kinds).not.toContain("booking.reserved");
+    expect(kinds.filter((k) => k === "booking.confirmed")).toHaveLength(1);
+    expect(kinds).toContain("booking.guest_added");
+    const owned = rows.find((r) => r.guestOfBookingId === null)!;
+    expect(await h.db.select().from(emailMessages).where(eq(emailMessages.idempotencyKey, `booking:${owned.id}:confirmed`))).toHaveLength(1);
   });
 
   it("a double submit with the same clientKey returns the existing checkout", async () => {

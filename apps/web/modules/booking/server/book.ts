@@ -291,6 +291,10 @@ export async function bookSeats(tx: Tx, ctx: Ctx, input: BookSeatsInput): Promis
     throw new ValidationError("pay_at_desk_not_available", { payAtDesk: "not_available" });
   }
   if (input.payWith === "guest" && !input.grantOwnerPersonId) throw new ValidationError("grant_owner_required", { grantOwnerPersonId: "required" });
+  // A customer pays only from their own grants (credits rule 17's owner guest use): credits checks no
+  // package_shares row or owner consent on that branch, so a foreign owner is refused here. Staff are
+  // trusted (`bookings.write`). R2 named sharing will take credits' rule-18 branch instead.
+  if (!staff && input.grantOwnerPersonId && input.grantOwnerPersonId !== input.personId) throw new BookingConflictError("sharing_not_allowed");
 
   // R13: shared beds only on nights, at most `max_shared_bed_guests_per_booking`.
   const sharers = guests.filter((g) => g.sharesBed).length;
@@ -442,6 +446,8 @@ export async function bookSeats(tx: Tx, ctx: Ctx, input: BookSeatsInput): Promis
   // R18: one quantity-1 item per order-paid seat, in row order.
   const orderRows = inserted.filter((b) => b.paidWith === "order");
   let orderId: string | null = null;
+  // Rows commerce confirmed inside createOrder (rule 24: euro credit or a promo covers the total).
+  const settled = new Set<string>();
   if (orderRows.length) {
     const order = await createOrder(tx, ctx, {
       personId: input.personId,
@@ -453,22 +459,36 @@ export async function bookSeats(tx: Tx, ctx: Ctx, input: BookSeatsInput): Promis
       ...(input.useEuroCredit !== undefined ? { useEuroCredit: input.useEuroCredit } : {}),
       ...(input.payAtDesk ? { expiresAt: session.endsAt } : {}),
     });
-    orderId = order.orderId;
-    const linked = await linkOrderLines(tx, orderRows, order.lineIds);
-    for (const b of inserted) {
-      const l = linked.find((x) => x.id === b.id);
-      if (l) Object.assign(b, { orderLineId: l.orderLineId, reservedUntil: l.reservedUntil });
+    if (order.status === "paid") {
+      // `confirmBookingsForOrder` already ran in this transaction: it set the lines, confirmed the
+      // rows and recorded `booking.confirmed` with its email. Nothing is left to pay or link.
+      const fresh = await tx.select().from(bookings).where(inArray(bookings.id, orderRows.map((b) => b.id)));
+      for (const b of inserted) {
+        const f = fresh.find((x) => x.id === b.id);
+        if (f && f.status === "confirmed") {
+          Object.assign(b, f);
+          settled.add(b.id);
+        }
+      }
+    } else {
+      orderId = order.orderId;
+      const linked = await linkOrderLines(tx, orderRows, order.lineIds);
+      for (const b of inserted) {
+        const l = linked.find((x) => x.id === b.id);
+        if (l) Object.assign(b, { orderLineId: l.orderLineId, reservedUntil: l.reservedUntil });
+      }
     }
   }
 
   // R61 facts, R58 guest facts on the owner's timeline, R59 emails, waitlist release.
   const factSession = { kind: session.kind, eventCategory: session.eventCategory, startsAt: session.startsAt, partnerCompanyId: session.partnerCompanyId };
   for (const b of inserted) {
-    await recordBookingFact(ctx, b.status === "reserved" ? "booking.reserved" : "booking.confirmed", b, { session: factSession, by: input.by });
+    if (!settled.has(b.id)) await recordBookingFact(ctx, b.status === "reserved" ? "booking.reserved" : "booking.confirmed", b, { session: factSession, by: input.by });
     if (b.guestOfBookingId) await recordBookingFact(ctx, "booking.guest_added", b, { session: factSession, by: input.by, subjectPersonId: input.personId });
   }
   if (input.sendEmail !== false) {
     for (const b of inserted) {
+      if (settled.has(b.id)) continue;
       if (b.status === "confirmed") await sendConfirmationEmail(ctx, b, session);
       else if (b.isPayAtDesk && b.guestOfBookingId === null) await sendConfirmationEmail(ctx, b, session, { payAtDesk: true });
     }

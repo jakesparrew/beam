@@ -720,6 +720,10 @@ export async function claimSeatRow(tx: Tx, ctx: Ctx, input: { token: string; pay
   }
 
   let orderId: string | null = null;
+  // Rule 24 (nothing due): commerce confirmed the row inside createOrder, with its line, the
+  // `booking.confirmed` fact and the confirmation email; the entry was not linked yet, so it is
+  // confirmed here.
+  let settled = false;
   if (paidWith === "order") {
     const order = await createOrder(tx, ctx, {
       personId: entry.personId,
@@ -729,16 +733,23 @@ export async function claimSeatRow(tx: Tx, ctx: Ctx, input: { token: string; pay
       clientKey: randomUUID(),
       locale,
     });
-    orderId = order.orderId;
-    const [linked] = await linkOrderLines(tx, [booking], order.lineIds);
-    booking = { ...booking, orderLineId: linked!.orderLineId, reservedUntil: linked!.reservedUntil };
+    if (order.status === "paid") {
+      const [fresh] = await tx.select().from(bookings).where(eq(bookings.id, booking.id));
+      booking = fresh!;
+      settled = booking.status === "confirmed";
+    } else {
+      orderId = order.orderId;
+      const [linked] = await linkOrderLines(tx, [booking], order.lineIds);
+      booking = { ...booking, orderLineId: linked!.orderLineId, reservedUntil: linked!.reservedUntil };
+    }
   }
 
-  const claimed = status === "confirmed" ? transition(toLike(entry), "confirmed", waitlistActor(ctx)) : null;
+  const claimed = status === "confirmed" || settled ? transition(toLike(entry), "confirmed", waitlistActor(ctx)) : null;
   await setEntry(ctx, entry.id, claimed ? { bookingId: booking.id, state: "confirmed" } : { bookingId: booking.id });
-  await recordBookingFact(ctx, status === "reserved" ? "booking.reserved" : "booking.confirmed", booking, { by: "customer", queue: entry.queue });
+  if (!settled) await recordBookingFact(ctx, status === "reserved" ? "booking.reserved" : "booking.confirmed", booking, { by: "customer", queue: entry.queue });
   if (claimed) {
     await recordWaitlistFact(ctx, "waitlist.confirmed", entry, session, { booking_id: booking.id, paid_with: paidWith });
+    if (settled) return { bookingId: booking.id };
     const fileId = await renderCheckinQr(ctx, booking);
     await sendWaitlistEmail(
       ctx,

@@ -12,6 +12,9 @@ import { bookSeats } from "./book";
 import { customerActor, fakeCreateOrder, inTx, openSession, posOrderLine, sessionProduct, setBookingRules } from "./booking-p3a.fixtures";
 import { linkOrderLines } from "./order-hooks";
 
+// commerce's api barrel re-exports `redeemVoucher` from its actions, whose import graph reaches booking's
+// book.ts: stubbing the actions file keeps that cycle closed, so booking sees the mocked createOrder.
+vi.mock("@/modules/commerce/actions", () => ({ redeemVoucher: vi.fn() }));
 vi.mock("@/modules/commerce/api", async (orig) => ({ ...(await orig<Record<string, unknown>>()), createOrder: vi.fn() }));
 vi.mock("@/modules/credits/api", async (orig) => ({ ...(await orig<Record<string, unknown>>()), getMembershipForPerson: vi.fn() }));
 vi.mock("@/modules/site/api", async (orig) => ({

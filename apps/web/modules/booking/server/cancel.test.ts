@@ -1,10 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DbHandle } from "@beam/db";
-import { bookings, waitlistEntries } from "@beam/db/schema";
+import { bookings, creditGrants, sessions, waitlistEntries } from "@beam/db/schema";
 import { createTestDb, makePerson, makeUser } from "@beam/db/testing";
 import { makeCreditGrant } from "@beam/db/testing/credits-factories";
-import { eq, type Actor } from "@/lib/ctx";
+import { and, eq, type Actor } from "@/lib/ctx";
 import { resetRuntime, staffActor } from "@/lib/testing";
 import { cancelOrder, createOrder, refundOrderLine } from "@/modules/commerce/api";
 import { getMembershipForPerson } from "@/modules/credits/api";
@@ -27,6 +27,9 @@ import {
 } from "./booking-p3b.fixtures";
 import { SESSION_CANCEL_CHUNK, cancelBookingRow, cancelSessionChunk, cancelSessionRow, type CancelBookingInput } from "./cancel";
 
+// commerce's api barrel re-exports `redeemVoucher` from its actions, whose import graph reaches booking's
+// book.ts: stubbing the actions file keeps that cycle closed, so booking sees the mocked createOrder.
+vi.mock("@/modules/commerce/actions", () => ({ redeemVoucher: vi.fn() }));
 vi.mock("@/modules/commerce/api", async (orig) => ({
   ...(await orig<Record<string, unknown>>()),
   createOrder: vi.fn(),
@@ -96,6 +99,21 @@ async function creditBooking(startsIn = 2 * DAY, sessionOver: Parameters<typeof 
 function cancel(actor: Actor, input: Partial<CancelBookingInput> & Pick<CancelBookingInput, "bookingId" | "by">) {
   return inTx(h.db, actor, (tx, ctx) => cancelBookingRow(tx, ctx, { includeGuests: true, ...input }));
 }
+
+describe("imported credit bookings (R65)", () => {
+  it("an imported credit booking cancelled inside the window gives its unit back as a manual grant", async () => {
+    const session = await openSession(h.db, { startsAt: new Date(Date.now() + 2 * DAY) });
+    const person = await makePerson(h.db);
+    const live = await grantFor(person.id);
+    const booking = await rawBooking(h.db, { sessionId: session.id, personId: person.id, paidWith: "credit", source: "import", bookedByPersonId: person.id });
+    const result = await cancel(customerActor(person.id), { bookingId: booking.id, expectedVersion: booking.version, by: "customer" });
+    expect(result).toMatchObject({ status: "cancelled", creditReleased: true });
+    expect(await releasesOf(h.db, booking.id)).toEqual([]);
+    const restored = (await h.db.select().from(creditGrants).where(and(eq(creditGrants.personId, person.id), eq(creditGrants.source, "manual")))).filter((g) => g.id !== live.id);
+    expect(restored).toHaveLength(1);
+    expect(restored[0]).toMatchObject({ creditKind: session.creditKind, unitsGranted: session.creditCost, expiresAt: live.expiresAt });
+  });
+});
 
 describe("customer cancellation inside the free window (R28)", () => {
   it("tonight path: cancel inside the rules, credit back (cancelled_in_policy), fact, email and waitlist.offer_next", async () => {
@@ -286,6 +304,23 @@ describe("session cancellation (R33)", () => {
     await inTx(h.db, staff(["bookings.override"]), (tx, ctx) => cancelSessionRow(tx, ctx, { sessionId: session.id, reason: "storm", notify: false }));
     expect((await bookingById(h.db, b.id)).status).toBe("cancelled");
     expect(await emailByKey(h.db, `booking:${b.id}:cancelled`)).toBeUndefined();
+  });
+
+  it("a live row of a session BEAM cancelled (chunks pending) cancelled by its customer outside the window is a session cancellation", async () => {
+    const product = await sessionProduct(h.db);
+    const { session, person, booking } = await creditBooking(10 * HOUR, { productId: product.id });
+    const paid = await paidOrderBooking(h.db, { sessionId: session.id });
+    await h.db.update(sessions).set({ status: "cancelled", cancelledAt: new Date() }).where(eq(sessions.id, session.id));
+
+    const result = await cancel(customerActor(person.id), { bookingId: booking.id, by: "customer" });
+    expect(result).toMatchObject({ status: "cancelled", creditReleased: true, refundRequested: false });
+    expect(await bookingById(h.db, booking.id)).toMatchObject({ status: "cancelled", cancelReasonCode: "session_cancelled" });
+    expect(await releasesOf(h.db, booking.id)).toEqual([{ refId: booking.id, quantity: 1, reason: "session_cancelled" }]);
+    expect(await emailByKey(h.db, `booking:${booking.id}:cancelled`)).toMatchObject({ props: { refunded: false, creditReleased: true } });
+
+    const paidResult = await cancel(customerActor(paid.booking.personId), { bookingId: paid.booking.id, by: "customer" });
+    expect(paidResult).toMatchObject({ status: "cancelled", refundRequested: true });
+    expect(vi.mocked(refundOrderLine).mock.calls.map((c) => c[2])).toEqual([{ orderLineId: paid.lineId, reason: "session_cancelled" }]);
   });
 
   it("above 50 live bookings the session is cancelled at once and the bookings in chunks of 50 by sessions.cancel_bookings", async () => {

@@ -1,6 +1,2 @@
 # <repo path> <fixer id> <reason>; the gate excludes these test files until the fixer lands
-apps/web/modules/booking/server/book.test.ts fix-w09-booking-review terms_unavailable once commerce-P6 lands: the tests need a seeded published terms version
-apps/web/modules/booking/server/cancel.test.ts fix-w09-booking-review same as book.test.ts
-apps/web/modules/booking/server/claim.test.ts fix-w09-booking-review same as book.test.ts
-apps/web/modules/booking/server/order-hooks.test.ts fix-w09-booking-review same as book.test.ts
 packages/db/test/append-only.test.ts fix-w09-platform-review the "listed table created later" case creates webinar_moderation_actions, which webinar-P1 now creates

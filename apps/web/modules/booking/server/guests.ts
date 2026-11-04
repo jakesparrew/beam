@@ -152,6 +152,7 @@ export async function addGuestRow(tx: Tx, ctx: Ctx, input: AddGuestInput): Promi
   }
 
   let orderId: string | null = null;
+  let settled = false;
   if (g.payWith === "order") {
     const order = await createOrder(tx, ctx, {
       personId: owner.personId,
@@ -161,15 +162,23 @@ export async function addGuestRow(tx: Tx, ctx: Ctx, input: AddGuestInput): Promi
       clientKey: input.clientKey ?? randomUUID(),
       locale,
     });
-    orderId = order.orderId;
-    const [linked] = await linkOrderLines(tx, [row], order.lineIds);
-    row = { ...row, orderLineId: linked!.orderLineId, reservedUntil: linked!.reservedUntil };
+    if (order.status === "paid") {
+      // Rule 24 (nothing due): commerce already confirmed the row in this transaction, with its
+      // line, `booking.confirmed` fact and email.
+      const [fresh] = await tx.select().from(bookings).where(eq(bookings.id, id));
+      row = fresh!;
+      settled = row.status === "confirmed";
+    } else {
+      orderId = order.orderId;
+      const [linked] = await linkOrderLines(tx, [row], order.lineIds);
+      row = { ...row, orderLineId: linked!.orderLineId, reservedUntil: linked!.reservedUntil };
+    }
   }
 
   const factSession = { kind: session.kind, eventCategory: session.eventCategory, startsAt: session.startsAt, partnerCompanyId: session.partnerCompanyId };
-  await recordBookingFact(ctx, status === "reserved" ? "booking.reserved" : "booking.confirmed", row, { session: factSession, by: input.by });
+  if (!settled) await recordBookingFact(ctx, status === "reserved" ? "booking.reserved" : "booking.confirmed", row, { session: factSession, by: input.by });
   await recordBookingFact(ctx, "booking.guest_added", row, { session: factSession, by: input.by, subjectPersonId: owner.personId });
-  if (status === "confirmed") await sendConfirmationEmail(ctx, row, session);
+  if (!settled && status === "confirmed") await sendConfirmationEmail(ctx, row, session);
   await releaseWaitlistEntryOnBooking(ctx, session.id, guestPersonId);
 
   if (!orderId) return { kind: "confirmed", bookingId: id };

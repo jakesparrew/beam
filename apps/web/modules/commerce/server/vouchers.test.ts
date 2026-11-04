@@ -160,7 +160,7 @@ describe("commerce.issue_voucher_email (rule 45a)", () => {
     const [message] = await h.db.select().from(emailMessages).where(eq(emailMessages.idempotencyKey, `voucher:${voucher.id}:email:0`));
     expect(message).toMatchObject({ toEmail: "alex@example.com" });
     expect(message!.sendAt?.toISOString()).toBe(deliveryInstant(day).toISOString());
-    expect(message!.attachments).toEqual([{ fileId: expect.any(String), filename: "BEAM-gift-voucher.pdf" }]);
+    expect(message!.attachments).toEqual([{ fileId: expect.any(String) as unknown, filename: "BEAM-gift-voucher.pdf" }]);
     expect((await h.db.select().from(vouchers).where(eq(vouchers.id, voucher.id)))[0]!.emailMessageId).toBe(message!.id);
   });
 });

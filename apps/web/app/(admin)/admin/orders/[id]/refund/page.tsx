@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Button, EmptyState, Input, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@beam/ui";
 import { COMMERCE_SETTINGS_DEFAULTS } from "@beam/core/commerce";
-import { formatMoney, pick, t, type LocalizedText } from "@beam/core/i18n";
+import { formatMoney, pick, t } from "@beam/core/i18n";
 import { hasPermission, requireStaff } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
 import { adminLocale, translator } from "@/lib/i18n";
@@ -80,7 +80,7 @@ export default async function RefundPage({ params, searchParams }: { params: Pro
               {refundable.map(({ line, left, plan }) => {
                 const p = plan.lines[0];
                 if (!p) return null;
-                const name = pick(line.description as LocalizedText, locale, "order_lines.description") || line.sku;
+                const name = pick(line.description, locale, "order_lines.description") || line.sku;
                 return (
                   <TableRow key={line.id}>
                     <TableCell>

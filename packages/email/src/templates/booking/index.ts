@@ -1,14 +1,19 @@
 /**
  * booking's transactional templates (booking spec R59). Registry keys and `email_templates.slug`
  * values `booking.<name>`, where `<name>` is the file basename with `-` replaced by `_`.
- * booking-P3a: `booking.booking_confirmed`, `booking.guest_invited`; booking-P3b adds the
- * rescheduled, cancelled, late-cancelled, session-cancelled and reminder templates; booking-P5
- * the waitlist ones. The check-in QR is an inline attachment (`cid:checkin-qr.png`) passed by the
+ * booking-P3a: `booking.booking_confirmed`, `booking.guest_invited`; booking-P3b:
+ * `booking.booking_rescheduled`, `booking.booking_cancelled`, `booking.booking_late_cancelled`,
+ * `booking.session_cancelled`, `booking.booking_reminder`; booking-P5 the waitlist ones. The check-in QR is an inline attachment (`cid:checkin-qr.png`) passed by the
  * sender, so no template builds attachments itself.
  */
 import { defineTemplate } from "../define";
 import { BookingConfirmed, BookingConfirmedProps } from "./booking-confirmed";
+import { BookingCancelled, BookingCancelledProps } from "./booking-cancelled";
+import { BookingLateCancelled, BookingLateCancelledProps } from "./booking-late-cancelled";
+import { BookingReminder, BookingReminderProps } from "./booking-reminder";
+import { BookingRescheduled, BookingRescheduledProps } from "./booking-rescheduled";
 import { GuestInvited, GuestInvitedProps } from "./guest-invited";
+import { SessionCancelled, SessionCancelledProps } from "./session-cancelled";
 
 export const templates = [
   defineTemplate({
@@ -46,6 +51,77 @@ export const templates = [
       intro: "booking.email.guest_invited.intro",
       qr: "booking.email.guest_invited.qr",
       cta: "booking.email.guest_invited.cta",
+    },
+  }),
+  defineTemplate({
+    name: "booking_rescheduled",
+    component: BookingRescheduled,
+    props: BookingRescheduledProps,
+    sample: {
+      title: "Yin yoga",
+      date: "za 14 nov. 2026, 10:00",
+      oldDate: "do 12 nov. 2026, 18:30",
+      url: "https://beam.example.com/nl/account/bookings/bk_sample",
+    },
+    slots: {
+      subject: "booking.email.booking_rescheduled.subject",
+      heading: "booking.email.booking_rescheduled.heading",
+      intro: "booking.email.booking_rescheduled.intro",
+      qr: "booking.email.booking_rescheduled.qr",
+      cta: "booking.email.booking_rescheduled.cta",
+    },
+  }),
+  defineTemplate({
+    name: "booking_cancelled",
+    component: BookingCancelled,
+    props: BookingCancelledProps,
+    sample: { title: "Yin yoga", date: "do 12 nov. 2026, 18:30", url: "https://beam.example.com/nl/account/book", reason: "cancelled" },
+    slots: {
+      subject: "booking.email.booking_cancelled.subject",
+      heading: "booking.email.booking_cancelled.heading",
+      intro: "booking.email.booking_cancelled.intro",
+      payment_expired: "booking.email.booking_cancelled.payment_expired",
+      cta: "booking.email.booking_cancelled.cta",
+    },
+  }),
+  defineTemplate({
+    name: "booking_late_cancelled",
+    component: BookingLateCancelled,
+    props: BookingLateCancelledProps,
+    sample: { title: "Yin yoga", date: "do 12 nov. 2026, 18:30", url: "https://beam.example.com/nl/account/book" },
+    slots: {
+      subject: "booking.email.booking_late_cancelled.subject",
+      heading: "booking.email.booking_late_cancelled.heading",
+      intro: "booking.email.booking_late_cancelled.intro",
+      cta: "booking.email.booking_late_cancelled.cta",
+    },
+  }),
+  defineTemplate({
+    name: "session_cancelled",
+    component: SessionCancelled,
+    props: SessionCancelledProps,
+    sample: { title: "Yin yoga", date: "do 12 nov. 2026, 18:30", url: "https://beam.example.com/nl/account/book", refunded: true, creditReleased: false },
+    slots: {
+      subject: "booking.email.session_cancelled.subject",
+      heading: "booking.email.session_cancelled.heading",
+      intro: "booking.email.session_cancelled.intro",
+      refunded: "booking.email.session_cancelled.refunded",
+      credit_released: "booking.email.session_cancelled.credit_released",
+      cta: "booking.email.session_cancelled.cta",
+    },
+  }),
+  defineTemplate({
+    name: "booking_reminder",
+    component: BookingReminder,
+    props: BookingReminderProps,
+    sample: { title: "Yin yoga", date: "do 12 nov. 2026, 18:30", url: "https://beam.example.com/nl/account/bookings/bk_sample", kind: "day" },
+    slots: {
+      subject: "booking.email.booking_reminder.subject",
+      heading: "booking.email.booking_reminder.heading",
+      intro_day: "booking.email.booking_reminder.intro_day",
+      intro_night: "booking.email.booking_reminder.intro_night",
+      qr: "booking.email.booking_reminder.qr",
+      cta: "booking.email.booking_reminder.cta",
     },
   }),
 ];

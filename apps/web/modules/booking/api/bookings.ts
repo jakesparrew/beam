@@ -2,11 +2,10 @@
  * booking api, area `bookings` (booking spec 4.9 file layout): availability, the commerce hooks,
  * people and history, and the cut-over import. Implemented by booking-P3a over the internal
  * service in `../server/`; `cancelBookingsForOrderLine` and `getBookingHealth` are booking-P3b's
- * (stubs kept unchanged until then), `opensForCustomersAt` of `getSessionCards` is booking-P7's.
+ * (`../server/cancel.ts`, `../server/health.ts`), `opensForCustomersAt` of `getSessionCards` is booking-P7's.
  */
 import type { DbOrTx, Tx } from "@beam/db";
 import { bookings, persons, sessions, vPersonBookings, vSessionAvailability } from "@beam/db/schema";
-import { NotImplementedError } from "@beam/core/errors";
 import { pick, type Locale, type LocalizedText } from "@beam/core/i18n";
 import {
   availabilityBand,
@@ -28,9 +27,9 @@ import { NotFoundError, and, asc, desc, eq, gt, gte, inArray, isNull, lte, ne, o
 import { getSetting } from "@/lib/settings";
 import { LIVE_STATUSES, lockSession, readAvailabilityRow, viewerFor, type SessionRow } from "../server/book";
 import { recordBookingFact } from "../server/facts";
+import { cancelRowsForOrderLine } from "../server/cancel";
+import { computeBookingHealth } from "../server/health";
 import { confirmOrderBookings, createPosBooking, releaseOrderBookings } from "../server/order-hooks";
-
-const notYet = <T>(fn: string): Promise<T> => Promise.reject(new NotImplementedError(`booking.${fn}`));
 
 /** `reserved` rows still within their reservation, or `confirmed` (R9 live, without the past states). */
 const liveNow = sql`(${bookings.status} = 'confirmed' or (${bookings.status} = 'reserved' and ${bookings.reservedUntil} > now()))`;
@@ -238,11 +237,11 @@ export function releaseBookingsForOrder(
 
 /** Staff refund in commerce; code `refunded`, never a second refund. */
 export function cancelBookingsForOrderLine(
-  _tx: Tx,
-  _ctx: Ctx,
-  _input: { orderLineId: string; reason: "refunded" },
+  tx: Tx,
+  ctx: Ctx,
+  input: { orderLineId: string; reason: "refunded" },
 ): Promise<{ cancelledBookingIds: string[] }> {
-  return notYet("cancelBookingsForOrderLine");
+  return cancelRowsForOrderLine(tx, ctx, input);
 }
 
 /** POS walk-in: `reserved` until the POS payment; throws `conflict` `session_full`, `member_only` or `already_booked`. */
@@ -447,6 +446,5 @@ export async function importBooking(
 
 /** Monitoring (4.8): platform's `/api/health` (`checks.booking`) and `platform.check_alerts`. */
 export function getBookingHealth(db: DbOrTx): Promise<BookingHealth> {
-  void db;
-  return Promise.reject(new NotImplementedError("booking.getBookingHealth"));
+  return computeBookingHealth(db);
 }

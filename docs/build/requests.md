@@ -46,21 +46,16 @@ to "Served" with the package id.
 | commerce-P2 | commerce-P3 | `config.ts` refines `payment_provider_by_channel` with `unconfiguredChannels(value, process.env)` from `@beam/integrations/payments`, so Stripe or Viva cannot be selected without their keys. |
 | finance-P2 | finance (schema fixer) | `chk_invoices_party` refuses a POS company invoice with billing details but no person and no CRM company (snapshot kind `company`, `person_id` and `company_id` null): allow a company snapshot with a VAT number, or require a CRM company for POS company invoices. |
 | finance-P2 | finance-P3 | Register `finance.render_pdf` (payload `{ invoiceId }`, key `invoice_pdf:<id>`); add catalogue keys `finance.pdf.walk_in` and `finance.pdf.partial_credit`. |
-| finance-P2 | finance-P4 | Register `billit.push_payment` (`{ invoiceId }`, key `billit:payment:<id>`) and `billit.push_customer` (`{ partyKey }`, key `billit:customer:<party_key>:<hash8>`). |
 | commerce-P3 | commerce-P4a (owner of `api.ts`) | Wire `getQuote`, `getProductPrice`, `listPublicPrices` and `getProductCards` in `apps/web/modules/commerce/api.ts` to `./server/catalogue` (built with the exact api signatures; api.ts still has the throwing stubs). |
 | commerce-P3 | commerce (owner of `events.ts`) | Declare the event kind `person_price.set`; until then `setPersonPrice` writes only its audit row. |
 | automation-P2 | crm (suppressions) | `addSuppression` pushes the jobId that `automation.requestSuppressionExit` returns into the action's after-commit list (`ctxState(ctx).enqueuedIds`), so `automation.exit_for_suppression` runs in the after() kick (A-23). |
-| automation-P2 | crm (person merge, crm-P4) | The person merge calls `automation.exitPersonEnrolments(tx, { personId: loser, reason: 'merged', actor })` inside its own transaction (A-21). |
 | ops-P2 | ops-P7 | Add the R2 webinar columns and the `webinars_registered_total` and `webinars_attended_total` sums to `v_person_profile` in `ops.views.ts`, with their `ops.views.test.ts` cases. |
-| orchestrator | finance-P4 | `packages/integrations/src/_shared/platform-p3.shared.test.ts` (line ~69) pins the Billit client stub (`NotImplementedError`); finance-P4 implements the real client, so it also owns that test (granted as extraOwns at launch) and replaces the stub assertion with the client's real contract. |
-| email-P3 | site-P5 | Implement `getLegalLinks`; email footers carry no privacy or terms links until it exists (email handles the `NotImplementedError`). |
 | email-P3 | automation (the package that implements `requestSuppressionExit`) | `crm.addSuppression` calls `automation.requestSuppressionExit` from email's hard-bounce, complaint and soft-bounce handling; it still throws. |
 | ops-P4 | ops (owner of `packages/core/src/ops/import-targets.ts` and `import-presets.ts`) | Add the targets `mode` and `watched_minutes` to `IMPORT_TARGETS.history` and map the watched-minutes columns in the webinar presets (ops-P4 accepts both already). |
 | ops-P4 | crm | `upsertPersonFromImport` accepts `street`, `country`, `preferredChannel` and an `onlyEmpty` option (ops rule 46); today street and country of a persons file are not written. |
 | ops-P4 | platform | Add `setFileExpiry(tx, fileIds, expiresAt)`; until then ops-P4 updates `files.expires_at` directly for its own import parts. |
 | ops-P4 | ops (owner of `ops.json`) | Missing catalogue keys from ops-P4's commit trailer (for example `ops.imports.option.confirm_different_file`, `ops.imports.target.{mode,watched_minutes}`, `ops.imports.error.{past_booking,invalid_status,unknown_tag,...}`). |
 | finance-P3 | finance (owner of `packages/core/src/finance/index.ts`) | Add `export * from "./document-model"`, then switch `apps/web/modules/finance/pdf/render.ts` from the relative path to `@beam/core/finance`. |
-| finance-P3 | finance-P4 | Register `billit.push_invoice` and `billit.push_credit_note` (render_pdf enqueues them with keys `billit:invoice:<id>` and `billit:credit_note:<id>`). |
 | finance-P3 | finance-P5 | `rerenderInvoicePdf` enqueues `finance.render_pdf` with key `invoice_pdf:<id>:r<n>`; `resendInvoiceEmail` and `sendPaymentReminder` enqueue `finance.send_invoice_email` with reason `resend:<n>` or `reminder:<yyyy-mm-dd>`. |
 | commerce-P4a | commerce (owner of `server/catalogue.ts`) | Record the `person_price.set` event in `setPersonPriceRecord` (the kind is declared now). |
 | booking-P3b | commerce | `refundOrderLine` has no reason for staff forced refunds; booking passes `cancelled_in_policy`. Add `staff_override` if finance needs to tell them apart. |
@@ -68,6 +63,12 @@ to "Served" with the package id.
 | site-P5 | platform (fixer) | Add `BEAM_ANALYTICS_PRODUCTION: "1"` to the Playwright `webServer.env` in `apps/web/playwright.config.ts`, so `site-consent.spec`'s GA4 test can load gtag. |
 | site-P5 | forms (FormEmbed) | FormEmbed may read sessionStorage `beam_utm` through site's `readStoredUtm()` (`apps/web/modules/site/ui/public/utm-capture.tsx`) to attribute UTM on later pages of a visit (rule 40). |
 | site-P5 | site-P6 | `PortalSiteChrome` mounts `ConsentProvider` (`getConsentChromeState`, `consentLabels` in `server/consent.ts`), `AnalyticsLoader` with `gaMeasurementId` null and `SwRegister`; its Cookie settings link carries `data-cookie-settings`. |
+| crm-P4 | crm (owner of `packages/core/src/crm/merge-plan.ts`) | Add to `MERGE_STRATEGIES`: `automation_enrolments.person_id: skip`, `privacy_requests.person_id: repoint`, `provider_customers.person_id: repoint`, `retention_list_items.person_id: keep_winner`. Until then they live in `MERGE_STRATEGY_ADDITIONS` in `apps/web/modules/crm/merge/execute.ts`, and an entry in core takes precedence. |
+| crm-P5 | email-P6 | Implement `isSegmentInUse`. Until then crm counts the stub's `NotImplementedError` as "not in use", so the segment archive guard and the list's "used by" column see only automations and other segments. |
+| finance-P4 | finance (owner of `packages/core/src/finance/index.ts`) | Add `export * from "./billit-mapping"`, then switch `apps/web/modules/finance/service/billit-sync.ts` and `billit-jobs.test.ts` from the relative import to `@beam/core/finance`. |
+| finance-P4 | commerce (the package that implements `recordBankTransferPaid`) | `recordBankTransferPaid` still throws (stub); `billit.sync_pending` settles open invoices through it (mocked in `sync-pending.test.ts`). |
+| commerce-P4b | commerce (schema fixer) | Make `refunds.created_by_user_id` nullable (null = system refund): rule 22c late-paid refunds and rule 37a `refundOrderLine` from jobs need it. Until then a late-paid renewal refund is recorded on the payment only (`refunded_cents`, status `refunded`, `order.refunded` event) and writes no `refunds` row. |
+| commerce-P4b | site (the package that implements `getCurrentLegalVersion`) | `getCurrentLegalVersion` still throws `NotImplementedError`; `createRenewalLinkOrder` needs it for `orders_terms_chk` (`recurring.test.ts` mocks it). |
 
 ## Served
 
@@ -80,3 +81,8 @@ to "Served" with the package id.
 | platform-P5 | orchestrator | `drizzle-orm` in `apps/web`; `lib/ctx.ts` imports it directly. | orchestrator, wave 2 |
 | platform-P7 | platform (P2's test) | `seed-platform.test.ts` accepts module default seeds after platform. | fix-w03-platform-1 |
 | platform-P3 | platform-P5 | The job runner treats `isPermanentFailure()` from `@beam/integrations/_shared` as dead at once. | platform-P5 (in its launch instructions) |
+| automation-P2 | crm (person merge, crm-P4) | The person merge calls `automation.exitPersonEnrolments(tx, { personId: loser, reason: 'merged', actor })` inside its own transaction (A-21). | crm-P4 |
+| finance-P2 | finance-P4 | Register `billit.push_payment` (`{ invoiceId }`, key `billit:payment:<id>`) and `billit.push_customer` (`{ partyKey }`, key `billit:customer:<party_key>:<hash8>`). | finance-P4 |
+| finance-P3 | finance-P4 | Register `billit.push_invoice` and `billit.push_credit_note` (render_pdf enqueues them with keys `billit:invoice:<id>` and `billit:credit_note:<id>`). | finance-P4 |
+| orchestrator | finance-P4 | `packages/integrations/src/_shared/platform-p3.shared.test.ts` (line ~69) pins the Billit client stub (`NotImplementedError`); finance-P4 implements the real client, so it also owns that test (granted as extraOwns at launch) and replaces the stub assertion with the client's real contract. | finance-P4 |
+| email-P3 | site-P5 | Implement `getLegalLinks`; email footers carry no privacy or terms links until it exists (email handles the `NotImplementedError`). | site-P5 |

@@ -1528,7 +1528,7 @@
       "mergedAt": "2026-11-04T18:09:12Z"
     },
     "fix-w09-crm-review": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "fixer": true,
       "module": "crm",
@@ -1543,10 +1543,13 @@
       "dependsOn": [],
       "baseSha": "fa5ed8b",
       "runId": "wf_96a4a86f-719",
-      "startedAt": "2026-11-04T18:37:52Z"
+      "startedAt": "2026-11-04T18:37:52Z",
+      "branchSha": "0055415",
+      "endedAt": "2026-11-04T19:32:43Z",
+      "minutes": 17
     },
     "fix-w09-booking-review": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "fixer": true,
       "module": "booking",
@@ -1563,10 +1566,13 @@
       ],
       "baseSha": "d45e197",
       "runId": "wf_a7df3a22-491",
-      "startedAt": "2026-11-04T18:11:02Z"
+      "startedAt": "2026-11-04T18:11:02Z",
+      "branchSha": "d75035a",
+      "endedAt": "2026-11-04T19:32:43Z",
+      "minutes": 27
     },
     "fix-w09-commerce-review": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "fixer": true,
       "module": "commerce",
@@ -1584,7 +1590,10 @@
       ],
       "baseSha": "d45e197",
       "runId": "wf_cbeca218-01b",
-      "startedAt": "2026-11-04T18:11:02Z"
+      "startedAt": "2026-11-04T18:11:02Z",
+      "branchSha": "827554a",
+      "endedAt": "2026-11-04T19:32:43Z",
+      "minutes": 30
     },
     "fix-w09-credits-review": {
       "status": "merged",
@@ -1610,7 +1619,7 @@
       "mergedAt": "2026-11-04T19:31:58Z"
     },
     "fix-w09-finance-review": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "fixer": true,
       "module": "finance",
@@ -1625,10 +1634,13 @@
       "dependsOn": [],
       "baseSha": "fa5ed8b",
       "runId": "wf_13c04cd1-3de",
-      "startedAt": "2026-11-04T18:37:52Z"
+      "startedAt": "2026-11-04T18:37:52Z",
+      "branchSha": "463408a",
+      "endedAt": "2026-11-04T19:32:43Z",
+      "minutes": 36
     },
     "fix-w09-forms-review": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "fixer": true,
       "module": "forms",
@@ -1643,10 +1655,13 @@
       "dependsOn": [],
       "baseSha": "d45e197",
       "runId": "wf_9cab0ab0-540",
-      "startedAt": "2026-11-04T18:11:03Z"
+      "startedAt": "2026-11-04T18:11:03Z",
+      "branchSha": "1bd9ed2",
+      "endedAt": "2026-11-04T19:32:43Z",
+      "minutes": 27
     },
     "fix-w09-email-review": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "fixer": true,
       "module": "email",
@@ -1661,11 +1676,14 @@
       "dependsOn": [],
       "baseSha": "d45e197",
       "runId": "wf_9a2d5e2b-fee",
-      "startedAt": "2026-11-04T18:11:03Z"
+      "startedAt": "2026-11-04T18:11:03Z",
+      "branchSha": "d1bad22",
+      "endedAt": "2026-11-04T19:32:43Z",
+      "minutes": 29
     },
     "fix-w09-automation-review": {
-      "status": "red",
-      "attempts": 1,
+      "status": "running",
+      "attempts": 2,
       "fixer": true,
       "module": "automation",
       "goal": "Fix every confirmed V1 review finding for automation listed in /tmp/claude-0/-home-user-beam/3ba985b5-31b3-591d-a9fd-e4cfaf9e6555/scratchpad/review-v1/fix-automation.md (read it first): one test per finding, schema changes nullable/default-safe (CONVENTIONS item 6), facades through the caller tx (OD-15). Report per finding: fixed (how) or not fixed (why).",
@@ -1678,14 +1696,14 @@
       ],
       "dependsOn": [],
       "baseSha": "d45e197",
-      "runId": "wf_84d91cca-6fa",
-      "startedAt": "2026-11-04T18:11:03Z",
+      "runId": "wf_46ca04ce-f06",
+      "startedAt": "2026-11-04T19:32:44Z",
       "branchSha": "4b84122",
       "endedAt": "2026-11-04T18:53:12Z",
       "minutes": 20
     },
     "fix-w09-ops-review": {
-      "status": "pending",
+      "status": "done",
       "attempts": 0,
       "fixer": true,
       "module": "ops",
@@ -1699,10 +1717,13 @@
       ],
       "dependsOn": [
         "ops-P5"
-      ]
+      ],
+      "branchSha": "08a1afd",
+      "endedAt": "2026-11-04T19:32:43Z",
+      "minutes": 31
     },
     "fix-w09-site-review": {
-      "status": "pending",
+      "status": "done",
       "attempts": 0,
       "fixer": true,
       "module": "site",
@@ -1718,10 +1739,13 @@
       ],
       "dependsOn": [
         "site-P7"
-      ]
+      ],
+      "branchSha": "938aa79",
+      "endedAt": "2026-11-04T19:32:44Z",
+      "minutes": 27
     },
     "fix-w09-platform-review": {
-      "status": "pending",
+      "status": "done",
       "attempts": 0,
       "fixer": true,
       "module": "platform",
@@ -1739,7 +1763,10 @@
       ],
       "dependsOn": [
         "platform-P9"
-      ]
+      ],
+      "branchSha": "4a251ee",
+      "endedAt": "2026-11-04T19:32:43Z",
+      "minutes": 25
     }
   }
 }

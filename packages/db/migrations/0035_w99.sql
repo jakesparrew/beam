@@ -1,0 +1,2 @@
+ALTER TABLE "terms_acceptances" DROP CONSTRAINT "terms_acceptances_ref_type_ck";--> statement-breakpoint
+ALTER TABLE "terms_acceptances" ADD CONSTRAINT "terms_acceptances_ref_type_ck" CHECK ("terms_acceptances"."ref_type" is null or "terms_acceptances"."ref_type" in ('order', 'booking', 'user', 'waitlist_entry'));

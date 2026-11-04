@@ -9,7 +9,6 @@ import type { DbHandle } from "@beam/db";
 import { createTestDb, makeUser } from "@beam/db/testing";
 import { campaigns } from "@beam/db/schema";
 import { ACTIVE_CAMPAIGN_STATUSES, TERMINAL_CAMPAIGN_STATUSES, type CampaignStatus } from "@beam/core/email";
-import type { Tx } from "@/lib/ctx";
 import { resetRuntime } from "@/lib/testing";
 import { isSegmentInUse } from "../api";
 import { blockTemplate } from "../email-p3.fixtures";
@@ -87,7 +86,7 @@ describe("isSegmentInUse", () => {
   it("reads through the caller's transaction (OD-15): a campaign written in the same transaction counts", async () => {
     const segment = randomUUID();
     await h.db.transaction(async (tx) => {
-      await (tx as unknown as Tx).insert(campaigns).values({
+      await tx.insert(campaigns).values({
         name: "p4 in tx",
         templateId,
         purpose: "newsletter",
@@ -95,7 +94,7 @@ describe("isSegmentInUse", () => {
         segmentId: segment,
         createdByUserId: userId,
       });
-      expect(await isSegmentInUse(tx as unknown as Tx, segment)).toBe(true);
+      expect(await isSegmentInUse(tx, segment)).toBe(true);
       tx.rollback();
     }).catch(() => undefined);
     expect(await isSegmentInUse(h.db, segment)).toBe(false);

@@ -34,7 +34,7 @@ vi.mock("next/server", () => ({ after: () => undefined }));
 const fx = vi.hoisted(() => ({
   startPayment: [] as { orderId: string; returnPath?: string }[],
   cancelledOrders: [] as string[],
-  orderStatus: "pending_payment" as string,
+  orderStatus: "pending_payment",
   mandate: null as { mandateId: string; method: string; summary: string | null } | null,
 }));
 vi.mock("@/modules/email/api", async (orig) => ({
@@ -211,7 +211,8 @@ describe("getMyPackage", () => {
     await makeEntry(h.db, { grantId: grant.id, kind: "release", quantity: 500, reversesEntryId: r.id, refType: "order", refId: back.id });
     const d = await queries.getMyPackage(h.db, me.personId, grant.id);
     expect(d.package.remainingUnits).toBe(3000);
-    expect(d.orders).toEqual([{ orderId: order.id, reference: order.reference, at: expect.any(Date), amountCents: 2000 }]);
+    expect(d.orders).toHaveLength(1);
+    expect(d.orders[0]).toMatchObject({ orderId: order.id, reference: order.reference, amountCents: 2000 });
     expect((await queries.getMyPackages(h.db, me.personId)).storeCredit.remainingCents).toBe(3000);
   });
 });

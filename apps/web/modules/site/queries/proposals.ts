@@ -40,7 +40,7 @@ export async function getEditRequest(id: string, db?: DbOrTx): Promise<EditReque
     pageId: r.pageId,
     kind: r.kind,
     status: r.status,
-    locales: r.locales as Locale[],
+    locales: r.locales,
     errorCode: (r.errorCode as EditRequestErrorCode | null) ?? null,
     resultVersionId: r.resultVersionId ?? null,
     baseVersionId: r.baseVersionId ?? null,
@@ -95,7 +95,7 @@ export async function getVersionDiff(versionId: string, db?: DbOrTx): Promise<Ve
       .from(pageEditRequests)
       .leftJoin(users, eq(users.id, pageEditRequests.requestedByUserId))
       .where(eq(pageEditRequests.id, row.editRequestId));
-    if (r) request = { editRequestId: r.r.id, instruction: r.r.instruction, requestedByName: r.name ?? null, kind: r.r.kind, locales: r.r.locales as Locale[], createdAt: r.r.createdAt.toISOString() };
+    if (r) request = { editRequestId: r.r.id, instruction: r.r.instruction, requestedByName: r.name ?? null, kind: r.r.kind, locales: r.r.locales, createdAt: r.r.createdAt.toISOString() };
   }
 
   const [draftRow] = await d.select({ id: pageVersions.id }).from(pageVersions).where(and(eq(pageVersions.pageId, page.id), eq(pageVersions.state, "draft")));

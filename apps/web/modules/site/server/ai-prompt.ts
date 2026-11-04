@@ -22,7 +22,7 @@ export type ProposalRefs = {
   products: { id: string; name: LocalizedText | string }[];
   sessions: { id: string; title: LocalizedText | string; startsAt?: string }[];
   forms: { slug: string; name: LocalizedText | string }[];
-  pages: { id: string; title: LocalizedText | string; kind?: PageKind | string }[];
+  pages: { id: string; title: LocalizedText | string; kind?: PageKind }[];
 };
 
 export type ProposalPromptInput = {

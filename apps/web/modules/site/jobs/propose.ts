@@ -19,7 +19,7 @@
 import { z } from "zod";
 import { pageEditRequests, pages, pageVersions } from "@beam/db/schema";
 import { PermanentError, RetryableError } from "@beam/core/errors";
-import { LOCALES, type Locale } from "@beam/core/i18n";
+import { LOCALES } from "@beam/core/i18n";
 import { ProposalOutput, type VersionContent } from "@beam/core/site";
 import { IntegrationError } from "@beam/integrations/_shared";
 import { callClaude } from "@/lib/ai";
@@ -112,7 +112,7 @@ export async function proposePage(ctx: JobCtx, input: ProposePageInput): Promise
 
   const baseRow = req.baseVersionId ? await getVersionRow(ctx.tx, req.baseVersionId) : null;
   const base: VersionContent | null = baseRow ? versionContent(baseRow) : null;
-  const targetLocales = LOCALES.filter((l) => (req.locales as Locale[]).includes(l));
+  const targetLocales = LOCALES.filter((l) => req.locales.includes(l));
   const settings = await getSiteSettings(ctx.tx);
   const refs = await loadProposalRefs(ctx, page.id);
   const prompt = buildProposalPrompt({
@@ -131,7 +131,7 @@ export async function proposePage(ctx: JobCtx, input: ProposePageInput): Promise
   let lastErrors: string[] = [];
   let lastAiRequestId: string | null = null;
   for (let round = 0; round < 2; round++) {
-    let text: string | null = null;
+    let text: string;
     let parsed: unknown;
     try {
       // `fieldsSent` lists personal-data fields (PL-53); a proposal sends none (rule 42).

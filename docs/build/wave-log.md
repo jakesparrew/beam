@@ -114,3 +114,7 @@ One entry per merge batch and gate (runbook section 5.7, adapted by OD-3).
 - booking-P2: merged as `47d21d9` in batch `g46-batch`.
 - ops-P4: merged as `57aa281` in batch `g46-batch`.
 - Batch `g46-batch` (fix-w06-platform-1 ops-P2 booking-P2 ops-P4): migrations 0027_w08_views.sql; merge gate green, peak 5285 MB.
+- email-P3: merged as `cdb9e13` in batch `g47-batch`.
+- finance-P3: merged as `4be1f32` in batch `g47-batch`.
+- commerce-P4a: merged as `023b05b` in batch `g47-batch`.
+- Batch `g47-batch` (email-P3 finance-P3 commerce-P4a): migrations 0028_w06_views.sql; merge gate green, peak 4663 MB.

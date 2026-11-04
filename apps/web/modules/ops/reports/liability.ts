@@ -6,6 +6,7 @@
  */
 import type { DbOrTx } from "@beam/db";
 import { vCreditLiability } from "@beam/db/schema";
+import { periodRange } from "@beam/core/ops";
 import { asc } from "@/lib/ctx";
 import { getCreditLiabilityAsOf } from "@/modules/credits/api";
 import type { OpsReadCtx, ReportFilters } from "./registry";
@@ -71,7 +72,8 @@ export const LIABILITY_CSV_COLUMNS = ["as_of", "credit_kind", "vat_treatment", "
 
 /** `?at=YYYY-MM-DD` (end of that Brussels day) or today. */
 export async function* liabilityCsvRows(ctx: OpsReadCtx, filters: ReportFilters): AsyncIterable<unknown[]> {
-  const at = filters.at ? parseReportAt(filters.at, ctx.now) : undefined;
+  // The last instant of that Brussels day, the same instant `liabilityDateFor` gives the page (rule 41).
+  const at = filters.at ? new Date(periodRange("day", parseReportAt(filters.at, ctx.now)).to.getTime() - 1) : undefined;
   const result = await computeCreditLiability(ctx.tx, { at, now: ctx.now });
   const asOf = brusselsDate(result.asOf);
   for (const r of result.rows) yield [asOf, r.kind, r.vatTreatment, r.vatRatePct, r.remainingUnits, r.remainingValueCents];

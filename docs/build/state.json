@@ -906,7 +906,7 @@
       "attempts": 0
     },
     "webinar-P2": {
-      "status": "done",
+      "status": "red",
       "attempts": 1,
       "baseSha": "b2e6063",
       "runId": "wf_1adc04ad-c0d",
@@ -917,7 +917,7 @@
         "packages/core/src/i18n/messages/nl-BE/webinar.json"
       ],
       "branchSha": "62c585b",
-      "endedAt": "2026-11-04T21:08:27Z",
+      "endedAt": "2026-11-04T22:13:11Z",
       "minutes": 46
     },
     "booking-P8": {
@@ -1033,13 +1033,13 @@
       "attempts": 0
     },
     "platform-P10": {
-      "status": "done",
+      "status": "red",
       "attempts": 1,
       "baseSha": "b2e6063",
       "runId": "wf_9cb8f8c5-6cb",
       "startedAt": "2026-11-04T19:49:31Z",
       "branchSha": "b798707",
-      "endedAt": "2026-11-04T21:08:27Z",
+      "endedAt": "2026-11-04T21:59:41Z",
       "minutes": 33
     },
     "crm-P10": {

@@ -9,8 +9,8 @@
 import { useId, useState } from "react";
 import { Button, Input, Textarea } from "@beam/ui";
 import { STEP_TYPES, type StepType } from "@beam/core/automation";
-import { ConditionBuilder, selectClass, type CondJson, type EditorOptions, type Json } from "./condition-builder";
-import { fill, type Labels } from "./outcome-badge";
+import { ConditionBuilder, selectClass, type EditorOptions, type Json } from "./condition-builder";
+import { fill, type Labels, str } from "./outcome-badge";
 
 export type StepJson = { [k: string]: Json };
 export type IssueView = { path: string; code: string; severity: "error" | "warning"; text: string };
@@ -106,19 +106,19 @@ function StepForm({
   issues: IssueView[];
   disabled: boolean;
 }) {
-  const type = String(step.type) as StepType;
+  const type = str(step.type) as StepType;
   const at = step.at === undefined ? null : asObj(step.at);
   const set = (patch: StepJson) => onChange({ ...step, ...patch });
   const on = (field: string) => issues.filter((i) => i.path === `steps.${index}.${field}` || i.path.startsWith(`steps.${index}.${field}.`));
-  const later = steps.slice(index + 1).map((s) => String(s.key));
-  const stepKeys = steps.map((s) => String(s.key));
+  const later = steps.slice(index + 1).map((s) => str(s.key));
+  const stepKeys = steps.map((s) => str(s.key));
   const tpl = options.templates.find((t) => t.slug === step.template);
 
   return (
     <fieldset disabled={disabled} className="grid gap-3">
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label={l["editor.step_key"] ?? ""} hint={l["editor.step_key_hint"]} issues={on("key")}>
-          {(id, d) => <Input id={id} aria-describedby={d} name={`steps.${index}.key`} value={String(step.key ?? "")} onChange={(e) => set({ key: e.target.value })} />}
+          {(id, d) => <Input id={id} aria-describedby={d} name={`steps.${index}.key`} value={str(step.key, "")} onChange={(e) => set({ key: e.target.value })} />}
         </Field>
         {type !== "wait" ? (
           <Field label={l["editor.at"] ?? ""} issues={on("at")}>
@@ -127,7 +127,7 @@ function StepForm({
                 id={id}
                 aria-describedby={d}
                 className={selectClass}
-                value={at ? String(at.from) : ""}
+                value={at ? str(at.from) : ""}
                 onChange={(e) => {
                   if (!e.target.value) {
                     const { at: _drop, ...rest } = step;
@@ -147,7 +147,7 @@ function StepForm({
       {at ? (
         <div className="grid gap-3 sm:grid-cols-3">
           <Field label={l["editor.at_minutes"] ?? ""} hint={l["editor.at_minutes_hint"]}>
-            {(id, d) => <Input id={id} aria-describedby={d} type="number" name={`steps.${index}.at.minutes`} data-testid={`step-${index}-minutes`} value={String(at.minutes ?? 0)} onChange={(e) => set({ at: { ...at, minutes: num(e.target.value) } })} />}
+            {(id, d) => <Input id={id} aria-describedby={d} type="number" name={`steps.${index}.at.minutes`} data-testid={`step-${index}-minutes`} value={str(at.minutes, 0)} onChange={(e) => set({ at: { ...at, minutes: num(e.target.value) } })} />}
           </Field>
           <Field label={l["editor.snap_to"] ?? ""} hint={l["editor.snap_to_hint"]}>
             {(id, d) => (
@@ -155,7 +155,7 @@ function StepForm({
                 id={id}
                 aria-describedby={d}
                 placeholder="10:00"
-                value={String(at.snap_to ?? "")}
+                value={str(at.snap_to, "")}
                 onChange={(e) => {
                   const next: { [k: string]: Json } = { ...at, snap_to: e.target.value };
                   if (!e.target.value) delete next.snap_to;
@@ -169,7 +169,7 @@ function StepForm({
               <select
                 id={id}
                 className={selectClass}
-                value={String(step.late_entry ?? "skip")}
+                value={str(step.late_entry, "skip")}
                 onChange={(e) => {
                   if (e.target.value === "skip") {
                     const { late_entry: _drop, ...rest } = step;
@@ -189,9 +189,9 @@ function StepForm({
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label={l["editor.template"] ?? ""} issues={on("template")} hint={tpl ? `${tpl.kind}${tpl.purpose ? ` · ${tpl.purpose}` : ""} · ${tpl.locales.join(", ")}` : undefined}>
             {(id, d) => (
-              <select id={id} aria-describedby={d} className={selectClass} value={String(step.template ?? "")} onChange={(e) => set({ template: e.target.value })}>
+              <select id={id} aria-describedby={d} className={selectClass} value={str(step.template, "")} onChange={(e) => set({ template: e.target.value })}>
                 <option value="">{l["editor.template_none"]}</option>
-                {step.template && !tpl ? <option value={String(step.template)}>{fill(l["editor.template_unlisted"], { slug: String(step.template) })}</option> : null}
+                {step.template && !tpl ? <option value={str(step.template)}>{fill(l["editor.template_unlisted"], { slug: str(step.template) })}</option> : null}
                 {options.templates.map((t) => (
                   <option key={t.slug} value={t.slug}>
                     {fill(l["editor.template_option"], { slug: t.slug, kind: t.kind, locales: t.locales.join(", ") })}
@@ -222,20 +222,20 @@ function StepForm({
       ) : null}
       {type === "wait" ? (
         <Field label={l["editor.wait_minutes"] ?? ""} issues={on("minutes")}>
-          {(id, d) => <Input id={id} aria-describedby={d} type="number" min={0} value={String(step.minutes ?? 0)} onChange={(e) => set({ minutes: num(e.target.value) })} />}
+          {(id, d) => <Input id={id} aria-describedby={d} type="number" min={0} value={str(step.minutes, 0)} onChange={(e) => set({ minutes: num(e.target.value) })} />}
         </Field>
       ) : null}
       {type === "condition" ? (
         <div className="grid gap-3">
           <div className="grid gap-1">
             <span className="text-sm font-medium">{l["editor.if"]}</span>
-            <ConditionBuilder value={asObj(step.if) as CondJson} onChange={(c) => set({ if: c })} l={l} options={options} stepKeys={stepKeys} />
+            <ConditionBuilder value={asObj(step.if)} onChange={(c) => set({ if: c })} l={l} options={options} stepKeys={stepKeys} />
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             {(["then", "else"] as const).map((branch) => (
               <Field key={branch} label={l[`editor.${branch}`] ?? ""} issues={on(branch)}>
                 {(id, d) => (
-                  <select id={id} aria-describedby={d} className={selectClass} value={String(step[branch] ?? "end")} onChange={(e) => set({ [branch]: e.target.value })}>
+                  <select id={id} aria-describedby={d} className={selectClass} value={str(step[branch], "end")} onChange={(e) => set({ [branch]: e.target.value })}>
                     <option value="end">{l["editor.branch_end"]}</option>
                     {later.map((k) => (
                       <option key={k} value={k}>
@@ -252,11 +252,11 @@ function StepForm({
       {type === "task" ? (
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label={l["editor.task_title"] ?? ""} hint={<>{l["editor.task_title_hint"]} <code>{"{{trigger.data.field_name}}"}</code></>} issues={on("title")}>
-            {(id, d) => <Input id={id} aria-describedby={d} value={String(step.title ?? "")} onChange={(e) => set({ title: e.target.value })} />}
+            {(id, d) => <Input id={id} aria-describedby={d} value={str(step.title, "")} onChange={(e) => set({ title: e.target.value })} />}
           </Field>
           <Field label={l["editor.task_kind"] ?? ""}>
             {(id) => (
-              <select id={id} className={selectClass} value={String(step.kind ?? "follow_up")} onChange={(e) => set({ kind: e.target.value })}>
+              <select id={id} className={selectClass} value={str(step.kind, "follow_up")} onChange={(e) => set({ kind: e.target.value })}>
                 {TASK_KINDS.map((k) => (
                   <option key={k} value={k}>
                     {l[`editor.task_kind.${k}`]}
@@ -270,7 +270,7 @@ function StepForm({
               <select
                 id={id}
                 className={selectClass}
-                value={String(step.owner ?? "role")}
+                value={str(step.owner, "role")}
                 onChange={(e) => {
                   if (e.target.value === "role") {
                     const { owner: _drop, ...rest } = step;
@@ -285,7 +285,7 @@ function StepForm({
           </Field>
           <Field label={l["editor.task_owner_role"] ?? ""} issues={on("owner_role")}>
             {(id, d) => (
-              <select id={id} aria-describedby={d} className={selectClass} value={String(step.owner_role ?? "")} onChange={(e) => set({ owner_role: e.target.value })}>
+              <select id={id} aria-describedby={d} className={selectClass} value={str(step.owner_role, "")} onChange={(e) => set({ owner_role: e.target.value })}>
                 {options.roles.map((r) => (
                   <option key={r} value={r}>
                     {r}
@@ -295,11 +295,11 @@ function StepForm({
             )}
           </Field>
           <Field label={l["editor.task_due"] ?? ""}>
-            {(id) => <Input id={id} type="number" min={0} value={String(step.due_in_minutes ?? 0)} onChange={(e) => set({ due_in_minutes: num(e.target.value) })} />}
+            {(id) => <Input id={id} type="number" min={0} value={str(step.due_in_minutes, 0)} onChange={(e) => set({ due_in_minutes: num(e.target.value) })} />}
           </Field>
           <Field label={l["editor.task_priority"] ?? ""}>
             {(id) => (
-              <select id={id} className={selectClass} value={String(step.priority ?? "normal")} onChange={(e) => set({ priority: e.target.value })}>
+              <select id={id} className={selectClass} value={str(step.priority, "normal")} onChange={(e) => set({ priority: e.target.value })}>
                 {TASK_PRIORITIES.map((k) => (
                   <option key={k} value={k}>
                     {l[`editor.task_priority.${k}`]}
@@ -313,7 +313,7 @@ function StepForm({
       {type === "tag" || type === "untag" ? (
         <Field label={l["editor.tag"] ?? ""} issues={on("tag")}>
           {(id, d) => (
-            <select id={id} aria-describedby={d} className={selectClass} value={String(step.tag ?? "")} onChange={(e) => set({ tag: e.target.value })}>
+            <select id={id} aria-describedby={d} className={selectClass} value={str(step.tag, "")} onChange={(e) => set({ tag: e.target.value })}>
               <option value="">{l["editor.tag_none"]}</option>
               {options.tags.map((t) => (
                 <option key={t} value={t}>
@@ -327,7 +327,7 @@ function StepForm({
       {type === "set_field" ? (
         <Field label={l["editor.set_field_value"] ?? ""}>
           {(id) => (
-            <select id={id} className={selectClass} value={String(step.value ?? "email")} onChange={(e) => set({ field: "preferred_channel", value: e.target.value })}>
+            <select id={id} className={selectClass} value={str(step.value, "email")} onChange={(e) => set({ field: "preferred_channel", value: e.target.value })}>
               {CHANNELS.map((c) => (
                 <option key={c} value={c}>
                   {l[`editor.channel.${c}`]}
@@ -341,7 +341,7 @@ function StepForm({
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label={l["editor.status_value"] ?? ""}>
             {(id) => (
-              <select id={id} className={selectClass} value={step.value === null ? "" : String(step.value ?? "")} onChange={(e) => set({ value: e.target.value || null })}>
+              <select id={id} className={selectClass} value={step.value === null ? "" : str(step.value, "")} onChange={(e) => set({ value: e.target.value || null })}>
                 <option value="">{l["editor.status_value_none"]}</option>
                 {STATUSES.map((s) => (
                   <option key={s} value={s}>
@@ -352,7 +352,7 @@ function StepForm({
             )}
           </Field>
           <Field label={l["editor.status_reason"] ?? ""} issues={on("reason")}>
-            {(id, d) => <Input id={id} aria-describedby={d} value={String(step.reason ?? "")} onChange={(e) => set({ reason: e.target.value })} />}
+            {(id, d) => <Input id={id} aria-describedby={d} value={str(step.reason, "")} onChange={(e) => set({ reason: e.target.value })} />}
           </Field>
         </div>
       ) : null}
@@ -363,7 +363,7 @@ function StepForm({
               id={id}
               aria-describedby={d}
               className={selectClass}
-              value={String(step.automation ?? "")}
+              value={str(step.automation, "")}
               onChange={(e) => {
                 if (!e.target.value && type === "exit") {
                   const { automation: _drop, ...rest } = step;
@@ -383,12 +383,12 @@ function StepForm({
       ) : null}
       {type === "notify_slack" ? (
         <Field label={l["editor.slack_text"] ?? ""} hint={<>{l["editor.slack_text_hint"]} <code>{"{{first_name}} {{person_url}} {{automation}}"}</code></>} issues={on("text")}>
-          {(id, d) => <Textarea id={id} aria-describedby={d} rows={3} value={String(step.text ?? "")} onChange={(e) => set({ text: e.target.value })} />}
+          {(id, d) => <Textarea id={id} aria-describedby={d} rows={3} value={str(step.text, "")} onChange={(e) => set({ text: e.target.value })} />}
         </Field>
       ) : null}
       {type === "webhook" ? (
         <Field label={l["editor.webhook_url"] ?? ""} hint={l["editor.webhook_url_hint"]} issues={on("url")}>
-          {(id, d) => <Input id={id} aria-describedby={d} type="url" value={String(step.url ?? "")} onChange={(e) => set({ url: e.target.value })} />}
+          {(id, d) => <Input id={id} aria-describedby={d} type="url" value={str(step.url, "")} onChange={(e) => set({ url: e.target.value })} />}
         </Field>
       ) : null}
 
@@ -397,7 +397,7 @@ function StepForm({
           <div className="grid gap-1">
             <span className="text-sm font-medium">{l["editor.unless"]}</span>
             <ConditionBuilder
-              value={asObj(step.unless) as CondJson}
+              value={asObj(step.unless)}
               onChange={(c) => set({ unless: c })}
               onRemove={() => {
                 const { unless: _drop, ...rest } = step;
@@ -436,7 +436,7 @@ export function StepForms({
 }) {
   const addId = useId();
   const [addType, setAddType] = useState<StepType>("email");
-  const keys = steps.map((s) => String(s.key));
+  const keys = steps.map((s) => str(s.key));
   const move = (i: number, by: -1 | 1) => {
     const next = [...steps];
     const [s] = next.splice(i, 1);
@@ -447,20 +447,20 @@ export function StepForms({
     <div className="grid gap-4" data-testid="step-forms">
       <ol className="grid gap-4">
         {steps.map((step, i) => {
-          const type = String(step.type) as StepType;
+          const type = str(step.type) as StepType;
           const stepIssues = issues.filter((x) => x.path === `steps.${i}` || x.path.startsWith(`steps.${i}.`));
           return (
-            <li key={i} className="grid gap-3 rounded-lg border p-4" data-step-key={String(step.key)} data-testid={`step-${i}`}>
+            <li key={i} className="grid gap-3 rounded-lg border p-4" data-step-key={str(step.key)} data-testid={`step-${i}`}>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h3 className="font-semibold">{fill(l["editor.step_n"], { n: i + 1, type: l[`editor.step_type.${type}`] ?? type })}</h3>
                 <div className="flex gap-1">
-                  <Button type="button" variant="ghost" size="sm" disabled={disabled || i === 0} onClick={() => move(i, -1)} aria-label={`${l["common.move_up"]} ${String(step.key)}`}>
+                  <Button type="button" variant="ghost" size="sm" disabled={disabled || i === 0} onClick={() => move(i, -1)} aria-label={`${l["common.move_up"]} ${str(step.key)}`}>
                     {l["common.move_up"]}
                   </Button>
-                  <Button type="button" variant="ghost" size="sm" disabled={disabled || i === steps.length - 1} onClick={() => move(i, 1)} aria-label={`${l["common.move_down"]} ${String(step.key)}`}>
+                  <Button type="button" variant="ghost" size="sm" disabled={disabled || i === steps.length - 1} onClick={() => move(i, 1)} aria-label={`${l["common.move_down"]} ${str(step.key)}`}>
                     {l["common.move_down"]}
                   </Button>
-                  <Button type="button" variant="ghost" size="sm" disabled={disabled} onClick={() => onChange(steps.filter((_, j) => j !== i))} aria-label={`${l["common.remove"]} ${String(step.key)}`}>
+                  <Button type="button" variant="ghost" size="sm" disabled={disabled} onClick={() => onChange(steps.filter((_, j) => j !== i))} aria-label={`${l["common.remove"]} ${str(step.key)}`}>
                     {l["common.remove"]}
                   </Button>
                 </div>

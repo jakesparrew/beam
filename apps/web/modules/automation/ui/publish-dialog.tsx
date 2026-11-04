@@ -23,7 +23,7 @@ import {
   Textarea,
 } from "@beam/ui";
 import { publishVersion } from "../actions";
-import { errorText, fill, issueText, type IssueLike, type Labels } from "./outcome-badge";
+import { errorText, fill, issueText, type IssueLike, type Labels, str, formStr } from "./outcome-badge";
 
 export function PublishDialog({
   automationId,
@@ -55,7 +55,7 @@ export function PublishDialog({
     setBusy(true);
     setError(null);
     try {
-      const changeNote = String(form.get("changeNote") ?? "").trim();
+      const changeNote = formStr(form, "changeNote").trim();
       const r = await publishVersion({ automationId, migrateActive: form.get("migrateActive") === "on", ...(changeNote ? { changeNote } : {}) });
       if (r.ok) {
         setDone(r.data.version);
@@ -101,7 +101,7 @@ export function PublishDialog({
                   <AlertDescription>
                     <ul className="list-disc pl-4">
                       {missing.map((i, n) => (
-                        <li key={n}>{fill(l["publish.missing_item"], { template: String(i.params?.template ?? ""), locales: ([] as string[]).concat((i.params?.locales as string[] | undefined) ?? []).join(", ") })}</li>
+                        <li key={n}>{fill(l["publish.missing_item"], { template: str(i.params?.template), locales: ([] as string[]).concat((i.params?.locales as string[] | undefined) ?? []).join(", ") })}</li>
                       ))}
                     </ul>
                   </AlertDescription>

@@ -38,12 +38,8 @@ export default async function AutomationPage({ params }: { params: Promise<{ id:
 
   let dpia: { key: string; approved: boolean } | null = null;
   if (a.requiresDpia) {
-    let approved = false;
-    try {
-      approved = await isDpiaApproved(db, a.requiresDpia as DpiaKey);
-    } catch {
-      approved = false;
-    }
+    // A failing ops check shows the gate as closed; the action re-checks it anyway (A-5a).
+    const approved = await isDpiaApproved(db, a.requiresDpia as DpiaKey).catch(() => false);
     dpia = { key: a.requiresDpia, approved };
   }
   const [segments, runs] = await Promise.all([listSegmentOptions(db), canSeePersons ? listRuns(db, { automationId: a.id, limit: 20 }) : Promise.resolve(null)]);

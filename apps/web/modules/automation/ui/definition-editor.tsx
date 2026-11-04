@@ -13,7 +13,7 @@ import { Alert, AlertDescription, Button, Card, CardContent, CardHeader, CardTit
 import { parseDefinition, type DefinitionIssue } from "@beam/core/automation";
 import { createAutomation, saveDraft } from "../actions";
 import { selectClass, type EditorOptions, type Json } from "./condition-builder";
-import { errorText, issueText, type IssueLike, type Labels } from "./outcome-badge";
+import { errorText, issueText, type IssueLike, type Labels, formStr } from "./outcome-badge";
 import { PublishDialog } from "./publish-dialog";
 import { Field, StepForms, type IssueView, type StepJson } from "./step-forms";
 import { AudienceCard, IssueList, ReEntryExitCard, TimingCard, TriggerCard } from "./trigger-card";
@@ -293,9 +293,9 @@ export function NewAutomationForm({
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
-    const purpose = String(f.get("purpose") ?? "");
-    const duplicateOfId = String(f.get("duplicateOfId") ?? "");
-    const description = String(f.get("description") ?? "").trim();
+    const purpose = formStr(f, "purpose");
+    const duplicateOfId = formStr(f, "duplicateOfId");
+    const description = formStr(f, "description").trim();
     setBusy(true);
     setError(null);
     setFields({});
@@ -303,7 +303,7 @@ export function NewAutomationForm({
       const r = await createAutomation({
         slug,
         name,
-        groupKey: String(f.get("groupKey") ?? ""),
+        groupKey: formStr(f, "groupKey"),
         isMarketing,
         priority: Number(f.get("priority") ?? 100),
         ...(description ? { description } : {}),

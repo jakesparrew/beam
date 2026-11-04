@@ -10,6 +10,7 @@ import { useId, useState } from "react";
 import { Button, Input, Textarea } from "@beam/ui";
 import { CONDITION_PREDICATES, type ConditionPredicate } from "@beam/core/automation";
 import type { Labels } from "./outcome-badge";
+import { str } from "./outcome-badge";
 
 export type Json = null | boolean | number | string | Json[] | { [k: string]: Json };
 export type CondJson = { [k: string]: Json };
@@ -164,8 +165,8 @@ export function ConditionBuilder({
 
       {pred === "has_future_booking" ? (
         <div className="grid gap-2 sm:grid-cols-2">
-          <select aria-label={l["editor.booking_kind_any"]} className={selectClass} value={String(asObj(inner).kind ?? "")} onChange={(e) => {
-            const next = { ...asObj(inner), kind: e.target.value || undefined } as CondJson;
+          <select aria-label={l["editor.booking_kind_any"]} className={selectClass} value={str(asObj(inner).kind, "")} onChange={(e) => {
+            const next: CondJson = { ...asObj(inner), kind: e.target.value };
             if (!e.target.value) delete next.kind;
             set(Object.keys(next).length ? next : true);
           }}>
@@ -176,8 +177,8 @@ export function ConditionBuilder({
               </option>
             ))}
           </select>
-          <Input type="number" min={1} aria-label={l["editor.within_days"]} placeholder={l["editor.within_days"]} value={String(asObj(inner).within_days ?? "")} onChange={(e) => {
-            const next = { ...asObj(inner) } as CondJson;
+          <Input type="number" min={1} aria-label={l["editor.within_days"]} placeholder={l["editor.within_days"]} value={str(asObj(inner).within_days, "")} onChange={(e) => {
+            const next: CondJson = { ...asObj(inner) };
             const n = optNumber(e.target.value);
             if (n === undefined) delete next.within_days;
             else next.within_days = n;
@@ -192,7 +193,7 @@ export function ConditionBuilder({
         <Checks name={l["editor.predicate.booking_status_in"] ?? ""} values={asArr(inner).map(String)} all={BOOKING_STATUSES} labelOf={(v) => l[`editor.booking_status.${v}`] ?? v} onChange={set} />
       ) : null}
       {pred === "has_tag" ? (
-        <select aria-label={l["editor.tag"]} className={selectClass} value={String(inner ?? "")} onChange={(e) => set(e.target.value)}>
+        <select aria-label={l["editor.tag"]} className={selectClass} value={str(inner, "")} onChange={(e) => set(e.target.value)}>
           <option value="">{l["editor.tag_none"]}</option>
           {options.tags.map((t) => (
             <option key={t} value={t}>
@@ -202,7 +203,7 @@ export function ConditionBuilder({
         </select>
       ) : null}
       {pred === "in_segment" ? (
-        <select aria-label={l["editor.segment"]} className={selectClass} value={String(inner ?? "")} onChange={(e) => set(e.target.value)}>
+        <select aria-label={l["editor.segment"]} className={selectClass} value={str(inner, "")} onChange={(e) => set(e.target.value)}>
           <option value="">{l["editor.segment_none"]}</option>
           {options.segments.map((s) => (
             <option key={s.id} value={s.id}>
@@ -212,7 +213,7 @@ export function ConditionBuilder({
         </select>
       ) : null}
       {pred === "has_other_active_grant" ? (
-        <select aria-label={l["editor.credit_kind"]} className={selectClass} value={String(asObj(inner).credit_kind ?? "day")} onChange={(e) => set({ credit_kind: e.target.value })}>
+        <select aria-label={l["editor.credit_kind"]} className={selectClass} value={str(asObj(inner).credit_kind, "day")} onChange={(e) => set({ credit_kind: e.target.value })}>
           {CREDIT_KINDS.map((k) => (
             <option key={k} value={k}>
               {k.startsWith("{{") ? l["editor.credit_kind_trigger"] : l[`editor.credit_kind.${k}`]}
@@ -222,8 +223,8 @@ export function ConditionBuilder({
       ) : null}
       {pred === "form_completed" ? (
         <div className="grid gap-2 sm:grid-cols-2">
-          <Input aria-label={l["editor.form_slug"]} placeholder={l["editor.form_slug"]} value={String(asObj(inner).slug ?? "")} onChange={(e) => set({ ...asObj(inner), slug: e.target.value })} />
-          <Input type="number" min={1} aria-label={l["editor.within_days"]} placeholder={l["editor.within_days"]} value={String(asObj(inner).within_days ?? "")} onChange={(e) => {
+          <Input aria-label={l["editor.form_slug"]} placeholder={l["editor.form_slug"]} value={str(asObj(inner).slug, "")} onChange={(e) => set({ ...asObj(inner), slug: e.target.value })} />
+          <Input type="number" min={1} aria-label={l["editor.within_days"]} placeholder={l["editor.within_days"]} value={str(asObj(inner).within_days, "")} onChange={(e) => {
             const next = { ...asObj(inner) };
             const n = optNumber(e.target.value);
             if (n === undefined) delete next.within_days;
@@ -232,9 +233,9 @@ export function ConditionBuilder({
           }} />
         </div>
       ) : null}
-      {pred === "form_available" ? <Input aria-label={l["editor.form_slug"]} value={String(inner ?? "")} onChange={(e) => set(e.target.value)} /> : null}
+      {pred === "form_available" ? <Input aria-label={l["editor.form_slug"]} value={str(inner, "")} onChange={(e) => set(e.target.value)} /> : null}
       {pred === "event_since_enrolment" ? (
-        <select aria-label={l["editor.event_kind"]} className={selectClass} value={String(inner ?? "")} onChange={(e) => set(e.target.value)}>
+        <select aria-label={l["editor.event_kind"]} className={selectClass} value={str(inner, "")} onChange={(e) => set(e.target.value)}>
           {options.eventKinds.map((k) => (
             <option key={k} value={k}>
               {k}
@@ -243,7 +244,7 @@ export function ConditionBuilder({
         </select>
       ) : null}
       {pred === "task_open" ? (
-        <select aria-label={l["editor.step_ref"]} className={selectClass} value={String(inner ?? "")} onChange={(e) => set(e.target.value)}>
+        <select aria-label={l["editor.step_ref"]} className={selectClass} value={str(inner, "")} onChange={(e) => set(e.target.value)}>
           <option value="">—</option>
           {stepKeys.map((k) => (
             <option key={k} value={k}>
@@ -254,7 +255,7 @@ export function ConditionBuilder({
       ) : null}
       {pred === "sent_within_days" ? (
         <div className="grid gap-2 sm:grid-cols-2">
-          <select aria-label={l["editor.template"]} className={selectClass} value={String(asObj(inner).template ?? "")} onChange={(e) => set({ ...asObj(inner), template: e.target.value })}>
+          <select aria-label={l["editor.template"]} className={selectClass} value={str(asObj(inner).template, "")} onChange={(e) => set({ ...asObj(inner), template: e.target.value })}>
             <option value="">{l["editor.template_none"]}</option>
             {options.templates.map((t) => (
               <option key={t.slug} value={t.slug}>
@@ -262,7 +263,7 @@ export function ConditionBuilder({
               </option>
             ))}
           </select>
-          <Input type="number" min={1} aria-label={l["editor.days"]} value={String(asObj(inner).days ?? "")} onChange={(e) => set({ ...asObj(inner), days: optNumber(e.target.value) ?? 0 })} />
+          <Input type="number" min={1} aria-label={l["editor.days"]} value={str(asObj(inner).days, "")} onChange={(e) => set({ ...asObj(inner), days: optNumber(e.target.value) ?? 0 })} />
         </div>
       ) : null}
       {pred === "trigger" ? (

@@ -23,7 +23,7 @@ import {
   Input,
 } from "@beam/ui";
 import { activateAutomation, archiveAutomation, enrolSegment, pauseAutomation, resumeAutomation } from "../actions";
-import { errorText, fill, type ActionResultLike, type Labels } from "./outcome-badge";
+import { errorText, fill, type ActionResultLike, type Labels, formStr } from "./outcome-badge";
 
 export type StatusControlsProps = {
   automationId: string;
@@ -120,7 +120,7 @@ function ArchiveDialog(p: StatusControlsProps) {
   const { busy, error, setError, run } = useAction();
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const confirmSlug = String(new FormData(e.currentTarget).get("confirmSlug") ?? "");
+    const confirmSlug = formStr(new FormData(e.currentTarget), "confirmSlug");
     if (await run(() => archiveAutomation({ automationId: p.automationId, confirmSlug }), l)) setOpen(false);
   }
   return (
@@ -172,7 +172,7 @@ function EnrolSegmentDialog(p: StatusControlsProps) {
   const selectId = useId();
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const segmentId = String(new FormData(e.currentTarget).get("segmentId") ?? "");
+    const segmentId = formStr(new FormData(e.currentTarget), "segmentId");
     await run(() => enrolSegment({ automationId: p.automationId, segmentId }), l, (d) => setQueued((d as { estimatedCount: number }).estimatedCount));
   }
   return (

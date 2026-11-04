@@ -16,6 +16,19 @@ export function fill(template: string | undefined, params: Record<string, string
   return (template ?? "").replace(/\{(\w+)\}/g, (_, k: string) => String(params[k] ?? `{${k}}`));
 }
 
+/** A JSON value as text for an input (`fallback` for objects, arrays and missing values). */
+export function str(v: unknown, fallback: string | number = ""): string {
+  if (typeof v === "string") return v;
+  if (typeof v === "number" || typeof v === "boolean") return String(v);
+  return String(fallback);
+}
+
+/** A text field of a submitted form (`""` when absent or a file). */
+export function formStr(form: FormData, name: string): string {
+  const v = form.get(name);
+  return typeof v === "string" ? v : "";
+}
+
 export type ActionResultLike<T = unknown> = { ok: true; data: T } | { ok: false; error: { code: string; message: string; fields?: Record<string, string> } };
 
 /**

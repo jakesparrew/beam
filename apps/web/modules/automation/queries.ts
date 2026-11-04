@@ -95,9 +95,9 @@ type ValidationSubject = { id: string | null; slug: string; isMarketing: boolean
 export async function loadValidationRefs(db: DbOrTx, subject: ValidationSubject, def: Definition): Promise<ValidationRefs> {
   const templateSlugs = referencedTemplates(def);
   const [group] = await db.select({ isExclusive: automationGroups.isExclusive }).from(automationGroups).where(eq(automationGroups.id, subject.groupId));
-  const info = templateSlugs.length ? await getPublishedTemplateInfo(db, templateSlugs) : new Map();
+  const info = templateSlugs.length ? await getPublishedTemplateInfo(db, templateSlugs) : new Map<string, never>();
   const templates: Record<string, TemplateRef> = {};
-  for (const [slug, t] of info) templates[slug] = { kind: t.kind, purpose: (t.purpose ?? null) as AutomationPurpose | null, locales: t.locales };
+  for (const [slug, t] of info) templates[slug] = { kind: t.kind, purpose: t.purpose ?? null, locales: t.locales };
 
   const others = await db
     .select({ slug: automations.slug, draft: automations.draftDefinition, current: automationVersions.definition })

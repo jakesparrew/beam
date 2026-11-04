@@ -10,6 +10,7 @@ import { Button, Card, CardContent, CardHeader, CardTitle, Input } from "@beam/u
 import { selectClass, type EditorOptions, type Json } from "./condition-builder";
 import { Field, type IssueView } from "./step-forms";
 import type { Labels } from "./outcome-badge";
+import { str } from "./outcome-badge";
 
 type Obj = { [k: string]: Json };
 const asObj = (v: Json | undefined): Obj => (v && typeof v === "object" && !Array.isArray(v) ? v : {});
@@ -21,7 +22,7 @@ type Row = { path: string; op: (typeof OPERATORS)[number]; value: string };
 
 function literalText(v: Json): string {
   if (Array.isArray(v)) return v.map((x) => literalText(x)).join(", ");
-  return v === null ? "null" : String(v);
+  return v === null ? "null" : str(v);
 }
 
 function parseLiteral(raw: string): Json {
@@ -96,7 +97,7 @@ export function TriggerCard({ def, set, l, options, issues, disabled }: CardProp
   const id = useId();
   const trigger = asObj(def.trigger);
   const mode = "segment_enter" in trigger ? "segment" : "manual" in trigger ? "manual" : "event";
-  const kinds = mode === "event" ? (Array.isArray(trigger.event) ? trigger.event.map(String) : trigger.event ? [String(trigger.event)] : []) : [];
+  const kinds = mode === "event" ? (Array.isArray(trigger.event) ? trigger.event.map(String) : trigger.event ? [str(trigger.event)] : []) : [];
   const setKinds = (next: string[]) => set({ trigger: { ...trigger, event: next.length === 1 ? next[0]! : next } });
   return (
     <Card data-testid="trigger-card">
@@ -162,7 +163,7 @@ export function TriggerCard({ def, set, l, options, issues, disabled }: CardProp
         {mode === "segment" ? (
           <Field label={l["editor.segment"] ?? ""} issues={issuesAt(issues, "trigger")}>
             {(fid, d) => (
-              <select id={fid} aria-describedby={d} className={selectClass} disabled={disabled} value={String(trigger.segment_enter ?? "")} onChange={(e) => set({ trigger: { segment_enter: e.target.value } })}>
+              <select id={fid} aria-describedby={d} className={selectClass} disabled={disabled} value={str(trigger.segment_enter, "")} onChange={(e) => set({ trigger: { segment_enter: e.target.value } })}>
                 <option value="">{l["editor.segment_none"]}</option>
                 {options.segments.map((s) => (
                   <option key={s.id} value={s.id}>
@@ -194,7 +195,7 @@ export function IssueList({ issues }: { issues: IssueView[] }) {
 
 /** Anchor (enrolment or a trigger date path) and subject (per person or per trigger ref). */
 export function TimingCard({ def, set, l, issues, disabled }: CardProps) {
-  const anchor = String(def.anchor ?? "enrolment");
+  const anchor = str(def.anchor, "enrolment");
   const isData = anchor !== "enrolment";
   return (
     <Card>
@@ -237,7 +238,7 @@ export function AudienceCard({ def, set, l, options, issues, disabled }: CardPro
     if (Object.keys(next).length) set({ audience: next });
     else set({}, ["audience"]);
   };
-  const list = (k: string) => (Array.isArray(a[k]) ? (a[k] as Json[]).map(String) : []);
+  const list = (k: string) => (Array.isArray(a[k]) ? a[k].map((x) => str(x)) : []);
   const toggle = (k: string, v: string, on: boolean) => {
     const next = on ? [...list(k), v] : list(k).filter((x) => x !== v);
     if (next.length) setA({ [k]: next });
@@ -264,7 +265,7 @@ export function AudienceCard({ def, set, l, options, issues, disabled }: CardPro
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label={l["editor.audience_segment"] ?? ""}>
             {(id) => (
-              <select id={id} className={selectClass} disabled={disabled} value={String(a.segment_id ?? "")} onChange={(e) => (e.target.value ? setA({ segment_id: e.target.value }) : setA({}, ["segment_id"]))}>
+              <select id={id} className={selectClass} disabled={disabled} value={str(a.segment_id, "")} onChange={(e) => (e.target.value ? setA({ segment_id: e.target.value }) : setA({}, ["segment_id"]))}>
                 <option value="">{l["common.none"]}</option>
                 {options.segments.map((s) => (
                   <option key={s.id} value={s.id}>
@@ -321,7 +322,7 @@ export function AudienceCard({ def, set, l, options, issues, disabled }: CardPro
 
 /** Re-entry policy and the exit-on list (`kind`, `kind:qualifier` or `{ event, same_subject }`). */
 export function ReEntryExitCard({ def, set, l, options, issues, disabled }: CardProps) {
-  const re = String(def.re_entry ?? "never");
+  const re = str(def.re_entry, "never");
   const days = re.startsWith("after_days:") ? re.slice(11) : "";
   const exits = Array.isArray(def.exit_on) ? def.exit_on : [];
   const parts = (e: Json) => {
@@ -330,7 +331,7 @@ export function ReEntryExitCard({ def, set, l, options, issues, disabled }: Card
       return { kind: kind ?? "", qualifier: q ?? "", sameSubject: false };
     }
     const o = asObj(e);
-    return { kind: String(o.event ?? ""), qualifier: "", sameSubject: o.same_subject === true, where: o.where };
+    return { kind: str(o.event, ""), qualifier: "", sameSubject: o.same_subject === true, where: o.where };
   };
   const build = (p: ReturnType<typeof parts>): Json => {
     if (p.sameSubject || p.where) return { event: p.kind, ...(p.where ? { where: p.where } : {}), ...(p.sameSubject ? { same_subject: true } : {}) };

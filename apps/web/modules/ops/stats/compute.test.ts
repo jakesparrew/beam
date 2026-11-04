@@ -11,7 +11,7 @@ import { eq, sql } from "@/lib/ctx";
 import { resetRuntime } from "@/lib/testing";
 import { getPersonStats, refreshPersonStats, requestStatsRefresh, statsRefreshKey } from "./api";
 import { computeStatsSql } from "./compute";
-import { DAY, daysAgo, daysAhead, makeBooking, makeCustomer, makeHistory } from "./ops-p2.fixtures";
+import { daysAgo, daysAhead, makeBooking, makeCustomer, makeHistory } from "./ops-p2.fixtures";
 
 let h: DbHandle;
 let tx: Tx;
@@ -137,6 +137,5 @@ describe("ops stats engine (rules 1-7)", () => {
     expect(mine).toHaveLength(1);
     expect(mine[0]!.idempotencyKey.startsWith(`stats:${p.id}:`)).toBe(true);
     expect(statsRefreshKey(p.id, new Date("2026-11-04T08:15:30Z"))).toBe(`stats:${p.id}:2026-11-04T08:15`);
-    void DAY;
   });
 });

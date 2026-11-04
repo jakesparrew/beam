@@ -124,8 +124,8 @@ describe("field choices (rules 3.30 and 3.34)", () => {
 
 describe("merge strategies (rules 3.31 and 3.32)", () => {
   it("3.31 unique-key tables keep the winner; owner-hook tables are skipped", () => {
-    for (const t of ["person_tags", "segment_members", "company_contacts", "person_sensitive_fields", "campaign_recipients"]) expect(mergeStrategyFor(t, "person_id")).toBe("keep_winner");
-    for (const [t, c] of [["webinar_registrations", "person_id"], ["credit_grants", "person_id"], ["memberships", "person_id"], ["package_shares", "shared_with_person_id"], ["users", "person_id"], ["referral_attributions", "referrer_person_id"]]) {
+    for (const t of ["person_tags", "segment_members", "company_contacts", "campaign_recipients", "retention_list_items"]) expect(mergeStrategyFor(t, "person_id")).toBe("keep_winner");
+    for (const [t, c] of [["webinar_registrations", "person_id"], ["credit_grants", "person_id"], ["memberships", "person_id"], ["package_shares", "shared_with_person_id"], ["users", "person_id"], ["referral_attributions", "referrer_person_id"], ["webinar_presenters", "person_id"], ["automation_enrolments", "person_id"]]) {
       expect(mergeStrategyFor(t!, c!)).toBe("skip");
     }
   });
@@ -136,6 +136,12 @@ describe("merge strategies (rules 3.31 and 3.32)", () => {
     }
     expect(mergeStrategyFor("orders", "person_id")).toBe("repoint");
     expect(mergeStrategyFor("tasks", "person_id")).toBe("repoint");
+  });
+
+  it("person_sensitive_fields is skipped by the generic repoint: executeMerge re-encrypts it for the winner (fix-w09-crm-review)", () => {
+    expect(mergeStrategyFor("person_sensitive_fields", "person_id")).toBe("skip");
+    expect(mergeStrategyFor("privacy_requests", "person_id")).toBe("repoint");
+    expect(mergeStrategyFor("provider_customers", "person_id")).toBe("repoint");
   });
 
   it("every strategy value is one of the four", () => {

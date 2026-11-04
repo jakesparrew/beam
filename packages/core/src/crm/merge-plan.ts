@@ -21,10 +21,13 @@ export const MERGE_STRATEGIES: Record<string, MergeStrategy> = {
   "person_tags.person_id": "keep_winner",
   "segment_members.person_id": "keep_winner",
   "company_contacts.person_id": "keep_winner",
-  "person_sensitive_fields.person_id": "keep_winner",
   "campaign_recipients.person_id": "keep_winner",
   "person_stats.person_id": "keep_winner",
   "processing_restrictions.person_id": "keep_winner",
+  "retention_list_items.person_id": "keep_winner",
+  // moved unless the winner holds a row with the same key
+  "privacy_requests.person_id": "repoint",
+  "provider_customers.person_id": "repoint",
   // both persons on the same session or waitlist: refused
   "bookings.person_id": "refuse_if_both",
   "waitlist_entries.person_id": "refuse_if_both",
@@ -36,6 +39,12 @@ export const MERGE_STRATEGIES: Record<string, MergeStrategy> = {
   "referral_codes.person_id": "skip",
   "referral_attributions.*": "skip",
   "users.person_id": "skip",
+  // webinar's mergePersons settles presenter rows
+  "webinar_presenters.person_id": "skip",
+  // automation's exitPersonEnrolments ends the loser's enrolments, which stay on the loser as history
+  "automation_enrolments.person_id": "skip",
+  // crm's executeMerge re-encrypts them with the winner's id in the AAD before the generic repoint
+  "person_sensitive_fields.person_id": "skip",
   // append-only tables: never rewritten, reads resolve the merge (rule 3.32)
   "activity_events.*": "skip",
   "consent_records.*": "skip",

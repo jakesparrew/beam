@@ -44,6 +44,9 @@ to "Served" with the package id.
 | ops-P1 | platform-P8 | Nav section labels `platform.nav.section_insights`, `section_reports`, `section_data`; filter admin and portal nav entries by their optional `flag`. |
 | commerce-P2 | platform (fixer) | `apps/web/lib/integrations.ts` `buildIntegrations` builds `createMollieProvider({ apiKey: MOLLIE_API_KEY, webhookBaseUrl: APP_URL, webhookSecret: MOLLIE_WEBHOOK_SECRET, onCall })` from `@beam/integrations/payments` when the key is present, instead of `notConfigured('mollie')`. |
 | commerce-P2 | commerce-P3 | `config.ts` refines `payment_provider_by_channel` with `unconfiguredChannels(value, process.env)` from `@beam/integrations/payments`, so Stripe or Viva cannot be selected without their keys. |
+| finance-P2 | finance (schema fixer) | `chk_invoices_party` refuses a POS company invoice with billing details but no person and no CRM company (snapshot kind `company`, `person_id` and `company_id` null): allow a company snapshot with a VAT number, or require a CRM company for POS company invoices. |
+| finance-P2 | finance-P3 | Register `finance.render_pdf` (payload `{ invoiceId }`, key `invoice_pdf:<id>`); add catalogue keys `finance.pdf.walk_in` and `finance.pdf.partial_credit`. |
+| finance-P2 | finance-P4 | Register `billit.push_payment` (`{ invoiceId }`, key `billit:payment:<id>`) and `billit.push_customer` (`{ partyKey }`, key `billit:customer:<party_key>:<hash8>`). |
 
 ## Served
 

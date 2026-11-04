@@ -161,3 +161,10 @@ One entry per merge batch and gate (runbook section 5.7, adapted by OD-3).
 - Batch `g72-batch` (commerce-P6 platform-P9 fix-w09-commerce-1 ops-P5 webinar-P1): migrations 0030_w19.sql 0031_w19_views.sql 0032_w19_protect.sql; merge gate green, peak 5156 MB.
 - site-P7: 50 min, merged as `84549af`; gate `g73-site-P7` (merge) green, peak 9874 MB.
 - fix-w09-credits-review: 23 min, merged as `f48397d`; gate `g76-fix-w09-credits-review` (merge) green, peak 4638 MB.
+- fix-w09-forms-review: merged as `3b4ae0e` in batch `g77-batch`.
+- fix-w09-booking-review: merged as `3592578` in batch `g77-batch`.
+- fix-w09-email-review: merged as `7475b91` in batch `g77-batch`.
+- fix-w09-commerce-review: merged as `372e383` in batch `g77-batch`.
+- fix-w09-crm-review: merged as `0cd69a7` in batch `g77-batch`.
+- fix-w09-finance-review: merged as `859d590` in batch `g77-batch`.
+- Batch `g77-batch` (fix-w09-forms-review fix-w09-booking-review fix-w09-email-review fix-w09-commerce-review fix-w09-crm-review fix-w09-finance-review): migrations 0033_w00.sql; merge gate green, peak 5317 MB.

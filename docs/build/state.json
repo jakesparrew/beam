@@ -1528,7 +1528,7 @@
       "mergedAt": "2026-11-04T18:09:12Z"
     },
     "fix-w09-crm-review": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "fixer": true,
       "module": "crm",
@@ -1545,11 +1545,13 @@
       "runId": "wf_96a4a86f-719",
       "startedAt": "2026-11-04T18:37:52Z",
       "branchSha": "0055415",
-      "endedAt": "2026-11-04T19:32:43Z",
-      "minutes": 17
+      "endedAt": "2026-11-04T19:32:44Z",
+      "minutes": 17,
+      "mergeSha": "0cd69a7",
+      "mergedAt": "2026-11-04T19:48:55Z"
     },
     "fix-w09-booking-review": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "fixer": true,
       "module": "booking",
@@ -1568,11 +1570,13 @@
       "runId": "wf_a7df3a22-491",
       "startedAt": "2026-11-04T18:11:02Z",
       "branchSha": "d75035a",
-      "endedAt": "2026-11-04T19:32:43Z",
-      "minutes": 27
+      "endedAt": "2026-11-04T19:32:44Z",
+      "minutes": 27,
+      "mergeSha": "3592578",
+      "mergedAt": "2026-11-04T19:48:46Z"
     },
     "fix-w09-commerce-review": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "fixer": true,
       "module": "commerce",
@@ -1592,8 +1596,10 @@
       "runId": "wf_cbeca218-01b",
       "startedAt": "2026-11-04T18:11:02Z",
       "branchSha": "827554a",
-      "endedAt": "2026-11-04T19:32:43Z",
-      "minutes": 30
+      "endedAt": "2026-11-04T19:32:44Z",
+      "minutes": 30,
+      "mergeSha": "372e383",
+      "mergedAt": "2026-11-04T19:48:52Z"
     },
     "fix-w09-credits-review": {
       "status": "merged",
@@ -1619,7 +1625,7 @@
       "mergedAt": "2026-11-04T19:31:58Z"
     },
     "fix-w09-finance-review": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "fixer": true,
       "module": "finance",
@@ -1636,11 +1642,13 @@
       "runId": "wf_13c04cd1-3de",
       "startedAt": "2026-11-04T18:37:52Z",
       "branchSha": "463408a",
-      "endedAt": "2026-11-04T19:32:43Z",
-      "minutes": 36
+      "endedAt": "2026-11-04T19:32:44Z",
+      "minutes": 36,
+      "mergeSha": "859d590",
+      "mergedAt": "2026-11-04T19:48:57Z"
     },
     "fix-w09-forms-review": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "fixer": true,
       "module": "forms",
@@ -1657,11 +1665,13 @@
       "runId": "wf_9cab0ab0-540",
       "startedAt": "2026-11-04T18:11:03Z",
       "branchSha": "1bd9ed2",
-      "endedAt": "2026-11-04T19:32:43Z",
-      "minutes": 27
+      "endedAt": "2026-11-04T19:32:44Z",
+      "minutes": 27,
+      "mergeSha": "3b4ae0e",
+      "mergedAt": "2026-11-04T19:48:43Z"
     },
     "fix-w09-email-review": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "fixer": true,
       "module": "email",
@@ -1678,8 +1688,10 @@
       "runId": "wf_9a2d5e2b-fee",
       "startedAt": "2026-11-04T18:11:03Z",
       "branchSha": "d1bad22",
-      "endedAt": "2026-11-04T19:32:43Z",
-      "minutes": 29
+      "endedAt": "2026-11-04T19:32:44Z",
+      "minutes": 29,
+      "mergeSha": "7475b91",
+      "mergedAt": "2026-11-04T19:48:49Z"
     },
     "fix-w09-automation-review": {
       "status": "running",
@@ -1703,7 +1715,7 @@
       "minutes": 20
     },
     "fix-w09-ops-review": {
-      "status": "done",
+      "status": "red",
       "attempts": 0,
       "fixer": true,
       "module": "ops",
@@ -1719,11 +1731,11 @@
         "ops-P5"
       ],
       "branchSha": "08a1afd",
-      "endedAt": "2026-11-04T19:32:43Z",
+      "endedAt": "2026-11-04T19:32:44Z",
       "minutes": 31
     },
     "fix-w09-site-review": {
-      "status": "done",
+      "status": "red",
       "attempts": 0,
       "fixer": true,
       "module": "site",
@@ -1745,7 +1757,7 @@
       "minutes": 27
     },
     "fix-w09-platform-review": {
-      "status": "done",
+      "status": "red",
       "attempts": 0,
       "fixer": true,
       "module": "platform",
@@ -1765,7 +1777,7 @@
         "platform-P9"
       ],
       "branchSha": "4a251ee",
-      "endedAt": "2026-11-04T19:32:43Z",
+      "endedAt": "2026-11-04T19:32:44Z",
       "minutes": 25
     }
   }

@@ -146,9 +146,12 @@ function pgliteVersion(): string {
 /**
  * The cache key of the database `createTestDb({ from })` builds: sha256 over the sorted
  * relative paths and contents of `src/schema/**\/*.ts`, `src/sql/**`, `src/testing.ts`, the
- * view and append-only generators in `scripts/`, the PGlite version, `from` and, for
- * `from: "migrations"`, the migrations folder (journal and `.sql` files). `packageDir`
- * defaults to this package; tests point it at a copy.
+ * view and append-only generators in `scripts/`, the `@beam/core` sources next to this package
+ * (`../core/src/**\/*.ts` without tests: the schema builds enums from core lists such as
+ * `INVOICE_SETTLED_VIA` and `PRIVACY_KINDS`, and view SQL bakes in `RETENTION_DEFAULTS`), the
+ * PGlite version, `from` and, for `from: "migrations"`, the migrations folder (journal and
+ * `.sql` files). `packageDir` defaults to this package; tests point it at a copy (a copy
+ * without a `../core/src` sibling hashes no core files).
  */
 export function testDbCacheKey(
   from: "schema" | "migrations",
@@ -161,6 +164,7 @@ export function testDbCacheKey(
     path.join(dir, "src/testing.ts"),
     path.join(dir, "scripts/views-sql.ts"),
     path.join(dir, "scripts/append-only-sql.ts"),
+    ...listFiles(path.join(dir, "../core/src"), (n) => n.endsWith(".ts") && !n.endsWith(".test.ts")),
     ...(from === "migrations"
       ? listFiles(path.join(dir, "migrations"), (n) => n.endsWith(".sql")).concat(
           path.join(dir, "migrations/meta/_journal.json"),
@@ -170,7 +174,7 @@ export function testDbCacheKey(
     .map((f) => ({ rel: path.relative(dir, f).split(path.sep).join("/"), abs: f }))
     .sort((a, b) => (a.rel < b.rel ? -1 : a.rel > b.rel ? 1 : 0));
   const hash = createHash("sha256");
-  hash.update(`beam-testdb/1\0from=${from}\0pglite=${pgliteVersion()}\0`);
+  hash.update(`beam-testdb/2\0from=${from}\0pglite=${pgliteVersion()}\0`);
   for (const { rel, abs } of files) {
     hash.update(`${rel}\0`);
     hash.update(existsSync(abs) ? readFileSync(abs) : "<missing>");

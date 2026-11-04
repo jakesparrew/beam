@@ -16,7 +16,10 @@ import {
   type ConsentAction,
   type ConsentChoices,
 } from "@beam/core/site";
-import { and, eq } from "@/lib/ctx";
+import { unstable_cache } from "next/cache";
+import { and, eq, getAppDb } from "@/lib/ctx";
+import type { ConsentLabels } from "../ui/public/consent-provider";
+import { loadLegalLinks } from "./legal";
 
 export type RecordCookieConsentInput = {
   /** The key of the visitor's existing cookie; a new one is created when absent. */
@@ -75,18 +78,68 @@ export type CookieBannerState = {
   latestMaterialOrdinal: number | null;
 };
 
+/** True when analytics may treat this deployment as production (`VERCEL_ENV`, or the e2e flag `BEAM_ANALYTICS_PRODUCTION=1`). */
+export function analyticsProductionMode(env: Record<string, string | undefined> = process.env): boolean {
+  return env.VERCEL_ENV === "production" || env.BEAM_ANALYTICS_PRODUCTION === "1";
+}
+
 /** The banner version and the re-prompt threshold (rule 38). */
 export async function getCookieBannerState(db: DbOrTx): Promise<CookieBannerState> {
   const rows = await db
-    .select({ ordinal: vLegalVersions.ordinal, isMaterialChange: vLegalVersions.isMaterialChange, isCurrent: vLegalVersions.isCurrent, status: pages.status })
+    .select({ ordinal: vLegalVersions.ordinal, isMaterialChange: vLegalVersions.isMaterialChange, liveStatus: pages.status })
     .from(vLegalVersions)
-    .innerJoin(pages, and(eq(pages.legalKey, vLegalVersions.legalKey), eq(pages.currentVersionId, vLegalVersions.versionId)))
+    .leftJoin(pages, and(eq(pages.legalKey, vLegalVersions.legalKey), eq(pages.currentVersionId, vLegalVersions.versionId)))
     .where(eq(vLegalVersions.legalKey, "cookie_notice"));
-  const all = await db
-    .select({ ordinal: vLegalVersions.ordinal, isMaterialChange: vLegalVersions.isMaterialChange })
-    .from(vLegalVersions)
-    .where(eq(vLegalVersions.legalKey, "cookie_notice"));
-  const live = rows.find((r) => r.isCurrent && r.status === "published");
-  const material = all.filter((r) => r.isMaterialChange).map((r) => Number(r.ordinal));
+  const live = rows.find((r) => r.liveStatus === "published");
+  const material = rows.filter((r) => r.isMaterialChange).map((r) => Number(r.ordinal));
   return { bannerVersion: live ? Number(live.ordinal) : 0, latestMaterialOrdinal: material.length > 0 ? Math.max(...material) : null };
 }
+
+export type ConsentChromeState = CookieBannerState & { cookieNoticeHref: string | null };
+
+/**
+ * What the site and portal layouts need for the banner: the banner version, the re-prompt
+ * threshold and the cookie notice URL in `locale` (cached with `site:routes`, which every
+ * publish revalidates; recomputed outside a Next request).
+ */
+export async function getConsentChromeState(locale: Locale): Promise<ConsentChromeState> {
+  const load = async (): Promise<ConsentChromeState> => {
+    const db = await getAppDb();
+    const [banner, links] = await Promise.all([getCookieBannerState(db), loadLegalLinks(db, locale)]);
+    return { ...banner, cookieNoticeHref: links.cookies };
+  };
+  const cached = unstable_cache(load, ["site:getConsentChromeState", locale], { tags: ["site:routes", "site:sitemap", "site:pages"] });
+  try {
+    return await cached();
+  } catch (error) {
+    if (/incrementalCache missing|static generation store missing/i.test(String((error as Error)?.message ?? error))) return load();
+    throw error;
+  }
+}
+
+/** The banner and dialog strings of `site.cookies.*`. */
+export function consentLabels(tr: (key: string) => string): ConsentLabels {
+  const banner = {
+    title: tr("site.cookies.banner.title"),
+    body: tr("site.cookies.banner.body"),
+    acceptAll: tr("site.cookies.banner.acceptAll"),
+    rejectAll: tr("site.cookies.banner.rejectAll"),
+    choose: tr("site.cookies.banner.choose"),
+    noticeLink: tr("site.cookies.dialog.noticeLink"),
+  };
+  return {
+    banner,
+    dialog: {
+      title: tr("site.cookies.dialog.title"),
+      close: tr("site.cookies.dialog.close"),
+      save: tr("site.cookies.dialog.save"),
+      acceptAll: banner.acceptAll,
+      rejectAll: banner.rejectAll,
+      noticeLink: banner.noticeLink,
+      necessary: { title: tr("site.cookies.dialog.necessary.title"), body: tr("site.cookies.dialog.necessary.body") },
+      analytics: { title: tr("site.cookies.dialog.analytics.title"), body: tr("site.cookies.dialog.analytics.body") },
+      marketing: { title: tr("site.cookies.dialog.marketing.title"), body: tr("site.cookies.dialog.marketing.body") },
+    },
+  };
+}
+

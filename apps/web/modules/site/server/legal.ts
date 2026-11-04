@@ -110,8 +110,8 @@ export async function getCurrentLegalVersion(db: DbOrTx, key: LegalKey): Promise
     .select({ locales: pageVersions.locales, blocks: pageVersions.blocks })
     .from(pageVersions)
     .where(eq(pageVersions.id, live.versionId));
-  const locales = ((version?.locales ?? []) as string[]).filter((l): l is Locale => (LOCALES as readonly string[]).includes(l));
-  const blocks = (version?.blocks ?? {}) as Partial<Record<Locale, Block[]>>;
+  const locales = (version?.locales ?? []).filter((l): l is Locale => (LOCALES as readonly string[]).includes(l));
+  const blocks: Partial<Record<Locale, Block[]>> = version?.blocks ?? {};
   const text: LocalizedText = {};
   for (const l of locales) text[l] = blocksToPlainText(blocks[l]);
   const routes = await routesOf(db, live.pageId);

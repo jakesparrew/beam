@@ -15,7 +15,7 @@ import { PermanentError } from "@beam/core/errors";
 import { makeJobCtx } from "@/lib/testing";
 import { rowsOf } from "@/lib/sensitive";
 import * as platformApi from "./api";
-import { AI_SQL_LOG_PREFIX, AI_SQL_MAX_ROWS, AiSqlRunError, runAiReadOnlyQuery } from "./ai-sql";
+import { AI_SQL_LOG_PREFIX, AI_SQL_MAX_ROWS, AiSqlRunError, getAiDailyUsage, listAiSqlLog, runAiReadOnlyQuery } from "./ai-sql";
 
 let handle: DbHandle;
 let db: Db;
@@ -244,5 +244,35 @@ describe("AI_SQL_FUNCTIONS: one list (cross-module decision 46)", () => {
     expect(platformApi.AI_SQL_FUNCTIONS).toBe(AI_SQL_FUNCTIONS);
     const opsList = (coreOps as Record<string, unknown>).AI_SQL_FUNCTIONS;
     expect(opsList ?? AI_SQL_FUNCTIONS).toBe(AI_SQL_FUNCTIONS);
+  });
+});
+
+describe("/admin/system/ai: per-day usage and the SQL log", () => {
+  it("counts Claude calls, cost and SQL runs per Brussels day, and lists the SQL newest first without row values", async () => {
+    await createTestView();
+    // A Claude call row as callClaude writes it, at 23:30 UTC on 1 Nov = 00:30 on 2 Nov in Brussels.
+    await db.execute(sql`insert into ai_requests (feature, model, actor, fields_sent, prompt, output, input_tokens, output_tokens, cost_cents, status, created_at)
+      values ('ai.answer_question', 'claude-opus-5-5', '{"kind":"system"}'::jsonb, '{}', '[system] question', 'ok', 100, 50, 1.25, 'ok', '2026-11-01T23:30:00Z'),
+             ('ai.answer_question', 'claude-opus-5-5', '{"kind":"system"}'::jsonb, '{}', '[system] question', null, 0, 0, 0, 'budget_exceeded', '2026-11-01T23:40:00Z')`);
+    await runAiReadOnlyQuery(ctx(), "select first_name from ai.test_people where first_name = 'Lotte'");
+    await runAiReadOnlyQuery(ctx(), "select pg_read_file('x')").catch(() => undefined);
+    const month = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Brussels", year: "numeric", month: "2-digit" }).format(new Date()).slice(0, 7);
+
+    const november = await getAiDailyUsage(db, { month: "2026-11" });
+    expect(november.find((d) => d.day === "2026-11-02")).toMatchObject({ calls: 1, costCents: 1.25, sqlRuns: month === "2026-11" ? expect.any(Number) : 0 });
+    expect(november.find((d) => d.day === "2026-11-01")).toBeUndefined();
+    const today = (await getAiDailyUsage(db, { month })).reduce((s, d) => ({ runs: s.runs + d.sqlRuns, errors: s.errors + d.sqlErrors }), { runs: 0, errors: 0 });
+    expect(today).toEqual({ runs: 2, errors: 1 });
+    expect(await getAiDailyUsage(db, { month: "nope" })).toEqual([]);
+
+    const log = await listAiSqlLog(db, { month });
+    expect(log.map((e) => [e.status, e.sql])).toEqual([
+      ["error", "select pg_read_file('x')"],
+      ["ok", "select first_name from ai.test_people where first_name = 'Lotte'"],
+    ]);
+    expect(log[1]).toMatchObject({ rowCount: 1, truncated: false, error: null, feature: "ai.answer_question" });
+    expect(log[0]!.error).toMatch(/pg_read_file/);
+    expect(await listAiSqlLog(db, { month: "2020-01" })).toEqual([]);
+    expect(await listAiSqlLog(db, { limit: 1 })).toHaveLength(1);
   });
 });

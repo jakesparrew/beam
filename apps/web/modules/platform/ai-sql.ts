@@ -20,6 +20,7 @@ import { PermanentError } from "@beam/core/errors";
 import { AI_FEATURES, AiSqlRejectedError, assertAiSqlSafe, isAiFeatureKey, modelIdFor, type AiFeatureKey } from "@beam/core/ai";
 import { actorJson, sql, writeDurably } from "@/lib/ctx";
 import type { JobCtx } from "@/lib/job-runner";
+import { rowsOf } from "@/lib/sensitive";
 
 /** Rows returned at most; a statement with more is cut (`output.truncated`). */
 export const AI_SQL_MAX_ROWS = 1000;
@@ -193,4 +194,79 @@ export async function runAiReadOnlyQuery(ctx: JobCtx, sqlText: string, options: 
     await logSql(ctx, text, { status: "error", error: failure.message.slice(0, 1000), durationMs: Date.now() - started });
     throw failure;
   }
+}
+
+// ---------------------------------------------------------------------------------------------
+// `/admin/system/ai` (R4): per-day usage and the read-only SQL log, from `ai_requests`.
+// ---------------------------------------------------------------------------------------------
+
+export type AiDailyUsage = { day: string; calls: number; costCents: number; sqlRuns: number; sqlErrors: number };
+
+const monthStart = (month: string | undefined) => (month && /^\d{4}-\d{2}$/.test(month) ? `${month}-01` : null);
+
+/** `created_at` within the Brussels month starting on `start` (`YYYY-MM-01`). */
+const inBrusselsMonth = (start: string) =>
+  sql`created_at >= (${start}::date::timestamp at time zone 'Europe/Brussels') and created_at < ((${start}::date + interval '1 month')::timestamp at time zone 'Europe/Brussels')`;
+
+/**
+ * One row per Brussels day of `month` (`YYYY-MM`) with at least one `ai_requests` row: Claude
+ * calls (budget refusals excluded) and their cost, and the read-only SQL runs and failures.
+ */
+export async function getAiDailyUsage(tx: DbOrTx, input: { month: string }): Promise<AiDailyUsage[]> {
+  const start = monthStart(input.month);
+  if (!start) return [];
+  const rows = rowsOf<{ day: string; calls: number; cost_cents: string | number; sql_runs: number; sql_errors: number }>(
+    await tx.execute(sql`
+      select to_char(created_at at time zone 'Europe/Brussels', 'YYYY-MM-DD') as day,
+             count(*) filter (where prompt not like '[sql]%' and status <> 'budget_exceeded')::int as calls,
+             coalesce(sum(cost_cents) filter (where prompt not like '[sql]%'), 0)::float8 as cost_cents,
+             count(*) filter (where prompt like '[sql]%')::int as sql_runs,
+             count(*) filter (where prompt like '[sql]%' and status = 'error')::int as sql_errors
+      from ai_requests where ${inBrusselsMonth(start)}
+      group by 1 order by 1`),
+  );
+  return rows.map((r) => ({ day: r.day, calls: Number(r.calls), costCents: Number(r.cost_cents), sqlRuns: Number(r.sql_runs), sqlErrors: Number(r.sql_errors) }));
+}
+
+export type AiSqlLogEntry = {
+  id: string;
+  createdAt: Date;
+  feature: string;
+  status: "ok" | "error";
+  sql: string;
+  rowCount: number | null;
+  truncated: boolean;
+  error: string | null;
+  durationMs: number | null;
+};
+
+/** The latest read-only SQL runs (newest first, at most 200), from the `[sql]` rows of `ai_requests`. */
+export async function listAiSqlLog(tx: DbOrTx, input: { month?: string; limit?: number } = {}): Promise<AiSqlLogEntry[]> {
+  const limit = Math.min(Math.max(Math.floor(input.limit ?? 50), 1), 200);
+  const start = monthStart(input.month);
+  const rows = rowsOf<{ id: string; created_at: string | Date; feature: string; status: string; prompt: string; output: string | null; error: string | null; duration_ms: number | null }>(
+    await tx.execute(sql`
+      select id::text as id, created_at, feature, status::text as status, prompt, output, error, duration_ms
+      from ai_requests where prompt like '[sql]%'${start ? sql` and ${inBrusselsMonth(start)}` : sql``}
+      order by created_at desc, id desc limit ${limit}`),
+  );
+  return rows.map((r) => {
+    let parsed: { rowCount?: unknown; truncated?: unknown } = {};
+    try {
+      parsed = r.output ? (JSON.parse(r.output) as typeof parsed) : {};
+    } catch {
+      parsed = {};
+    }
+    return {
+      id: r.id,
+      createdAt: new Date(r.created_at),
+      feature: r.feature,
+      status: r.status === "ok" ? "ok" : "error",
+      sql: r.prompt.startsWith(AI_SQL_LOG_PREFIX) ? r.prompt.slice(AI_SQL_LOG_PREFIX.length) : r.prompt,
+      rowCount: typeof parsed.rowCount === "number" ? parsed.rowCount : null,
+      truncated: parsed.truncated === true,
+      error: r.error,
+      durationMs: r.duration_ms === null ? null : Number(r.duration_ms),
+    };
+  });
 }

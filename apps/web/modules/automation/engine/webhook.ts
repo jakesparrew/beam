@@ -9,6 +9,10 @@
  * `settings.automation_rules.webhook_hosts` at send time, so removing a host stops the calls.
  * Each call is logged to `integration_calls` (provider `webhook`, host only).
  *
+ * Outside staging and production the call goes to the in-process webhook fake whenever
+ * `integrationMode('webhook', 'AUTOMATION_WEBHOOK_SECRET')` says `fake` (`INTEGRATIONS=fake`, or
+ * no secret), like every other provider (architecture section 8); `webhookFake()` reads it.
+ *
  * Decisions: an erased or missing enrolment or person calls nothing (no-op); a missing
  * `AUTOMATION_WEBHOOK_SECRET` is a permanent `webhook_not_configured` failure.
  */
@@ -17,8 +21,9 @@ import { automationEnrolments, automations, automationVersions, persons } from "
 import { PermanentError, RetryableError } from "@beam/core/errors";
 import { buildWebhookPayload, checkWebhookUrl, webhookIdempotencyKey, type WebhookPayload } from "@beam/core/automation";
 import type { IntegrationCallEntry } from "@beam/integrations/_shared";
-import { createWebhookClient, type WebhookPoster } from "@beam/integrations/webhook";
+import { createWebhookClient, createWebhookFake, type WebhookFake, type WebhookPoster } from "@beam/integrations/webhook";
 import { eq, sql, type Ctx } from "@/lib/ctx";
+import { integrationMode } from "@/lib/integrations";
 import { rowsOf } from "@/lib/sensitive";
 import { getSetting } from "@/lib/settings";
 import { versionDefinition } from "./exits";
@@ -31,6 +36,13 @@ export type CallWebhookResult =
   | { status: "noop"; reason: "missing" | "erased" | "already_called" };
 
 export type CallWebhookDeps = { post?: WebhookPoster; secret?: string | undefined };
+
+let processWebhookFake: WebhookFake | undefined;
+
+/** The process's webhook fake (local, preview, e2e): every call made in fake mode lands here. */
+export function webhookFake(now?: () => Date): WebhookFake {
+  return (processWebhookFake ??= createWebhookFake(now ? { now } : {}));
+}
 
 /** 2xx: done; 5xx, 408 and 429: retry; every other status (3xx, 4xx): permanent. */
 export function webhookStatusOutcome(status: number): "ok" | "retry" | "permanent" {
@@ -94,10 +106,12 @@ export async function callWebhook(tx: Tx, ctx: Ctx, input: CallWebhookInput, dep
   const payload: WebhookPayload = buildWebhookPayload({ automationSlug: e.slug, stepKey: input.stepKey, enrolmentId: e.id, person, occurredAt: ctx.now });
   const post =
     deps.post ??
-    createWebhookClient({
-      // `webhook` joins the integration_calls provider enum on platform's side (requested); until then the row is dropped.
-      onCall: (entry) => ctx.integrationLog(entry as unknown as IntegrationCallEntry),
-    }).postWebhook;
+    (integrationMode("webhook", "AUTOMATION_WEBHOOK_SECRET") === "fake"
+      ? webhookFake(() => ctx.now).postWebhook
+      : createWebhookClient({
+          // `webhook` joins the integration_calls provider enum on platform's side (requested); until then the row is dropped.
+          onCall: (entry) => ctx.integrationLog(entry as unknown as IntegrationCallEntry),
+        }).postWebhook);
   const { status } = await post({ url: step.url, body: payload, secret, idempotencyKey: webhookIdempotencyKey(e.id, input.stepKey) });
   const outcome = webhookStatusOutcome(status);
   if (outcome === "retry") throw new RetryableError(`webhook_status_${status}`);

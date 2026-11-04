@@ -20,7 +20,7 @@ vi.mock("@/modules/email/api", async (orig) => ({
   getReachability: vi.fn(() => Promise.resolve({ isReachable: true, blockedReason: null })),
 }));
 
-const { callWebhook, webhookStatusOutcome } = await import("./webhook");
+const { callWebhook, webhookFake, webhookStatusOutcome } = await import("./webhook");
 const f = await import("./automation-p3.fixtures");
 
 let h: DbHandle;
@@ -137,6 +137,31 @@ describe("automation.call_webhook", () => {
       "webhook_not_configured",
     );
     expect(fake.calls).toEqual([]);
+  });
+
+  it("with INTEGRATIONS=fake and the secret set, the call goes to the process fake and never to fetch", async () => {
+    const { id } = await webhookEnrolment();
+    const realFetch = vi.fn(() => Promise.reject(new Error("real fetch called")));
+    vi.stubGlobal("fetch", realFetch);
+    vi.stubEnv("INTEGRATIONS", "fake");
+    vi.stubEnv("APP_ENV", "preview");
+    vi.stubEnv("AUTOMATION_WEBHOOK_SECRET", SECRET);
+    try {
+      const before = webhookFake().calls.length;
+      expect(await callWebhook(h.db as unknown as Tx, makeCtx(h.db, { now }), { enrolmentId: id, stepKey: "w" })).toEqual({
+        status: "called",
+        httpStatus: 200,
+        host: "hooks.example.com",
+      });
+      expect(realFetch).not.toHaveBeenCalled();
+      const calls = webhookFake().calls.slice(before);
+      expect(calls).toHaveLength(1);
+      expect(calls[0]).toMatchObject({ host: "hooks.example.com", idempotencyKey: `automation_webhook:${id}:w` });
+      expect(verifyWebhookSignature(calls[0]!.bodyText, SECRET, calls[0]!.headers["X-Beam-Signature"])).toBe(true);
+    } finally {
+      vi.unstubAllEnvs();
+      vi.unstubAllGlobals();
+    }
   });
 
   it("a missing enrolment is a no-op", async () => {

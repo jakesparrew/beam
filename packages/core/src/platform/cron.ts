@@ -275,7 +275,9 @@ export function slotsBetween(expr: string, from: Date, to: Date, tz: string = BR
 export function dueSlots(expr: string, lastTickAt: Date | null, now: Date, tz: string = BRUSSELS): CronSlot[] {
   const minuteStart = new Date(Math.floor(now.getTime() / MINUTE) * MINUTE);
   if (!isHourlyOrLonger(expr) || !lastTickAt) {
-    return slotsBetween(expr, new Date(minuteStart.getTime() - MINUTE), minuteStart, tz);
+    // Only the current slot: on the spring DST day every skipped wall minute 02:00-02:59 maps to
+    // the same instant, and a minute-level schedule must not burst the whole hour (PL-33).
+    return slotsBetween(expr, new Date(minuteStart.getTime() - MINUTE), minuteStart, tz).slice(-1);
   }
   const floor = Math.max(lastTickAt.getTime(), minuteStart.getTime() - 60 * MINUTE);
   return slotsBetween(expr, new Date(Math.min(floor, minuteStart.getTime() - MINUTE)), minuteStart, tz);

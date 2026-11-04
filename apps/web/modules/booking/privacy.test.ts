@@ -88,7 +88,7 @@ describe("export", () => {
     const out = await inTx((tx) => privacy.export(tx, me.id));
     const rows = asRows(out["booking/bookings.json"]);
     expect(rows).toHaveLength(3);
-    const byRole = Object.fromEntries(rows.map((r) => [r.role, r]));
+    const byRole = Object.fromEntries(rows.map((r) => [String(r.role), r])) as Record<string, Record<string, unknown>>;
     expect(byRole.attendee).toMatchObject({ session_title: TITLE, session_kind: "day", status: "confirmed", paid_with: "credit", guest_of: null });
     expect(byRole.booker).toMatchObject({ guest_first_name: "Fien", paid_with: "guest" });
     expect(byRole.guest).toMatchObject({ guest_of: "Hugo" });

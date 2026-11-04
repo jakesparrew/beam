@@ -29,6 +29,8 @@ test.describe("V1 acceptance", () => {
       await expect(page).toHaveURL((url) => url.pathname === "/nl/account/login" && url.searchParams.get("returnTo") === `/nl/account/book/${event!.id}`);
     });
     // Completed by platform-P12 once booking and commerce checkout are merged (it continues from the test above).
+    // booking-P6 covers "customer can book, pay and cancel" and "administrator can change a booking" in
+    // e2e/booking.spec.ts ("customer portal" and "V1 acceptance (booking)").
     test.fixme("A customer can register, book, pay and cancel", async () => {});
     test.fixme("The package balance updates", async () => {});
     test.fixme("The member discount applies automatically", async () => {});
@@ -53,6 +55,8 @@ test.describe("V1 acceptance", () => {
   });
 
   test.describe("Waitlist", () => {
+    // booking-P6: covered in e2e/booking.spec.ts › "V1 acceptance (booking)" (second seat, claim
+    // window expiry, protected confirmed seat); scenario 4 is e2e/scenario-4-seat-claim.spec.ts.
     test.fixme("The same person cannot take a second seat", async () => {});
     test.fixme("The claim window expires correctly", async () => {});
     test.fixme("A confirmed seat is protected", async () => {});

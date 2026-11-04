@@ -95,7 +95,7 @@ async function exportPerson(tx: Tx, personId: string): Promise<Record<string, un
       where b.person_id = ${personId} or b.booked_by_person_id = ${personId} or ${owner}.person_id = ${personId}
       order by s.starts_at, b.created_at, b.id`),
   );
-  const date = (v: unknown) => (v == null ? null : v instanceof Date ? v : new Date(String(v)));
+  const date = (v: unknown) => (v == null ? null : v instanceof Date ? v : new Date(v as string));
   const bookingsJson = rows.map((raw) => {
     const r: ExportRow = {
       id: String(raw.id),

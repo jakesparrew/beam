@@ -114,7 +114,7 @@ export default async function MyBookingPage({
     : b.paidWith === "order"
       ? tr("booking.portalBooking.cancel_confirm_refund")
       : tr("booking.portalBooking.cancel_confirm_free");
-  const policy = inFree ? tr("booking.portalBooking.policy_free", { date: formatDateTime(freeUntil!, locale, "full") }) : tr("booking.portalBooking.policy_late");
+  const policy = inFree ? tr("booking.portalBooking.policy_free", { date: formatDateTime(freeUntil, locale, "full") }) : tr("booking.portalBooking.policy_late");
   const title = pick(b.title, locale);
 
   return (

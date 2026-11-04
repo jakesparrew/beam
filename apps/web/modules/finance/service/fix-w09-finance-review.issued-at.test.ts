@@ -51,7 +51,7 @@ describe("issued_at under the sequence lock", () => {
 
   it("clamps credit notes the same way", async () => {
     const inv = await issued(new Date("2026-11-07T09:00:00Z"));
-    const orderLineId = inv.lines[0]!.order_line_id!;
+    const orderLineId = inv.lines[0]!.order_line_id;
     const input = { invoiceId: inv.id, reason: "Goodwill", noRefund: true, lines: [{ orderLineId, amountCents: 100 }] };
     const a = await issueCreditNote(asTx(h.db), ctxAt(h.db, new Date("2026-11-07T10:00:00Z")), input);
     const b = await issueCreditNote(asTx(h.db), ctxAt(h.db, new Date("2026-11-07T09:30:00Z")), input);

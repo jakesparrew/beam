@@ -15,6 +15,12 @@ export const templates = [
     name: "booking_confirmed",
     component: BookingConfirmed,
     props: BookingConfirmedProps,
+    sample: {
+      title: "Yin yoga",
+      date: "do 12 nov. 2026, 18:30",
+      url: "https://beam.example.com/nl/account/bookings/bk_sample",
+      payAtDesk: true,
+    },
     slots: {
       subject: "booking.email.booking_confirmed.subject",
       heading: "booking.email.booking_confirmed.heading",
@@ -28,6 +34,12 @@ export const templates = [
     name: "guest_invited",
     component: GuestInvited,
     props: GuestInvitedProps,
+    sample: {
+      title: "Yin yoga",
+      date: "do 12 nov. 2026, 18:30",
+      url: "https://beam.example.com/nl/account/bookings/bk_sample/guest",
+      ownerFirstName: "An",
+    },
     slots: {
       subject: "booking.email.guest_invited.subject",
       heading: "booking.email.guest_invited.heading",

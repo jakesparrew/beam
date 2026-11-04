@@ -56,9 +56,11 @@ const upsertImpl = action(
       const url = input.to.url.trim();
       const relative = url.startsWith("/") && !url.startsWith("//");
       if (!relative && !(url.startsWith("https://") && isSafeHref(url))) throw new ValidationError("to_url_invalid", { to: "invalid" });
-      const toUrl = relative ? normalisePath(url) : url;
-      if (relative && (toUrl === fromPath || (await closesLoop(tx, fromPath, toUrl, input.id)))) throw new ValidationError("redirect_loop", { to: "loop" });
-      target = { toPageId: null, toLocale: null, toUrl };
+      // The target is stored as given (query and fragment kept); only the loop checks use the
+      // normalised key, because the resolver normalises the incoming request the same way.
+      const toKey = relative ? normalisePath(url) : url;
+      if (relative && (toKey === fromPath || (await closesLoop(tx, fromPath, toKey, input.id)))) throw new ValidationError("redirect_loop", { to: "loop" });
+      target = { toPageId: null, toLocale: null, toUrl: url };
     } else {
       const [page] = await tx.select({ status: pages.status }).from(pages).where(eq(pages.id, input.to.pageId));
       if (!page) throw new ValidationError("to_page_missing", { to: "missing" });

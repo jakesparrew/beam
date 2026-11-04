@@ -749,8 +749,11 @@
       "mergedAt": "2026-11-04T05:38:04Z"
     },
     "site-P7": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "ff2da8d",
+      "runId": "wf_9963b85d-cdc",
+      "startedAt": "2026-11-04T09:10:27Z"
     },
     "booking-P6": {
       "status": "done",
@@ -824,8 +827,11 @@
       "attempts": 0
     },
     "webinar-P1": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "ff2da8d",
+      "runId": "wf_e5589e85-2b9",
+      "startedAt": "2026-11-04T09:10:27Z"
     },
     "booking-P7": {
       "status": "pending",

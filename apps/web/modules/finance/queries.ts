@@ -1,6 +1,8 @@
 /**
- * finance read functions for the back office (finance spec 4.3, finance-P5). Pages check the
- * permission (`invoices.read`) before calling them; every function takes the database first.
+ * finance read functions for the back office (finance spec 4.3, finance-P5) and the customer
+ * portal (`listMyInvoices`, `getMyInvoice`, `getMyInvoicePdf`, finance-P6). Staff pages check the
+ * permission (`invoices.read`) before calling them; portal pages pass the signed-in customer's
+ * person id, and the queries filter on it. Every function takes the database first.
  * Explicit columns only; lists are keyset-paginated (50 rows, cursor `issued_at,id`).
  * Search is an exact document number or `ilike` on the customer name inside the period filter.
  */
@@ -435,4 +437,190 @@ export async function getInvoicingIdentity(db: DbOrTx, input: { locale?: Locale 
 export async function listBlockedPdfIds(db: DbOrTx): Promise<string[]> {
   const rows = await db.select({ id: invoices.id }).from(invoices).where(eq(invoices.pdfStatus, "failed")).orderBy(asc(invoices.issuedAt));
   return rows.map((r) => r.id);
+}
+
+// ---------------------------------------------------------------------------
+// Customer portal (finance-P6, rule 40): only documents with `person_id` = the customer's person.
+// Another person's id reads as `null` (`not_found`), never `forbidden`, so ids cannot be probed.
+// ---------------------------------------------------------------------------
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export type MyInvoiceRow = {
+  id: string;
+  kind: InvoiceKind;
+  number: string;
+  issuedOn: string;
+  status: InvoiceStatus;
+  totalCents: number;
+  isCompany: boolean;
+  pdfStatus: InvoiceRecord["pdfStatus"];
+  pdfReady: boolean;
+};
+
+/** The customer's invoices and credit notes, newest first (`ix_invoices_person`). */
+export async function listMyInvoices(db: DbOrTx, input: { personId: string }): Promise<MyInvoiceRow[]> {
+  const rows = await db
+    .select({
+      id: invoices.id,
+      kind: invoices.kind,
+      number: invoices.number,
+      issuedOn: invoices.issuedOn,
+      status: invoices.status,
+      totalCents: invoices.totalCents,
+      isCompany: invoices.isCompany,
+      pdfStatus: invoices.pdfStatus,
+      pdfFileId: invoices.pdfFileId,
+    })
+    .from(invoices)
+    .where(eq(invoices.personId, input.personId))
+    .orderBy(desc(invoices.issuedAt), desc(invoices.number))
+    .limit(500);
+  return rows.map(({ pdfFileId, ...r }) => ({ ...r, pdfReady: r.pdfStatus === "rendered" && pdfFileId != null }));
+}
+
+export type MyInvoiceRequest = {
+  id: string;
+  status: CompanyRequestRow["status"];
+  legalName: string;
+  createdAt: Date;
+  decidedAt: Date | null;
+  decisionNote: string | null;
+};
+
+export type MyInvoiceLine = { description: string; quantity: number; unitAmountCents: number; vatRatePct: number; totalCents: number };
+
+export type MyInvoiceDetail = {
+  id: string;
+  kind: InvoiceKind;
+  number: string;
+  status: InvoiceStatus;
+  issuedOn: string;
+  dueOn: string | null;
+  paidAt: Date | null;
+  isCompany: boolean;
+  locale: Locale;
+  customer: { name: string; vatNumber: string | null } | null;
+  /** Bank details for an open invoice (rule 3): IBAN, BIC and the structured communication. */
+  bank: { iban: string; bic: string; paymentReference: string | null } | null;
+  lines: MyInvoiceLine[];
+  vatBreakdown: InvoiceRecord["vatBreakdown"];
+  subtotalCents: number;
+  vatCents: number;
+  totalCents: number;
+  paymentMethod: string | null;
+  reason: string | null;
+  pdfStatus: InvoiceRecord["pdfStatus"];
+  pdfReady: boolean;
+  reverses: DocumentRef | null;
+  creditNotes: DocumentRef[];
+  replacedBy: DocumentRef | null;
+  requests: MyInvoiceRequest[];
+  pendingRequest: MyInvoiceRequest | null;
+  /** Rule 20: a B2C invoice that is not cancelled, inside the window and without a pending request. */
+  canRequestCompanyInvoice: boolean;
+  /** Last day (`YYYY-MM-DD`) a company invoice can be requested; null for credit notes and company invoices. */
+  requestWindowUntil: string | null;
+};
+
+/** One of the customer's documents for the portal detail; `null` when it is not theirs. */
+export async function getMyInvoice(db: DbOrTx, input: { personId: string; id: string; now?: Date }): Promise<MyInvoiceDetail | null> {
+  if (!UUID_RE.test(input.id)) return null;
+  const [doc] = await db
+    .select()
+    .from(invoices)
+    .where(and(eq(invoices.id, input.id), eq(invoices.personId, input.personId)));
+  if (!doc) return null;
+  const invoice = doc as InvoiceRecord;
+  const related = await db
+    .select(refColumns)
+    .from(invoices)
+    .where(
+      and(
+        eq(invoices.personId, input.personId),
+        or(
+          eq(invoices.reversesInvoiceId, invoice.id),
+          eq(invoices.replacesInvoiceId, invoice.id),
+          invoice.reversesInvoiceId ? eq(invoices.id, invoice.reversesInvoiceId) : sql`false`,
+        ),
+      ),
+    )
+    .orderBy(asc(invoices.issuedAt), asc(invoices.number));
+  const requestRows =
+    invoice.kind === "invoice"
+      ? await db
+          .select({
+            id: invoiceRequests.id,
+            status: invoiceRequests.status,
+            billing: invoiceRequests.billing,
+            createdAt: invoiceRequests.createdAt,
+            decidedAt: invoiceRequests.decidedAt,
+            decisionNote: invoiceRequests.decisionNote,
+          })
+          .from(invoiceRequests)
+          .where(and(eq(invoiceRequests.invoiceId, invoice.id), eq(invoiceRequests.personId, input.personId)))
+          .orderBy(desc(invoiceRequests.createdAt))
+      : [];
+  const requests: MyInvoiceRequest[] = requestRows.map(({ billing, ...r }) => ({ ...r, legalName: billing.legalName }));
+  const pendingRequest = requests.find((r) => r.status === "requested") ?? null;
+
+  const finance = await getSetting(db, "finance");
+  const windowUntil = invoice.kind === "invoice" && !invoice.isCompany ? addDaysIso(invoice.issuedOn, finance.company_request_window_days) : null;
+  const today = brusselsDay(input.now ?? new Date());
+  const canRequest = windowUntil !== null && invoice.status !== "cancelled" && today <= windowUntil && pendingRequest === null;
+
+  const snapshot = invoice.customerSnapshot;
+  const seller = invoice.sellerSnapshot;
+  return {
+    id: invoice.id,
+    kind: invoice.kind,
+    number: invoice.number,
+    status: invoice.status,
+    issuedOn: invoice.issuedOn,
+    dueOn: invoice.dueOn,
+    paidAt: invoice.paidAt,
+    isCompany: invoice.isCompany,
+    locale: invoice.locale,
+    customer: isAnonymisedSnapshot(snapshot) ? null : { name: snapshot.name, vatNumber: snapshot.vat_number },
+    bank: invoice.status === "open" ? { iban: seller.iban, bic: seller.bic, paymentReference: invoice.paymentReference } : null,
+    lines: invoice.lines.map((l) => ({
+      description: l.description,
+      quantity: l.quantity,
+      unitAmountCents: l.unit_amount_cents,
+      vatRatePct: Number(l.vat_rate_pct),
+      totalCents: l.line_total_cents,
+    })),
+    vatBreakdown: invoice.vatBreakdown,
+    subtotalCents: invoice.subtotalCents,
+    vatCents: invoice.vatCents,
+    totalCents: invoice.totalCents,
+    paymentMethod: invoice.paymentMethod,
+    reason: invoice.reason,
+    pdfStatus: invoice.pdfStatus,
+    pdfReady: invoice.pdfStatus === "rendered" && invoice.pdfFileId != null,
+    reverses: related.find((r) => r.id === invoice.reversesInvoiceId) ?? null,
+    creditNotes: related.filter((r) => r.kind === "credit_note" && r.id !== invoice.reversesInvoiceId),
+    replacedBy: related.find((r) => r.kind === "invoice" && r.id !== invoice.reversesInvoiceId) ?? null,
+    requests,
+    pendingRequest,
+    canRequestCompanyInvoice: canRequest,
+    requestWindowUntil: windowUntil,
+  };
+}
+
+/** The PDF of one of the customer's documents; `null` for anyone else's or while it is not rendered. */
+export async function getMyInvoicePdf(db: DbOrTx, input: { personId: string; id: string }): Promise<{ number: string; fileId: string } | null> {
+  if (!UUID_RE.test(input.id)) return null;
+  const [doc] = await db
+    .select({ number: invoices.number, pdfStatus: invoices.pdfStatus, pdfFileId: invoices.pdfFileId })
+    .from(invoices)
+    .where(and(eq(invoices.id, input.id), eq(invoices.personId, input.personId)));
+  if (!doc || doc.pdfStatus !== "rendered" || !doc.pdfFileId) return null;
+  return { number: doc.number, fileId: doc.pdfFileId };
+}
+
+function addDaysIso(day: string, days: number): string {
+  const d = new Date(`${day}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
 }

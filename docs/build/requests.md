@@ -39,6 +39,10 @@ to "Served" with the package id.
 | email-P1 | email-P1 (attempt 2) | Register `campaign_recipients` (and the other person-referencing email tables) in email's `privacy.ts` (OD-9) and add `campaign_recipients.person_id -> persons.id` (on delete restrict). |
 | site-P1 | site (fixer) | FK `pages.partner_company_id -> companies.id` (on delete set null) once crm-P1 merged. |
 | forms-P1 | forms (next forms package) | FK `form_links.partner_company_id -> companies.id` once crm-P1 merged. |
+| ops-P1 | ops and booking (fixer after fix-w04-platform-3) | Move `PLANNED_SCHEDULES` into `schedules` in `apps/web/modules/ops/schedules.ts` and `apps/web/modules/booking/schedules.ts` (no later package of either module owns that file) once platform's schedule tests filter to platform kinds. |
+| ops-P1 | ops (fixer) | FK `retention_list_items.task_id -> tasks.id` once crm's `tasks` table exists (`ops.ts` has no later owner). |
+| ops-P1 | ops-P5 | Wire `sweep` in `apps/web/modules/ops/privacy.ts` to ops-P6's `exports/sweep.ts` handlers. |
+| ops-P1 | platform-P8 | Nav section labels `platform.nav.section_insights`, `section_reports`, `section_data`; filter admin and portal nav entries by their optional `flag`. |
 
 ## Served
 

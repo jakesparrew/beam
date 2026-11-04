@@ -517,8 +517,11 @@
       "attempts": 0
     },
     "ops-P4": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "a945df0",
+      "runId": "wf_78d41894-79c",
+      "startedAt": "2026-11-04T04:04:07Z"
     },
     "site-P7": {
       "status": "pending",

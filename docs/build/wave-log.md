@@ -101,3 +101,4 @@ One entry per merge batch and gate (runbook section 5.7, adapted by OD-3).
 - commerce-P2: 13 min, merged as `7b3fd68`; gate `g38-commerce-P2` (merge) green, peak 4813 MB.
 - commerce-P2 (13 min) landed (`g38`, 93 s with the warm test-db cache). Load average fell to about 5 with four agents, so the limit goes back to six. Started ops-P2 and automation-P2 from `e0b1319`.
 - credits-P4: 70 min, merged as `a945df0`; gate `g39-credits-P4` (merge) green, peak 4061 MB.
+- credits-P4 attempt 3 (8 min, real mandates in tests) landed (`g39`, 261 s). Started ops-P4 from `a945df0`.

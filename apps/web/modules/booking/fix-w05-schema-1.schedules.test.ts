@@ -38,10 +38,13 @@ describe("booking schedules (fix-w05-schema-1)", () => {
 });
 
 describe("booking privacy registration (fix-w05-schema-1)", () => {
-  it("lists waitlist_entries next to bookings and keeps the handler shapes", async () => {
+  it("lists waitlist_entries next to bookings and keeps the handler shapes", () => {
     expect(privacy.tables).toEqual(["bookings", "waitlist_entries"]);
     expect(GDPR_REGISTRY.booking.tables).toContain("waitlist_entries");
-    await expect(privacy.export({} as never, "00000000-0000-4000-8000-000000000001")).resolves.toEqual({});
-    await expect(privacy.erase({} as never, "00000000-0000-4000-8000-000000000001")).resolves.toEqual([]);
+    // The handlers are real since booking-P6 (privacy.test.ts runs them on a test database);
+    // here only the registration's shape is checked.
+    expect(GDPR_REGISTRY.booking).toBe(privacy);
+    expect(typeof privacy.export).toBe("function");
+    expect(typeof privacy.erase).toBe("function");
   });
 });

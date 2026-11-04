@@ -220,8 +220,14 @@ export async function loadLegalLinks(db: DbOrTx, locale: Locale): Promise<LegalL
   return { privacy: url("privacy_notice"), terms: url("terms"), cookies: url("cookie_notice"), accessibility: url("accessibility_statement") };
 }
 
-/** Absolute URLs for email footers and checkout (cached with the route tags; recomputed outside Next). */
-export async function getLegalLinks(locale: Locale): Promise<LegalLinks> {
+/**
+ * Absolute URLs for email footers and checkout (cached with the route tags; recomputed outside
+ * Next). A caller inside a transaction passes it as `db` (OD-15): the read then runs on that
+ * transaction, uncached (`unstable_cache` cannot take a transaction), never on a second
+ * connection that would wait for it.
+ */
+export async function getLegalLinks(locale: Locale, db?: DbOrTx): Promise<LegalLinks> {
+  if (db) return loadLegalLinks(db, locale);
   const load = async () => loadLegalLinks(await getAppDb(), locale);
   const cached = unstable_cache(load, ["site:getLegalLinks", locale], { tags: ["site:routes", "site:pages", "site:settings"] });
   try {

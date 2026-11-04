@@ -3,7 +3,8 @@
  * and crm's link URLs.
  *
  * - `loadSendSettings(tx)`: `email_config`, `email_footer` and `company`.
- * - `legalLinksFor(locale)`: `site.getLegalLinks(locale)`; while site's implementation has not
+ * - `legalLinksFor(locale, tx)`: `site.getLegalLinks(locale, tx)`, read through the send
+ *   transaction (OD-15: a second connection would wait for it); while site's implementation has not
  *   landed (its stub throws `NotImplementedError`) the footer carries no legal links rather than
  *   failing every email.
  * - `footerFor(...)`: `buildFooter()` for the message's purpose (or `transactional`), with the
@@ -31,9 +32,9 @@ export async function loadSendSettings(tx: DbOrTx): Promise<SendSettings> {
   return { config: config, footer: footer, company: company as unknown as FooterCompany };
 }
 
-export async function legalLinksFor(locale: Locale): Promise<LegalLinks> {
+export async function legalLinksFor(locale: Locale, tx?: DbOrTx): Promise<LegalLinks> {
   try {
-    return await getLegalLinks(locale);
+    return await getLegalLinks(locale, tx);
   } catch (error) {
     if (error instanceof NotImplementedError) return { privacy: null, terms: null };
     throw error;
@@ -60,7 +61,7 @@ export async function footerFor(
     preferenceUrls: { preferencesUrl: string; unsubscribeUrl: string } | null;
   },
 ): Promise<FooterParts | null> {
-  const legalLinks = await legalLinksFor(input.locale);
+  const legalLinks = await legalLinksFor(input.locale, tx);
   const consentDate = input.purpose === "transactional" ? null : await consentDateOf(tx, input.personId, input.purpose);
   try {
     return buildFooter({

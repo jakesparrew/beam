@@ -1,4 +1,2 @@
 # <repo path> <fixer id> <reason>; the gate excludes these test files until the fixer lands
-apps/web/test/wave0-email.test.ts fix-w07-site-1 site-P5's getLegalLinks reads through getAppDb outside the send transaction; PGlite's single connection deadlocks every email send
-apps/web/modules/email/jobs.test.ts fix-w07-site-1 same deadlock (email.send, retry_soft_bounce, purge_props, check_domains, webhook handler)
 apps/web/modules/booking/queries/booking-p3a.queries.test.ts fix-w07-booking-1 forms-P3 made hasValidSubmission real; the test still expects the forms stub (CONVENTIONS rule 11)

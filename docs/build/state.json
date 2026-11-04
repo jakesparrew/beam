@@ -658,11 +658,14 @@
       "attempts": 0
     },
     "email-P4": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "baseSha": "9430fed",
       "runId": "wf_88daa4d5-5d3",
-      "startedAt": "2026-11-04T08:28:25Z"
+      "startedAt": "2026-11-04T08:28:25Z",
+      "branchSha": "8b82632",
+      "endedAt": "2026-11-04T09:09:09Z",
+      "minutes": 17
     },
     "automation-P4": {
       "status": "running",
@@ -676,8 +679,11 @@
       "attempts": 0
     },
     "site-P6": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "b8c322e",
+      "runId": "wf_73ebe2fc-d68",
+      "startedAt": "2026-11-04T09:09:10Z"
     },
     "commerce-P5": {
       "status": "merged",
@@ -744,11 +750,14 @@
       "attempts": 0
     },
     "booking-P6": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "baseSha": "9430fed",
       "runId": "wf_b20e3745-577",
-      "startedAt": "2026-11-04T08:28:24Z"
+      "startedAt": "2026-11-04T08:28:24Z",
+      "branchSha": "ae75e7e",
+      "endedAt": "2026-11-04T09:09:10Z",
+      "minutes": 36
     },
     "commerce-P6": {
       "status": "running",
@@ -758,11 +767,14 @@
       "startedAt": "2026-11-04T08:28:25Z"
     },
     "finance-P6": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "baseSha": "9430fed",
       "runId": "wf_551a9fa9-8b5",
-      "startedAt": "2026-11-04T08:28:24Z"
+      "startedAt": "2026-11-04T08:28:24Z",
+      "branchSha": "ce195d1",
+      "endedAt": "2026-11-04T09:09:09Z",
+      "minutes": 35
     },
     "forms-P7": {
       "status": "pending",
@@ -1411,7 +1423,7 @@
       "attempts": 0,
       "fixer": true,
       "module": "booking",
-      "goal": "crm-P7 made crm getReceptionCard real, so apps/web/modules/booking/queries/attendance.test.ts (getCheckinCard and getCheckinDay: shows the scanned booking with its guests, the payment due and the window flags) still expects receptionCard: null, the fallback booking used while the crm function was a stub. Fix the test, not the code: either vi.mock getReceptionCard from @/modules/crm/api to a card of the contract shape and assert booking passes it through, or assert the real card for the test person (customerNumber, name, status, declarations). Check the other tests in modules/booking for assertions on fallback values of crm, credits or forms functions that are now real (CONVENTIONS item 11) and fix them the same way. Remove the fix-w08-booking-2 line from docs/build/known-red.txt; run modules/booking with one worker.",
+      "goal": "crm-P7 made crm getReceptionCard real, so apps/web/modules/booking/queries/attendance.test.ts (getCheckinCard and getCheckinDay: shows the scanned booking with its guests, the payment due and the window flags) still expects receptionCard: null, the fallback booking used while the crm function was a stub. Fix the test, not the code: either vi.mock getReceptionCard from @/modules/crm/api to a card of the contract shape and assert booking passes it through, or assert the real card for the test person (customerNumber, name, status, declarations). Check the other tests in modules/booking for assertions on fallback values of crm, credits or forms functions that are now real (CONVENTIONS item 11) and fix them the same way. Remove the fix-w08-booking-2 line from docs/build/known-red.txt; run modules/booking with one worker. Also: booking-P6 made booking privacy export and erase real, so apps/web/modules/booking/fix-w05-schema-1.schedules.test.ts (lists waitlist_entries next to bookings and keeps the handler shapes) fails: it calls the handlers with a fake tx {} and expects {} and []. Drop or rewrite those two assertions (check the registration shape instead) and remove its known-red line too.",
       "from": [
         "booking-P4"
       ],
@@ -1421,7 +1433,8 @@
         "docs/build/known-red.txt"
       ],
       "dependsOn": [
-        "crm-P7"
+        "crm-P7",
+        "booking-P6"
       ]
     }
   }

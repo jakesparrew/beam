@@ -687,14 +687,16 @@
       "mergedAt": "2026-11-04T17:34:04Z"
     },
     "site-P4": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "b2e6063",
       "runId": "wf_97959bbb-9e8",
       "startedAt": "2026-11-04T19:49:31Z",
       "branchSha": "b2822ad",
-      "endedAt": "2026-11-04T21:08:27Z",
-      "minutes": 34
+      "endedAt": "2026-11-04T21:44:29Z",
+      "minutes": 34,
+      "mergeSha": "6e3b54f",
+      "mergedAt": "2026-11-04T21:59:36Z"
     },
     "site-P6": {
       "status": "merged",

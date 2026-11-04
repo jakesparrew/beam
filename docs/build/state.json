@@ -1706,7 +1706,7 @@
       "mergedAt": "2026-11-04T19:48:49Z"
     },
     "fix-w09-automation-review": {
-      "status": "done",
+      "status": "merged",
       "attempts": 2,
       "fixer": true,
       "module": "automation",
@@ -1723,8 +1723,10 @@
       "runId": "wf_46ca04ce-f06",
       "startedAt": "2026-11-04T19:32:44Z",
       "branchSha": "356f882",
-      "endedAt": "2026-11-04T19:49:31Z",
-      "minutes": 12
+      "endedAt": "2026-11-04T20:09:34Z",
+      "minutes": 12,
+      "mergeSha": "a943df5",
+      "mergedAt": "2026-11-04T20:23:46Z"
     },
     "fix-w09-ops-review": {
       "status": "done",
@@ -1743,7 +1745,7 @@
         "ops-P5"
       ],
       "branchSha": "08a1afd",
-      "endedAt": "2026-11-04T19:49:30Z",
+      "endedAt": "2026-11-04T19:49:31Z",
       "minutes": 31,
       "baseSha": "fa5ed8b",
       "runId": "wf_8e33788d-601",

@@ -20,7 +20,7 @@ import { LOCALES } from "@beam/core/i18n";
 import { renderEmail } from "@beam/email/render";
 import { TEMPLATE_REGISTRY } from "@beam/email/templates/registry";
 import type { TemplateDef } from "@beam/email/templates/define";
-import { and, asc, createCtx, eq, flushDurableWrites, type Actor, type Ctx } from "@/lib/ctx";
+import { and, asc, createCtx, eq, flushDurableWrites, sql, type Actor, type Ctx } from "@/lib/ctx";
 import type * as Alerts from "@/lib/alerts";
 import type { JobCtx } from "@/lib/job-runner";
 import type * as CommerceApi from "@/modules/commerce/api";
@@ -226,6 +226,12 @@ const eventsOf = (id: string) =>
     .where(and(eq(activityEvents.refType, "membership"), eq(activityEvents.refId, id)))
     .orderBy(asc(activityEvents.id));
 const jobsByKey = (key: string) => h.db.select().from(jobsTable).where(eq(jobsTable.idempotencyKey, key));
+const chargeJobsOf = (membershipId: string) =>
+  h.db
+    .select()
+    .from(jobsTable)
+    .where(and(eq(jobsTable.kind, "memberships.charge_renewal"), sql`${jobsTable.payload}->>'membershipId' = ${membershipId}`))
+    .orderBy(asc(jobsTable.createdAt), asc(jobsTable.id));
 const auditsOf = (id: string) => h.db.select({ action: auditLog.action }).from(auditLog).where(eq(auditLog.entityId, id)).orderBy(asc(auditLog.id));
 const sends = (membershipId: string) =>
   fx.sendTransactional.mock.calls.map((c) => c[1] as { template: string; key: string; data: Record<string, unknown> }).filter((s) => s.data.membershipId === membershipId);
@@ -371,14 +377,65 @@ async function charged(): Promise<Started & { renewalOrderId: string }> {
 }
 
 describe("renewal by mandate (rules 48, 49)", () => {
-  it("the scan at T-3 enqueues one charge with key renewal:<id>:<period_end>; before T-3 none", async () => {
+  it("the scan at T-3 enqueues one charge with key renewal:<id>:<period_end>:v<version>; before T-3 none", async () => {
     const { m } = await start({ mandate: true });
     expect(await scanOne(m.id, days(-4, m.currentPeriodEndAt))).toEqual([]);
     expect(await scanOne(m.id, days(-3, m.currentPeriodEndAt))).toEqual(["charge"]);
     expect(await scanOne(m.id, days(-3, m.currentPeriodEndAt))).toEqual(["charge"]);
-    const queued = await jobsByKey(`renewal:${m.id}:${endOn(m)}`);
+    const queued = await jobsByKey(`renewal:${m.id}:${endOn(m)}:v${m.version}`);
     expect(queued).toHaveLength(1);
     expect(queued[0]).toMatchObject({ kind: "memberships.charge_renewal", payload: { membershipId: m.id, periodEndOn: endOn(m), attempt: 1 } });
+    expect(await chargeJobsOf(m.id)).toHaveLength(1);
+  });
+
+  it("fix-w09-credits-review 1: cancel at period end then resume after the T-3 charge enqueues a new charge that creates a new renewal order", async () => {
+    const { m } = await start({ mandate: true });
+    const end = m.currentPeriodEndAt;
+    expect(await scanOne(m.id, days(-3, end))).toEqual(["charge"]);
+    const [job1] = await chargeJobsOf(m.id);
+    const p1 = job1!.payload as { membershipId: string; periodEndOn: string; attempt: 1 };
+    expect(await runJob("memberships.charge_renewal", days(-3, end), (ctx) => runChargeRenewal(ctx, p1))).toMatchObject({ charged: true });
+    const firstOrderId = (await row(m.id)).renewalOrderId!;
+    expect(firstOrderId).toBeTruthy();
+
+    await requestCancel(tx(), ctxAt(days(-2, end)), { membershipId: m.id, by: "customer" });
+    expect(fx.cancelRenewalOrder).toHaveBeenCalledWith(expect.anything(), expect.anything(), { orderId: firstOrderId, reason: "membership_cancelled" });
+    renewalOrders.delete(`${m.id}:${endOn(m)}`); // commerce cancelled the order: the next charge opens a new one
+    expect(await row(m.id)).toMatchObject({ renewalOrderId: null });
+    await resume(tx(), ctxAt(days(-2, end)), { membershipId: m.id });
+
+    expect(await scanOne(m.id, days(-1, end))).toEqual(["charge"]);
+    const queued = await chargeJobsOf(m.id);
+    expect(queued).toHaveLength(2);
+    const job2 = queued.find((j) => j.id !== job1!.id)!;
+    expect(job2).toMatchObject({ status: "pending", payload: { membershipId: m.id, periodEndOn: endOn(m), attempt: 1 } });
+    const r = await runJob("memberships.charge_renewal", days(-1, end), (ctx) => runChargeRenewal(ctx, job2.payload as typeof p1));
+    expect(r).toMatchObject({ charged: true });
+    const after = await row(m.id);
+    expect(after.renewalOrderId).toBeTruthy();
+    expect(after.renewalOrderId).not.toBe(firstOrderId);
+    const [o] = await h.db.select({ status: orders.status }).from(orders).where(eq(orders.id, after.renewalOrderId!));
+    expect(o!.status).toBe("pending_payment");
+    // A further scan the same day changes nothing (the open order blocks attempt 1).
+    expect(await scanOne(m.id, days(-1, end))).toEqual([]);
+    expect(await chargeJobsOf(m.id)).toHaveLength(2);
+  });
+
+  it("fix-w09-credits-review 1: a no_mandate charge run does not block the charge once the person adds a new mandate", async () => {
+    const { m, personId } = await start({ mandate: true });
+    const end = m.currentPeriodEndAt;
+    expect(await scanOne(m.id, days(-3, end))).toEqual(["charge"]);
+    const [job1] = await chargeJobsOf(m.id);
+    const p1 = job1!.payload as { membershipId: string; periodEndOn: string; attempt: 1 };
+    const mandateId = mandated.get(personId)!;
+    mandated.delete(personId);
+    expect(await runJob("memberships.charge_renewal", days(-3, end), (ctx) => runChargeRenewal(ctx, p1))).toMatchObject({ charged: false, reason: "no_mandate" });
+    mandated.set(personId, mandateId);
+    expect(await scanOne(m.id, days(-2, end))).toEqual(["charge"]);
+    const job2 = (await chargeJobsOf(m.id)).find((j) => j.id !== job1!.id);
+    expect(job2).toBeDefined();
+    expect(await runJob("memberships.charge_renewal", days(-2, end), (ctx) => runChargeRenewal(ctx, job2!.payload as typeof p1))).toMatchObject({ charged: true });
+    expect((await row(m.id)).renewalOrderId).toBeTruthy();
   });
 
   it("memberships.charge_renewal calls createRecurringCharge once and stores renewal_order_id; a second run charges nothing", async () => {

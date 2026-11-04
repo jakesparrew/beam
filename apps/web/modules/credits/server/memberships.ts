@@ -1064,17 +1064,25 @@ export async function extendPeriod(
 // The daily scan and the charge job (rules 45, 48, 50, 52, 53, 56)
 // ---------------------------------------------------------------------------
 
-/** `renewal:<membership_id>:<period_end date>` (attempt 1, architecture) and `...:attempt:<n>` for retries. */
+/** `renewal:<membership_id>:<period_end date>` (attempt 1, architecture; the scan adds `:v<version>`) and `...:attempt:<n>` for retries. */
 export function renewalJobKey(membershipId: string, periodEndOn: string, attempt: number): string {
   return attempt === 1 ? `renewal:${membershipId}:${periodEndOn}` : `renewal:${membershipId}:${periodEndOn}:attempt:${attempt}`;
 }
 
+/**
+ * Enqueues `memberships.charge_renewal`. The scan's attempt 1 carries the membership `version`
+ * (`renewal:<id>:<period_end>:v<version>`): scans of an unchanged row hit the same job, while a
+ * row whose earlier job was used up (cancel then resume, a `no_mandate` run: each bumps
+ * `version`) gets a new one. `chargeRenewal` re-checks `renewal_order_id` and `cancel_at`, so an
+ * extra job charges nothing.
+ */
 async function enqueueCharge(ctx: Ctx, m: MembershipRow, attempt: 1 | 2 | 3): Promise<void> {
   const periodEndOn = dateKey(m.currentPeriodEndAt);
+  const key = renewalJobKey(m.id, periodEndOn, attempt);
   await ctx.enqueue({
     kind: "memberships.charge_renewal",
     payload: { membershipId: m.id, periodEndOn, attempt },
-    key: renewalJobKey(m.id, periodEndOn, attempt),
+    key: attempt === 1 ? `${key}:v${m.version}` : key,
   });
 }
 

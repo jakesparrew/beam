@@ -358,14 +358,16 @@
       "mergedAt": "2026-11-04T04:10:00Z"
     },
     "forms-P3": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "a8d4d68",
       "runId": "wf_46554cd4-776",
       "startedAt": "2026-11-04T05:51:03Z",
       "branchSha": "bbbabd6",
-      "endedAt": "2026-11-04T07:36:56Z",
-      "minutes": 56
+      "endedAt": "2026-11-04T07:40:09Z",
+      "minutes": 56,
+      "mergeSha": "48a8704",
+      "mergedAt": "2026-11-04T07:54:20Z"
     },
     "email-P2": {
       "status": "merged",
@@ -514,24 +516,28 @@
       "mergedAt": "2026-11-04T05:49:23Z"
     },
     "automation-P3": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "40fc2b1",
       "runId": "wf_942f7006-bb6",
       "startedAt": "2026-11-04T06:46:08Z",
       "branchSha": "a6b340c",
-      "endedAt": "2026-11-04T07:39:40Z",
-      "minutes": 41
+      "endedAt": "2026-11-04T07:40:09Z",
+      "minutes": 41,
+      "mergeSha": "f70e4e8",
+      "mergedAt": "2026-11-04T07:54:42Z"
     },
     "ops-P3": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "40fc2b1",
       "runId": "wf_abc46e06-2cc",
       "startedAt": "2026-11-04T06:46:08Z",
       "branchSha": "0528ee4",
-      "endedAt": "2026-11-04T07:26:08Z",
-      "minutes": 36
+      "endedAt": "2026-11-04T07:40:09Z",
+      "minutes": 36,
+      "mergeSha": "42347c3",
+      "mergedAt": "2026-11-04T07:54:26Z"
     },
     "ops-P6": {
       "status": "running",
@@ -567,24 +573,28 @@
       "startedAt": "2026-11-04T07:25:56Z"
     },
     "booking-P4": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "40fc2b1",
       "runId": "wf_13d43758-2a2",
       "startedAt": "2026-11-04T06:46:08Z",
       "branchSha": "35d9ea6",
-      "endedAt": "2026-11-04T07:26:08Z",
-      "minutes": 35
+      "endedAt": "2026-11-04T07:40:09Z",
+      "minutes": 35,
+      "mergeSha": "47641e9",
+      "mergedAt": "2026-11-04T07:54:31Z"
     },
     "booking-P5": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "40fc2b1",
       "runId": "wf_29f4843d-832",
       "startedAt": "2026-11-04T06:46:08Z",
       "branchSha": "965a4ef",
-      "endedAt": "2026-11-04T07:26:08Z",
-      "minutes": 36
+      "endedAt": "2026-11-04T07:40:09Z",
+      "minutes": 36,
+      "mergeSha": "1a10d6a",
+      "mergedAt": "2026-11-04T07:54:36Z"
     },
     "commerce-P4b": {
       "status": "merged",
@@ -1288,7 +1298,7 @@
       ]
     },
     "fix-w07-site-1": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "fixer": true,
       "module": "site",
@@ -1308,8 +1318,10 @@
       "runId": "wf_89916093-139",
       "startedAt": "2026-11-04T07:25:56Z",
       "branchSha": "d86f8ab",
-      "endedAt": "2026-11-04T07:39:40Z",
-      "minutes": 6
+      "endedAt": "2026-11-04T07:40:09Z",
+      "minutes": 6,
+      "mergeSha": "a4b1b87",
+      "mergedAt": "2026-11-04T07:54:52Z"
     },
     "fix-w07-crm-1": {
       "status": "pending",

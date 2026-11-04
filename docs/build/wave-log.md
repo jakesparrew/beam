@@ -128,3 +128,10 @@ One entry per merge batch and gate (runbook section 5.7, adapted by OD-3).
 - commerce-P4b: merged as `13ab9d3` in batch `g51-batch`.
 - Batch `g51-batch` (site-P5 crm-P5 crm-P4 credits-P5 finance-P4 commerce-P4b): merge gate green, peak 3747 MB.
 - OD-14: batches g40 (finance-P2), g42 (automation-P2) and g51 ran no web tests (all-digit short SHA passed to `vitest --changed`). Gate fixed; quick gate `g52-quick` runs every suite on the head to cover them.
+- forms-P3: merged as `48a8704` in batch `g55-batch`.
+- ops-P3: merged as `42347c3` in batch `g55-batch`.
+- booking-P4: merged as `47641e9` in batch `g55-batch`.
+- booking-P5: merged as `1a10d6a` in batch `g55-batch`.
+- automation-P3: merged as `f70e4e8` in batch `g55-batch`.
+- fix-w07-site-1: merged as `a4b1b87` in batch `g55-batch`.
+- Batch `g55-batch` (forms-P3 ops-P3 booking-P4 booking-P5 automation-P3 fix-w07-site-1): merge gate green, peak 6550 MB.

@@ -18,7 +18,6 @@ import {
   automationVersions,
   persons,
   roles,
-  segmentMembers,
   segments,
   tags,
   users,
@@ -488,7 +487,7 @@ export async function listGroups(db: DbOrTx): Promise<GroupRow[]> {
       isExclusive: automationGroups.isExclusive,
       lane: automationGroups.lane,
       priority: automationGroups.priority,
-      automationCount: sql<number>`(select count(*) from automations a where a.group_id = ${automationGroups.id} and a.status <> 'archived')`.mapWith(Number),
+      automationCount: sql<number>`(select count(*) from automations a where a.group_id = "automation_groups"."id" and a.status <> 'archived')`.mapWith(Number),
     })
     .from(automationGroups)
     .orderBy(asc(automationGroups.priority), asc(automationGroups.key));
@@ -508,7 +507,7 @@ export async function listSegmentOptions(db: DbOrTx): Promise<{ id: string; name
     .select({
       id: segments.id,
       name: segments.name,
-      memberCount: sql<number>`(select count(*) from ${segmentMembers} sm where sm.segment_id = ${segments.id})`.mapWith(Number),
+      memberCount: sql<number>`(select count(*) from segment_members sm where sm.segment_id = "segments"."id")`.mapWith(Number),
     })
     .from(segments)
     .where(eq(segments.isArchived, false))

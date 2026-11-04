@@ -330,7 +330,7 @@ export const enrolSegment = action(
     const a = await lockAutomation(ctx.tx, input.automationId);
     if (a.status !== "active") throw new ConflictError(`automation_not_active:${a.status}`);
     const [segment] = await ctx.tx
-      .select({ id: segments.id, isArchived: segments.isArchived, count: sql<number>`(select count(*) from segment_members sm where sm.segment_id = ${segments.id})`.mapWith(Number) })
+      .select({ id: segments.id, isArchived: segments.isArchived, count: sql<number>`(select count(*) from segment_members sm where sm.segment_id = "segments"."id")`.mapWith(Number) })
       .from(segments)
       .where(eq(segments.id, input.segmentId));
     if (!segment) throw new NotFoundError("segment_not_found");

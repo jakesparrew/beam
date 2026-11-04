@@ -10,7 +10,7 @@ import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createTestDb, makePerson } from "@beam/db/testing";
 import type { DbHandle } from "@beam/db";
-import { automationEnrolments, automationRuns, automationVersions } from "@beam/db/schema";
+import { automationEnrolments, automationRuns, automations, automationVersions } from "@beam/db/schema";
 import type { Definition } from "@beam/core/automation";
 import type * as EmailApi from "@/modules/email/api";
 
@@ -22,7 +22,7 @@ vi.mock("@/modules/email/api", async (orig) => ({
 }));
 
 const q = await import("./queries");
-const { eq, setAppDb, sql } = await import("@/lib/ctx");
+const { eq, setAppDb } = await import("@/lib/ctx");
 const { resetRuntime, staffActor } = await import("@/lib/testing");
 const { def, makeAutomation, makeGroup } = await import("./engine/automation-p2.fixtures");
 
@@ -69,10 +69,10 @@ describe("automation-P5 queries", () => {
   });
 
   it("getAutomation returns draft issues and whether the draft differs from the published version", async () => {
-    const a = await makeAutomation(handle.db, { definition: emailDef(0), draftDefinition: emailDef(0) });
-    // The fixture's version hash is random, so a draft equal to the definition still "differs" until published by the action.
-    const [v] = await handle.db.select().from(automationVersions).where(eq(automationVersions.automationId, a.id));
-    await handle.db.execute(sql`update automation_versions set definition_hash = ${q.definitionHash(emailDef(0))} where id = ${v!.id}`);
+    // A version row is immutable, so it is written once with the real hash of its definition.
+    const a = await makeAutomation(handle.db, { unpublished: true, draftDefinition: emailDef(0) });
+    const [v] = await handle.db.insert(automationVersions).values({ automationId: a.id, version: 1, definition: emailDef(0), definitionHash: q.definitionHash(emailDef(0)) }).returning();
+    await handle.db.update(automations).set({ currentVersionId: v!.id, status: "active" }).where(eq(automations.id, a.id));
     const same = await q.getAutomation(handle.db, { id: a.id });
     expect(same).toMatchObject({ draftDiffers: false, draftIssues: [] });
     expect(same!.currentVersion).toMatchObject({ version: 1 });

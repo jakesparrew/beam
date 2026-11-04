@@ -118,7 +118,9 @@ describe("legacy WordPress paths answer 410 Gone (site-P2 request)", () => {
 
   it("the matcher sends the legacy .php files to the proxy", async () => {
     const { config } = await import("./proxy");
-    const { pathToRegexp } = (await import("next/dist/compiled/path-to-regexp")) as unknown as { pathToRegexp: (p: string) => RegExp };
+    // Next compiles `config.matcher` with its bundled path-to-regexp (no type declarations).
+    const { createRequire } = await import("node:module");
+    const { pathToRegexp } = createRequire(import.meta.url)("next/dist/compiled/path-to-regexp") as { pathToRegexp: (p: string) => RegExp };
     const matches = (path: string) => config.matcher.some((m) => pathToRegexp(m).test(path));
     expect(matches("/wp-login.php")).toBe(true);
     expect(matches("/nl/xmlrpc.php")).toBe(true);

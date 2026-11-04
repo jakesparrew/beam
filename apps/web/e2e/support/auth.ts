@@ -3,6 +3,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, type Locator, type Page, type Response } from "@playwright/test";
 import { TOTP, Secret } from "otpauth";
+import { sql } from "drizzle-orm";
+import { e2eRows } from "./db";
 import { latestEmail } from "./sink";
 
 export type DemoRole =
@@ -84,9 +86,21 @@ export async function demoTotp(previous?: string): Promise<string> {
   return code;
 }
 
-let lastCode: string | undefined;
+/**
+ * Waits until the current TOTP step is later than the last step the server accepted for the
+ * user (`rate_limits` row `totp_used:<user id>`), so a code is never a replay. The server's
+ * counter is the truth: a Playwright retry runs in a new worker without any in-memory state.
+ */
+async function waitForFreshTotpStep(email: string): Promise<void> {
+  const [row] = await e2eRows<{ c: string | number | null }>(
+    sql`select floor(extract(epoch from r.window_start) / 30)::bigint as c from rate_limits r
+      join users u on r.key = 'totp_used:' || u.id::text where lower(u.email) = ${email.toLowerCase()}`,
+  );
+  const used = row?.c == null ? -1 : Number(row.c);
+  while (Math.floor(Date.now() / 30_000) <= used) await new Promise((r) => setTimeout(r, 1000));
+}
 
-/** Signs a demo staff user in: password from `DEMO_STAFF_PASSWORD`, then a TOTP from `DEMO_TOTP_SECRET`. */
+/** Signs a demo staff user in: password from `DEMO_STAFF_PASSWORD`, then a TOTP from `DEMO_TOTP_SECRET`. Callers close the e2e database in `afterAll` (`closeE2eDb()`). */
 export async function signInStaff(page: Page, role: DemoRole, opts: { returnTo?: string } = {}): Promise<void> {
   const password = process.env.DEMO_STAFF_PASSWORD;
   if (!password) throw new Error("DEMO_STAFF_PASSWORD is not set");
@@ -96,8 +110,8 @@ export async function signInStaff(page: Page, role: DemoRole, opts: { returnTo?:
   await submitAndWait(page);
   await waitForUrlOrFormError(page, /\/admin\/mfa\/verify/, `Password sign-in of ${demoStaffEmail(role)}`);
   // A code is accepted once per 30-second step (replay protection), so wait for a fresh one.
-  lastCode = await demoTotp(lastCode);
-  await page.locator('input[name="code"]').fill(lastCode);
+  await waitForFreshTotpStep(demoStaffEmail(role));
+  await page.locator('input[name="code"]').fill(await demoTotp());
   await submitAndWait(page);
   await waitForUrlOrFormError(page, (url) => !url.pathname.startsWith("/admin/mfa"), `TOTP step of ${demoStaffEmail(role)}`);
 }

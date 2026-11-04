@@ -88,7 +88,7 @@ describe("platform privacy registration", () => {
     expect(await handle.db.select().from(aiRequests).where(eq(aiRequests.personId, other.person.id))).toHaveLength(1);
   });
 
-  it("declares valid retention policies with a sweep for each", async () => {
+  it("declares valid retention policies with a sweep for each", () => {
     for (const seed of privacy.retention ?? []) {
       expect(isValidRetentionSeed(seed)).toBe(true);
       expect(privacy.sweep?.[seed.key]).toBeTypeOf("function");

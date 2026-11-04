@@ -3,7 +3,7 @@
  * aliases map to them (`callClaude`, `storeFile`, `listStaffForAssignment`, `ctx.integrationLog`).
  */
 import type { DbOrTx } from "@beam/db";
-import { NotImplementedError, ForbiddenError } from "@beam/core/errors";
+import { ForbiddenError } from "@beam/core/errors";
 import { isGateComplete, type GoLiveGate } from "@beam/core/platform";
 import type { RoleKey } from "@beam/db/schema";
 import { actorHasPermission, ConflictError, sql, type Ctx } from "@/lib/ctx";
@@ -13,6 +13,7 @@ import { aiSpendThisMonthCents, databaseSizeBytes, filesSizeBytes, filesSizeLeve
 import { getSetting } from "@/lib/settings";
 import { rowsOf } from "@/lib/sensitive";
 import type { Permission } from "@/registry/types.generated";
+import { runAiReadOnlyQuery as runAiSql } from "./ai-sql";
 
 export { recordEvent } from "@/lib/events";
 export { audit } from "@/lib/audit";
@@ -175,9 +176,14 @@ export async function setFileExpiry(tx: DbOrTx, fileIds: readonly string[], expi
   return rows.length;
 }
 
-/** R4 (platform-P10). */
+/**
+ * R4 (platform-P10): runs one Claude-written statement read-only as `beam_ai_ro` (ops' NL
+ * questions, after their `validateAiSql`). The runner re-checks it with `assertAiSqlSafe`,
+ * caps 1,000 rows, times out at 5 s and logs the SQL in `ai_requests.prompt`. Throws
+ * `AiSqlRejectedError` or `AiSqlRunError` (both permanent).
+ */
 export function runAiReadOnlyQuery(ctx: JobCtx, sqlText: string): Promise<{ columns: string[]; rows: unknown[][] }> {
-  void ctx;
-  void sqlText;
-  return Promise.reject(new NotImplementedError("platform.runAiReadOnlyQuery (R4, platform-P10)"));
+  return runAiSql(ctx, sqlText);
 }
+export { AiSqlRunError, AI_SQL_MAX_ROWS, type AiSqlFailure } from "./ai-sql";
+export { AiSqlRejectedError, AI_SQL_FUNCTIONS } from "@beam/core/ai";

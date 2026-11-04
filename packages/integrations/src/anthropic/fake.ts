@@ -7,7 +7,7 @@ import { digestRequest } from "../_shared/digest";
 import { IntegrationError } from "../_shared/errors";
 import { trackCall } from "../_shared/timeout";
 import { noopOnCall, type FakeCall, type OnCall } from "../_shared/types";
-import type { ClaudeBatch, ClaudeBatchItem, ClaudeBatchResult, ClaudeClient, ClaudeRequest, ClaudeResponse } from "./client";
+import { assertBatchItems, type ClaudeBatch, type ClaudeBatchItem, type ClaudeBatchResult, type ClaudeClient, type ClaudeRequest, type ClaudeResponse } from "./client";
 
 /** A scripted answer: text (JSON is serialised), or a function of the request. */
 export type ClaudeScript = string | Record<string, unknown> | ((request: ClaudeRequest) => string | Record<string, unknown>);
@@ -52,23 +52,50 @@ export type ClaudeFake = ClaudeClient & {
   readonly calls: FakeCall<ClaudeRequest>[];
   /** Replace the answer for a feature (until `reset`). */
   script(feature: string, answer: ClaudeScript): void;
-  /** The next call fails this way (tests only). */
+  /** The next call fails this way (tests only). Also applies to the next `createBatch`. */
   failNext(kind: ClaudeFailure): void;
+  /** Every batch created, in order, with its requests (R4). */
+  readonly batches: FakeBatch[];
+  /**
+   * Batches created from now on stay `in_progress` for this many `getBatch` polls before they
+   * end (default 0: the first poll reports `ended`), so a collect job's re-enqueue can be tested.
+   */
+  holdBatches(polls: number): void;
+  /** The batch request with this `customId` does not succeed (`refusal` succeeds with a refusal stop). */
+  failBatchItem(customId: string, kind: ClaudeBatchItemFailure): void;
   reset(): void;
 };
+
+/** How one batch request ends when it does not succeed normally. */
+export type ClaudeBatchItemFailure = "refusal" | "errored" | "expired" | "canceled";
+
+export type FakeBatch = { id: string; items: readonly ClaudeBatchItem[]; polled: number; holdPolls: number; at: Date };
 
 /** About four characters per token, as for English and Dutch text. */
 export function estimateTokens(text: string): number {
   return Math.max(1, Math.ceil(text.length / 4));
 }
 
-export function createClaudeFake(options: { onCall?: OnCall; now?: () => Date } = {}): ClaudeFake {
+/** Fisher-Yates on a copy: the Batches API returns results in any order. */
+function shuffled<T>(items: readonly T[], random: () => number): T[] {
+  const out = [...items];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [out[i], out[j]] = [out[j]!, out[i]!];
+  }
+  return out;
+}
+
+export function createClaudeFake(options: { onCall?: OnCall; now?: () => Date; random?: () => number } = {}): ClaudeFake {
   const onCall = options.onCall ?? noopOnCall;
   const now = options.now ?? (() => new Date());
+  const random = options.random ?? Math.random;
   const scripts = new Map<string, ClaudeScript>();
   const failures: ClaudeFailure[] = [];
   const calls: FakeCall<ClaudeRequest>[] = [];
-  const batches = new Map<string, { items: readonly ClaudeBatchItem[]; polled: number }>();
+  const batches: FakeBatch[] = [];
+  const itemFailures = new Map<string, ClaudeBatchItemFailure>();
+  let holdPolls = 0;
   let batchSeq = 0;
 
   const answer = (request: ClaudeRequest): string => {
@@ -111,17 +138,17 @@ export function createClaudeFake(options: { onCall?: OnCall; now?: () => Date } 
     };
   };
 
-  const fail = (kind: ClaudeFailure): IntegrationError => {
+  const fail = (kind: ClaudeFailure, operation = "messages.create"): IntegrationError => {
     const table = {
-      overloaded: { statusCode: 529, retryable: true, message: "anthropic messages.create failed with 529: overloaded" },
-      rate_limited: { statusCode: 429, retryable: true, message: "anthropic messages.create failed with 429: rate limited" },
-      bad_request: { statusCode: 400, retryable: false, message: "anthropic messages.create failed with 400: invalid request" },
-      network: { statusCode: undefined, retryable: true, message: "anthropic messages.create: connection reset" },
+      overloaded: { statusCode: 529, retryable: true, message: `anthropic ${operation} failed with 529: overloaded` },
+      rate_limited: { statusCode: 429, retryable: true, message: `anthropic ${operation} failed with 429: rate limited` },
+      bad_request: { statusCode: 400, retryable: false, message: `anthropic ${operation} failed with 400: invalid request` },
+      network: { statusCode: undefined, retryable: true, message: `anthropic ${operation}: connection reset` },
     } as const;
     const row = table[kind as keyof typeof table];
     return new IntegrationError({
       provider: "anthropic",
-      operation: "messages.create",
+      operation,
       retryable: row.retryable,
       message: row.message,
       ...(row.statusCode === undefined ? { code: "network" } : { statusCode: row.statusCode }),
@@ -154,27 +181,74 @@ export function createClaudeFake(options: { onCall?: OnCall; now?: () => Date } 
     failNext(kind) {
       failures.push(kind);
     },
+    batches,
+    holdBatches(polls) {
+      holdPolls = Math.max(0, Math.floor(polls));
+    },
+    failBatchItem(customId, kind) {
+      itemFailures.set(customId, kind);
+    },
     reset() {
       scripts.clear();
       failures.length = 0;
       calls.length = 0;
-      batches.clear();
+      batches.length = 0;
+      itemFailures.clear();
+      holdPolls = 0;
     },
     createBatch(items): Promise<ClaudeBatch> {
-      const id = `fake_batch_${++batchSeq}`;
-      batches.set(id, { items, polled: 0 });
-      return Promise.resolve({ id, status: "in_progress" });
+      const operation = "batches.create";
+      const failure = failures.shift();
+      const features = [...new Set(items.map((i) => i.request.feature))].sort();
+      return trackCall(
+        onCall,
+        { provider: "anthropic", operation, requestDigest: digestRequest({ method: "POST", path: "/v1/messages/batches", params: { count: items.length, features } }) },
+        () => {
+          if (failure && failure !== "refusal") throw fail(failure, operation);
+          assertBatchItems(items, operation);
+          const id = `fake_batch_${++batchSeq}`;
+          batches.push({ id, items: [...items], polled: 0, holdPolls, at: now() });
+          return { value: { id, status: "in_progress" as const }, statusCode: 200 };
+        },
+      );
     },
     getBatch(id): Promise<ClaudeBatch> {
-      const batch = batches.get(id);
-      if (!batch) return Promise.reject(new IntegrationError({ provider: "anthropic", operation: "batches.get", retryable: false, statusCode: 404, message: "batch not found" }));
-      batch.polled += 1;
-      return Promise.resolve({ id, status: batch.polled >= 1 ? "ended" : "in_progress" });
+      const operation = "batches.retrieve";
+      return trackCall(
+        onCall,
+        { provider: "anthropic", operation, requestDigest: digestRequest({ method: "GET", path: "/v1/messages/batches/:id", params: { id } }) },
+        () => {
+          const batch = batches.find((b) => b.id === id);
+          if (!batch) throw notFound(operation);
+          batch.polled += 1;
+          return { value: { id, status: batch.polled > batch.holdPolls ? ("ended" as const) : ("in_progress" as const) }, statusCode: 200 };
+        },
+      );
     },
     getBatchResults(id): Promise<ClaudeBatchResult[]> {
-      const batch = batches.get(id);
-      if (!batch) return Promise.reject(new IntegrationError({ provider: "anthropic", operation: "batches.results", retryable: false, statusCode: 404, message: "batch not found" }));
-      return Promise.resolve(batch.items.map((item) => ({ customId: item.customId, response: respond(item.request, undefined), error: null })));
+      const operation = "batches.results";
+      return trackCall(
+        onCall,
+        { provider: "anthropic", operation, requestDigest: digestRequest({ method: "GET", path: "/v1/messages/batches/:id/results", params: { id } }) },
+        () => {
+          const batch = batches.find((b) => b.id === id);
+          if (!batch) throw notFound(operation);
+          if (batch.polled <= batch.holdPolls) {
+            throw new IntegrationError({ provider: "anthropic", operation, retryable: true, statusCode: 409, message: `anthropic ${operation} failed with 409: batch still in progress` });
+          }
+          const results = batch.items.map((item): ClaudeBatchResult => {
+            const failure = itemFailures.get(item.customId);
+            if (failure === "refusal") return { customId: item.customId, response: respond(item.request, "refusal"), error: null };
+            if (failure === "errored") return { customId: item.customId, response: null, error: "errored:overloaded_error: Overloaded" };
+            if (failure) return { customId: item.customId, response: null, error: failure };
+            return { customId: item.customId, response: respond(item.request, undefined), error: null };
+          });
+          return { value: shuffled(results, random), statusCode: 200 };
+        },
+      );
     },
   };
 }
+
+const notFound = (operation: string) =>
+  new IntegrationError({ provider: "anthropic", operation, retryable: false, statusCode: 404, message: `anthropic ${operation} failed with 404: batch not found` });

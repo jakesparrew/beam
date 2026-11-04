@@ -73,6 +73,8 @@ export const webhookEventsProvider = pgEnum("webhook_events_provider", [
   "mollie",
   "resend",
   "billit",
+  // R3 (platform-P9): crm's unified inbox (Messenger and Instagram webhooks).
+  "meta",
 ]);
 export const integrationCallsProvider = pgEnum("integration_calls_provider", [
   "mollie",
@@ -87,6 +89,10 @@ export const integrationCallsProvider = pgEnum("integration_calls_provider", [
   "slack",
   "betterstack",
   "wordpress",
+  // R3 (platform-P9): the Meta messaging API of crm's unified inbox (distinct from `meta_ads`).
+  "meta",
+  // automation's `automation.call_webhook` step (automation spec section 6, request of automation-P3).
+  "webhook",
 ]);
 export const featureFlagsState = pgEnum("feature_flags_state", [
   "off",

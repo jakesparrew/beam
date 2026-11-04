@@ -38,6 +38,8 @@ import * as segments from "./server/segments";
 import * as send from "./server/send";
 import * as templates from "./server/templates-info";
 
+export { unsubscribeLinksFor, type UnsubscribeLinks, type UnsubscribeLinksInput } from "./server/unsubscribe-links";
+
 export type {
   AutomationEmailInput,
   AutomationEmailResult,

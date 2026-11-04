@@ -246,8 +246,11 @@
       "attempts": 0
     },
     "booking-P3a": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "e3ba1e4",
+      "runId": "wf_c060c9e6-60a",
+      "startedAt": "2026-11-04T01:19:11Z"
     },
     "commerce-P3": {
       "status": "pending",

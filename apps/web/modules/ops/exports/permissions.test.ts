@@ -57,7 +57,7 @@ describe("exports, retention and DPIA permissions (ops spec section 7)", () => {
     await signInStaff(h.db, jar, ["persons.export", "invoices.read"], "finance" as never);
     expect(await actions.createExport({ kind: "entity", entity: "invoices" })).toMatchObject({ ok: true });
     expect(await actions.createExport({ kind: "entity", entity: "tags", filters: { segmentId: "00000000-0000-4000-8000-000000000000" } })).toMatchObject({ ok: false, error: { code: "validation" } });
-    expect(await actions.createExport({ kind: "entity" } as never)).toMatchObject({ ok: false, error: { code: "validation" } });
+    expect(await actions.createExport({ kind: "entity" })).toMatchObject({ ok: false, error: { code: "validation" } });
   });
 
   it("retention policies need privacy.run; keep has no days, accounting keys stay at 3653 days; changes are audited", async () => {

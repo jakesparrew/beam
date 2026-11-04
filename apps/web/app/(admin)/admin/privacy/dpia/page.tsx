@@ -29,13 +29,16 @@ export default async function DpiaRegisterPage({ searchParams }: { searchParams:
   async function save(fd: FormData) {
     "use server";
     const actor = await requireStaff({ permission: "settings.write" });
-    const key = String(fd.get("key") ?? "") as DpiaKey;
-    const status = String(fd.get("status") ?? "") as DpiaStatus;
-    const text = (k: string) => (typeof fd.get(k) === "string" ? String(fd.get(k)) : undefined);
+    const text = (k: string) => {
+      const v = fd.get(k);
+      return typeof v === "string" ? v : undefined;
+    };
+    const key = (text("key") ?? "") as DpiaKey;
+    const status = (text("status") ?? "") as DpiaStatus;
     let documentFileId: string | undefined;
     const doc = fd.get("document");
     if (doc instanceof File && doc.size > 0) {
-      if (doc.size > MAX_DOCUMENT_BYTES || doc.type !== "application/pdf") redirect("/admin/privacy/dpia?error=validation" as never);
+      if (doc.size > MAX_DOCUMENT_BYTES || doc.type !== "application/pdf") redirect("/admin/privacy/dpia?error=validation");
       const bytes = new Uint8Array(await doc.arrayBuffer());
       const appDb = await getAppDb();
       documentFileId = await appDb.transaction(async (tx) => {

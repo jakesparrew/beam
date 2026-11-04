@@ -108,9 +108,7 @@ describe("retention sweep (ops rule 68)", () => {
             rewrite.push(rowsOf<{ v: string }>(await tx.execute(sql`select current_setting('beam.allow_rewrite', true) as v`))[0]!.v);
             return sizes.shift() ?? 0;
           },
-          "crm.t_boom": async () => {
-            throw new Error("boom");
-          },
+          "crm.t_boom": () => Promise.reject(new Error("boom")),
         },
       },
     };
@@ -130,7 +128,7 @@ describe("retention sweep (ops rule 68)", () => {
   });
 
   it("continues in a new job when the call budget is spent, keyed retention:<runOn>:<key>:<n>", async () => {
-    const registry = { crm: { sweep: { "crm.t_long": async () => 2 } } };
+    const registry = { crm: { sweep: { "crm.t_long": () => Promise.resolve(2) } } };
     await policy("crm.t_long", { runOrder: 1, batchSize: 2 });
     const result = await sweepRetention(ctx(), { runOn: "2026-11-04" }, { registry, maxCallsPerJob: 3 });
     expect(result.policies[0]).toMatchObject({ key: "crm.t_long", rows: 6, calls: 3, continued: true });

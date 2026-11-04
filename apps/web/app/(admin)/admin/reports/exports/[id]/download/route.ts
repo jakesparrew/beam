@@ -13,6 +13,22 @@ import { getExportForDownload, readExportPart } from "@/modules/ops/exports/quer
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/** One chunk as the async stream a zip entry takes. */
+function once(bytes: Uint8Array): AsyncIterable<Uint8Array> {
+  return {
+    [Symbol.asyncIterator]() {
+      let done = false;
+      return {
+        next: () => {
+          const result: IteratorResult<Uint8Array> = done ? { done: true, value: undefined } : { done: false, value: bytes };
+          done = true;
+          return Promise.resolve(result);
+        },
+      };
+    },
+  };
+}
+
 const text = (body: string, status: number) => new Response(body, { status, headers: { "cache-control": "no-store" } });
 
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }): Promise<Response> {
@@ -37,12 +53,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     for (const part of exp!.parts) {
       const bytes = await readExportPart(db, part.fileId);
       if (!bytes) continue;
-      yield {
-        name: part.name,
-        data: (async function* () {
-          yield bytes;
-        })(),
-      };
+      yield { name: part.name, data: once(bytes) };
     }
   }
   const zip = zipStore(entries());

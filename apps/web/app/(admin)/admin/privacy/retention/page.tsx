@@ -31,7 +31,8 @@ export default async function RetentionPoliciesPage({ searchParams }: { searchPa
 
   async function save(fd: FormData) {
     "use server";
-    const key = String(fd.get("key") ?? "");
+    const keyRaw = fd.get("key");
+    const key = typeof keyRaw === "string" ? keyRaw : "";
     const daysRaw = fd.get("days");
     const days = typeof daysRaw === "string" && daysRaw.trim() ? Number(daysRaw) : undefined;
     const result = await updateRetentionPolicy({ key, ...(days !== undefined ? { days } : {}), isActive: fd.get("isActive") === "on" });

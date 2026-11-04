@@ -4,6 +4,7 @@ import { auditLog, files, jobs } from "@beam/db/schema";
 import { createTestDb, makePerson, makeUser } from "@beam/db/testing";
 import { like } from "drizzle-orm";
 import { and, eq, inArray, sql } from "@/lib/ctx";
+import { rowsOf } from "@/lib/sensitive";
 import { makeJobCtx, resetRuntime, runJobTwice } from "@/lib/testing";
 import { runExportChunk } from "./jobs";
 import { bulkPersons, csvRows, drainExports, exportOf, partText, seedExport } from "./ops-p6.fixtures";
@@ -32,8 +33,8 @@ async function snapshot(exportId: string) {
 describe("export jobs (ops rules 55 and 57, 4.4)", () => {
   it("R55 12,000 persons give 3 parts of at most 5,000 rows, keyed per chunk, and one data.exported audit with the row count", async () => {
     await bulkPersons(h.db, "chunked", 12_000);
-    const total = (await h.db.execute(sql`select count(*)::int as n from persons where processing_restricted_at is null`)) as unknown as { rows: { n: number }[] };
-    expect(total.rows[0]!.n).toBe(12_000);
+    const [total] = rowsOf<{ n: number }>(await h.db.execute(sql`select count(*)::int as n from persons where processing_restricted_at is null`));
+    expect(total!.n).toBe(12_000);
     const id = await seedExport(h.db, { userId, entity: "persons" });
     await drainExports(h.db);
 

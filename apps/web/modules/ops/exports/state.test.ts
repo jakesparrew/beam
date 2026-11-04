@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import type { Db, DbHandle, Tx } from "@beam/db";
+import type { DbHandle, Tx } from "@beam/db";
 import { dataExports } from "@beam/db/schema";
 import { createTestDb, makeUser } from "@beam/db/testing";
 import { eq, flushDurableWrites } from "@/lib/ctx";
@@ -26,7 +26,7 @@ const status = async (id: string) => (await exportOf(h.db, id)).status;
 
 /** A job context whose inserts fail with a retryable error (the chunk's `storeFile` call). */
 function failingCtx(kind: JobKind, attempt: number) {
-  const broken = new Proxy(h.db as Db, {
+  const broken = new Proxy(h.db, {
     get(target, prop) {
       if (prop === "insert")
         return () => {

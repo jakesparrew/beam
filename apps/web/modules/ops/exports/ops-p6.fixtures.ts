@@ -53,7 +53,7 @@ export async function exportOf(db: DbOrTx, exportId: string) {
 /** The text of one part file. */
 export async function partText(db: DbOrTx, fileId: string): Promise<string> {
   const [f] = await db.select({ bytes: files.bytes }).from(files).where(eq(files.id, fileId));
-  return new TextDecoder().decode(f!.bytes).replace(/^﻿/, "");
+  return new TextDecoder().decode(f!.bytes).replace(/^\uFEFF/, "");
 }
 
 /** CSV text to rows (simple: no quoted line breaks in the test data). */

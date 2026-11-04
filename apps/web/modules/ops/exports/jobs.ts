@@ -19,7 +19,7 @@ import { storeFile } from "@/lib/files";
 import { PermanentError, type JobCtx } from "@/lib/job-runner";
 import { reportError } from "@/lib/logger";
 import { GDPR_REGISTRY } from "@/registry/privacy.generated";
-import { entitySource, fullTableSource, readChunk, type ExportFilters, type ExportSource } from "./entities";
+import { entitySource, fullTableSource, readChunk, type ExportSource } from "./entities";
 import { genericSweep, isGenericSweepTable } from "./generic-sweep";
 import { OPS_SWEEP } from "./sweep";
 
@@ -72,7 +72,7 @@ const isOpen = (status: ExportRow["status"]) => (OPEN_STATUSES as readonly strin
 async function sourceFor(ctx: JobCtx, row: ExportRow, cursor: ExportCursor, entity: string): Promise<ExportSource> {
   if (row.kind === "entity") {
     if (entity !== row.entity) throw new PermanentError(`export_entity_mismatch: ${entity}`);
-    return entitySource(row.entity as ExportEntity, row.filters as ExportFilters);
+    return entitySource(row.entity as ExportEntity, row.filters);
   }
   if (!cursor.tables?.includes(entity)) throw new PermanentError(`export_table_unknown: ${entity}`);
   return fullTableSource(ctx.tx, entity);
@@ -198,7 +198,7 @@ export const ACCOUNTING_KEYS = ["finance.invoices", "commerce.orders", "commerce
 export type SweepResolution = { kind: "module"; handler: SweepHandler } | { kind: "generic" } | { kind: "none" };
 
 /** The owner of a key is its prefix; its `sweep[key]` wins, then the generic handler for allow-listed tables. */
-export function resolveSweepHandler(policy: { key: string; tableName: string }, registry: Registry = GDPR_REGISTRY as Registry): SweepResolution {
+export function resolveSweepHandler(policy: { key: string; tableName: string }, registry: Registry = GDPR_REGISTRY): SweepResolution {
   const owner = policy.key.split(".")[0]!;
   const registered = Object.prototype.hasOwnProperty.call(registry, owner) ? registry[owner]?.sweep?.[policy.key] : undefined;
   const handler = registered ?? (owner === "ops" ? OPS_SWEEP[policy.key] : undefined);
@@ -220,7 +220,7 @@ type Policy = typeof retentionPolicies.$inferSelect;
 async function callUnderRewrite(tx: Tx, run: (sp: Tx) => Promise<number>): Promise<number> {
   return tx.transaction(async (sp) => {
     await sp.execute(sql`select set_config('beam.allow_rewrite', 'on', true)`);
-    const n = await run(sp as unknown as Tx);
+    const n = await run(sp);
     await sp.execute(sql`select set_config('beam.allow_rewrite', 'off', true)`);
     return n;
   });

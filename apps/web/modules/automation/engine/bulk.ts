@@ -25,6 +25,9 @@ import { stepJobKey, stepJobPriority } from "./step";
 
 export const BULK_CHUNK = 500;
 
+/** `chunk` overrides the 500 rows per job (tests). */
+export type BulkOptions = { chunk?: number };
+
 export type BulkResult = { handled: number; continued: boolean; after: string | null };
 
 const startOrAfter = (after: string | undefined) => after ?? "start";
@@ -45,7 +48,7 @@ export type ResumeInput = { automationId: string; resumedAt: string; after?: str
 export const resumeJobKey = (i: ResumeInput): string =>
   `automation_resume:${i.automationId}:${utcMinuteBucket(new Date(i.resumedAt))}:${startOrAfter(i.after)}`;
 
-export async function resumeEnrolments(tx: Tx, ctx: Ctx, input: ResumeInput): Promise<BulkResult & { skipped: number; enqueued: number }> {
+export async function resumeEnrolments(tx: Tx, ctx: Ctx, input: ResumeInput, opts: BulkOptions = {}): Promise<BulkResult & { skipped: number; enqueued: number }> {
   const resumedAt = new Date(input.resumedAt);
   const [a] = await tx.select({ status: automations.status, isMarketing: automations.isMarketing }).from(automations).where(eq(automations.id, input.automationId));
   if (!a || a.status !== "active") return { handled: 0, continued: false, after: null, skipped: 0, enqueued: 0 };
@@ -61,7 +64,7 @@ export async function resumeEnrolments(tx: Tx, ctx: Ctx, input: ResumeInput): Pr
       ),
     )
     .orderBy(asc(automationEnrolments.id))
-    .limit(BULK_CHUNK);
+    .limit(opts.chunk ?? BULK_CHUNK);
   let skipped = 0;
   let enqueued = 0;
   for (const { id } of rows) {
@@ -89,7 +92,7 @@ export async function resumeEnrolments(tx: Tx, ctx: Ctx, input: ResumeInput): Pr
   }
   const after = rows.at(-1)?.id ?? null;
   const next = { ...input, after: after ?? undefined };
-  const continued = await continueWith(ctx, "automation.resume_enrolments", next, resumeJobKey(next), rows.length === BULK_CHUNK);
+  const continued = await continueWith(ctx, "automation.resume_enrolments", next, resumeJobKey(next), rows.length === (opts.chunk ?? BULK_CHUNK));
   return { handled: rows.length, continued, after, skipped, enqueued };
 }
 
@@ -111,7 +114,7 @@ export function migratedPlan(fresh: PlannedStep[], old: PlannedStep[], now: Date
   });
 }
 
-export async function migrateEnrolments(tx: Tx, ctx: Ctx, input: MigrateInput): Promise<BulkResult & { migrated: number }> {
+export async function migrateEnrolments(tx: Tx, ctx: Ctx, input: MigrateInput, opts: BulkOptions = {}): Promise<BulkResult & { migrated: number }> {
   const [v] = await tx
     .select({ id: automationVersions.id, definition: automationVersions.definition, automationId: automationVersions.automationId })
     .from(automationVersions)
@@ -130,7 +133,7 @@ export async function migrateEnrolments(tx: Tx, ctx: Ctx, input: MigrateInput): 
       ),
     )
     .orderBy(asc(automationEnrolments.id))
-    .limit(BULK_CHUNK);
+    .limit(opts.chunk ?? BULK_CHUNK);
   let migrated = 0;
   for (const { id } of rows) {
     await tx.transaction(async (sp) => {
@@ -176,7 +179,7 @@ export async function migrateEnrolments(tx: Tx, ctx: Ctx, input: MigrateInput): 
   }
   const after = rows.at(-1)?.id ?? null;
   const next = { ...input, after: after ?? undefined };
-  const continued = await continueWith(ctx, "automation.migrate_enrolments", next, migrateJobKey(next), rows.length === BULK_CHUNK);
+  const continued = await continueWith(ctx, "automation.migrate_enrolments", next, migrateJobKey(next), rows.length === (opts.chunk ?? BULK_CHUNK));
   return { handled: rows.length, continued, after, migrated };
 }
 
@@ -188,7 +191,7 @@ export type EndInput = { automationId: string; reason: "archived"; after?: strin
 
 export const endJobKey = (i: EndInput): string => `automation_end:${i.automationId}:${i.reason}:${startOrAfter(i.after)}`;
 
-export async function endEnrolments(tx: Tx, ctx: Ctx, input: EndInput): Promise<BulkResult & { ended: number }> {
+export async function endEnrolments(tx: Tx, ctx: Ctx, input: EndInput, opts: BulkOptions = {}): Promise<BulkResult & { ended: number }> {
   const rows = await tx
     .select({ id: automationEnrolments.id })
     .from(automationEnrolments)
@@ -200,12 +203,12 @@ export async function endEnrolments(tx: Tx, ctx: Ctx, input: EndInput): Promise<
       ),
     )
     .orderBy(asc(automationEnrolments.id))
-    .limit(BULK_CHUNK);
+    .limit(opts.chunk ?? BULK_CHUNK);
   let ended = 0;
   for (const { id } of rows) if (await endEnrolment(tx, id, "exited", input.reason, ctx.actor)) ended++;
   const after = rows.at(-1)?.id ?? null;
   const next = { ...input, after: after ?? undefined };
-  const continued = await continueWith(ctx, "automation.end_enrolments", next, endJobKey(next), rows.length === BULK_CHUNK);
+  const continued = await continueWith(ctx, "automation.end_enrolments", next, endJobKey(next), rows.length === (opts.chunk ?? BULK_CHUNK));
   return { handled: rows.length, continued, after, ended };
 }
 
@@ -218,7 +221,7 @@ export type EnrolSegmentInput = { automationId: string; segmentId: string; reque
 export const enrolSegmentJobKey = (i: EnrolSegmentInput): string =>
   `automation_enrol_segment:${i.automationId}:${i.segmentId}:${i.requestId}:${startOrAfter(i.after)}`;
 
-export async function enrolSegment(tx: Tx, ctx: Ctx, input: EnrolSegmentInput): Promise<BulkResult & { enrolled: number }> {
+export async function enrolSegment(tx: Tx, ctx: Ctx, input: EnrolSegmentInput, opts: BulkOptions = {}): Promise<BulkResult & { enrolled: number }> {
   const [automation] = await loadAutomations(tx, { ids: [input.automationId] });
   if (!automation || automation.status !== "active") return { handled: 0, continued: false, after: null, enrolled: 0 };
   const rows = await tx
@@ -226,7 +229,7 @@ export async function enrolSegment(tx: Tx, ctx: Ctx, input: EnrolSegmentInput): 
     .from(segmentMembers)
     .where(and(eq(segmentMembers.segmentId, input.segmentId), input.after ? gt(segmentMembers.personId, input.after) : undefined))
     .orderBy(asc(segmentMembers.personId))
-    .limit(BULK_CHUNK);
+    .limit(opts.chunk ?? BULK_CHUNK);
   let enrolled = 0;
   for (const { personId } of rows) {
     const res = await tx.transaction((sp) => enrol(sp, { automation, personId, source: "segment", actor: ctx.actor, now: ctx.now }));
@@ -234,6 +237,6 @@ export async function enrolSegment(tx: Tx, ctx: Ctx, input: EnrolSegmentInput): 
   }
   const after = rows.at(-1)?.personId ?? null;
   const next = { ...input, after: after ?? undefined };
-  const continued = await continueWith(ctx, "automation.enrol_segment", next, enrolSegmentJobKey(next), rows.length === BULK_CHUNK);
+  const continued = await continueWith(ctx, "automation.enrol_segment", next, enrolSegmentJobKey(next), rows.length === (opts.chunk ?? BULK_CHUNK));
   return { handled: rows.length, continued, after, enrolled };
 }

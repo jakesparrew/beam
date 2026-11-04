@@ -290,8 +290,11 @@
       "attempts": 0
     },
     "booking-P2": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "59cad56",
+      "runId": "wf_cc3166cb-15d",
+      "startedAt": "2026-11-04T04:08:00Z"
     },
     "booking-P3a": {
       "status": "merged",

@@ -107,7 +107,16 @@ export const SEGMENT_FIELD_BY_COLUMN: Readonly<Record<string, SegmentField>> = O
 // Event rules
 // ---------------------------------------------------------------------------
 
-const FORM_KEYS = ["form_slug", "outcome_key", "funnel", "form_kind", "cta_key"];
+/**
+ * forms `data` keys per kind, as forms' schemas in `apps/web/modules/forms/events.ts` declare
+ * them (forms-P3): only the keys that kind's data actually carries.
+ */
+const FORM_STARTED_KEYS = ["form_slug", "funnel", "form_kind"];
+const FORM_COMPLETED_KEYS = ["form_slug", "outcome_key", "funnel", "form_kind"];
+const FORM_ABANDONED_KEYS = ["form_slug"];
+const FORM_RESULT_VIEWED_KEYS = ["form_slug", "outcome_key"];
+const ASSESSMENT_RESULT_KEYS = ["form_slug", "outcome_key", "funnel", "form_kind"];
+const ASSESSMENT_CTA_KEYS = ["form_slug", "outcome_key", "cta_key"];
 const BOOKING_KEYS = ["session_kind", "session_id", "event_category", "owner_person_id", "is_guest", "is_first_booking", "is_first_visit"];
 const WAITLIST_KEYS = ["session_kind", "session_id", "queue"];
 const WEBINAR_KEYS = ["poll_key", "option_keys", "option_key", "cta_key", "threshold", "watched_sec"];
@@ -137,12 +146,12 @@ export const SEGMENT_EVENT_DATA_KEYS = {
   "membership.started": [],
   "membership.renewed": [],
   "membership.cancelled": [],
-  "form.started": FORM_KEYS,
-  "form.completed": FORM_KEYS,
-  "form.abandoned": FORM_KEYS,
-  "form.result_viewed": FORM_KEYS,
-  "assessment.result_generated": FORM_KEYS,
-  "assessment.cta_clicked": FORM_KEYS,
+  "form.started": FORM_STARTED_KEYS,
+  "form.completed": FORM_COMPLETED_KEYS,
+  "form.abandoned": FORM_ABANDONED_KEYS,
+  "form.result_viewed": FORM_RESULT_VIEWED_KEYS,
+  "assessment.result_generated": ASSESSMENT_RESULT_KEYS,
+  "assessment.cta_clicked": ASSESSMENT_CTA_KEYS,
   "email.opened": [],
   "email.clicked": [],
   "ops.stage_changed": ["from", "to"],

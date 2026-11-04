@@ -398,7 +398,7 @@
       "attempts": 0
     },
     "credits-P4": {
-      "status": "running",
+      "status": "merged",
       "attempts": 4,
       "baseSha": "44a337a",
       "runId": "wf_75ee6b4a-d7d",
@@ -407,9 +407,11 @@
         "apps/web/modules/credits/api.test.ts",
         "apps/web/modules/credits/jobs.test.ts"
       ],
-      "branchSha": "ebe47a7",
-      "endedAt": "2026-11-04T03:39:30Z",
-      "minutes": 62
+      "branchSha": "a15a2a4",
+      "endedAt": "2026-11-04T03:59:13Z",
+      "minutes": 70,
+      "mergeSha": "a945df0",
+      "mergedAt": "2026-11-04T04:03:35Z"
     },
     "finance-P3": {
       "status": "pending",

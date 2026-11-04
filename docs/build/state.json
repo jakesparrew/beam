@@ -452,11 +452,14 @@
       "attempts": 0
     },
     "email-P3": {
-      "status": "running",
+      "status": "red",
       "attempts": 1,
       "baseSha": "44a337a",
       "runId": "wf_951123d6-336",
-      "startedAt": "2026-11-04T03:52:04Z"
+      "startedAt": "2026-11-04T03:52:04Z",
+      "branchSha": "78e252f",
+      "endedAt": "2026-11-04T04:41:24Z",
+      "minutes": 48
     },
     "automation-P3": {
       "status": "pending",

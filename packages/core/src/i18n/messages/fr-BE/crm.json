@@ -57,7 +57,8 @@
       "next": "Suivant",
       "switch_on": "Activé",
       "switch_off": "Désactivé",
-      "customer_number": "Numéro de client"
+      "customer_number": "Numéro de client",
+      "complete": "Terminer"
     },
     "enums": {
       "person_status": {
@@ -280,7 +281,9 @@
         "bulk_limit": "Sélectionnez au maximum 5000 personnes à la fois.",
         "empty": "Pas encore de personnes. Créez-en une ou importez une liste.",
         "empty_create": "Créer une personne",
-        "empty_import": "Importer une liste"
+        "empty_import": "Importer une liste",
+        "empty_filtered": "Personne ne correspond à ces filtres.",
+        "bulk_changed": "{count} personnes modifiées"
       },
       "new": {
         "title": "Nouvelle personne",
@@ -334,7 +337,9 @@
         "companies": "Entreprises",
         "emergency_contact": "Contact d’urgence",
         "no_emergency_contact": "Pas de contact d’urgence",
-        "minor": "Mineur"
+        "minor": "Mineur",
+        "tester": "Testeur",
+        "birth_on": "Date de naissance"
       },
       "banners": {
         "override_conflict": "Le statut manuel {override} diffère du statut calculé {derived}",
@@ -389,14 +394,25 @@
         "unsubscribe_all": "Désinscrire de tout le marketing",
         "merge_with": "Fusionner avec…",
         "book": "Réserver pour cette personne",
-        "sell": "Vendre"
+        "sell": "Vendre",
+        "interaction_occurred_at": "Quand (vide = maintenant)"
       },
       "sensitive": {
         "hidden": "Les données sensibles sont masquées.",
         "reveal": "Afficher",
         "empty": "Aucune donnée sensible enregistrée.",
         "updated": "Modifié le {date}",
-        "value": "Valeur"
+        "value": "Valeur",
+        "key": "Champ",
+        "clear": "Effacer"
+      },
+      "credit_kinds": {
+        "day": "Crédits journée",
+        "night": "Crédits nuit",
+        "euro": "Solde en euros"
+      },
+      "timeline_ui": {
+        "all": "Tout"
       }
     },
     "timeline": {
@@ -446,7 +462,33 @@
       "company_created": "Entreprise créée",
       "company_updated": "Données de l’entreprise modifiées : {fields}",
       "company_contact_linked": "Lié comme contact de {company}",
-      "company_contact_unlinked": "N’est plus contact de {company}"
+      "company_contact_unlinked": "N’est plus contact de {company}",
+      "automation_item": "{automation} : {outcome}",
+      "automation_outcomes": {
+        "entered": "Entrée",
+        "scheduled": "Étape suivante planifiée",
+        "sent": "E-mail envoyé",
+        "task_created": "Tâche créée",
+        "tag_applied": "Étiquette ajoutée",
+        "tag_removed": "Étiquette retirée",
+        "field_set": "Champ mis à jour",
+        "status_set": "Statut défini",
+        "enrolled": "Inscrit dans une autre automatisation",
+        "notified": "Équipe prévenue",
+        "webhook_called": "Webhook appelé",
+        "branched": "Branche choisie",
+        "skipped_late_entry": "Ignoré : entrée trop tardive",
+        "skipped_condition": "Ignoré : condition non remplie",
+        "skipped_unreachable": "Ignoré : injoignable",
+        "skipped_translation": "Ignoré : traduction manquante",
+        "skipped_exclusive": "Ignoré : dans une autre automatisation exclusive",
+        "skipped_paused": "Ignoré : automatisation en pause",
+        "skipped_stale": "Ignoré : trop ancien",
+        "skipped_frequency_cap": "Ignoré : limite d’e-mails atteinte",
+        "exited": "Sorti de l’automatisation",
+        "completed": "Automatisation terminée",
+        "failed": "Étape échouée"
+      }
     },
     "duplicates": {
       "title": "Doublons possibles",
@@ -490,7 +532,8 @@
       "delete": "Supprimer le tag",
       "description": "Description",
       "system_locked": "Les tags système ne peuvent pas être supprimés.",
-      "key_hint": "Minuscules, chiffres, _ : et -. Les centres d’intérêt commencent par interest:."
+      "key_hint": "Minuscules, chiffres, _ : et -. Les centres d’intérêt commencent par interest:.",
+      "key_taken": "Une étiquette avec cette clé existe déjà."
     },
     "consentWordings": {
       "title": "Textes de consentement",
@@ -516,7 +559,8 @@
       "none": "Aucun consentement parental enregistré.",
       "none_published": "Aucun texte de consentement parental n’est encore publié.",
       "minor_notice": "Un parent ou tuteur doit donner ce consentement.",
-      "reacceptance": "Une nouvelle version du texte demande un nouveau consentement."
+      "reacceptance": "Une nouvelle version du texte demande un nouveau consentement.",
+      "guardian_id": "Parent ou tuteur (identifiant de la personne)"
     },
     "reception": {
       "title": "Accueil",
@@ -543,7 +587,10 @@
         "col_kind": "Type",
         "col_count": "Personnes",
         "col_refreshed": "Dernière mise à jour",
-        "col_used_by": "Utilisé par"
+        "col_used_by": "Utilisé par",
+        "used_by_campaigns": "Campagnes",
+        "used_by_automations": "Automatisations",
+        "archived": "Archivé"
       },
       "builder": {
         "title_new": "Nouveau segment",
@@ -597,7 +644,8 @@
         "cycle": "Un segment ne peut pas s’inclure lui-même via un autre segment.",
         "too_many_rules": "Utilisez au maximum 50 règles.",
         "too_deep": "Imbriquez les groupes sur 4 niveaux au maximum.",
-        "sql": "SQL généré"
+        "sql": "SQL généré",
+        "unknown_customer_numbers": "Numéros client inconnus : {numbers}"
       },
       "comparators": {
         "eq": "est",
@@ -802,7 +850,9 @@
         "link_new": "Nouvelle personne",
         "end_contact": "A quitté l’entreprise",
         "ended": "Jusqu’au {date}",
-        "primary": "Contact principal"
+        "primary": "Contact principal",
+        "email_taken": "Cette adresse e-mail appartient à une autre personne. Liez plutôt cette personne.",
+        "contact_exists": "Cette personne est déjà un contact de cette entreprise."
       },
       "form": {
         "name": "Nom",
@@ -909,6 +959,22 @@
         "cta": "Gérer mes e-mails",
         "footer": "Vous n’avez pas demandé ce lien ? Ignorez cet e-mail."
       }
+    },
+    "consentPanel": {
+      "not_recorded": "Non enregistré",
+      "reachable": "Joignable",
+      "unreachable": "Injoignable",
+      "grant": "Donner le consentement (B2B, intérêt légitime)",
+      "withdraw": "Retirer",
+      "unsubscribe_all_note": "Bloque tout e-mail marketing vers cette adresse. Les e-mails de réservation et de paiement arrivent toujours.",
+      "col_purpose": "Finalité",
+      "col_status": "Statut",
+      "col_method": "Méthode",
+      "col_source": "Source",
+      "col_version": "Version du texte",
+      "col_date": "Date",
+      "col_scope": "Portée",
+      "col_reason": "Motif"
     }
   }
 }

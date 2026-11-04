@@ -57,7 +57,8 @@
       "next": "Next",
       "switch_on": "On",
       "switch_off": "Off",
-      "customer_number": "Customer number"
+      "customer_number": "Customer number",
+      "complete": "Complete"
     },
     "enums": {
       "person_status": {
@@ -280,7 +281,9 @@
         "bulk_limit": "Select at most 5000 persons at a time.",
         "empty": "No persons yet. Create one or import a list.",
         "empty_create": "Create a person",
-        "empty_import": "Import a list"
+        "empty_import": "Import a list",
+        "empty_filtered": "Nobody matches these filters.",
+        "bulk_changed": "{count} persons changed"
       },
       "new": {
         "title": "New person",
@@ -334,7 +337,9 @@
         "companies": "Companies",
         "emergency_contact": "Emergency contact",
         "no_emergency_contact": "No emergency contact",
-        "minor": "Minor"
+        "minor": "Minor",
+        "tester": "Tester",
+        "birth_on": "Date of birth"
       },
       "banners": {
         "override_conflict": "Manual status {override} differs from calculated {derived}",
@@ -389,14 +394,25 @@
         "unsubscribe_all": "Unsubscribe from all marketing",
         "merge_with": "Merge with…",
         "book": "Book for this person",
-        "sell": "Sell"
+        "sell": "Sell",
+        "interaction_occurred_at": "When (empty = now)"
       },
       "sensitive": {
         "hidden": "Sensitive data is hidden.",
         "reveal": "Reveal",
         "empty": "No sensitive data recorded.",
         "updated": "Last changed {date}",
-        "value": "Value"
+        "value": "Value",
+        "key": "Field",
+        "clear": "Clear"
+      },
+      "credit_kinds": {
+        "day": "Day credits",
+        "night": "Night credits",
+        "euro": "Euro balance"
+      },
+      "timeline_ui": {
+        "all": "All"
       }
     },
     "timeline": {
@@ -446,7 +462,33 @@
       "company_created": "Company created",
       "company_updated": "Company details changed: {fields}",
       "company_contact_linked": "Linked as contact of {company}",
-      "company_contact_unlinked": "No longer a contact of {company}"
+      "company_contact_unlinked": "No longer a contact of {company}",
+      "automation_item": "{automation}: {outcome}",
+      "automation_outcomes": {
+        "entered": "Entered",
+        "scheduled": "Next step scheduled",
+        "sent": "Email sent",
+        "task_created": "Task created",
+        "tag_applied": "Tag added",
+        "tag_removed": "Tag removed",
+        "field_set": "Field updated",
+        "status_set": "Status set",
+        "enrolled": "Enrolled in another automation",
+        "notified": "Team notified",
+        "webhook_called": "Webhook called",
+        "branched": "Branch chosen",
+        "skipped_late_entry": "Skipped: entered too late",
+        "skipped_condition": "Skipped: condition not met",
+        "skipped_unreachable": "Skipped: not reachable",
+        "skipped_translation": "Skipped: translation missing",
+        "skipped_exclusive": "Skipped: in another exclusive automation",
+        "skipped_paused": "Skipped: automation paused",
+        "skipped_stale": "Skipped: too old",
+        "skipped_frequency_cap": "Skipped: email limit reached",
+        "exited": "Left the automation",
+        "completed": "Automation completed",
+        "failed": "Step failed"
+      }
     },
     "duplicates": {
       "title": "Possible duplicates",
@@ -490,7 +532,8 @@
       "delete": "Delete tag",
       "description": "Description",
       "system_locked": "System tags cannot be deleted.",
-      "key_hint": "Lower case letters, digits, _ : and -. Interests start with interest:."
+      "key_hint": "Lower case letters, digits, _ : and -. Interests start with interest:.",
+      "key_taken": "A tag with this key already exists."
     },
     "consentWordings": {
       "title": "Consent wordings",
@@ -516,7 +559,8 @@
       "none": "No guardian consent recorded.",
       "none_published": "No guardian-consent text is published yet.",
       "minor_notice": "A parent or guardian must give this consent.",
-      "reacceptance": "A new version of the text needs a new consent."
+      "reacceptance": "A new version of the text needs a new consent.",
+      "guardian_id": "Guardian (person id)"
     },
     "reception": {
       "title": "Reception",
@@ -543,7 +587,10 @@
         "col_kind": "Kind",
         "col_count": "Persons",
         "col_refreshed": "Last refreshed",
-        "col_used_by": "Used by"
+        "col_used_by": "Used by",
+        "used_by_campaigns": "Campaigns",
+        "used_by_automations": "Automations",
+        "archived": "Archived"
       },
       "builder": {
         "title_new": "New segment",
@@ -597,7 +644,8 @@
         "cycle": "A segment cannot include itself through another segment.",
         "too_many_rules": "Use at most 50 rules.",
         "too_deep": "Nest groups at most 4 levels deep.",
-        "sql": "Generated SQL"
+        "sql": "Generated SQL",
+        "unknown_customer_numbers": "Unknown customer numbers: {numbers}"
       },
       "comparators": {
         "eq": "is",
@@ -802,7 +850,9 @@
         "link_new": "New person",
         "end_contact": "Left the company",
         "ended": "Until {date}",
-        "primary": "Primary contact"
+        "primary": "Primary contact",
+        "email_taken": "This email belongs to another person. Link that person instead.",
+        "contact_exists": "This person is already a contact of this company."
       },
       "form": {
         "name": "Name",
@@ -909,6 +959,22 @@
         "cta": "Manage my emails",
         "footer": "Did you not ask for this link? Then ignore this email."
       }
+    },
+    "consentPanel": {
+      "not_recorded": "Not recorded",
+      "reachable": "Reachable",
+      "unreachable": "Not reachable",
+      "grant": "Give consent (B2B, legitimate interest)",
+      "withdraw": "Withdraw",
+      "unsubscribe_all_note": "Blocks every marketing email to this address. Booking and payment emails still arrive.",
+      "col_purpose": "Purpose",
+      "col_status": "Status",
+      "col_method": "Method",
+      "col_source": "Source",
+      "col_version": "Wording",
+      "col_date": "Date",
+      "col_scope": "Scope",
+      "col_reason": "Reason"
     }
   }
 }

@@ -13,7 +13,7 @@ import { createTestDb, makePerson, makeProduct } from "@beam/db/testing";
 import { ensureTermsVersion } from "@beam/db/testing/commerce-factories";
 import { makeMembership } from "@beam/db/testing/credits-factories";
 import type { DbHandle, Tx } from "@beam/db";
-import { activityEvents, jobs, mandates, orderLines, orders, payments } from "@beam/db/schema";
+import { activityEvents, jobs, mandates, orderLines, orders, payments, priceVersions } from "@beam/db/schema";
 
 vi.mock("next/headers", () => ({ cookies: () => Promise.resolve({ get: () => undefined }), headers: () => Promise.resolve(new Headers()) }));
 vi.mock("next/server", () => ({ after: () => undefined }));
@@ -79,7 +79,10 @@ function inTx<T>(fn: (tx: Tx, ctx: ReturnType<typeof createCtx>) => Promise<T>, 
 /** A member with a valid mandate (also known to the payments fake, so its recurring charges settle `paid`). */
 async function member() {
   const person = await makePerson(h.db);
-  const plan = await makeProduct(h.db, { kind: "membership", priceCents: 8900 });
+  // makeProduct's priceCents stamps the price version at the real clock (later than the fixed NOW after
+  // 10:00 UTC); price versions are insert-only, so write it here valid from well before NOW.
+  const plan = await makeProduct(h.db, { kind: "membership" });
+  await h.db.insert(priceVersions).values({ productId: plan.id, version: 1, audience: "public", amountCents: 8900, validFromAt: new Date(NOW.getTime() - 365 * DAY) });
   const membership = await makeMembership(h.db, { personId: person.id, productId: plan.id });
   const customerId = `cst_${randomUUID().slice(0, 8)}`;
   const { mandateId: providerMandateId } = await fake.payments.createMandate({ customerId, method: "directdebit", consumerName: "Test", iban: "BE00000000000000" });

@@ -208,11 +208,16 @@
       "mergedAt": "2026-11-04T01:15:38Z"
     },
     "ops-P1": {
-      "status": "running",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "47d3945",
       "runId": "wf_a9edcab1-eb3",
-      "startedAt": "2026-11-04T00:33:51Z"
+      "startedAt": "2026-11-04T00:33:51Z",
+      "branchSha": "d68eee4",
+      "endedAt": "2026-11-04T01:19:12Z",
+      "minutes": 44,
+      "mergeSha": "4705b59",
+      "mergedAt": "2026-11-04T01:27:13Z"
     },
     "site-P1": {
       "status": "merged",
@@ -227,15 +232,23 @@
       "mergedAt": "2026-11-04T00:58:57Z"
     },
     "crm-P2": {
-      "status": "running",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "4ce9b47",
       "runId": "wf_4a970317-407",
-      "startedAt": "2026-11-04T00:50:47Z"
+      "startedAt": "2026-11-04T00:50:47Z",
+      "branchSha": "92f2762",
+      "endedAt": "2026-11-04T01:28:28Z",
+      "minutes": 30,
+      "mergeSha": "f935750",
+      "mergedAt": "2026-11-04T01:33:11Z"
     },
     "crm-P3": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "691b7bb",
+      "runId": "wf_9c67e986-ea7",
+      "startedAt": "2026-11-04T01:28:28Z"
     },
     "crm-P4": {
       "status": "pending",
@@ -246,19 +259,27 @@
       "attempts": 0
     },
     "booking-P3a": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "e3ba1e4",
+      "runId": "wf_c060c9e6-60a",
+      "startedAt": "2026-11-04T01:19:11Z"
     },
     "commerce-P3": {
       "status": "pending",
       "attempts": 0
     },
     "credits-P3": {
-      "status": "running",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "4ce9b47",
       "runId": "wf_f3027f2b-e76",
-      "startedAt": "2026-11-04T00:50:47Z"
+      "startedAt": "2026-11-04T00:50:47Z",
+      "branchSha": "abd8f5f",
+      "endedAt": "2026-11-04T01:28:29Z",
+      "minutes": 35,
+      "mergeSha": "8be7a14",
+      "mergedAt": "2026-11-04T01:33:16Z"
     },
     "finance-P2": {
       "status": "pending",
@@ -269,8 +290,11 @@
       "attempts": 0
     },
     "email-P2": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "691b7bb",
+      "runId": "wf_4a2d8d7d-996",
+      "startedAt": "2026-11-04T01:28:28Z"
     },
     "automation-P2": {
       "status": "pending",
@@ -289,8 +313,11 @@
       "attempts": 0
     },
     "crm-P6": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "691b7bb",
+      "runId": "wf_6d05edb2-430",
+      "startedAt": "2026-11-04T01:28:28Z"
     },
     "booking-P3b": {
       "status": "pending",
@@ -693,7 +720,7 @@
       "mergedAt": "2026-11-03T23:50:08Z"
     },
     "fix-w04-platform-3": {
-      "status": "running",
+      "status": "merged",
       "attempts": 1,
       "fixer": true,
       "module": "platform",
@@ -715,7 +742,12 @@
       "dependsOn": [],
       "baseSha": "11fffe1",
       "runId": "wf_0ad13661-c56",
-      "startedAt": "2026-11-04T01:06:43Z"
+      "startedAt": "2026-11-04T01:06:43Z",
+      "branchSha": "59ddcd4",
+      "endedAt": "2026-11-04T01:28:28Z",
+      "minutes": 21,
+      "mergeSha": "f2e4b0a",
+      "mergedAt": "2026-11-04T01:33:08Z"
     },
     "fix-w04-platform-4": {
       "status": "pending",
@@ -845,6 +877,41 @@
         "apps/web/app/api/cron/tick/route.test.ts",
         "packages/core/src/credits/types.ts"
       ]
+    },
+    "fix-w05-schema-1": {
+      "status": "running",
+      "attempts": 1,
+      "fixer": true,
+      "module": "platform",
+      "goal": "Add the foreign keys and checks that module schema packages deferred until their targets existed, and activate the parked booking and ops schedules (see the launch notes).",
+      "from": [
+        "booking-P1",
+        "commerce-P1",
+        "ops-P1",
+        "site-P1",
+        "automation-P1"
+      ],
+      "dependsOn": [
+        "fix-w04-platform-3"
+      ],
+      "owns": [
+        "packages/db/src/schema/booking.ts",
+        "packages/db/src/schema/booking.test.ts",
+        "apps/web/modules/booking/privacy.ts",
+        "apps/web/modules/booking/schedules.ts",
+        "packages/db/src/schema/commerce.ts",
+        "packages/db/src/schema/commerce.test.ts",
+        "packages/db/src/schema/ops.ts",
+        "packages/db/src/schema/ops.test.ts",
+        "apps/web/modules/ops/schedules.ts",
+        "packages/db/src/schema/site.ts",
+        "packages/db/src/schema/site.test.ts",
+        "packages/db/src/schema/automation.ts",
+        "packages/db/src/schema/automation.test.ts"
+      ],
+      "baseSha": "9a4438b",
+      "runId": "wf_936074f1-d92",
+      "startedAt": "2026-11-04T01:34:53Z"
     }
   }
 }

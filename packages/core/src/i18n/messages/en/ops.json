@@ -5,6 +5,710 @@
       "reports_finance": "See financial reports",
       "dashboards_manage": "Create and share custom dashboards",
       "privacy_run": "Run privacy requests: export, erasure and restriction"
+    },
+    "nav": {
+      "dashboard": "Dashboard",
+      "retention": "Retention",
+      "pipeline": "Pipeline",
+      "management": "Management",
+      "custom": "My dashboards",
+      "ask": "Ask a question",
+      "summary": "Weekly summary",
+      "reports": "Reports",
+      "reports_revenue": "Revenue",
+      "reports_no_shows": "No-shows and cancellations",
+      "reports_abandoned": "Abandoned checkouts",
+      "reports_capacity": "Capacity",
+      "reports_marketing": "Marketing",
+      "reports_attribution": "Campaign attribution",
+      "reports_ads": "Ads",
+      "imports": "Imports",
+      "exports": "Exports",
+      "privacy": "Privacy requests",
+      "retention_policies": "Retention periods",
+      "dpia": "DPIA register",
+      "account_privacy": "Privacy"
+    },
+    "common": {
+      "retry": "Try again",
+      "request_id": "Request id: {id}",
+      "error_title": "This page could not load",
+      "loading": "Loading…",
+      "open_person": "Open person",
+      "download_csv": "Download CSV",
+      "no_data": "No data",
+      "data_as_of": "Data as of {date}"
+    },
+    "dashboard": {
+      "title": "Today",
+      "create_task": "Create task",
+      "task_created": "Task created",
+      "task_exists": "A task already exists for this person",
+      "open_list": "Open list",
+      "count": "{count, plural, one {# person} other {# people}}",
+      "view": {
+        "today": "Today",
+        "week": "This week"
+      },
+      "card": {
+        "packages_nearing_completion": {
+          "title": "Packages nearly used up",
+          "empty": "Nothing needs attention today",
+          "row": "{remaining} of {total} left"
+        },
+        "vip_inactive": {
+          "title": "High-value customers gone quiet",
+          "empty": "Nothing needs attention today",
+          "row": "{days} days without a visit"
+        },
+        "new_leads_follow_up": {
+          "title": "New leads to follow up",
+          "empty": "Nothing needs attention today",
+          "row": "Lead since {date}"
+        },
+        "b2b_proposals": {
+          "title": "B2B proposals to follow up",
+          "empty": "Nothing needs attention today",
+          "row": "{company}: {stage}"
+        },
+        "memberships_expiring": {
+          "title": "Memberships ending",
+          "empty": "Nothing needs attention today",
+          "row": "Ends on {date}"
+        },
+        "failed_payments": {
+          "title": "Failed payments",
+          "empty": "Nothing needs attention today",
+          "row": "{amount} on {date}"
+        },
+        "webinar_leads_not_booked": {
+          "title": "Webinar leads without a booking",
+          "empty": "Nothing needs attention today",
+          "row": "Registered on {date}"
+        },
+        "unused_packages_expiring": {
+          "title": "Unused packages expiring",
+          "empty": "Nothing needs attention today",
+          "row": "{remaining} left, expires {date}"
+        },
+        "shared_package_abuse": {
+          "title": "Shared packages to review",
+          "empty": "Nothing needs attention today",
+          "row": "{guests} guests in 30 days"
+        },
+        "overdue_tasks": {
+          "title": "Overdue tasks",
+          "empty": "Nothing needs attention today",
+          "row": "Due {date}"
+        },
+        "overdue_privacy_requests": {
+          "title": "Privacy requests near their due date",
+          "empty": "Nothing needs attention today",
+          "row": "{kind}, due {date}"
+        }
+      }
+    },
+    "period": {
+      "day": "Day",
+      "week": "Week",
+      "month": "Month to date",
+      "ytd": "Year to date",
+      "last_30d": "Last 30 days",
+      "last_90d": "Last 90 days",
+      "previous": "Previous period",
+      "change": "Change",
+      "change_blank": "No comparison: the previous period was 0"
+    },
+    "stage": {
+      "lead": "Lead",
+      "engaged_lead": "Engaged lead",
+      "experienced": "Experienced",
+      "first_visit": "First visit",
+      "first_purchase": "First purchase",
+      "active": "Active",
+      "repeat": "Repeat customer",
+      "member": "Member / high value",
+      "retention": "Needs retention",
+      "lost": "Lost"
+    },
+    "pipeline": {
+      "title": "B2C pipeline",
+      "high_value": "High value",
+      "empty": "No people in this stage"
+    },
+    "retention": {
+      "title": "This week’s retention list",
+      "empty": "Everyone is on track this week",
+      "create_all": "Create all tasks",
+      "rebuild": "Rebuild",
+      "dismiss_action": "Dismiss",
+      "reason": {
+        "visiting_less": "Visiting less",
+        "package_nearly_finished": "Package nearly finished",
+        "package_finished_no_repurchase": "Package finished, no new one",
+        "package_expiring": "Package expiring",
+        "high_value_inactive": "High-value customer inactive",
+        "membership_renewal_due": "Membership renewal due",
+        "purchased_never_booked": "Bought but never booked",
+        "unused_sessions": "Sessions not used"
+      },
+      "task_title": {
+        "visiting_less": "Check in: visiting less",
+        "package_nearly_finished": "Offer a new package",
+        "package_finished_no_repurchase": "Follow up: package finished",
+        "package_expiring": "Remind: package expiring",
+        "high_value_inactive": "Call a high-value customer",
+        "membership_renewal_due": "Discuss the membership renewal",
+        "purchased_never_booked": "Help with a first booking",
+        "unused_sessions": "Invite to use remaining sessions"
+      },
+      "dismiss": {
+        "not_relevant": "Not relevant",
+        "already_contacted": "Already contacted",
+        "do_not_contact": "Do not contact",
+        "other": "Other"
+      }
+    },
+    "reports": {
+      "title": "Reports",
+      "intro": "Every report excludes test persons and can be downloaded as CSV.",
+      "show_as_table": "Show as table",
+      "vat": {
+        "incl": "VAT incl.",
+        "excl": "VAT excl."
+      },
+      "channel": {
+        "portal": "Customer portal",
+        "site": "Website",
+        "admin": "Staff",
+        "pos": "Front desk",
+        "link": "Payment link",
+        "recurring": "Recurring"
+      },
+      "product_kind": {
+        "package": "Packages",
+        "night": "Nights",
+        "session": "Sessions",
+        "membership": "Memberships",
+        "item": "Products",
+        "ticket": "Event tickets",
+        "voucher": "Vouchers",
+        "refund": "Refunds"
+      },
+      "revenue": {
+        "title": "Revenue",
+        "empty": "No paid orders in this period",
+        "net": "Net revenue",
+        "daily": "Last 90 days",
+        "by_kind": "Sales by product kind",
+        "by_channel": "Sales by channel",
+        "summary": "Net revenue {amount}, {change} against the previous period",
+        "column": {
+          "day": "Day",
+          "channel": "Channel",
+          "product_kind": "Product kind",
+          "orders": "Orders",
+          "gross": "Gross",
+          "vat": "VAT",
+          "refunds": "Refunds",
+          "net": "Net"
+        },
+        "filter": {
+          "period": "Period",
+          "vat": "VAT"
+        }
+      },
+      "liability": {
+        "title": "Prepaid credits outstanding",
+        "intro": "What is still owed in sessions, nights and euro credit, for the accountant.",
+        "credit_kind": "Credit kind",
+        "remaining_units": "Remaining units",
+        "value": "Value",
+        "vat_treatment": "VAT treatment",
+        "as_of": "As of {date}",
+        "empty": "No credits outstanding"
+      }
+    },
+    "imports": {
+      "title": "Imports",
+      "empty": "No imports yet. Start with suppressions.",
+      "new": "New import",
+      "upload": "Upload CSV",
+      "save_mapping": "Save mapping",
+      "start_dry_run": "Start dry run",
+      "start_run": "Run import",
+      "cancel": "Cancel import",
+      "sign_off": "Sign off reconciliation",
+      "download_errors": "Download rows with errors",
+      "kind": {
+        "persons": "Persons",
+        "suppressions": "Suppressions",
+        "consents": "Consents",
+        "tags": "Tags",
+        "companies": "Companies",
+        "bookings": "Future bookings",
+        "packages": "Package balances",
+        "memberships": "Memberships",
+        "history": "History"
+      },
+      "source": {
+        "simplybook": "SimplyBook",
+        "lightspeed": "Lightspeed",
+        "mailchimp": "Mailchimp",
+        "spreadsheet": "Spreadsheet",
+        "event_db": "Event database",
+        "b2b_list": "B2B list",
+        "webinar_tool": "Webinar tool",
+        "assessment_tool": "Assessment tool",
+        "other": "Other"
+      },
+      "status": {
+        "uploaded": "Uploaded",
+        "dry_run": "Dry run",
+        "running": "Running",
+        "done": "Done",
+        "failed": "Failed",
+        "cancelled": "Cancelled"
+      },
+      "row_status": {
+        "pending": "Pending",
+        "imported": "Imported",
+        "updated": "Updated",
+        "skipped": "Skipped",
+        "error": "Error"
+      },
+      "target": {
+        "external_id": "External id",
+        "email": "Email",
+        "phone": "Phone",
+        "first_name": "First name",
+        "last_name": "Last name",
+        "locale": "Language",
+        "birth_on": "Date of birth",
+        "street": "Street",
+        "postal_code": "Postal code",
+        "city": "City",
+        "country": "Country",
+        "preferred_channel": "Preferred channel",
+        "company_name": "Company name",
+        "created_at": "Original creation date",
+        "source_campaign": "Source campaign",
+        "scope": "Scope",
+        "reason": "Reason",
+        "suppressed_at": "Unsubscribed at",
+        "purpose": "Purpose",
+        "status": "Status",
+        "recorded_at": "Recorded at",
+        "wording_version": "Wording version",
+        "source": "Source",
+        "tag_key": "Tag",
+        "name": "Name",
+        "vat_number": "VAT number",
+        "website": "Website",
+        "industry": "Industry",
+        "size": "Size",
+        "contact_email": "Contact email",
+        "contact_position": "Contact position",
+        "contact_decision_role": "Contact decision role",
+        "session_starts_at": "Session start",
+        "session_kind": "Session kind",
+        "paid_with": "Paid with",
+        "product_sku": "Product code",
+        "units_remaining": "Units remaining",
+        "units_original": "Original units",
+        "expires_on": "Expires on",
+        "unit_value_cents": "Unit value (cents)",
+        "period_end_on": "Period ends on",
+        "started_on": "Started on",
+        "history_kind": "History kind",
+        "occurred_at": "Occurred at",
+        "description": "Description",
+        "amount_cents": "Amount (cents)",
+        "product_kind": "Product kind",
+        "campaign": "Campaign",
+        "webinar_title": "Webinar title",
+        "webinar_starts_at": "Webinar start",
+        "outcome_key": "Outcome",
+        "unmapped": "Do not import"
+      },
+      "option": {
+        "delimiter": "Delimiter",
+        "date_format": "Date format",
+        "default_locale": "Default language",
+        "overwrite": "Overwrite filled fields",
+        "consent_purpose": "Consent purpose",
+        "consent_wording_version": "Consent wording version",
+        "product": "Product",
+        "credit_kind": "Credit kind",
+        "tag_key": "Tag for the whole file",
+        "preset": "Mapping preset",
+        "confirm_no_suppression_source": "No suppression source exists"
+      },
+      "report": {
+        "title": "Report",
+        "dry_run_title": "Dry run report",
+        "rows": "{count, plural, one {# row} other {# rows}}",
+        "new_persons": "New persons",
+        "matched_persons": "Matched persons",
+        "duplicates_in_file": "Duplicates in the file",
+        "invalid_emails": "Invalid email addresses",
+        "unknown_products": "Unknown products",
+        "suppressed_skipped": "Suppressed addresses, consent skipped",
+        "over_capacity": "Over capacity",
+        "partial": "Partial: cancelled while running",
+        "reconciliation": "Reconciliation",
+        "units_in_file": "Units in the file",
+        "units_granted": "Units granted",
+        "difference": "Difference",
+        "signed_off": "Signed off by {name} on {date}"
+      },
+      "error": {
+        "missing_email": "Email missing",
+        "invalid_email": "Invalid email",
+        "suppressed": "Address is suppressed: consent not imported",
+        "erased": "Person was erased: row skipped",
+        "existing": "Already imported",
+        "no_session": "No session at that time",
+        "over_capacity": "Imported over capacity",
+        "unknown_product": "Unknown product",
+        "invalid_date": "Invalid date",
+        "invalid_number": "Invalid number",
+        "malformed_csv": "The file is not a valid CSV",
+        "missing_targets": "Map the required columns first: {targets}",
+        "go_live_gate": "Complete the go-live gate first",
+        "dry_run_first": "Run a dry run with this mapping first",
+        "suppressions_first": "Import the suppressions first, or confirm that no suppression source exists",
+        "another_running": "Another import is running"
+      }
+    },
+    "cutover": {
+      "go_live_gate_complete": "Go-live gate complete",
+      "invoice_issuer_settings_complete": "Invoicing identity complete",
+      "legal_texts_reviewed": "Legal texts reviewed in three languages",
+      "dpia_sensitive_processing_decided": "DPIA for sensitive processing decided and health form published",
+      "suppressions_imported": "Suppressions imported",
+      "persons_imported": "Persons imported",
+      "consents_imported": "Consents imported",
+      "tags_imported": "Tags imported",
+      "companies_imported": "Companies imported",
+      "history_imported": "History imported",
+      "packages_imported": "Package balances imported",
+      "packages_reconciled": "Package balances reconciled and signed off",
+      "memberships_imported": "Memberships imported",
+      "future_bookings_imported": "Future bookings imported",
+      "stats_recomputed": "Customer statistics recalculated",
+      "old_tools_frozen": "Old tools frozen (read-only)",
+      "dns_switched": "DNS switched",
+      "title": "Cut-over checklist",
+      "progress": "{done} of {total} steps done"
+    },
+    "exports": {
+      "title": "Exports",
+      "empty": "No exports yet",
+      "new": "New export",
+      "download": "Download",
+      "expires": "Expires on {date}",
+      "kind": {
+        "entity": "One entity (CSV)",
+        "full": "Full data export"
+      },
+      "status": {
+        "queued": "Queued",
+        "running": "Running",
+        "done": "Ready",
+        "failed": "Failed",
+        "expired": "Expired"
+      },
+      "entity": {
+        "persons": "Persons",
+        "companies": "Companies",
+        "company_contacts": "Company contacts",
+        "tags": "Tags",
+        "consents": "Consents",
+        "suppressions": "Suppressions",
+        "bookings": "Bookings",
+        "sessions": "Sessions",
+        "orders": "Orders",
+        "order_lines": "Order lines",
+        "payments": "Payments",
+        "refunds": "Refunds",
+        "invoices": "Invoices",
+        "credit_grants": "Credit grants",
+        "credit_entries": "Credit ledger",
+        "memberships": "Memberships",
+        "form_submissions": "Form submissions",
+        "email_messages": "Email messages",
+        "campaigns": "Campaigns",
+        "tasks": "Tasks",
+        "activity_events": "Timeline events"
+      }
+    },
+    "privacy": {
+      "title": "Privacy requests",
+      "empty": "No privacy requests",
+      "new": "New request",
+      "due_on": "Due {date}",
+      "due_soon": "Due soon",
+      "verify": "Verify",
+      "run_now": "Run now",
+      "cancel": "Cancel request",
+      "complete_rectification": "Mark corrected",
+      "lift_restriction": "Lift restriction",
+      "verification_note": "How was the identity checked?",
+      "acknowledge_warnings": "I have read the warnings",
+      "scheduled_for": "Erasure starts on {date}",
+      "manual_followup": "Needs manual follow-up",
+      "kind": {
+        "export": "Data export",
+        "erase": "Erasure",
+        "restrict": "Restriction",
+        "rectify": "Correction",
+        "object": "Objection to marketing"
+      },
+      "status": {
+        "received": "Received",
+        "verified": "Verified",
+        "running": "Running",
+        "done": "Done",
+        "failed": "Failed",
+        "cancelled": "Cancelled"
+      },
+      "requested_by": {
+        "customer": "Customer",
+        "staff": "Staff",
+        "system": "Retention period"
+      },
+      "warning": {
+        "active_membership": "The person has an active membership",
+        "credits_remaining": "The person still has credits",
+        "future_bookings": "The person has future bookings",
+        "open_invoices": "The person has open invoices",
+        "open_orders": "The person has open orders"
+      },
+      "step": {
+        "external": "External systems",
+        "finalise": "Report",
+        "module": {
+          "platform": "Platform",
+          "crm": "Customers",
+          "booking": "Bookings",
+          "commerce": "Shop and payments",
+          "credits": "Credits and memberships",
+          "finance": "Invoices",
+          "forms": "Forms",
+          "email": "Email",
+          "automation": "Automations",
+          "ops": "Reports and privacy",
+          "site": "Website",
+          "webinar": "Webinars"
+        }
+      },
+      "outcome": {
+        "done": "Done",
+        "not_found": "Not found",
+        "failed": "Failed: follow up by hand",
+        "provider_retains": "Kept by the provider under its own legal obligations"
+      },
+      "action": {
+        "deleted": "Deleted",
+        "anonymised": "Anonymised",
+        "retained_legal": "Kept for a legal obligation",
+        "kept": "Kept"
+      },
+      "legal_basis": {
+        "accounting_law": "Belgian accounting law (10 years)",
+        "accountability": "Proof that the request was handled (GDPR article 5(2))",
+        "suppression": "Opt-out kept so you are never contacted again",
+        "consent": "Your consent",
+        "contract": "The contract with you",
+        "legitimate_interest": "Legitimate interest"
+      },
+      "restriction_reason": {
+        "accuracy_contested": "Accuracy contested",
+        "unlawful_processing": "Unlawful processing",
+        "needed_for_legal_claims": "Needed for legal claims",
+        "objection_pending": "Objection pending"
+      },
+      "rectify_field": {
+        "first_name": "First name",
+        "last_name": "Last name",
+        "email": "Email address",
+        "phone": "Phone number",
+        "birth_on": "Date of birth",
+        "address": "Address",
+        "locale": "Language",
+        "company_name": "Company"
+      },
+      "portal": {
+        "title": "Your privacy",
+        "intro": "Here you can download your data, correct it, limit how we use it or delete your account.",
+        "export_title": "Download my data",
+        "export_body": "We prepare a file with all your data. You receive an email when it is ready; the download stays available for 7 days.",
+        "export_button": "Request my data",
+        "download": "Download",
+        "erase_title": "Delete my account",
+        "erase_body": "We delete your profile 24 hours after your request. Until then you can cancel.",
+        "erase_retained": "We keep what the law requires: invoices for the legal period and a fingerprint of your email address so you never receive marketing again.",
+        "erase_confirm_label": "Type {word} to confirm",
+        "erase_confirm_word": "DELETE",
+        "erase_button": "Delete my account",
+        "erase_scheduled": "Your account will be deleted on {date}.",
+        "cancel_erasure": "Cancel deletion",
+        "restrict_title": "Limit the use of my data",
+        "restrict_body": "We stop using your data for marketing and analysis. Your bookings, payments and invoices continue.",
+        "restrict_button": "Limit the use",
+        "object_title": "Object to marketing",
+        "object_body": "You no longer receive newsletters or marketing messages. You can still book and receive service messages.",
+        "object_button": "Stop marketing",
+        "rectify_title": "Ask for a correction",
+        "rectify_body": "Choose what is wrong. Our team contacts you to correct it.",
+        "rectify_button": "Send the request",
+        "requests_title": "Your requests",
+        "empty": "You have no open requests",
+        "preference_centre": "Choose which emails you receive",
+        "rate_limited": "You have made several requests today. Try again tomorrow.",
+        "wrong_word": "Type the word exactly as shown"
+      },
+      "readme": {
+        "title": "Your data at BEAM",
+        "intro": "This file contains the personal data BEAM holds about you, as JSON (machine-readable) and CSV files per part of the platform.",
+        "purposes_title": "Why we process your data",
+        "recipients_title": "Who receives your data",
+        "retention_title": "How long we keep it",
+        "source_title": "Where your data comes from",
+        "complaint_title": "Your right to complain",
+        "complaint_body": "You can file a complaint with the {authority}: {url}",
+        "portable_note": "The JSON files are your portable copy (GDPR article 20).",
+        "days": "{count, plural, one {# day} other {# days}}",
+        "role": {
+          "database": "Database hosting",
+          "hosting": "Application hosting",
+          "email": "Email delivery",
+          "payments": "Payments",
+          "invoicing": "Invoicing and Peppol",
+          "webinar_video": "Webinar video",
+          "ai": "AI features, only the documented fields"
+        },
+        "data": {
+          "database": "All platform data",
+          "hosting": "Traffic in transit, no stored customer data",
+          "email": "Your address, the email and delivery events",
+          "payments": "Payment details",
+          "invoicing": "Customer and invoice data",
+          "webinar_video": "Connection data while watching",
+          "ai": "Only the fields documented per feature"
+        },
+        "purpose": {
+          "bookings": "Your bookings",
+          "payments": "Payments",
+          "invoicing": "Invoices",
+          "packages_and_memberships": "Packages and memberships",
+          "customer_service": "Customer service",
+          "legal_obligations": "Legal obligations"
+        }
+      }
+    },
+    "retention_policy": {
+      "ops_marketing_contact": "Marketing contacts without purchase",
+      "ops_marketing_profile": "Customer profiles without activity",
+      "forms_form_sensitive_answers": "Sensitive assessment answers",
+      "forms_form_submissions": "Form submissions",
+      "webinar_watch_segments": "Webinar watch time",
+      "webinar_webinar_interactions": "Webinar chat and polls",
+      "webinar_webinar_registrations": "Webinar registrations",
+      "finance_invoices": "Invoices",
+      "finance_invoice_requests": "Invoice requests",
+      "finance_billit_reconcile_runs": "Billit reconciliation runs",
+      "finance_finance_exports": "Accountant exports",
+      "crm_declarations_superseded": "Superseded declarations",
+      "automation_automation_runs": "Automation history",
+      "automation_automation_enrolments": "Ended automation enrolments",
+      "crm_duplicate_candidates_closed": "Closed duplicate checks",
+      "crm_tasks_closed": "Closed tasks",
+      "crm_inbox_resolved": "Resolved inbox conversations",
+      "platform_audit_log": "Audit log",
+      "platform_ai_requests": "AI requests",
+      "platform_webhook_events": "Provider webhooks",
+      "platform_integration_calls": "Integration logs",
+      "platform_jobs": "Background jobs",
+      "ops_import_rows": "Import rows",
+      "platform_files_export": "Export files",
+      "platform_files_rendered_email": "Copies of sent emails",
+      "ops_nl_questions": "Questions to the AI",
+      "ops_data_exports": "Data exports",
+      "ops_retention_lists": "Weekly retention lists",
+      "ops_privacy_requests": "Privacy requests",
+      "crm_suppressions": "Opt-out fingerprints",
+      "crm_consent_records": "Consent history"
+    },
+    "dpia": {
+      "sensitive_assessment_processing": {
+        "title": "Sensitive assessment processing",
+        "description": "Health and wellbeing answers in assessments and their use by AI"
+      },
+      "behavioural_scoring": {
+        "title": "Automated behavioural scoring",
+        "description": "Churn and repurchase indicators and opportunity scores"
+      },
+      "ai_customer_ranking": {
+        "title": "AI-based customer ranking",
+        "description": "Questions to the AI that rank customers"
+      },
+      "watch_time_profiling": {
+        "title": "Watch-time profiling",
+        "description": "Webinar watch time in segments and behaviour journeys"
+      },
+      "b2b_prospecting": {
+        "title": "Advanced B2B prospecting",
+        "description": "Not used in this release"
+      },
+      "voice_ai": {
+        "title": "Voice AI",
+        "description": "Not used in this release"
+      },
+      "register_title": "DPIA register",
+      "gates": "Gates: {features}",
+      "decision_note_required": "A decision note is required",
+      "status": {
+        "not_started": "Not started",
+        "in_progress": "In progress",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "not_required": "Not required"
+      }
+    },
+    "digest": {
+      "title": "BEAM daily digest for {date}",
+      "email": "Email: {sent} sent, {bounced} bounced, {complained} complaints, bounce rate {rate}",
+      "blocked_translation": "Blocked for a missing translation: {count}",
+      "automation": "Automations: {failed} failed runs, {skipped} skipped translations, {stuck} stuck enrolments, lag {lag}",
+      "payments": "Failed payments: {count}",
+      "privacy": "Privacy requests near their due date: {due}, needing manual follow-up: {manual}",
+      "imports": "Imports: {done} finished, {failed} failed",
+      "no_handler": "Retention policies without handler: {keys}",
+      "segments": "Segment refresh errors: {count}",
+      "forms": "Forms: {completions} completions, {starts} starts, {import_failures} import failures, {broken_ctas} broken calls to action",
+      "check_form": "Check form {slug}: {views} views, 0 completions",
+      "booking": "Bookings: materialised through {date}, {offers} overdue offers, {reservations} overdue reservations, {unsent} unsent confirmations",
+      "webinars": "Webinars in the next 48 hours: {count}",
+      "ads": "Ads data as of {date}",
+      "unavailable": "{section}: unavailable"
+    },
+    "email": {
+      "privacy_export_ready": {
+        "subject": "Your data is ready to download",
+        "heading": "Your data export is ready",
+        "body": "You asked for a copy of your data. Sign in to your account to download it. The download stays available until {date}.",
+        "button": "Download my data",
+        "footer": "Did you not ask for this? Contact us right away."
+      },
+      "privacy_erasure_scheduled": {
+        "subject": "Your account will be deleted",
+        "heading": "We will delete your account",
+        "body": "Your account and personal data will be deleted on {date}. Until then you can cancel this in your account.",
+        "retained": "We keep invoices for the legal period and a fingerprint of your email address, so you never receive marketing again.",
+        "button": "Cancel the deletion"
+      }
     }
   }
 }

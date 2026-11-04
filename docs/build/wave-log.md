@@ -78,3 +78,5 @@ One entry per merge batch and gate (runbook section 5.7, adapted by OD-3).
 - email-P2: merged as `3c1eaef` in batch `g27-batch`.
 - crm-P6: merged as `4107cbe` in batch `g27-batch`.
 - Batch `g27-batch` (email-P2 crm-P6): merge gate green, peak 5988 MB.
+- 02:20 UTC: a second container restart stopped platform-P8 (attempt 2, 47 uncommitted files, saved as `wip` commit `3d8ad7d`) and credits-P4 (nothing written). Agent instructions now require a commit after each finished area. Relaunched platform-P8 (attempt 3), credits-P4, and started site-P2 and forms-P2 from `1b2926a`.
+- Done and waiting to land: crm-P3 (38 min), booking-P3a (39 min). fix-w05-schema-1 (33 min) added every deferred FK and check and activated the booking and ops schedules, but its new `orders_terms_chk` breaks 21 tests in five other modules' fixtures (portal orders without a terms version); attempt 2 gets those test files and adds `@beam/db/testing/commerce-factories`.

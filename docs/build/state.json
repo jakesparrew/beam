@@ -86,7 +86,7 @@
       "mergedAt": "2026-11-03T23:03:46Z"
     },
     "platform-P8": {
-      "status": "running",
+      "status": "merged",
       "attempts": 4,
       "baseSha": "927e5b7",
       "runId": "wf_aaba28a8-94b",
@@ -94,7 +94,12 @@
       "extraOwns": [
         "apps/web/modules/platform/actions.test.ts",
         "apps/web/modules/platform/ui/login-form.tsx"
-      ]
+      ],
+      "branchSha": "d813364",
+      "endedAt": "2026-11-04T02:52:15Z",
+      "minutes": 44,
+      "mergeSha": "b0d6020",
+      "mergedAt": "2026-11-04T03:00:34Z"
     },
     "crm-P1": {
       "status": "merged",
@@ -276,14 +281,16 @@
       "attempts": 0
     },
     "booking-P3a": {
-      "status": "running",
+      "status": "merged",
       "attempts": 3,
       "baseSha": "e0ded76",
       "runId": "wf_6da7025c-935",
       "startedAt": "2026-11-04T02:39:52Z",
-      "branchSha": "074246c",
-      "endedAt": "2026-11-04T02:32:02Z",
-      "minutes": 39
+      "branchSha": "af8e5c2",
+      "endedAt": "2026-11-04T02:52:15Z",
+      "minutes": 51,
+      "mergeSha": "03300f6",
+      "mergedAt": "2026-11-04T03:00:29Z"
     },
     "commerce-P3": {
       "status": "pending",

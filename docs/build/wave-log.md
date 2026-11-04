@@ -84,3 +84,6 @@ One entry per merge batch and gate (runbook section 5.7, adapted by OD-3).
 - Batch `g28` (crm-P3, booking-P3a) red in email's template registry test (`define.test.ts`, from email-P2): crm-P3's two templates were not registered (no package owned `templates/crm/index.ts`) and booking-P3a's two templates had no `sample`. crm-P3 then landed alone (`g29`) because the changed-tests gate did not select the registry test, leaving a latent failure; fixer `fix-w05-crm-1` registers crm's templates, booking-P3a attempt 3 adds samples. Plan amended (OD-10); full quick gates now run every three or four landings.
 - platform-P8 attempt 3 finished the package (16 min) except one platform-P6 assertion written to fail once P8 implements `reportProblem`; attempt 4 gets that test and the old AdminFrame copy.
 - fix-w05-crm-1: 6 min, merged as `fab14fa`; gate `g31-fix-w05-crm-1` (quick) green, peak 5862 MB.
+- booking-P3a: merged as `03300f6` in batch `g32-batch`.
+- platform-P8: merged as `b0d6020` in batch `g32-batch`.
+- Batch `g32-batch` (booking-P3a platform-P8): merge gate green, peak 5934 MB.

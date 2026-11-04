@@ -77,7 +77,13 @@ export const sweep: Record<string, (tx: Tx, cutoff: Date) => Promise<number>> = 
     await tx.execute(sql`delete from credit_entries where grant_id = any(${uuidArray(due)})`);
     return affected(tx, sql`delete from credit_grants where id = any(${uuidArray(due)}) returning id`);
   },
-  /** Ended memberships (`cancelled`, `expired`) older than the cutoff whose grants are already gone, with their periods. */
+  /**
+   * Ended memberships (`cancelled`, `expired`) older than the cutoff whose grants are already gone,
+   * with their periods. A membership a renewal order still links to stays: the FK's `ON DELETE SET
+   * NULL` would clear `orders.renewal_membership_id` but keep `renewal_period_end_on`, which
+   * commerce's `orders_renewal_chk` refuses, failing the whole batch (fix-w09-credits-review 6;
+   * requested from commerce: relax the check, then drop this guard).
+   */
   "credits.memberships": async (tx, cutoff) => {
     await allowRewrite(tx);
     const due = (
@@ -86,6 +92,7 @@ export const sweep: Record<string, (tx: Tx, cutoff: Date) => Promise<number>> = 
         sql`select m.id from memberships m
             where m.status in ('cancelled', 'expired') and m.ended_at < ${accountingCutoff(cutoff).toISOString()}::timestamptz
               and not exists (select 1 from credit_grants g where g.membership_id = m.id)
+              and not exists (select 1 from orders o where o.renewal_membership_id = m.id)
             order by m.id limit ${BATCH}`,
       )
     ).map((r) => r.id);

@@ -199,4 +199,14 @@ describe("getLegalLinks", () => {
     expect(nl.privacy).toBeNull();
     expect(nl.accessibility).toBeNull();
   });
+
+  it("reads through the caller's transaction when one is passed (OD-15)", async () => {
+    const links = await handle.db.transaction(async (tx) => getLegalLinks("en", tx));
+    expect(links).toEqual({
+      privacy: "https://www.beam.example.com/en/privacy",
+      terms: null,
+      cookies: "https://www.beam.example.com/en/cookies",
+      accessibility: "https://www.beam.example.com/en/accessibility",
+    });
+  });
 });

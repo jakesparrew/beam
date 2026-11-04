@@ -51,6 +51,7 @@ to "Served" with the package id.
 | commerce-P3 | commerce (owner of `events.ts`) | Declare the event kind `person_price.set`; until then `setPersonPrice` writes only its audit row. |
 | automation-P2 | crm (suppressions) | `addSuppression` pushes the jobId that `automation.requestSuppressionExit` returns into the action's after-commit list (`ctxState(ctx).enqueuedIds`), so `automation.exit_for_suppression` runs in the after() kick (A-23). |
 | automation-P2 | crm (person merge, crm-P4) | The person merge calls `automation.exitPersonEnrolments(tx, { personId: loser, reason: 'merged', actor })` inside its own transaction (A-21). |
+| ops-P2 | ops-P7 | Add the R2 webinar columns and the `webinars_registered_total` and `webinars_attended_total` sums to `v_person_profile` in `ops.views.ts`, with their `ops.views.test.ts` cases. |
 
 ## Served
 

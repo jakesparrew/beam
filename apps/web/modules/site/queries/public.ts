@@ -33,6 +33,7 @@ import {
   type SiteSettings,
 } from "@beam/core/site";
 import { and, asc, desc, eq, getAppDb, inArray, sql } from "@/lib/ctx";
+import { NotImplementedError } from "@beam/core/errors";
 import { reportError } from "@/lib/logger";
 import { getSetting } from "@/lib/settings";
 import { getAvailability, getAvailabilityPreview, getOpeningHours as bookingOpeningHours, listPublicEvents } from "@/modules/booking/api";
@@ -56,6 +57,11 @@ function publicCache<A extends unknown[], R>(fn: (...args: A) => Promise<R>, key
       throw error;
     }
   };
+}
+
+/** A module api still a typed stub (`NotImplementedError`) is expected while modules land: not reported. */
+function reportUnlessStub(error: unknown, step: string): void {
+  if (!(error instanceof NotImplementedError)) reportError(error, { tags: { module: "site", step } });
 }
 
 const iso = (d: Date | string | null | undefined): string | null => (d ? new Date(d).toISOString() : null);
@@ -382,14 +388,14 @@ async function loadEventFacts(sessionId: string, locale: Locale): Promise<EventF
     const a = await getAvailability(db, { sessionId });
     band = bandFor({ bookable: a.bookable, capacity: a.capacity, reason: a.reason });
   } catch (error) {
-    reportError(error, { tags: { module: "site", step: "event_availability" } });
+    reportUnlessStub(error, "event_availability");
   }
   let priceCents: number | null = null;
   if (s.productId) {
     try {
       priceCents = (await getProductPrice(db, s.productId, "public"))?.amountCents ?? null;
     } catch (error) {
-      reportError(error, { tags: { module: "site", step: "event_price" } });
+      reportUnlessStub(error, "event_price");
     }
   }
   return {
@@ -578,7 +584,7 @@ async function loadOpeningHours(locale: Locale): Promise<OpeningHoursView> {
       .map((d) => ({ onDate: d.onDate, opensAt: d.opensAt, closesAt: d.closesAt, name: pickText(d.exceptionName, locale) ?? pickText(d.exceptionName, "en") ?? "" }))
       .filter((d) => d.name);
   } catch (error) {
-    reportError(error, { tags: { module: "site", step: "opening_hours" } });
+    reportUnlessStub(error, "opening_hours");
   }
   return { weekly: hasOpenDay ? weekly : null, exceptions, note: hours?.note?.[locale] ?? null };
 }

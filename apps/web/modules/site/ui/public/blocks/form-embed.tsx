@@ -6,8 +6,8 @@
 import type { ReactNode } from "react";
 import type { FormEmbedProps, UtmParams } from "@beam/core/forms";
 import type { Locale } from "@beam/core/i18n";
-import { reportError } from "@/lib/logger";
 import { FormEmbed } from "@/modules/forms/api";
+import { reportBlockError } from "../../../server/render-data";
 import type { BlockContext, BlockOf } from "../block-renderer";
 
 /** Renders forms' `FormEmbed`, isolating a throwing or rejecting embed. */
@@ -16,13 +16,13 @@ export function SafeFormEmbed(props: FormEmbedProps): ReactNode {
     const out = (FormEmbed as (p: FormEmbedProps) => unknown)(props);
     if (out && typeof (out as Promise<unknown>).then === "function") {
       return (out as Promise<ReactNode>).catch((error: unknown) => {
-        reportError(error, { tags: { module: "site", step: "form_embed" }, extra: { slug: props.slug } });
+        reportBlockError(error, "form_embed", { slug: props.slug });
         return null;
       }) as unknown as ReactNode;
     }
     return out as ReactNode;
   } catch (error) {
-    reportError(error, { tags: { module: "site", step: "form_embed" }, extra: { slug: props.slug } });
+    reportBlockError(error, "form_embed", { slug: props.slug });
     return null;
   }
 }

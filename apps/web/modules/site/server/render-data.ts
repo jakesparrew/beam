@@ -8,6 +8,7 @@
 import type { Locale } from "@beam/core/i18n";
 import type { UtmParams } from "@beam/core/forms";
 import { buildJsonLd, localePath, richDocToPlainText, type Block, type BreadcrumbFacts, type JsonLdFacts } from "@beam/core/site";
+import { NotImplementedError } from "@beam/core/errors";
 import { reportError } from "@/lib/logger";
 import {
   getAvailabilityPreviewForSite,
@@ -74,11 +75,20 @@ export function utmFrom(searchParams: SearchParams): UtmParams {
   return out;
 }
 
+/**
+ * Reports a failing block data source to Sentry. A module api that is still a typed stub
+ * (`NotImplementedError`, build order section 2) is expected while modules land and not reported.
+ */
+export function reportBlockError(error: unknown, step: string, extra?: Record<string, unknown>): void {
+  if (error instanceof NotImplementedError) return;
+  reportError(error, { tags: { module: "site", step }, extra });
+}
+
 async function safe<T>(step: string, fn: () => Promise<T>): Promise<T | null> {
   try {
     return await fn();
   } catch (error) {
-    reportError(error, { tags: { module: "site", step } });
+    reportBlockError(error, step);
     return null;
   }
 }

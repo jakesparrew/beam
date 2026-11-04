@@ -44,7 +44,7 @@ export const EXPIRY_OVERDUE_HOURS = 26;
 const HOUR = 3_600_000;
 const iso = (d: Date) => d.toISOString();
 const ts = (d: Date) => sql`${iso(d)}::timestamptz`;
-const dateOut = (v: unknown) => (v instanceof Date ? v.toISOString() : v == null ? null : new Date(String(v)).toISOString());
+const dateOut = (v: Date | string | null) => (v instanceof Date ? v.toISOString() : v == null ? null : new Date(v).toISOString());
 
 /** Consume entries of `refType` without their release. */
 const unreleased = (refType: "booking" | "order") => sql`
@@ -119,7 +119,7 @@ const negativeBalance: CheckFn = async (tx) => {
 
 /** An `active` membership whose period ended more than 11 days ago. */
 const staleMembershipPeriod: CheckFn = async (tx, ctx) => {
-  const rows = await query<{ membership_id: string; period_end_at: unknown }>(
+  const rows = await query<{ membership_id: string; period_end_at: Date | string | null }>(
     tx,
     sql`
       select m.id as membership_id, m.current_period_end_at as period_end_at from memberships m
@@ -167,7 +167,7 @@ const missingInclusionGrant: CheckFn = async (tx, ctx) => {
 
 /** An `active` grant that expired more than 26 hours ago (the expiry job did not run). */
 const expiryOverdue: CheckFn = async (tx, ctx) => {
-  const rows = await query<{ grant_id: string; expires_at: unknown }>(
+  const rows = await query<{ grant_id: string; expires_at: Date | string | null }>(
     tx,
     sql`
       select g.id as grant_id, g.expires_at from credit_grants g

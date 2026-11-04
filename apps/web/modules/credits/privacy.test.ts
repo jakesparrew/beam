@@ -27,7 +27,7 @@ afterAll(async () => {
 
 const DAY = 86_400_000;
 const ago = (days: number) => new Date(Date.now() - days * DAY);
-const inTx = <T>(fn: (tx: Tx) => Promise<T>) => h.db.transaction((tx) => fn(tx as Tx));
+const inTx = <T>(fn: (tx: Tx) => Promise<T>) => h.db.transaction((tx) => fn(tx));
 const asRows = (v: unknown) => v as Record<string, unknown>[];
 
 async function bookingFor(personId: string) {
@@ -165,7 +165,7 @@ describe("erase", () => {
     expect(await h.db.select().from(creditEntries).where(inArray(creditEntries.grantId, [bonus.id, manualDay.id]))).toEqual([]);
 
     const balances = await h.db.execute(sql`select grant_id, remaining_units from v_credit_grant_balances where grant_id = any(${`{${retainedIds.join(",")}}`}::uuid[])`);
-    for (const b of (balances as unknown as { rows: { remaining_units: number }[] }).rows) expect(Number(b.remaining_units)).toBe(0);
+    for (const b of (balances as { rows: { remaining_units: number }[] }).rows) expect(Number(b.remaining_units)).toBe(0);
     const revokes = await h.db.select().from(creditEntries).where(revokesOn(retainedIds));
     expect(revokes.map((r) => [r.grantId, r.quantity, r.reason, r.idempotencyKey]).sort()).toEqual(
       [
@@ -195,9 +195,9 @@ describe("erase", () => {
     const entryRefs = await h.db.select().from(creditEntries).where(or(eq(creditEntries.personId, p.id), eq(creditEntries.beneficiaryPersonId, p.id)));
     for (const e of entryRefs) expect([...retainedIds, friendsGrant.id]).toContain(e.grantId);
     const cache = await h.db.execute(sql`select id from credit_grants where sharing->'allowed_person_ids' ? ${p.id}`);
-    expect((cache as unknown as { rows: unknown[] }).rows).toEqual([]);
+    expect((cache as { rows: unknown[] }).rows).toEqual([]);
     const textRefs = await h.db.execute(sql`select id from credit_entries where reason ilike '%knee%' or data::text ilike '%holiday%'`);
-    expect((textRefs as unknown as { rows: unknown[] }).rows).toEqual([]);
+    expect((textRefs as { rows: unknown[] }).rows).toEqual([]);
 
     // A second erase changes nothing.
     const entriesBefore = await h.db.select().from(creditEntries).where(inArray(creditEntries.grantId, retainedIds));

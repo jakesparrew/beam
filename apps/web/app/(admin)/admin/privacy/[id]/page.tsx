@@ -86,7 +86,9 @@ export default async function PrivacyRequestPage({ params, searchParams }: { par
       <dl className="grid gap-2 text-sm sm:grid-cols-[12rem_1fr]">
         <dt className="text-muted-foreground">{tr("platform.jobs.col_status")}</dt>
         <dd className="flex flex-wrap gap-1">
-          <Badge variant={r.status === "failed" ? "destructive" : r.status === "done" ? "success" : "secondary"}>{tr(`ops.privacy.status.${r.status}`)}</Badge>
+          <Badge data-testid="privacy-status" data-status={r.status} variant={r.status === "failed" ? "destructive" : r.status === "done" ? "success" : "secondary"}>
+            {tr(`ops.privacy.status.${r.status}`)}
+          </Badge>
           {r.needsManualFollowup ? <Badge variant="destructive">{tr("ops.privacy.manual_followup")}</Badge> : null}
         </dd>
         <dt className="text-muted-foreground">{tr("platform.users.col_actor")}</dt>
@@ -127,7 +129,7 @@ export default async function PrivacyRequestPage({ params, searchParams }: { par
 
       <div className="flex flex-wrap gap-3">
         {r.status === "received" ? (
-          <form action={verify} className="grid w-full max-w-xl gap-2 rounded-md border p-3">
+          <form action={verify} data-testid="privacy-verify" className="grid w-full max-w-xl gap-2 rounded-md border p-3">
             <Label htmlFor="verify-note">{tr("ops.privacy.verification_note")}</Label>
             <textarea id="verify-note" name="verificationNote" required maxLength={500} rows={2} className="rounded-md border bg-background p-2 text-sm" />
             {r.kind === "erase" ? (
@@ -142,7 +144,7 @@ export default async function PrivacyRequestPage({ params, searchParams }: { par
           </form>
         ) : null}
         {canRunNow ? (
-          <form action={runNow}>
+          <form action={runNow} data-testid="privacy-run-now">
             <Button type="submit" variant="destructive">
               {tr("ops.privacy.run_now")}
             </Button>

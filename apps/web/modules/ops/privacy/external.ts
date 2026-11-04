@@ -14,6 +14,7 @@
  */
 import type { Tx } from "@beam/db";
 import { FIRST_ERASE_MODULE, type EraseExternalProvider, type PrivacyExternalOutcome } from "@beam/core/ops";
+import { isPermanentFailure } from "@beam/integrations/_shared";
 import { eq, sql } from "@/lib/ctx";
 import { privacyRequests } from "@beam/db/schema";
 import type { JobCtx } from "@/lib/job-runner";
@@ -73,9 +74,13 @@ export async function eraseExternal(ctx: JobCtx, input: { requestId: string; pro
     try {
       outcome = await callProvider(ctx, input.provider, row.personId);
     } catch (error) {
-      if (ctx.job.attempt < EXTERNAL_MAX_ATTEMPTS) throw error;
-      reportError(error, { tags: { job: "privacy.erase_external", provider: input.provider } });
-      outcome = "failed";
+      // A 404 means the provider no longer knows the person; a permanent error is not retried.
+      if ((error as { statusCode?: unknown } | null)?.statusCode === 404) outcome = "not_found";
+      else if (!isPermanentFailure(error) && ctx.job.attempt < EXTERNAL_MAX_ATTEMPTS) throw error;
+      else {
+        reportError(error, { tags: { job: "privacy.erase_external", provider: input.provider } });
+        outcome = "failed";
+      }
     }
   }
   // Re-read under the lock: the other two providers may have recorded meanwhile.

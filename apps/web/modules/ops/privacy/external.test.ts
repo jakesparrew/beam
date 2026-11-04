@@ -114,6 +114,20 @@ describe("privacy.erase_external", () => {
     expect(fakes.billit.snapshot().parties.find((x) => x.PartyID === partyId)).toMatchObject({ Email: null });
   });
 
+  it("Billit: a party the provider no longer knows (404) is not_found and is not retried", async () => {
+    const fakes = billitFakes;
+    const p = await makePerson(h.db);
+    await h.db.insert(billitParties).values({ partyKey: `person:${p.id}`, personId: p.id, billitPartyId: `gone-${p.id.slice(0, 8)}` });
+    const r = await o.createRequest(staff(), { personId: p.id, kind: "erase", requestedBy: "staff" });
+    await o.verifyRequest(staff(), { requestId: r.id, verificationNote: "checked", acknowledgeWarnings: true });
+    await o.runNow(staff(), r.id);
+    await drainPrivacy(h.db, { integrations: fakes });
+    expect(await outcomeOf(r.id, "billit")).toBe("not_found");
+    const job = (await privacyJobs(h.db, r.id)).find((j) => j.key.endsWith(":external:billit"))!;
+    expect(job.attempts).toBe(1);
+    expect((await requestOf(h.db, r.id)).status).toBe("done");
+  });
+
   it("Billit failing on every attempt records failed, sets needs_manual_followup, and the local steps still run", async () => {
     const fakes = billitFakes;
     const p = await makePerson(h.db);

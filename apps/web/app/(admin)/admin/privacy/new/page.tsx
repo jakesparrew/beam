@@ -92,7 +92,7 @@ export default async function NewPrivacyRequestPage({ searchParams }: { searchPa
           <AlertDescription>{tr(`platform.errors.${error}`)}</AlertDescription>
         </Alert>
       ) : null}
-      <form action={create} className="grid gap-4">
+      <form action={create} data-testid="privacy-new" className="grid gap-4">
         <input type="hidden" name="personId" value={person.id} />
         <fieldset className="grid gap-2">
           <legend className="text-sm font-medium">{tr("platform.jobs.col_kind")}</legend>

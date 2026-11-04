@@ -3,8 +3,712 @@
     "permissions": {
       "reports_read": "Dashboards en rapporten bekijken",
       "reports_finance": "Financiële rapporten bekijken",
-      "dashboards_manage": "Eigen dashboards aanmaken en delen",
-      "privacy_run": "Privacyverzoeken uitvoeren: export, wissing en beperking"
+      "dashboards_manage": "Eigen dashboards maken en delen",
+      "privacy_run": "Privacyverzoeken uitvoeren: export, wissen en beperking"
+    },
+    "nav": {
+      "dashboard": "Dashboard",
+      "retention": "Klantbehoud",
+      "pipeline": "Pipeline",
+      "management": "Management",
+      "custom": "Mijn dashboards",
+      "ask": "Stel een vraag",
+      "summary": "Weekoverzicht",
+      "reports": "Rapporten",
+      "reports_revenue": "Omzet",
+      "reports_no_shows": "No-shows en annuleringen",
+      "reports_abandoned": "Verlaten bestellingen",
+      "reports_capacity": "Bezetting",
+      "reports_marketing": "Marketing",
+      "reports_attribution": "Campagne-attributie",
+      "reports_ads": "Advertenties",
+      "imports": "Imports",
+      "exports": "Exports",
+      "privacy": "Privacyverzoeken",
+      "retention_policies": "Bewaartermijnen",
+      "dpia": "DPIA-register",
+      "account_privacy": "Privacy"
+    },
+    "common": {
+      "retry": "Opnieuw proberen",
+      "request_id": "Verzoek-id: {id}",
+      "error_title": "Deze pagina kon niet laden",
+      "loading": "Laden…",
+      "open_person": "Persoon openen",
+      "download_csv": "CSV downloaden",
+      "no_data": "Geen gegevens",
+      "data_as_of": "Gegevens van {date}"
+    },
+    "dashboard": {
+      "title": "Vandaag",
+      "create_task": "Taak aanmaken",
+      "task_created": "Taak aangemaakt",
+      "task_exists": "Er bestaat al een taak voor deze persoon",
+      "open_list": "Lijst openen",
+      "count": "{count, plural, one {# persoon} other {# personen}}",
+      "view": {
+        "today": "Vandaag",
+        "week": "Deze week"
+      },
+      "card": {
+        "packages_nearing_completion": {
+          "title": "Pakketten bijna op",
+          "empty": "Vandaag vraagt niets aandacht",
+          "row": "nog {remaining} van {total}"
+        },
+        "vip_inactive": {
+          "title": "Waardevolle klanten zonder bezoek",
+          "empty": "Vandaag vraagt niets aandacht",
+          "row": "{days} dagen geen bezoek"
+        },
+        "new_leads_follow_up": {
+          "title": "Nieuwe leads opvolgen",
+          "empty": "Vandaag vraagt niets aandacht",
+          "row": "Lead sinds {date}"
+        },
+        "b2b_proposals": {
+          "title": "B2B-voorstellen opvolgen",
+          "empty": "Vandaag vraagt niets aandacht",
+          "row": "{company}: {stage}"
+        },
+        "memberships_expiring": {
+          "title": "Lidmaatschappen die aflopen",
+          "empty": "Vandaag vraagt niets aandacht",
+          "row": "Loopt af op {date}"
+        },
+        "failed_payments": {
+          "title": "Mislukte betalingen",
+          "empty": "Vandaag vraagt niets aandacht",
+          "row": "{amount} op {date}"
+        },
+        "webinar_leads_not_booked": {
+          "title": "Webinarleads zonder boeking",
+          "empty": "Vandaag vraagt niets aandacht",
+          "row": "Ingeschreven op {date}"
+        },
+        "unused_packages_expiring": {
+          "title": "Ongebruikte pakketten die vervallen",
+          "empty": "Vandaag vraagt niets aandacht",
+          "row": "nog {remaining}, vervalt {date}"
+        },
+        "shared_package_abuse": {
+          "title": "Gedeelde pakketten nakijken",
+          "empty": "Vandaag vraagt niets aandacht",
+          "row": "{guests} gasten in 30 dagen"
+        },
+        "overdue_tasks": {
+          "title": "Achterstallige taken",
+          "empty": "Vandaag vraagt niets aandacht",
+          "row": "Vervallen op {date}"
+        },
+        "overdue_privacy_requests": {
+          "title": "Privacyverzoeken bijna over tijd",
+          "empty": "Vandaag vraagt niets aandacht",
+          "row": "{kind}, uiterlijk {date}"
+        }
+      }
+    },
+    "period": {
+      "day": "Dag",
+      "week": "Week",
+      "month": "Maand tot nu",
+      "ytd": "Jaar tot nu",
+      "last_30d": "Laatste 30 dagen",
+      "last_90d": "Laatste 90 dagen",
+      "previous": "Vorige periode",
+      "change": "Verschil",
+      "change_blank": "Geen vergelijking: de vorige periode was 0"
+    },
+    "stage": {
+      "lead": "Lead",
+      "engaged_lead": "Betrokken lead",
+      "experienced": "Kennisgemaakt",
+      "first_visit": "Eerste bezoek",
+      "first_purchase": "Eerste aankoop",
+      "active": "Actief",
+      "repeat": "Terugkerende klant",
+      "member": "Lid / waardevolle klant",
+      "retention": "Klantbehoud nodig",
+      "lost": "Verloren"
+    },
+    "pipeline": {
+      "title": "B2C-pipeline",
+      "high_value": "Waardevol",
+      "empty": "Geen personen in deze fase"
+    },
+    "retention": {
+      "title": "Klantbehoudlijst van deze week",
+      "empty": "Iedereen is deze week op koers",
+      "create_all": "Alle taken aanmaken",
+      "rebuild": "Opnieuw opbouwen",
+      "dismiss_action": "Negeren",
+      "reason": {
+        "visiting_less": "Komt minder vaak",
+        "package_nearly_finished": "Pakket bijna op",
+        "package_finished_no_repurchase": "Pakket op, geen nieuw gekocht",
+        "package_expiring": "Pakket vervalt binnenkort",
+        "high_value_inactive": "Waardevolle klant inactief",
+        "membership_renewal_due": "Verlenging lidmaatschap",
+        "purchased_never_booked": "Gekocht maar nooit geboekt",
+        "unused_sessions": "Sessies niet gebruikt"
+      },
+      "task_title": {
+        "visiting_less": "Contact opnemen: komt minder vaak",
+        "package_nearly_finished": "Nieuw pakket voorstellen",
+        "package_finished_no_repurchase": "Opvolgen: pakket op",
+        "package_expiring": "Herinneren: pakket vervalt",
+        "high_value_inactive": "Waardevolle klant bellen",
+        "membership_renewal_due": "Verlenging lidmaatschap bespreken",
+        "purchased_never_booked": "Helpen met een eerste boeking",
+        "unused_sessions": "Uitnodigen om resterende sessies te gebruiken"
+      },
+      "dismiss": {
+        "not_relevant": "Niet relevant",
+        "already_contacted": "Al gecontacteerd",
+        "do_not_contact": "Niet contacteren",
+        "other": "Andere"
+      }
+    },
+    "reports": {
+      "title": "Rapporten",
+      "intro": "Elk rapport sluit testpersonen uit en kan als CSV gedownload worden.",
+      "show_as_table": "Als tabel tonen",
+      "vat": {
+        "incl": "Incl. btw",
+        "excl": "Excl. btw"
+      },
+      "channel": {
+        "portal": "Klantenportaal",
+        "site": "Website",
+        "admin": "Medewerkers",
+        "pos": "Onthaal",
+        "link": "Betaallink",
+        "recurring": "Terugkerend"
+      },
+      "product_kind": {
+        "package": "Pakketten",
+        "night": "Nachten",
+        "session": "Sessies",
+        "membership": "Lidmaatschappen",
+        "item": "Producten",
+        "ticket": "Eventtickets",
+        "voucher": "Cadeaubonnen",
+        "refund": "Terugbetalingen"
+      },
+      "revenue": {
+        "title": "Omzet",
+        "empty": "Geen betaalde bestellingen in deze periode",
+        "net": "Netto-omzet",
+        "daily": "Laatste 90 dagen",
+        "by_kind": "Verkoop per productsoort",
+        "by_channel": "Verkoop per kanaal",
+        "summary": "Netto-omzet {amount}, {change} tegenover de vorige periode",
+        "column": {
+          "day": "Dag",
+          "channel": "Kanaal",
+          "product_kind": "Productsoort",
+          "orders": "Bestellingen",
+          "gross": "Bruto",
+          "vat": "Btw",
+          "refunds": "Terugbetalingen",
+          "net": "Netto"
+        },
+        "filter": {
+          "period": "Periode",
+          "vat": "Btw"
+        }
+      },
+      "liability": {
+        "title": "Openstaande vooruitbetaalde tegoeden",
+        "intro": "Wat nog verschuldigd is in sessies, nachten en eurotegoed, voor de boekhouder.",
+        "credit_kind": "Soort tegoed",
+        "remaining_units": "Resterende eenheden",
+        "value": "Waarde",
+        "vat_treatment": "Btw-behandeling",
+        "as_of": "Op {date}",
+        "empty": "Geen openstaande tegoeden"
+      }
+    },
+    "imports": {
+      "title": "Imports",
+      "empty": "Nog geen imports. Begin met de uitschrijvingen.",
+      "new": "Nieuwe import",
+      "upload": "CSV uploaden",
+      "save_mapping": "Koppeling opslaan",
+      "start_dry_run": "Proefimport starten",
+      "start_run": "Import uitvoeren",
+      "cancel": "Import annuleren",
+      "sign_off": "Afstemming goedkeuren",
+      "download_errors": "Rijen met fouten downloaden",
+      "kind": {
+        "persons": "Personen",
+        "suppressions": "Uitschrijvingen",
+        "consents": "Toestemmingen",
+        "tags": "Tags",
+        "companies": "Bedrijven",
+        "bookings": "Toekomstige boekingen",
+        "packages": "Pakketsaldi",
+        "memberships": "Lidmaatschappen",
+        "history": "Historiek"
+      },
+      "source": {
+        "simplybook": "SimplyBook",
+        "lightspeed": "Lightspeed",
+        "mailchimp": "Mailchimp",
+        "spreadsheet": "Rekenblad",
+        "event_db": "Eventdatabank",
+        "b2b_list": "B2B-lijst",
+        "webinar_tool": "Webinartool",
+        "assessment_tool": "Assessmenttool",
+        "other": "Andere"
+      },
+      "status": {
+        "uploaded": "Geüpload",
+        "dry_run": "Proefimport",
+        "running": "Bezig",
+        "done": "Klaar",
+        "failed": "Mislukt",
+        "cancelled": "Geannuleerd"
+      },
+      "row_status": {
+        "pending": "Wachtend",
+        "imported": "Geïmporteerd",
+        "updated": "Bijgewerkt",
+        "skipped": "Overgeslagen",
+        "error": "Fout"
+      },
+      "target": {
+        "external_id": "Externe id",
+        "email": "E-mail",
+        "phone": "Telefoon",
+        "first_name": "Voornaam",
+        "last_name": "Achternaam",
+        "locale": "Taal",
+        "birth_on": "Geboortedatum",
+        "street": "Straat",
+        "postal_code": "Postcode",
+        "city": "Gemeente",
+        "country": "Land",
+        "preferred_channel": "Voorkeurskanaal",
+        "company_name": "Bedrijfsnaam",
+        "created_at": "Oorspronkelijke aanmaakdatum",
+        "source_campaign": "Broncampagne",
+        "scope": "Bereik",
+        "reason": "Reden",
+        "suppressed_at": "Uitgeschreven op",
+        "purpose": "Doel",
+        "status": "Status",
+        "recorded_at": "Geregistreerd op",
+        "wording_version": "Versie van de tekst",
+        "source": "Bron",
+        "tag_key": "Tag",
+        "name": "Naam",
+        "vat_number": "Btw-nummer",
+        "website": "Website",
+        "industry": "Sector",
+        "size": "Grootte",
+        "contact_email": "E-mail contactpersoon",
+        "contact_position": "Functie contactpersoon",
+        "contact_decision_role": "Beslissingsrol contactpersoon",
+        "session_starts_at": "Start sessie",
+        "session_kind": "Soort sessie",
+        "paid_with": "Betaald met",
+        "product_sku": "Productcode",
+        "units_remaining": "Resterende eenheden",
+        "units_original": "Oorspronkelijke eenheden",
+        "expires_on": "Vervalt op",
+        "unit_value_cents": "Waarde per eenheid (cent)",
+        "period_end_on": "Periode eindigt op",
+        "started_on": "Gestart op",
+        "history_kind": "Soort historiek",
+        "occurred_at": "Plaatsgevonden op",
+        "description": "Omschrijving",
+        "amount_cents": "Bedrag (cent)",
+        "product_kind": "Productsoort",
+        "campaign": "Campagne",
+        "webinar_title": "Titel webinar",
+        "webinar_starts_at": "Start webinar",
+        "outcome_key": "Uitkomst",
+        "unmapped": "Niet importeren"
+      },
+      "option": {
+        "delimiter": "Scheidingsteken",
+        "date_format": "Datumnotatie",
+        "default_locale": "Standaardtaal",
+        "overwrite": "Ingevulde velden overschrijven",
+        "consent_purpose": "Doel van de toestemming",
+        "consent_wording_version": "Versie toestemmingstekst",
+        "product": "Product",
+        "credit_kind": "Soort tegoed",
+        "tag_key": "Tag voor het hele bestand",
+        "preset": "Voorinstelling koppeling",
+        "confirm_no_suppression_source": "Er bestaat geen bron met uitschrijvingen"
+      },
+      "report": {
+        "title": "Rapport",
+        "dry_run_title": "Rapport proefimport",
+        "rows": "{count, plural, one {# rij} other {# rijen}}",
+        "new_persons": "Nieuwe personen",
+        "matched_persons": "Gekoppelde personen",
+        "duplicates_in_file": "Dubbels in het bestand",
+        "invalid_emails": "Ongeldige e-mailadressen",
+        "unknown_products": "Onbekende producten",
+        "suppressed_skipped": "Uitgeschreven adressen, toestemming overgeslagen",
+        "over_capacity": "Boven capaciteit",
+        "partial": "Gedeeltelijk: geannuleerd tijdens de import",
+        "reconciliation": "Afstemming",
+        "units_in_file": "Eenheden in het bestand",
+        "units_granted": "Toegekende eenheden",
+        "difference": "Verschil",
+        "signed_off": "Goedgekeurd door {name} op {date}"
+      },
+      "error": {
+        "missing_email": "E-mail ontbreekt",
+        "invalid_email": "Ongeldig e-mailadres",
+        "suppressed": "Adres is uitgeschreven: toestemming niet geïmporteerd",
+        "erased": "Persoon werd gewist: rij overgeslagen",
+        "existing": "Al geïmporteerd",
+        "no_session": "Geen sessie op dat moment",
+        "over_capacity": "Geïmporteerd boven capaciteit",
+        "unknown_product": "Onbekend product",
+        "invalid_date": "Ongeldige datum",
+        "invalid_number": "Ongeldig getal",
+        "malformed_csv": "Het bestand is geen geldige CSV",
+        "missing_targets": "Koppel eerst de verplichte kolommen: {targets}",
+        "go_live_gate": "Rond eerst de go-live-controle af",
+        "dry_run_first": "Voer eerst een proefimport met deze koppeling uit",
+        "suppressions_first": "Importeer eerst de uitschrijvingen, of bevestig dat er geen bron bestaat",
+        "another_running": "Er loopt al een andere import"
+      }
+    },
+    "cutover": {
+      "go_live_gate_complete": "Go-live-controle afgerond",
+      "invoice_issuer_settings_complete": "Factuurgegevens volledig",
+      "legal_texts_reviewed": "Juridische teksten nagelezen in drie talen",
+      "dpia_sensitive_processing_decided": "DPIA gevoelige verwerking beslist en gezondheidsformulier gepubliceerd",
+      "suppressions_imported": "Uitschrijvingen geïmporteerd",
+      "persons_imported": "Personen geïmporteerd",
+      "consents_imported": "Toestemmingen geïmporteerd",
+      "tags_imported": "Tags geïmporteerd",
+      "companies_imported": "Bedrijven geïmporteerd",
+      "history_imported": "Historiek geïmporteerd",
+      "packages_imported": "Pakketsaldi geïmporteerd",
+      "packages_reconciled": "Pakketsaldi afgestemd en goedgekeurd",
+      "memberships_imported": "Lidmaatschappen geïmporteerd",
+      "future_bookings_imported": "Toekomstige boekingen geïmporteerd",
+      "stats_recomputed": "Klantstatistieken herberekend",
+      "old_tools_frozen": "Oude tools bevroren (alleen lezen)",
+      "dns_switched": "DNS omgezet",
+      "title": "Checklist overschakeling",
+      "progress": "{done} van {total} stappen klaar"
+    },
+    "exports": {
+      "title": "Exports",
+      "empty": "Nog geen exports",
+      "new": "Nieuwe export",
+      "download": "Downloaden",
+      "expires": "Vervalt op {date}",
+      "kind": {
+        "entity": "Eén entiteit (CSV)",
+        "full": "Volledige gegevensexport"
+      },
+      "status": {
+        "queued": "In wachtrij",
+        "running": "Bezig",
+        "done": "Klaar",
+        "failed": "Mislukt",
+        "expired": "Vervallen"
+      },
+      "entity": {
+        "persons": "Personen",
+        "companies": "Bedrijven",
+        "company_contacts": "Bedrijfscontacten",
+        "tags": "Tags",
+        "consents": "Toestemmingen",
+        "suppressions": "Uitschrijvingen",
+        "bookings": "Boekingen",
+        "sessions": "Sessies",
+        "orders": "Bestellingen",
+        "order_lines": "Bestellijnen",
+        "payments": "Betalingen",
+        "refunds": "Terugbetalingen",
+        "invoices": "Facturen",
+        "credit_grants": "Toegekende tegoeden",
+        "credit_entries": "Tegoedenregister",
+        "memberships": "Lidmaatschappen",
+        "form_submissions": "Formulierinzendingen",
+        "email_messages": "E-mailberichten",
+        "campaigns": "Campagnes",
+        "tasks": "Taken",
+        "activity_events": "Tijdlijngebeurtenissen"
+      }
+    },
+    "privacy": {
+      "title": "Privacyverzoeken",
+      "empty": "Geen privacyverzoeken",
+      "new": "Nieuw verzoek",
+      "due_on": "Uiterlijk {date}",
+      "due_soon": "Bijna over tijd",
+      "verify": "Verifiëren",
+      "run_now": "Nu uitvoeren",
+      "cancel": "Verzoek annuleren",
+      "complete_rectification": "Als verbeterd markeren",
+      "lift_restriction": "Beperking opheffen",
+      "verification_note": "Hoe werd de identiteit gecontroleerd?",
+      "acknowledge_warnings": "Ik heb de waarschuwingen gelezen",
+      "scheduled_for": "Wissen start op {date}",
+      "manual_followup": "Manuele opvolging nodig",
+      "kind": {
+        "export": "Gegevensexport",
+        "erase": "Wissen",
+        "restrict": "Beperking",
+        "rectify": "Verbetering",
+        "object": "Bezwaar tegen marketing"
+      },
+      "status": {
+        "received": "Ontvangen",
+        "verified": "Geverifieerd",
+        "running": "Bezig",
+        "done": "Afgerond",
+        "failed": "Mislukt",
+        "cancelled": "Geannuleerd"
+      },
+      "requested_by": {
+        "customer": "Klant",
+        "staff": "Medewerker",
+        "system": "Bewaartermijn"
+      },
+      "warning": {
+        "active_membership": "De persoon heeft een actief lidmaatschap",
+        "credits_remaining": "De persoon heeft nog tegoeden",
+        "future_bookings": "De persoon heeft toekomstige boekingen",
+        "open_invoices": "De persoon heeft openstaande facturen",
+        "open_orders": "De persoon heeft openstaande bestellingen"
+      },
+      "step": {
+        "external": "Externe systemen",
+        "finalise": "Rapport",
+        "module": {
+          "platform": "Platform",
+          "crm": "Klanten",
+          "booking": "Boekingen",
+          "commerce": "Shop en betalingen",
+          "credits": "Tegoeden en lidmaatschappen",
+          "finance": "Facturen",
+          "forms": "Formulieren",
+          "email": "E-mail",
+          "automation": "Automatisaties",
+          "ops": "Rapporten en privacy",
+          "site": "Website",
+          "webinar": "Webinars"
+        }
+      },
+      "outcome": {
+        "done": "Uitgevoerd",
+        "not_found": "Niet gevonden",
+        "failed": "Mislukt: manueel opvolgen",
+        "provider_retains": "Bewaard door de leverancier volgens zijn eigen wettelijke plichten"
+      },
+      "action": {
+        "deleted": "Verwijderd",
+        "anonymised": "Geanonimiseerd",
+        "retained_legal": "Bewaard wegens wettelijke plicht",
+        "kept": "Bewaard"
+      },
+      "legal_basis": {
+        "accounting_law": "Belgische boekhoudwet (10 jaar)",
+        "accountability": "Bewijs dat het verzoek behandeld werd (AVG artikel 5(2))",
+        "suppression": "Uitschrijving bewaard zodat u nooit opnieuw gecontacteerd wordt",
+        "consent": "Uw toestemming",
+        "contract": "De overeenkomst met u",
+        "legitimate_interest": "Gerechtvaardigd belang"
+      },
+      "restriction_reason": {
+        "accuracy_contested": "Juistheid betwist",
+        "unlawful_processing": "Onrechtmatige verwerking",
+        "needed_for_legal_claims": "Nodig voor een rechtsvordering",
+        "objection_pending": "Bezwaar in behandeling"
+      },
+      "rectify_field": {
+        "first_name": "Voornaam",
+        "last_name": "Achternaam",
+        "email": "E-mailadres",
+        "phone": "Telefoonnummer",
+        "birth_on": "Geboortedatum",
+        "address": "Adres",
+        "locale": "Taal",
+        "company_name": "Bedrijf"
+      },
+      "portal": {
+        "title": "Uw privacy",
+        "intro": "Hier kunt u uw gegevens downloaden, laten verbeteren, het gebruik ervan beperken of uw account verwijderen.",
+        "export_title": "Mijn gegevens downloaden",
+        "export_body": "We maken een bestand met al uw gegevens. U krijgt een e-mail zodra het klaar is; de download blijft 7 dagen beschikbaar.",
+        "export_button": "Mijn gegevens aanvragen",
+        "download": "Downloaden",
+        "erase_title": "Mijn account verwijderen",
+        "erase_body": "We verwijderen uw profiel 24 uur na uw verzoek. Tot dan kunt u annuleren.",
+        "erase_retained": "We bewaren wat de wet vraagt: facturen gedurende de wettelijke termijn en een vingerafdruk van uw e-mailadres zodat u nooit meer marketing ontvangt.",
+        "erase_confirm_label": "Typ {word} om te bevestigen",
+        "erase_confirm_word": "VERWIJDER",
+        "erase_button": "Mijn account verwijderen",
+        "erase_scheduled": "Uw account wordt verwijderd op {date}.",
+        "cancel_erasure": "Verwijderen annuleren",
+        "restrict_title": "Het gebruik van mijn gegevens beperken",
+        "restrict_body": "We gebruiken uw gegevens niet meer voor marketing en analyse. Uw boekingen, betalingen en facturen lopen gewoon door.",
+        "restrict_button": "Gebruik beperken",
+        "object_title": "Bezwaar maken tegen marketing",
+        "object_body": "U ontvangt geen nieuwsbrieven of marketingberichten meer. U kunt nog altijd boeken en dienstberichten ontvangen.",
+        "object_button": "Marketing stoppen",
+        "rectify_title": "Een verbetering vragen",
+        "rectify_body": "Kies wat niet klopt. Ons team neemt contact op om het te verbeteren.",
+        "rectify_button": "Verzoek versturen",
+        "requests_title": "Uw verzoeken",
+        "empty": "U hebt geen openstaande verzoeken",
+        "preference_centre": "Kies welke e-mails u ontvangt",
+        "rate_limited": "U hebt vandaag al meerdere verzoeken gedaan. Probeer morgen opnieuw.",
+        "wrong_word": "Typ het woord precies zoals getoond"
+      },
+      "readme": {
+        "title": "Uw gegevens bij BEAM",
+        "intro": "Dit bestand bevat de persoonsgegevens die BEAM over u bewaart, als JSON (machineleesbaar) en CSV-bestanden per onderdeel van het platform.",
+        "purposes_title": "Waarom we uw gegevens verwerken",
+        "recipients_title": "Wie uw gegevens ontvangt",
+        "retention_title": "Hoe lang we ze bewaren",
+        "source_title": "Waar uw gegevens vandaan komen",
+        "complaint_title": "Uw recht om klacht in te dienen",
+        "complaint_body": "U kunt klacht indienen bij de {authority}: {url}",
+        "portable_note": "De JSON-bestanden zijn uw overdraagbare kopie (AVG artikel 20).",
+        "days": "{count, plural, one {# dag} other {# dagen}}",
+        "role": {
+          "database": "Hosting van de databank",
+          "hosting": "Hosting van de toepassing",
+          "email": "Verzending van e-mails",
+          "payments": "Betalingen",
+          "invoicing": "Facturatie en Peppol",
+          "webinar_video": "Webinarvideo",
+          "ai": "AI-functies, enkel de gedocumenteerde velden"
+        },
+        "data": {
+          "database": "Alle platformgegevens",
+          "hosting": "Verkeer onderweg, geen bewaarde klantgegevens",
+          "email": "Uw adres, de e-mail en leveringsgebeurtenissen",
+          "payments": "Betaalgegevens",
+          "invoicing": "Klant- en factuurgegevens",
+          "webinar_video": "Verbindingsgegevens tijdens het kijken",
+          "ai": "Enkel de per functie gedocumenteerde velden"
+        },
+        "purpose": {
+          "bookings": "Uw boekingen",
+          "payments": "Betalingen",
+          "invoicing": "Facturen",
+          "packages_and_memberships": "Pakketten en lidmaatschappen",
+          "customer_service": "Klantendienst",
+          "legal_obligations": "Wettelijke verplichtingen"
+        }
+      }
+    },
+    "retention_policy": {
+      "ops_marketing_contact": "Marketingcontacten zonder aankoop",
+      "ops_marketing_profile": "Klantprofielen zonder activiteit",
+      "forms_form_sensitive_answers": "Gevoelige antwoorden van assessments",
+      "forms_form_submissions": "Formulierinzendingen",
+      "webinar_watch_segments": "Kijktijd van webinars",
+      "webinar_webinar_interactions": "Chat en polls van webinars",
+      "webinar_webinar_registrations": "Webinarinschrijvingen",
+      "finance_invoices": "Facturen",
+      "finance_invoice_requests": "Factuuraanvragen",
+      "finance_billit_reconcile_runs": "Billit-afstemmingen",
+      "finance_finance_exports": "Exports voor de boekhouder",
+      "crm_declarations_superseded": "Vervangen verklaringen",
+      "automation_automation_runs": "Historiek van automatisaties",
+      "automation_automation_enrolments": "Beëindigde automatisatie-inschrijvingen",
+      "crm_duplicate_candidates_closed": "Afgesloten dubbelcontroles",
+      "crm_tasks_closed": "Afgesloten taken",
+      "crm_inbox_resolved": "Afgehandelde inboxgesprekken",
+      "platform_audit_log": "Auditlogboek",
+      "platform_ai_requests": "AI-verzoeken",
+      "platform_webhook_events": "Webhooks van leveranciers",
+      "platform_integration_calls": "Integratielogboeken",
+      "platform_jobs": "Achtergrondtaken",
+      "ops_import_rows": "Importrijen",
+      "platform_files_export": "Exportbestanden",
+      "platform_files_rendered_email": "Kopieën van verzonden e-mails",
+      "ops_nl_questions": "Vragen aan de AI",
+      "ops_data_exports": "Gegevensexports",
+      "ops_retention_lists": "Wekelijkse klantbehoudlijsten",
+      "ops_privacy_requests": "Privacyverzoeken",
+      "crm_suppressions": "Vingerafdrukken van uitschrijvingen",
+      "crm_consent_records": "Toestemmingshistoriek"
+    },
+    "dpia": {
+      "sensitive_assessment_processing": {
+        "title": "Verwerking van gevoelige assessments",
+        "description": "Gezondheids- en welzijnsantwoorden in assessments en het gebruik ervan door AI"
+      },
+      "behavioural_scoring": {
+        "title": "Geautomatiseerde gedragsscores",
+        "description": "Indicatoren voor afhaken en herhaalaankoop en kansscores"
+      },
+      "ai_customer_ranking": {
+        "title": "Klantrangschikking door AI",
+        "description": "Vragen aan de AI die klanten rangschikken"
+      },
+      "watch_time_profiling": {
+        "title": "Profilering op kijktijd",
+        "description": "Kijktijd van webinars in segmenten en gedragsflows"
+      },
+      "b2b_prospecting": {
+        "title": "Geavanceerde B2B-prospectie",
+        "description": "Niet gebruikt in deze release"
+      },
+      "voice_ai": {
+        "title": "Spraak-AI",
+        "description": "Niet gebruikt in deze release"
+      },
+      "register_title": "DPIA-register",
+      "gates": "Schakelt: {features}",
+      "decision_note_required": "Een beslissingsnota is verplicht",
+      "status": {
+        "not_started": "Niet gestart",
+        "in_progress": "Bezig",
+        "approved": "Goedgekeurd",
+        "rejected": "Afgewezen",
+        "not_required": "Niet vereist"
+      }
+    },
+    "digest": {
+      "title": "BEAM dagoverzicht voor {date}",
+      "email": "E-mail: {sent} verzonden, {bounced} gebounced, {complained} klachten, bouncepercentage {rate}",
+      "blocked_translation": "Geblokkeerd wegens ontbrekende vertaling: {count}",
+      "automation": "Automatisaties: {failed} mislukte runs, {skipped} overgeslagen vertalingen, {stuck} vastgelopen inschrijvingen, vertraging {lag}",
+      "payments": "Mislukte betalingen: {count}",
+      "privacy": "Privacyverzoeken bijna over tijd: {due}, met manuele opvolging: {manual}",
+      "imports": "Imports: {done} afgerond, {failed} mislukt",
+      "no_handler": "Bewaartermijnen zonder verwerker: {keys}",
+      "segments": "Fouten bij het vernieuwen van segmenten: {count}",
+      "forms": "Formulieren: {completions} voltooid, {starts} gestart, {import_failures} mislukte imports, {broken_ctas} kapotte oproepen",
+      "check_form": "Controleer formulier {slug}: {views} weergaven, 0 voltooid",
+      "booking": "Boekingen: aangemaakt tot {date}, {offers} verlopen aanbiedingen, {reservations} verlopen reservaties, {unsent} niet verzonden bevestigingen",
+      "webinars": "Webinars in de komende 48 uur: {count}",
+      "ads": "Advertentiegegevens van {date}",
+      "unavailable": "{section}: niet beschikbaar"
+    },
+    "email": {
+      "privacy_export_ready": {
+        "subject": "Uw gegevens staan klaar om te downloaden",
+        "heading": "Uw gegevensexport is klaar",
+        "body": "U vroeg een kopie van uw gegevens. Meld u aan op uw account om ze te downloaden. De download blijft beschikbaar tot {date}.",
+        "button": "Mijn gegevens downloaden",
+        "footer": "Hebt u dit niet gevraagd? Neem dan meteen contact met ons op."
+      },
+      "privacy_erasure_scheduled": {
+        "subject": "Uw account wordt verwijderd",
+        "heading": "We verwijderen uw account",
+        "body": "Uw account en persoonsgegevens worden verwijderd op {date}. Tot dan kunt u dit annuleren in uw account.",
+        "retained": "We bewaren facturen gedurende de wettelijke termijn en een vingerafdruk van uw e-mailadres, zodat u nooit meer marketing ontvangt.",
+        "button": "Verwijderen annuleren"
+      }
     }
   }
 }

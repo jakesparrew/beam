@@ -1,15 +1,24 @@
 /**
- * The Billit fake (runbook section 1.5, finance spec section 6): accepts parties, invoices and
- * credit notes, returns `billit_<n>` ids, marks bank-transfer invoices paid on `markPaid`,
- * simulates Peppol status `sent`. finance-P4 extends it and keeps this name and constructor.
+ * The Billit fake (runbook section 1.5, finance spec section 6): in-memory parties and orders,
+ * `billit_<n>` ids, used by every test (no network). Keeps the Wave 0 name and constructor
+ * (`createBillitFake({ onCall?, now? })`) so other modules' tests keep compiling.
+ *
+ * Test controls: `failNext(operation, { status })` (the next call of that operation, or of any
+ * operation with `null`, fails like the client would: 5xx/429 retryable, other 4xx permanent,
+ * 401/403 `code = 'auth'`), `loseResponseNext('createOrder')` (creates, then throws a retryable
+ * timeout), `markPaid(reference, paidOn, amountCents?)` (a bank transfer arrives; partial when
+ * the amount is below the total), `setPeppolReachable(vat, boolean)` and `snapshot()`.
+ * A duplicate `OrderNumber` is refused with 422, as Billit does.
  */
 import { digestRequest } from "../_shared/digest";
-import { errorFromStatus, IntegrationError } from "../_shared/errors";
+import { IntegrationError } from "../_shared/errors";
 import { trackCall } from "../_shared/timeout";
 import { noopOnCall, type FakeCall, type OnCall } from "../_shared/types";
+import { billitError } from "./client";
 import type { BillitApi, BillitOrder, BillitOrderInput, BillitPartyInput } from "./types";
 
-type FakeOrder = BillitOrder & { input: BillitOrderInput; paidCents: number; createdAt: Date };
+type FakePayment = { paidOn: string; amountCents: number; method: string; reference: string | null };
+type FakeOrder = BillitOrder & { input: BillitOrderInput; paidCents: number; createdAt: Date; payments: FakePayment[]; PaymentMethod: string | null };
 type FakeParty = BillitPartyInput & { PartyID: string; anonymised: boolean };
 
 export type BillitFake = BillitApi & {
@@ -26,8 +35,21 @@ export type BillitFake = BillitApi & {
 
 const PAGE_SIZE = 50;
 
-function totalInclCents(lines: BillitOrderInput["OrderLines"]): number {
-  return Math.round(lines.reduce((sum, l) => sum + l.Quantity * l.UnitPriceExcl * (1 + l.VATPercentage / 100), 0) * 100);
+/** The operation names the real client logs (`integration_calls.operation`). */
+const OPERATION: Record<keyof BillitApi, string> = {
+  upsertParty: "parties.upsert",
+  createOrder: "orders.create",
+  findOrderByReference: "orders.find",
+  getOrder: "orders.get",
+  listOrdersSince: "orders.list",
+  sendOrder: "orders.send",
+  registerPayment: "orders.register_payment",
+  anonymiseCustomer: "parties.anonymise",
+};
+
+/** Billit's total: per line `Quantity x UnitPriceExcl x (1 + VAT)`, rounded to the cent, summed. */
+export function billitTotalInclCents(lines: BillitOrderInput["OrderLines"]): number {
+  return lines.reduce((sum, l) => sum + Math.round(l.Quantity * l.UnitPriceExcl * (100 + l.VATPercentage)), 0);
 }
 
 export function createBillitFake(options: { onCall?: OnCall; now?: () => Date } = {}): BillitFake {
@@ -43,11 +65,12 @@ export function createBillitFake(options: { onCall?: OnCall; now?: () => Date } 
 
   function run<T>(operation: keyof BillitApi, input: unknown, work: () => T): Promise<T> {
     calls.push({ operation, input, at: now() });
-    return trackCall(onCall, { provider: "billit", operation: `billit.${operation}`, requestDigest: digestRequest({ method: "POST", path: `/v1/${operation}` }) }, () => {
+    const name = OPERATION[operation];
+    return trackCall(onCall, { provider: "billit", operation: name, requestDigest: digestRequest({ method: "POST", path: `/v1/${name}` }) }, () => {
       const index = failures.findIndex((f) => f.operation === null || f.operation === operation);
       if (index >= 0) {
         const [failure] = failures.splice(index, 1);
-        throw errorFromStatus("billit", operation, failure!.status);
+        throw billitError(name, failure!.status, "simulated failure");
       }
       return { value: work(), statusCode: 200 };
     });
@@ -55,18 +78,28 @@ export function createBillitFake(options: { onCall?: OnCall; now?: () => Date } 
 
   const order = (orderId: string): FakeOrder => {
     const o = orders.get(orderId);
-    if (!o) throw new IntegrationError({ provider: "billit", operation: "getOrder", retryable: false, statusCode: 404, message: `order ${orderId} not found` });
+    if (!o) throw new IntegrationError({ provider: "billit", operation: "orders.get", retryable: false, statusCode: 404, message: `order ${orderId} not found` });
     return o;
   };
-  const publicOrder = (o: FakeOrder): BillitOrder => {
-    const { input: _input, paidCents: _paid, createdAt: _at, ...rest } = o;
-    return { ...rest };
-  };
+  const totalCents = (o: FakeOrder) => Math.round(o.TotalIncl * 100);
+  const publicOrder = (o: FakeOrder): BillitOrder => ({
+    OrderID: o.OrderID,
+    OrderNumber: o.OrderNumber,
+    OrderType: o.OrderType,
+    Paid: o.Paid,
+    PaidDate: o.PaidDate,
+    TotalIncl: o.TotalIncl,
+    ToPay: Math.max(0, totalCents(o) - o.paidCents) / 100,
+    Status: o.Status,
+    PeppolStatus: o.PeppolStatus ?? null,
+    ...(o.LastModified ? { LastModified: o.LastModified } : {}),
+    CustomerPartyID: o.input.Customer.PartyID,
+  });
 
   const fake: BillitFake = {
     calls,
     upsertParty(input) {
-      return run("upsertParty", { PartyID: input.PartyID ?? null }, () => {
+      return run("upsertParty", { PartyID: input.PartyID ?? null, ExternalProviderID: input.ExternalProviderID ?? null }, () => {
         const existing =
           (input.PartyID && parties.get(input.PartyID)) ||
           (input.ExternalProviderID ? [...parties.values()].find((p) => p.ExternalProviderID === input.ExternalProviderID) : undefined);
@@ -79,10 +112,10 @@ export function createBillitFake(options: { onCall?: OnCall; now?: () => Date } 
       const result = await run("createOrder", { OrderNumber: input.OrderNumber }, () => {
         const found = [...orders.values()].find((o) => o.OrderNumber === input.OrderNumber);
         if (found) {
-          throw new IntegrationError({ provider: "billit", operation: "createOrder", retryable: false, statusCode: 422, message: `OrderNumber ${input.OrderNumber} already exists` });
+          throw new IntegrationError({ provider: "billit", operation: "orders.create", retryable: false, statusCode: 422, message: `OrderNumber ${input.OrderNumber} already exists` });
         }
         const orderId = `billit_${++seq}`;
-        const total = totalInclCents(input.OrderLines);
+        const total = billitTotalInclCents(input.OrderLines);
         orders.set(orderId, {
           OrderID: orderId,
           OrderNumber: input.OrderNumber,
@@ -96,12 +129,14 @@ export function createBillitFake(options: { onCall?: OnCall; now?: () => Date } 
           input,
           paidCents: input.Paid ? total : 0,
           createdAt: now(),
+          payments: [],
+          PaymentMethod: input.Paid ? (input.PaymentMethod ?? null) : null,
         });
         return { orderId };
       });
       if (lose > 0) {
         lose -= 1;
-        throw new IntegrationError({ provider: "billit", operation: "createOrder", retryable: true, code: "timeout", message: "billit createOrder timed out" });
+        throw new IntegrationError({ provider: "billit", operation: "orders.create", retryable: true, code: "timeout", message: "billit orders.create timed out" });
       }
       return result;
     },
@@ -129,7 +164,7 @@ export function createBillitFake(options: { onCall?: OnCall; now?: () => Date } 
         const party = parties.get(o.input.Customer.PartyID);
         if (party?.VATNumber && unreachable.has(party.VATNumber)) {
           o.PeppolStatus = "failed";
-          throw new IntegrationError({ provider: "billit", operation: "sendOrder", retryable: false, statusCode: 422, message: "receiver not found on Peppol" });
+          throw new IntegrationError({ provider: "billit", operation: "orders.send", retryable: false, statusCode: 422, message: "receiver not found on Peppol" });
         }
         o.Status = "Sent";
         o.PeppolStatus = "sent";
@@ -137,18 +172,20 @@ export function createBillitFake(options: { onCall?: OnCall; now?: () => Date } 
       });
     },
     registerPayment(orderId, p) {
-      return run("registerPayment", { orderId }, () => {
+      return run("registerPayment", { orderId, method: p.method }, () => {
         const o = order(orderId);
+        o.payments.push({ ...p });
         o.paidCents = Math.max(o.paidCents, p.amountCents);
-        o.Paid = o.paidCents >= Math.round(o.TotalIncl * 100);
+        o.Paid = o.paidCents >= totalCents(o);
         o.PaidDate = o.Paid ? p.paidOn : o.PaidDate;
+        o.PaymentMethod = p.method;
         o.LastModified = now().toISOString();
       });
     },
     anonymiseCustomer(partyId) {
       return run("anonymiseCustomer", { partyId }, () => {
         const party = parties.get(partyId);
-        if (!party) throw new IntegrationError({ provider: "billit", operation: "anonymiseCustomer", retryable: false, statusCode: 404, message: "party not found" });
+        if (!party) throw new IntegrationError({ provider: "billit", operation: "parties.anonymise", retryable: false, statusCode: 404, message: "party not found" });
         Object.assign(party, { Email: null, Phone: null, Mobile: null, anonymised: true });
       });
     },
@@ -161,7 +198,7 @@ export function createBillitFake(options: { onCall?: OnCall; now?: () => Date } 
     markPaid(reference, paidOn, amountCents) {
       const o = [...orders.values()].find((x) => x.OrderNumber === reference);
       if (!o) throw new Error(`fake billit: no order ${reference}`);
-      const total = Math.round(o.TotalIncl * 100);
+      const total = totalCents(o);
       o.paidCents += amountCents ?? total - o.paidCents;
       o.Paid = o.paidCents >= total;
       o.PaidDate = o.Paid ? paidOn : null;
@@ -172,7 +209,10 @@ export function createBillitFake(options: { onCall?: OnCall; now?: () => Date } 
       else unreachable.add(vatNumber);
     },
     snapshot() {
-      return { parties: [...parties.values()].map((p) => ({ ...p })), orders: [...orders.values()].map((o) => ({ ...o })) };
+      return {
+        parties: [...parties.values()].map((p) => ({ ...p })),
+        orders: [...orders.values()].map((o) => ({ ...o, payments: o.payments.map((x) => ({ ...x })) })),
+      };
     },
     reset() {
       parties = new Map();

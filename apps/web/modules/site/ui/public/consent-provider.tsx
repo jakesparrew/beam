@@ -144,7 +144,7 @@ export function ConsentProvider({ children, locale, bannerVersion, latestMateria
   return (
     <ConsentContext.Provider value={value}>
       {children}
-      {prompt && !dialogOpen ? (
+      {prompt ? (
         <CookieBanner
           labels={labels.banner}
           cookieNoticeHref={cookieNoticeHref ?? null}

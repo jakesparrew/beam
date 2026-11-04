@@ -143,9 +143,11 @@ export function BookingCard({ card, labels, canWrite }: { card: BookingCardView;
 
       {card.toPayLabel ? (
         <div className="flex flex-wrap items-center gap-3">
-          <p className="text-lg font-semibold">{card.toPayLabel}</p>
+          <p className="text-lg font-semibold" data-testid="to-pay">
+            {card.toPayLabel}
+          </p>
           {card.orderId ? (
-            <Link href={`/admin/pos?order=${card.orderId}` as Route} className={buttonVariants({ size: "lg" })}>
+            <Link href={`/admin/pos?order=${card.orderId}` as Route} data-action="take-payment" className={buttonVariants({ size: "lg" })}>
               {labels.takePayment}
             </Link>
           ) : null}
@@ -155,27 +157,27 @@ export function BookingCard({ card, labels, canWrite }: { card: BookingCardView;
       {canWrite ? (
         <div className="flex flex-wrap gap-2">
           {card.canCheckIn ? (
-            <Button type="button" size="lg" className="min-h-11 min-w-40 text-base" disabled={busy} onClick={() => void run(() => checkIn({ bookingId: card.bookingId }))}>
+            <Button type="button" data-action="check-in" size="lg" className="min-h-11 min-w-40 text-base" disabled={busy} onClick={() => void run(() => checkIn({ bookingId: card.bookingId }))}>
               {labels.checkIn}
             </Button>
           ) : null}
           {card.canOverride ? (
-            <Button type="button" variant="outline" className="min-h-11" disabled={busy} onClick={() => void run(() => checkIn({ bookingId: card.bookingId, override: true }))}>
+            <Button type="button" variant="outline" className="min-h-11" disabled={busy} data-action="check-in-override" onClick={() => void run(() => checkIn({ bookingId: card.bookingId, override: true }))}>
               {labels.checkInOverride}
             </Button>
           ) : null}
           {card.canUndo ? (
-            <Button type="button" variant="outline" className="min-h-11" disabled={busy} onClick={() => void run(() => undoCheckIn({ bookingId: card.bookingId }))}>
+            <Button type="button" variant="outline" className="min-h-11" disabled={busy} data-action="undo" onClick={() => void run(() => undoCheckIn({ bookingId: card.bookingId }))}>
               {labels.undo}
             </Button>
           ) : null}
           {card.canRevertNoShow ? (
-            <Button type="button" variant="outline" className="min-h-11" disabled={busy} onClick={() => void run(() => revertNoShow({ bookingId: card.bookingId }))}>
+            <Button type="button" variant="outline" className="min-h-11" disabled={busy} data-action="revert-no-show" onClick={() => void run(() => revertNoShow({ bookingId: card.bookingId }))}>
               {labels.revertNoShow}
             </Button>
           ) : null}
           {card.canMarkNoShow ? (
-            <Button type="button" variant="ghost" className="min-h-11" disabled={busy} onClick={() => void run(() => markNoShow({ bookingId: card.bookingId }))}>
+            <Button type="button" variant="ghost" className="min-h-11" disabled={busy} data-action="no-show" onClick={() => void run(() => markNoShow({ bookingId: card.bookingId }))}>
               {labels.markNoShow}
             </Button>
           ) : null}
@@ -187,7 +189,7 @@ export function BookingCard({ card, labels, canWrite }: { card: BookingCardView;
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="font-medium">{labels.guestsOf}</h3>
             {canWrite && guestsToCheck > 0 ? (
-              <Button type="button" variant="secondary" className="min-h-11" disabled={busy} onClick={() => void checkInAll()}>
+              <Button type="button" variant="secondary" className="min-h-11" disabled={busy} data-action="check-in-all" onClick={() => void checkInAll()}>
                 {labels.checkInAll}
               </Button>
             ) : null}

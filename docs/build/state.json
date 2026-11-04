@@ -97,11 +97,16 @@
       "startedAt": "2026-11-03T23:35:56Z"
     },
     "booking-P1": {
-      "status": "running",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "9892b11",
       "runId": "wf_469ee6ff-140",
-      "startedAt": "2026-11-03T23:35:56Z"
+      "startedAt": "2026-11-03T23:35:56Z",
+      "branchSha": "5668872",
+      "endedAt": "2026-11-04T00:21:08Z",
+      "minutes": 45,
+      "mergeSha": "ec59be9",
+      "mergedAt": "2026-11-04T00:30:51Z"
     },
     "commerce-P1": {
       "status": "running",

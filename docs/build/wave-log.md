@@ -56,3 +56,4 @@ One entry per merge batch and gate (runbook section 5.7, adapted by OD-3).
 - credits-P1: 23 min, merged as `ea67dfd`, migrations 0003_w04.sql 0004_w04_views.sql 0005_w04_protect.sql; gate `g14-credits-P1` (merge) green, peak 4539 MB.
 - 00:06 UTC: started forms-P1 from `ea67dfd`.
 - commerce-P1 attempt 1 (35 minutes) turned gate `g15` red at typecheck: it made `order_lines.sku` and `line_no` required while credits-P1's tests insert order lines without them. Undone; attempt 2 (run `wf_c50753e8-3c3`) fixes the two credits test inserts (one-attempt ownership extension) and adds the six persons FKs and privacy registrations (OD-9). CONVENTIONS.md item 6 now covers columns added to contract tables.
+- booking-P1: 45 min, merged as `ec59be9`, migrations 0006_w04.sql 0007_w04_views.sql; gate `g16-booking-P1` (merge) green, peak 8433 MB.

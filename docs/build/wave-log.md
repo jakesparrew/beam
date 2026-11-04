@@ -170,3 +170,4 @@ One entry per merge batch and gate (runbook section 5.7, adapted by OD-3).
 - Batch `g77-batch` (fix-w09-forms-review fix-w09-booking-review fix-w09-email-review fix-w09-commerce-review fix-w09-crm-review fix-w09-finance-review): migrations 0033_w00.sql; merge gate green, peak 5317 MB.
 - fix-w09-automation-review: 12 min, merged as `a943df5`; gate `g79-fix-w09-automation-review` (merge) green, peak 4938 MB.
 - fix-w09-ops-review: 31 min, merged as `709507c`; gate `g80-fix-w09-ops-review` (merge) green, peak 5141 MB.
+- fix-w09-platform-review: 25 min, merged as `8afb647`, migrations 0034_w99.sql; gate `g81-fix-w09-platform-review` (merge) green, peak 3837 MB.

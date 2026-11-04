@@ -15,6 +15,7 @@ import {
   emailTemplates,
   emailTemplateVersions,
 } from "./email";
+import { files } from "./platform";
 
 /** The Postgres error behind a failed Drizzle query (message and SQLSTATE). */
 async function pgError(promise: Promise<unknown>): Promise<{ message: string; code?: string }> {
@@ -201,6 +202,28 @@ describe("campaigns and recipients", () => {
     await h.db.insert(campaignRecipients).values({ campaignId: c.id, personId: (await makePerson(h.db)).id, locale: "en", chunkNo: 0 });
     await h.db.delete(campaigns).where(eq(campaigns.id, c.id));
     expect(await h.db.select().from(campaignRecipients).where(eq(campaignRecipients.campaignId, c.id))).toHaveLength(0);
+  });
+
+  it("references persons.id with on delete restrict", async () => {
+    const c = await campaign();
+    const unknown = h.db.insert(campaignRecipients).values({ campaignId: c.id, personId: randomUUID(), locale: "en", chunkNo: 0 });
+    expect((await pgError(unknown)).code).toBe("23503");
+    const p = await makePerson(h.db);
+    await h.db.insert(campaignRecipients).values({ campaignId: c.id, personId: p.id, locale: "en", chunkNo: 0 });
+    expect((await pgError(h.db.execute(sql`delete from persons where id = ${p.id}`))).code).toBe("23001");
+  });
+});
+
+describe("email_messages.rendered_file_id", () => {
+  it("is set null when the rendered file is deleted", async () => {
+    const [f] = await h.db
+      .insert(files)
+      .values({ kind: "rendered_email", name: "r.html", mime: "text/html", sizeBytes: 2, bytes: Buffer.from("<p"), sha256: "0".repeat(64), expiresAt: new Date(Date.now() - 86_400_000) })
+      .returning({ id: files.id });
+    const m = await message({ renderedFileId: f!.id });
+    await h.db.execute(sql`delete from files where id = ${f!.id}`);
+    const [after] = await h.db.select().from(emailMessages).where(eq(emailMessages.id, m.id));
+    expect(after!.renderedFileId).toBeNull();
   });
 });
 

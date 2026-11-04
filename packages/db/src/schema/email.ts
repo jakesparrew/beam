@@ -212,12 +212,10 @@ export const campaignRecipients = pgTable(
     campaignId: uuid()
       .notNull()
       .references(() => campaigns.id, { onDelete: "cascade" }),
-    /**
-     * `persons.id`. The foreign key (on delete restrict) is added once `campaign_recipients` is in
-     * email's `privacy.ts` `tables` (email-P3): `gdpr:coverage` refuses a person reference that no
-     * privacy registration covers, and `privacy.ts` is not email-P1's file.
-     */
-    personId: uuid().notNull(),
+    /** Registered in email's `privacy.ts` `tables`; erasure deletes the person's rows first. */
+    personId: uuid()
+      .notNull()
+      .references(() => persons.id, { onDelete: "restrict" }),
     locale: text().notNull(),
     chunkNo: integer().notNull(),
     status: campaignRecipientsStatus().notNull().default("planned"),
@@ -271,7 +269,12 @@ export const emailMessages = pgTable(
     retryOfMessageId: uuid().references((): AnyPgColumn => emailMessages.id),
     linkTokenHash: text().unique("email_messages_link_token_hash_unique"),
     links: jsonb().$type<string[]>(),
-    renderedFileId: uuid().references(() => files.id),
+    /**
+     * Outside production only: the stored rendered copy (`files` kind `rendered_email`, 30 days).
+     * `set null`, so the file purge, the rendered-email sweep and person erasure can delete the
+     * copy while the message row (kept 2 years) only loses the link.
+     */
+    renderedFileId: uuid().references(() => files.id, { onDelete: "set null" }),
     error: text(),
     queuedAt: tstz().notNull().defaultNow(),
     sentAt: tstz(),

@@ -615,12 +615,18 @@ export async function completeSubmission(
     const p = await getPerson(tx, personId);
     if (p?.email && p.email.toLowerCase() !== profile.email) [personId, identifiedBy] = [null, "none"];
   }
+  if (personId && identifiedBy === "email" && profile.email) {
+    // ID9 then ID3: a save-time email link holds only while the submitted email is still that person's.
+    const p = await getPerson(tx, personId);
+    if (p?.email?.toLowerCase() !== profile.email.toLowerCase()) [personId, identifiedBy] = [null, "none"];
+  }
   if (profile.email) await limitSubmit(tx, l.form.id, profile.email, ctx.now);
 
   let conflicts: string[] = [];
   if (personId) {
     await fillAcquisitionIfEmpty(tx, ctx, personId, await acquisitionOf(tx, l));
-    conflicts = await updateProfile(tx, ctx, personId, patchOf(profile), false, await getPersonPrefill(tx, personId));
+    // ID4: an email identification (ID9 at the save) only fills empty fields; session and token overwrite.
+    conflicts = await updateProfile(tx, ctx, personId, patchOf(profile), identifiedBy === "email", await getPersonPrefill(tx, personId));
   } else if (profile.email) {
     // ID3: find or create without profile values, so the conflicts of ID4 compare with the stored ones.
     const r = await linkByEmail(tx, ctx, l, profile.email, {});

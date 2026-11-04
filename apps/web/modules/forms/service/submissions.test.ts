@@ -421,3 +421,43 @@ describe("C1 to C5 consent, A5 tags", () => {
     expect((await completedEvent(r.submissionId)).data).toMatchObject({ applied_tag_keys: ["interest:sleep"], funnel: "recovery-assessment" });
   });
 });
+
+describe("fix-w09-forms-review: ID9-linked submissions at submit (finding 2)", () => {
+  it("an existing person linked at the save keeps the stored names; the differing values are profile_conflicts", async () => {
+    const { signSubmissionId } = await import("./tokens");
+    const f = await createForm(h.db, lead({ capturePartialLeads: true }));
+    const addr = email();
+    const p = await makePerson(h.db, { email: addr, firstName: "Bram", lastName: "Claes", phone: "+32470000001" });
+    const s = await start(f.slug);
+    const proof = { fsid: signSubmissionId(s.submissionId) };
+    const ctx = publicCtx(h.db, later(T0, 10));
+    await saveSection(ctx.tx, ctx, { submissionId: s.submissionId, proof, sectionKey: "contact", answers: { email: addr, first_name: "Kim" } });
+    expect(await row(s.submissionId)).toMatchObject({ personId: p.id, identifiedBy: "email" });
+    await submit(s.submissionId, { email: addr, first_name: "Kim", last_name: "Janssens", phone: "+32 470 99 99 99" }, { proof });
+    expect(await person(p.id)).toMatchObject({ firstName: "Bram", lastName: "Claes", phone: "+32470000001" });
+    expect(await row(s.submissionId)).toMatchObject({ personId: p.id, identifiedBy: "email", status: "completed" });
+    const data = (await completedEvent(s.submissionId)).data as { profile_conflicts: string[] };
+    expect([...data.profile_conflicts].sort()).toEqual(["firstName", "lastName", "phone"]);
+  });
+
+  it("an email changed between the save and the submit links the submission to the newly typed address", async () => {
+    const { signSubmissionId } = await import("./tokens");
+    const f = await createForm(h.db, lead({ capturePartialLeads: true }));
+    const firstAddr = email();
+    const first = await makePerson(h.db, { email: firstAddr, firstName: "Ann" });
+    const s = await start(f.slug);
+    const proof = { fsid: signSubmissionId(s.submissionId) };
+    const ctx = publicCtx(h.db, later(T0, 10));
+    await saveSection(ctx.tx, ctx, { submissionId: s.submissionId, proof, sectionKey: "contact", answers: { email: firstAddr, first_name: "Kim" } });
+    expect((await row(s.submissionId)).personId).toBe(first.id);
+    const typed = email();
+    await submit(s.submissionId, { email: typed, first_name: "Kim", newsletter: true }, { proof });
+    const sub = await row(s.submissionId);
+    expect(sub).toMatchObject({ identifiedBy: "email", status: "completed" });
+    expect(sub.personId).not.toBe(first.id);
+    expect(await person(sub.personId!)).toMatchObject({ email: typed, firstName: "Kim" });
+    expect(await person(first.id)).toMatchObject({ firstName: "Ann" });
+    expect(await h.db.select().from(consentRecords).where(and(eq(consentRecords.personId, first.id), eq(consentRecords.purpose, "newsletter")))).toHaveLength(0);
+    expect((await completedEvent(s.submissionId)).personId).toBe(sub.personId);
+  });
+});

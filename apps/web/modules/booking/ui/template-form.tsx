@@ -12,6 +12,8 @@ import { Alert, AlertDescription, Button, Checkbox, FormField, Input, Label, Loc
 import { createSession } from "../actions/sessions";
 import { createTemplates, setTemplateActive, updateTemplate } from "../actions/templates";
 
+const str = (v: FormDataEntryValue | null): string => (typeof v === "string" ? v : "");
+
 type Locale = "nl-BE" | "fr-BE" | "en";
 const LOCALES: readonly Locale[] = ["nl-BE", "fr-BE", "en"];
 
@@ -87,7 +89,7 @@ export function TemplateForm({ initial, products, labels }: { initial: TemplateF
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    const text = (k: string) => String(form.get(k) ?? "").trim();
+    const text = (k: string) => str(form.get(k)).trim();
     const num = (k: string) => (text(k) === "" ? null : Number(text(k)));
     const times = text("startTimes").split(/[\s,;]+/).filter(Boolean);
     const capacity = num("capacity");
@@ -268,7 +270,7 @@ export function SessionForm({
 
   async function submit(form: HTMLFormElement, publish: boolean) {
     const f = new FormData(form);
-    const text = (k: string) => String(f.get(k) ?? "").trim();
+    const text = (k: string) => str(f.get(k)).trim();
     const capacity = text("capacity") === "" ? undefined : Number(text("capacity"));
     const desc = LOCALES.some((l) => (description[l] ?? "").trim()) ? description : undefined;
     setPending(true);

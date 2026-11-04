@@ -10,6 +10,8 @@ import { useState, type FormEvent } from "react";
 import { Alert, AlertDescription, Button, FormField, Input, Textarea } from "@beam/ui";
 import { deleteHold, upsertHold } from "../actions/sessions";
 
+const str = (v: FormDataEntryValue | null): string => (typeof v === "string" ? v : "");
+
 type Kind = "staff" | "partner" | "host" | "speaker" | "blocked";
 
 export type HoldFormValues = { id?: string; sessionId: string; kind: Kind; quantity: number; companyId: string; note: string };
@@ -51,7 +53,7 @@ export function HoldForm({
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const f = new FormData(event.currentTarget);
-    const text = (k: string) => String(f.get(k) ?? "").trim();
+    const text = (k: string) => str(f.get(k)).trim();
     setPending(true);
     setMessage(null);
     try {

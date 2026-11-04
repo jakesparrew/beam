@@ -137,7 +137,7 @@ function sessionBlocks(db: DbOrTx, where: ReturnType<typeof and>) {
 
 const toBlock = (r: Awaited<ReturnType<typeof sessionBlocks>>[number]): SessionBlock => ({
   ...r,
-  title: r.title as LocalizedText,
+  title: r.title,
   capacity: n(r.capacity),
   held: n(r.held),
   booked: n(r.booked),
@@ -244,7 +244,7 @@ export async function listExceptions(db: DbOrTx, input: { from: string; to: stri
 
 /** The catalogue name of a public holiday in the three locales (`booking.holidays.<key>`). */
 export function holidayName(key: string): LocalizedText {
-  return Object.fromEntries(LOCALES.map((l) => [l, t(l, `booking.holidays.${key}`)])) as LocalizedText;
+  return Object.fromEntries(LOCALES.map((l) => [l, t(l, `booking.holidays.${key}`)]));
 }
 
 /** R4b: Belgian public holidays of the next 12 months without an exception on their date. */
@@ -292,7 +292,7 @@ export async function listHolds(db: DbOrTx, input: { now?: Date; sessionId?: str
     .leftJoin(companies, eq(companies.id, capacityHolds.companyId))
     .where(and(gt(sessions.endsAt, input.now ?? new Date()), input.sessionId ? eq(capacityHolds.sessionId, input.sessionId) : undefined))
     .orderBy(asc(sessions.startsAt), asc(capacityHolds.createdAt));
-  return rows.map((r) => ({ ...r, sessionTitle: r.sessionTitle as LocalizedText, used: n(r.used) }));
+  return rows.map((r) => ({ ...r, sessionTitle: r.sessionTitle, used: n(r.used) }));
 }
 
 /** Upcoming open sessions for the hold form's session picker (next `days` days). */
@@ -304,7 +304,7 @@ export async function listHoldableSessions(db: DbOrTx, input: { now?: Date; days
     .where(and(gt(sessions.startsAt, now), lt(sessions.startsAt, new Date(now.getTime() + (input.days ?? 60) * 86_400_000)), ne(sessions.status, "cancelled")))
     .orderBy(asc(sessions.startsAt))
     .limit(500);
-  return rows.map((r) => ({ ...r, title: r.title as LocalizedText }));
+  return rows.map((r) => ({ ...r, title: r.title }));
 }
 
 /** Company names for the partner hold picker (crm `companies`, names only). */
@@ -329,7 +329,7 @@ export async function listProductOptions(db: DbOrTx): Promise<Array<{ id: string
     .where(and(eq(products.isActive, true), inArray(products.kind, ["session", "night", "ticket"])))
     .orderBy(asc(products.kind), asc(products.sortOrder), asc(products.sku))
     .limit(200);
-  return rows.map((r) => ({ ...r, name: r.name as LocalizedText }));
+  return rows.map((r) => ({ ...r, name: r.name }));
 }
 
 /** The session row (for the edit form and the session actions' pages). */
@@ -448,7 +448,7 @@ export async function getDayPrintList(db: DbOrTx, input: { onDate: string }): Pr
     onDate: input.onDate,
     sessions: list.map((s) => ({
       sessionId: s.id,
-      title: s.title as LocalizedText,
+      title: s.title,
       kind: s.kind,
       status: s.status,
       startsAt: s.startsAt,

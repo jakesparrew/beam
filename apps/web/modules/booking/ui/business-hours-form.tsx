@@ -10,6 +10,8 @@ import { useState, type FormEvent } from "react";
 import { Alert, AlertDescription, Button, Checkbox, FormField, Input, Label, LocalizedInput, type LocalizedInputLabels, type LocalizedValue } from "@beam/ui";
 import type { BusinessHours } from "@beam/core/booking";
 
+const str = (v: FormDataEntryValue | null): string => (typeof v === "string" ? v : "");
+
 type Locale = "nl-BE" | "fr-BE" | "en";
 const LOCALES: readonly Locale[] = ["nl-BE", "fr-BE", "en"];
 type SaveResult = { ok: true; data: { version: number } } | { ok: false; error: { code: string; message: string; fields?: Record<string, string> } };
@@ -42,12 +44,12 @@ export function BusinessHoursForm({ value, version, save, labels }: { value: Bus
     event.preventDefault();
     const f = new FormData(event.currentTarget);
     const week = Object.fromEntries(
-      DAYS.map((d) => [d, closed[d] ? null : { opens_at: String(f.get(`opens_${d}`) ?? "").slice(0, 5), closes_at: String(f.get(`closes_${d}`) ?? "").slice(0, 5) }]),
+      DAYS.map((d) => [d, closed[d] ? null : { opens_at: str(f.get(`opens_${d}`)).slice(0, 5), closes_at: str(f.get(`closes_${d}`)).slice(0, 5) }]),
     ) as BusinessHours["week"];
     const cleanNote = Object.fromEntries(LOCALES.filter((l) => (note[l] ?? "").trim()).map((l) => [l, note[l]!.trim()]));
     const next: BusinessHours = {
       week,
-      reception_phone: String(f.get("phone") ?? "").trim() || null,
+      reception_phone: str(f.get("phone")).trim() || null,
       note: Object.keys(cleanNote).length ? cleanNote : null,
     };
     setPending(true);

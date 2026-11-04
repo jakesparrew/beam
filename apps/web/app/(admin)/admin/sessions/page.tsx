@@ -43,7 +43,7 @@ export default async function SessionsPage({ searchParams }: { searchParams: Pro
       onDate,
       label: formatDate(onDate, locale, "full"),
       isToday: onDate === today,
-      closedLabel: closed ? tr("booking.day.closed_banner", { name: show(closed.name as LocalizedText, locale) }) : null,
+      closedLabel: closed ? tr("booking.day.closed_banner", { name: show(closed.name, locale) }) : null,
       blocks: blocks
         .filter((b) => brusselsDate(b.startsAt) === onDate)
         .map((b) => ({

@@ -168,7 +168,7 @@ export const updateSession = action(
       eventCategory: input.eventCategory ?? current.eventCategory,
       partnerCompanyId: input.partnerCompanyId === undefined ? current.partnerCompanyId : input.partnerCompanyId,
       title: (input.title ?? current.title) as LocalizedText,
-      description: input.description === undefined ? (current.description as LocalizedText | null) : isFilled(input.description) ? input.description : null,
+      description: input.description === undefined ? (current.description) : isFilled(input.description) ? input.description : null,
       startsAt,
       endsAt: new Date(startsAt.getTime() + duration * 60_000),
       capacitySeats: input.capacitySeats ?? current.capacitySeats,
@@ -209,7 +209,7 @@ export const publishSession = action(
     const current = await lockSession(ctx.tx, input.id);
     if (current.status === "cancelled") throw new InvalidTransitionError("cancelled", "open", { entity: "session", reason: "cancelled_session_is_read_only" });
     if (current.publishedAt) return { publishedAt: current.publishedAt };
-    assertPublishable(current.title as LocalizedText, current.description as LocalizedText | null);
+    assertPublishable(current.title, current.description);
     assertSessionShape(current);
     const [row] = await ctx.tx.update(sessions).set({ publishedAt: ctx.now, updatedAt: sql`now()` }).where(eq(sessions.id, current.id)).returning();
     return { publishedAt: row!.publishedAt! };

@@ -74,7 +74,7 @@ export default async function TemplatePage({ params }: { params: Promise<{ id: s
     <div className="grid gap-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">
-          {show(t.name as LocalizedText, locale)} · {t.startTime.slice(0, 5)}
+          {show(t.name, locale)} · {t.startTime.slice(0, 5)}
         </h1>
         <div className="flex flex-wrap items-center gap-2">
           <TemplateActiveToggle
@@ -108,8 +108,8 @@ export default async function TemplatePage({ params }: { params: Promise<{ id: s
             id: t.id,
             version: t.version,
             kind: t.kind,
-            name: (t.name ?? {}) as LocalizedText,
-            description: (t.description ?? {}) as LocalizedText,
+            name: (t.name ?? {}),
+            description: (t.description ?? {}),
             weekdays: t.weekdays,
             startTimes: [t.startTime.slice(0, 5)],
             durationMinutes: t.durationMinutes,

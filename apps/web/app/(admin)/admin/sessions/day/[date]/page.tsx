@@ -28,7 +28,7 @@ export default async function SessionDayPage({ params }: { params: Promise<{ dat
 
   const closing = view.exceptions.find((e) => (!e.templateIds || e.templateIds.length === 0) && e.kind !== "special_hours");
   const banner = closing
-    ? tr("booking.day.closed_banner", { name: show(closing.name as LocalizedText, locale) })
+    ? tr("booking.day.closed_banner", { name: show(closing.name, locale) })
     : view.openingHours
       ? tr("booking.day.opening_hours", { opens: view.openingHours.opensAt, closes: view.openingHours.closesAt })
       : null;

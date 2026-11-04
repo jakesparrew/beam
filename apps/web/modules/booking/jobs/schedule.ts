@@ -9,7 +9,7 @@
  * `for update`, so a booking that takes the session lock first makes the session touched.
  */
 import { z } from "zod";
-import type { DbOrTx, Tx } from "@beam/db";
+import type { DbOrTx } from "@beam/db";
 import { sessionTemplates, sessions } from "@beam/db/schema";
 import {
   MATERIALISE_DAYS,
@@ -251,7 +251,7 @@ export async function runMaterialise(ctx: JobCtx, input: z.infer<typeof Material
   let toOn = addDays(fromOn, MATERIALISE_CHUNK_DAYS - 1);
   // A continuation needs at least one day; the last day joins the chunk before it.
   if (toOn >= addDays(end, -1)) toOn = end;
-  const { inserted } = await materialiseRange(ctx.tx as Tx, fromOn, toOn, { notBefore: ctx.now, now: ctx.now });
+  const { inserted } = await materialiseRange(ctx.tx, fromOn, toOn, { notBefore: ctx.now, now: ctx.now });
   let continuedFrom: string | null = null;
   if (toOn < end) {
     continuedFrom = addDays(toOn, 1);

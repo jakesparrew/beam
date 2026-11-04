@@ -63,7 +63,7 @@ export async function getOpeningHours(
       onDate,
       opensAt: open?.opensAt ?? null,
       closesAt: open?.closesAt ?? null,
-      exceptionName: exception ? (exception.name as LocalizedText) : null,
+      exceptionName: exception ? exception.name : null,
     };
   });
 }

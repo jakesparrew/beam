@@ -10,6 +10,8 @@ import { useState, type FormEvent, type ReactNode } from "react";
 import { Alert, AlertDescription, Button, Checkbox, FormField, Input, Label } from "@beam/ui";
 import type { BookingRules } from "@beam/core/booking";
 
+const str = (v: FormDataEntryValue | null): string => (typeof v === "string" ? v : "");
+
 type SaveResult = { ok: true; data: { version: number } } | { ok: false; error: { code: string; message: string; fields?: Record<string, string> } };
 
 export type RulesFormLabels = Record<
@@ -68,7 +70,7 @@ export function RulesForm({ value, version, save, labels }: { value: BookingRule
       max_guests_per_booking: n("max_guests"),
       max_shared_bed_guests_per_booking: n("max_shared_bed"),
       max_reschedules_per_booking: n("max_reschedules"),
-      reminder_hours_before: { day: numberList(String(f.get("rh_day") ?? "")), night: numberList(String(f.get("rh_night") ?? "")), event: numberList(String(f.get("rh_event") ?? "")) },
+      reminder_hours_before: { day: numberList(str(f.get("rh_day"))), night: numberList(str(f.get("rh_night"))), event: numberList(str(f.get("rh_event"))) },
       waitlist: { offer_cutoff_minutes_before_start: n("wl_cutoff"), min_claim_minutes: n("wl_min"), max_offers_per_person_per_session: n("wl_max") },
       check_in: { opens_minutes_before_start: n("ci_opens"), closes_minutes_after_end: n("ci_closes"), revert_no_show_days: n("ci_revert") },
       pay_at_desk: { enabled: on("pad_enabled"), kinds: KINDS.filter((k) => on(`pad_${k}`)) },

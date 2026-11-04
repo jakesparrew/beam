@@ -10,6 +10,8 @@ import { useState, type FormEvent } from "react";
 import { Alert, AlertDescription, Button, Checkbox, FormField, Input, Label, LocalizedInput, Textarea, type LocalizedInputLabels, type LocalizedValue } from "@beam/ui";
 import { deleteException, upsertException } from "../actions/templates";
 
+const str = (v: FormDataEntryValue | null): string => (typeof v === "string" ? v : "");
+
 type Locale = "nl-BE" | "fr-BE" | "en";
 const LOCALES: readonly Locale[] = ["nl-BE", "fr-BE", "en"];
 type Kind = "closed" | "holiday" | "special_hours";
@@ -79,7 +81,7 @@ export function ExceptionForm({
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    const text = (k: string) => String(form.get(k) ?? "").trim();
+    const text = (k: string) => str(form.get(k)).trim();
     setPending(true);
     setError(null);
     setResult(null);

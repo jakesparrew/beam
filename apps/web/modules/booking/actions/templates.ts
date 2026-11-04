@@ -183,7 +183,7 @@ export const updateTemplate = action(
     const next = {
       kind: patch.kind ?? current.kind,
       name: (patch.name ?? current.name) as LocalizedText,
-      description: patch.description === undefined ? (current.description as LocalizedText | null) : isFilled(patch.description) ? patch.description : null,
+      description: patch.description === undefined ? (current.description) : isFilled(patch.description) ? patch.description : null,
       weekdays: patch.weekdays ? [...patch.weekdays].sort((a, b) => a - b) : current.weekdays,
       startTime: patch.startTime ?? current.startTime.slice(0, 5),
       durationMinutes: patch.durationMinutes ?? current.durationMinutes,
@@ -221,8 +221,8 @@ export const setTemplateActive = action(
     if (!current) throw new NotFoundError("template_not_found");
     if (current.isActive === input.isActive) return { id: current.id };
     if (input.isActive) {
-      assertCompleteText(current.name as LocalizedText, "name");
-      if (isFilled(current.description as LocalizedText | null)) assertCompleteText(current.description as LocalizedText, "description");
+      assertCompleteText(current.name, "name");
+      if (isFilled(current.description)) assertCompleteText(current.description, "description");
     }
     const [row] = await ctx.tx
       .update(sessionTemplates)

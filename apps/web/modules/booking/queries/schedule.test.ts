@@ -110,7 +110,7 @@ describe("listUpcomingHolidays (R4b)", () => {
     const now = zonedTimeToUtc("2027-02-01", "10:00");
     const all = await listUpcomingHolidays(h.db, now);
     expect(all.map((x) => x.key)).toEqual(["easter_monday", "labour_day", "ascension", "whit_monday", "national_day", "assumption", "all_saints", "armistice", "christmas", "new_year"]);
-    expect(all[0]).toEqual({ onDate: "2027-03-29", key: "easter_monday", name: { "nl-BE": expect.any(String), "fr-BE": expect.any(String), en: "Easter Monday" } });
+    expect(all[0]).toEqual({ onDate: "2027-03-29", key: "easter_monday", name: { "nl-BE": expect.any(String) as string, "fr-BE": expect.any(String) as string, en: "Easter Monday" } });
     await h.db.insert(sessionExceptions).values({ onDate: "2027-03-29", kind: "holiday", name: all[0]!.name });
     const left = await listUpcomingHolidays(h.db, now);
     expect(left.map((x) => x.key)).not.toContain("easter_monday");

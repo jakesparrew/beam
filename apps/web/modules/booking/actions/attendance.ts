@@ -10,12 +10,13 @@
  * only, so Zod inputs and helpers stay unexported.
  */
 import { z } from "zod";
-import { bookings, orderLines, orders, persons, sessions } from "@beam/db/schema";
+import { bookings, creditEntries, orderLines, orders, persons, sessions } from "@beam/db/schema";
 import { BookingConflictError, InvalidTransitionError, OutsideWindowError, PaymentRequiredError, bookingTransition, brusselsDate, type BookingRules, type BookingStatus } from "@beam/core/booking";
 import { pick } from "@beam/core/i18n";
 import { action } from "@/lib/action";
-import { NotFoundError, actorHasPermission, eq, sql, type Ctx } from "@/lib/ctx";
+import { ConflictError, NotFoundError, actorHasPermission, and, eq, sql, type Ctx } from "@/lib/ctx";
 import { getSetting } from "@/lib/settings";
+import { consumeCredits } from "@/modules/credits/api";
 import type { BookingRow, SessionRow } from "../server/book";
 import { transitionActor } from "../server/cancel";
 import { recordBookingFact } from "../server/facts";
@@ -54,9 +55,43 @@ async function unpaidOrder(ctx: Ctx, booking: BookingRow): Promise<{ orderId: st
   return { orderId: row.orderId, amountCents: Math.round(row.total / Math.max(1, row.quantity)) };
 }
 
+/**
+ * A `no_show` row that becomes `attended` must still hold its consume: with
+ * `no_show.releases_credit` the no-show gave the credit back, and credits refuses a second consume
+ * of the same booking ref. The call writes nothing while the consume is live; a released one is
+ * refused, so staff book the visit again or adjust the credits by hand. An imported row (R65,
+ * never consumed) has nothing to check.
+ */
+async function assertCreditKept(ctx: Ctx, booking: BookingRow, session: SessionRow): Promise<void> {
+  if (booking.status !== "no_show" || (booking.paidWith !== "credit" && booking.paidWith !== "guest")) return;
+  if (!session.creditKind || session.creditCost <= 0) return;
+  const [entry] = await ctx.tx
+    .select({ personId: creditEntries.personId, beneficiaryPersonId: creditEntries.beneficiaryPersonId })
+    .from(creditEntries)
+    .where(and(eq(creditEntries.kind, "consume"), eq(creditEntries.refType, "booking"), eq(creditEntries.refId, booking.id)))
+    .limit(1);
+  if (!entry) return;
+  try {
+    await consumeCredits(ctx.tx, ctx, {
+      personId: entry.personId,
+      beneficiaryPersonId: entry.beneficiaryPersonId ?? booking.personId,
+      kind: session.creditKind,
+      units: session.creditCost,
+      ref: { type: "booking", id: booking.id },
+      validAt: session.startsAt,
+    });
+  } catch (error) {
+    if (error instanceof ConflictError && error.message === "ref_already_released") {
+      throw new BookingConflictError("invalid_transition", { bookingId: booking.id, from: "no_show", to: "attended", credit: "released" });
+    }
+    throw error;
+  }
+}
+
 /** `confirmed | no_show -> attended` with `attended_at = now` and the `booking.attended` fact (R35, R36, R61). */
 async function attend(ctx: Ctx, booking: BookingRow, session: SessionRow): Promise<BookingRow> {
   bookingTransition(booking.status, "attended", transitionActor(ctx));
+  await assertCreditKept(ctx, booking, session);
   const [row] = await ctx.tx
     .update(bookings)
     .set({ status: "attended", attendedAt: ctx.now, version: sql`${bookings.version} + 1`, updatedAt: ctx.now })

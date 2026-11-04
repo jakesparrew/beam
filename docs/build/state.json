@@ -691,14 +691,16 @@
       "attempts": 0
     },
     "site-P6": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "b8c322e",
       "runId": "wf_73ebe2fc-d68",
       "startedAt": "2026-11-04T09:09:10Z",
       "branchSha": "bb7897e",
-      "endedAt": "2026-11-04T16:59:40Z",
-      "minutes": 27
+      "endedAt": "2026-11-04T17:34:07Z",
+      "minutes": 27,
+      "mergeSha": "d314bcf",
+      "mergedAt": "2026-11-04T17:35:38Z"
     },
     "commerce-P5": {
       "status": "merged",

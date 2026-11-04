@@ -85,7 +85,9 @@ async function makeOrderLine(kind: "package" | "voucher" = "package", quantity =
     .insert(orderLines)
     .values({
       orderId: order!.id,
+      lineNo: 1,
       productId: product.id,
+      sku: product.sku,
       productKind: kind,
       description: { en: "Test line" },
       quantity,

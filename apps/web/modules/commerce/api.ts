@@ -1,8 +1,10 @@
 /**
- * commerce's cross-module door (02-data-model section 6.4). Wave 0 stubs by platform-P7 with the
- * owner's final signatures: each throws `NotImplementedError('commerce.<fn>')` until commerce
- * implements it. `quote` is the pure core function, re-exported. `redeemVoucher` is re-exported
- * from `./actions` by commerce once its server action exists (actions are `export {}` in Wave 0).
+ * commerce's cross-module door (commerce spec section 4.8, 02-data-model section 6.4). Every
+ * function another module calls is declared here with its final signature (commerce-P1, build
+ * order rule 1); each throws `NotImplementedError('commerce.<fn>')` until the commerce package
+ * that implements it replaces the body. `quote` is the pure core function, re-exported.
+ * `redeemVoucher` is re-exported from `./actions` once commerce-P6 builds that server action
+ * (actions are `export {}` until then; DM-13).
  */
 import type { DbOrTx, Tx } from "@beam/db";
 import { NotImplementedError } from "@beam/core/errors";
@@ -22,7 +24,19 @@ import type {
 import type { Ctx } from "@/lib/ctx";
 
 export { quote } from "@beam/core/commerce";
-export type { CartItem, OrderChannel, OrderStatus, Quote, QuoteInput } from "@beam/core/commerce";
+export type {
+  Audience,
+  CartItem,
+  OrderChannel,
+  OrderStatus,
+  OrderSummary,
+  PaymentAttentionItem,
+  ProductCard,
+  Quote,
+  QuoteInput,
+  QuoteLine,
+  QuoteWarning,
+} from "@beam/core/commerce";
 
 const notYet = <T>(fn: string): Promise<T> => Promise.reject(new NotImplementedError(`commerce.${fn}`));
 

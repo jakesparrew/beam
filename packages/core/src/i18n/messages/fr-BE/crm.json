@@ -782,7 +782,13 @@
         "threshold": "Seuil de visionnage",
         "watched_sec": "Secondes regardées",
         "from": "Étape de départ",
-        "to": "Étape d’arrivée"
+        "to": "Étape d’arrivée",
+        "webinar_id": "Webinaire",
+        "slug": "Slug du webinaire",
+        "webinar_mode": "Type de webinaire",
+        "source": "Source de l'inscription",
+        "person_status": "Statut à l'inscription",
+        "replay_available": "Rediffusion disponible"
       }
     },
     "tasks": {

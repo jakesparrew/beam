@@ -782,7 +782,13 @@
         "threshold": "Watch threshold",
         "watched_sec": "Seconds watched",
         "from": "From stage",
-        "to": "To stage"
+        "to": "To stage",
+        "webinar_id": "Webinar",
+        "slug": "Webinar slug",
+        "webinar_mode": "Webinar type",
+        "source": "Registration source",
+        "person_status": "Status at registration",
+        "replay_available": "Replay available"
       }
     },
     "tasks": {

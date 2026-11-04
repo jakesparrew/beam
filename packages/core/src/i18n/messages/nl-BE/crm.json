@@ -782,7 +782,13 @@
         "threshold": "Kijkdrempel",
         "watched_sec": "Seconden bekeken",
         "from": "Van fase",
-        "to": "Naar fase"
+        "to": "Naar fase",
+        "webinar_id": "Webinar",
+        "slug": "Webinar-slug",
+        "webinar_mode": "Type webinar",
+        "source": "Bron van inschrijving",
+        "person_status": "Status bij inschrijving",
+        "replay_available": "Herbekijken beschikbaar"
       }
     },
     "tasks": {

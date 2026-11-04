@@ -119,7 +119,9 @@ const ASSESSMENT_RESULT_KEYS = ["form_slug", "outcome_key", "funnel", "form_kind
 const ASSESSMENT_CTA_KEYS = ["form_slug", "outcome_key", "cta_key"];
 const BOOKING_KEYS = ["session_kind", "session_id", "event_category", "owner_person_id", "is_guest", "is_first_booking", "is_first_visit"];
 const WAITLIST_KEYS = ["session_kind", "session_id", "queue"];
-const WEBINAR_KEYS = ["poll_key", "option_keys", "option_key", "cta_key", "threshold", "watched_sec"];
+/** webinar `data` keys per kind, as the webinar event table (02-data-model section 7) declares them. */
+const WEBINAR_REGISTERED_KEYS = ["webinar_id", "slug", "webinar_mode", "source", "person_status"];
+const WEBINAR_ONLY_ID_KEYS = ["webinar_id"];
 
 /** `where` keys allowed per event kind, spelled as the writer's `data` schema (crm spec 4.6). */
 export const SEGMENT_EVENT_DATA_KEYS = {
@@ -155,15 +157,15 @@ export const SEGMENT_EVENT_DATA_KEYS = {
   "email.opened": [],
   "email.clicked": [],
   "ops.stage_changed": ["from", "to"],
-  "webinar.registered": WEBINAR_KEYS,
-  "webinar.started": WEBINAR_KEYS,
-  "webinar.attended": WEBINAR_KEYS,
-  "webinar.watched": WEBINAR_KEYS,
-  "webinar.no_show": WEBINAR_KEYS,
-  "webinar.poll_answered": WEBINAR_KEYS,
-  "webinar.cta_clicked": WEBINAR_KEYS,
-  "webinar.question_asked": WEBINAR_KEYS,
-  "webinar.chat_posted": WEBINAR_KEYS,
+  "webinar.registered": WEBINAR_REGISTERED_KEYS,
+  "webinar.started": WEBINAR_ONLY_ID_KEYS,
+  "webinar.attended": ["webinar_id", "watched_sec"],
+  "webinar.watched": ["webinar_id", "threshold", "watched_sec"],
+  "webinar.no_show": ["webinar_id", "replay_available"],
+  "webinar.poll_answered": ["webinar_id", "poll_key", "option_keys", "option_key"],
+  "webinar.cta_clicked": ["webinar_id", "cta_key"],
+  "webinar.question_asked": WEBINAR_ONLY_ID_KEYS,
+  "webinar.chat_posted": WEBINAR_ONLY_ID_KEYS,
 } as const satisfies Record<string, readonly string[]>;
 
 export type AllowedEventKind = keyof typeof SEGMENT_EVENT_DATA_KEYS;

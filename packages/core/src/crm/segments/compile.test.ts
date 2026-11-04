@@ -111,11 +111,11 @@ describe("segment compiler (rules 3.38, 3.39)", () => {
   });
 
   it("compiles event rules over activity_events with mode, data keys, window and count", () => {
-    const out = text({ type: "event", kind: "webinar.attended", mode: "replay", where: { cta_key: "book", watched_sec: { gte: 600 } }, withinDays: 30, minCount: 2 });
+    const out = text({ type: "event", kind: "webinar.watched", mode: "replay", where: { threshold: "end", watched_sec: { gte: 600 } }, withinDays: 30, minCount: 2 });
     expect(out.text).toBe(
       "(select count(*) from activity_events e where e.person_id in (select id from persons where id = v.person_id or merged_into_person_id = v.person_id) and e.kind = $1 and not e.is_sensitive and e.mode::text = $2 and e.data ->> $3 = $4 and (e.data ->> $5)::numeric >= $6::numeric and e.occurred_at >= $7::timestamptz) >= $8",
     );
-    expect(out.params).toEqual(["webinar.attended", "replay", "cta_key", "book", "watched_sec", 600, "2026-10-04T10:00:00.000Z", 2]);
+    expect(out.params).toEqual(["webinar.watched", "replay", "threshold", "end", "watched_sec", 600, "2026-10-04T10:00:00.000Z", 2]);
     const poll = text({ type: "event", kind: "webinar.poll_answered", where: { option_keys: "yes" }, negate: true });
     expect(poll.text).toMatch(/^not \(/);
     expect(poll.text).toContain("(e.data -> $2) ? $3");

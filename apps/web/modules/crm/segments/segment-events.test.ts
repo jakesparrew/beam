@@ -16,9 +16,15 @@ const LATE_WRITERS: Record<string, readonly string[]> = {
   assessment: ["form", "assessment"],
   webinar: ["webinar"],
 };
+/** Writers whose kinds land package by package; an unregistered kind of theirs is pending. */
+const PER_KIND_LATE = new Set(["webinar"]);
 /** True while the writer of `kind` has no kind at all in the registry (its facade is still empty). */
 const writerNotDeclared = (kind: string): boolean => {
-  const family = LATE_WRITERS[kind.split(".")[0]!];
+  const prefix = kind.split(".")[0]!;
+  // webinar declares its kinds across several packages (P2 lifecycle, P3 registration, later the
+  // watch and interaction kinds), so each of its kinds stays pending until that kind is declared.
+  if (PER_KIND_LATE.has(prefix)) return true;
+  const family = LATE_WRITERS[prefix];
   return !!family && !Object.keys(EVENTS).some((k) => family.includes(k.split(".")[0]!));
 };
 

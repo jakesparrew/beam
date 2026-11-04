@@ -430,6 +430,59 @@ export async function getIntegrationHealth(tx: DbOrTx) {
   );
 }
 
+/**
+ * R3 (platform-P9): the token-based integrations of the System integrations screen. The ads pulls
+ * (`meta_ads`, `google_ads`, ops' `ads.pull_yesterday`) run once a day, so their health is not
+ * read from the 24-hour view: `dataAsOf` is the last successful call ever (for `meta`, crm's
+ * inbox, also the last received webhook). Only env names are read, never values.
+ */
+export const TOKEN_INTEGRATIONS = [
+  { provider: "meta_ads", envNames: ["META_ADS_TOKEN"] },
+  { provider: "google_ads", envNames: ["GOOGLE_ADS_TOKEN"] },
+  { provider: "meta", envNames: ["META_APP_SECRET", "META_VERIFY_TOKEN"] },
+] as const satisfies readonly { provider: IntegrationProviderName; envNames: readonly string[] }[];
+
+export type TokenIntegrationStatus = {
+  provider: (typeof TOKEN_INTEGRATIONS)[number]["provider"];
+  /** Each env name and whether it holds a value. */
+  tokens: { name: string; configured: boolean }[];
+  configured: boolean;
+  dataAsOf: Date | null;
+  lastErrorAt: Date | null;
+};
+
+export async function getTokenIntegrationStatus(
+  tx: DbOrTx,
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): Promise<TokenIntegrationStatus[]> {
+  const providers = TOKEN_INTEGRATIONS.map((i) => i.provider);
+  const calls = rowsOf<{ provider: string; last_ok_at: string | Date | null; last_error_at: string | Date | null }>(
+    await tx.execute(sql`
+      select provider::text as provider, max(created_at) filter (where ok) as last_ok_at, max(created_at) filter (where not ok) as last_error_at
+      from integration_calls where provider::text in (${sql.join(
+        providers.map((p) => sql`${p}`),
+        sql`, `,
+      )}) group by provider`),
+  );
+  const [hook] = rowsOf<{ last_at: string | Date | null }>(
+    await tx.execute(sql`select max(received_at) as last_at from webhook_events where provider::text = 'meta'`),
+  );
+  const date = (v: string | Date | null | undefined) => (v ? new Date(v) : null);
+  const latest = (a: Date | null, b: Date | null) => (a && b ? (a > b ? a : b) : (a ?? b));
+  return TOKEN_INTEGRATIONS.map((i) => {
+    const row = calls.find((c) => c.provider === i.provider);
+    const tokens = i.envNames.map((name) => ({ name, configured: !!env[name]?.trim() }));
+    const lastOk = date(row?.last_ok_at);
+    return {
+      provider: i.provider,
+      tokens,
+      configured: tokens.every((t) => t.configured),
+      dataAsOf: i.provider === "meta" ? latest(lastOk, date(hook?.last_at)) : lastOk,
+      lastErrorAt: date(row?.last_error_at),
+    };
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Audit search (keyset on created_at, id)
 // ---------------------------------------------------------------------------

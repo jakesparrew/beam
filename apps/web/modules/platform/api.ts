@@ -141,6 +141,40 @@ export async function partnerScope(ctx: Ctx): Promise<{ companyId: string }> {
   return { companyId: row.company_id };
 }
 
+/**
+ * R3 (platform-P9): the read scope of a view that staff and partners share (crm, booking and ops
+ * partner views). `{ companyId: null }` means unrestricted: a staff member holding `permission`.
+ * `{ companyId }` means "only this company's rows": an `external_partner` user (always scoped,
+ * even when an owner granted the role more permissions), or a staff member without `permission`
+ * who holds `partner.own` and is linked to a partner company. Anyone else gets `ForbiddenError`.
+ */
+export async function requirePartnerOrPermission(ctx: Ctx, permission: Permission): Promise<{ companyId: string | null }> {
+  const actor = ctx.actor;
+  if (actor.kind !== "staff") throw new ForbiddenError(`forbidden: ${permission}`, permission);
+  if (actor.roleKey === "external_partner") return partnerScope(ctx);
+  if (actorHasPermission(actor, permission)) return { companyId: null };
+  if (actorHasPermission(actor, "partner.own")) return partnerScope(ctx);
+  throw new ForbiddenError(`forbidden: ${permission}`, permission);
+}
+
+/**
+ * Sets (or clears, with `null`) the expiry of stored files, for example ops' import parts that
+ * are kept once an import is confirmed (request of ops-P4). File rows are otherwise immutable:
+ * only `expires_at` changes. Returns the number of rows updated.
+ */
+export async function setFileExpiry(tx: DbOrTx, fileIds: readonly string[], expiresAt: Date | null): Promise<number> {
+  if (fileIds.length === 0) return 0;
+  const rows = rowsOf<{ id: string }>(
+    await tx.execute(
+      sql`update files set expires_at = ${expiresAt ? expiresAt.toISOString() : null}::timestamptz where id in (${sql.join(
+        fileIds.map((id) => sql`${id}::uuid`),
+        sql`, `,
+      )}) returning id::text as id`,
+    ),
+  );
+  return rows.length;
+}
+
 /** R4 (platform-P10). */
 export function runAiReadOnlyQuery(ctx: JobCtx, sqlText: string): Promise<{ columns: string[]; rows: unknown[][] }> {
   void ctx;

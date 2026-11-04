@@ -73,3 +73,4 @@ One entry per merge batch and gate (runbook section 5.7, adapted by OD-3).
 - credits-P3: merged as `8be7a14` in batch `g25-batch`.
 - Batch `g25-batch` (fix-w04-platform-3 crm-P2 credits-P3): merge gate green, peak 3823 MB.
 - 01:34 UTC: started fix-w05-schema-1 (deferred FKs and checks for booking, commerce, ops, site, automation; activates booking and ops schedules) from `9a4438b`.
+- 01:35 UTC: the container restarted and stopped all seven running agents (platform-P8, finance-P1, booking-P3a, crm-P3, crm-P6, email-P2, fix-w05-schema-1) before any of them committed. The repository, worktrees, scratchpad and `.env.local` survived. Their uncommitted files were saved as `wip:` commits on their own branches (platform-P8 20 files, finance-P1 30, booking-P3a 11, crm-P6 3, email-P2 3); all seven were relaunched from `4ea719a` at 01:38, the five with saved work continuing from it.

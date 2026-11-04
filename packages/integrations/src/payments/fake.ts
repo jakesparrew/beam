@@ -3,6 +3,10 @@
  * `globalThis.__beamFakePayments`, so the dev pay page (`/api/dev/fake-pay/<id>`) and the
  * webhook job of the same process see one store. Mandates are `valid` at once; recurring
  * payments settle `paid` unless `failNext()` was called. Tests drive outcomes with `settle`.
+ *
+ * commerce-P2 additions: every create call honours its optional `idempotencyKey` (the same key
+ * returns the first result, as Mollie's `Idempotency-Key` does) and `setLatency(ms)` (or the
+ * `latencyMs` option) delays every call, for timeout and race tests.
  */
 import { randomUUID } from "node:crypto";
 import { digestRequest } from "../_shared/digest";
@@ -53,6 +57,8 @@ export type PaymentsFake = PaymentProvider & {
    * status, the next recurring payment is created `failed` (other operations get a 500).
    */
   failNext(operation?: string, opts?: { status?: number }): void;
+  /** Every later call waits `ms` before it answers (0 turns the delay off). */
+  setLatency(ms: number): void;
   payment(providerPaymentId: string): FakePaymentRecord | undefined;
   reset(): void;
 };
@@ -60,7 +66,7 @@ export type PaymentsFake = PaymentProvider & {
 export type FakePaymentProvider = PaymentsFake;
 
 export function createPaymentsFake(
-  options: { appUrl?: string; onCall?: OnCall; now?: () => Date; isolated?: boolean } = {},
+  options: { appUrl?: string; onCall?: OnCall; now?: () => Date; isolated?: boolean; latencyMs?: number } = {},
 ): PaymentsFake {
   const store = options.isolated ? newStore() : fakePaymentsStore();
   const onCall = options.onCall ?? noopOnCall;
@@ -70,9 +76,23 @@ export function createPaymentsFake(
   /** `status: null` means "the default failure": a failed recurring payment, a 500 elsewhere. */
   const failures: { operation: string | null; status: number | null }[] = [];
   const id = (prefix: string) => `${prefix}_fake${++store.seq}${randomUUID().slice(0, 8)}`;
+  let latencyMs = options.latencyMs ?? 0;
+  /** Results of keyed create calls other than payments (`byKey` keeps payment ids). */
+  const keyed = new Map<string, unknown>();
 
-  function run<T>(operation: string, input: unknown, work: () => T): Promise<T> {
+  /** Runs `work` once per `operation:key`; a repeat returns the first result. */
+  function once<T>(operation: string, key: string | undefined, work: () => T): T {
+    if (!key) return work();
+    const k = `${operation}:${key}`;
+    if (keyed.has(k)) return keyed.get(k) as T;
+    const value = work();
+    keyed.set(k, value);
+    return value;
+  }
+
+  async function run<T>(operation: string, input: unknown, work: () => T): Promise<T> {
     calls.push({ operation, input, at: now() });
+    if (latencyMs > 0) await new Promise((resolve) => setTimeout(resolve, latencyMs));
     return trackCall(onCall, { provider: "mollie", operation, requestDigest: digestRequest({ method: "POST", path: `/fake/${operation}` }) }, () => {
       const index = failures.findIndex((f) => f.operation === null || f.operation === operation);
       if (index >= 0) {
@@ -138,7 +158,7 @@ export function createPaymentsFake(
       });
     },
     refund(i) {
-      return run("refunds.create", i, () => {
+      return run("refunds.create", i, () => once("refunds.create", i.idempotencyKey, () => {
         const p = get(i.providerPaymentId);
         if (p.status !== "paid" && p.status !== "partially_refunded") {
           throw new IntegrationError({ provider: "mollie", operation: "refunds.create", retryable: false, statusCode: 422, message: "payment is not refundable" });
@@ -151,21 +171,25 @@ export function createPaymentsFake(
         p.refunds.push(refund);
         p.status = refunded === p.amountCents ? "refunded" : "partially_refunded";
         return { providerRefundId: refund.providerRefundId, status: refund.status };
-      });
+      }));
     },
     createCustomer(i) {
-      return run("customers.create", { locale: i.locale }, () => {
-        const customerId = id("cst");
-        store.customers.set(customerId, { name: i.name, email: i.email, deleted: false });
-        return { customerId };
-      });
+      return run("customers.create", { locale: i.locale }, () =>
+        once("customers.create", i.idempotencyKey, () => {
+          const customerId = id("cst");
+          store.customers.set(customerId, { name: i.name, email: i.email, deleted: false });
+          return { customerId };
+        }),
+      );
     },
     createMandate(i) {
-      return run("mandates.create", { customerId: i.customerId }, () => {
-        const mandateId = id("mdt");
-        store.mandates.set(mandateId, { customerId: i.customerId, status: "valid", revoked: false });
-        return { mandateId, status: "valid" };
-      });
+      return run("mandates.create", { customerId: i.customerId }, () =>
+        once("mandates.create", i.idempotencyKey, () => {
+          const mandateId = id("mdt");
+          store.mandates.set(mandateId, { customerId: i.customerId, status: "valid", revoked: false });
+          return { mandateId, status: "valid" };
+        }),
+      );
     },
     getMandate(i) {
       return run("mandates.get", i, () => {
@@ -209,16 +233,21 @@ export function createPaymentsFake(
       });
     },
     createPaymentLink(i) {
-      return run("payment_links.create", { amountCents: i.amountCents }, () => {
-        const linkId = id("pl");
-        const url = `${appUrl}/api/dev/fake-pay/${linkId}?kind=link`;
-        store.links.set(linkId, { url, amountCents: i.amountCents });
-        return { linkId, url };
-      });
+      return run("payment_links.create", { amountCents: i.amountCents }, () =>
+        once("payment_links.create", i.idempotencyKey, () => {
+          const linkId = id("pl");
+          const url = `${appUrl}/api/dev/fake-pay/${linkId}?kind=link`;
+          store.links.set(linkId, { url, amountCents: i.amountCents });
+          return { linkId, url };
+        }),
+      );
     },
     createTerminalPayment(i) {
       return run("payments.create_terminal", { terminalId: i.terminalId }, () => {
+        const existing = i.idempotencyKey ? store.byKey.get(i.idempotencyKey) : undefined;
+        if (existing) return { providerPaymentId: existing, status: get(existing).status };
         const record = insert("terminal", { ...i, method: "pointofsale" });
+        if (i.idempotencyKey) store.byKey.set(i.idempotencyKey, record.providerPaymentId);
         return { providerPaymentId: record.providerPaymentId, status: record.status };
       });
     },
@@ -237,6 +266,9 @@ export function createPaymentsFake(
     failNext(operation, opts) {
       failures.push({ operation: operation ?? null, status: opts?.status ?? null });
     },
+    setLatency(ms) {
+      latencyMs = Math.max(0, ms);
+    },
     payment(providerPaymentId) {
       return store.payments.get(providerPaymentId);
     },
@@ -245,6 +277,8 @@ export function createPaymentsFake(
       Object.assign(store, fresh);
       calls.length = 0;
       failures.length = 0;
+      keyed.clear();
+      latencyMs = options.latencyMs ?? 0;
     },
   };
   return fake;

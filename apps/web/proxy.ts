@@ -6,11 +6,14 @@
  * - sends `/admin/*` and `/:locale/account/*` without a session cookie to their login page with
  *   a same-origin `returnTo` (presence only, no database call: the layouts run `requireStaff()`
  *   and `requireCustomer()`, runbook DR-11);
+ * - answers 410 Gone for the legacy WordPress paths of `isLegacyGone()` (with or without a
+ *   locale prefix; a page can only answer 404);
  * - sets the CSP with a fresh nonce (`x-nonce` request header for `next/script`) and the
  *   static security headers (PL-67).
  */
 import { NextResponse, type NextRequest } from "next/server";
 import { DEFAULT_LOCALE, localeFromAcceptLanguage, localeFromSegment, URL_SEGMENT, isLocale, type Locale } from "@beam/core/i18n";
+import { isLegacyGone } from "@beam/core/site";
 import { SESSION_COOKIE } from "./lib/auth-config";
 import { buildCsp, generateNonce, SECURITY_HEADERS } from "./lib/csp";
 
@@ -54,6 +57,10 @@ export function proxy(request: NextRequest): NextResponse {
   const urlLocale = localeFromSegment(firstSegment);
   const isAdmin = pathname === "/admin" || pathname.startsWith("/admin/");
 
+  if (!isAdmin && isLegacyGone(pathname)) {
+    return withSecurityHeaders(new NextResponse("Gone", { status: 410, headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "public, max-age=3600" } }), csp);
+  }
+
   if (isAdmin) {
     if (!hasSession && !ADMIN_PUBLIC.some((re) => re.test(pathname))) {
       return withSecurityHeaders(redirectTo(request, "/admin/login", { returnTo }), csp);
@@ -90,5 +97,9 @@ export function proxy(request: NextRequest): NextResponse {
 export const config = {
   // Every page path: `/`, `/admin/*`, `/:locale(nl|fr|en)/*` and bare paths that need a prefix.
   // API routes, Next internals and files with an extension are left alone.
-  matcher: ["/((?!api/|_next/|favicon\\.ico|sw\\.js|manifest\\.webmanifest|robots\\.txt|sitemap\\.xml|.*\\.[a-zA-Z0-9]+$).*)"],
+  // The second entry lets the legacy WordPress files (`/wp-login.php`, `/nl/xmlrpc.php`, ...) reach the 410.
+  matcher: [
+    "/((?!api/|_next/|favicon\\.ico|sw\\.js|manifest\\.webmanifest|robots\\.txt|sitemap\\.xml|.*\\.[a-zA-Z0-9]+$).*)",
+    "/((?:nl/|fr/|en/)?(?:wp-login\\.php|xmlrpc\\.php|wp-includes/.*|wp-admin/.*|wp-json/.*))",
+  ],
 };

@@ -99,3 +99,31 @@ describe("proxy security headers (PL-67)", () => {
     expect(res.headers.get("strict-transport-security")).toBeTruthy();
   });
 });
+
+describe("legacy WordPress paths answer 410 Gone (site-P2 request)", () => {
+  it("answers 410 with the security headers, with or without a locale prefix", () => {
+    for (const path of ["/wp-admin", "/nl/wp-admin/options.php", "/wp-login.php", "/fr/xmlrpc.php", "/en/wp-json/wp/v2/posts"]) {
+      const res = proxy(request(path));
+      expect(res.status, path).toBe(410);
+      expect(res.headers.get("location")).toBeNull();
+      expect(res.headers.get("content-security-policy")).toBeTruthy();
+    }
+  });
+
+  it("leaves look-alikes and normal pages alone", () => {
+    expect(proxy(request("/nl/wp-adminx")).status).not.toBe(410);
+    expect(proxy(request("/nl/over-ons")).status).toBe(200);
+    expect(proxy(request("/admin/login")).status).toBe(200);
+  });
+
+  it("the matcher sends the legacy .php files to the proxy", async () => {
+    const { config } = await import("./proxy");
+    const { pathToRegexp } = (await import("next/dist/compiled/path-to-regexp")) as unknown as { pathToRegexp: (p: string) => RegExp };
+    const matches = (path: string) => config.matcher.some((m) => pathToRegexp(m).test(path));
+    expect(matches("/wp-login.php")).toBe(true);
+    expect(matches("/nl/xmlrpc.php")).toBe(true);
+    expect(matches("/nl/over-ons")).toBe(true);
+    expect(matches("/logo.png")).toBe(false);
+    expect(matches("/api/health")).toBe(false);
+  });
+});

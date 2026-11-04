@@ -500,8 +500,11 @@
       "mergedAt": "2026-11-04T05:49:25Z"
     },
     "forms-P4": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "9430fed",
+      "runId": "wf_0c09a661-7ee",
+      "startedAt": "2026-11-04T08:28:25Z"
     },
     "email-P3": {
       "status": "merged",
@@ -649,12 +652,18 @@
       "attempts": 0
     },
     "email-P4": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "9430fed",
+      "runId": "wf_88daa4d5-5d3",
+      "startedAt": "2026-11-04T08:28:25Z"
     },
     "automation-P4": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "9430fed",
+      "runId": "wf_2909acdd-292",
+      "startedAt": "2026-11-04T08:28:25Z"
     },
     "site-P4": {
       "status": "pending",
@@ -727,16 +736,25 @@
       "attempts": 0
     },
     "booking-P6": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "9430fed",
+      "runId": "wf_b20e3745-577",
+      "startedAt": "2026-11-04T08:28:24Z"
     },
     "commerce-P6": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "9430fed",
+      "runId": "wf_a2637747-622",
+      "startedAt": "2026-11-04T08:28:25Z"
     },
     "finance-P6": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "9430fed",
+      "runId": "wf_551a9fa9-8b5",
+      "startedAt": "2026-11-04T08:28:24Z"
     },
     "forms-P7": {
       "status": "pending",

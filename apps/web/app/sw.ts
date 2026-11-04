@@ -4,22 +4,31 @@
  * - precaches the build assets and the offline pages `/nl/offline`, `/fr/offline`, `/en/offline`;
  * - `/_next/static` cache-first; images stale-while-revalidate (7 days, 200 entries);
  * - public navigations network-first with a 3-second timeout, the locale's offline page as fallback;
- * - portal navigations (`/<prefix>/account...`) network-only (never served from cache while the
- *   network answers, never stored), with the offline fallback;
+ * - personal navigations network-only (never stored, never served from cache), with the offline
+ *   fallback: the portal (`/<prefix>/account...`) and the token and session pages outside it
+ *   (`checkout`, `pay`, `claim`, `preferences`, `preview`, `gift`, form resume links `f/<slug>/r/...`),
+ *   and on activation such pages a previous worker stored in `pages` are deleted (edge case 24). A
+ *   `Cache-Control` filter is not used: every site page is dynamic (the layout reads the request
+ *   nonce and the consent cookie), so Next sends `no-store` on public content pages too;
  * - never handles `/admin/*`, `/api/*` or non-GET requests (no route matches them, so the
  *   browser fetches them itself).
  */
 import { CacheFirst, ExpirationPlugin, NetworkFirst, NetworkOnly, Serwist, StaleWhileRevalidate, type PrecacheEntry, type RouteMatchCallbackOptions } from "serwist";
 
 // The worker global, declared locally so the app keeps the DOM lib (no `webworker` lib needed).
-declare const self: { __SW_MANIFEST: (PrecacheEntry | string)[] | undefined };
+declare const self: {
+  __SW_MANIFEST: (PrecacheEntry | string)[] | undefined;
+  addEventListener(type: "activate", listener: (event: { waitUntil(promise: Promise<unknown>): void }) => void): void;
+};
 
 const PREFIXES = ["nl", "fr", "en"] as const;
 /** Bump when the offline page changes (its URL carries no build hash). */
 const OFFLINE_REVISION = "site-p5-1";
 
 const isExcluded = (url: URL): boolean => /^\/(admin|api)(\/|$)/.test(url.pathname);
-const isPortal = (url: URL): boolean => /^\/(nl|fr|en)\/account(\/|$)/.test(url.pathname);
+/** Navigations that carry personal data or a credential in the URL, cookie or session: never cached. */
+const isPersonal = (url: URL): boolean =>
+  /^\/(nl|fr|en)\/(account|checkout|pay|claim|preferences|preview|gift)(\/|$)/.test(url.pathname) || /^\/(nl|fr|en)\/f\/[^/]+\/r(\/|$)/.test(url.pathname);
 const isNavigation = ({ request }: { request: Request }): boolean => request.mode === "navigate" || request.destination === "document";
 
 const offlineUrl = (url: URL): string => {
@@ -42,11 +51,11 @@ const serwist = new Serwist({
       handler: new StaleWhileRevalidate({ cacheName: "images", plugins: [new ExpirationPlugin({ maxEntries: 200, maxAgeSeconds: 7 * 86_400 })] }),
     },
     {
-      matcher: ({ request, url, sameOrigin }: RouteMatchCallbackOptions) => sameOrigin && !isExcluded(url) && isPortal(url) && isNavigation({ request }),
+      matcher: ({ request, url, sameOrigin }: RouteMatchCallbackOptions) => sameOrigin && !isExcluded(url) && isPersonal(url) && isNavigation({ request }),
       handler: new NetworkOnly(),
     },
     {
-      matcher: ({ request, url, sameOrigin }: RouteMatchCallbackOptions) => sameOrigin && !isExcluded(url) && !isPortal(url) && isNavigation({ request }),
+      matcher: ({ request, url, sameOrigin }: RouteMatchCallbackOptions) => sameOrigin && !isExcluded(url) && !isPersonal(url) && isNavigation({ request }),
       handler: new NetworkFirst({ cacheName: "pages", networkTimeoutSeconds: 3, plugins: [new ExpirationPlugin({ maxEntries: 100, maxAgeSeconds: 7 * 86_400 })] }),
     },
   ],
@@ -58,4 +67,11 @@ const serwist = new Serwist({
   },
 });
 
+/** Deletes personal pages an earlier worker version stored in the `pages` cache. */
+async function purgePersonalPages(): Promise<void> {
+  const cache = await caches.open("pages");
+  for (const request of await cache.keys()) if (isPersonal(new URL(request.url))) await cache.delete(request);
+}
+
+self.addEventListener("activate", (event) => event.waitUntil(purgePersonalPages()));
 serwist.addEventListeners();

@@ -9,6 +9,7 @@ import type { DbHandle } from "../client";
 import { IMMUTABLE_TABLES, SENSITIVE_COLUMNS } from "./_shared";
 import { bookings } from "./booking";
 import { orders } from "./commerce";
+import { companies } from "./crm";
 import {
   formImportEvents,
   formImportSources,
@@ -290,6 +291,25 @@ describe("form_links, form_views_daily and imports", () => {
     await rejectsCheck(h.db.insert(formLinks).values({ ...base, key: "Flyer-01" }), "form_links_key_ck");
   });
 
+  it("partner_company_id references companies and is nulled when the company is deleted", async () => {
+    const { form } = await makeForm({ published: true });
+    const user = await makeUser(h.db);
+    const base = { formId: form.id, name: "Partner flyer", createdByUserId: user.id };
+    await rejectsWith(
+      h.db.insert(formLinks).values({ ...base, key: "partnr01", partnerCompanyId: randomUUID() }),
+      "23503",
+      "form_links_partner_company_id_companies_id_fk",
+    );
+    const [company] = await h.db.insert(companies).values({ name: "Partner Gym", isPartner: true }).returning();
+    const [link] = await h.db
+      .insert(formLinks)
+      .values({ ...base, key: "partnr02", partnerCompanyId: company!.id })
+      .returning();
+    await h.db.delete(companies).where(eq(companies.id, company!.id));
+    const [after] = await h.db.select().from(formLinks).where(eq(formLinks.id, link!.id));
+    expect(after!.partnerCompanyId).toBeNull();
+  });
+
   it("views are counted with insert ... on conflict do update and never negative", async () => {
     const { form } = await makeForm({ published: true });
     const bump = () =>
@@ -389,6 +409,8 @@ describe("views", () => {
         paidWith: "free",
         source: "portal",
         createdAt: new Date(at.getTime() + days * DAY),
+        // bookings_cancelled_ck: a cancelled booking carries cancelled_at and a reason code.
+        ...(status === "cancelled" ? { cancelledAt: new Date(at.getTime() + days * DAY), cancelReasonCode: "customer" as const } : {}),
       });
     await book(person.id, 29);
     await book(other.id, 31);

@@ -27,7 +27,7 @@ import {
   uuid,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
-import { persons } from "./crm";
+import { companies, persons } from "./crm";
 import { emailMessages } from "./email";
 import { users } from "./platform";
 import { bytea, id, localized, sensitive, timestamps, tstz, updatedAt } from "./_shared";
@@ -220,8 +220,8 @@ export const formLinks = pgTable(
     channel: formLinksChannel().notNull().default("link"),
     /** Defaults applied when the URL has no UTM. */
     utm: jsonb().$type<FormUtmJson>().notNull().default({}),
-    // FK to companies is added by forms once crm creates `companies` (crm-P1, same wave).
-    partnerCompanyId: uuid(),
+    /** R3 partner links; nulled when the company is deleted. */
+    partnerCompanyId: uuid().references(() => companies.id, { onDelete: "set null" }),
     /** R3 referral links; nulled on erasure. */
     referrerPersonId: uuid().references(() => persons.id),
     /** Inactive links still resolve the form but record no link. */

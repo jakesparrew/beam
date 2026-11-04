@@ -2,9 +2,10 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest
 import { createTestDb } from "@beam/db/testing";
 import type { DbHandle } from "@beam/db";
 import { jobs, settings } from "@beam/db/schema";
-import { eq, setAppDb } from "@/lib/ctx";
+import { eq, setAppDb, sql } from "@/lib/ctx";
 import { setIntegrations } from "@/lib/integrations";
 import { createFakeIntegrations, resetRuntime } from "@/lib/testing";
+import { schedules } from "@/modules/platform/schedules";
 import { GET } from "./route";
 
 let handle: DbHandle;
@@ -39,7 +40,11 @@ describe("GET /api/cron/tick (PL-32, PL-33)", () => {
     expect(first.status).toBe(200);
     const body = (await first.json()) as { tickId: string; enqueuedSchedules: number; ran: { fast: number; bulk: number }; reclaimed: number };
     expect(body.tickId).toMatch(/^tick:/);
-    expect(body.enqueuedSchedules).toBe(1);
+    // Modules register their own schedules: look only at platform's kinds (one due: check_alerts).
+    const platformKinds = new Set<string>(schedules.map((s) => s.kind));
+    const enqueued = (await handle.db.select({ key: jobs.idempotencyKey }).from(jobs).where(sql`${jobs.idempotencyKey} like 'schedule:%'`)).map((r) => r.key);
+    expect(body.enqueuedSchedules).toBe(enqueued.length);
+    expect(enqueued.filter((k) => platformKinds.has(k.split(":")[1]!))).toEqual(["schedule:platform.check_alerts:2026-11-03T11:00"]);
     expect(body.ran.fast).toBeGreaterThanOrEqual(1);
 
     const second = (await (await call("Bearer cron-secret-for-tests")).json()) as { enqueuedSchedules: number };

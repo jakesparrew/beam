@@ -1,2 +1,17 @@
-/** `@beam/core/email`: the module's pure types (Wave 0 skeleton by platform-P7). */
+/**
+ * `@beam/core/email`: the email module's pure logic and types (email-P1): block document,
+ * tokens, completeness, version guard, campaign states, message status, warm-up, send window,
+ * link tokens, reachability and the action inputs.
+ */
 export * from "./types";
+export * from "./blocks";
+export * from "./tokens";
+export * from "./completeness";
+export * from "./versions";
+export * from "./campaign-state";
+export * from "./message-status";
+export * from "./warmup";
+export * from "./send-window";
+export * from "./links";
+export * from "./reachability";
+export * from "./inputs";

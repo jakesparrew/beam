@@ -34,16 +34,21 @@ to "Served" with the package id.
 | booking-P1 | booking (fixer) | Register `waitlist_entries` in booking's `privacy.ts` and add the FK `waitlist_entries.person_id -> persons.id` (on delete restrict); FKs `capacity_holds.company_id` and `sessions.partner_company_id -> companies.id` once crm-P1 merged; tighten `sessions_event_category_ck` to `(kind = 'event') = (event_category is not null)` once `makeSession` sets a category. |
 | booking-P1, crm-P1, site-P1 | platform-P8 | Admin nav section labels: `platform.nav.section_booking`, `section_customers`, `section_website` (and every other section a module's `nav.ts` declares); the admin layout hides a nav entry whose `flag` is off; nav badge support (crm: own overdue tasks, open unassigned threads). |
 | crm-P1 | platform (fix-w04-platform-4) | Delete `packages/core/src/crm/segment-fields.ts`; `@beam/core/crm` exports `segments/fields.ts` with the same `SEGMENT_ALLOWED_FIELDS`. |
-| crm-P1 | credits (fixer) | `credits.views.ts` exports the `v_person_status` SQL as `vPersonStatusSql`, so crm's `v_status_override_conflicts` turns on. |
 | crm-P1 | ops-P2 | `v_person_profile` (and `PERSON_PROFILE_COLUMNS`) includes every column of crm's `SEGMENT_FIELDS`, including `package_product_ids uuid[]`. |
 | email-P1 | email-P1 (attempt 2) | Register `campaign_recipients` (and the other person-referencing email tables) in email's `privacy.ts` (OD-9) and add `campaign_recipients.person_id -> persons.id` (on delete restrict). |
 | site-P1 | site (fixer) | FK `pages.partner_company_id -> companies.id` (on delete set null) once crm-P1 merged. |
 | forms-P1 | forms (next forms package) | FK `form_links.partner_company_id -> companies.id` once crm-P1 merged. |
+| ops-P1 | ops and booking (fixer after fix-w04-platform-3) | Move `PLANNED_SCHEDULES` into `schedules` in `apps/web/modules/ops/schedules.ts` and `apps/web/modules/booking/schedules.ts` (no later package of either module owns that file) once platform's schedule tests filter to platform kinds. |
+| ops-P1 | ops (fixer) | FK `retention_list_items.task_id -> tasks.id` once crm's `tasks` table exists (`ops.ts` has no later owner). |
+| ops-P1 | ops-P5 | Wire `sweep` in `apps/web/modules/ops/privacy.ts` to ops-P6's `exports/sweep.ts` handlers. |
+| ops-P1 | platform-P8 | Nav section labels `platform.nav.section_insights`, `section_reports`, `section_data`; filter admin and portal nav entries by their optional `flag`. |
 
 ## Served
 
 | From | For | Request | Served by |
 | --- | --- | --- | --- |
+| crm-P1 | credits | `vPersonStatusSql` exported; `v_status_override_conflicts` is in migration `0011_w04_views`. | credits-P1 (already) |
+| commerce-P1, booking-P1, credits-P2 | platform | Fixtures and factories follow the real schemas; schedule tests filter to platform kinds; credits `types.ts` guesses removed. | fix-w04-platform-3 |
 | platform-P2 | platform-P7 | Call `seedDefaults(db, { permissions: PERMISSIONS })` in `seed-demo.ts`. | platform-P7 (launch instructions) |
 | platform-P5 | platform-P6 | Build `action()` on `createCtx()`, map errors by `error.code`, run `after(() => runJobs({ ids: ctxState(ctx).enqueuedIds, budgetMs: 8000 }))`, skip the automatic audit row when `auditedActions` has the action, flush the integration log and durable writes after commit or rollback; `hasPermission` may delegate to `actorHasPermission`; add `platform.nav.{settings,users,flags,system,ai}` to `platform.json` in all three locales. | platform-P6 (launch instructions) |
 | platform-P5 | orchestrator | `drizzle-orm` in `apps/web`; `lib/ctx.ts` imports it directly. | orchestrator, wave 2 |

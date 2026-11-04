@@ -50,7 +50,6 @@ to "Served" with the package id.
 | commerce-P3 | commerce (owner of `events.ts`) | Declare the event kind `person_price.set`; until then `setPersonPrice` writes only its audit row. |
 | automation-P2 | crm (suppressions) | `addSuppression` pushes the jobId that `automation.requestSuppressionExit` returns into the action's after-commit list (`ctxState(ctx).enqueuedIds`), so `automation.exit_for_suppression` runs in the after() kick (A-23). |
 | ops-P2 | ops-P7 | Add the R2 webinar columns and the `webinars_registered_total` and `webinars_attended_total` sums to `v_person_profile` in `ops.views.ts`, with their `ops.views.test.ts` cases. |
-| email-P3 | automation (the package that implements `requestSuppressionExit`) | `crm.addSuppression` calls `automation.requestSuppressionExit` from email's hard-bounce, complaint and soft-bounce handling; it still throws. |
 | ops-P4 | ops (owner of `packages/core/src/ops/import-targets.ts` and `import-presets.ts`) | Add the targets `mode` and `watched_minutes` to `IMPORT_TARGETS.history` and map the watched-minutes columns in the webinar presets (ops-P4 accepts both already). |
 | ops-P4 | crm | `upsertPersonFromImport` accepts `street`, `country`, `preferredChannel` and an `onlyEmpty` option (ops rule 46); today street and country of a persons file are not written. |
 | ops-P4 | platform | Add `setFileExpiry(tx, fileIds, expiresAt)`; until then ops-P4 updates `files.expires_at` directly for its own import parts. |
@@ -80,6 +79,9 @@ to "Served" with the package id.
 | booking-P5 | site | Add refType `waitlist_entry` to `RecordTermsAcceptanceInput` (R62); terms accepted at a waitlist join are recorded without a refType for now. |
 | ops-P3 | ops (owner of `ops.json`) | Add `ops.reports.liability.kind.{day,night,euro}` and `ops.reports.liability.vat.{single_purpose,multi_purpose,not_applicable}`; the revenue page shows the raw value until then. |
 | ops-P3 | booking | Add a closed-days read to booking's api (for example `listClosedDays(db, from, to)`), so ops stops reading `session_exceptions` directly. |
+| automation-P3 | platform | Add `webhook` to the `integration_calls_provider` enum, `INTEGRATION_PROVIDERS` (`@beam/integrations/_shared`) and `INTEGRATION_ENUM` in `apps/web/lib/ctx.ts`; until then the call-log entries of `automation.call_webhook` are dropped. |
+| automation-P3 | platform (owner of `.env.example`) | List `AUTOMATION_WEBHOOK_SECRET` in `.env.example` (automation spec section 6). |
+| automation-P3 | forms | Implement `getPublishedFormMeta`; automation's `form_available` condition treats its `NotImplementedError` as "not available" for now. |
 
 ## Served
 
@@ -97,3 +99,4 @@ to "Served" with the package id.
 | finance-P3 | finance-P4 | Register `billit.push_invoice` and `billit.push_credit_note` (render_pdf enqueues them with keys `billit:invoice:<id>` and `billit:credit_note:<id>`). | finance-P4 |
 | orchestrator | finance-P4 | `packages/integrations/src/_shared/platform-p3.shared.test.ts` (line ~69) pins the Billit client stub (`NotImplementedError`); finance-P4 implements the real client, so it also owns that test (granted as extraOwns at launch) and replaces the stub assertion with the client's real contract. | finance-P4 |
 | email-P3 | site-P5 | Implement `getLegalLinks`; email footers carry no privacy or terms links until it exists (email handles the `NotImplementedError`). | site-P5 |
+| email-P3 | automation (the package that implements `requestSuppressionExit`) | `crm.addSuppression` calls `automation.requestSuppressionExit` from email's hard-bounce, complaint and soft-bounce handling; it still throws. | automation-P2 (implemented; the crm side is the automation-P2 -> crm row) |

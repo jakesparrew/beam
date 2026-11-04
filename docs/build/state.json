@@ -364,7 +364,7 @@
       "runId": "wf_46554cd4-776",
       "startedAt": "2026-11-04T05:51:03Z",
       "branchSha": "bbbabd6",
-      "endedAt": "2026-11-04T07:24:41Z",
+      "endedAt": "2026-11-04T07:36:56Z",
       "minutes": 56
     },
     "email-P2": {
@@ -514,11 +514,14 @@
       "mergedAt": "2026-11-04T05:49:23Z"
     },
     "automation-P3": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "baseSha": "40fc2b1",
       "runId": "wf_942f7006-bb6",
-      "startedAt": "2026-11-04T06:46:08Z"
+      "startedAt": "2026-11-04T06:46:08Z",
+      "branchSha": "a6b340c",
+      "endedAt": "2026-11-04T07:39:40Z",
+      "minutes": 41
     },
     "ops-P3": {
       "status": "done",
@@ -527,7 +530,7 @@
       "runId": "wf_abc46e06-2cc",
       "startedAt": "2026-11-04T06:46:08Z",
       "branchSha": "0528ee4",
-      "endedAt": "2026-11-04T07:24:41Z",
+      "endedAt": "2026-11-04T07:26:08Z",
       "minutes": 36
     },
     "ops-P6": {
@@ -538,8 +541,11 @@
       "startedAt": "2026-11-04T07:25:56Z"
     },
     "site-P3": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "aa07698",
+      "runId": "wf_b3115b8e-5a6",
+      "startedAt": "2026-11-04T07:39:40Z"
     },
     "site-P5": {
       "status": "merged",
@@ -567,7 +573,7 @@
       "runId": "wf_13d43758-2a2",
       "startedAt": "2026-11-04T06:46:08Z",
       "branchSha": "35d9ea6",
-      "endedAt": "2026-11-04T07:24:41Z",
+      "endedAt": "2026-11-04T07:26:08Z",
       "minutes": 35
     },
     "booking-P5": {
@@ -577,7 +583,7 @@
       "runId": "wf_29f4843d-832",
       "startedAt": "2026-11-04T06:46:08Z",
       "branchSha": "965a4ef",
-      "endedAt": "2026-11-04T07:24:41Z",
+      "endedAt": "2026-11-04T07:26:08Z",
       "minutes": 36
     },
     "commerce-P4b": {
@@ -647,8 +653,11 @@
       "startedAt": "2026-11-04T07:25:56Z"
     },
     "credits-P6": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "aa07698",
+      "runId": "wf_ab6341df-fc4",
+      "startedAt": "2026-11-04T07:39:40Z"
     },
     "finance-P5": {
       "status": "running",
@@ -1279,7 +1288,7 @@
       ]
     },
     "fix-w07-site-1": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "fixer": true,
       "module": "site",
@@ -1297,7 +1306,29 @@
       "dependsOn": [],
       "baseSha": "e2c5e08",
       "runId": "wf_89916093-139",
-      "startedAt": "2026-11-04T07:25:56Z"
+      "startedAt": "2026-11-04T07:25:56Z",
+      "branchSha": "d86f8ab",
+      "endedAt": "2026-11-04T07:39:40Z",
+      "minutes": 6
+    },
+    "fix-w07-crm-1": {
+      "status": "pending",
+      "attempts": 0,
+      "fixer": true,
+      "module": "crm",
+      "goal": "forms-P3 declared the forms event data schemas in apps/web/modules/forms/events.ts. crm SEGMENT_EVENT_DATA_KEYS in packages/core/src/crm/segments/fields.ts gives all six form and assessment kinds the same FORM_KEYS list, so apps/web/modules/crm/segments/segment-events.test.ts (every allowed where key is a key of the kind data schema) fails on: form.started.outcome_key, form.started.cta_key, form.completed.cta_key, form.abandoned.outcome_key/funnel/form_kind/cta_key, form.result_viewed.funnel/form_kind/cta_key, assessment.result_generated.cta_key, assessment.cta_clicked.funnel/form_kind. crm spec: allowed where keys use the writer data schema spelling, per kind. Declare the keys per kind from the schemas in forms events.ts (only keys that kind data carries); keep the type AllowedEventKind and the exported names. Update compile.test.ts and crm-p1.catalogue.test.ts only where they pin the old shared list. Remove the segment-events line from docs/build/known-red.txt, then run (one worker) apps/web modules/crm/segments and packages/core src/crm; both must pass.",
+      "from": [
+        "crm-P1"
+      ],
+      "owns": [
+        "packages/core/src/crm/segments/fields.ts",
+        "packages/core/src/crm/segments/compile.test.ts",
+        "packages/core/src/crm/crm-p1.catalogue.test.ts",
+        "docs/build/known-red.txt"
+      ],
+      "dependsOn": [
+        "forms-P3"
+      ]
     }
   }
 }

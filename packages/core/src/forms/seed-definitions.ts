@@ -66,6 +66,9 @@ const settings = (over: Partial<FormDefinition["settings"]> & Pick<FormDefinitio
   ...over,
 });
 
+/** A deep copy without shared sub-objects, so callers may edit one text without touching another. */
+const fresh = <X>(x: X): X => JSON.parse(JSON.stringify(x)) as X;
+
 const byKey = (fields: Field[]): Record<string, Field> => Object.fromEntries(fields.map((f) => [f.key, f]));
 
 function contact(): SeedForm {
@@ -241,7 +244,7 @@ function healthDeclaration(): SeedForm {
 
 /** The three system forms of the `defaults` seed (fresh objects on every call). */
 export function seedDefinitions(): Record<SystemFormSlug, SeedForm> {
-  return { contact: contact(), newsletter: newsletter(), "health-declaration": healthDeclaration() };
+  return fresh({ contact: contact(), newsletter: newsletter(), "health-declaration": healthDeclaration() });
 }
 
 // ---------------------------------------------------------------------------
@@ -400,7 +403,7 @@ function recoveryScoring(): FormScoring {
 
 /** The demo assessment: 3 sections, 12 fields, dimensions `sleep` and `stress` (sensitive) and `habits`, 4 outcomes. */
 export function recoveryCheckSeed(refs: RecoveryCheckRefs): SeedForm {
-  const { about, body, habits } = recoveryFields();
+  const { about, body, habits } = fresh(recoveryFields());
   const email_ = {
     subject: t("Je resultaat van de herstelcheck", "Votre résultat du bilan récupération", "Your recovery check result"),
     intro: t("Bedankt om de herstelcheck in te vullen. Dit is je resultaat.", "Merci d'avoir rempli le bilan récupération. Voici votre résultat.", "Thank you for taking the recovery check. Here is your result."),
@@ -415,7 +418,7 @@ export function recoveryCheckSeed(refs: RecoveryCheckRefs): SeedForm {
     ctas,
     email: email_,
   });
-  return {
+  return fresh({
     kind: "assessment",
     name: t("Herstelcheck", "Bilan récupération", "Recovery check"),
     locales: ALL,
@@ -452,5 +455,5 @@ export function recoveryCheckSeed(refs: RecoveryCheckRefs): SeedForm {
         ),
       ],
     },
-  };
+  });
 }

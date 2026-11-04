@@ -15,7 +15,7 @@ import {
   withinSizeLimit,
 } from "./definition";
 import { recoveryCheckSeed, seedDefinitions, SYSTEM_FORM_SLUGS } from "./seed-definitions";
-import type { Condition, Field, FormDefinition as Def } from "./types";
+import type { Condition, FormDefinition as Def } from "./types";
 import { validateForPublish } from "./validate";
 
 const T = { "nl-BE": "x", "fr-BE": "x", en: "x" };
@@ -50,7 +50,7 @@ describe("FormDefinition schema (F1 to F5)", () => {
 
   it("F2: acknowledgement is always required", () => {
     const ack = { key: "ack", type: "acknowledgement", label: T, text: T };
-    const parsed = FieldSchema.parse(ack) as Field;
+    const parsed = FieldSchema.parse(ack);
     expect(parsed.required).toBe(true);
     expect(FieldSchema.safeParse({ ...ack, required: false }).success).toBe(false);
     const long = FieldSchema.safeParse({ ...ack, text: { ...T, en: "x".repeat(FORM_LIMITS.acknowledgementText + 1) } });

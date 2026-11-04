@@ -25,7 +25,7 @@ import type {
 
 export type EvalState = { answers: Answers; scores: ScoreState };
 
-export const EMPTY_SCORES: ScoreState = Object.freeze({ total: null, totalRangeKey: null, dimensions: {} }) as ScoreState;
+export const EMPTY_SCORES: ScoreState = Object.freeze({ total: null, totalRangeKey: null, dimensions: {} });
 const EMPTY_SCORING: FormScoring = { dimensions: [], outcomes: [] };
 
 const own = <T>(rec: Record<string, T>, key: string): T | undefined => (Object.hasOwn(rec, key) ? rec[key] : undefined);

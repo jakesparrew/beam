@@ -169,7 +169,7 @@ export const FieldSchema: z.ZodType<Field> = FieldUnion.superRefine((f, ctx) => 
       seen.add(o.key);
     });
   }
-}) as z.ZodType<Field>;
+});
 
 // ---------------------------------------------------------------------------
 // Sections, logic, endings (F3, L2, F5)
@@ -273,7 +273,7 @@ export const FormDefinition: z.ZodType<FormDefinitionT> = z
     const entries = Object.entries(d.fields);
     if (entries.length > FORM_LIMITS.fields) ctx.addIssue({ code: "custom", path: ["fields"], message: "limit_exceeded" });
     for (const [k, f] of entries) if (f.key !== k) ctx.addIssue({ code: "custom", path: ["fields", k, "key"], message: "key_mismatch" });
-  }) as z.ZodType<FormDefinitionT>;
+  });
 
 // ---------------------------------------------------------------------------
 // Scoring (S1, S4)
@@ -321,7 +321,7 @@ export const FormScoring: z.ZodType<FormScoringT> = z
     outcomes: z.array(OutcomeSchema).max(FORM_LIMITS.outcomes, "limit_exceeded").default([]),
     defaultOutcomeKey: Key.optional(),
   })
-  .strict() as z.ZodType<FormScoringT>;
+  .strict();
 
 /** True when a scoring has nothing to compute (`{}` in the database). */
 export function isScored(scoring: FormScoringT): boolean {
@@ -351,7 +351,7 @@ export const ImportMapping: z.ZodType<ImportMappingT> = z
     sensitiveFieldKeys: z.array(Key).default([]),
     consents: z.partialRecord(z.enum(FORM_CONSENT_PURPOSES), JsonPathSchema).optional(),
   })
-  .strict() as z.ZodType<ImportMappingT>;
+  .strict();
 
 // ---------------------------------------------------------------------------
 // Size limit (F7)

@@ -108,8 +108,8 @@ export type Condition =
   | { any: Condition[] }
   | { not: Condition }
   | { field: FieldKey; op: ConditionOp; value?: ConditionValue }
-  | { score: DimensionKey | "total"; op: ConditionOp; value: number }
-  | { range: { dimension: DimensionKey | "total"; key: string } };
+  | { score: DimensionKey; op: ConditionOp; value: number }
+  | { range: { dimension: DimensionKey; key: string } };
 
 export type ChoiceOption = { key: string; label: LocalizedText; scores?: Record<DimensionKey, number> };
 

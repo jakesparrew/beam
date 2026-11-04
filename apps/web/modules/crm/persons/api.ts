@@ -183,13 +183,20 @@ export async function setStatusOverride(
   return { applied: true };
 }
 
-/** Imports: match by email, else by a legacy external id; fill only empty fields (rules 3.3, 3.20). */
+/**
+ * Imports: match by email, else by a legacy external id (rules 3.3, 3.20). A matched person is
+ * updated only in empty fields unless `opts.onlyEmpty` is false (ops rule 46: `onlyEmpty =
+ * !options.overwrite`); `locale`, `acquisition` and `created_at` are never overwritten.
+ */
 export async function upsertPersonFromImport(
   tx: Tx,
   ctx: EventCtx,
   row: ImportPersonRow,
   importId: string,
+  opts: { onlyEmpty?: boolean } = {},
 ): Promise<{ personId: string; outcome: "created" | "updated" | "unchanged" }> {
+  const onlyEmpty = opts.onlyEmpty ?? true;
+  const country = row.country ? normaliseCountry(row.country) : undefined;
   const email = normaliseEmail(row.email ?? null);
   if (row.email && !email) throw new ValidationError("invalid_email", { email: "invalid_email" });
   let existing: PersonRow | null = null;
@@ -218,10 +225,13 @@ export async function upsertPersonFromImport(
     birthOn: row.birthOn ?? undefined,
     postalCode: row.postalCode ?? undefined,
     city: row.city ?? undefined,
+    street: row.street ?? undefined,
+    country,
+    preferredChannel: row.preferredChannel ?? undefined,
     externalIds: row.externalIds,
   });
   if (existing) {
-    const { changed } = await updatePersonFields(tx, ctx, existing.id, patch, { onlyEmpty: true });
+    const { changed } = await updatePersonFields(tx, ctx, existing.id, patch, { onlyEmpty });
     const tagged = await applyImportTags(tx, ctx, existing.id, row.tags);
     return { personId: existing.id, outcome: changed.length || tagged ? "updated" : "unchanged" };
   }
@@ -232,7 +242,11 @@ export async function upsertPersonFromImport(
     lastName: row.lastName ?? undefined,
     phone: row.phone ?? undefined,
     birthOn: row.birthOn ?? undefined,
-    address: row.postalCode || row.city ? compact({ postal_code: row.postalCode ?? undefined, city: row.city ?? undefined, country: "BE" }) : undefined,
+    address:
+      row.postalCode || row.city || row.street || country
+        ? compact({ street: clean(row.street ?? undefined), postal_code: row.postalCode ?? undefined, city: row.city ?? undefined, country: country ?? "BE" })
+        : undefined,
+    preferredChannel: row.preferredChannel ?? undefined,
     locale: row.locale ?? "nl-BE",
     acquisition: row.acquisition ?? { source: "import", campaign: `import:${importId}`.slice(0, 200) },
     externalIds: row.externalIds,
@@ -320,12 +334,21 @@ export async function updatePersonFields(
   const address: PostalAddress = { ...(person.address ?? { country: "BE" }) };
   let addressChanged = false;
   for (const [field, key] of [
+    ["street", "street"],
     ["postalCode", "postal_code"],
     ["city", "city"],
   ] as const) {
     const next = clean(patch[field]);
     take(field, person.address?.[key], next, () => {
       address[key] = next;
+      addressChanged = true;
+    });
+  }
+  if (patch.country) {
+    const next = normaliseCountry(patch.country);
+    // A person without an address has no country yet; `BE` is only the default of a new address.
+    take("country", person.address?.country, next, () => {
+      address.country = next;
       addressChanged = true;
     });
   }
@@ -416,6 +439,13 @@ export async function setPersonTester(tx: Tx, _ctx: EventCtx, input: { personId:
 // ---------------------------------------------------------------------------
 // helpers shared with this area's actions and queries
 // ---------------------------------------------------------------------------
+
+/** ISO 3166-1 alpha-2, upper-cased; `validation` for anything else. */
+function normaliseCountry(value: string): string {
+  const code = value.trim().toUpperCase();
+  if (!/^[A-Z]{2}$/.test(code)) throw new ValidationError("invalid_country", { country: "iso_alpha2" });
+  return code;
+}
 
 export type NewPerson = {
   email?: string | null;

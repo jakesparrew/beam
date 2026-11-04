@@ -87,3 +87,5 @@ One entry per merge batch and gate (runbook section 5.7, adapted by OD-3).
 - booking-P3a: merged as `03300f6` in batch `g32-batch`.
 - platform-P8: merged as `b0d6020` in batch `g32-batch`.
 - Batch `g32-batch` (booking-P3a platform-P8): merge gate green, peak 5934 MB.
+- fix-w05-crm-1 (6 min) landed through a full quick gate (`g31`, 509 s): the integration head is fully green again. booking-P3a (attempt 3, samples) and platform-P8 (attempt 4) landed in batch `g32`.
+- credits-P4 attempt 1 (37 min) done except two credits-P3 tests that pin stubs credits-P4 implements; CONVENTIONS.md item 11 now forbids such tests. Started credits-P4 attempt 2, fix-w05-schema-1 attempt 2 (every test file and fixture granted, commerce order factories, the mandate FK) and fix-w04-platform-4 (the 27 confirmed review findings plus platform requests) from `7b1c11d`.

@@ -369,10 +369,10 @@
     },
     "credits-P4": {
       "status": "running",
-      "attempts": 2,
-      "baseSha": "1b2926a",
-      "runId": "wf_765669e5-601",
-      "startedAt": "2026-11-04T02:23:03Z",
+      "attempts": 3,
+      "baseSha": "7b1c11d",
+      "runId": "wf_cb3c7ced-194",
+      "startedAt": "2026-11-04T03:02:09Z",
       "extraOwns": [
         "apps/web/modules/credits/api.test.ts",
         "apps/web/modules/credits/jobs.test.ts"
@@ -797,8 +797,8 @@
       "mergedAt": "2026-11-04T01:33:08Z"
     },
     "fix-w04-platform-4": {
-      "status": "pending",
-      "attempts": 0,
+      "status": "running",
+      "attempts": 1,
       "fixer": true,
       "module": "platform",
       "goal": "Fix the confirmed findings of the foundation review (see the launch notes).",
@@ -923,11 +923,14 @@
         "apps/web/modules/platform/schedules.test.ts",
         "apps/web/app/api/cron/tick/route.test.ts",
         "packages/core/src/credits/types.ts"
-      ]
+      ],
+      "baseSha": "7b1c11d",
+      "runId": "wf_8b56818b-687",
+      "startedAt": "2026-11-04T03:02:09Z"
     },
     "fix-w05-schema-1": {
-      "status": "done",
-      "attempts": 2,
+      "status": "running",
+      "attempts": 3,
       "fixer": true,
       "module": "platform",
       "goal": "Add the foreign keys and checks that module schema packages deferred until their targets existed, and activate the parked booking and ops schedules (see the launch notes).",
@@ -956,9 +959,9 @@
         "packages/db/src/schema/automation.ts",
         "packages/db/src/schema/automation.test.ts"
       ],
-      "baseSha": "4ea719a",
-      "runId": "wf_523fa3f5-e74",
-      "startedAt": "2026-11-04T01:39:10Z",
+      "baseSha": "7b1c11d",
+      "runId": "wf_9ff94187-845",
+      "startedAt": "2026-11-04T03:02:09Z",
       "branchSha": "8a4b0e3",
       "endedAt": "2026-11-04T02:23:03Z",
       "minutes": 33,

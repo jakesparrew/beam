@@ -411,8 +411,11 @@
       "mergedAt": "2026-11-04T02:20:14Z"
     },
     "booking-P3b": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "00a7add",
+      "runId": "wf_9c8e2888-0e0",
+      "startedAt": "2026-11-04T04:41:24Z"
     },
     "commerce-P4a": {
       "status": "running",

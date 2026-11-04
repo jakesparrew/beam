@@ -5,9 +5,9 @@
  * no Wave 0 column is changed). R3 tables (`lightspeed_*`) and `promotions.partner_company_id`
  * come with commerce-P9.
  *
- * Columns that link to `crm.persons` on tables other than `orders` are plain uuids until
- * commerce's privacy registration lists those tables (commerce-P4b), because the GDPR coverage
- * test requires every `persons.id` foreign key to sit on a registered table. Columns that point
+ * Every column that links to `crm.persons` has a `persons.id` foreign key (restrict: persons are
+ * anonymised, never deleted), and its table is listed in `apps/web/modules/commerce/privacy.ts`
+ * so the GDPR coverage test passes. Columns that point
  * at tables that do not exist yet (`companies`, `ticket_types`, `page_versions`, `memberships`)
  * get their foreign key from the owner in Wave 2.
  */
@@ -438,8 +438,10 @@ export const personPrices = pgTable(
   "person_prices",
   {
     id: id(),
-    /** PII link to `persons.id` (FK with the privacy registration, see header). */
-    personId: uuid().notNull(),
+    /** PII link to `persons.id`. */
+    personId: uuid()
+      .notNull()
+      .references(() => persons.id, { onDelete: "restrict" }),
     productId: uuid()
       .notNull()
       .references(() => products.id),
@@ -522,8 +524,8 @@ export const promotionRedemptions = pgTable(
     orderId: uuid()
       .notNull()
       .references(() => orders.id),
-    /** PII link, nulled on erasure (FK with the privacy registration, see header). */
-    personId: uuid(),
+    /** PII link, nulled on erasure. */
+    personId: uuid().references(() => persons.id, { onDelete: "restrict" }),
     status: promotionRedemptionsStatus().notNull().default("reserved"),
     ...timestamps(),
   },
@@ -540,8 +542,8 @@ export const checkouts = pgTable(
   "checkouts",
   {
     id: id(),
-    /** PII link (FK with the privacy registration, see header). */
-    personId: uuid(),
+    /** PII link. */
+    personId: uuid().references(() => persons.id, { onDelete: "restrict" }),
     /** PII; lower-cased. */
     email: text(),
     channel: checkoutsChannel().notNull(),
@@ -594,8 +596,8 @@ export const mandates = pgTable(
   "mandates",
   {
     id: id(),
-    /** PII link, nulled on erasure (FK with the privacy registration, see header). */
-    personId: uuid(),
+    /** PII link, nulled on erasure. */
+    personId: uuid().references(() => persons.id, { onDelete: "restrict" }),
     provider: paymentsProvider().notNull(),
     providerMandateId: text().notNull().unique("mandates_provider_mandate_id_unique"),
     providerCustomerId: text().notNull(),
@@ -618,8 +620,10 @@ export const providerCustomers = pgTable(
   "provider_customers",
   {
     id: id(),
-    /** PII link (FK with the privacy registration, see header). */
-    personId: uuid().notNull(),
+    /** PII link. */
+    personId: uuid()
+      .notNull()
+      .references(() => persons.id, { onDelete: "restrict" }),
     provider: paymentsProvider().notNull(),
     providerCustomerId: text().notNull().unique("provider_customers_provider_customer_id_unique"),
     createdAt: createdAt(),
@@ -718,8 +722,8 @@ export const vouchers = pgTable(
     codeHash: text().unique("vouchers_code_hash_unique"),
     codeLast4: text(),
     amountCents: money().notNull(),
-    /** PII links (FKs with the privacy registration, see header). */
-    purchaserPersonId: uuid(),
+    /** PII links. */
+    purchaserPersonId: uuid().references(() => persons.id, { onDelete: "restrict" }),
     recipientName: text(),
     recipientEmail: text(),
     message: text(),
@@ -728,7 +732,7 @@ export const vouchers = pgTable(
     status: vouchersStatus().notNull().default("pending"),
     expiresAt: tstz(),
     activatedAt: tstz(),
-    redeemedByPersonId: uuid(),
+    redeemedByPersonId: uuid().references(() => persons.id, { onDelete: "restrict" }),
     redeemedAt: tstz(),
     creditGrantId: uuid().references((): AnyPgColumn => creditGrants.id),
     voidedReason: text(),

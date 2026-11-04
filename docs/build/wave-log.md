@@ -98,3 +98,4 @@ One entry per merge batch and gate (runbook section 5.7, adapted by OD-3).
 - fix-w05-platform-testdb: merged as `45a8275` in batch `g37-batch`.
 - Batch `g37-batch` (fix-w04-platform-4 fix-w05-platform-testdb): merge gate green, peak 6152 MB.
 - fix-w04-platform-4 (37 min: all 27 confirmed review findings fixed or decided, plus the portal nav flags, the proxy 410 and the HIBP test flake) and fix-w05-platform-testdb (22 min: snapshot cache; the web suite went from 410 s to 270 s with a warm cache) landed in batch `g37` (288 s). credits-P4's landing `g36` was red: its tests set a random `mandate_id`, now rejected by the new FK; attempt 3 creates real mandates. Plan: OD-11 (ai_requests retention), OD-12 (job rename). Started credits-P4 attempt 3 and email-P3 from `44a337a`.
+- commerce-P2: 13 min, merged as `7b3fd68`; gate `g38-commerce-P2` (merge) green, peak 4813 MB.

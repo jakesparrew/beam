@@ -142,11 +142,16 @@
       "mergedAt": "2026-11-04T00:38:17Z"
     },
     "commerce-P2": {
-      "status": "running",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "d447ab3",
       "runId": "wf_a89c53db-43a",
-      "startedAt": "2026-11-04T03:39:30Z"
+      "startedAt": "2026-11-04T03:39:30Z",
+      "branchSha": "8b1d1c4",
+      "endedAt": "2026-11-04T03:52:46Z",
+      "minutes": 13,
+      "mergeSha": "7b3fd68",
+      "mergedAt": "2026-11-04T03:54:20Z"
     },
     "credits-P1": {
       "status": "merged",

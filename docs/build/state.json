@@ -387,11 +387,11 @@
       "attempts": 0
     },
     "credits-P4": {
-      "status": "red",
-      "attempts": 3,
-      "baseSha": "7b1c11d",
-      "runId": "wf_cb3c7ced-194",
-      "startedAt": "2026-11-04T03:02:09Z",
+      "status": "running",
+      "attempts": 4,
+      "baseSha": "44a337a",
+      "runId": "wf_75ee6b4a-d7d",
+      "startedAt": "2026-11-04T03:52:04Z",
       "extraOwns": [
         "apps/web/modules/credits/api.test.ts",
         "apps/web/modules/credits/jobs.test.ts"
@@ -409,8 +409,11 @@
       "attempts": 0
     },
     "email-P3": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "44a337a",
+      "runId": "wf_951123d6-336",
+      "startedAt": "2026-11-04T03:52:04Z"
     },
     "automation-P3": {
       "status": "pending",

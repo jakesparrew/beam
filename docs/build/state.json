@@ -1009,8 +1009,8 @@
       "mergedAt": "2026-11-04T02:51:43Z"
     },
     "fix-w05-platform-testdb": {
-      "status": "pending",
-      "attempts": 0,
+      "status": "running",
+      "attempts": 1,
       "fixer": true,
       "module": "platform",
       "goal": "Cache built PGlite test databases as data-directory snapshots so createTestDb is several times faster.",
@@ -1021,7 +1021,10 @@
       "owns": [
         "packages/db/src/testing.ts",
         "packages/db/test/fix-w05-platform-testdb.cache.test.ts"
-      ]
+      ],
+      "baseSha": "ae984c2",
+      "runId": "wf_e2f14529-da2",
+      "startedAt": "2026-11-04T03:19:38Z"
     }
   }
 }

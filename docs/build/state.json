@@ -272,13 +272,13 @@
       "attempts": 0
     },
     "booking-P3a": {
-      "status": "done",
+      "status": "red",
       "attempts": 2,
       "baseSha": "4ea719a",
       "runId": "wf_2ca8ac6a-595",
       "startedAt": "2026-11-04T01:39:10Z",
       "branchSha": "074246c",
-      "endedAt": "2026-11-04T02:23:06Z",
+      "endedAt": "2026-11-04T02:32:02Z",
       "minutes": 39
     },
     "commerce-P3": {
@@ -947,6 +947,25 @@
       "branchSha": "8a4b0e3",
       "endedAt": "2026-11-04T02:23:03Z",
       "minutes": 33
+    },
+    "fix-w05-crm-1": {
+      "status": "pending",
+      "attempts": 0,
+      "fixer": true,
+      "module": "crm",
+      "goal": "Register crm templates in packages/email/src/templates/crm/index.ts with samples (latent define.test.ts failure from crm-P3).",
+      "from": [
+        "crm-P3"
+      ],
+      "dependsOn": [
+        "crm-P3"
+      ],
+      "owns": [
+        "packages/email/src/templates/crm/index.ts",
+        "packages/email/src/templates/crm/confirm-resubscribe.tsx",
+        "packages/email/src/templates/crm/preference-link.tsx",
+        "packages/email/src/templates/crm/fix-w05-crm-1.templates.test.ts"
+      ]
     }
   }
 }

@@ -6,17 +6,18 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import type { DbHandle } from "@beam/db";
-import { reduceSnapshot, type FullCustomerSnapshot } from "@beam/core/finance";
+import { reduceSnapshot } from "@beam/core/finance";
 import { templates as financeTemplates } from "@beam/email/templates/finance";
 import { sql } from "@/lib/ctx";
 import { runJobTwice } from "@/lib/testing";
+import type * as EmailApi from "@/modules/email/api";
 import { issueCreditNote, issueInvoice, setOrderBillingDetails } from "./api";
 import { invoiceEmailKey } from "./jobs";
 import { asTx, ctxAt, invoiceRow, jobByKey, makeOrder, makeOrderLine, makePerson, paidOrder, setupDb } from "./service/__tests__/fixtures";
 
 const sendTransactional = vi.hoisted(() => vi.fn());
 vi.mock("@/modules/email/api", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/modules/email/api")>()),
+  ...(await importOriginal<typeof EmailApi>()),
   sendTransactional,
 }));
 vi.mock("@/registry/jobs.generated", async (importOriginal) => {
@@ -135,7 +136,7 @@ describe("finance.send_invoice_email -> email.sendTransactional", () => {
     if (r.status !== "issued") throw new Error("not issued");
     await render(r.invoiceId);
     const before = await invoiceRow(h.db, r.invoiceId);
-    const reduced = reduceSnapshot(before.customerSnapshot as FullCustomerSnapshot);
+    const reduced = reduceSnapshot(before.customerSnapshot);
     await h.db.transaction(async (tx) => {
       await tx.execute(sql`set local beam.allow_rewrite = 'on'`);
       await tx.execute(sql`update invoices set person_id = null, customer_snapshot = ${JSON.stringify(reduced)}::jsonb where id = ${r.invoiceId}::uuid`);

@@ -76,14 +76,12 @@ export function stepsOf(module: ModuleId, rows: readonly EraseReportRow[]): Repo
   return rows.map((r) => ({ module, table: r.table, rows: Math.max(0, Math.trunc(Number(r.rows) || 0)), action: reportAction(r.table, r.action) }));
 }
 
-/** Replaces the earlier entries of the same `(module, table)` with the new ones, keeping the order. */
-export function mergeSteps(existing: readonly ReportStep[], next: readonly ReportStep[]): ReportStep[] {
-  const key = (s: ReportStep) => `${s.module}:${s.table}`;
-  const incoming = new Map(next.map((s) => [key(s), s]));
-  const out = existing.map((s) => incoming.get(key(s)) ?? s);
-  const seen = new Set(existing.map(key));
-  for (const s of next) if (!seen.has(key(s))) out.push(s);
-  return out;
+/**
+ * A module step's rows replace whatever an earlier run of the same module recorded (a module may
+ * report one table more than once, with different actions), so a rerun keeps the latest counts.
+ */
+export function mergeSteps(existing: readonly ReportStep[], module: ModuleId, next: readonly ReportStep[]): ReportStep[] {
+  return [...existing.filter((s) => s.module !== module), ...next];
 }
 
 export function setExternal(existing: readonly ReportExternal[], provider: PrivacyReportProvider, outcome: PrivacyExternalOutcome): ReportExternal[] {

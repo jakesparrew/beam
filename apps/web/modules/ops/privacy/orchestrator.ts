@@ -412,7 +412,7 @@ export async function runEraseStep(tx: Tx, requestId: string, module: ModuleId):
   const rows = registration ? await registration.erase(tx, row.personId) : [];
   const steps: ReportStep[] = stepsOf(module, rows);
   const report = reportOf(row.report);
-  report.steps = mergeSteps(report.steps, steps);
+  report.steps = mergeSteps(report.steps, module, steps);
   report.retained = retainedOf(report.steps);
   await writeReport(tx, row.id, report);
   return steps;

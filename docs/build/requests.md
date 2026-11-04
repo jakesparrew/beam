@@ -90,6 +90,8 @@ to "Served" with the package id.
 | fix-w09-credits-review | commerce (owner of `server/payments.ts`) | `onPaymentEnded` calls `credits.applyRenewalFailure` only when `payment.sequenceType === 'recurring'`; narrow commerce rule 33 to a failed recurring renewal charge; test that an ended oneoff payment on a renewal order does not call it (review finding). |
 | fix-w09-credits-review | commerce (schema) | `orders_renewal_chk` becomes `renewal_membership_id is null or renewal_period_end_on is not null` (drop and re-add); then credits removes the renewal-order guard in its `credits.memberships` sweep and its test asserts deletion. |
 | fix-w09-automation-review | plan (`docs/plan/modules/automation.md`) | A-7(a): `credits.grant_exhausted` and `credits.grant_expired` with `data.source='import'` still trigger; A-26a and the jobs table: the `:replan:<YYYY-MM-DDTHH:mm>` step key qualifier. |
+| email-P5 | email (send.ts owner or fixer) | Render `kind = test` messages for the persona `sendTestEmail` stores in `context` (`test_as_person_id`, or `test_sample` and `test_outcome`): that person's or sample's status, outcomes and tokens, with the template's marketing footer (rule 60). Today they render as transactional with person_id null, so tokens come out empty. |
+| orchestrator | platform (gen-indexes owner or fixer) | `packages/core/src/i18n/messages/index.generated.ts` imports JSON without `with { type: "json" }`, so every Playwright spec fails to load under Node 22 (`playwright test --list` lists 0 tests). |
 
 ## Served
 

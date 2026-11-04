@@ -55,6 +55,14 @@ to "Served" with the package id.
 | orchestrator | finance-P4 | `packages/integrations/src/_shared/platform-p3.shared.test.ts` (line ~69) pins the Billit client stub (`NotImplementedError`); finance-P4 implements the real client, so it also owns that test (granted as extraOwns at launch) and replaces the stub assertion with the client's real contract. |
 | email-P3 | site-P5 | Implement `getLegalLinks`; email footers carry no privacy or terms links until it exists (email handles the `NotImplementedError`). |
 | email-P3 | automation (the package that implements `requestSuppressionExit`) | `crm.addSuppression` calls `automation.requestSuppressionExit` from email's hard-bounce, complaint and soft-bounce handling; it still throws. |
+| ops-P4 | ops (owner of `packages/core/src/ops/import-targets.ts` and `import-presets.ts`) | Add the targets `mode` and `watched_minutes` to `IMPORT_TARGETS.history` and map the watched-minutes columns in the webinar presets (ops-P4 accepts both already). |
+| ops-P4 | crm | `upsertPersonFromImport` accepts `street`, `country`, `preferredChannel` and an `onlyEmpty` option (ops rule 46); today street and country of a persons file are not written. |
+| ops-P4 | platform | Add `setFileExpiry(tx, fileIds, expiresAt)`; until then ops-P4 updates `files.expires_at` directly for its own import parts. |
+| ops-P4 | ops (owner of `ops.json`) | Missing catalogue keys from ops-P4's commit trailer (for example `ops.imports.option.confirm_different_file`, `ops.imports.target.{mode,watched_minutes}`, `ops.imports.error.{past_booking,invalid_status,unknown_tag,...}`). |
+| finance-P3 | finance (owner of `packages/core/src/finance/index.ts`) | Add `export * from "./document-model"`, then switch `apps/web/modules/finance/pdf/render.ts` from the relative path to `@beam/core/finance`. |
+| finance-P3 | finance-P4 | Register `billit.push_invoice` and `billit.push_credit_note` (render_pdf enqueues them with keys `billit:invoice:<id>` and `billit:credit_note:<id>`). |
+| finance-P3 | finance-P5 | `rerenderInvoicePdf` enqueues `finance.render_pdf` with key `invoice_pdf:<id>:r<n>`; `resendInvoiceEmail` and `sendPaymentReminder` enqueue `finance.send_invoice_email` with reason `resend:<n>` or `reminder:<yyyy-mm-dd>`. |
+| commerce-P4a | commerce (owner of `server/catalogue.ts`) | Record the `person_price.set` event in `setPersonPriceRecord` (the kind is declared now). |
 
 ## Served
 

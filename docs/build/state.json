@@ -290,11 +290,14 @@
       "attempts": 0
     },
     "booking-P2": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "baseSha": "59cad56",
       "runId": "wf_cc3166cb-15d",
-      "startedAt": "2026-11-04T04:08:00Z"
+      "startedAt": "2026-11-04T04:08:00Z",
+      "branchSha": "45de8bc",
+      "endedAt": "2026-11-04T05:03:44Z",
+      "minutes": 51
     },
     "booking-P3a": {
       "status": "merged",
@@ -382,7 +385,7 @@
         "apps/web/modules/ops/ops-p1.facades.test.ts"
       ],
       "branchSha": "25618b5",
-      "endedAt": "2026-11-04T04:50:02Z",
+      "endedAt": "2026-11-04T05:03:43Z",
       "minutes": 44
     },
     "site-P2": {
@@ -421,11 +424,14 @@
       "startedAt": "2026-11-04T04:41:24Z"
     },
     "commerce-P4a": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "baseSha": "9aa2a07",
       "runId": "wf_efbad917-dd8",
-      "startedAt": "2026-11-04T04:28:44Z"
+      "startedAt": "2026-11-04T04:28:44Z",
+      "branchSha": "c25d187",
+      "endedAt": "2026-11-04T05:28:56Z",
+      "minutes": 59
     },
     "credits-P4": {
       "status": "merged",
@@ -444,25 +450,28 @@
       "mergedAt": "2026-11-04T04:03:35Z"
     },
     "finance-P3": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "baseSha": "a869734",
       "runId": "wf_0b991ac7-3f0",
-      "startedAt": "2026-11-04T04:32:30Z"
+      "startedAt": "2026-11-04T04:32:30Z",
+      "branchSha": "8f1b712",
+      "endedAt": "2026-11-04T05:28:56Z",
+      "minutes": 54
     },
     "forms-P4": {
       "status": "pending",
       "attempts": 0
     },
     "email-P3": {
-      "status": "running",
+      "status": "done",
       "attempts": 2,
       "baseSha": "fce0c4c",
       "runId": "wf_c17cfcf7-e69",
       "startedAt": "2026-11-04T04:50:02Z",
-      "branchSha": "78e252f",
-      "endedAt": "2026-11-04T04:41:24Z",
-      "minutes": 48
+      "branchSha": "3a3a05d",
+      "endedAt": "2026-11-04T05:28:56Z",
+      "minutes": 84
     },
     "automation-P3": {
       "status": "pending",
@@ -556,11 +565,14 @@
       "attempts": 0
     },
     "ops-P4": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "baseSha": "a945df0",
       "runId": "wf_78d41894-79c",
-      "startedAt": "2026-11-04T04:04:07Z"
+      "startedAt": "2026-11-04T04:04:07Z",
+      "branchSha": "5654aaa",
+      "endedAt": "2026-11-04T05:28:56Z",
+      "minutes": 80
     },
     "site-P7": {
       "status": "pending",
@@ -1114,7 +1126,7 @@
       "mergedAt": "2026-11-04T03:49:56Z"
     },
     "fix-w06-platform-1": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "fixer": true,
       "module": "platform",
@@ -1135,7 +1147,10 @@
       ],
       "baseSha": "beb4769",
       "runId": "wf_7fcde353-28a",
-      "startedAt": "2026-11-04T05:03:43Z"
+      "startedAt": "2026-11-04T05:03:43Z",
+      "branchSha": "a046909",
+      "endedAt": "2026-11-04T05:28:56Z",
+      "minutes": 21
     }
   }
 }

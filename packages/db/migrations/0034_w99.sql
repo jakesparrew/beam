@@ -1,0 +1,1 @@
+ALTER TYPE "public"."files_kind" ADD VALUE 'staff_document';

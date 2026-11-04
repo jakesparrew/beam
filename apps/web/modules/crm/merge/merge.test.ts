@@ -4,7 +4,11 @@
  * `reassignCustomerAccount` runs for real behind a spy.
  */
 import { randomBytes, randomUUID } from "node:crypto";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
+import type * as AutomationApi from "@/modules/automation/api";
+import type * as CreditsApi from "@/modules/credits/api";
+import type * as PlatformApi from "@/modules/platform/api";
+import type * as WebinarApi from "@/modules/webinar/api";
 import { createTestDb, makePerson, makeSession, makeUser } from "@beam/db/testing";
 import { makeOrder } from "@beam/db/testing/commerce-factories";
 import { makeCreditGrant, makeMembership } from "@beam/db/testing/credits-factories";
@@ -49,13 +53,13 @@ async function loserTags(tx: { execute: (q: unknown) => Promise<unknown> }): Pro
   return Number(res.rows[0]?.n ?? 0);
 }
 const spies = vi.hoisted(() => ({
-  webinar: undefined as unknown as ReturnType<typeof import("vitest").vi.fn>,
-  credits: undefined as unknown as ReturnType<typeof import("vitest").vi.fn>,
-  exit: undefined as unknown as ReturnType<typeof import("vitest").vi.fn>,
-  reassign: undefined as unknown as ReturnType<typeof import("vitest").vi.fn>,
+  webinar: undefined as unknown as Mock,
+  credits: undefined as unknown as Mock,
+  exit: undefined as unknown as Mock,
+  reassign: undefined as unknown as Mock,
 }));
 vi.mock("@/modules/webinar/api", async (importOriginal) => {
-  const real = await importOriginal<typeof import("@/modules/webinar/api")>();
+  const real = await importOriginal<typeof WebinarApi>();
   spies.webinar = vi.fn(async (tx: never) => {
     hooks.calls.push({ name: "webinar", loserTagsOnLoser: await loserTags(tx) });
     return { moved: 0, collapsed: 0 };
@@ -63,19 +67,19 @@ vi.mock("@/modules/webinar/api", async (importOriginal) => {
   return { ...real, mergePersons: spies.webinar };
 });
 vi.mock("@/modules/credits/api", async (importOriginal) => {
-  const real = await importOriginal<typeof import("@/modules/credits/api")>();
+  const real = await importOriginal<typeof CreditsApi>();
   spies.credits = vi.fn(async (tx: never) => {
     hooks.calls.push({ name: "credits", loserTagsOnLoser: await loserTags(tx) });
   });
   return { ...real, onPersonsMerged: spies.credits };
 });
 vi.mock("@/modules/automation/api", async (importOriginal) => {
-  const real = await importOriginal<typeof import("@/modules/automation/api")>();
+  const real = await importOriginal<typeof AutomationApi>();
   spies.exit = vi.fn(() => Promise.resolve({ exited: 0 }));
   return { ...real, exitPersonEnrolments: spies.exit };
 });
 vi.mock("@/modules/platform/api", async (importOriginal) => {
-  const real = await importOriginal<typeof import("@/modules/platform/api")>();
+  const real = await importOriginal<typeof PlatformApi>();
   spies.reassign = vi.fn(real.reassignCustomerAccount);
   return { ...real, reassignCustomerAccount: spies.reassign };
 });

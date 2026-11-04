@@ -27,7 +27,9 @@ const CONFLICT_LABELS = { membership: "crm.merge.conflict_membership", booking: 
 
 function show(value: unknown): string {
   if (value === null || value === undefined || value === "") return "";
-  if (typeof value !== "object") return String(value);
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (typeof value !== "object") return "";
   const v = value as Record<string, unknown>;
   if ("postal_code" in v || "street" in v || "city" in v) {
     return [[v.street, v.number, v.box].filter(Boolean).join(" "), [v.postal_code, v.city].filter(Boolean).join(" "), v.country].filter(Boolean).join(", ");

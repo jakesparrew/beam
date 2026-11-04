@@ -266,18 +266,18 @@ const toMergePerson = (p: PersonRow): MergePerson => ({
   firstName: p.firstName,
   lastName: p.lastName,
   locale: p.locale,
-  address: (p.address ?? null) as MergePerson["address"],
+  address: (p.address ?? null),
   birthOn: p.birthOn,
   preferredChannel: p.preferredChannel,
   linkedinUrl: p.linkedinUrl,
-  emergencyContact: (p.emergencyContact ?? null) as MergePerson["emergencyContact"],
-  acquisition: (p.acquisition ?? {}) as MergePerson["acquisition"],
+  emergencyContact: (p.emergencyContact ?? null),
+  acquisition: (p.acquisition ?? {}),
   statusOverride: p.statusOverride,
   statusOverrideReason: p.statusOverrideReason,
   statusOverrideByUserId: p.statusOverrideByUserId,
   statusOverrideAt: p.statusOverrideAt,
   isTester: p.isTester,
-  externalIds: (p.externalIds ?? {}) as Record<string, string>,
+  externalIds: (p.externalIds ?? {}),
   processingRestrictedAt: p.processingRestrictedAt,
   createdAt: p.createdAt,
 });
@@ -296,7 +296,7 @@ const MESSAGES: Record<MergeConflict, string> = {
 
 async function copyConsent(tx: Tx, ctx: Ctx, winnerId: string, loserId: string): Promise<number> {
   const rows = await tx.select().from(consentRecords).where(inArray(consentRecords.personId, [winnerId, loserId]));
-  const like = (r: (typeof rows)[number]): ConsentRecordLike => r as unknown as ConsentRecordLike;
+  const like = (r: (typeof rows)[number]): ConsentRecordLike => r;
   const copies = planConsentCopy(rows.filter((r) => r.personId === winnerId).map(like), rows.filter((r) => r.personId === loserId).map(like));
   if (!copies.length) return 0;
   await tx.insert(consentRecords).values(
@@ -388,18 +388,18 @@ export async function executeMerge(
       firstName: patch.firstName ?? null,
       lastName: patch.lastName ?? null,
       locale: (patch.locale ?? winner.locale) as PersonRow["locale"],
-      address: (patch.address ?? null) as PersonRow["address"],
+      address: (patch.address ?? null),
       birthOn: patch.birthOn ?? null,
       preferredChannel: patch.preferredChannel ?? null,
       linkedinUrl: patch.linkedinUrl ?? null,
-      emergencyContact: (patch.emergencyContact ?? null) as PersonRow["emergencyContact"],
-      acquisition: (patch.acquisition ?? {}) as PersonRow["acquisition"],
+      emergencyContact: (patch.emergencyContact ?? null),
+      acquisition: (patch.acquisition ?? {}),
       statusOverride: patch.statusOverride ?? null,
       statusOverrideReason: patch.statusOverrideReason ?? null,
       statusOverrideByUserId: patch.statusOverrideByUserId ?? null,
       statusOverrideAt: patch.statusOverrideAt ?? null,
       isTester: patch.isTester ?? winner.isTester,
-      externalIds: (patch.externalIds ?? {}) as PersonRow["externalIds"],
+      externalIds: (patch.externalIds ?? {}),
       processingRestrictedAt: patch.processingRestrictedAt ?? null,
       version: sql`${persons.version} + 1`,
       updatedAt: ctx.now,

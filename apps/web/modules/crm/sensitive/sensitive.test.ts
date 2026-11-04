@@ -5,7 +5,8 @@
  * and never values, and no plaintext reaches `activity_events`.
  */
 import { randomBytes, randomUUID } from "node:crypto";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
+import type * as PlatformApi from "@/modules/platform/api";
 import { createTestDb, makePerson, makeUser } from "@beam/db/testing";
 import type { DbHandle } from "@beam/db";
 import { activityEvents, auditLog, personSensitiveFields } from "@beam/db/schema";
@@ -24,9 +25,9 @@ vi.mock("next/headers", () => ({
   headers: () => Promise.resolve(new Headers({ "x-forwarded-for": "192.0.2.42" })),
 }));
 vi.mock("next/server", () => ({ after: () => undefined }));
-const spies = vi.hoisted(() => ({ readSensitive: undefined as unknown as ReturnType<typeof import("vitest").vi.fn> }));
+const spies = vi.hoisted(() => ({ readSensitive: undefined as unknown as Mock }));
 vi.mock("@/modules/platform/api", async (importOriginal) => {
-  const real = await importOriginal<typeof import("@/modules/platform/api")>();
+  const real = await importOriginal<typeof PlatformApi>();
   const { vi: v } = await import("vitest");
   spies.readSensitive = v.fn(real.readSensitive);
   return { ...real, readSensitive: spies.readSensitive };
@@ -129,8 +130,7 @@ describe("sensitive fields (rules 3.23 to 3.26)", () => {
     const res = await actions.revealSensitive({ personId: p.id, keys: ["sleep"] });
     expect(res).toEqual({ ok: true, data: { fields: { sleep }, notes: [] } });
     expect(spies.readSensitive).toHaveBeenCalledTimes(1);
-    const [, personId, purpose, scope] = spies.readSensitive.mock.calls[0]!;
-    expect([personId, purpose, scope]).toEqual([p.id, "staff_view", { keys: ["sleep"] }]);
+    expect(spies.readSensitive.mock.calls[0]!.slice(1)).toEqual([p.id, "staff_view", { keys: ["sleep"] }]);
 
     const reads = await h.db.select().from(auditLog).where(and(eq(auditLog.personId, p.id), eq(auditLog.action, "sensitive.read")));
     expect(reads).toHaveLength(1);

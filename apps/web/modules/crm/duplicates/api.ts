@@ -40,7 +40,7 @@ const canonicalEmail = (alias: string): SQL =>
        else lower(${alias}.email) end)`,
   );
 
-const toDate = (v: unknown): string | null => (v == null ? null : v instanceof Date ? v.toISOString().slice(0, 10) : String(v).slice(0, 10));
+const toDate = (v: unknown): string | null => (v instanceof Date ? v.toISOString().slice(0, 10) : typeof v === "string" ? v.slice(0, 10) : null);
 
 const input = (r: PairRow, side: "p" | "q"): DupInput => ({
   id: side === "p" ? r.p_id : r.q_id,

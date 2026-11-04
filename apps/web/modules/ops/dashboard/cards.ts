@@ -142,7 +142,9 @@ export const CARDS: readonly CardDef[] = [
       order: sql`b.sort1 desc, b.ref_id`,
     }),
   },
-  // Rule 29, V1 part: registrations imported from the current webinar tool.
+  // Rule 29, V1 part: registrations imported from the current webinar tool. The `webinar_tool`
+  // applier stores `{ provider, external_webinar_id, title, starts_at }`, the generic history
+  // import `webinar_title` and `webinar_starts_at`; both are read.
   {
     key: "webinar_leads_not_booked",
     anyOf: null,
@@ -151,11 +153,11 @@ export const CARDS: readonly CardDef[] = [
       base: sql`select * from (
           select distinct on (ih.person_id) ih.person_id, 'imported_history' as ref_type, ih.id::text as ref_id,
             extract(epoch from ih.occurred_at)::numeric as sort1,
-            jsonb_build_object('date', ih.occurred_at, 'webinar', ih.data->>'webinar_title') as params
+            jsonb_build_object('date', ih.occurred_at, 'webinar', coalesce(ih.data->>'webinar_title', ih.data->>'title')) as params
           from imported_history ih join v_person_profile pp on pp.person_id = ih.person_id
           where ih.kind = 'webinar_registration' and pp.is_tester = false and pp.status = 'lead'
-            and (case when ih.data->>'webinar_starts_at' ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
-                      then (ih.data->>'webinar_starts_at')::timestamptz else ih.occurred_at end)
+            and (case when coalesce(ih.data->>'webinar_starts_at', ih.data->>'starts_at') ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
+                      then coalesce(ih.data->>'webinar_starts_at', ih.data->>'starts_at')::timestamptz else ih.occurred_at end)
                 between ${ts(now)} - ${days(cfg.webinar_lead_window_days + add)} and ${ts(now)}
             and not exists (select 1 from bookings bk where bk.person_id = ih.person_id and bk.created_at > ih.occurred_at)
           order by ih.person_id, ih.occurred_at desc) wl`,

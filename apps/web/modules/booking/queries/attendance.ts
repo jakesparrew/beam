@@ -7,18 +7,20 @@
  * blocks a check-in. Other modules never import this file (they use `../api.ts`).
  */
 import type { DbOrTx } from "@beam/db";
-import { bookings, orderLines, orders, persons, sessions } from "@beam/db/schema";
-import { addDays, brusselsDate, isCheckinCode, normaliseCheckinCode, zonedTimeToUtc, type BookingRules, type BookingStatus, type PaidWith, type SessionKind } from "@beam/core/booking";
+import { activityEvents, bookings, creditEntries, orderLines, orders, persons, sessions, vSessionAvailability } from "@beam/db/schema";
+import { BOOKING_CONFLICT_REASONS, addDays, brusselsDate, brusselsTime, freeCancelUntil, isCheckinCode, normaliseCheckinCode, zonedTimeToUtc, type BookingRules, type BookingStatus, type PaidWith, type SessionKind } from "@beam/core/booking";
 import { NotImplementedError } from "@beam/core/errors";
-import type { LocalizedText } from "@beam/core/i18n";
+import { formatDateTime, formatMoney, type Locale, type LocalizedText } from "@beam/core/i18n";
 import { requirePermission } from "@/lib/auth";
-import { and, asc, eq, gte, inArray, lt, ne, or, sql } from "@/lib/ctx";
+import { and, asc, eq, gte, inArray, isNull, lt, ne, or, sql } from "@/lib/ctx";
 import { getSetting } from "@/lib/settings";
+import { getPersonCreditSummary } from "@/modules/credits/api";
 import { getReceptionCard, type ReceptionCardData } from "@/modules/crm/api";
 import { hasValidSubmission } from "@/modules/forms/api";
 import { checkInWindow, revertNoShowUntil } from "../jobs/attendance";
 import { HEALTH_DECLARATION_FORM } from "../server/declarations";
 import { hasEverAcceptedTerms } from "../server/terms";
+import type { AttendeeListLabels, AttendeeRowView } from "../ui/attendee-list";
 
 /** Rows of a name search (the set is one day, so no index is needed). */
 const SEARCH_LIMIT = 50;
@@ -314,4 +316,276 @@ export async function getCheckinDay(db: DbOrTx, input: { onDate: string }): Prom
     arrived: arrived.get(s.id) ?? 0,
     notArrived: waiting.filter((r) => r.sessionId === s.id),
   }));
+}
+
+export type ManualBookingSession = {
+  id: string;
+  title: LocalizedText;
+  kind: SessionKind;
+  startsAt: Date;
+  endsAt: Date;
+  status: "open" | "closed" | "cancelled";
+  availableTotal: number;
+  capacity: number;
+  creditKind: "day" | "night" | null;
+  creditCost: number;
+  productId: string | null;
+  /** `settings.booking_rules.pay_at_desk` allows this kind and the session has a price (R63). */
+  payAtDeskAllowed: boolean;
+  /** The person's remaining units of the session's credit kind; null without credits or a person. */
+  creditBalance: number | null;
+};
+
+/**
+ * The manual booking wizard's session picker (booking spec 5.1 `/admin/bookings/new`): open and
+ * closed sessions starting in `[from, to)` (webinar sessions excluded, R64) with their live
+ * availability, the payment options and the chosen person's credit balance per kind.
+ */
+export async function listManualBookingSessions(db: DbOrTx, input: { from: Date; to: Date; personId?: string }): Promise<ManualBookingSession[]> {
+  await requirePermission("bookings.write");
+  const rows = await db
+    .select({
+      id: sessions.id,
+      title: sessions.title,
+      kind: sessions.kind,
+      startsAt: sessions.startsAt,
+      endsAt: sessions.endsAt,
+      status: sessions.status,
+      creditKind: sessions.creditKind,
+      creditCost: sessions.creditCost,
+      productId: sessions.productId,
+      availableTotal: vSessionAvailability.availableTotal,
+      capacity: vSessionAvailability.capacity,
+    })
+    .from(sessions)
+    .innerJoin(vSessionAvailability, eq(vSessionAvailability.sessionId, sessions.id))
+    .where(and(gte(sessions.startsAt, input.from), lt(sessions.startsAt, input.to), ne(sessions.status, "cancelled"), isNull(sessions.webinarId)))
+    .orderBy(asc(sessions.startsAt), asc(sessions.id));
+  const rules: BookingRules = await getSetting(db, "booking_rules");
+  let balance: Map<string, number> | null = null;
+  if (input.personId) {
+    try {
+      const summary = await getPersonCreditSummary(db, input.personId);
+      balance = new Map(summary.byKind.map((k) => [k.kind as string, k.remainingUnits]));
+    } catch (error) {
+      if (!(error instanceof NotImplementedError)) throw error;
+    }
+  }
+  return rows.map((r) => ({
+    ...r,
+    availableTotal: Number(r.availableTotal ?? 0),
+    capacity: Number(r.capacity ?? 0),
+    payAtDeskAllowed: rules.pay_at_desk.enabled && rules.pay_at_desk.kinds.includes(r.kind) && r.productId !== null,
+    creditBalance: r.creditKind && balance ? (balance.get(r.creditKind) ?? 0) : null,
+  }));
+}
+
+// ---------------------------------------------------------------------------
+// Session detail and booking detail (booking spec 5.1)
+// ---------------------------------------------------------------------------
+
+export type AttendanceFlags = { canCheckIn: boolean; canUndo: boolean; canMarkNoShow: boolean; canRevertNoShow: boolean; inWindow: boolean };
+
+/** Which attendance buttons a row shows at `now` (R35-R37); the actions check the same rules. */
+export function attendanceFlags(row: { status: BookingStatus; startsAt: Date; endsAt: Date }, rules: BookingRules, now: Date): AttendanceFlags {
+  const { opensAt, closesAt } = checkInWindow(row, rules);
+  const t = now.getTime();
+  const inWindow = t >= opensAt.getTime() && t <= closesAt.getTime();
+  return {
+    inWindow,
+    canCheckIn: row.status === "confirmed" && inWindow,
+    canUndo: row.status === "attended" && t <= closesAt.getTime(),
+    canMarkNoShow: row.status === "confirmed" && t >= row.startsAt.getTime(),
+    canRevertNoShow: row.status === "no_show" && t <= revertNoShowUntil(row, rules).getTime(),
+  };
+}
+
+export type SessionAttendee = {
+  bookingId: string;
+  version: number;
+  personId: string;
+  name: string;
+  guestOfBookingId: string | null;
+  guestOfName: string | null;
+  paidWith: PaidWith;
+  status: BookingStatus;
+  isPayAtDesk: boolean;
+  isOverCapacity: boolean;
+  ticketTypeId: string | null;
+  toPayCents: number | null;
+  notes: string | null;
+  attendedAt: Date | null;
+  guestCount: number;
+};
+
+/** `/admin/sessions/[id]` attendee list: every booking of the session (cancelled ones last), owners before their guests. */
+export async function getSessionAttendees(db: DbOrTx, sessionId: string): Promise<SessionAttendee[]> {
+  await requirePermission("bookings.read");
+  const rows = await db
+    .select({
+      bookingId: bookings.id,
+      version: bookings.version,
+      personId: bookings.personId,
+      firstName: persons.firstName,
+      lastName: persons.lastName,
+      guestOfBookingId: bookings.guestOfBookingId,
+      paidWith: bookings.paidWith,
+      status: bookings.status,
+      isPayAtDesk: bookings.isPayAtDesk,
+      isOverCapacity: bookings.isOverCapacity,
+      ticketTypeId: bookings.ticketTypeId,
+      notes: bookings.notes,
+      attendedAt: bookings.attendedAt,
+      orderStatus: orders.status,
+      lineTotalCents: orderLines.lineTotalCents,
+      lineQuantity: orderLines.quantity,
+      createdAt: bookings.createdAt,
+    })
+    .from(bookings)
+    .innerJoin(persons, eq(persons.id, bookings.personId))
+    .leftJoin(orderLines, eq(orderLines.id, bookings.orderLineId))
+    .leftJoin(orders, eq(orders.id, orderLines.orderId))
+    .where(eq(bookings.sessionId, sessionId))
+    .orderBy(sql`${bookings.status} in ('cancelled', 'late_cancelled')`, asc(persons.lastName), asc(persons.firstName), asc(bookings.createdAt));
+  const names = new Map(rows.map((r) => [r.bookingId, fullName(r.firstName, r.lastName)]));
+  const guests = new Map<string, number>();
+  for (const r of rows) if (r.guestOfBookingId && (r.status === "reserved" || r.status === "confirmed")) guests.set(r.guestOfBookingId, (guests.get(r.guestOfBookingId) ?? 0) + 1);
+  const list: SessionAttendee[] = rows.map((r) => ({
+    bookingId: r.bookingId,
+    version: r.version,
+    personId: r.personId,
+    name: names.get(r.bookingId) ?? "",
+    guestOfBookingId: r.guestOfBookingId,
+    guestOfName: r.guestOfBookingId ? (names.get(r.guestOfBookingId) ?? null) : null,
+    paidWith: r.paidWith,
+    status: r.status,
+    isPayAtDesk: r.isPayAtDesk,
+    isOverCapacity: r.isOverCapacity,
+    ticketTypeId: r.ticketTypeId,
+    toPayCents: r.status === "reserved" && r.lineTotalCents !== null && r.orderStatus !== "paid" ? Math.round(r.lineTotalCents / Math.max(1, r.lineQuantity ?? 1)) : null,
+    notes: r.notes,
+    attendedAt: r.attendedAt,
+    guestCount: guests.get(r.bookingId) ?? 0,
+  }));
+  // Guests right after their owner.
+  const owners = list.filter((r) => !r.guestOfBookingId || !names.has(r.guestOfBookingId));
+  return owners.flatMap((o) => [o, ...list.filter((g) => g.guestOfBookingId === o.bookingId)]);
+}
+
+/** `/admin/bookings/[id]` status history: the booking's facts (kind, time, actor kind), oldest first; never `data`. */
+export async function getBookingHistory(db: DbOrTx, bookingId: string): Promise<Array<{ kind: string; occurredAt: Date; actorKind: string }>> {
+  await requirePermission("bookings.read");
+  const rows = await db
+    .select({ kind: activityEvents.kind, occurredAt: activityEvents.occurredAt, actor: activityEvents.actor })
+    .from(activityEvents)
+    .where(and(eq(activityEvents.refType, "booking"), eq(activityEvents.refId, bookingId)))
+    .orderBy(asc(activityEvents.occurredAt), asc(activityEvents.id));
+  return rows.map((r) => ({ kind: r.kind, occurredAt: r.occurredAt, actorKind: (r.actor as { kind?: string } | null)?.kind ?? "system" }));
+}
+
+/** `/admin/bookings/[id]` credits used: the ledger rows that reference the booking (consume and release). */
+export async function getBookingCreditEntries(db: DbOrTx, bookingId: string): Promise<Array<{ kind: string; quantity: number; createdAt: Date }>> {
+  await requirePermission("bookings.read");
+  return db
+    .select({ kind: creditEntries.kind, quantity: creditEntries.quantity, createdAt: creditEntries.createdAt })
+    .from(creditEntries)
+    .where(and(eq(creditEntries.refType, "booking"), eq(creditEntries.refId, bookingId)))
+    .orderBy(asc(creditEntries.createdAt));
+}
+
+// ---------------------------------------------------------------------------
+// View helpers of the staff screens (server side; the ui components take plain props)
+// ---------------------------------------------------------------------------
+
+export type Tr = (key: string, params?: Record<string, string | number>) => string;
+
+/** A catalogue key that may not exist yet, with an existing fallback (Missing-catalogue-keys of booking-P4). */
+export const orKey = (soft: Tr, key: string, fallback: string) => {
+  const v = soft(key);
+  return v === key ? fallback : v;
+};
+
+/** The staff error texts of the booking actions. */
+export function bookingErrorLabels(tr: Tr): Record<string, string> {
+  return {
+    ...Object.fromEntries(BOOKING_CONFLICT_REASONS.map((r) => [r, tr(`booking.errors.${r}`)])),
+    validation: tr("platform.errors.validation"),
+    forbidden: tr("platform.errors.forbidden"),
+    not_found: tr("platform.errors.not_found"),
+    internal: tr("platform.errors.internal"),
+  };
+}
+
+/** The attendee list texts (session detail and booking detail). */
+export function attendeeListLabels(tr: Tr, soft: Tr): AttendeeListLabels {
+  const errors = bookingErrorLabels(tr);
+  return {
+    columns: {
+      name: tr("booking.session.attendee_name"),
+      guestOf: tr("booking.session.attendee_guest_of"),
+      paidWith: tr("booking.session.attendee_paid_with"),
+      status: tr("booking.session.attendee_status"),
+      notes: tr("booking.session.attendee_notes"),
+      actions: soft("platform.jobs.col_actions"),
+    },
+    checkIn: tr("booking.session.check_in"),
+    undo: tr("booking.session.undo_check_in"),
+    markNoShow: tr("booking.session.mark_no_show"),
+    revertNoShow: orKey(soft, "booking.session.revert_no_show", tr("booking.session.check_in")),
+    editNotes: tr("booking.bookings.edit_notes"),
+    save: tr("booking.common.save"),
+    cancel: tr("booking.common.cancel"),
+    open: tr("booking.day.open_session"),
+    noHealthNotes: tr("booking.common.no_health_notes"),
+    empty: tr("booking.session.empty"),
+    errors,
+    cancelDialog: {
+      trigger: tr("booking.session.cancel_booking"),
+      title: tr("booking.session.cancel_booking"),
+      includeGuests: orKey(soft, "booking.bookings.include_guests", tr("booking.bookings.guests")),
+      reason: tr("booking.bookings.force_reason"),
+      noHealthNotes: tr("booking.common.no_health_notes"),
+      forceTitle: tr("booking.manual.override_title"),
+      forceNone: tr("booking.session.cancel_booking"),
+      forceReleaseCredit: tr("booking.bookings.force_release_credit"),
+      forceRefund: tr("booking.bookings.force_refund"),
+      confirm: tr("booking.common.confirm"),
+      close: tr("booking.common.close"),
+      reload: tr("booking.common.reload"),
+      errors: { ...errors, stale_version: tr("booking.common.stale_version") },
+    },
+  };
+}
+
+/** One attendee row's view: labels, flags and the cancel policy preview. */
+export function attendeeRow(
+  a: SessionAttendee,
+  session: { kind: "day" | "night" | "event"; startsAt: Date; endsAt: Date },
+  rules: BookingRules,
+  ctx: { now: Date; locale: Locale; tr: Tr; canOverride: boolean },
+): AttendeeRowView {
+  const f = attendanceFlags({ status: a.status, startsAt: session.startsAt, endsAt: session.endsAt }, rules, ctx.now);
+  const freeUntil = freeCancelUntil(session.kind, session.startsAt, rules);
+  const policy =
+    a.status === "reserved" || (freeUntil && ctx.now.getTime() <= freeUntil.getTime())
+      ? ctx.tr("booking.bookings.policy_free", { date: formatDateTime(freeUntil ?? session.startsAt, ctx.locale, "full") })
+      : ctx.tr("booking.bookings.policy_late");
+  return {
+    bookingId: a.bookingId,
+    version: a.version,
+    name: a.name || "—",
+    guestOf: a.guestOfName,
+    paidWith: ctx.tr(`booking.paidWith.${a.paidWith}`),
+    status: a.status,
+    statusLabel: a.status === "attended" && a.attendedAt ? `${ctx.tr("booking.status.attended")} ${brusselsTime(a.attendedAt)}` : ctx.tr(`booking.status.${a.status}`),
+    toPay: a.toPayCents !== null ? ctx.tr("booking.checkin.to_pay", { amount: formatMoney(a.toPayCents, ctx.locale) }) : null,
+    notes: a.notes,
+    hasGuests: a.guestCount > 0,
+    canCheckIn: f.canCheckIn,
+    canUndo: f.canUndo,
+    canMarkNoShow: f.canMarkNoShow,
+    canRevertNoShow: f.canRevertNoShow,
+    canCancel: (a.status === "confirmed" || a.status === "reserved" || (a.status === "late_cancelled" && ctx.canOverride)) && ctx.now.getTime() < session.endsAt.getTime(),
+    policy,
+  };
 }

@@ -25,10 +25,10 @@ afterAll(async () => {
   await h.close();
 });
 beforeEach(() => {
-  vi.mocked(hasValidSubmission).mockReset().mockImplementation(async (_db, { personId }) => {
-    if (valid.has(personId)) return { valid: true, completedAt: new Date(Date.now() - DAY), expiresAt: new Date(Date.now() + 300 * DAY) };
-    if (expired.has(personId)) return { valid: false, completedAt: new Date(Date.now() - 400 * DAY), expiresAt: new Date(Date.now() - 35 * DAY) };
-    return { valid: false, completedAt: null, expiresAt: null };
+  vi.mocked(hasValidSubmission).mockReset().mockImplementation((_db, { personId }) => {
+    if (valid.has(personId)) return Promise.resolve({ valid: true, completedAt: new Date(Date.now() - DAY), expiresAt: new Date(Date.now() + 300 * DAY) });
+    if (expired.has(personId)) return Promise.resolve({ valid: false, completedAt: new Date(Date.now() - 400 * DAY), expiresAt: new Date(Date.now() - 35 * DAY) });
+    return Promise.resolve({ valid: false, completedAt: null, expiresAt: null });
   });
 });
 

@@ -9,7 +9,7 @@
 import type { Tx } from "@beam/db";
 import { bookings, orderLines, orders, persons, sessions, waitlistEntries } from "@beam/db/schema";
 import { AlreadyBookedError, BookingConflictError, SessionFullError, bookingTransition, transition as waitlistTransition } from "@beam/core/booking";
-import { URL_SEGMENT, formatDateTime, pick, type Locale } from "@beam/core/i18n";
+import { URL_SEGMENT, formatDateTime, pick } from "@beam/core/i18n";
 import { NotFoundError, and, eq, inArray, or, sql, type Ctx } from "@/lib/ctx";
 import { getMembershipForPerson } from "@/modules/credits/api";
 import { sendTransactional } from "@/modules/email/api";
@@ -205,7 +205,7 @@ async function sendCancelledEmail(ctx: Ctx, booking: BookingRow): Promise<void> 
   const [person] = await ctx.tx.select({ email: persons.email, locale: persons.locale }).from(persons).where(eq(persons.id, booking.personId));
   if (!person?.email) return;
   const [session] = await ctx.tx.select({ title: sessions.title, startsAt: sessions.startsAt }).from(sessions).where(eq(sessions.id, booking.sessionId));
-  const locale = person.locale as Locale;
+  const locale = person.locale;
   await sendTransactional(ctx, {
     template: "booking.booking_cancelled",
     personId: booking.personId,

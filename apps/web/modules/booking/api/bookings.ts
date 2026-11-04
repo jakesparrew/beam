@@ -174,7 +174,7 @@ export async function listPublicEvents(
     startsAt: s.startsAt,
     endsAt: s.endsAt,
     status: s.status,
-    eventCategory: (s.eventCategory ?? "special_activity") as EventCategory,
+    eventCategory: s.eventCategory ?? "special_activity",
     isMemberOnly: s.isMemberOnly,
     isLeadMagnet: s.isLeadMagnet,
     leadWindowEndAt: s.leadWindowEndAt,

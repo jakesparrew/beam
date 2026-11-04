@@ -74,7 +74,7 @@ export const createManualBooking = action(
     audience: "staff",
     permission: "bookings.write",
     input: ManualBookingInput,
-    audit: { entityType: "booking", entityId: (_i, o) => o.bookingIds[0] ?? null, personId: (i) => i.personId },
+    audit: { entityType: "booking", entityId: (_i, o: { bookingIds: string[] }) => o.bookingIds[0] ?? null, personId: (i) => i.personId },
   },
   async (ctx, input): Promise<{ bookingIds: string[]; orderId?: string }> => {
     // Free bookings of paid sessions and the member-only bypass are checked by `bookSeats` (R15, R16).

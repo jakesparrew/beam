@@ -6,7 +6,7 @@
  */
 import { randomUUID } from "node:crypto";
 import type { DbOrTx, Tx } from "@beam/db";
-import { bookings, capacityHolds, persons, sessions, ticketTypes, vSessionAvailability, waitlistEntries } from "@beam/db/schema";
+import { bookings, capacityHolds, orderLines, orders, persons, sessions, ticketTypes, vSessionAvailability, waitlistEntries } from "@beam/db/schema";
 import {
   AlreadyBookedError,
   BookingConflictError,
@@ -134,7 +134,7 @@ function isUniqueViolation(error: unknown): boolean {
 export async function sendConfirmationEmail(ctx: Ctx, booking: BookingRow, session: Pick<SessionRow, "title" | "startsAt">, opts: { payAtDesk?: boolean } = {}): Promise<boolean> {
   const [person] = await ctx.tx.select({ email: persons.email, locale: persons.locale }).from(persons).where(eq(persons.id, booking.personId));
   if (!person?.email) return false;
-  const locale = person.locale as Locale;
+  const locale = person.locale;
   const fileId = await renderCheckinQr(ctx, booking);
   const base = {
     title: pick(session.title, locale, "session title"),
@@ -237,6 +237,26 @@ function refuseFor(reason: string): never {
   }
 }
 
+/**
+ * Edge case 2: the owner's live `reserved` rows of this session whose order has this
+ * `client_key` (the same submit twice). Null when there is none.
+ */
+async function existingCheckout(tx: Tx, sessionId: string, personId: string, clientKey: string): Promise<{ orderId: string; bookingIds: string[] } | null> {
+  const [own] = await tx
+    .select({ id: bookings.id, orderId: orders.id })
+    .from(bookings)
+    .innerJoin(orderLines, eq(orderLines.id, bookings.orderLineId))
+    .innerJoin(orders, eq(orders.id, orderLines.orderId))
+    .where(and(eq(bookings.sessionId, sessionId), eq(bookings.personId, personId), eq(bookings.status, "reserved"), eq(orders.clientKey, clientKey)));
+  if (!own) return null;
+  const rows = await tx
+    .select({ id: bookings.id })
+    .from(bookings)
+    .where(and(eq(bookings.status, "reserved"), or(eq(bookings.id, own.id), eq(bookings.guestOfBookingId, own.id))))
+    .orderBy(sql`${bookings.guestOfBookingId} is not null`, bookings.createdAt);
+  return { orderId: own.orderId, bookingIds: rows.map((r) => r.id) };
+}
+
 /** Free units of a capacity hold (R11), under the hold row lock. */
 async function holdFree(tx: Tx, holdId: string, sessionId: string): Promise<number> {
   const [hold] = await tx.select().from(capacityHolds).where(and(eq(capacityHolds.id, holdId), eq(capacityHolds.sessionId, sessionId))).for("update");
@@ -288,7 +308,14 @@ export async function bookSeats(tx: Tx, ctx: Ctx, input: BookSeatsInput): Promis
 
   const [owner] = await tx.select({ id: persons.id, locale: persons.locale }).from(persons).where(eq(persons.id, input.personId));
   if (!owner) throw new NotFoundError("person_not_found");
-  const locale = (input.locale ?? owner.locale) as Locale;
+  const locale = input.locale ?? owner.locale;
+
+  // Edge case 2: a double submit of a paid booking returns the existing checkout.
+  const repeat = await existingCheckout(tx, session.id, input.personId, input.clientKey);
+  if (repeat) {
+    const redirectTo = staff ? `/admin/pos?order=${repeat.orderId}` : `/${URL_SEGMENT[locale]}/account/checkout/${repeat.orderId}`;
+    return { kind: "checkout", bookingIds: repeat.bookingIds, orderId: repeat.orderId, redirectTo };
+  }
 
   // R15 member-only (staff with override may bypass) and the customer gate (R7).
   const viewer = await viewerFor(tx, session, input.personId);
@@ -343,6 +370,11 @@ export async function bookSeats(tx: Tx, ctx: Ctx, input: BookSeatsInput): Promis
     if ((await holdFree(tx, input.holdId, session.id)) < units) throw new SessionFullError({ holdId: input.holdId });
   } else {
     const free = staff ? Math.max(0, availability.availableTotal) : computed.bookable;
+    // R23: a lead seat is for the lead only; guests of a lead booking need general seats.
+    const guestUnits = units - rows[0]!.capacityUnits;
+    if (!staff && computed.useLeadSeat && guestUnits > Math.max(0, availability.availableGeneral)) {
+      throw new SessionFullError({ free: availability.availableGeneral, needed: guestUnits, pool: "general" });
+    }
     if (free < units) {
       if (!(override && input.overCapacity)) throw new SessionFullError({ free, needed: units });
       isOverCapacity = true;

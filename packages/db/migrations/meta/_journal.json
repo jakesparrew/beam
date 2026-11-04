@@ -162,6 +162,27 @@
       "when": 1793755168153,
       "tag": "0022_w04_protect",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1793757381740,
+      "tag": "0023_w04",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1793757387713,
+      "tag": "0024_w04_views",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1793757405500,
+      "tag": "0025_w04_finance_guard",
+      "breakpoints": true
     }
   ]
 }

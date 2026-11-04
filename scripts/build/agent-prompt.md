@@ -133,7 +133,10 @@ node scripts/build/ownership.mjs --check "$ID" "$BASE" HEAD
 If a suite of another module fails because of your change, fix your change. If it fails
 without your change (it fails on `BASE` too), note it in the report and do not touch it.
 
-## 6. Commit (one commit, or a few small ones, on `build/$ID`; never push)
+## 6. Commit (a few small commits on `build/$ID`; never push)
+The container can restart at any time and stop you; only committed work survives. Commit after each
+area of your package is written and its tests pass (a `wip:`-free conventional message is fine for the
+intermediate commits; the last commit carries the full message below).
 ```
 <module>: <imperative summary under 70 characters>
 

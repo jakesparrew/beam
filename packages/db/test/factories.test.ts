@@ -57,7 +57,15 @@ describe("factories", () => {
     ] as const) {
       const p = await makeProduct(h.db, { kind });
       expect(p.kind).toBe(kind);
+      // `products_item_category_chk` (commerce): only items carry a category, and every item has one.
+      expect(p.itemCategory).toBe(kind === "item" ? "merchandise" : null);
     }
+    const wellness = await makeProduct(h.db, { kind: "item", itemCategory: "wellness_product" });
+    expect(wellness.itemCategory).toBe("wellness_product");
+    const badItems = await h.db.execute<{ n: number }>(
+      sql`select count(*)::int as n from products where (kind = 'item') <> (item_category is not null)`,
+    );
+    expect((badItems as { rows: { n: number }[] }).rows[0]?.n).toBe(0);
     const priced = await makeProduct(h.db, { priceCents: 9900 });
     const prices = await h.db
       .select()
@@ -79,9 +87,17 @@ describe("factories", () => {
     });
     expect(day.endsAt.getTime()).toBeGreaterThan(day.startsAt.getTime());
     const night = await makeSession(h.db, { kind: "night" });
-    expect(night).toMatchObject({ capacityBeds: 6, creditKind: "night" });
+    expect(night).toMatchObject({ capacityBeds: 6, creditKind: "night", eventCategory: null });
+    expect(day.eventCategory).toBeNull();
+    // `sessions_event_category_ck` (booking): an event carries a category.
     const event = await makeSession(h.db, { kind: "event", creditKind: null });
-    expect(event.kind).toBe("event");
+    expect(event).toMatchObject({ kind: "event", eventCategory: "lecture", capacitySeats: 10 });
+    const concert = await makeSession(h.db, { kind: "event", eventCategory: "concert" });
+    expect(concert.eventCategory).toBe("concert");
+    const badEvents = await h.db.execute<{ n: number }>(
+      sql`select count(*)::int as n from sessions where (kind = 'event') <> (event_category is not null)`,
+    );
+    expect((badEvents as { rows: { n: number }[] }).rows[0]?.n).toBe(0);
   });
 
   it("makeGrant writes the grant and its ledger entry", async () => {

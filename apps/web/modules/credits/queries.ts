@@ -659,7 +659,7 @@ export type MyPackages = {
   upcoming: MyPackage[];
   history: MyPackage[];
   sharedWithMe: SharedPackage[];
-  storeCredit: { remainingCents: number; earliestExpiresAt: Date | null; grants: number };
+  storeCredit: { remainingCents: number; earliestExpiresAt: Date | null; grants: MyPackage[] };
 };
 
 /** "Anna D.": a guest or an owner as another customer sees them (rule 38). */
@@ -764,7 +764,7 @@ export async function getMyPackages(db: DbOrTx, personId: string, opts: { now?: 
     storeCredit: {
       remainingCents: euro.reduce((n, r) => n + r.remainingUnits, 0),
       earliestExpiresAt: expiries.length ? new Date(Math.min(...expiries.map((d) => d.getTime()))) : null,
-      grants: euro.length,
+      grants: euro,
     },
   };
 }
@@ -790,6 +790,8 @@ export type MyUsageRow = {
 export type MyPackageDetail = {
   package: MyPackage;
   isOwner: boolean;
+  /** The package starts later (`starts_at` after now). */
+  upcoming: boolean;
   ownerName: string | null;
   sharingMode: "none" | "guests" | "named";
   usage: MyUsageRow[];
@@ -906,6 +908,7 @@ export async function getMyPackage(db: DbOrTx, personId: string, grantId: string
   return {
     package: toMyPackage(card),
     isOwner,
+    upcoming: card.startsAt.getTime() > now.getTime(),
     ownerName: isOwner ? null : firstNameAndInitial(ownerFirst, ownerLast),
     sharingMode: sharing.mode,
     usage,

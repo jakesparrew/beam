@@ -104,7 +104,7 @@ describe("sendPaymentLink and payments.create_link", () => {
     const events = await h.db.select().from(activityEvents).where(and(eq(activityEvents.kind, "payment_link.sent"), eq(activityEvents.personId, person.id)));
     expect(events).toHaveLength(1);
 
-    const sent = await run((tx, ctx) => createPayLinkJob({ ...ctx, tx } as Ctx, job!.payload as { orderId: string; email: string; version: number }));
+    const sent = await run((tx, ctx) => createPayLinkJob(ctx, job!.payload as { orderId: string; email: string; version: number }));
     expect(sent).toMatchObject({ payUrl: link.payUrl });
     const mails = await h.db.select().from(emailMessages).where(eq(emailMessages.idempotencyKey, key));
     expect(mails).toHaveLength(1);

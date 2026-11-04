@@ -3,7 +3,8 @@
  * by `pnpm gen:indexes`. commerce-P3 adds the catalogue screens; the orders and POS entries come
  * with their screens (commerce-P6, commerce-P7), so no entry links to a page that does not exist.
  * An entry has one permission: the catalogue entries use `pricing.write`; staff with only
- * `commerce.sell` reach the read-only product list from the POS and order screens.
+ * `commerce.sell` reach the read-only product list from the POS and order screens. commerce-P6 adds
+ * the orders list and the payment attention feed (`commerce.sell`).
  */
 export const nav = [
   {
@@ -25,5 +26,25 @@ export const nav = [
     permission: "pricing.write",
     icon: "tag",
     order: 330,
+  },
+  {
+    key: "commerce.orders",
+    area: "admin",
+    section: "sales",
+    labelKey: "commerce.nav.orders",
+    href: "/admin/orders",
+    permission: "commerce.sell",
+    icon: "receipt",
+    order: 300,
+  },
+  {
+    key: "commerce.attention",
+    area: "admin",
+    section: "sales",
+    labelKey: "commerce.nav.attention",
+    href: "/admin/orders/attention",
+    permission: "commerce.sell",
+    icon: "alert-triangle",
+    order: 310,
   },
 ] as const;

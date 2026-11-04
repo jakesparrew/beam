@@ -49,7 +49,7 @@ export async function getAttentionFeed(db: DbOrTx, opts: { limit: number }): Pro
     .orderBy(asc(vPaymentAttention.kind), desc(vPaymentAttention.sinceAt))
     .limit(clampLimit(opts.limit));
   return rows.map((r) => ({
-    kind: r.kind as AttentionKind,
+    kind: r.kind,
     paymentId: r.paymentId,
     orderId: r.orderId,
     reference: r.reference,

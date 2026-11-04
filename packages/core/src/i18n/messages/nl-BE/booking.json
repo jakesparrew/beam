@@ -37,7 +37,9 @@
       "places": "{count, plural, one {# plaats} other {# plaatsen}}",
       "beds": "{count, plural, one {# bed} other {# bedden}}",
       "minutes": "{count, plural, one {# minuut} other {# minuten}}",
-      "credits": "{count, plural, one {# sessie} other {# sessies}}"
+      "credits": "{count, plural, one {# sessie} other {# sessies}}",
+      "saved": "Opgeslagen",
+      "saving": "Opslaan…"
     },
     "kind": {
       "day": "Dagsessie",
@@ -183,7 +185,9 @@
       "webinar_session_mismatch": "Deze sessie hoort bij een ander webinar.",
       "session_closed": "Deze sessie is gesloten voor boekingen.",
       "invalid_transition": "Deze wijziging kan niet in de huidige status.",
-      "shared_bed_limit": "Er kan maar één gast je bed delen."
+      "shared_bed_limit": "Er kan maar één gast je bed delen.",
+      "generic": "Er ging iets mis. Probeer het opnieuw.",
+      "validation": "Controleer de velden en probeer het opnieuw."
     },
     "calendar": {
       "title": "Sessies",
@@ -269,7 +273,8 @@
       "cancelled_info": "Geannuleerd op {date}: {reason}",
       "warning_location_overlap": "Een andere sessie gebruikt deze ruimte op hetzelfde moment.",
       "warning_outside_business_hours": "Dit tijdstip valt buiten de openingsuren.",
-      "empty": "Nog geen boekingen."
+      "empty": "Nog geen boekingen.",
+      "revert_no_show": "No-show ongedaan maken"
     },
     "templates": {
       "title": "Planning",
@@ -393,7 +398,8 @@
       "force_release_credit": "Annuleren en de beurt teruggeven",
       "force_refund": "Annuleren en terugbetalen",
       "force_reason": "Reden (verplicht)",
-      "empty": "Geen boekingen voor deze filters."
+      "empty": "Geen boekingen voor deze filters.",
+      "include_guests": "Ook de gasten annuleren"
     },
     "manual": {
       "title": "Nieuwe boeking",
@@ -440,7 +446,10 @@
       "health_expired": "Gezondheidsverklaring verlopen",
       "fill_in_form": "Formulier invullen",
       "not_arrived": "Nog niet aangekomen",
-      "guests_of": "Gasten van {name}"
+      "guests_of": "Gasten van {name}",
+      "check_in_override": "Toch inchecken",
+      "revert_no_show": "No-show ongedaan maken",
+      "scan_hint": "Scan de QR-code, of typ de code of een naam, en druk op Enter."
     },
     "waitlist": {
       "title": "Wachtlijsten",
@@ -468,7 +477,11 @@
       "member_badge": "Leden",
       "session_label": "{date}, {time}, {kind}, {availability}",
       "closed_day": "Gesloten: {name}",
-      "empty": "Geen sessies op deze dag."
+      "empty": "Geen sessies op deze dag.",
+      "price_single": "{price} per sessie",
+      "filtered": "Je ziet één schema",
+      "open": "Bekijken en boeken",
+      "no_events": "Nog geen evenementen gepland."
     },
     "portalSession": {
       "title": "Boeken",
@@ -498,7 +511,20 @@
       "book": "Boeken",
       "join_waitlist": "Op de wachtlijst gaan staan",
       "join_customer_queue": "In de klantenwachtrij gaan staan",
-      "membership_link": "Lid worden"
+      "membership_link": "Lid worden",
+      "price_label": "Prijs: {price}",
+      "pay_free": "Gratis sessie",
+      "guest_pay_label": "Hoe wordt deze gast betaald?",
+      "guest_pay_guest": "Met mijn pakket",
+      "guest_pay_order": "Ik betaal voor mijn gast",
+      "add_guest": "Gast toevoegen",
+      "remove_guest": "Deze gast verwijderen",
+      "guest_number": "Gast {n}",
+      "opens_at": "Boeken kan vanaf {date}",
+      "no_pay_option": "Deze sessie kan je niet online betalen. Neem contact op met het onthaal.",
+      "waitlist_joined": "Je staat op de wachtlijst. We mailen je zodra er een plaats vrijkomt.",
+      "when": "Wanneer",
+      "where": "Waar"
     },
     "portalBookings": {
       "title": "Mijn boekingen",
@@ -508,7 +534,14 @@
       "booked_for_guest": "Geboekt voor {name}",
       "guest_of": "Gast van {name}",
       "book": "Een sessie boeken",
-      "empty": "Geen komende boekingen."
+      "empty": "Geen komende boekingen.",
+      "tab_guests": "Gasten die ik boekte",
+      "tab_as_guest": "Ik ben gast",
+      "open": "Boeking bekijken",
+      "empty_past": "Geen eerdere boekingen.",
+      "empty_events": "Nog geen inschrijvingen voor evenementen.",
+      "empty_guests": "Je hebt nog niet voor een gast geboekt.",
+      "empty_as_guest": "Niemand heeft jou als gast geboekt."
     },
     "portalBooking": {
       "title": "Mijn boeking",
@@ -526,13 +559,31 @@
       "awaiting_payment": "Wacht op betaling tot {time}",
       "complete_payment": "Betaling afronden",
       "pay_at_reception": "Betalen aan het onthaal",
-      "cancelled": "Deze boeking is geannuleerd."
+      "cancelled": "Deze boeking is geannuleerd.",
+      "when": "Wanneer",
+      "where": "Waar",
+      "payment": "Betaling",
+      "status": "Status",
+      "guests": "Gasten",
+      "no_guests": "Geen gasten.",
+      "invite_submit": "Deze gast uitnodigen",
+      "guest_added": "Je gast is toegevoegd.",
+      "cancelled_ok": "Je boeking is geannuleerd.",
+      "rescheduled_ok": "Je boeking is verplaatst.",
+      "booked_ok": "Je boeking is bevestigd. Tot binnenkort!",
+      "cancel_question": "Wil je deze boeking annuleren?",
+      "keep": "Mijn boeking behouden",
+      "back": "Al mijn boekingen",
+      "qr_label": "QR-code om in te checken",
+      "guest_note": "Een gast die via jouw boeking geboekt is."
     },
     "portalReschedule": {
       "title": "Mijn boeking verplaatsen",
       "pick": "Kies een andere sessie",
       "confirm": "Mijn boeking verplaatsen",
-      "empty": "Geen andere sessie beschikbaar binnen je gratis annuleringsperiode."
+      "empty": "Geen andere sessie beschikbaar binnen je gratis annuleringsperiode.",
+      "current": "Nu geboekt: {date}",
+      "back": "Terug naar mijn boeking"
     },
     "portalWaitlist": {
       "title": "Mijn wachtlijsten",
@@ -641,6 +692,10 @@
         "intro": "De plaats voor {title} op {date} werd niet op tijd opgeëist en ging naar de volgende persoon.",
         "cta": "De sessie bekijken"
       }
+    },
+    "new": {
+      "starts_at": "Begint om",
+      "create_draft": "Aanmaken als concept"
     }
   }
 }

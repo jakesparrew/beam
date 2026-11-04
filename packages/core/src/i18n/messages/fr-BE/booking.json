@@ -37,7 +37,9 @@
       "places": "{count, plural, one {# place} other {# places}}",
       "beds": "{count, plural, one {# lit} other {# lits}}",
       "minutes": "{count, plural, one {# minute} other {# minutes}}",
-      "credits": "{count, plural, one {# séance} other {# séances}}"
+      "credits": "{count, plural, one {# séance} other {# séances}}",
+      "saved": "Enregistré",
+      "saving": "Enregistrement…"
     },
     "kind": {
       "day": "Séance de jour",
@@ -183,7 +185,9 @@
       "webinar_session_mismatch": "Cette séance appartient à un autre webinaire.",
       "session_closed": "Cette séance est fermée aux réservations.",
       "invalid_transition": "Cette modification n’est pas possible dans l’état actuel.",
-      "shared_bed_limit": "Un seul invité peut partager votre lit."
+      "shared_bed_limit": "Un seul invité peut partager votre lit.",
+      "generic": "Une erreur s’est produite. Veuillez réessayer.",
+      "validation": "Vérifiez les champs et réessayez."
     },
     "calendar": {
       "title": "Séances",
@@ -269,7 +273,8 @@
       "cancelled_info": "Annulée le {date} : {reason}",
       "warning_location_overlap": "Une autre séance utilise cette salle au même moment.",
       "warning_outside_business_hours": "Cet horaire est en dehors des heures d’ouverture.",
-      "empty": "Pas encore de réservations."
+      "empty": "Pas encore de réservations.",
+      "revert_no_show": "Annuler l’absence"
     },
     "templates": {
       "title": "Planning",
@@ -393,7 +398,8 @@
       "force_release_credit": "Annuler et rendre la séance",
       "force_refund": "Annuler et rembourser",
       "force_reason": "Motif (obligatoire)",
-      "empty": "Aucune réservation pour ces filtres."
+      "empty": "Aucune réservation pour ces filtres.",
+      "include_guests": "Annuler aussi les invités"
     },
     "manual": {
       "title": "Nouvelle réservation",
@@ -440,7 +446,10 @@
       "health_expired": "Déclaration de santé expirée",
       "fill_in_form": "Remplir un formulaire",
       "not_arrived": "Pas encore arrivés",
-      "guests_of": "Invités de {name}"
+      "guests_of": "Invités de {name}",
+      "check_in_override": "Enregistrer quand même",
+      "revert_no_show": "Annuler l’absence",
+      "scan_hint": "Scannez le code QR, ou tapez le code ou un nom, puis appuyez sur Entrée."
     },
     "waitlist": {
       "title": "Listes d’attente",
@@ -468,7 +477,11 @@
       "member_badge": "Membres",
       "session_label": "{date}, {time}, {kind}, {availability}",
       "closed_day": "Fermé : {name}",
-      "empty": "Aucune séance ce jour-là."
+      "empty": "Aucune séance ce jour-là.",
+      "price_single": "{price} par séance",
+      "filtered": "Un seul horaire est affiché",
+      "open": "Voir et réserver",
+      "no_events": "Aucun événement prévu pour l’instant."
     },
     "portalSession": {
       "title": "Réserver",
@@ -498,7 +511,20 @@
       "book": "Réserver",
       "join_waitlist": "S’inscrire sur la liste d’attente",
       "join_customer_queue": "Rejoindre la file des clients",
-      "membership_link": "Devenir membre"
+      "membership_link": "Devenir membre",
+      "price_label": "Prix : {price}",
+      "pay_free": "Séance gratuite",
+      "guest_pay_label": "Comment cet invité est-il payé ?",
+      "guest_pay_guest": "Avec mon forfait",
+      "guest_pay_order": "Je paie pour mon invité",
+      "add_guest": "Ajouter un invité",
+      "remove_guest": "Retirer cet invité",
+      "guest_number": "Invité {n}",
+      "opens_at": "Réservation possible à partir du {date}",
+      "no_pay_option": "Cette séance ne peut pas être payée en ligne. Contactez l’accueil.",
+      "waitlist_joined": "Vous êtes sur la liste d’attente. Nous vous écrivons dès qu’une place se libère.",
+      "when": "Quand",
+      "where": "Où"
     },
     "portalBookings": {
       "title": "Mes réservations",
@@ -508,7 +534,14 @@
       "booked_for_guest": "Réservée pour {name}",
       "guest_of": "Invité de {name}",
       "book": "Réserver une séance",
-      "empty": "Aucune réservation à venir."
+      "empty": "Aucune réservation à venir.",
+      "tab_guests": "Invités que j’ai réservés",
+      "tab_as_guest": "Je suis invité",
+      "open": "Voir la réservation",
+      "empty_past": "Aucune réservation passée.",
+      "empty_events": "Aucune inscription à un événement pour l’instant.",
+      "empty_guests": "Vous n’avez pas encore réservé pour un invité.",
+      "empty_as_guest": "Personne ne vous a réservé comme invité."
     },
     "portalBooking": {
       "title": "Ma réservation",
@@ -526,13 +559,31 @@
       "awaiting_payment": "En attente de paiement jusqu’à {time}",
       "complete_payment": "Finaliser le paiement",
       "pay_at_reception": "Payer à l’accueil",
-      "cancelled": "Cette réservation est annulée."
+      "cancelled": "Cette réservation est annulée.",
+      "when": "Quand",
+      "where": "Où",
+      "payment": "Paiement",
+      "status": "Statut",
+      "guests": "Invités",
+      "no_guests": "Aucun invité.",
+      "invite_submit": "Inviter cet invité",
+      "guest_added": "Votre invité est ajouté.",
+      "cancelled_ok": "Votre réservation est annulée.",
+      "rescheduled_ok": "Votre réservation est déplacée.",
+      "booked_ok": "Votre réservation est confirmée. À bientôt !",
+      "cancel_question": "Voulez-vous annuler cette réservation ?",
+      "keep": "Garder ma réservation",
+      "back": "Toutes mes réservations",
+      "qr_label": "Code QR d’enregistrement",
+      "guest_note": "Un invité réservé via votre réservation."
     },
     "portalReschedule": {
       "title": "Déplacer ma réservation",
       "pick": "Choisissez une autre séance",
       "confirm": "Déplacer ma réservation",
-      "empty": "Aucune autre séance disponible pendant votre période d’annulation gratuite."
+      "empty": "Aucune autre séance disponible pendant votre période d’annulation gratuite.",
+      "current": "Réservé actuellement : {date}",
+      "back": "Retour à ma réservation"
     },
     "portalWaitlist": {
       "title": "Mes listes d’attente",
@@ -641,6 +692,10 @@
         "intro": "La place pour {title} le {date} n’a pas été prise à temps et est allée à la personne suivante.",
         "cta": "Voir la séance"
       }
+    },
+    "new": {
+      "starts_at": "Début",
+      "create_draft": "Créer comme brouillon"
     }
   }
 }

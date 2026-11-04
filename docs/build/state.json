@@ -115,11 +115,16 @@
       "attempts": 0
     },
     "credits-P1": {
-      "status": "running",
+      "status": "merged",
       "attempts": 2,
       "baseSha": "2200899",
       "runId": "wf_bba4be41-aca",
-      "startedAt": "2026-11-03T23:55:50Z"
+      "startedAt": "2026-11-03T23:55:50Z",
+      "branchSha": "7cb68e7",
+      "endedAt": "2026-11-04T00:01:13Z",
+      "minutes": 23,
+      "mergeSha": "ea67dfd",
+      "mergedAt": "2026-11-04T00:05:55Z"
     },
     "credits-P2": {
       "status": "merged",

@@ -100,7 +100,7 @@ export async function makeUser(
 
 type ProductInsert = typeof products.$inferInsert;
 
-/** Credit defaults that satisfy the `products_*_chk` checks for each kind. */
+/** Defaults that satisfy the `products_*_chk` checks for each kind (an `item` needs a category). */
 function productDefaults(kind: ProductInsert["kind"]): Partial<ProductInsert> {
   switch (kind) {
     case "package":
@@ -119,6 +119,8 @@ function productDefaults(kind: ProductInsert["kind"]): Partial<ProductInsert> {
         includedCreditUnits: 4,
         vatRatePct: "21.00",
       };
+    case "item":
+      return { vatRatePct: "21.00", itemCategory: "merchandise" };
     default:
       return { vatRatePct: "21.00" };
   }
@@ -163,7 +165,10 @@ export async function makeProduct(
   return row!;
 }
 
-/** An open day session tomorrow at 10:00 UTC for two hours, 10 seats, paid with one day credit. */
+/**
+ * An open day session tomorrow at 10:00 UTC for two hours, 10 seats, paid with one day credit.
+ * A `night` gets 6 beds and a night credit; an `event` gets the category `lecture`.
+ */
 export async function makeSession(
   db: DbOrTx,
   overrides: Partial<typeof sessions.$inferInsert> = {},
@@ -194,6 +199,7 @@ export async function makeSession(
         ? { capacityBeds: 6, creditKind: "night" as const }
         : { capacitySeats: 10 }),
       ...(kind === "day" ? { creditKind: "day" as const } : {}),
+      ...(kind === "event" ? { eventCategory: "lecture" as const } : {}),
       ...overrides,
     })
     .returning();

@@ -361,6 +361,32 @@ export function isRequired(f: Field): boolean {
 }
 
 /**
+ * Checks the visible fields of one section in order and adds the valid answers to `clean`. With
+ * `fields` null the section only gives context (L4): its errors are not reported and nothing is
+ * required.
+ */
+function checkSection(def: FormDefinition, sc: FormScoring, section: Section, answers: Answers, clean: Answers, fields: Record<string, string> | null, final: boolean): void {
+  for (const fk of section.fieldKeys) {
+    const f = own(def.fields, fk);
+    if (!f || !isVisible(f, stateFor(def, sc, clean, f.visibleIf))) continue;
+    const r = checkValue(f, own(answers, fk));
+    if ("error" in r) {
+      if (fields) fields[fk] = r.error;
+      continue;
+    }
+    const ticked = r.value === true;
+    const missing = r.value === undefined || ((f.type === "consent" || f.type === "acknowledgement") && !ticked);
+    if (missing && final && fields && isRequired(f)) {
+      fields[fk] = "required";
+      continue;
+    }
+    if (r.value === undefined) continue;
+    if (f.type === "acknowledgement" && !ticked) continue;
+    clean[fk] = r.value;
+  }
+}
+
+/**
  * Rule U9 and L1: validates the visible fields of `path` in order. Answers of fields that are
  * hidden or not on the path are dropped from `clean`. With `final`, every visible required
  * field must be answered (consent and acknowledgement boxes must be ticked).
@@ -371,26 +397,28 @@ export function validateAnswers(def: FormDefinition, path: SectionKey[], answers
   const fields: Record<string, string> = {};
   for (const key of path) {
     const section = def.sections.find((s) => s.key === key);
-    if (!section) continue;
-    for (const fk of section.fieldKeys) {
-      const f = own(def.fields, fk);
-      if (!f || !isVisible(f, stateFor(def, sc, clean, f.visibleIf))) continue;
-      const r = checkValue(f, own(answers, fk));
-      if ("error" in r) {
-        fields[fk] = r.error;
-        continue;
-      }
-      const ticked = r.value === true;
-      const missing = r.value === undefined || ((f.type === "consent" || f.type === "acknowledgement") && !ticked);
-      if (missing && opts.final && isRequired(f)) {
-        fields[fk] = "required";
-        continue;
-      }
-      if (r.value === undefined) continue;
-      if (f.type === "acknowledgement" && !ticked) continue;
-      clean[fk] = r.value;
-    }
+    if (section) checkSection(def, sc, section, answers, clean, fields, opts.final);
   }
+  return Object.keys(fields).length ? { ok: false, fields } : { ok: true, clean };
+}
+
+/**
+ * Rule U2 with L4: validates one section as the submit does (every visible required field), with
+ * the visibility of its fields read from the answers of the sections before it on `path` (the
+ * path so far; `sectionKey` need not be on it yet). Errors are reported for this section only;
+ * `clean` holds the visible answers of the earlier sections and of this one.
+ */
+export function validateSection(def: FormDefinition, path: SectionKey[], sectionKey: SectionKey, answers: Answers, scoring?: FormScoring): { ok: true; clean: Answers } | { ok: false; fields: Record<string, string> } {
+  const sc = scoring ?? EMPTY_SCORING;
+  const at = path.indexOf(sectionKey);
+  const clean: Answers = {};
+  const fields: Record<string, string> = {};
+  for (const key of at >= 0 ? path.slice(0, at) : path) {
+    const section = def.sections.find((s) => s.key === key);
+    if (section && key !== sectionKey) checkSection(def, sc, section, answers, clean, null, false);
+  }
+  const target = def.sections.find((s) => s.key === sectionKey);
+  if (target) checkSection(def, sc, target, answers, clean, fields, true);
   return Object.keys(fields).length ? { ok: false, fields } : { ok: true, clean };
 }
 

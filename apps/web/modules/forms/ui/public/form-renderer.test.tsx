@@ -150,3 +150,48 @@ describe("FormRenderer", () => {
     expect(screen.getByLabelText(/Email/)).toBeTruthy();
   });
 });
+
+describe("FormRenderer, fix-w09-forms-review finding 3", () => {
+  it("a required field hidden by an earlier section's answer does not block the next step", async () => {
+    const T = (en: string) => ({ "nl-BE": en, "fr-BE": en, en });
+    const def = structuredClone(contact.definition);
+    def.fields.smoker = { key: "smoker", type: "yes_no", label: T("Do you smoke?"), required: false, sensitive: false };
+    def.fields.why_not = { key: "why_not", type: "short_text", label: T("Why not?"), required: true, sensitive: false, visibleIf: { not: { field: "smoker", op: "eq", value: true } } };
+    def.sections = [
+      { key: "about", fieldKeys: ["email", "first_name", "message", "smoker"] },
+      { key: "habits", fieldKeys: ["why_not"] },
+    ];
+    let saves = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string, init?: RequestInit) => {
+        const body = typeof init?.body === "string" ? (JSON.parse(init.body) as Record<string, unknown>) : null;
+        calls.push({ url, method: init?.method ?? "GET", body });
+        if (url.endsWith("/view")) return Promise.resolve(reply(204, null));
+        if (url.endsWith("/start")) return Promise.resolve(reply(200, { submissionId: "11111111-1111-4111-8111-111111111111" }));
+        if (url.endsWith("/save")) return Promise.resolve(reply(200, { next: ++saves === 1 ? { sectionKey: "habits" } : { end: true } }));
+        if (url.endsWith("/submit")) return Promise.resolve(reply(200, submitReply.body));
+        return Promise.resolve(reply(404, null));
+      }),
+    );
+    render(<FormRenderer slug="contact" kind="lead" locale="en" definition={def} scoring={contact.scoring} labels={labels} mode="page" />);
+    fireEvent.change(screen.getByLabelText(/Email/), { target: { value: "lotte@example.com" } });
+    fireEvent.change(screen.getByLabelText(/First name/), { target: { value: "Lotte" } });
+    fireEvent.change(screen.getByLabelText(/Your message/), { target: { value: "Hello" } });
+    fireEvent.click(screen.getByLabelText("Yes"));
+    await act(() => {
+      fireEvent.click(screen.getByRole("button", { name: "Next" }));
+      return Promise.resolve();
+    });
+    await waitFor(() => expect(calls.filter((c) => c.url.endsWith("/save"))).toHaveLength(1));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Send" })).toBeTruthy());
+    expect(screen.queryByLabelText(/Why not/)).toBeNull();
+    await act(() => {
+      fireEvent.click(screen.getByRole("button", { name: "Send" }));
+      return Promise.resolve();
+    });
+    await waitFor(() => expect(calls.filter((c) => c.url.endsWith("/save"))).toHaveLength(2));
+    expect(calls.filter((c) => c.url.endsWith("/save"))[1]!.body).toMatchObject({ sectionKey: "habits" });
+    expect(document.querySelector("[data-error-summary]")).toBeNull();
+  });
+});

@@ -422,6 +422,53 @@ describe("C1 to C5 consent, A5 tags", () => {
   });
 });
 
+describe("fix-w09-forms-review: saveSection reads earlier sections for visibility (finding 3)", () => {
+  /** contact (with `smoker`) -> habits: `cigarettes` shown when smoker, `why_not` required unless smoker. */
+  function twoSections() {
+    const l = lead();
+    const d = l.definition;
+    d.fields.smoker = { key: "smoker", type: "yes_no", label: { en: "Smoker?", "nl-BE": "Roker?", "fr-BE": "Fumeur ?" }, required: false, sensitive: false };
+    d.fields.cigarettes = { key: "cigarettes", type: "short_text", label: { en: "How many?", "nl-BE": "Hoeveel?", "fr-BE": "Combien ?" }, required: false, sensitive: false, visibleIf: { field: "smoker", op: "eq", value: true } };
+    d.fields.why_not = { key: "why_not", type: "short_text", label: { en: "Why not?", "nl-BE": "Waarom niet?", "fr-BE": "Pourquoi pas ?" }, required: true, sensitive: false, visibleIf: { not: { field: "smoker", op: "eq", value: true } } };
+    d.sections[0]!.fieldKeys.push("smoker");
+    d.sections.push({ key: "habits", fieldKeys: ["cigarettes", "why_not"] });
+    return l;
+  }
+
+  it("eq: a section-2 answer shown by a section-1 answer is stored; not: a hidden required field does not block the save", async () => {
+    const { signSubmissionId } = await import("./tokens");
+    const f = await createForm(h.db, twoSections());
+    const s = await start(f.slug);
+    const proof = { fsid: signSubmissionId(s.submissionId) };
+    const ctx = publicCtx(h.db, later(T0, 10));
+    const first = await saveSection(ctx.tx, ctx, { submissionId: s.submissionId, proof, sectionKey: "contact", answers: { email: email(), first_name: "Kim", smoker: true } });
+    expect(first.next).toEqual({ sectionKey: "habits" });
+    const r = await saveSection(ctx.tx, ctx, { submissionId: s.submissionId, proof, sectionKey: "habits", answers: { cigarettes: "five" } });
+    expect(r.next).toMatchObject({ end: true });
+    const sub = await row(s.submissionId);
+    expect(sub.answers).toMatchObject({ smoker: true, cigarettes: "five" });
+    expect(sub.answers).not.toHaveProperty("why_not");
+    expect(sub.path).toEqual(["contact", "habits"]);
+  });
+
+  it("not smoker: the shown required field is still required and the hidden answer is dropped", async () => {
+    const { signSubmissionId } = await import("./tokens");
+    const f = await createForm(h.db, twoSections());
+    const s = await start(f.slug);
+    const proof = { fsid: signSubmissionId(s.submissionId) };
+    const ctx = publicCtx(h.db, later(T0, 10));
+    await saveSection(ctx.tx, ctx, { submissionId: s.submissionId, proof, sectionKey: "contact", answers: { email: email(), first_name: "Kim", smoker: false } });
+    await expect(saveSection(ctx.tx, ctx, { submissionId: s.submissionId, proof, sectionKey: "habits", answers: { cigarettes: "five" } })).rejects.toMatchObject({
+      code: "validation",
+      fields: { why_not: "required" },
+    });
+    await saveSection(ctx.tx, ctx, { submissionId: s.submissionId, proof, sectionKey: "habits", answers: { cigarettes: "five", why_not: "never liked it" } });
+    const sub = await row(s.submissionId);
+    expect(sub.answers).toMatchObject({ why_not: "never liked it" });
+    expect(sub.answers).not.toHaveProperty("cigarettes");
+  });
+});
+
 describe("fix-w09-forms-review: ID9-linked submissions at submit (finding 2)", () => {
   it("an existing person linked at the save keeps the stored names; the differing values are profile_conflicts", async () => {
     const { signSubmissionId } = await import("./tokens");

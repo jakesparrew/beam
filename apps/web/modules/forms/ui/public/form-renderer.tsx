@@ -16,7 +16,7 @@
  * - `mode: 'embed'` posts its height to the parent (`beam-form:height`).
  */
 import { useCallback, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { computeScore, isVisible, nextStep, validateAnswers, type AnswerValue, type Answers, type EndingKind, type FormDefinition, type FormKind, type FormScoring, type ScoreState } from "@beam/core/forms";
+import { computeScore, isVisible, nextStep, validateSection, type AnswerValue, type Answers, type EndingKind, type FormDefinition, type FormKind, type FormScoring, type ScoreState } from "@beam/core/forms";
 import type { Locale } from "@beam/core/i18n";
 import { Button } from "@beam/ui";
 import { errorText, FieldInput, Markdown, type PublicLabels } from "./field-inputs";
@@ -317,7 +317,8 @@ export function FormRenderer(p: FormRendererProps) {
 
   const onNext = async () => {
     if (status === "saving" || status === "retrying") return;
-    const v = validateAnswers(def, [section.key], { ...answers, ...hiddenValues(def, query) }, { final: true }, scoring);
+    // L4: visibility in this section reads the answers of the sections before it.
+    const v = validateSection(def, history, section.key, { ...answers, ...hiddenValues(def, query) }, scoring);
     const fieldErrors = v.ok ? {} : Object.fromEntries(Object.entries(v.fields).filter(([k]) => !known.has(k)));
     if (Object.keys(fieldErrors).length) {
       setErrors(fieldErrors);

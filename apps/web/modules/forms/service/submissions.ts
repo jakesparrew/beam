@@ -32,6 +32,7 @@ import {
   SENSITIVE_CONSENT_AGE,
   splitScore,
   validateAnswers,
+  validateSection,
   type Answers,
   type Ending,
   type FormDefinition,
@@ -445,7 +446,8 @@ export async function saveSection(
 
   const stored = (l.sub.answers ?? {}) as Answers;
   const merged: Answers = { ...stored, ...i.answers };
-  const v = validateAnswers(l.definition, [i.sectionKey], merged, { final: true }, l.scoring);
+  // L4: this section's visibility reads the answers of the sections before it on the path.
+  const v = validateSection(l.definition, l.sub.path, i.sectionKey, merged, l.scoring);
   if (!v.ok) throw new ValidationError("validation", v.fields);
 
   const sensitiveKeys = new Set(deriveSensitiveKeys(l.definition, l.scoring));

@@ -47,6 +47,8 @@ to "Served" with the package id.
 | finance-P2 | finance (schema fixer) | `chk_invoices_party` refuses a POS company invoice with billing details but no person and no CRM company (snapshot kind `company`, `person_id` and `company_id` null): allow a company snapshot with a VAT number, or require a CRM company for POS company invoices. |
 | finance-P2 | finance-P3 | Register `finance.render_pdf` (payload `{ invoiceId }`, key `invoice_pdf:<id>`); add catalogue keys `finance.pdf.walk_in` and `finance.pdf.partial_credit`. |
 | finance-P2 | finance-P4 | Register `billit.push_payment` (`{ invoiceId }`, key `billit:payment:<id>`) and `billit.push_customer` (`{ partyKey }`, key `billit:customer:<party_key>:<hash8>`). |
+| commerce-P3 | commerce-P4a (owner of `api.ts`) | Wire `getQuote`, `getProductPrice`, `listPublicPrices` and `getProductCards` in `apps/web/modules/commerce/api.ts` to `./server/catalogue` (built with the exact api signatures; api.ts still has the throwing stubs). |
+| commerce-P3 | commerce (owner of `events.ts`) | Declare the event kind `person_price.set`; until then `setPersonPrice` writes only its audit row. |
 
 ## Served
 

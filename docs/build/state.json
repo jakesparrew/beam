@@ -184,18 +184,28 @@
       "attempts": 0
     },
     "email-P1": {
-      "status": "running",
+      "status": "merged",
       "attempts": 2,
       "baseSha": "4ce9b47",
       "runId": "wf_f28adbd9-667",
-      "startedAt": "2026-11-04T00:50:47Z"
+      "startedAt": "2026-11-04T00:50:47Z",
+      "branchSha": "39a9aab",
+      "endedAt": "2026-11-04T01:06:44Z",
+      "minutes": 53,
+      "mergeSha": "77efa64",
+      "mergedAt": "2026-11-04T01:15:00Z"
     },
     "automation-P1": {
-      "status": "running",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "47d3945",
       "runId": "wf_57e85abd-a3a",
-      "startedAt": "2026-11-04T00:33:51Z"
+      "startedAt": "2026-11-04T00:33:51Z",
+      "branchSha": "0a51932",
+      "endedAt": "2026-11-04T01:06:44Z",
+      "minutes": 30,
+      "mergeSha": "ae87a59",
+      "mergedAt": "2026-11-04T01:15:38Z"
     },
     "ops-P1": {
       "status": "running",

@@ -64,3 +64,6 @@ One entry per merge batch and gate (runbook section 5.7, adapted by OD-3).
 - site-P1: 42 min, merged as `4219fa2`, migrations 0013_w04.sql 0014_w04_views.sql 0015_w04_protect.sql; gate `g21-site-P1` (merge) green, peak 7167 MB.
 - forms-P1: 26 min, merged as `f721080`, migrations 0016_w04.sql 0017_w04_views.sql; gate `g22-forms-P1` (merge) green, peak 4668 MB.
 - 01:06 UTC: started fix-w04-platform-3 (frozen platform tests and factories), platform-P8 (admin screens; also the module nav requests) and finance-P1 from `11fffe1`. fix-w04-platform-4 (27 review findings) runs after platform-P8 and the fixer land.
+- email-P1: merged as `77efa64` in batch `g23-batch`.
+- automation-P1: merged as `ae87a59` in batch `g23-batch`.
+- Batch `g23-batch` (email-P1 automation-P1): migrations 0018_w04.sql 0019_w04_views.sql 0020_w04_protect.sql; merge gate green, peak 6616 MB.

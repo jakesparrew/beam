@@ -245,7 +245,7 @@ export function BlockInspector({ block, onChange, labels, mergeFields, warnings,
       break;
   }
   return (
-    <div className="grid gap-3" aria-label={lab(labels, "inspector")}>
+    <div className="grid gap-3" aria-label={lab(labels, "inspector")} data-testid="block-inspector">
       <h2 className="text-sm font-semibold">{lab(labels, `type_${block.type}`)}</h2>
       {warnings.length ? (
         <Alert>

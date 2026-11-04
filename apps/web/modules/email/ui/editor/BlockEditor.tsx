@@ -253,7 +253,7 @@ export function BlockEditor(props: BlockEditorProps) {
           {!blocks.length ? (
             <div className="flex flex-wrap gap-2">
               {LOCALES.filter((l) => l !== locale && (doc.locales[l]?.length ?? 0) > 0).map((l) => (
-                <Button key={l} type="button" size="sm" variant="outline" disabled={disabled} onClick={() => copyFrom(l)}>
+                <Button key={l} type="button" size="sm" variant="outline" disabled={disabled} onClick={() => copyFrom(l)} data-testid={`copy-from-${l}`}>
                   {lab(labels, "copy_from", { locale: props.localeNames[l] })}
                 </Button>
               ))}

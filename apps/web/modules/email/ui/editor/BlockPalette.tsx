@@ -22,7 +22,7 @@ export type BlockPaletteProps = {
 
 export function BlockPalette({ onAdd, types = BLOCK_TYPES, labels, disabled, compact }: BlockPaletteProps) {
   return (
-    <div className={compact ? "flex flex-wrap gap-1" : "grid gap-2"} role="group" aria-label={lab(labels, "palette")}>
+    <div className={compact ? "flex flex-wrap gap-1" : "grid gap-2"} role="group" aria-label={lab(labels, "palette")} data-testid={compact ? "block-palette-inline" : "block-palette"}>
       {compact ? null : <h2 className="text-sm font-semibold">{lab(labels, "palette")}</h2>}
       {types.map((type) => (
         <Button key={type} type="button" size="sm" variant={compact ? "outline" : "secondary"} disabled={disabled} onClick={() => onAdd(type)} data-block-type={type} className={compact ? "" : "justify-start"}>

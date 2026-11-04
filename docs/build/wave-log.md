@@ -118,3 +118,4 @@ One entry per merge batch and gate (runbook section 5.7, adapted by OD-3).
 - finance-P3: merged as `4be1f32` in batch `g47-batch`.
 - commerce-P4a: merged as `023b05b` in batch `g47-batch`.
 - Batch `g47-batch` (email-P3 finance-P3 commerce-P4a): migrations 0028_w06_views.sql; merge gate green, peak 4663 MB.
+- Batch `g46` (fix-w06-platform-1, ops-P2, booking-P2, ops-P4) green in 489 s; batch `g47` (email-P3, finance-P3, commerce-P4a) green in 600 s. booking-P3b attempt 2 (health route test pinned its stub) and site-P5 (36 min) done. 38 of 80 V1 packages merged. Started commerce-P4b, finance-P4 (with the Billit stub test), crm-P4, crm-P5, forms-P3, credits-P5 from `a8d4d68`.

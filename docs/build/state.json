@@ -286,8 +286,11 @@
       "mergedAt": "2026-11-04T02:31:55Z"
     },
     "crm-P4": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "a8d4d68",
+      "runId": "wf_aba3a8a6-080",
+      "startedAt": "2026-11-04T05:51:03Z"
     },
     "booking-P2": {
       "status": "merged",
@@ -350,8 +353,11 @@
       "mergedAt": "2026-11-04T04:10:00Z"
     },
     "forms-P3": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "a8d4d68",
+      "runId": "wf_46554cd4-776",
+      "startedAt": "2026-11-04T05:51:03Z"
     },
     "email-P2": {
       "status": "merged",
@@ -405,8 +411,11 @@
       "mergedAt": "2026-11-04T03:16:33Z"
     },
     "crm-P5": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "a8d4d68",
+      "runId": "wf_04ab041f-c15",
+      "startedAt": "2026-11-04T05:51:03Z"
     },
     "crm-P6": {
       "status": "merged",
@@ -528,19 +537,28 @@
       "attempts": 0
     },
     "commerce-P4b": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "a8d4d68",
+      "runId": "wf_2ff6ac9b-9de",
+      "startedAt": "2026-11-04T05:51:02Z"
     },
     "credits-P5": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "a8d4d68",
+      "runId": "wf_8ec46f8c-734",
+      "startedAt": "2026-11-04T05:51:03Z"
     },
     "finance-P4": {
-      "status": "pending",
-      "attempts": 0,
+      "status": "running",
+      "attempts": 1,
       "extraOwns": [
         "packages/integrations/src/_shared/platform-p3.shared.test.ts"
-      ]
+      ],
+      "baseSha": "a8d4d68",
+      "runId": "wf_0e533520-444",
+      "startedAt": "2026-11-04T05:51:02Z"
     },
     "forms-P5": {
       "status": "pending",

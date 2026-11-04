@@ -14,7 +14,8 @@ type Inline = { kind: "para"; lines: string[] } | { kind: "ul"; items: string[] 
 const TOKEN_RE = /\{\{[^{}]*\}\}/g;
 const BULLET_RE = /^\s*[-*]\s+(.*)$/;
 const NUMBER_RE = /^\s*\d+[.)]\s+(.*)$/;
-const LINK_RE = /\[([^\]]+)\]\(((?:https:\/\/|mailto:|\{\{)[^\s)]*)\)/g;
+/** `[label](href)`; the href may start with a shielded token (`\uE000n\uE000`). */
+const LINK_RE = /\[([^\]]+)\]\(((?:https:\/\/|mailto:|\{\{|\uE000)[^\s)]*)\)/g;
 
 /** Splits Markdown into paragraphs and lists. */
 function parseBlocks(markdown: string): Inline[] {
@@ -47,9 +48,9 @@ function shield(text: string): { text: string; restore: (s: string) => string } 
   const tokens: string[] = [];
   const shielded = text.replace(TOKEN_RE, (m) => {
     tokens.push(m);
-    return `\u0000${tokens.length - 1}\u0000`;
+    return `\uE000${tokens.length - 1}\uE000`;
   });
-  return { text: shielded, restore: (s) => s.replace(/\u0000(\d+)\u0000/g, (_m, i: string) => tokens[Number(i)] ?? "") };
+  return { text: shielded, restore: (s) => s.replace(/\uE000(\d+)\uE000/g, (_m, i: string) => tokens[Number(i)] ?? "") };
 }
 
 function inlineHtml(text: string, linkStyle: string): string {
@@ -57,10 +58,10 @@ function inlineHtml(text: string, linkStyle: string): string {
   const links: string[] = [];
   let out = s.replace(LINK_RE, (_m, label: string, href: string) => {
     links.push(`<a href="${escapeHtml(restore(href))}" style="${linkStyle}">${emphasis(escapeHtml(label))}</a>`);
-    return `\u0001${links.length - 1}\u0001`;
+    return `\uE001${links.length - 1}\uE001`;
   });
   out = emphasis(escapeHtml(out));
-  out = out.replace(/\u0001(\d+)\u0001/g, (_m, i: string) => links[Number(i)] ?? "");
+  out = out.replace(/\uE001(\d+)\uE001/g, (_m, i: string) => links[Number(i)] ?? "");
   return restore(out);
 }
 
@@ -79,6 +80,12 @@ function inlineText(text: string): string {
     .replace(/(^|[^*\w])\*(?=\S)([^*]*?\S)\*(?!\*)/g, "$1$2")
     .replace(/(^|[^\w])_(?=\S)([^_]*?\S)_(?!\w)/g, "$1$2");
   return restore(out);
+}
+
+/** HTML-escapes plain text but keeps `{{token|fallback}}` raw, so `personalise()` escapes the value once. */
+export function escapeKeepingTokens(text: string): string {
+  const { text: s, restore } = shield(text);
+  return restore(escapeHtml(s));
 }
 
 export type MarkdownHtmlOptions = { linkColor?: string; paragraphStyle?: string };

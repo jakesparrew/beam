@@ -128,6 +128,41 @@ export const CATEGORY_NAMES: Readonly<Record<Locale, Record<MarketingPurpose, st
   "fr-BE": { newsletter: "Newsletter", events: "Événements", member_comms: "Nouvelles des membres", b2b: "Professionnel" },
 };
 
+/**
+ * Defaults of `settings.email_footer` (email-P3 declares the setting with these values; staff
+ * edit them). `{date}` is the consent date of the recipient for the purpose (marketing only).
+ */
+export const DEFAULT_FOOTER_SETTINGS: FooterSettings = {
+  rpr: { "nl-BE": "RPR Gent", "fr-BE": "RPM Gand", en: "RLE Ghent" },
+  reasons: {
+    transactional: {
+      en: "You receive this email because of your account, booking or purchase with BEAM Vitality Center.",
+      "nl-BE": "Je ontvangt deze e-mail omdat je een account, boeking of aankoop hebt bij BEAM Vitality Center.",
+      "fr-BE": "Vous recevez cet e-mail en raison de votre compte, réservation ou achat chez BEAM Vitality Center.",
+    },
+    newsletter: {
+      en: "You receive it because you subscribed to the BEAM newsletter on {date}.",
+      "nl-BE": "Je ontvangt deze boodschap omdat je je op {date} hebt ingeschreven voor de BEAM-nieuwsbrief.",
+      "fr-BE": "Vous la recevez parce que vous vous êtes inscrit à la newsletter BEAM le {date}.",
+    },
+    events: {
+      en: "You receive it because you asked for news about BEAM events on {date}.",
+      "nl-BE": "Je ontvangt deze boodschap omdat je op {date} nieuws over BEAM-evenementen hebt gevraagd.",
+      "fr-BE": "Vous la recevez parce que vous avez demandé des nouvelles des événements BEAM le {date}.",
+    },
+    member_comms: {
+      en: "You receive it because you are a BEAM member and agreed to member news on {date}.",
+      "nl-BE": "Je ontvangt deze boodschap omdat je lid bent van BEAM en op {date} hebt ingestemd met ledennieuws.",
+      "fr-BE": "Vous la recevez parce que vous êtes membre de BEAM et avez accepté les nouvelles des membres le {date}.",
+    },
+    b2b: {
+      en: "You receive it because your organisation agreed to business emails from BEAM on {date}.",
+      "nl-BE": "Je ontvangt deze boodschap omdat je organisatie op {date} heeft ingestemd met zakelijke e-mails van BEAM.",
+      "fr-BE": "Vous la recevez parce que votre organisation a accepté les e-mails professionnels de BEAM le {date}.",
+    },
+  },
+};
+
 /** `BE0123456789` (or `0123456789`, `0123.456.789`) -> `BE 0123.456.789`. */
 export function formatEnterpriseNumber(vatNumber: string): string {
   const digits = vatNumber.replace(/[^0-9]/g, "");
@@ -171,12 +206,13 @@ function model(input: BuildFooterInput): FooterModel {
   const rpr = pick(input.footerSettings.rpr, locale, "email_footer.rpr");
   const reasonText = input.footerSettings.reasons?.[purpose];
   if (!reasonText?.[locale]?.trim()) throw new MissingTranslationError([locale], `email_footer.reasons.${purpose}`);
-  let reason = reasonText[locale] as string;
+  let reason = reasonText[locale];
   if (purpose !== "transactional" && input.consentDate) {
     reason = reason.replace(/\{date\}/g, formatDate(input.consentDate, locale, "long"));
   } else {
     reason = reason
-      .replace(/\s*\{date\}/g, "")
+      // Without a date the phrase "on {date}" / "op {date}" / "le {date}" goes as a whole.
+      .replace(/\s*(?:\b(?:on|op|le|since|sinds|depuis)\s+)?\{date\}/g, "")
       .replace(/\s+([.,;:])/g, "$1")
       .trim();
   }

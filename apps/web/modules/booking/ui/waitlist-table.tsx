@@ -94,7 +94,7 @@ function Row({ row, labels, onDone }: { row: WaitlistTableRow; labels: WaitlistT
         {open ? (
           <div className="flex flex-wrap items-center gap-2">
             {row.state === "waiting" ? (
-              <Button size="sm" disabled={pending} onClick={() => run(() => offerSeatManually({ entryId: row.entryId }))}>
+              <Button size="sm" disabled={pending} onClick={() => void run(() => offerSeatManually({ entryId: row.entryId }))}>
                 {labels.offerSeat}
               </Button>
             ) : null}
@@ -106,7 +106,7 @@ function Row({ row, labels, onDone }: { row: WaitlistTableRow; labels: WaitlistT
               className={selectClass}
               value={row.queue}
               disabled={pending}
-              onChange={(e) => run(() => moveWaitlistEntry({ entryId: row.entryId, queue: e.target.value as Queue }))}
+              onChange={(e) => void run(() => moveWaitlistEntry({ entryId: row.entryId, queue: e.target.value as Queue }))}
             >
               {(Object.keys(labels.queues) as Queue[]).map((q) => (
                 <option key={q} value={q}>
@@ -118,22 +118,22 @@ function Row({ row, labels, onDone }: { row: WaitlistTableRow; labels: WaitlistT
               {labels.reorder}
             </label>
             <Input id={`joined-${row.entryId}`} type="datetime-local" className="h-9 w-48" value={joinedAt} onChange={(e) => setJoinedAt(e.target.value)} />
-            <Button size="sm" variant="outline" disabled={pending || !joinedAt} onClick={() => run(() => moveWaitlistEntry({ entryId: row.entryId, joinedAt: new Date(joinedAt).toISOString() }))}>
+            <Button size="sm" variant="outline" disabled={pending || !joinedAt} onClick={() => void run(() => moveWaitlistEntry({ entryId: row.entryId, joinedAt: new Date(joinedAt).toISOString() }))}>
               {labels.reorder}
             </Button>
             <label className="sr-only" htmlFor={`reason-${row.entryId}`}>
               {labels.reason}
             </label>
             <Input id={`reason-${row.entryId}`} className="h-9 w-48" placeholder={labels.reason} value={reason} onChange={(e) => setReason(e.target.value)} />
-            <Button size="sm" variant="outline" disabled={pending || !reason.trim()} onClick={() => run(() => releaseWaitlistEntry({ entryId: row.entryId, reason }))}>
+            <Button size="sm" variant="outline" disabled={pending || !reason.trim()} onClick={() => void run(() => releaseWaitlistEntry({ entryId: row.entryId, reason }))}>
               {labels.release}
             </Button>
             {row.isFlagged && row.state === "waiting" ? (
               <>
-                <Button size="sm" variant="secondary" disabled={pending || !reason.trim()} onClick={() => run(() => reviewWaitlistFlag({ entryId: row.entryId, decision: "clear", note: reason }))}>
+                <Button size="sm" variant="secondary" disabled={pending || !reason.trim()} onClick={() => void run(() => reviewWaitlistFlag({ entryId: row.entryId, decision: "clear", note: reason }))}>
                   {labels.clearFlag}
                 </Button>
-                <Button size="sm" variant="destructive" disabled={pending || !reason.trim()} onClick={() => run(() => reviewWaitlistFlag({ entryId: row.entryId, decision: "withdraw", note: reason }))}>
+                <Button size="sm" variant="destructive" disabled={pending || !reason.trim()} onClick={() => void run(() => reviewWaitlistFlag({ entryId: row.entryId, decision: "withdraw", note: reason }))}>
                   {labels.withdraw}
                 </Button>
               </>

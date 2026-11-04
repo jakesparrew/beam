@@ -31,8 +31,9 @@ export default async function MyWaitlistPage({ params, searchParams }: { params:
 
   async function act(formData: FormData) {
     "use server";
-    const op = String(formData.get("op") ?? "");
-    const id = String(formData.get("id") ?? "");
+    const field = (k: string) => { const v = formData.get(k); return typeof v === "string" ? v : ""; };
+    const op = field("op");
+    const id = field("id");
     const res =
       op === "withdraw"
         ? await withdrawFromWaitlist({ entryId: id })

@@ -37,7 +37,7 @@ const claim = (actor: Actor, token: string, payWith?: "credit" | "order", now?: 
 const grant = (personId: string) => makeCreditGrant(h.db, { personId, units: 3, startsAt: new Date(Date.now() - 30 * DAY), expiresAt: new Date(Date.now() + 60 * DAY) });
 
 /** A full session whose only seat is held by the person's live offer. */
-async function offerSetup(sessionOverrides: Parameters<typeof fullSession>[1]["overrides"] = {}) {
+async function offerSetup(sessionOverrides: NonNullable<NonNullable<Parameters<typeof fullSession>[1]>["overrides"]> = {}) {
   const { session } = await fullSession(h.db, { seats: 1, overrides: sessionOverrides });
   await h.db.update(bookings).set({ status: "cancelled", cancelledAt: new Date(), cancelReasonCode: "customer" }).where(eq(bookings.sessionId, session.id));
   const person = await makePerson(h.db);

@@ -112,6 +112,6 @@ export function factoryCreateOrder(calls: CreateOrderInput[] = []) {
       });
       lineIds.push(line.id);
     }
-    return { orderId: order.id, reference: order.reference, lineIds, totalCents: order.totalCents, status: order.status, expiresAt, isExisting: false } as CreateOrderResult;
+    return { orderId: order.id, reference: order.reference, lineIds, totalCents: order.totalCents, status: order.status, expiresAt, isExisting: false };
   };
 }

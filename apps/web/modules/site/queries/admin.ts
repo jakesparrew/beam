@@ -7,7 +7,7 @@
 import type { DbOrTx } from "@beam/db";
 import { auditLog, files, mediaAssets, navMenus, pageEditRequests, pageRoutes, pages, pageVersions, products, redirects, sessions, users } from "@beam/db/schema";
 import { NotImplementedError } from "@beam/core/errors";
-import { LOCALES, type Locale, type LocalizedText } from "@beam/core/i18n";
+import { LOCALES, messagesFor, type Locale, type LocalizedText } from "@beam/core/i18n";
 import { LEGAL_KEYS, missingCompanyIdentification, type LegalKey, type NavItem, type PageKind, type PageStatus, type PageVersionState, type PublishIssue, type VersionContent } from "@beam/core/site";
 import { ilike } from "drizzle-orm";
 import { and, desc, eq, getAppDb, gte, inArray, isNotNull, lt, ne, or, sql } from "@/lib/ctx";
@@ -24,7 +24,7 @@ const iso = (d: Date | null | undefined): string | null => (d ? d.toISOString() 
 export function titleIn(title: LocalizedText | null | undefined, locale: Locale, fallback: string): string {
   const own = title?.[locale]?.trim();
   if (own) return own;
-  for (const l of LOCALES) if (title?.[l]?.trim()) return title[l]!.trim();
+  for (const l of LOCALES) if (title?.[l]?.trim()) return title[l].trim();
   return fallback;
 }
 
@@ -73,10 +73,10 @@ export async function listPagesForAdmin(filter: { kind?: PageKind; status?: Page
     const scheduled = mine.map((o) => o.scheduled).filter((s): s is Date => !!s).sort((a, b) => a.getTime() - b.getTime())[0];
     return {
       pageId: page.id,
-      kind: page.kind as PageKind,
+      kind: page.kind,
       slug: page.slug,
-      status: page.status as PageStatus,
-      legalKey: (page.legalKey as LegalKey | null) ?? null,
+      status: page.status,
+      legalKey: (page.legalKey) ?? null,
       title: titleIn(current?.title ?? draft?.title, locale, page.slug),
       liveVersion: page.status === "published" ? (current?.version ?? null) : null,
       draftVersionId: draft?.id ?? null,
@@ -112,10 +112,10 @@ function toAdminVersion(row: VersionRow, names: Map<string, string>): AdminVersi
     versionId: row.id,
     pageId: row.pageId,
     version: row.version,
-    state: row.state as PageVersionState,
+    state: row.state,
     changeSummary: row.changeSummary ?? null,
     basedOnVersionId: row.basedOnVersionId ?? null,
-    createdBy: row.createdBy as "user" | "claude",
+    createdBy: row.createdBy,
     createdByName: row.createdByUserId ? (names.get(row.createdByUserId) ?? null) : null,
     scheduledPublishAt: iso(row.scheduledPublishAt),
     publishedAt: iso(row.publishedAt),
@@ -191,10 +191,10 @@ export async function getPageEditor(pageId: string, db?: DbOrTx): Promise<PageEd
   return {
     page: {
       pageId: page.id,
-      kind: page.kind as PageKind,
+      kind: page.kind,
       slug: page.slug,
-      status: page.status as PageStatus,
-      legalKey: (page.legalKey as LegalKey | null) ?? null,
+      status: page.status,
+      legalKey: (page.legalKey) ?? null,
       sessionId: page.sessionId ?? null,
       currentVersionId: page.currentVersionId ?? null,
       updatedAt: page.updatedAt.toISOString(),
@@ -268,7 +268,7 @@ export async function listMedia(opts: { q?: string; cursor?: string } = {}, db?:
       isDecorative: m.isDecorative,
       caption: m.caption ?? null,
       credit: m.credit ?? null,
-      source: m.source as "upload" | "wordpress",
+      source: m.source,
       usage: texts.filter((t) => t.includes(m.id)).length,
       createdAt: m.createdAt.toISOString(),
     })),
@@ -317,11 +317,11 @@ export async function listRedirects(
       id: r.id,
       fromPath: r.fromPath,
       toPageId: r.toPageId ?? null,
-      toLocale: (r.toLocale as Locale | null) ?? null,
+      toLocale: (r.toLocale) ?? null,
       toUrl: r.toUrl ?? null,
       toLabel: r.toUrl ?? `${titleIn(title, locale, slug ?? "")} (${r.toLocale})`,
       isPermanent: r.isPermanent,
-      source: r.source as AdminRedirectRow["source"],
+      source: r.source,
       hits: r.hits,
       lastHitAt: iso(r.lastHitAt),
     })),
@@ -341,7 +341,7 @@ export async function listNavMenusForAdmin(db?: DbOrTx): Promise<AdminNavMenu[]>
   const out: AdminNavMenu[] = [];
   for (const key of ["header", "footer", "legal"] as const) {
     const row = rows.find((r) => r.key === key);
-    const items = (row?.items ?? []) as NavItem[];
+    const items = (row?.items ?? []);
     const hidden = (await hiddenNavTargets(d, key, items)).map((h) => ({ itemId: h.itemId, locale: h.locale }));
     out.push({ key, items, version: row?.version ?? 0, hidden });
   }
@@ -461,7 +461,7 @@ export async function getContentIssues(db?: DbOrTx, opts: { locale?: Locale; now
   // Menu items pointing at hidden pages (rule 24).
   const menus = await d.select().from(navMenus);
   for (const m of menus) {
-    for (const h of await hiddenNavTargets(d, m.key, (m.items ?? []) as NavItem[])) {
+    for (const h of await hiddenNavTargets(d, m.key, (m.items ?? []))) {
       out.push({ code: "nav_target_hidden", goLive: false, pageId: h.pageId, locale: h.locale, details: [m.key, h.itemId], title: byId.has(h.pageId) ? titleOf(h.pageId) : undefined });
     }
   }
@@ -520,10 +520,29 @@ export async function getEditorPickers(locale: Locale = "en", db?: DbOrTx, now: 
   }
   const media = await listMedia({}, d);
   return {
-    pages: pageRows.map((p) => ({ id: p.id, label: titleIn(p.title, locale, p.slug), hint: p.slug, status: p.status as PageStatus })),
+    pages: pageRows.map((p) => ({ id: p.id, label: titleIn(p.title, locale, p.slug), hint: p.slug, status: p.status })),
     products: productRows.map((p) => ({ id: p.id, label: titleIn(p.name, locale, p.sku), hint: p.sku })),
     sessions: sessionRows.map((s) => ({ id: s.id, label: titleIn(s.title, locale, s.id), hint: s.startsAt.toISOString() })),
     forms,
     media: media.rows.map((m) => ({ id: m.mediaId, fileId: m.fileId, label: titleIn(m.alt, locale, m.name), width: m.width, height: m.height, alt: m.alt, isDecorative: m.isDecorative })),
   };
+}
+
+// ---------------------------------------------------------------------------------------------
+// Labels for the client components (`site.admin.*`, flattened: `editor.save`, `issue.path_taken`)
+// ---------------------------------------------------------------------------------------------
+
+export type SiteAdminLabels = Record<string, string>;
+
+export function siteAdminLabels(locale: Locale): SiteAdminLabels {
+  const tree = ((messagesFor(locale, ["site"]).site as Record<string, unknown> | undefined)?.admin ?? {}) as Record<string, unknown>;
+  const out: SiteAdminLabels = {};
+  const walk = (node: Record<string, unknown>, prefix: string) => {
+    for (const [k, v] of Object.entries(node)) {
+      if (typeof v === "string") out[`${prefix}${k}`] = v;
+      else if (v && typeof v === "object") walk(v as Record<string, unknown>, `${prefix}${k}.`);
+    }
+  };
+  walk(tree, "");
+  return out;
 }

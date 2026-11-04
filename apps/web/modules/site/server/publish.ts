@@ -8,7 +8,7 @@
 import type { Tx } from "@beam/db";
 import { pageEditRequests, pageRoutes, pages, pageVersions, redirects } from "@beam/db/schema";
 import { LOCALES, type Locale } from "@beam/core/i18n";
-import { localePath, portalPath, SINGLETON_KINDS, type Link, type PageKind, type PublishIssue } from "@beam/core/site";
+import { localePath, portalPath, SINGLETON_KINDS, type Link, type PublishIssue } from "@beam/core/site";
 import { and, ConflictError, eq, inArray, ne, sql, ValidationError, type Ctx } from "@/lib/ctx";
 import { checkVersion, prefixedPaths } from "./refs";
 import { getVersionOrThrow, lockPage, versionContent, type PageRow } from "./versions";
@@ -264,7 +264,7 @@ export async function restoreArchivedPageTx(tx: Tx, ctx: Ctx, pageId: string): P
     if (row) throw new ConflictError(`${what}_taken:${row.slug}`);
   };
   await holder("slug", eq(pages.slug, page.slug));
-  if (SINGLETON_KINDS.includes(page.kind as PageKind)) await holder("kind", eq(pages.kind, page.kind));
+  if (SINGLETON_KINDS.includes(page.kind)) await holder("kind", eq(pages.kind, page.kind));
   if (page.legalKey) await holder("legal_key", eq(pages.legalKey, page.legalKey));
   if (page.sessionId) await holder("session", eq(pages.sessionId, page.sessionId));
   let removed: string[] = [];

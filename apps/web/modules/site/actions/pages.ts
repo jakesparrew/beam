@@ -123,7 +123,7 @@ export const saveDraft = action(
     const content: VersionContent & { changeSummary: string | null } = {
       title: input.title,
       paths: input.paths,
-      blocks: input.blocks as VersionContent["blocks"],
+      blocks: input.blocks,
       seo: input.seo,
       excerpt: input.excerpt ?? null,
       coverMediaId: input.coverMediaId ?? null,

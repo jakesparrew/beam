@@ -4,7 +4,7 @@
  * the audit digest depends on the content only.
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import type { DbHandle, Tx } from "@beam/db";
+import type { DbHandle } from "@beam/db";
 import { pages, pageVersions } from "@beam/db/schema";
 import { createTestDb } from "@beam/db/testing";
 import { eq } from "@/lib/ctx";
@@ -29,15 +29,15 @@ describe("allocateVersion and insertDraft", () => {
   it("numbers versions max + 1 and keeps one draft per page", async () => {
     const pageId = await newPage();
     await h.db.transaction(async (tx) => {
-      expect(await allocateVersion(tx as Tx, pageId)).toBe(1);
-      const d = await insertDraft(tx as Tx, { pageId, content: publishable("a"), basedOnVersionId: null, userId: null });
+      expect(await allocateVersion(tx, pageId)).toBe(1);
+      const d = await insertDraft(tx, { pageId, content: publishable("a"), basedOnVersionId: null, userId: null });
       expect(d.version).toBe(1);
-      await expect(insertDraft(tx as Tx, { pageId, content: publishable("b"), basedOnVersionId: null, userId: null })).rejects.toBeInstanceOf(ConflictError);
+      await expect(insertDraft(tx, { pageId, content: publishable("b"), basedOnVersionId: null, userId: null })).rejects.toBeInstanceOf(ConflictError);
     });
     await h.db.update(pageVersions).set({ state: "published", publishedAt: new Date() }).where(eq(pageVersions.pageId, pageId));
     await h.db.transaction(async (tx) => {
-      expect(await allocateVersion(tx as Tx, pageId)).toBe(2);
-      const d2 = await insertDraft(tx as Tx, { pageId, content: publishable("c"), basedOnVersionId: null, userId: null });
+      expect(await allocateVersion(tx, pageId)).toBe(2);
+      const d2 = await insertDraft(tx, { pageId, content: publishable("c"), basedOnVersionId: null, userId: null });
       expect(d2.version).toBe(2);
       expect((await findDraft(tx, pageId))?.id).toBe(d2.id);
     });
@@ -54,15 +54,15 @@ describe("assertMutable and updateDraftContent", () => {
 
   it("updates a draft, moves updated_at forward and never touches a published row", async () => {
     const pageId = await newPage();
-    const draft = await h.db.transaction((tx) => insertDraft(tx as Tx, { pageId, content: publishable("d"), basedOnVersionId: null, userId: null }));
-    const next = await h.db.transaction((tx) => updateDraftContent(tx as Tx, draft, { ...publishable("d"), title: { en: "New" } }));
+    const draft = await h.db.transaction((tx) => insertDraft(tx, { pageId, content: publishable("d"), basedOnVersionId: null, userId: null }));
+    const next = await h.db.transaction((tx) => updateDraftContent(tx, draft, { ...publishable("d"), title: { en: "New" } }));
     expect(next.title).toEqual({ en: "New" });
     expect(next.updatedAt.getTime()).toBeGreaterThan(draft.updatedAt.getTime());
     await h.db.update(pageVersions).set({ state: "published", publishedAt: new Date() }).where(eq(pageVersions.id, draft.id));
     const [published] = await h.db.select().from(pageVersions).where(eq(pageVersions.id, draft.id));
-    await expect(h.db.transaction((tx) => updateDraftContent(tx as Tx, published!, publishable("x")))).rejects.toThrow("version_published");
+    await expect(h.db.transaction((tx) => updateDraftContent(tx, published!, publishable("x")))).rejects.toThrow("version_published");
     // A stale in-memory draft row whose database row was published meanwhile is not updated either.
-    await expect(h.db.transaction((tx) => updateDraftContent(tx as Tx, next, publishable("y")))).rejects.toThrow("version_published");
+    await expect(h.db.transaction((tx) => updateDraftContent(tx, next, publishable("y")))).rejects.toThrow("version_published");
     const [after] = await h.db.select().from(pageVersions).where(eq(pageVersions.id, draft.id));
     expect(after!.title).toEqual({ en: "New" });
   });

@@ -121,7 +121,7 @@ export async function loadRefFacts(db: DbOrTx, refs: RefInput): Promise<RefFacts
 
 /** `RefFacts.page` of a page row. */
 export function refPage(page: Pick<PageRow, "id" | "kind" | "legalKey" | "sessionId">): RefFacts["page"] {
-  return { id: page.id, kind: page.kind as PageKind, legalKey: page.legalKey ?? null, sessionId: page.sessionId ?? null };
+  return { id: page.id, kind: page.kind, legalKey: page.legalKey ?? null, sessionId: page.sessionId ?? null };
 }
 
 /** Every publish issue of `content` on `page` (rules 5, 6, 33). */
@@ -151,7 +151,7 @@ export async function getPageKindByPath(db: DbOrTx, locale: Locale, path: string
     .innerJoin(pages, eq(pages.id, pageRoutes.pageId))
     .where(and(eq(pageRoutes.locale, locale), eq(pageRoutes.path, clean), eq(pages.status, "published")))
     .limit(1);
-  return (row?.kind as PageKind | undefined) ?? null;
+  return (row?.kind) ?? null;
 }
 
 export type HiddenNavTarget = { menu: "header" | "footer" | "legal"; itemId: string; pageId: string; locale: Locale };

@@ -22,7 +22,7 @@ export async function getSiteSettings(db: DbOrTx): Promise<SiteSettings> {
 
 /** `settings.company` as stored (its declared default when no row exists). */
 export async function getCompanySetting(db: DbOrTx): Promise<CompanySetting> {
-  return ((await getSetting(db, "company")) ?? {}) as CompanySetting;
+  return ((await getSetting(db, "company")) ?? {});
 }
 
 type HoursDay = { opens_at?: string | null; closes_at?: string | null } | null | undefined;

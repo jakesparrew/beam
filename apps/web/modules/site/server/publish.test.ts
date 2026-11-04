@@ -38,7 +38,7 @@ async function pageWith(kind: "standard" | "landing", state: "draft" | "proposed
   return { page: p!, version: v!, content };
 }
 
-const inTx = <T>(fn: (tx: Tx) => Promise<T>) => h.db.transaction((tx) => fn(tx as Tx));
+const inTx = <T>(fn: (tx: Tx) => Promise<T>) => h.db.transaction((tx) => fn(tx));
 const systemCtx = (tx: Tx) => createCtx({ tx, actor: { kind: "system", jobId: "test" } });
 
 describe("publishVersionTx", () => {
@@ -55,7 +55,7 @@ describe("publishVersionTx", () => {
 
   it("is blocked by missing alt text and by a form that lacks a locale", async () => {
     const media = await makeMedia(h.db, { "nl-BE": "Sauna" });
-    const blocks = (): Block[] => [textBlock(), { id: randomUUID(), type: "image", mediaId: media.id } as Block, { id: randomUUID(), type: "form_embed", formSlug: "contact" } as Block];
+    const blocks = (): Block[] => [textBlock(), { id: randomUUID(), type: "image", mediaId: media.id }, { id: randomUUID(), type: "form_embed", formSlug: "contact" }];
     const content = publishable(slug("alt"), ["nl-BE", "en"], { blocks });
     const { version } = await pageWith("standard", "draft", content);
     const error = await inTx((tx) => publishVersionTx(tx, systemCtx(tx), version.id, {})).catch((e: unknown) => e);

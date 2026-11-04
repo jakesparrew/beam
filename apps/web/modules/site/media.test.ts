@@ -47,7 +47,7 @@ const GIF_3X2 = Uint8Array.from([0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x03, 0x00,
 
 function form(bytes: Uint8Array, type: string, name: string, extra: Record<string, string> = {}): FormData {
   const fd = new FormData();
-  fd.set("file", new File([bytes], name, { type }));
+  fd.set("file", new File([bytes as Uint8Array<ArrayBuffer>], name, { type }));
   fd.set("alt", JSON.stringify({ "nl-BE": "Saunatuin", "fr-BE": "Jardin du sauna", en: "Sauna garden" }));
   for (const [k, v] of Object.entries(extra)) fd.set(k, v);
   return fd;

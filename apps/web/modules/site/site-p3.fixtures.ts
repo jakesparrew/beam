@@ -25,7 +25,7 @@ export const ALL = [...LOCALES] as Locale[];
 export const slug = (p = "p") => `${p}-${randomUUID().slice(0, 8)}`;
 
 export function textBlock(text = "Welkom bij BEAM."): Block {
-  return { id: randomUUID(), type: "rich_text", doc: paragraphDoc(text) } as Block;
+  return { id: randomUUID(), type: "rich_text", doc: paragraphDoc(text) };
 }
 
 const seoFor = (l: Locale): PageSeo => ({ title: `BEAM ${l}`, description: `A description that is long enough for search engines in ${l}, really.` });

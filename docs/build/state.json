@@ -232,14 +232,16 @@
       "mergedAt": "2026-11-04T00:58:57Z"
     },
     "crm-P2": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "4ce9b47",
       "runId": "wf_4a970317-407",
       "startedAt": "2026-11-04T00:50:47Z",
       "branchSha": "92f2762",
-      "endedAt": "2026-11-04T01:27:36Z",
-      "minutes": 30
+      "endedAt": "2026-11-04T01:28:28Z",
+      "minutes": 30,
+      "mergeSha": "f935750",
+      "mergedAt": "2026-11-04T01:33:11Z"
     },
     "crm-P3": {
       "status": "running",
@@ -268,14 +270,16 @@
       "attempts": 0
     },
     "credits-P3": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "4ce9b47",
       "runId": "wf_f3027f2b-e76",
       "startedAt": "2026-11-04T00:50:47Z",
       "branchSha": "abd8f5f",
-      "endedAt": "2026-11-04T01:27:36Z",
-      "minutes": 35
+      "endedAt": "2026-11-04T01:28:29Z",
+      "minutes": 35,
+      "mergeSha": "8be7a14",
+      "mergedAt": "2026-11-04T01:33:16Z"
     },
     "finance-P2": {
       "status": "pending",
@@ -716,7 +720,7 @@
       "mergedAt": "2026-11-03T23:50:08Z"
     },
     "fix-w04-platform-3": {
-      "status": "running",
+      "status": "merged",
       "attempts": 1,
       "fixer": true,
       "module": "platform",
@@ -738,7 +742,12 @@
       "dependsOn": [],
       "baseSha": "11fffe1",
       "runId": "wf_0ad13661-c56",
-      "startedAt": "2026-11-04T01:06:43Z"
+      "startedAt": "2026-11-04T01:06:43Z",
+      "branchSha": "59ddcd4",
+      "endedAt": "2026-11-04T01:28:28Z",
+      "minutes": 21,
+      "mergeSha": "f2e4b0a",
+      "mergedAt": "2026-11-04T01:33:08Z"
     },
     "fix-w04-platform-4": {
       "status": "pending",

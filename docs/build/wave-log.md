@@ -68,3 +68,7 @@ One entry per merge batch and gate (runbook section 5.7, adapted by OD-3).
 - automation-P1: merged as `ae87a59` in batch `g23-batch`.
 - Batch `g23-batch` (email-P1 automation-P1): migrations 0018_w04.sql 0019_w04_views.sql 0020_w04_protect.sql; merge gate green, peak 6616 MB.
 - ops-P1: 44 min, merged as `4705b59`, migrations 0021_w04.sql 0022_w04_protect.sql; gate `g24-ops-P1` (merge) green, peak 6764 MB.
+- fix-w04-platform-3: merged as `f2e4b0a` in batch `g25-batch`.
+- crm-P2: merged as `f935750` in batch `g25-batch`.
+- credits-P3: merged as `8be7a14` in batch `g25-batch`.
+- Batch `g25-batch` (fix-w04-platform-3 crm-P2 credits-P3): merge gate green, peak 3823 MB.

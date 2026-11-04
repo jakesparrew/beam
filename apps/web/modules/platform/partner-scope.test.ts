@@ -44,7 +44,7 @@ const { action } = await import("@/lib/action");
 const { eq, setAppDb } = await import("@/lib/ctx");
 const { resetRuntime, makeCtx } = await import("@/lib/testing");
 const { PERMISSIONS } = await import("@/registry/permissions.generated");
-const { partnerScope, requirePartnerOrPermission } = await import("./api");
+const { partnerScope, requirePartnerOrPermission, setFileExpiry } = await import("./api");
 const { getTokenIntegrationStatus } = await import("./queries");
 const actions = await import("./actions");
 
@@ -189,6 +189,26 @@ describe("partner landing", () => {
     );
     expect(signal).toBeInstanceOf(RedirectSignal);
     expect((signal as RedirectSignal).href).not.toBe("/admin/partner");
+  });
+});
+
+describe("setFileExpiry (request of ops-P4)", () => {
+  it("sets and clears the expiry of the given files only", async () => {
+    const { storeFile } = await import("@/lib/files");
+    const ctx = makeCtx(handle.db);
+    const bytes = new TextEncoder().encode("a,b\n1,2\n");
+    const one = await storeFile(ctx, { kind: "import", name: "part-1.csv", mime: "text/csv", bytes, expiresAt: new Date(Date.now() + 86_400_000) });
+    const two = await storeFile(ctx, { kind: "import", name: "part-2.csv", mime: "text/csv", bytes, expiresAt: new Date(Date.now() + 86_400_000) });
+    const { files } = await import("@beam/db/schema");
+    const expiry = async (id: string) => (await handle.db.select({ e: files.expiresAt }).from(files).where(eq(files.id, id)))[0]!.e;
+
+    expect(await setFileExpiry(handle.db, [one.fileId], null)).toBe(1);
+    expect(await expiry(one.fileId)).toBeNull();
+    expect(await expiry(two.fileId)).not.toBeNull();
+    const later = new Date("2027-01-31T23:00:00.000Z");
+    expect(await setFileExpiry(handle.db, [one.fileId, two.fileId], later)).toBe(2);
+    expect((await expiry(two.fileId))!.toISOString()).toBe(later.toISOString());
+    expect(await setFileExpiry(handle.db, [], later)).toBe(0);
   });
 });
 

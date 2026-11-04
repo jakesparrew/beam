@@ -157,6 +157,24 @@ export async function requirePartnerOrPermission(ctx: Ctx, permission: Permissio
   throw new ForbiddenError(`forbidden: ${permission}`, permission);
 }
 
+/**
+ * Sets (or clears, with `null`) the expiry of stored files, for example ops' import parts that
+ * are kept once an import is confirmed (request of ops-P4). File rows are otherwise immutable:
+ * only `expires_at` changes. Returns the number of rows updated.
+ */
+export async function setFileExpiry(tx: DbOrTx, fileIds: readonly string[], expiresAt: Date | null): Promise<number> {
+  if (fileIds.length === 0) return 0;
+  const rows = rowsOf<{ id: string }>(
+    await tx.execute(
+      sql`update files set expires_at = ${expiresAt ? expiresAt.toISOString() : null}::timestamptz where id in (${sql.join(
+        fileIds.map((id) => sql`${id}::uuid`),
+        sql`, `,
+      )}) returning id::text as id`,
+    ),
+  );
+  return rows.length;
+}
+
 /** R4 (platform-P10). */
 export function runAiReadOnlyQuery(ctx: JobCtx, sqlText: string): Promise<{ columns: string[]; rows: unknown[][] }> {
   void ctx;

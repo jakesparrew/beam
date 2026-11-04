@@ -18,6 +18,9 @@ if grep -Eq "^DATABASE_URL(_UNPOOLED)?=.*${prod_db}" .env.local 2>/dev/null || g
   echo "refusing: database points at production"; exit 9
 fi
 if [ "$mode" = merge ] && [ -z "$since" ]; then echo "merge mode needs <since-sha>"; exit 2; fi
+# OD-14: Vitest's CLI parses an all-digit short SHA (e.g. 3436055) as a number and then ignores it,
+# selecting no tests at all; a full SHA is a string.
+if [ -n "$since" ]; then since=$(git rev-parse --verify "$since^{commit}") || { echo "unknown commit $since"; exit 2; }; fi
 export INTEGRATIONS=fake EMAIL_SINK=sink@beam.be APP_ENV=local
 export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=6144}"
 ( while sleep 2; do free -m | awk 'NR==2{print $3}'; done ) > "$logs/$label-mem.log" & memp=$!
@@ -61,14 +64,23 @@ vitest_ws() {
   echo "TIMEOUT-RETRY green in $ws: $files"
 }
 changed_tests() {
-  local ws dir rc=0 ex
+  local ws dir rc=0 ex out root_logs="$PWD/$logs"
   for ws in apps/web packages/db packages/core packages/email packages/integrations packages/ui packages/config; do
     [ -e "$ws/vitest.config.ts" ] || continue
     if git diff --quiet "$since" -- "$ws"; then continue; fi
     ex=$(known_red_excludes "$ws")
     echo "--- vitest --changed in $ws${ex:+ (known red excluded:$ex)}"
+    out="$root_logs/$label-changed-${ws//\//-}.out"
     # shellcheck disable=SC2086
-    vitest_ws "$ws" --changed "$since" --passWithNoTests $ex || rc=1
+    vitest_ws "$ws" --changed "$since" --passWithNoTests $ex 2>&1 | tee "$out"
+    if [ "${PIPESTATUS[0]}" -ne 0 ]; then rc=1
+    elif grep -q "No affected test files found" "$out" && git diff --name-only "$since" -- "$ws" | grep -qE '\.(ts|tsx|mts|mjs|js)$'; then
+      # Sources changed but nothing was selected: never trust an empty selection (OD-14).
+      echo "--- no affected test files although $ws sources changed; running all of $ws"
+      # shellcheck disable=SC2086
+      vitest_ws "$ws" --passWithNoTests $ex || rc=1
+    fi
+    rm -f "$out"
   done
   return $rc
 }

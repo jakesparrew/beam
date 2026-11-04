@@ -237,7 +237,10 @@ export function isHourlyOrLonger(expr: string): boolean {
 export type CronSlot = {
   /** The instant the slot fires (a skipped-hour slot fires at the end of the gap). */
   at: Date;
-  /** The nominal local wall-clock minute, `YYYY-MM-DDTHH:mm`. */
+  /**
+   * The nominal local wall-clock minute, `YYYY-MM-DDTHH:mm`; a minute-level or sub-hourly slot in
+   * the second pass of the repeated autumn hour adds `:2` (see `dueSlots`).
+   */
   key: string;
 };
 
@@ -271,12 +274,27 @@ export function slotsBetween(expr: string, from: Date, to: Date, tz: string = BR
  * The slots a tick at `now` enqueues (PL-33): hourly or longer schedules catch up every slot
  * since `lastTickAt`, at most 60 minutes back; minute-level and 10/15-minute schedules only
  * the current minute.
+ *
+ * Minute-level and sub-hourly schedules test the current instant itself, so they keep running
+ * through the repeated autumn hour: the second 02:00-02:59 on the autumn DST day carries the
+ * local minute plus `:2` (`2026-10-25T02:30:2`), so its keys do not collide with the first pass.
+ * Hourly or longer schedules walk wall-clock minutes and fire the repeated hour once, at its
+ * first occurrence (the local-minute key dedupes it).
  */
 export function dueSlots(expr: string, lastTickAt: Date | null, now: Date, tz: string = BRUSSELS): CronSlot[] {
   const minuteStart = new Date(Math.floor(now.getTime() / MINUTE) * MINUTE);
-  if (!isHourlyOrLonger(expr) || !lastTickAt) {
+  const hourlyOrLonger = isHourlyOrLonger(expr);
+  if (!hourlyOrLonger) {
+    const local = wallClock(minuteStart, tz);
+    if (matchesCron(expr, local, tz)) {
+      const repeated = zonedTimeToUtc(local, tz).getTime() < minuteStart.getTime();
+      return [{ at: minuteStart, key: repeated ? `${localMinuteKey(local)}:2` : localMinuteKey(local) }];
+    }
+  }
+  if (!hourlyOrLonger || !lastTickAt) {
     // Only the current slot: on the spring DST day every skipped wall minute 02:00-02:59 maps to
-    // the same instant, and a minute-level schedule must not burst the whole hour (PL-33).
+    // the same instant, and a minute-level schedule must not burst the whole hour; a skipped
+    // slot of a schedule that does not match 03:00 fires once at 03:00 (PL-33).
     return slotsBetween(expr, new Date(minuteStart.getTime() - MINUTE), minuteStart, tz).slice(-1);
   }
   const floor = Math.max(lastTickAt.getTime(), minuteStart.getTime() - 60 * MINUTE);

@@ -1,5 +1,13 @@
 /**
- * booking server actions (`action()` from lib/action.ts). Wave 0 skeleton by platform-P7 (DR-12):
- * empty because lib/action.ts lands in the same wave; booking fills it in Wave 1.
+ * booking server actions (booking spec 4.2): a barrel over the area files in `actions/`, so the
+ * booking packages that run in parallel never edit the same file (decision 12). Each area file
+ * is a "use server" module; this barrel only re-exports.
  */
-export {};
+export * from "./actions/templates";
+export * from "./actions/sessions";
+export * from "./actions/bookings";
+export * from "./actions/attendance";
+export * from "./actions/waitlist";
+export * from "./actions/lead";
+export * from "./actions/tickets";
+export * from "./actions/partner";

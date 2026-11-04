@@ -53,3 +53,9 @@ One entry per merge batch and gate (runbook section 5.7, adapted by OD-3).
 - credits-P2: 14 min, merged as `b3ca117`; gate `g13-credits-P2` (merge) green, peak 3520 MB.
 - 23:52 UTC: started email-P1, site-P1 from `7835fd3`. Wave 3 checkpoint now green: `fix-w03-platform-2` ran `platform.spec.ts` 4/4 twice against beam_dev (magic link included).
 - credits-P1 attempt 1 done in 18 minutes (102 db tests) but gdpr coverage would fail: its three person-referencing tables were not registered, because credits' `privacy.ts` belonged to credits-P5. Plan amended (OD-9): every module's schema package owns its `privacy.ts`. Attempt 2 (run `wf_bba4be41-aca`) registers the tables. `@beam/db` now exports `./testing/*` and `./seed/*`.
+- credits-P1: 23 min, merged as `ea67dfd`, migrations 0003_w04.sql 0004_w04_views.sql 0005_w04_protect.sql; gate `g14-credits-P1` (merge) green, peak 4539 MB.
+- 00:06 UTC: started forms-P1 from `ea67dfd`.
+- commerce-P1 attempt 1 (35 minutes) turned gate `g15` red at typecheck: it made `order_lines.sku` and `line_no` required while credits-P1's tests insert order lines without them. Undone; attempt 2 (run `wf_c50753e8-3c3`) fixes the two credits test inserts (one-attempt ownership extension) and adds the six persons FKs and privacy registrations (OD-9). CONVENTIONS.md item 6 now covers columns added to contract tables.
+- booking-P1: 45 min, merged as `ec59be9`, migrations 0006_w04.sql 0007_w04_views.sql; gate `g16-booking-P1` (merge) green, peak 8433 MB.
+- commerce-P1: 52 min, merged as `40fd6ce`, migrations 0008_w04.sql 0009_w04_views.sql; gate `g17-commerce-P1` (merge) green, peak 3073 MB.
+- crm-P1: 58 min, merged as `fdf7995`, migrations 0010_w04.sql 0011_w04_views.sql 0012_w04_protect.sql; gate `g20-crm-P1` (merge) green, peak 3351 MB.

@@ -16,7 +16,7 @@ import {
   vPersonCredits,
   vPersonStatus,
 } from "./credits.views";
-import { createTestDb, makePerson, makeProduct } from "../testing";
+import { createTestDb, makePerson, makeProduct, makeSession } from "../testing";
 import { makeCreditGrant, makeEntry, makeMembership } from "../testing/credits-factories";
 
 let h: DbHandle;
@@ -56,8 +56,13 @@ async function makeOrder(
     const amount = i === 0 ? total : 0;
     await db.insert(orderLines).values({
       orderId: order!.id,
+      lineNo: i + 1,
       productId: product.id,
+      sku: product.sku,
       productKind: kind,
+      ...(kind === "session" || kind === "night" || kind === "ticket"
+        ? { sessionId: (await makeSession(db, { kind: kind === "night" ? "night" : "day" })).id }
+        : {}),
       description: { en: kind },
       quantity: 1,
       unitAmountCents: amount,

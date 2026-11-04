@@ -1541,8 +1541,8 @@
       "dependsOn": []
     },
     "fix-w09-booking-review": {
-      "status": "pending",
-      "attempts": 0,
+      "status": "running",
+      "attempts": 1,
       "fixer": true,
       "module": "booking",
       "goal": "Fix every confirmed V1 review finding for booking listed in /tmp/claude-0/-home-user-beam/3ba985b5-31b3-591d-a9fd-e4cfaf9e6555/scratchpad/review-v1/fix-booking.md (read it first): one test per finding, schema changes nullable/default-safe (CONVENTIONS item 6), facades through the caller tx (OD-15). Report per finding: fixed (how) or not fixed (why).",
@@ -1555,11 +1555,14 @@
       ],
       "dependsOn": [
         "commerce-P6"
-      ]
+      ],
+      "baseSha": "d45e197",
+      "runId": "wf_a7df3a22-491",
+      "startedAt": "2026-11-04T18:11:02Z"
     },
     "fix-w09-commerce-review": {
-      "status": "pending",
-      "attempts": 0,
+      "status": "running",
+      "attempts": 1,
       "fixer": true,
       "module": "commerce",
       "goal": "Fix every confirmed V1 review finding for commerce listed in /tmp/claude-0/-home-user-beam/3ba985b5-31b3-591d-a9fd-e4cfaf9e6555/scratchpad/review-v1/fix-commerce.md (read it first): one test per finding, schema changes nullable/default-safe (CONVENTIONS item 6), facades through the caller tx (OD-15). Report per finding: fixed (how) or not fixed (why).",
@@ -1573,11 +1576,14 @@
       "dependsOn": [
         "commerce-P6",
         "fix-w09-commerce-1"
-      ]
+      ],
+      "baseSha": "d45e197",
+      "runId": "wf_cbeca218-01b",
+      "startedAt": "2026-11-04T18:11:02Z"
     },
     "fix-w09-credits-review": {
-      "status": "pending",
-      "attempts": 0,
+      "status": "running",
+      "attempts": 1,
       "fixer": true,
       "module": "credits",
       "goal": "Fix every confirmed V1 review finding for credits listed in /tmp/claude-0/-home-user-beam/3ba985b5-31b3-591d-a9fd-e4cfaf9e6555/scratchpad/review-v1/fix-credits.md (read it first): one test per finding, schema changes nullable/default-safe (CONVENTIONS item 6), facades through the caller tx (OD-15). Report per finding: fixed (how) or not fixed (why).",
@@ -1588,7 +1594,10 @@
         "packages/db/src/schema/credits.ts",
         "packages/email/src/templates/credits/**"
       ],
-      "dependsOn": []
+      "dependsOn": [],
+      "baseSha": "d45e197",
+      "runId": "wf_2223176e-c76",
+      "startedAt": "2026-11-04T18:11:03Z"
     },
     "fix-w09-finance-review": {
       "status": "pending",
@@ -1606,8 +1615,8 @@
       "dependsOn": []
     },
     "fix-w09-forms-review": {
-      "status": "pending",
-      "attempts": 0,
+      "status": "running",
+      "attempts": 1,
       "fixer": true,
       "module": "forms",
       "goal": "Fix every confirmed V1 review finding for forms listed in /tmp/claude-0/-home-user-beam/3ba985b5-31b3-591d-a9fd-e4cfaf9e6555/scratchpad/review-v1/fix-forms.md (read it first): one test per finding, schema changes nullable/default-safe (CONVENTIONS item 6), facades through the caller tx (OD-15). Report per finding: fixed (how) or not fixed (why).",
@@ -1618,11 +1627,14 @@
         "packages/db/src/schema/forms.ts",
         "packages/email/src/templates/forms/**"
       ],
-      "dependsOn": []
+      "dependsOn": [],
+      "baseSha": "d45e197",
+      "runId": "wf_9cab0ab0-540",
+      "startedAt": "2026-11-04T18:11:03Z"
     },
     "fix-w09-email-review": {
-      "status": "pending",
-      "attempts": 0,
+      "status": "running",
+      "attempts": 1,
       "fixer": true,
       "module": "email",
       "goal": "Fix every confirmed V1 review finding for email listed in /tmp/claude-0/-home-user-beam/3ba985b5-31b3-591d-a9fd-e4cfaf9e6555/scratchpad/review-v1/fix-email.md (read it first): one test per finding, schema changes nullable/default-safe (CONVENTIONS item 6), facades through the caller tx (OD-15). Report per finding: fixed (how) or not fixed (why).",
@@ -1633,11 +1645,14 @@
         "packages/db/src/schema/email.ts",
         "packages/email/src/templates/email/**"
       ],
-      "dependsOn": []
+      "dependsOn": [],
+      "baseSha": "d45e197",
+      "runId": "wf_9a2d5e2b-fee",
+      "startedAt": "2026-11-04T18:11:03Z"
     },
     "fix-w09-automation-review": {
-      "status": "pending",
-      "attempts": 0,
+      "status": "running",
+      "attempts": 1,
       "fixer": true,
       "module": "automation",
       "goal": "Fix every confirmed V1 review finding for automation listed in /tmp/claude-0/-home-user-beam/3ba985b5-31b3-591d-a9fd-e4cfaf9e6555/scratchpad/review-v1/fix-automation.md (read it first): one test per finding, schema changes nullable/default-safe (CONVENTIONS item 6), facades through the caller tx (OD-15). Report per finding: fixed (how) or not fixed (why).",
@@ -1648,7 +1663,10 @@
         "packages/db/src/schema/automation.ts",
         "packages/email/src/templates/automation/**"
       ],
-      "dependsOn": []
+      "dependsOn": [],
+      "baseSha": "d45e197",
+      "runId": "wf_84d91cca-6fa",
+      "startedAt": "2026-11-04T18:11:03Z"
     },
     "fix-w09-ops-review": {
       "status": "pending",

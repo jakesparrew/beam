@@ -81,7 +81,7 @@ export async function exportPerson(tx: Tx, personId: string): Promise<PrivacyExp
   const sensitiveFields: Array<{ person_id: string; key: string; value: string }> = [];
   const notes = new Map<string, string>();
   for (const id of ids) {
-    const eventIds = (await rows<{ id: string }>(tx, sql`select id::text as id from activity_events where person_id = ${id}::uuid and is_sensitive order by id`)).map((r) => r.id);
+    const eventIds = (await rows<{ id: string }>(tx, sql`select id::text as id from activity_events where person_id = ${id}::uuid and is_sensitive order by activity_events.id`)).map((r) => r.id);
     const bundle = await readSensitive(ctx, id, "privacy_export", { keys: [...SENSITIVE_FIELD_KEYS], ...(eventIds.length ? { eventIds } : {}) });
     for (const [key, value] of Object.entries(bundle.fields)) if (value !== undefined) sensitiveFields.push({ person_id: id, key, value });
     for (const n of bundle.notes) notes.set(n.eventId, n.body);
@@ -90,7 +90,7 @@ export async function exportPerson(tx: Tx, personId: string): Promise<PrivacyExp
   const events = await rows<{ id: string; person_id: string | null; company_id: string | null; kind: string; occurred_at: Date | string; mode: string | null; is_sensitive: boolean; data: unknown; ref_type: string | null; ref_id: string | null }>(
     tx,
     sql`select id::text as id, person_id, company_id, kind, occurred_at, mode::text as mode, is_sensitive, data, ref_type, ref_id
-        from activity_events where person_id in ${inIds} order by occurred_at, id`,
+        from activity_events where person_id in ${inIds} order by occurred_at, activity_events.id`,
   );
   const activity = events.map((e) => ({ ...e, data: e.is_sensitive ? { body: notes.get(e.id) ?? null } : e.data }));
 

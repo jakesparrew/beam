@@ -26,6 +26,8 @@ export const TIMELINE_PREFIX_CATEGORY: Readonly<Record<string, TimelineCategory>
   sensitive: "profile",
   declaration: "profile",
   ops: "profile",
+  platform: "profile",
+  site: "profile",
   booking: "bookings",
   waitlist: "bookings",
   checkout: "purchases",
@@ -39,6 +41,9 @@ export const TIMELINE_PREFIX_CATEGORY: Readonly<Record<string, TimelineCategory>
   credits: "purchases",
   membership: "purchases",
   referral: "purchases",
+  payment_link: "purchases",
+  person_price: "purchases",
+  voucher: "purchases",
   email: "email",
   webinar: "webinar",
   form: "forms",
@@ -135,7 +140,7 @@ async function eventItems(tx: DbOrTx, input: ListInput, personIds: string[] | nu
       select id::text as id, ${ms} as occurred_ms, kind, person_id, company_id, data, is_sensitive, mode::text as mode
       from activity_events
       where ${sql.join(conds, sql` and `)}
-      order by ${ms} desc, id desc
+      order by ${ms} desc, activity_events.id desc
       limit ${limit}`),
   );
   return rows.map((r) => ({

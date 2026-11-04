@@ -208,11 +208,16 @@
       "mergedAt": "2026-11-04T01:15:38Z"
     },
     "ops-P1": {
-      "status": "running",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "47d3945",
       "runId": "wf_a9edcab1-eb3",
-      "startedAt": "2026-11-04T00:33:51Z"
+      "startedAt": "2026-11-04T00:33:51Z",
+      "branchSha": "d68eee4",
+      "endedAt": "2026-11-04T01:19:12Z",
+      "minutes": 44,
+      "mergeSha": "4705b59",
+      "mergedAt": "2026-11-04T01:27:13Z"
     },
     "site-P1": {
       "status": "merged",

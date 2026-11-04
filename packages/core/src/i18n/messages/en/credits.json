@@ -5,6 +5,63 @@
       "credits_adjust": "Grant, adjust and extend credits",
       "memberships_write": "Change and cancel memberships",
       "referrals_manage": "Manage referral codes and rewards"
+    },
+    "email": {
+      "membership_started": {
+        "subject": "Welcome to {planName}",
+        "preheader": "Your BEAM membership is confirmed.",
+        "heading": "Your membership is confirmed",
+        "body": "Thank you for becoming a member with {planName}. Your included sessions and member benefits are in your account.",
+        "cta": "View my membership",
+        "starts_on": "Your membership starts on {date}.",
+        "period": "Your first period runs until {date}."
+      },
+      "membership_renewal_reminder": {
+        "subject": "{variant, select, ends {Your {planName} membership ends soon} other {Your {planName} membership renews soon}}",
+        "preheader": "{variant, select, ends {Your membership ends in {days, plural, one {# day} other {# days}}.} other {Your membership renews in {days, plural, one {# day} other {# days}}.}}",
+        "heading": "{variant, select, ends {Your membership ends soon} other {Your membership renews soon}}",
+        "body": "{variant, select, ends {You cancelled {planName} at the end of the current period. You keep all member benefits until then.} other {Your {planName} membership continues automatically for another period. You can cancel at the end of the period in your account.}}",
+        "cta": "View my membership",
+        "renews_on": "Renewal date: {date}.",
+        "ends_on": "Last day of your membership: {date}.",
+        "amount": "Amount of the renewal: {amount}.",
+        "pay_cta": "Pay my renewal"
+      },
+      "membership_renewed": {
+        "subject": "Your {planName} membership has been renewed",
+        "preheader": "Thank you, your payment was received.",
+        "heading": "Your membership has been renewed",
+        "body": "Thank you, we received your payment for {planName}. The sessions included in this period are in your account.",
+        "cta": "View my membership",
+        "late": "Your membership is active again from today.",
+        "period": "This period runs from {start} to {end}."
+      },
+      "membership_payment_failed": {
+        "subject": "Payment of your {planName} membership failed",
+        "preheader": "Pay your renewal to keep your membership.",
+        "heading": "We could not collect your payment",
+        "body": "{attempt, select, 1 {The payment for the renewal of {planName} did not go through.} other {Your renewal of {planName} is still unpaid.}} Pay it with the link below to keep your membership.",
+        "cta": "Pay now",
+        "deadline": "Without payment, your membership ends on {date}.",
+        "keeps_access": "Until then you keep your member benefits."
+      },
+      "membership_expired": {
+        "subject": "Your {planName} membership has ended",
+        "preheader": "The renewal was not paid.",
+        "heading": "Your membership has ended",
+        "body": "The renewal of {planName} was not paid, so your membership has ended. You are welcome back any time with a new membership.",
+        "cta": "View my account",
+        "ended_on": "End date: {date}."
+      },
+      "membership_cancel_confirmed": {
+        "subject": "Your {planName} membership has been cancelled",
+        "preheader": "We have recorded your cancellation.",
+        "heading": "Your cancellation is confirmed",
+        "body": "No further payments will be taken for {planName}. Changed your mind? You can resume your membership in your account before it ends.",
+        "cta": "View my membership",
+        "ends_on": "You remain a member until {date}.",
+        "ended_now": "Your membership ended on {date}."
+      }
     }
   }
 }

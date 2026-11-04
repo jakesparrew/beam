@@ -5,6 +5,63 @@
       "credits_adjust": "Attribuer, ajuster et prolonger les crédits",
       "memberships_write": "Modifier et résilier les abonnements",
       "referrals_manage": "Gérer les codes de parrainage et les récompenses"
+    },
+    "email": {
+      "membership_started": {
+        "subject": "Bienvenue dans {planName}",
+        "preheader": "Votre abonnement BEAM est confirmé.",
+        "heading": "Votre abonnement est confirmé",
+        "body": "Merci de devenir membre avec {planName}. Vos séances incluses et vos avantages membres se trouvent dans votre compte.",
+        "cta": "Voir mon abonnement",
+        "starts_on": "Votre abonnement commence le {date}.",
+        "period": "Votre première période court jusqu’au {date}."
+      },
+      "membership_renewal_reminder": {
+        "subject": "{variant, select, ends {Votre abonnement {planName} se termine bientôt} other {Votre abonnement {planName} sera bientôt renouvelé}}",
+        "preheader": "{variant, select, ends {Votre abonnement se termine dans {days, plural, one {# jour} other {# jours}}.} other {Votre abonnement sera renouvelé dans {days, plural, one {# jour} other {# jours}}.}}",
+        "heading": "{variant, select, ends {Votre abonnement se termine bientôt} other {Votre abonnement sera bientôt renouvelé}}",
+        "body": "{variant, select, ends {Vous avez résilié {planName} pour la fin de la période en cours. Vous gardez tous vos avantages membres jusque-là.} other {Votre abonnement {planName} se poursuit automatiquement pour une nouvelle période. Vous pouvez le résilier pour la fin de la période dans votre compte.}}",
+        "cta": "Voir mon abonnement",
+        "renews_on": "Date de renouvellement : {date}.",
+        "ends_on": "Dernier jour de votre abonnement : {date}.",
+        "amount": "Montant du renouvellement : {amount}.",
+        "pay_cta": "Payer mon renouvellement"
+      },
+      "membership_renewed": {
+        "subject": "Votre abonnement {planName} a été renouvelé",
+        "preheader": "Merci, nous avons reçu votre paiement.",
+        "heading": "Votre abonnement a été renouvelé",
+        "body": "Merci, nous avons reçu votre paiement pour {planName}. Les séances incluses dans cette période se trouvent dans votre compte.",
+        "cta": "Voir mon abonnement",
+        "late": "Votre abonnement est de nouveau actif à partir d’aujourd’hui.",
+        "period": "Cette période court du {start} au {end}."
+      },
+      "membership_payment_failed": {
+        "subject": "Le paiement de votre abonnement {planName} a échoué",
+        "preheader": "Payez votre renouvellement pour garder votre abonnement.",
+        "heading": "Nous n’avons pas pu encaisser votre paiement",
+        "body": "{attempt, select, 1 {Le paiement du renouvellement de {planName} n’a pas abouti.} other {Votre renouvellement de {planName} n’est toujours pas payé.}} Payez-le via le lien ci-dessous pour garder votre abonnement.",
+        "cta": "Payer maintenant",
+        "deadline": "Sans paiement, votre abonnement se termine le {date}.",
+        "keeps_access": "D’ici là, vous gardez vos avantages membres."
+      },
+      "membership_expired": {
+        "subject": "Votre abonnement {planName} est terminé",
+        "preheader": "Le renouvellement n’a pas été payé.",
+        "heading": "Votre abonnement est terminé",
+        "body": "Le renouvellement de {planName} n’a pas été payé, votre abonnement est donc terminé. Vous êtes le bienvenu à tout moment avec un nouvel abonnement.",
+        "cta": "Voir mon compte",
+        "ended_on": "Date de fin : {date}."
+      },
+      "membership_cancel_confirmed": {
+        "subject": "Votre abonnement {planName} a été résilié",
+        "preheader": "Nous avons enregistré votre résiliation.",
+        "heading": "Votre résiliation est confirmée",
+        "body": "Plus aucun paiement ne sera prélevé pour {planName}. Vous changez d’avis ? Vous pouvez reprendre votre abonnement dans votre compte avant sa fin.",
+        "cta": "Voir mon abonnement",
+        "ends_on": "Vous restez membre jusqu’au {date}.",
+        "ended_now": "Votre abonnement a pris fin le {date}."
+      }
     }
   }
 }

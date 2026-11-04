@@ -5,6 +5,63 @@
       "credits_adjust": "Tegoeden toekennen, aanpassen en verlengen",
       "memberships_write": "Lidmaatschappen wijzigen en opzeggen",
       "referrals_manage": "Doorverwijscodes en beloningen beheren"
+    },
+    "email": {
+      "membership_started": {
+        "subject": "Welkom bij {planName}",
+        "preheader": "Je BEAM-lidmaatschap is bevestigd.",
+        "heading": "Je lidmaatschap is bevestigd",
+        "body": "Bedankt dat je lid wordt met {planName}. Je inbegrepen sessies en ledenvoordelen vind je in je account.",
+        "cta": "Bekijk mijn lidmaatschap",
+        "starts_on": "Je lidmaatschap start op {date}.",
+        "period": "Je eerste periode loopt tot {date}."
+      },
+      "membership_renewal_reminder": {
+        "subject": "{variant, select, ends {Je lidmaatschap {planName} eindigt binnenkort} other {Je lidmaatschap {planName} wordt binnenkort verlengd}}",
+        "preheader": "{variant, select, ends {Je lidmaatschap eindigt over {days, plural, one {# dag} other {# dagen}}.} other {Je lidmaatschap wordt verlengd over {days, plural, one {# dag} other {# dagen}}.}}",
+        "heading": "{variant, select, ends {Je lidmaatschap eindigt binnenkort} other {Je lidmaatschap wordt binnenkort verlengd}}",
+        "body": "{variant, select, ends {Je hebt {planName} opgezegd tegen het einde van de huidige periode. Tot dan behoud je alle ledenvoordelen.} other {Je lidmaatschap {planName} loopt automatisch door voor een nieuwe periode. Je kunt in je account opzeggen tegen het einde van de periode.}}",
+        "cta": "Bekijk mijn lidmaatschap",
+        "renews_on": "Verlengingsdatum: {date}.",
+        "ends_on": "Laatste dag van je lidmaatschap: {date}.",
+        "amount": "Bedrag van de verlenging: {amount}.",
+        "pay_cta": "Betaal mijn verlenging"
+      },
+      "membership_renewed": {
+        "subject": "Je lidmaatschap {planName} is verlengd",
+        "preheader": "Bedankt, we hebben je betaling ontvangen.",
+        "heading": "Je lidmaatschap is verlengd",
+        "body": "Bedankt, we hebben je betaling voor {planName} ontvangen. De sessies die in deze periode inbegrepen zijn, staan in je account.",
+        "cta": "Bekijk mijn lidmaatschap",
+        "late": "Je lidmaatschap is vanaf vandaag opnieuw actief.",
+        "period": "Deze periode loopt van {start} tot {end}."
+      },
+      "membership_payment_failed": {
+        "subject": "Betaling van je lidmaatschap {planName} mislukt",
+        "preheader": "Betaal je verlenging om je lidmaatschap te behouden.",
+        "heading": "We konden je betaling niet innen",
+        "body": "{attempt, select, 1 {De betaling voor de verlenging van {planName} is niet gelukt.} other {Je verlenging van {planName} is nog niet betaald.}} Betaal via de link hieronder om je lidmaatschap te behouden.",
+        "cta": "Nu betalen",
+        "deadline": "Zonder betaling eindigt je lidmaatschap op {date}.",
+        "keeps_access": "Tot dan behoud je je ledenvoordelen."
+      },
+      "membership_expired": {
+        "subject": "Je lidmaatschap {planName} is beëindigd",
+        "preheader": "De verlenging werd niet betaald.",
+        "heading": "Je lidmaatschap is beëindigd",
+        "body": "De verlenging van {planName} werd niet betaald, daarom is je lidmaatschap beëindigd. Je bent altijd opnieuw welkom met een nieuw lidmaatschap.",
+        "cta": "Bekijk mijn account",
+        "ended_on": "Einddatum: {date}."
+      },
+      "membership_cancel_confirmed": {
+        "subject": "Je lidmaatschap {planName} is opgezegd",
+        "preheader": "We hebben je opzegging genoteerd.",
+        "heading": "Je opzegging is bevestigd",
+        "body": "Voor {planName} worden geen betalingen meer uitgevoerd. Toch van gedachten veranderd? Je kunt je lidmaatschap in je account hervatten voordat het eindigt.",
+        "cta": "Bekijk mijn lidmaatschap",
+        "ends_on": "Je blijft lid tot {date}.",
+        "ended_now": "Je lidmaatschap is beëindigd op {date}."
+      }
     }
   }
 }

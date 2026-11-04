@@ -52,9 +52,9 @@ export type PublicCall = {
   userAgent: string;
   /** The parsed JSON body (`undefined` for a request without one). */
   body: unknown;
-  cookie(name: string): string | null;
+  cookie: (name: string) => string | null;
   /** Adds a `set-cookie` header to the response. */
-  setCookie(value: string): void;
+  setCookie: (value: string) => void;
 };
 
 export type HandleOptions = {
@@ -153,7 +153,7 @@ async function readBody(req: Request): Promise<{ ok: true; body: unknown } | { o
  * Runs one public forms request (see the file comment). `fn` returns a `Response` or a JSON
  * value (answered `200` with `cache-control: no-store`).
  */
-export async function handlePublic(req: Request, fn: (call: PublicCall) => Promise<Response | unknown>, opts: HandleOptions = { route: "public" }): Promise<Response> {
+export async function handlePublic(req: Request, fn: (call: PublicCall) => Promise<unknown>, opts: HandleOptions = { route: "public" }): Promise<Response> {
   const ip = clientIp(req);
   const userAgent = (req.headers.get("user-agent") ?? "").slice(0, 300);
   let db: Db;

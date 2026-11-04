@@ -15,7 +15,7 @@
  *   submit or a repeated submit (`completedNow: false`) emits nothing.
  * - `mode: 'embed'` posts its height to the parent (`beam-form:height`).
  */
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { computeScore, isVisible, nextStep, validateAnswers, type AnswerValue, type Answers, type EndingKind, type FormDefinition, type FormKind, type FormScoring, type ScoreState } from "@beam/core/forms";
 import type { Locale } from "@beam/core/i18n";
 import { Button } from "@beam/ui";
@@ -77,6 +77,19 @@ function landingUrl(mode: FormRendererProps["mode"]): string {
   return url.toString();
 }
 
+const noSubscribe = () => () => undefined;
+
+/** U5: the resume token this browser keeps for a form, or null. */
+function storedResumeToken(slug: string): string | null {
+  try {
+    const raw = storage("local")?.getItem(resumeKey(slug));
+    const token = raw ? (JSON.parse(raw) as { token?: unknown }).token : null;
+    return typeof token === "string" ? token : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Values of `hidden` and `utm` fields (never rendered, F3). */
 function hiddenValues(def: FormDefinition, query: Readonly<Record<string, string>>): Answers {
   const out: Answers = {};
@@ -105,8 +118,10 @@ export function FormRenderer(p: FormRendererProps) {
   const [ending, setEnding] = useState<Ending | null>(null);
   const [prefill, setPrefill] = useState<PublicPrefill | null>(p.prefill ?? null);
   const [identityToken, setIdentityToken] = useState<string | null>(p.identityToken ?? null);
-  const [resumeOffer, setResumeOffer] = useState<string | null>(null);
+  const [resumeDismissed, setResumeDismissed] = useState(false);
+  const [started, setStarted] = useState(false);
   const [honeypot, setHoneypot] = useState("");
+  const [focusTick, setFocusTick] = useState(0);
   const sub = useRef<{ id: string; resumeToken: string | null } | null>(null);
   const starting = useRef<Promise<boolean> | null>(null);
   const emitted = useRef(new Set<string>());
@@ -131,7 +146,7 @@ export function FormRenderer(p: FormRendererProps) {
       ...(init?.body === undefined ? {} : { body: JSON.stringify(init.body) }),
     });
     const text = await res.text();
-    let data: Record<string, unknown> | null = null;
+    let data: Record<string, unknown> | null;
     try {
       data = text ? (JSON.parse(text) as Record<string, unknown>) : null;
     } catch {
@@ -147,17 +162,10 @@ export function FormRenderer(p: FormRendererProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // U5: offer to continue an earlier submission of this browser.
-  useEffect(() => {
-    if (!def.settings.resumeEnabled || p.mode === "embed") return;
-    try {
-      const raw = storage("local")?.getItem(resumeKey(slug));
-      const token = raw ? (JSON.parse(raw) as { token?: string }).token : null;
-      if (token) setResumeOffer(token);
-    } catch {
-      // No storage: no resume offer.
-    }
-  }, [def.settings.resumeEnabled, p.mode, slug]);
+  // U5: offer to continue an earlier submission of this browser (read after hydration).
+  const resumeEnabled = def.settings.resumeEnabled && p.mode !== "embed";
+  const storedResume = useSyncExternalStore(noSubscribe, () => (resumeEnabled ? storedResumeToken(slug) : null), () => null);
+  const resumeOffer = !resumeDismissed && !started ? storedResume : null;
 
   // `?embed=1`: the parent resizes the iframe on `beam-form:height`.
   useEffect(() => {
@@ -169,6 +177,11 @@ export function FormRenderer(p: FormRendererProps) {
     post();
     return () => ro.disconnect();
   }, [p.mode, parentOrigin]);
+
+  // A failed check moves focus to the error summary (WCAG: errors announced and reachable).
+  useEffect(() => {
+    if (focusTick) summaryRef.current?.focus();
+  }, [focusTick]);
 
   const scores = useMemo(() => computeScore(def, scoring, answers) as unknown as ScoreState, [def, scoring, answers]);
   const section = def.sections.find((s) => s.key === sectionKey) ?? def.sections[0]!;
@@ -187,7 +200,7 @@ export function FormRenderer(p: FormRendererProps) {
     else if (r.status === 400 && err?.fields) {
       setErrors(err.fields);
       setStatus("idle");
-      requestAnimationFrame(() => summaryRef.current?.focus());
+      setFocusTick((t) => t + 1);
     } else setStatus("failed");
     return false;
   };
@@ -213,6 +226,7 @@ export function FormRenderer(p: FormRendererProps) {
       }
       const resumeToken = typeof r.data?.resumeToken === "string" ? r.data.resumeToken : null;
       sub.current = { id, resumeToken };
+      setStarted(true);
       if (resumeToken && def.settings.resumeEnabled && p.mode !== "embed") {
         try {
           storage("local")?.setItem(resumeKey(slug), JSON.stringify({ token: resumeToken }));
@@ -270,7 +284,7 @@ export function FormRenderer(p: FormRendererProps) {
     if (!r) return;
     if (r.status !== 200) return void failWith(r);
     const d = r.data ?? {};
-    const endingKey = String(d.endingKey ?? "");
+    const endingKey = typeof d.endingKey === "string" ? d.endingKey : "";
     const e: Ending = {
       key: endingKey,
       ...(typeof d.resultUrl === "string" ? { resultUrl: d.resultUrl } : {}),
@@ -307,7 +321,7 @@ export function FormRenderer(p: FormRendererProps) {
     const fieldErrors = v.ok ? {} : Object.fromEntries(Object.entries(v.fields).filter(([k]) => !known.has(k)));
     if (Object.keys(fieldErrors).length) {
       setErrors(fieldErrors);
-      requestAnimationFrame(() => summaryRef.current?.focus());
+      setFocusTick((t) => t + 1);
       return;
     }
     setErrors({});
@@ -336,11 +350,12 @@ export function FormRenderer(p: FormRendererProps) {
   };
 
   const onResume = async (token: string) => {
-    setResumeOffer(null);
+    setResumeDismissed(true);
     try {
       const r = await call(`${api("resume")}?token=${encodeURIComponent(token)}`, { method: "GET" });
       if (r.status !== 200 || typeof r.data?.submissionId !== "string") throw new Error("resume");
       sub.current = { id: r.data.submissionId, resumeToken: token };
+      setStarted(true);
       setAnswers((r.data.answers ?? {}) as Answers);
       const cur = typeof r.data.currentSectionKey === "string" ? r.data.currentSectionKey : first;
       const order = def.sections.map((s) => s.key);
@@ -395,7 +410,7 @@ export function FormRenderer(p: FormRendererProps) {
           className="space-y-6"
         >
           {p.staffFirstName ? <p className="rounded-md bg-muted px-4 py-3 font-medium">{l("staff_banner").replace("{firstName}", p.staffFirstName)}</p> : null}
-          {resumeOffer && !sub.current ? (
+          {resumeOffer ? (
             <div className="flex flex-wrap items-center gap-3 rounded-md border border-border p-4">
               <p className="flex-1">{l("resume_offer")}</p>
               <Button type="button" className="min-h-11" onClick={() => void onResume(resumeOffer)}>
@@ -406,7 +421,7 @@ export function FormRenderer(p: FormRendererProps) {
                 variant="outline"
                 className="min-h-11"
                 onClick={() => {
-                  setResumeOffer(null);
+                  setResumeDismissed(true);
                   storage("local")?.removeItem(resumeKey(slug));
                 }}
               >

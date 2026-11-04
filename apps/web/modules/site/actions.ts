@@ -1,5 +1,13 @@
 /**
- * site server actions (`action()` from lib/action.ts). Wave 0 skeleton by platform-P7 (DR-12):
- * empty because lib/action.ts lands in the same wave; site fills it in Wave 1.
+ * site server actions (site spec section 4). A barrel created by site-P1: each area file in
+ * `actions/` is owned by one package ("use server" there), so packages never share a file.
+ * This barrel carries no directive; it only re-exports.
  */
-export {};
+export * from "./actions/pages";
+export * from "./actions/nav";
+export * from "./actions/redirects";
+export * from "./actions/media";
+export * from "./actions/proposals";
+export * from "./actions/wordpress";
+export * from "./actions/portal";
+export * from "./actions/partner";

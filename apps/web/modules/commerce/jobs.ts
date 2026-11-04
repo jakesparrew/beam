@@ -10,6 +10,8 @@
  * commerce-P4b: `payments.scan_expired` (every minute), `payments.charge_recurring`,
  * `payments.cancel`, `commerce.revoke_mandate` and `commerce.erase_provider_customer`. After every
  * sync (job and webhook) a provider `paid` for a cancelled order is refunded in full (edge case 36).
+ *
+ * commerce-P5: `checkouts.mark_abandoned` (every 10 minutes; rules 49, 50).
  */
 import { z } from "zod";
 import { files, orders, persons } from "@beam/db/schema";
@@ -24,6 +26,7 @@ import { refundOrderLine } from "./api";
 import { orderPageUrl } from "./server/paid";
 import { createProviderPayment, syncPayment, type SyncResult } from "./server/payments";
 import { scanExpired } from "./server/expiry";
+import { markAbandoned } from "./server/checkouts";
 import { cancelProviderPayment, chargeRecurringPayment, refundLatePaidOnCancelledOrder } from "./server/recurring";
 import { eraseProviderCustomer, revokeMandateAtProvider } from "./server/mandates";
 import { loadReceiptInput, renderReceiptPdf } from "./ui/receipt-pdf";
@@ -33,6 +36,7 @@ export const PaymentsSyncInput = z.object({ providerPaymentId: z.string().min(1)
 export const RenderReceiptInput = z.object({ orderId: z.uuid() });
 export const RefundUnavailableLinesInput = z.object({ orderId: z.uuid(), orderLineIds: z.array(z.uuid()).min(1) });
 export const ScanExpiredInput = z.object({}).passthrough();
+export const MarkAbandonedInput = z.object({}).passthrough();
 export const ChargeRecurringInput = z.object({ paymentId: z.uuid() });
 export const PaymentsCancelInput = z.object({ paymentId: z.uuid() });
 export const RevokeMandateInput = z.object({ mandateId: z.uuid() });
@@ -58,6 +62,11 @@ async function afterSync(ctx: Parameters<typeof refundLatePaidOnCancelledOrder>[
 /** `payments.scan_expired` (every minute; rules 22, 22a, 34). */
 export function runScanExpired(ctx: JobCtx) {
   return scanExpired(ctx);
+}
+
+/** `checkouts.mark_abandoned` (every 10 minutes; key `schedule:checkouts.mark_abandoned:<minute>`). */
+export function runMarkAbandoned(ctx: JobCtx) {
+  return markAbandoned(ctx);
 }
 
 /** `payments.charge_recurring` (key `charge_recurring:<payment_id>`). */
@@ -145,6 +154,7 @@ export const jobs = [
   defineJob({ kind: "commerce.render_receipt", lane: "fast", priority: 5, maxAttempts: 6, input: RenderReceiptInput, run: runRenderReceipt }),
   defineJob({ kind: "commerce.refund_unavailable_lines", lane: "fast", priority: 2, maxAttempts: 6, input: RefundUnavailableLinesInput, run: runRefundUnavailableLines }),
   defineJob({ kind: "payments.scan_expired", lane: "fast", priority: 3, maxAttempts: 3, input: ScanExpiredInput, run: runScanExpired }),
+  defineJob({ kind: "checkouts.mark_abandoned", lane: "fast", priority: 5, maxAttempts: 3, input: MarkAbandonedInput, run: runMarkAbandoned }),
   defineJob({ kind: "payments.charge_recurring", lane: "fast", priority: 2, maxAttempts: 6, input: ChargeRecurringInput, run: runChargeRecurring }),
   defineJob({ kind: "payments.cancel", lane: "fast", priority: 2, maxAttempts: 6, input: PaymentsCancelInput, run: runPaymentsCancel }),
   defineJob({ kind: "commerce.revoke_mandate", lane: "fast", priority: 3, maxAttempts: 6, input: RevokeMandateInput, run: runRevokeMandate }),

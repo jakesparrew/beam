@@ -36,7 +36,8 @@ import { action } from "@/lib/action";
 import { and, ConflictError, eq, NotFoundError, sql, ValidationError, type Ctx } from "@/lib/ctx";
 import { getActiveMandate } from "@/modules/commerce/api";
 import { searchPersons } from "@/modules/crm/api";
-import { startBulkExtension } from "./server/bulk-extend";
+import { translator } from "@/lib/i18n";
+import { previewBulkExtension, startBulkExtension } from "./server/bulk-extend";
 import * as ledger from "./server/ledger";
 import { lockMembership, renewalJobKey } from "./server/memberships";
 import * as membershipService from "./server/memberships";
@@ -52,6 +53,14 @@ const expiryDate = z.union([z.string().regex(DATE_ONLY), z.coerce.date()]).trans
   const [year, month, day] = v.split("-").map(Number) as [number, number, number];
   return endOfDayIn({ year, month, day });
 });
+
+/** The form sends the expiry as a date: the end of that Brussels day (rule 1's end-of-day convention). */
+const CreateGrantAction = z.preprocess((raw) => {
+  const v = raw as { expiresAt?: unknown } | null;
+  if (!v || typeof v !== "object" || typeof v.expiresAt !== "string") return raw;
+  if (v.expiresAt === "") return { ...v, expiresAt: undefined };
+  return DATE_ONLY.test(v.expiresAt) ? { ...v, expiresAt: expiryDate.parse(v.expiresAt) } : raw;
+}, CreateGrantInput);
 
 const notFoundUnlessUuid = (id: string, what: string) => {
   if (!/^[0-9a-f-]{36}$/i.test(id)) throw new NotFoundError(`${what}_not_found`);
@@ -81,7 +90,7 @@ function sharingFor(mode: "none" | "guests" | "named" | undefined, kind: "day" |
 
 /** Rule 4: a manual or bonus grant with its first `grant` entry, key `grant:staff:<client_key>`. */
 export const createGrant = action(
-  { name: "credits.create_grant", audience: "staff", permission: "credits.adjust", input: CreateGrantInput, audit: false },
+  { name: "credits.create_grant", audience: "staff", permission: "credits.adjust", input: CreateGrantAction, audit: false },
   async (ctx, input) => {
     await assertPerson(ctx, input.personId);
     const expiresAt = input.noExpiry ? null : input.expiresAt !== undefined ? input.expiresAt : computeExpiresAt(ctx.now, input.validityDays ?? null);
@@ -196,6 +205,27 @@ export const requestReconcile = action(
 export const bulkExtendGrants = action(
   { name: "credits.bulk_extend", audience: "staff", permission: "credits.adjust", input: BulkExtendInput, audit: false },
   (ctx, input) => startBulkExtension(ctx.tx, ctx, input),
+);
+
+/** The live preview of the bulk-extension form: the matched count and its sentence in the staff locale (read only). */
+export const previewBulkExtend = action(
+  {
+    name: "credits.preview_bulk_extend",
+    audience: "staff",
+    permission: "credits.adjust",
+    input: z.object({
+      days: z.number().int().min(1).max(90),
+      kinds: z.array(z.enum(["day", "night", "euro"])).min(1),
+      sources: z.array(z.enum(["purchase", "voucher", "bonus", "import", "manual", "referral", "transfer"])).min(1),
+      expiresFromOn: z.string().regex(DATE_ONLY),
+      expiresToOn: z.string().regex(DATE_ONLY),
+    }),
+    audit: false,
+  },
+  async (ctx, input) => {
+    const { matched } = await previewBulkExtension(ctx.tx, input);
+    return { matched, text: translator(ctx.locale)("credits.admin.bulk_extend.preview", { count: matched, days: input.days }) };
+  },
 );
 
 /** The person picker of the new-grant and transfer forms (up to 8 matches). */

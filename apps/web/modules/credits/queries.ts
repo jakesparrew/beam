@@ -58,7 +58,11 @@ function decodeCursor(cursor: string | undefined | null): { at: Date; id: string
   return { at: new Date(iso), id };
 }
 
-/** The flat strings of `credits.<group>` for client components (ui takes every string as a prop). */
+/**
+ * The raw strings of the `credits.<group>` catalogue groups for client components (ui takes every
+ * string as a prop), keyed by their path below `credits` (`admin.common.cancel`). Messages with
+ * plurals are formatted on the server; client components only fill simple `{name}` slots.
+ */
 export function creditsLabels(locale: Locale, groups: readonly string[]): Record<string, string> {
   const tree = (messagesFor(locale, ["credits"]).credits ?? {}) as Record<string, unknown>;
   const out: Record<string, string> = {};
@@ -66,7 +70,7 @@ export function creditsLabels(locale: Locale, groups: readonly string[]): Record
     let node: unknown = tree;
     for (const part of group.split(".")) node = node && typeof node === "object" ? (node as Record<string, unknown>)[part] : undefined;
     if (!node || typeof node !== "object") continue;
-    for (const [k, v] of Object.entries(node as Record<string, unknown>)) if (typeof v === "string") out[k] = v;
+    for (const [k, v] of Object.entries(node as Record<string, unknown>)) if (typeof v === "string") out[`${group}.${k}`] = v;
   }
   return out;
 }

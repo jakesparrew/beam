@@ -849,7 +849,7 @@ export async function requestResultLink(tx: Tx, ctx: PublicCtx, i: { slug: strin
   );
   if (!sub) return { ok: true };
   const day = brusselsDay(ctx.now);
-  const [sent] = rowsOf<{ n: number }>(await tx.execute(sql`select count(*)::int as n from jobs where key like ${`form_result_link:${sub.id}:${day}:%`}`));
+  const [sent] = rowsOf<{ n: number }>(await tx.execute(sql`select count(*)::int as n from jobs where idempotency_key like ${`form_result_link:${sub.id}:${day}:%`}`));
   const n = Number(sent?.n ?? 0) + 1;
   if (n > RESULT_LINKS_PER_DAY) return { ok: true };
   await ctx.enqueue({ kind: "forms.send_result_link", payload: { submissionId: sub.id, locale: sub.locale }, key: `form_result_link:${sub.id}:${day}:${n}` });

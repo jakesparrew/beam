@@ -1,7 +1,7 @@
 /**
  * credits jobs (`defineJob`, credits spec section 4 "Jobs"). Facade read by `pnpm gen:indexes`.
  * credits-P3: the expiry scan, the per-grant expiry and the bulk extension; credits-P4: the
- * membership scan and the renewal charge. `ledger.reconcile` (credits-P5) comes with its package.
+ * membership scan and the renewal charge; credits-P5: the nightly `ledger.reconcile`.
  */
 import { z } from "zod";
 import { brusselsDateKey, expireEntryKey, expiryWarningDedupeKey, expiryWarningsDue } from "@beam/core/credits";
@@ -9,6 +9,7 @@ import { defineJob, type JobCtx } from "@/lib/job-runner";
 import { runBulkExtension } from "./server/bulk-extend";
 import { creditsSettings, dueExpiries, expireGrant, expiryWarningCandidates } from "./server/ledger";
 import { chargeRenewal, scanCandidates, scanMembership } from "./server/memberships";
+import { reconcileLedger, type ReconcileResult } from "./server/reconcile";
 
 /** Grants handled per `credits.expire_grants` run before it continues itself. */
 export const EXPIRE_CHUNK = 500;
@@ -25,6 +26,7 @@ export const ChargeRenewalInput = z.object({
   periodEndOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   attempt: z.union([z.literal(1), z.literal(2), z.literal(3)]),
 });
+export const ReconcileInput = z.object({ manual: z.boolean().optional() });
 
 /**
  * `credits.expire_grants` (daily 00:05 Brussels): enqueues `credits.expire_grant` for every active
@@ -100,10 +102,20 @@ export async function runChargeRenewal(ctx: JobCtx, input: z.infer<typeof Charge
   return chargeRenewal(ctx.tx, ctx, input);
 }
 
+/**
+ * `ledger.reconcile` (daily 04:30 Brussels; manual runs from `requestReconcile`, key
+ * `ledger_reconcile:manual:<request_id>`): one `credit_reconciliation_runs` row with the checks of
+ * edge case 21, status drift corrected (edge case 22), one Slack alert per run with findings.
+ */
+export async function runReconcile(ctx: JobCtx, input: z.infer<typeof ReconcileInput>): Promise<ReconcileResult> {
+  return reconcileLedger(ctx.tx, ctx, { jobId: ctx.job.id, manual: input.manual });
+}
+
 export const jobs = [
   defineJob({ kind: "credits.expire_grants", lane: "bulk", priority: 5, maxAttempts: 6, input: ExpireGrantsInput, run: runExpireGrants }),
   defineJob({ kind: "credits.expire_grant", lane: "fast", priority: 5, maxAttempts: 6, input: ExpireGrantInput, run: runExpireGrant }),
   defineJob({ kind: "credits.bulk_extend", lane: "bulk", priority: 9, maxAttempts: 6, input: BulkExtendJobInput, run: runBulkExtend }),
   defineJob({ kind: "memberships.scan_renewals", lane: "bulk", priority: 5, maxAttempts: 6, input: ScanRenewalsInput, run: runScanRenewals }),
   defineJob({ kind: "memberships.charge_renewal", lane: "fast", priority: 3, maxAttempts: 6, input: ChargeRenewalInput, run: runChargeRenewal }),
+  defineJob({ kind: "ledger.reconcile", lane: "bulk", priority: 9, maxAttempts: 3, timeoutMs: 110_000, input: ReconcileInput, run: runReconcile }),
 ];

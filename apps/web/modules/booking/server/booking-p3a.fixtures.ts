@@ -153,3 +153,19 @@ export async function posOrderLine(db: DbOrTx, sessionId: string, opts: { person
     .returning({ id: orderLines.id });
   return { orderId: order!.id, lineId: line!.id };
 }
+
+/**
+ * fix-w09-booking-review: a `createOrder` double for an order with nothing due (euro credit or a
+ * promo covers the total, commerce rule 24): like `fakeCreateOrder`, then the order is `paid` and
+ * `confirmBookingsForOrder` runs in the same transaction, as commerce's `finalizePaidOrder` does.
+ */
+export function fakeSettledCreateOrder(calls: CreateOrderCall[] = []) {
+  const create = fakeCreateOrder(calls);
+  return async (tx: Tx, ctx: Ctx, input: CreateOrderInput) => {
+    const result = await create(tx, ctx, input);
+    await tx.update(orders).set({ status: "paid", paidAt: ctx.now, expiresAt: null }).where(eq(orders.id, result.orderId));
+    const { confirmOrderBookings } = await import("./order-hooks");
+    await confirmOrderBookings(tx, ctx, result.orderId);
+    return { ...result, status: "paid" as const, expiresAt: null };
+  };
+}

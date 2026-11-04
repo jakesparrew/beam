@@ -1,14 +1,14 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DbHandle } from "@beam/db";
-import { bookings, sessions, vSessionAvailability, waitlistEntries } from "@beam/db/schema";
+import { activityEvents, bookings, sessions, vSessionAvailability, waitlistEntries } from "@beam/db/schema";
 import { createTestDb, makePerson } from "@beam/db/testing";
 import { makeCreditGrant } from "@beam/db/testing/credits-factories";
 import { claimToken, hashToken } from "@beam/core/booking";
-import { eq, setAppDb, type Actor } from "@/lib/ctx";
+import { and, eq, setAppDb, type Actor } from "@/lib/ctx";
 import { resetRuntime } from "@/lib/testing";
 import { createOrder } from "@/modules/commerce/api";
 import { GET, POST } from "@/app/api/public/claim/[token]/route";
-import { customerActor, inTx, setBookingRules } from "./booking-p3a.fixtures";
+import { customerActor, fakeSettledCreateOrder, inTx, setBookingRules } from "./booking-p3a.fixtures";
 import { DAY, HOUR, MIN, emailByKey, entryById, entryFacts, factoryCreateOrder, fullSession, offeredEntry, sessionProduct } from "./booking-p5.fixtures";
 import { expireReservedRow } from "./cancel";
 import { SignInRequiredError, claimKey, claimSeatRow } from "./claim";
@@ -145,6 +145,23 @@ describe("claimSeatRow (R44)", () => {
     const done = await entryById(h.db, entry.id);
     expect(done.state).toBe("confirmed");
     expect((await h.db.select().from(bookings).where(eq(bookings.id, done.bookingId!)))[0]!.status).toBe("confirmed");
+  });
+
+  it("a paid claim whose order commerce settles inside createOrder confirms the booking and the entry at once", async () => {
+    const product = await sessionProduct(h.db);
+    const { person, entry, token } = await offerSetup({ productId: product.id });
+    vi.mocked(createOrder).mockImplementationOnce(fakeSettledCreateOrder());
+    const result = await claim(customerActor(person.id), token);
+    const done = await entryById(h.db, entry.id);
+    expect(done.state).toBe("confirmed");
+    expect(result).toEqual({ bookingId: done.bookingId });
+    const [row] = await h.db.select().from(bookings).where(eq(bookings.id, done.bookingId!));
+    expect(row).toMatchObject({ status: "confirmed", paidWith: "order", source: "waitlist", reservedUntil: null });
+    expect(row!.orderLineId).not.toBeNull();
+    const facts = await h.db.select({ kind: activityEvents.kind }).from(activityEvents).where(and(eq(activityEvents.refType, "booking"), eq(activityEvents.refId, row!.id)));
+    expect(facts.map((f) => f.kind)).not.toContain("booking.reserved");
+    expect((await entryFacts(h.db, entry.id)).map((f) => f.kind)).toContain("waitlist.confirmed");
+    expect(await claim(customerActor(person.id), token)).toEqual(result);
   });
 
   it("when the reservation lapses unpaid the entry becomes expired with payment_not_completed", async () => {

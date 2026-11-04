@@ -12,7 +12,7 @@ import * as credits from "@/modules/credits/api";
 import { hasValidSubmission } from "@/modules/forms/api";
 import { getCurrentLegalVersion, hasAcceptedCurrentTerms, recordTermsAcceptance } from "@/modules/site/api";
 import { bookSeats, type BookSeatsInput } from "./book";
-import { DAY, customerActor, fakeCreateOrder, inTx, openSession, sessionProduct, setBookingRules, type CreateOrderCall } from "./booking-p3a.fixtures";
+import { DAY, customerActor, fakeCreateOrder, fakeSettledCreateOrder, inTx, openSession, sessionProduct, setBookingRules, type CreateOrderCall } from "./booking-p3a.fixtures";
 
 vi.mock("@/modules/commerce/api", async (orig) => ({ ...(await orig<Record<string, unknown>>()), createOrder: vi.fn() }));
 // commerce's api barrel re-exports `redeemVoucher` from its actions, whose import graph reaches this
@@ -194,6 +194,34 @@ describe("order bookings (R18)", () => {
     }
     expect(new Set(rows.map((r) => r.orderLineId)).size).toBe(3);
     expect(await h.db.select().from(emailMessages).where(eq(emailMessages.personId, owner.id))).toHaveLength(0);
+  });
+
+  it("an order commerce settles inside createOrder (nothing due) confirms the rows without a checkout or a reserved fact", async () => {
+    const product = await sessionProduct(h.db);
+    const session = await openSession(h.db, { productId: product.id, creditKind: null, creditCost: 0 });
+    const owner = await makePerson(h.db);
+    vi.mocked(createOrder).mockImplementationOnce(fakeSettledCreateOrder(orderCalls));
+    const result = await book(customerActor(owner.id), {
+      sessionId: session.id,
+      personId: owner.id,
+      payWith: "order",
+      useEuroCredit: true,
+      guests: [{ firstName: "Gast", lastName: "Betaald", payWith: "order" }],
+    });
+    expect(result.kind).toBe("confirmed");
+    const rows = await rowsOf(session.id);
+    expect(rows).toHaveLength(2);
+    expect(result.bookingIds.sort()).toEqual(rows.map((r) => r.id).sort());
+    for (const r of rows) {
+      expect(r).toMatchObject({ status: "confirmed", reservedUntil: null });
+      expect(r.orderLineId).not.toBeNull();
+    }
+    const kinds = (await eventsOf(owner.id)).map((e) => e.kind);
+    expect(kinds).not.toContain("booking.reserved");
+    expect(kinds.filter((k) => k === "booking.confirmed")).toHaveLength(1);
+    expect(kinds).toContain("booking.guest_added");
+    const owned = rows.find((r) => r.guestOfBookingId === null)!;
+    expect(await h.db.select().from(emailMessages).where(eq(emailMessages.idempotencyKey, `booking:${owned.id}:confirmed`))).toHaveLength(1);
   });
 
   it("a double submit with the same clientKey returns the existing checkout", async () => {

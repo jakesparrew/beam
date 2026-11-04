@@ -55,7 +55,8 @@ async function purchaseGrant(personId: string, units = 10) {
 
 describe("registration", () => {
   it("lists the V1 person tables and the NO_PII tables, and is in the generated registry", () => {
-    expect([...privacy.tables].sort()).toEqual(["credit_entries", "credit_grants", "membership_periods", "memberships", "package_shares"]);
+    // A subset: credits-P8 and credits-P9 add `credit_sharing_reviews` and the referral tables (fix-w09-credits-review 4).
+    expect(privacy.tables).toEqual(expect.arrayContaining(["credit_entries", "credit_grants", "membership_periods", "memberships", "package_shares"]));
     expect(noPiiTables.filter((t) => privacy.tables.includes(t))).toEqual([]);
     expect(GDPR_REGISTRY.credits).toBe(privacy);
     for (const t of noPiiTables) expect(NO_PII_TABLES).toContain(t);

@@ -65,7 +65,7 @@ async function queueForAutomation(ctx: Ctx, input: AutomationEmailInput, mode: M
 
   let purpose: MarketingPurpose | null;
   if (mode === "marketing") {
-    if (template.kind === "marketing") purpose = template.purpose as MarketingPurpose;
+    if (template.kind === "marketing") purpose = template.purpose;
     else if (def?.loadProps) purpose = "newsletter";
     else throw new ValidationError("email_template_not_marketing", { templateSlug: "not_marketing" });
   } else {
@@ -102,7 +102,7 @@ async function queueForAutomation(ctx: Ctx, input: AutomationEmailInput, mode: M
       templateVersionId: version.id,
       enrolmentId: input.enrolmentId,
       locale,
-      props: props as Record<string, unknown> | null,
+      props: props,
       context,
       fromDomain: mode === "marketing" ? "news.beam.be" : "mail.beam.be",
       idempotencyKey: input.idempotencyKey,

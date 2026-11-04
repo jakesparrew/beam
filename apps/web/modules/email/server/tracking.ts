@@ -79,7 +79,7 @@ async function findMessage(tx: DbOrTx, token: string | null | undefined): Promis
 
 const withinWindow = (m: TrackedMessage, now: Date) => !!m.sentAt && now.getTime() - m.sentAt.getTime() <= TRACKING_WINDOW_DAYS * 86_400_000;
 
-export function homeUrl(locale: Locale | string | null | undefined): string {
+export function homeUrl(locale: string | null | undefined): string {
   const l: Locale = isLocale(locale) ? locale : "nl-BE";
   return `https://beam.be/${URL_SEGMENT[l]}`;
 }

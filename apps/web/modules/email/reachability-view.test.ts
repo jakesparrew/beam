@@ -16,7 +16,7 @@ import { getReachability } from "./api";
 import { consent, personWith } from "./email-p3.fixtures";
 
 vi.mock("@/modules/automation/api", async (orig) => ({
-  ...(await orig<typeof import("@/modules/automation/api")>()),
+  ...(await orig<Record<string, unknown>>()),
   requestSuppressionExit: vi.fn(() => Promise.resolve({ jobId: null })),
 }));
 

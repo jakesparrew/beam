@@ -18,7 +18,7 @@ import { blockTemplate, completeCompany, consent, messageOf, personWith, resetEm
 const seen = vi.hoisted(() => ({ calls: [] as { context: Record<string, string>; stepKey: string | null }[] }));
 
 vi.mock("@beam/email/templates/registry", async (orig) => {
-  const real = await orig<typeof import("@beam/email/templates/registry")>();
+  const real = await orig<{ TEMPLATE_REGISTRY: Record<string, unknown> }>();
   const { defineTemplate } = await import("@beam/email/templates/define");
   const { EmailLayout, EmailText } = await import("@beam/email/layout");
   const slots = {

@@ -100,7 +100,7 @@ describe("every email job twice -> same state", () => {
     const emitted = fakes.resend.emitWebhook("email.delivered", (await messageOf(h.db, id)).resendId!);
     const [row] = await h.db
       .insert(webhookEvents)
-      .values({ provider: "resend", externalEventId: `${emitted.id}:${id}`, payload: emitted.payload as Record<string, unknown>, jobId: crypto.randomUUID() })
+      .values({ provider: "resend", externalEventId: `${emitted.id}:${id}`, payload: emitted.payload, jobId: crypto.randomUUID() })
       .returning();
     let afterFirst: unknown;
     await runJobTwice(h.db, "webhook.process", { webhookEventId: row!.id }, { integrations: fakes, between: async () => void (afterFirst = await state()) });

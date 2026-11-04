@@ -20,7 +20,7 @@ afterAll(async () => {
 
 describe("resolveMergeFields", () => {
   it("a resolver receives only tx, personId, the context ids and the locale", async () => {
-    const title = vi.fn(() => Promise.resolve("Breathwork live"));
+    const title = vi.fn((_args: unknown) => Promise.resolve("Breathwork live"));
     const registry: MergeFieldRegistry = { "webinar.title": title };
     const out = await resolveMergeFields(
       h.db,
@@ -28,7 +28,7 @@ describe("resolveMergeFields", () => {
       registry,
     );
     expect(out).toEqual({ "webinar.title": "Breathwork live" });
-    const args = title.mock.calls[0]![0] as unknown as Record<string, unknown>;
+    const args = title.mock.calls[0]![0] as Record<string, unknown>;
     expect(Object.keys(args).sort()).toEqual(["context", "locale", "personId", "tx"]);
     expect(args.context).toEqual({ registration_id: "reg-1" });
     expect(args.locale).toBe("en");

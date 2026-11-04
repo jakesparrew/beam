@@ -18,7 +18,7 @@ import { blockTemplate, completeCompany, consent, eventsOf, jobsOf, messageOf, p
 import { processResendEvent, retrySoftBounce } from "./process-event";
 
 vi.mock("@/modules/automation/api", async (orig) => ({
-  ...(await orig<typeof import("@/modules/automation/api")>()),
+  ...(await orig<Record<string, unknown>>()),
   requestSuppressionExit: vi.fn(() => Promise.resolve({ jobId: null })),
 }));
 
@@ -59,7 +59,7 @@ async function deliver(type: string, resendId: string, extra: Record<string, unk
   const emitted = fakes.resend.emitWebhook(type, resendId, at ? { created_at: at.toISOString(), ...extra } : extra);
   const [row] = await h.db
     .insert(webhookEvents)
-    .values({ provider: "resend", externalEventId: `${emitted.id}:${crypto.randomUUID()}`, payload: emitted.payload as Record<string, unknown>, jobId: crypto.randomUUID() })
+    .values({ provider: "resend", externalEventId: `${emitted.id}:${crypto.randomUUID()}`, payload: emitted.payload, jobId: crypto.randomUUID() })
     .returning({ id: webhookEvents.id });
   return processResendEvent(makeJobCtx(h.db, "webhook.process"), { id: row!.id, payload: emitted.payload });
 }
@@ -160,7 +160,7 @@ describe("processResendEvent", () => {
     const emitted = fakes.resend.emitWebhook("email.delivered", message.resendId!);
     const [row] = await h.db
       .insert(webhookEvents)
-      .values({ provider: "resend", externalEventId: `${emitted.id}:${crypto.randomUUID()}`, payload: emitted.payload as Record<string, unknown>, jobId: crypto.randomUUID() })
+      .values({ provider: "resend", externalEventId: `${emitted.id}:${crypto.randomUUID()}`, payload: emitted.payload, jobId: crypto.randomUUID() })
       .returning();
     const ctx = makeJobCtx(h.db, "webhook.process");
     expect(await processResendEvent(ctx, { id: row!.id, payload: emitted.payload })).toMatchObject({ outcome: "processed" });

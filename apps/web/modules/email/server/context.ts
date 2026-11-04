@@ -28,7 +28,7 @@ export type SendSettings = { config: EmailConfig; footer: EmailFooterSetting; co
 
 export async function loadSendSettings(tx: DbOrTx): Promise<SendSettings> {
   const [config, footer, company] = await Promise.all([getSetting(tx, "email_config"), getSetting(tx, "email_footer"), getSetting(tx, "company")]);
-  return { config: config as EmailConfig, footer: footer as EmailFooterSetting, company: company as unknown as FooterCompany };
+  return { config: config, footer: footer, company: company as unknown as FooterCompany };
 }
 
 export async function legalLinksFor(locale: Locale): Promise<LegalLinks> {

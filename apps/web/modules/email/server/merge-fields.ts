@@ -26,7 +26,7 @@ export type MergeFieldArgs = { tx: DbOrTx; personId: string | null; context: Rea
 export type MergeFieldResolver = (args: MergeFieldArgs) => Promise<string | null>;
 export type MergeFieldRegistry = Readonly<Record<string, MergeFieldResolver | undefined>>;
 
-const registry = (): MergeFieldRegistry => MERGE_FIELDS as unknown as MergeFieldRegistry;
+const registry = (): MergeFieldRegistry => MERGE_FIELDS;
 
 /** The registered merge-field names (`<module>.<field>`). */
 export function mergeFieldNames(source: MergeFieldRegistry = registry()): string[] {

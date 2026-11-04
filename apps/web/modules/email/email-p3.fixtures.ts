@@ -62,7 +62,7 @@ const blockId = () => `blk${String(++blockCounter).padStart(7, "0")}`;
 
 /** A small document in `locales` with a heading, a token and one link. */
 export function documentIn(locales: readonly Locale[], href = "https://beam.be/en/events"): BlockDocument {
-  const doc: BlockDocument = { schemaVersion: 1, locales: {} } as BlockDocument;
+  const doc: BlockDocument = { schemaVersion: 1, locales: {} };
   for (const l of locales) {
     (doc.locales as Record<string, unknown>)[l] = [
       { id: blockId(), type: "heading", level: 1, text: "Hello {{first_name|friend}}" },

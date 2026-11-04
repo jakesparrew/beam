@@ -15,7 +15,7 @@ import { sendEmailMessage } from "./jobs";
 import { blockTemplate, completeCompany, consent, messageOf, personWith, resetEmailTables, sendJobOf, timeline } from "./email-p3.fixtures";
 
 vi.mock("@/modules/automation/api", async (orig) => ({
-  ...(await orig<typeof import("@/modules/automation/api")>()),
+  ...(await orig<Record<string, unknown>>()),
   requestSuppressionExit: vi.fn(() => Promise.resolve({ jobId: null })),
 }));
 
@@ -60,7 +60,7 @@ describe("sendTransactional", () => {
     let personId = "";
     let messageId = "";
     await h.db.transaction(async (tx) => {
-      const ctx = createCtx({ tx: tx as unknown as Tx, actor: { kind: "system", jobId: "" } });
+      const ctx = createCtx({ tx: tx, actor: { kind: "system", jobId: "" } });
       const [p] = await tx.insert(persons).values({ email: "booker@example.com", firstName: "Booker", locale: "nl-BE", acquisition: { source: "manual" } }).returning();
       personId = p!.id;
       ({ emailMessageId: messageId } = await sendTransactional(ctx, { template: "booking.does_not_exist", personId, locale: "nl-BE", data: {}, key: "p3:unknown" }));

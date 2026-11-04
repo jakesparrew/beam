@@ -255,7 +255,7 @@ async function renderMessage(
     if (tpl.def) {
       const copy = (tpl.version?.copy ?? undefined) as CopyOverrides | undefined;
       const r = await renderEmail({ source: "code", template: tpl.def, locale: input.locale, props: input.props, ...(copy ? { copy } : {}), footer: input.footer });
-      const generated = tpl.def.attachments ? await tpl.def.attachments(input.props as never, input.locale) : [];
+      const generated = tpl.def.attachments ? await tpl.def.attachments(input.props, input.locale) : [];
       return { ...r, generated };
     }
     const v = tpl.version!;

@@ -38,7 +38,7 @@ beforeEach(async () => {
 afterEach(() => vi.unstubAllEnvs());
 
 const magic = { url: "https://example.com/nl/account/login/verify?token=abc", expiresMinutes: 15 };
-const inTx = <T>(fn: (tx: Tx) => Promise<T>) => h.db.transaction((tx) => fn(tx as unknown as Tx));
+const inTx = <T>(fn: (tx: Tx) => Promise<T>) => h.db.transaction((tx) => fn(tx));
 
 async function campaignWith(personId: string, opts: { finishedAt?: Date; snapshot?: boolean } = {}) {
   const [template] = await h.db.select({ id: emailTemplates.id }).from(emailTemplates).where(eq(emailTemplates.slug, "p3p-news"));

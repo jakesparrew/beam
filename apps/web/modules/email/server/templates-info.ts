@@ -35,7 +35,7 @@ export function registryKeys(): string[] {
 const localesOf = (v: readonly string[]): Locale[] => v.filter(isLocale);
 
 function infoOf(t: Pick<TemplateRow, "kind" | "purpose">, v: Pick<VersionRow, "id" | "locales">): TemplateInfo {
-  return { templateVersionId: v.id, kind: t.kind, purpose: (t.purpose as MarketingPurpose | null) ?? null, locales: localesOf(v.locales) };
+  return { templateVersionId: v.id, kind: t.kind, purpose: (t.purpose) ?? null, locales: localesOf(v.locales) };
 }
 
 async function currentRows(db: DbOrTx, slugs: readonly string[]) {
@@ -77,7 +77,7 @@ export async function listPublishedTemplates(
       ),
     )
     .orderBy(asc(emailTemplates.slug));
-  return rows.map((r) => ({ slug: r.slug, name: r.name, kind: r.kind, purpose: (r.purpose as MarketingPurpose | null) ?? null, locales: localesOf(r.locales) }));
+  return rows.map((r) => ({ slug: r.slug, name: r.name, kind: r.kind, purpose: (r.purpose) ?? null, locales: localesOf(r.locales) }));
 }
 
 export function seedTemplate(tx: Tx, input: SeedTemplateInput): Promise<{ templateId: string; created: boolean }> {
@@ -144,7 +144,7 @@ export async function loadSendTemplate(tx: DbOrTx, input: { templateVersionId: s
     if (!row) return null;
     const def = row.version.reactComponent ? registryTemplate(row.version.reactComponent) : null;
     if (row.version.reactComponent && !def) return null;
-    return { key: row.template.slug, kind: row.template.kind, purpose: (row.template.purpose as MarketingPurpose | null) ?? null, template: row.template, version: row.version, def };
+    return { key: row.template.slug, kind: row.template.kind, purpose: (row.template.purpose) ?? null, template: row.template, version: row.version, def };
   }
   const def = registryTemplate(input.key);
   if (!def) return null;

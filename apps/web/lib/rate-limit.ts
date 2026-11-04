@@ -41,7 +41,14 @@ export type RateLimitRequest =
   | { route: "forms"; ip: string }
   | { route: "webinar_heartbeat"; registrationId: string }
   | { route: "webinar_state"; registrationId: string }
-  | { route: "api"; ip: string };
+  | { route: "api"; ip: string }
+  /** Booking's public claim actions: `claim:ip:<ip>`, 20 per 60 s. */
+  | { route: "claim"; ip: string }
+  /**
+   * Commerce's public checkout actions: `commerce:ip:<ip>`, 20 per 60 s; with `payId` (the
+   * checkout or order of `placeOrder` / `payOrder`) also `commerce:pay:<id>`, 5 per 60 s.
+   */
+  | { route: "commerce"; ip: string; payId?: string };
 
 const spec = (key: string, rule: RateLimitRule): RateLimitSpec => ({ key, ...rule });
 
@@ -60,6 +67,13 @@ export function bucketsFor(req: RateLimitRequest): RateLimitSpec[] {
       return [spec(rateLimitKey.webinarState(req.registrationId), RATE_LIMITS.webinar_state)];
     case "api":
       return [spec(rateLimitKey.apiIp(req.ip), RATE_LIMITS.api_ip)];
+    case "claim":
+      return [spec(rateLimitKey.claimIp(req.ip), RATE_LIMITS.claim_ip)];
+    case "commerce":
+      return [
+        spec(rateLimitKey.commerceIp(req.ip), RATE_LIMITS.commerce_ip),
+        ...(req.payId ? [spec(rateLimitKey.commercePay(req.payId), RATE_LIMITS.commerce_pay)] : []),
+      ];
   }
 }
 

@@ -13,6 +13,11 @@ export const RATE_LIMITS = {
   webinar_heartbeat: { limit: 8, windowSeconds: 60 },
   webinar_state: { limit: 30, windowSeconds: 60 },
   api_ip: { limit: 60, windowSeconds: 60 },
+  // Booking spec 4.2: the public waitlist claim actions (`claimSeat`, `declineOffer`, `requestClaimSignIn`).
+  claim_ip: { limit: 20, windowSeconds: 60 },
+  // Commerce spec 4.2: public checkout actions per IP, and `placeOrder` / `payOrder` per checkout or order.
+  commerce_ip: { limit: 20, windowSeconds: 60 },
+  commerce_pay: { limit: 5, windowSeconds: 60 },
 } as const satisfies Record<string, RateLimitRule>;
 
 export type RateLimitBucket = keyof typeof RATE_LIMITS;
@@ -26,6 +31,9 @@ export const rateLimitKey = {
   webinarHeartbeat: (registrationId: string) => `webinar_heartbeat:${registrationId}`,
   webinarState: (registrationId: string) => `webinar_state:${registrationId}`,
   apiIp: (ip: string) => `api:ip:${ip}`,
+  claimIp: (ip: string) => `claim:ip:${ip}`,
+  commerceIp: (ip: string) => `commerce:ip:${ip}`,
+  commercePay: (checkoutOrOrderId: string) => `commerce:pay:${checkoutOrOrderId}`,
 } as const;
 
 /** Paths exempt from the per-IP `/api/*` rule (a venue NAT would otherwise block a room of viewers). */

@@ -121,3 +121,94 @@ export async function getTaskCounts(tx: DbOrTx, userId: string, opts: { now?: Da
     .where(and(eq(tasks.ownerUserId, userId), eq(tasks.status, "open")));
   return { open: Number(row?.open ?? 0), overdue: Number(row?.overdue ?? 0), dueToday: Number(row?.dueToday ?? 0) };
 }
+
+// ---------------------------------------------------------------------------
+// Screen helpers (server side): the serialisable view and labels of `ui/task-list.tsx`
+// ---------------------------------------------------------------------------
+
+type Tr = (key: string) => string;
+
+const KINDS = ["call", "follow_up", "payment", "proposal", "review", "other"] as const;
+const PRIORITIES = ["low", "normal", "high"] as const;
+const STATUSES = ["open", "done", "cancelled"] as const;
+const SOURCES = ["manual", "automation", "retention", "system"] as const;
+
+/** `YYYY-MM-DDTHH:mm` of `d` in Europe/Brussels (the `datetime-local` value). */
+export function brusselsLocal(d: Date): string {
+  const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Brussels", hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }).formatToParts(d);
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "00";
+  return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}`;
+}
+
+/** The serialisable row of `ui/task-list.tsx`; dates shown in Brussels time. */
+export function toTaskView(row: TaskRow, locale: string, tr: Tr) {
+  return {
+    id: row.id,
+    title: row.title,
+    kind: row.kind,
+    priority: row.priority,
+    status: row.status,
+    source: row.source,
+    dueLabel: row.dueAt ? new Intl.DateTimeFormat(locale, { timeZone: "Europe/Brussels", dateStyle: "medium", timeStyle: "short" }).format(row.dueAt) : null,
+    dueLocal: row.dueAt ? brusselsLocal(row.dueAt) : "",
+    isOverdue: row.isOverdue,
+    isDueToday: row.isDueToday,
+    ownerId: row.owner.id,
+    ownerLabel: [row.owner.name ?? "", row.owner.disabled ? tr("crm.tasks.owner_disabled") : ""].filter(Boolean).join(" "),
+    personId: row.personId,
+    companyId: row.companyId,
+    relatedLabel: row.personName ?? row.companyName ?? null,
+    notes: row.notes,
+  };
+}
+
+const record = <K extends string>(keys: readonly K[], label: (k: K) => string): Record<K, string> => Object.fromEntries(keys.map((k) => [k, label(k)])) as Record<K, string>;
+
+/** The labels of `ui/task-list.tsx` and `ui/task-form.tsx` from the crm catalogue. */
+export function taskListLabels(tr: Tr) {
+  const t = (k: string) => tr(`crm.tasks.${k}`);
+  return {
+    create: t("create"),
+    empty: t("empty"),
+    columns: {
+      title: t("col_title"),
+      kind: t("col_kind"),
+      priority: t("col_priority"),
+      due: t("col_due"),
+      owner: t("col_owner"),
+      related: t("col_related"),
+      source: t("col_source"),
+      actions: tr("crm.common.actions"),
+    },
+    overdue: t("overdue"),
+    dueToday: t("due_today"),
+    noDue: t("no_due"),
+    complete: t("complete"),
+    cancel: t("cancel"),
+    reopen: t("reopen"),
+    reassign: t("reassign"),
+    openRelated: t("open_related"),
+    invalidTransition: t("invalid_transition"),
+    error: tr("crm.common.error"),
+    kinds: record(KINDS, (k) => tr(`crm.enums.task_kind.${k}`)),
+    priorities: record(PRIORITIES, (k) => tr(`crm.enums.task_priority.${k}`)),
+    statuses: record(STATUSES, (k) => tr(`crm.enums.task_status.${k}`)),
+    sources: record(SOURCES, (k) => tr(`crm.enums.task_source.${k}`)),
+    form: {
+      titleNew: t("form.title_new"),
+      titleEdit: t("form.title_edit"),
+      title: t("form.title"),
+      kind: t("form.kind"),
+      due: t("form.due"),
+      priority: t("form.priority"),
+      owner: t("form.owner"),
+      notes: t("form.notes"),
+      ownOnly: t("form.own_only"),
+      save: tr("crm.common.save"),
+      saving: tr("crm.common.saving"),
+      cancel: tr("crm.common.cancel"),
+      error: tr("crm.common.error"),
+      forbidden: t("form.own_only"),
+    },
+  };
+}

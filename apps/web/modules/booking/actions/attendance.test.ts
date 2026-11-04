@@ -4,6 +4,7 @@ import { makeCreditGrant } from "@beam/db/testing/credits-factories";
 import type { DbHandle } from "@beam/db";
 import { bookings, roles } from "@beam/db/schema";
 import { DEFAULT_BOOKING_RULES } from "@beam/core/booking";
+import type * as CreditsApi from "@/modules/credits/api";
 
 const jar = new Map<string, string>();
 vi.mock("next/headers", () => ({
@@ -204,7 +205,7 @@ describe("markNoShow and revertNoShow (R37)", () => {
   });
 
   it("a no-show whose credit was released is not turned into attended (revert or check-in); a kept credit is", async () => {
-    const actual = await vi.importActual<typeof import("@/modules/credits/api")>("@/modules/credits/api");
+    const actual = await vi.importActual<typeof CreditsApi>("@/modules/credits/api");
     const creditRow = async () => {
       const session = await runningSession();
       const person = await makePerson(h.db);

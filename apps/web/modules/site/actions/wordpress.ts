@@ -8,6 +8,7 @@
 import { z } from "zod";
 import { pages, wordpressImportItems, wordpressImports } from "@beam/db/schema";
 import { LOCALES } from "@beam/core/i18n";
+import type { PublishIssue } from "@beam/core/site";
 import { action, type ActionResult } from "@/lib/action";
 import { ConflictError, eq, NotFoundError, ValidationError } from "@/lib/ctx";
 import { MAX_FILE_BYTES, storeFile } from "@/lib/files";
@@ -152,7 +153,7 @@ export async function retryImportErrors(raw: unknown): Promise<ActionResult<{ re
   return retryImpl(raw);
 }
 
-type PublishImportedOutput = { published: number; blocked: { pageId: string; issues: import("@beam/core/site").PublishIssue[] }[] };
+type PublishImportedOutput = { published: number; blocked: { pageId: string; issues: PublishIssue[] }[] };
 
 const publishImpl = action(
   // Each page publish writes its own `site.page.publish` audit row (publishVersionTx).

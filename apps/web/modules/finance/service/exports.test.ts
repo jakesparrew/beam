@@ -88,15 +88,22 @@ function parseCsv(text: string): string[][] {
   for (let i = 0; i < text.length; i++) {
     const c = text[i]!;
     if (quoted) {
-      if (c === '"' && text[i + 1] === '"') (cell += '"'), i++;
-      else if (c === '"') quoted = false;
+      if (c === '"' && text[i + 1] === '"') {
+        cell += '"';
+        i++;
+      } else if (c === '"') quoted = false;
       else cell += c;
     } else if (c === '"') quoted = true;
-    else if (c === ";") row.push(cell), (cell = "");
+    else if (c === ";") {
+      row.push(cell);
+      cell = "";
+    }
     else if (c === "\r" && text[i + 1] === "\n") {
       row.push(cell);
       rows.push(row);
-      (row = []), (cell = ""), i++;
+      row = [];
+      cell = "";
+      i++;
     } else cell += c;
   }
   return rows;
@@ -170,7 +177,7 @@ describe("vat_summary", () => {
     const view = await octoberSummary();
     expect(out.row.rowCount).toBe(view.length);
     expect(view).toHaveLength(3);
-    const fromCsv = out.records.map((r) => ({ month: r.month, kind: r.kind, rate: Number(r.vat_rate), net: euros(r.net), vat: euros(r.vat), gross: euros(r.gross) }));
+    const fromCsv = out.records.map((r) => ({ month: r.month ?? "", kind: r.kind ?? "", rate: Number(r.vat_rate), net: euros(r.net), vat: euros(r.vat), gross: euros(r.gross) }));
     expect(fromCsv.every((r) => r.month === "2026-10-01")).toBe(true);
     const key = (r: { kind: string; rate: number }) => `${r.kind}:${r.rate}`;
     const sort = <T extends { kind: string; rate: number }>(rows: T[]) => [...rows].sort((x, y) => key(x).localeCompare(key(y)));
@@ -224,7 +231,7 @@ describe("finance.build_export", () => {
   it("an empty period gives a header-only file with zero rows", async () => {
     const out = await exportOf("payments", { from: "2025-01-01", to: "2025-01-31" });
     expect(out.row).toMatchObject({ status: "done", rowCount: 0 });
-    expect(out.text).toBe(`﻿${ex.EXPORT_COLUMNS.payments.join(";")}\r\n`);
+    expect(out.text).toBe(`\uFEFF${ex.EXPORT_COLUMNS.payments.join(";")}\r\n`);
   });
 
   it("a file above the size limit fails with export_too_large; a Release 3 kind fails as unavailable", async () => {

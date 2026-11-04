@@ -66,7 +66,6 @@ export function periodError(from: string, to: string): "finance.errors.period_in
   return null;
 }
 
-const text = (v: unknown): string | null => (v === null || v === undefined ? null : String(v));
 const cents = (v: unknown): string => centsToEuros(Number(v ?? 0));
 
 // ---------------------------------------------------------------------------
@@ -433,7 +432,7 @@ export async function listExports(db: DbOrTx, input: { limit?: number; now?: Dat
       status: r.status,
       rowCount: r.row_count === null ? null : Number(r.row_count),
       error: r.error,
-      requestedBy: text(r.requested_by),
+      requestedBy: r.requested_by ?? null,
       createdAt: new Date(r.created_at),
       expiresAt,
       downloadable: r.status === "done" && r.has_file && (!expiresAt || expiresAt.getTime() > now.getTime()),

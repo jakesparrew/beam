@@ -40,10 +40,14 @@ const STATUS_VARIANT = { queued: "secondary", running: "warning", done: "success
 /** The form's server action: queues the export, then reloads the page with the outcome. */
 async function onRequest(form: FormData) {
   "use server";
-  const kind = form.get("kind");
-  const from = String(form.get("from") ?? "");
-  const to = String(form.get("to") ?? "");
-  const back = `kind=${encodeURIComponent(String(kind ?? ""))}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
+  const field = (name: string) => {
+    const v = form.get(name);
+    return typeof v === "string" ? v : "";
+  };
+  const kind = field("kind");
+  const from = field("from");
+  const to = field("to");
+  const back = `kind=${encodeURIComponent(kind)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
   if (!isV1Kind(kind)) redirect(`/admin/finance/exports?error=finance.errors.period_invalid&${back}`);
   const r = await requestFinanceExport({ kind, from, to });
   if (r.ok) redirect("/admin/finance/exports?requested=1");

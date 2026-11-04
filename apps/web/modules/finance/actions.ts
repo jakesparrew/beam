@@ -28,7 +28,7 @@ import { sendTransactional } from "@/modules/email/api";
 import { invoiceEmailData, invoiceEmailKey, invoiceEmailLocale } from "./jobs";
 import { brusselsDay, brusselsNoon } from "./service/billit-sync";
 import { createFinanceExport, periodError } from "./service/exports";
-import { enqueueFinanceJob, findInvoice, loadInvoice, updateInvoiceState } from "./service/invoice-state";
+import { findInvoice, loadInvoice, updateInvoiceState } from "./service/invoice-state";
 import { issueCreditNote } from "./service/issue-credit-note";
 import { addDays, financeLabel, issuerSettings } from "./service/issue-invoice";
 import { reissueToCompany } from "./service/reissue";

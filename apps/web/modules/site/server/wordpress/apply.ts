@@ -289,9 +289,13 @@ async function importGroup(tx: Tx, ctx: Ctx, imp: ImportRow, first: ImportItemRo
   const base: VersionContent = { title: {}, paths: {}, blocks: {}, seo: {}, excerpt: null, coverMediaId: null, locales: [], isMaterialChange: false };
   const draft = pageId ? await findDraft(tx, pageId) : null;
   const content: VersionContent = draft ? versionContent(draft) : base;
+  let basedOnVersionId: string | null = null;
   if (pageId && !draft) {
     const [page] = await tx.select({ currentVersionId: pages.currentVersionId }).from(pages).where(eq(pages.id, pageId));
-    if (page?.currentVersionId) Object.assign(content, versionContent(await getVersionOrThrow(tx, page.currentVersionId)));
+    if (page?.currentVersionId) {
+      Object.assign(content, versionContent(await getVersionOrThrow(tx, page.currentVersionId)));
+      basedOnVersionId = page.currentVersionId;
+    }
   }
   const next: VersionContent = {
     ...content,
@@ -319,7 +323,7 @@ async function importGroup(tx: Tx, ctx: Ctx, imp: ImportRow, first: ImportItemRo
     pageId = page!.id;
   }
   if (draft) await updateDraftContent(tx, draft, next);
-  else await insertDraft(tx, { pageId, content: { ...next, changeSummary: "WordPress import" }, basedOnVersionId: null, userId: imp.createdByUserId });
+  else await insertDraft(tx, { pageId, content: { ...next, changeSummary: "WordPress import" }, basedOnVersionId, userId: imp.createdByUserId });
 
   let created = 0;
   for (const { m, c } of parts) {

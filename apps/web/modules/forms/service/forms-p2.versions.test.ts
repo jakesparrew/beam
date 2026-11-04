@@ -8,10 +8,10 @@ import { eq } from "@/lib/ctx";
 
 const dpia = vi.hoisted(() => ({ approved: false, calls: 0 }));
 vi.mock("@/modules/ops/api", () => ({
-  isDpiaApproved: vi.fn(async (_db: unknown, key: string) => {
+  isDpiaApproved: vi.fn((_db: unknown, key: string) => {
     dpia.calls++;
     expect(key).toBe("sensitive_assessment_processing");
-    return dpia.approved;
+    return Promise.resolve(dpia.approved);
   }),
 }));
 

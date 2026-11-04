@@ -435,7 +435,13 @@ export function deriveSensitiveKeys(def: FormDefinition, scoring?: FormScoring):
 export function fieldOrder(def: FormDefinition): FieldKey[] {
   const out: FieldKey[] = [];
   const seen = new Set<string>();
-  for (const s of def.sections) for (const k of s.fieldKeys) if (Object.hasOwn(def.fields, k) && !seen.has(k)) (seen.add(k), out.push(k));
+  for (const s of def.sections) {
+    for (const k of s.fieldKeys) {
+      if (!Object.hasOwn(def.fields, k) || seen.has(k)) continue;
+      seen.add(k);
+      out.push(k);
+    }
+  }
   for (const k of Object.keys(def.fields).sort()) if (!seen.has(k)) out.push(k);
   return out;
 }

@@ -21,7 +21,6 @@ import {
   validateForPublish,
   withinSizeLimit,
   type FormDefinition,
-  type FormKind,
   type FormScoring,
   type PublishIssue,
 } from "@beam/core/forms";
@@ -135,7 +134,7 @@ export async function publishFormVersion(
   if (row.publishedAt) throw new ConflictError("version_published");
 
   const content = parseVersion(row);
-  const issues = [...validateForPublish(form.kind as FormKind, content.definition, content.scoring, content.locales), ...(i.extraIssues ?? [])];
+  const issues = [...validateForPublish(form.kind, content.definition, content.scoring, content.locales), ...(i.extraIssues ?? [])];
   const { sensitiveFieldKeys } = deriveVersionColumns(content.definition, content.scoring);
   if (sensitiveFieldKeys.length > 0 && opts.skipDpiaCheck !== "demo_seed" && !(await isDpiaApproved(tx, DPIA_KEY))) {
     issues.unshift({ level: "error", code: "dpia_not_approved", path: "", message: "The DPIA for sensitive assessment processing is not approved yet" });

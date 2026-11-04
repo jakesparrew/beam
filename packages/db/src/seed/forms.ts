@@ -15,7 +15,7 @@ import { deriveVersionColumns, isPublishable, seedDefinitions, validateForPublis
 import type { RetentionPolicySeed } from "@beam/core/privacy";
 import { eq } from "drizzle-orm";
 import type { DbOrTx } from "../client";
-import { forms, formVersions, type FormDefinitionJson, type FormScoringJson } from "../schema/forms";
+import { forms, formVersions } from "../schema/forms";
 import { insertRetentionPolicies } from "./ops";
 import type { DefaultSeed } from "./run";
 
@@ -53,8 +53,8 @@ export async function insertSeedForm(db: DbOrTx, slug: string, form: SeedForm, o
     .values({
       formId: created.id,
       version: 1,
-      definition: form.definition as unknown as FormDefinitionJson,
-      scoring: form.scoring as unknown as FormScoringJson,
+      definition: form.definition,
+      scoring: form.scoring,
       locales: form.locales,
       ...derived,
       changeNote: "Version 1 (seed)",

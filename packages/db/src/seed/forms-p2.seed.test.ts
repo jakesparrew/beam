@@ -1,5 +1,5 @@
 /** forms' `defaults` seed (forms-P2): retention rows and the three system forms, idempotent. */
-import { deriveVersionColumns, seedDefinitions, SYSTEM_FORM_SLUGS } from "@beam/core/forms";
+import { deriveVersionColumns, seedDefinitions, type SYSTEM_FORM_SLUGS } from "@beam/core/forms";
 import { asc, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { DbHandle } from "../client";

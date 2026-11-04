@@ -5,12 +5,12 @@
  */
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { DbHandle, Tx } from "@beam/db";
-import { automationEnrolments, automationRuns } from "@beam/db/schema";
+import { automationEnrolments, automationRuns, persons } from "@beam/db/schema";
 import { createTestDb, makePerson } from "@beam/db/testing";
 import { eq, sql } from "@/lib/ctx";
 import { resetRuntime } from "@/lib/testing";
 import { GDPR_REGISTRY, NO_PII_TABLES } from "@/registry/privacy.generated";
-import { def, makeAutomation } from "./engine/automation-p2.fixtures";
+import { def, makeAutomation, makeEvent } from "./engine/automation-p2.fixtures";
 
 import type * as EmailApi from "@/modules/email/api";
 vi.mock("@/modules/email/api", async (orig) => ({
@@ -85,6 +85,38 @@ describe("automation privacy registration", () => {
     expect(await count("automation_runs", p.id)).toBe(0);
     expect(await count("automation_enrolments", p.id)).toBe(0);
     expect(await count("automation_runs", other.id)).toBe(otherRuns);
+  });
+
+  it("export and erase cover a merged loser's enrolments and runs; crm's erase of the winner then succeeds", async () => {
+    const w = await makePerson(h.db);
+    const l = await makePerson(h.db);
+    const a = await makeAutomation(h.db, { definition: def({ trigger: { event: "test.happened" } }) });
+    const evt = await makeEvent(h.db, { personId: l.id, kind: "test.happened", refType: "booking", refId: "b-merge" });
+    const r = await enrol(tx, { automation: a.id, personId: l.id, source: "trigger", event: evt, actor: SYSTEM, now: new Date() });
+    expect(r.status).toBe("enrolled");
+    const loserEnrolment = r.status === "enrolled" ? r.enrolmentId : "";
+    const [row] = await h.db.select({ triggerEventId: automationEnrolments.triggerEventId }).from(automationEnrolments).where(eq(automationEnrolments.id, loserEnrolment));
+    expect(row?.triggerEventId).toBe(BigInt(evt.id));
+    await journeys(w.id);
+    await h.db.update(persons).set({ mergedIntoPersonId: w.id }).where(eq(persons.id, l.id));
+    const loserRuns = await count("automation_runs", l.id);
+    expect(loserRuns).toBeGreaterThan(0);
+
+    const out = (await privacy.export(tx, w.id)) as { enrolments: { id: string }[]; runs: { enrolmentId: string | null }[] };
+    expect(out.enrolments.map((e) => e.id)).toContain(loserEnrolment);
+    expect(out.enrolments).toHaveLength(3);
+    expect(out.runs.filter((x) => x.enrolmentId === loserEnrolment)).toHaveLength(loserRuns);
+
+    const report = await h.db.transaction(async (t) => {
+      const rows = await privacy.erase(t, w.id);
+      await GDPR_REGISTRY.crm!.erase(t, w.id);
+      return rows;
+    });
+    expect(report).toContainEqual({ table: "automation_enrolments", rows: 3, action: "deleted" });
+    for (const id of [w.id, l.id]) {
+      expect(await count("automation_runs", id)).toBe(0);
+      expect(await count("automation_enrolments", id)).toBe(0);
+    }
   });
 
   it("sweep: runs older than the cutoff and ended enrolments older than the cutoff are deleted; active ones never", async () => {

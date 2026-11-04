@@ -7,12 +7,17 @@
  * `erase` first ends the active journeys with `erased` (the count is in the report), then
  * deletes the runs and the enrolments under `SET LOCAL beam.allow_rewrite = 'on'` (runs first,
  * FK order). `email_messages.enrolment_id` has no FK, so email deletes or nulls it later.
+ *
+ * Both run over `crm.resolvePersonIds(personId)` (crm rule 32): a merge leaves enrolments and
+ * runs on the loser, and a loser's enrolment left behind would block crm's `activity_events`
+ * delete through `trigger_event_id` (ON DELETE RESTRICT).
  */
 import type { Tx } from "@beam/db";
 import { automationEnrolments, automationRuns, automations, automationVersions } from "@beam/db/schema";
 import type { EraseReportRow, PrivacyRegistration } from "@beam/core/privacy";
-import { asc, eq, sql, type DbOrTx } from "@/lib/ctx";
+import { asc, eq, inArray, sql, type DbOrTx } from "@/lib/ctx";
 import { rowsOf } from "@/lib/sensitive";
+import { resolvePersonIds } from "@/modules/crm/api";
 import { exitPersonEnrolments } from "./engine/exits";
 
 export const RETENTION_KEYS = ["automation.automation_runs", "automation.automation_enrolments"] as const;
@@ -41,8 +46,14 @@ export const sweep: Record<AutomationRetentionKey, (tx: Tx, cutoff: Date) => Pro
   "automation.automation_enrolments": (tx, cutoff) => purgeAutomationHistory(tx, "automation.automation_enrolments", cutoff),
 };
 
-/** Articles 15 and 20: every enrolment and every run of the person. */
+/** The person and every person merged into it (crm rule 32). */
+async function personIds(tx: Tx, personId: string): Promise<string[]> {
+  return [...new Set([personId, ...(await resolvePersonIds(tx, personId))])];
+}
+
+/** Articles 15 and 20: every enrolment and every run of the person and of its merged losers. */
 async function exportPerson(tx: Tx, personId: string): Promise<{ enrolments: unknown[]; runs: unknown[] }> {
+  const ids = await personIds(tx, personId);
   const enrolments = await tx
     .select({
       id: automationEnrolments.id,
@@ -64,7 +75,7 @@ async function exportPerson(tx: Tx, personId: string): Promise<{ enrolments: unk
     .from(automationEnrolments)
     .innerJoin(automations, eq(automations.id, automationEnrolments.automationId))
     .innerJoin(automationVersions, eq(automationVersions.id, automationEnrolments.automationVersionId))
-    .where(eq(automationEnrolments.personId, personId))
+    .where(inArray(automationEnrolments.personId, ids))
     .orderBy(asc(automationEnrolments.enteredAt), asc(automationEnrolments.id));
   const runs = await tx
     .select({
@@ -80,17 +91,23 @@ async function exportPerson(tx: Tx, personId: string): Promise<{ enrolments: unk
     })
     .from(automationRuns)
     .innerJoin(automations, eq(automations.id, automationRuns.automationId))
-    .where(eq(automationRuns.personId, personId))
+    .where(inArray(automationRuns.personId, ids))
     .orderBy(asc(automationRuns.occurredAt), asc(automationRuns.id));
   return { enrolments, runs };
 }
 
 async function erasePerson(tx: Tx, personId: string): Promise<EraseReportRow[]> {
-  const { exited } = await exitPersonEnrolments(tx, { personId, reason: "erased", actor: { kind: "system", jobId: "" } });
+  const ids = await personIds(tx, personId);
+  let exited = 0;
+  for (const id of ids) exited += (await exitPersonEnrolments(tx, { personId: id, reason: "erased", actor: { kind: "system", jobId: "" } })).exited;
+  const inIds = sql`(${sql.join(
+    ids.map((id) => sql`${id}::uuid`),
+    sql`, `,
+  )})`;
   await allowRewrite(tx);
-  const runs = await affected(tx, sql`delete from automation_runs where person_id = ${personId} returning id`);
-  await tx.execute(sql`update automation_enrolments set migrated_from_enrolment_id = null where migrated_from_enrolment_id in (select id from automation_enrolments where person_id = ${personId})`);
-  const enrolments = await affected(tx, sql`delete from automation_enrolments where person_id = ${personId} returning id`);
+  const runs = await affected(tx, sql`delete from automation_runs where person_id in ${inIds} returning id`);
+  await tx.execute(sql`update automation_enrolments set migrated_from_enrolment_id = null where migrated_from_enrolment_id in (select id from automation_enrolments where person_id in ${inIds})`);
+  const enrolments = await affected(tx, sql`delete from automation_enrolments where person_id in ${inIds} returning id`);
   return [
     { table: "automation_enrolments", rows: exited, action: "exited" },
     { table: "automation_runs", rows: runs, action: "deleted" },

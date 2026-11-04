@@ -131,3 +131,35 @@ export async function tableCounts(db: Db, tables: string[]): Promise<Record<stri
   }
   return out;
 }
+
+/**
+ * Signs a staff user of `roleKey` in through the mocked cookie jar after giving that role
+ * exactly `permissions` (the test files mock `next/headers` with `headersMock(jar)`).
+ */
+export async function signInStaff(
+  db: Db,
+  jar: Map<string, string>,
+  permissions: string[],
+  roleKey: "management" | "reception" | "owner" | "technical_admin" | "sales" = "management",
+) {
+  const { createAuthSession, SESSION_COOKIE } = await import("@/lib/auth");
+  const { roles } = await import("@beam/db/schema");
+  const user = await makeUser(db, { roleKey });
+  await db.update(roles).set({ permissions }).where(eq(roles.key, roleKey));
+  const { token } = await createAuthSession(db, { userId: user.id, audience: "staff", roleKey, now: new Date(), mfaAt: new Date() });
+  jar.set(SESSION_COOKIE, token);
+  return user;
+}
+
+/** The `next/headers` mock every action suite installs with its own jar. */
+export function headersMock(jar: Map<string, string>) {
+  return {
+    cookies: () =>
+      Promise.resolve({
+        get: (name: string) => (jar.has(name) ? { name, value: jar.get(name)! } : undefined),
+        set: (name: string, value: string) => void jar.set(name, value),
+        delete: (name: string) => void jar.delete(name),
+      }),
+    headers: () => Promise.resolve(new Headers({ "x-forwarded-for": "192.0.2.10" })),
+  };
+}

@@ -374,10 +374,10 @@
     },
     "ops-P2": {
       "status": "running",
-      "attempts": 1,
-      "baseSha": "e0b1319",
-      "runId": "wf_c1f39d50-545",
-      "startedAt": "2026-11-04T03:55:18Z",
+      "attempts": 2,
+      "baseSha": "107c9bd",
+      "runId": "wf_cb40cfa7-cf0",
+      "startedAt": "2026-11-04T04:36:04Z",
       "extraOwns": [
         "apps/web/modules/ops/ops-p1.facades.test.ts"
       ]

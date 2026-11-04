@@ -106,3 +106,4 @@ One entry per merge batch and gate (runbook section 5.7, adapted by OD-3).
 - commerce-P3: 40 min, merged as `9aa2a07`; gate `g41-commerce-P3` (merge) green, peak 6726 MB.
 - finance-P2 (28 min, `g40`) and commerce-P3 (40 min, `g41`) landed. Started commerce-P4a from `9aa2a07`.
 - automation-P2: 36 min, merged as `c1ad2a7`; gate `g42-automation-P2` (merge) green, peak 6892 MB.
+- ops-P2 attempt 1 (38 min) done but two ops-P1 facade tests pinned stubs it implemented; attempt 2 (from `107c9bd`) removes every stub pin in that file. A sweep found one more stub pin (Billit client in platform-P3's shared test), granted to finance-P4. automation-P2 (36 min) landed (`g42`).

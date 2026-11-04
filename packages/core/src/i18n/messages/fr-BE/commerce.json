@@ -273,7 +273,91 @@
       "missing_translation": "Des traductions manquent.",
       "no_price": "Aucun prix public n’est valable maintenant.",
       "forbidden": "Vous n’avez pas l’autorisation pour cela.",
-      "not_found": "Introuvable."
+      "not_found": "Introuvable.",
+      "order_expired": "Cette commande a expiré.",
+      "amount_out_of_range": "Choisissez un montant dans les limites autorisées."
+    },
+    "email": {
+      "order_confirmation": {
+        "subject": "Votre commande BEAM {reference}",
+        "preheader": "Merci, nous avons bien reçu votre paiement.",
+        "heading": "Merci pour votre commande",
+        "body": "Nous avons reçu votre paiement pour la commande {reference}. Votre reçu est joint à ce message.",
+        "cta": "Voir votre commande",
+        "total": "Total payé (TVA comprise) : {total}",
+        "withdrawal": "Vous avez le droit de vous rétracter de cet achat jusqu'au {date}, sans donner de motif. Utilisez le formulaire de rétractation sur la page de votre commande :"
+      },
+      "payment_failed": {
+        "subject": "Votre paiement pour {reference} n'a pas abouti",
+        "preheader": "Vous pouvez réessayer tout de suite.",
+        "heading": "Votre paiement n'a pas abouti",
+        "body": "Le paiement de {amount} pour la commande {reference} n'a pas été finalisé. Rien n'a été débité. Vous pouvez réessayer tant que votre commande est ouverte.",
+        "cta": "Réessayer"
+      },
+      "portal_invitation": {
+        "subject": "Votre compte BEAM est prêt",
+        "preheader": "Retrouvez vos achats et réservations au même endroit.",
+        "heading": "Bienvenue chez BEAM",
+        "body": "Merci pour la commande {reference}. Connectez-vous à votre compte BEAM avec cette adresse e-mail pour voir vos achats, crédits et réservations. Nous vous envoyons un lien de connexion, sans mot de passe.",
+        "cta": "Se connecter"
+      }
+    },
+    "receipt": {
+      "title": "Reçu",
+      "reference": "Référence",
+      "date": "Date",
+      "vat_number": "TVA {number}",
+      "col_description": "Description",
+      "col_quantity": "Qté",
+      "col_vat": "TVA",
+      "col_amount": "Montant",
+      "line_discount": "Remise {amount}",
+      "subtotal": "Sous-total",
+      "discount": "Remise",
+      "total": "Total TVA comprise",
+      "vat_included": "Dont TVA",
+      "vat_rate": "TVA {rate} %",
+      "vat_summary": "TVA par taux",
+      "net": "HTVA",
+      "vat_amount": "TVA",
+      "gross": "TVAC",
+      "paid_with": "Payé par",
+      "method_bancontact": "Bancontact",
+      "method_creditcard": "Carte de crédit",
+      "method_kbc": "Bouton de paiement KBC/CBC",
+      "method_belfius": "Belfius Pay",
+      "method_ideal": "iDEAL",
+      "method_paypal": "PayPal",
+      "method_pointofsale": "Carte à l'accueil",
+      "method_cash": "Espèces",
+      "method_banktransfer": "Virement bancaire",
+      "method_credit_balance": "Crédit de chèque-cadeau",
+      "method_directdebit": "Domiciliation",
+      "method_other": "Autre paiement",
+      "withdrawal": "Droit de rétractation : vous pouvez vous rétracter des forfaits, abonnements et chèques-cadeaux de cette commande jusqu'au {date}, sans donner de motif, via le formulaire de rétractation sur la page de votre commande. Les séances, nuits et tickets à date fixe en sont exclus."
+    },
+    "tasks": {
+      "chargeback": "Rétrofacturation sur la commande {reference}"
+    },
+    "order_status": {
+      "draft": "Brouillon",
+      "pending_payment": "En attente de paiement",
+      "paid": "Payée",
+      "cancelled": "Annulée",
+      "expired": "Expirée",
+      "refunded": "Remboursée",
+      "partially_refunded": "Partiellement remboursée"
+    },
+    "payment_status": {
+      "open": "Ouvert",
+      "pending": "En cours",
+      "authorized": "Autorisé",
+      "paid": "Payé",
+      "failed": "Échoué",
+      "expired": "Expiré",
+      "cancelled": "Annulé",
+      "refunded": "Remboursé",
+      "partially_refunded": "Partiellement remboursé"
     }
   }
 }

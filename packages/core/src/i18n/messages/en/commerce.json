@@ -273,7 +273,91 @@
       "missing_translation": "Translations are missing.",
       "no_price": "No public price is valid now.",
       "forbidden": "You do not have permission for this.",
-      "not_found": "Not found."
+      "not_found": "Not found.",
+      "order_expired": "This order has expired.",
+      "amount_out_of_range": "Choose an amount within the allowed range."
+    },
+    "email": {
+      "order_confirmation": {
+        "subject": "Your BEAM order {reference}",
+        "preheader": "Thank you, your payment was received.",
+        "heading": "Thank you for your order",
+        "body": "We received your payment for order {reference}. Your receipt is attached.",
+        "cta": "View your order",
+        "total": "Total paid (incl. VAT): {total}",
+        "withdrawal": "You have the right to withdraw from this purchase until {date}, without giving a reason. Use the withdrawal form on your order page:"
+      },
+      "payment_failed": {
+        "subject": "Your payment for {reference} did not go through",
+        "preheader": "You can try again in a minute.",
+        "heading": "Your payment did not go through",
+        "body": "The payment of {amount} for order {reference} was not completed. Nothing was charged. You can try again while your order is still open.",
+        "cta": "Try again"
+      },
+      "portal_invitation": {
+        "subject": "Your BEAM account is ready",
+        "preheader": "See your purchases and bookings in one place.",
+        "heading": "Welcome to BEAM",
+        "body": "Thank you for order {reference}. Sign in to your BEAM account with this email address to see your purchases, credits and bookings. We send you a sign-in link, no password needed.",
+        "cta": "Sign in"
+      }
+    },
+    "receipt": {
+      "title": "Receipt",
+      "reference": "Reference",
+      "date": "Date",
+      "vat_number": "VAT {number}",
+      "col_description": "Description",
+      "col_quantity": "Qty",
+      "col_vat": "VAT",
+      "col_amount": "Amount",
+      "line_discount": "Discount {amount}",
+      "subtotal": "Subtotal",
+      "discount": "Discount",
+      "total": "Total incl. VAT",
+      "vat_included": "Of which VAT",
+      "vat_rate": "VAT {rate} %",
+      "vat_summary": "VAT per rate",
+      "net": "Excl. VAT",
+      "vat_amount": "VAT",
+      "gross": "Incl. VAT",
+      "paid_with": "Paid with",
+      "method_bancontact": "Bancontact",
+      "method_creditcard": "Credit card",
+      "method_kbc": "KBC/CBC payment button",
+      "method_belfius": "Belfius Pay",
+      "method_ideal": "iDEAL",
+      "method_paypal": "PayPal",
+      "method_pointofsale": "Card at the front desk",
+      "method_cash": "Cash",
+      "method_banktransfer": "Bank transfer",
+      "method_credit_balance": "Gift voucher credit",
+      "method_directdebit": "Direct debit",
+      "method_other": "Other payment",
+      "withdrawal": "Right of withdrawal: you may withdraw from the packages, memberships and gift vouchers of this order until {date}, without giving a reason, through the withdrawal form on your order page. Dated sessions, nights and tickets are exempt."
+    },
+    "tasks": {
+      "chargeback": "Chargeback on order {reference}"
+    },
+    "order_status": {
+      "draft": "Draft",
+      "pending_payment": "Awaiting payment",
+      "paid": "Paid",
+      "cancelled": "Cancelled",
+      "expired": "Expired",
+      "refunded": "Refunded",
+      "partially_refunded": "Partially refunded"
+    },
+    "payment_status": {
+      "open": "Open",
+      "pending": "Pending",
+      "authorized": "Authorised",
+      "paid": "Paid",
+      "failed": "Failed",
+      "expired": "Expired",
+      "cancelled": "Cancelled",
+      "refunded": "Refunded",
+      "partially_refunded": "Partially refunded"
     }
   }
 }

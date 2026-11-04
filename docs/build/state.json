@@ -751,15 +751,20 @@
       "attempts": 0
     },
     "email-P5": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "32953d1",
+      "runId": null,
+      "startedAt": "2026-11-04T22:36:23Z"
     },
     "automation-P5": {
-      "status": "pending",
+      "status": "done",
       "attempts": 1,
-      "baseSha": "a943df5",
+      "baseSha": "d6cadbf",
       "runId": "wf_7eacc5de-e6d",
-      "startedAt": "2026-11-04T20:30:16Z"
+      "startedAt": "2026-11-04T20:30:16Z",
+      "branchSha": "0e03721",
+      "endedAt": "2026-11-04T22:35:15Z"
     },
     "ops-P4": {
       "status": "merged",
@@ -906,7 +911,7 @@
       "attempts": 0
     },
     "webinar-P2": {
-      "status": "red",
+      "status": "done",
       "attempts": 1,
       "baseSha": "b2e6063",
       "runId": "wf_1adc04ad-c0d",
@@ -917,8 +922,7 @@
         "packages/core/src/i18n/messages/nl-BE/webinar.json"
       ],
       "branchSha": "62c585b",
-      "endedAt": "2026-11-04T22:13:11Z",
-      "minutes": 46
+      "endedAt": "2026-11-04T22:35:15Z"
     },
     "booking-P8": {
       "status": "pending",
@@ -1033,14 +1037,13 @@
       "attempts": 0
     },
     "platform-P10": {
-      "status": "red",
+      "status": "done",
       "attempts": 1,
       "baseSha": "b2e6063",
       "runId": "wf_9cb8f8c5-6cb",
       "startedAt": "2026-11-04T19:49:31Z",
       "branchSha": "b798707",
-      "endedAt": "2026-11-04T21:59:41Z",
-      "minutes": 33
+      "endedAt": "2026-11-04T22:35:15Z"
     },
     "crm-P10": {
       "status": "pending",
@@ -1778,7 +1781,7 @@
       "mergedAt": "2026-11-04T20:37:48Z"
     },
     "fix-w09-site-review": {
-      "status": "red",
+      "status": "merged",
       "attempts": 1,
       "fixer": true,
       "module": "site",
@@ -1795,16 +1798,17 @@
       "dependsOn": [
         "site-P7"
       ],
-      "branchSha": "938aa79",
-      "endedAt": "2026-11-04T20:52:39Z",
-      "minutes": 27,
+      "branchSha": "cdcb119",
+      "endedAt": "2026-11-04T22:38:15Z",
       "baseSha": "fa5ed8b",
       "runId": "wf_3a5ca635-7e3",
       "startedAt": "2026-11-04T19:49:31Z",
       "extraOwns": [
         "apps/web/modules/booking/server/order-hooks.test.ts",
         "apps/web/modules/booking/server/guests.test.ts"
-      ]
+      ],
+      "mergeSha": "623288e",
+      "mergedAt": "2026-11-04T22:54:49Z"
     },
     "fix-w09-platform-review": {
       "status": "merged",

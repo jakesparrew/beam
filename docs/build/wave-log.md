@@ -173,3 +173,4 @@ One entry per merge batch and gate (runbook section 5.7, adapted by OD-3).
 - fix-w09-platform-review: 25 min, merged as `8afb647`, migrations 0034_w99.sql; gate `g81-fix-w09-platform-review` (merge) green, peak 3837 MB.
 - credits-P7: 32 min, merged as `baadd32`; gate `g84-credits-P7` (merge) green, peak 6295 MB.
 - site-P4: 34 min, merged as `6e3b54f`; gate `g85-site-P4` (merge) green, peak 5701 MB.
+- fix-w09-site-review: merged as `623288e`, migrations 0035_w99.sql; gate `g89-fix-w09-site-review` (merge) green, peak 7314 MB.

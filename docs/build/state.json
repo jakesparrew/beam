@@ -430,8 +430,11 @@
       "mergedAt": "2026-11-04T04:03:35Z"
     },
     "finance-P3": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "a869734",
+      "runId": "wf_0b991ac7-3f0",
+      "startedAt": "2026-11-04T04:32:30Z"
     },
     "forms-P4": {
       "status": "pending",

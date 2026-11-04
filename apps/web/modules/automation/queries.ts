@@ -265,8 +265,8 @@ export type VersionRow = {
   authorName: string | null;
 };
 
-/** Every published version of an automation, newest first, with author and change note. */
-export async function listVersions(db: DbOrTx, input: { automationId: string }): Promise<VersionRow[]> {
+/** Every published version of an automation, newest first, with author, change note and definition ("Restore into draft"). */
+export async function listVersions(db: DbOrTx, input: { automationId: string }): Promise<(VersionRow & { definition: unknown })[]> {
   if (!isUuid(input.automationId)) return [];
   return db
     .select({
@@ -275,6 +275,7 @@ export async function listVersions(db: DbOrTx, input: { automationId: string }):
       publishedAt: automationVersions.publishedAt,
       changeNote: automationVersions.changeNote,
       definitionHash: automationVersions.definitionHash,
+      definition: automationVersions.definition,
       authorName,
     })
     .from(automationVersions)

@@ -389,6 +389,17 @@ export async function activateMembership(
   const settings = await creditsSettings(tx);
   const status: "active" | "pending" = input.startsAt.getTime() <= ctx.now.getTime() ? "active" : "pending";
   assertMembershipTransition("new", status);
+  if (status === "active") {
+    // A plan change paid on the old plan's last day (rule 57): `canStartMembership` has checked
+    // that the live row ends at period end on `startsOn` (today or earlier), so it ends now, as
+    // `activatePending` does on the change day, before the new row takes the live slot.
+    const [live] = await tx
+      .select()
+      .from(memberships)
+      .where(and(eq(memberships.personId, input.personId), inArray(memberships.status, LIVE)))
+      .for("update");
+    if (live) await endAtCancel(tx, ctx, live);
+  }
   const period = nextPeriod(input.startsAt, plan.interval, anchorDayOf(input.startsAt));
   const [m] = await tx
     .insert(memberships)

@@ -337,6 +337,34 @@ describe("activateMembership (rules 45 to 47)", () => {
     expect(await grantsOf(next.membershipId)).toHaveLength(1);
   });
 
+  it("fix-w09-credits-review 2: a plan change paid on the old plan's last day ends the old plan and starts the new one at once", async () => {
+    const first = await start();
+    const other = await makePlan();
+    await requestCancel(tx(), ctxAt(days(2)), { membershipId: first.m.id, by: "customer" });
+    const cancelAt = (await row(first.m.id)).cancelAt!;
+    const newStart = startOfDayIn(brusselsDateOf(cancelAt));
+    // Paid at 08:00 Brussels on the change day, before the old plan's cancel_at time and the scan.
+    const paidAt = new Date(newStart.getTime() + 8 * 3_600_000);
+    expect(paidAt.getTime()).toBeLessThan(cancelAt.getTime());
+    const order2 = await makeOrder(h.db, first.personId, 4_900, paidAt);
+    const next = await inTx(paidAt, (t, ctx) =>
+      activateMembership(t, ctx, {
+        personId: first.personId,
+        productId: other.product.id,
+        orderId: order2.id,
+        priceVersionId: other.priceVersionId,
+        mandateId: null,
+        startsAt: newStart,
+      }),
+    );
+    expect(next).toMatchObject({ status: "active", created: true });
+    expect(await row(first.m.id)).toMatchObject({ status: "cancelled", endReason: "cancelled_by_customer" });
+    expect(await row(next.membershipId)).toMatchObject({ status: "active", currentPeriodStartAt: newStart });
+    expect((await grantsOf(next.membershipId)).map((g) => [g.g.creditKind, g.remaining])).toEqual([["day", 4]]);
+    expect(await getMembershipForPerson(h.db, first.personId)).toMatchObject({ isMember: true, membershipId: next.membershipId });
+    expect((await eventsOf(first.m.id)).map((e) => e.kind)).toContain("membership.cancelled");
+  });
+
   it("(new) -> pending with a future start, then pending -> active by the scan on the start date", async () => {
     const startsAt = startOfDayIn(brusselsDateOf(days(5)));
     const { m } = await start({ startsAt });

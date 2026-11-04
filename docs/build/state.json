@@ -333,8 +333,11 @@
       "attempts": 0
     },
     "credits-P4": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "3785228",
+      "runId": "wf_4dc7e038-7bc",
+      "startedAt": "2026-11-04T02:12:33Z"
     },
     "finance-P3": {
       "status": "pending",

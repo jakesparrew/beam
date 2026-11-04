@@ -100,11 +100,11 @@ describe("finding 3: a retry after an accepted send is idempotent", () => {
     expect(await resolveLinkToken(h.db, token!)).toMatchObject({ emailMessageId, personId: p.id });
   });
 
-  it("the secret is EMAIL_LINK_TOKEN_SECRET, else AUTH_SECRET; production without either refuses", () => {
+  it("the secret is EMAIL_LINK_TOKEN_SECRET, else AUTH_SECRET; production never uses the dev secret", () => {
     expect(linkTokenSecret({ EMAIL_LINK_TOKEN_SECRET: "a", AUTH_SECRET: "b" })).toBe("a");
-    expect(linkTokenSecret({ AUTH_SECRET: "b" })).toBe("b");
+    expect(linkTokenSecret({ AUTH_SECRET: "b", APP_ENV: "production" })).toBe("b");
     expect(linkTokenSecret({ APP_ENV: "local" })).toMatch(/development/);
-    expect(() => linkTokenSecret({ APP_ENV: "production" })).toThrow(/EMAIL_LINK_TOKEN_SECRET/);
+    expect(linkTokenSecret({ APP_ENV: "production" })).toBeNull();
   });
 });
 
@@ -212,7 +212,7 @@ describe("request email-P4: links through unsubscribeLinksFor", () => {
       purpose: "newsletter",
       subject: each("Subject"),
       preheader: each("Preheader"),
-      document: { schemaVersion: 1, locales: Object.fromEntries(L.map((l) => [l, [{ id: id(), type: "text", markdown: "Unsubscribe: {{unsubscribe_url}}" }]])) } as BlockDocument,
+      document: { schemaVersion: 1, locales: Object.fromEntries(L.map((l) => [l, [{ id: id(), type: "text", markdown: "Unsubscribe: {{unsubscribe_url}}" }]])) },
     });
     const p = await personWith(h.db);
     await consent(h.db, p.id, "newsletter", "granted");

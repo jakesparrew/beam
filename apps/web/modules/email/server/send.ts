@@ -14,7 +14,7 @@ import type { Tx } from "@beam/db";
 import { emailMessages, persons, suppressions, vMarketingReachability, vPersonStatus } from "@beam/db/schema";
 import { MissingTranslationError, PermanentError } from "@beam/core/errors";
 import { emailHash } from "@beam/core/crm";
-import { linkTokenFor, type BlockDocument, type MarketingPurpose, type SendTransactionalInput } from "@beam/core/email";
+import { linkTokenFor, newLinkToken, type BlockDocument, type MarketingPurpose, type SendTransactionalInput } from "@beam/core/email";
 import { isLocale, type Locale } from "@beam/core/i18n";
 import { buildOutgoingEmail, type FooterParts } from "@beam/email";
 import { personalise, tokenNames, type VariantRecipient } from "@beam/email/blocks";
@@ -24,6 +24,7 @@ import { IntegrationError } from "@beam/integrations/_shared";
 import type { EmailAttachment } from "@beam/integrations/resend";
 import { actorJson, and, eq, inArray, writeDurably, type Ctx } from "@/lib/ctx";
 import { recordEvent } from "@/lib/events";
+import { reportMessage } from "@/lib/logger";
 import { readFile } from "@/lib/files";
 import type { JobCtx } from "@/lib/job-runner";
 import { listLatestOutcomes } from "@/modules/forms/api";
@@ -41,15 +42,22 @@ const DEV_LINK_TOKEN_SECRET = "beam-email-link-insecure-development-secret";
 
 /**
  * The server secret of the deterministic link tokens (rule 53, `linkTokenFor`):
- * `EMAIL_LINK_TOKEN_SECRET`, else `AUTH_SECRET`; outside production a fixed dev secret. A
- * production deployment without either fails the send (retryable, so it alerts and resumes once
- * the secret is set).
+ * `EMAIL_LINK_TOKEN_SECRET`, else `AUTH_SECRET`; outside production a fixed dev secret. In
+ * production without either it is null: the send never uses a publicly known secret and falls
+ * back to a random token (reported), which only loses the retry idempotency of the payload.
  */
-export function linkTokenSecret(env: Record<string, string | undefined> = process.env): string {
+export function linkTokenSecret(env: Record<string, string | undefined> = process.env): string | null {
   const secret = env.EMAIL_LINK_TOKEN_SECRET?.trim() || env.AUTH_SECRET?.trim();
   if (secret) return secret;
-  if (sinkDecision(env).production) throw new Error("email: EMAIL_LINK_TOKEN_SECRET (or AUTH_SECRET) is not set");
-  return DEV_LINK_TOKEN_SECRET;
+  return sinkDecision(env).production ? null : DEV_LINK_TOKEN_SECRET;
+}
+
+/** The link token of a message: derived from its id, or random when production has no secret. */
+async function messageLinkToken(messageId: string): Promise<{ token: string; hash: string }> {
+  const secret = linkTokenSecret();
+  if (secret) return linkTokenFor(messageId, secret);
+  reportMessage("email: EMAIL_LINK_TOKEN_SECRET and AUTH_SECRET are not set; link tokens are random", { tags: { module: "email" } });
+  return newLinkToken();
 }
 
 /** The idempotency key of the `email.send` job of a message. */
@@ -356,7 +364,7 @@ export async function sendEmailMessage(ctx: JobCtx, input: SendJobInput): Promis
   const sink = sinkDecision();
   const settings = await loadSendSettings(ctx.tx);
   // Derived from the message id, so every attempt sends the same payload under `email:<id>`.
-  const link = m.kind === "test" ? null : await linkTokenFor(m.id, linkTokenSecret());
+  const link = m.kind === "test" ? null : await messageLinkToken(m.id);
   const unsubscribe = link ? unsubscribeLinksFor({ linkToken: link.token, kind: marketing ? "marketing" : "transactional", locale }) : null;
   const preferenceUrls = unsubscribe ? footerPreferenceUrls(unsubscribe) : null;
 

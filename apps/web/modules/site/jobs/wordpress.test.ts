@@ -17,6 +17,7 @@ const { makeJobCtx, resetRuntime, runJobTwice } = await import("@/lib/testing");
 const wp = await import("./wordpress");
 const { applyJobKey, mediaJobKey } = await import("../server/wordpress/apply");
 const { makeImport, sampleFake, SAMPLE_MEDIA } = await import("./site-p7.fixtures");
+const { getRedirectCoverage, getWordpressImport, listWordpressImportItems } = await import("../queries/wordpress");
 
 let h: DbHandle;
 beforeAll(async () => {
@@ -128,6 +129,20 @@ describe("site.apply_wordpress", () => {
     expect(stable(await snapshot(importId))).toEqual(stable(after));
     const apexRedirects = await h.db.select().from(redirects).where(like(redirects.fromPath, "/over-ons%"));
     expect(apexRedirects.length).toBeGreaterThan(0);
+
+    const coverage = await getRedirectCoverage(importId, h.db);
+    const uncovered = coverage.uncovered.map((u) => u.oldPath);
+    expect(uncovered).toContain("/?p=23");
+    // Same path on the new site: covered once the draft is published (a live route).
+    expect(uncovered).toContain("/fr/a-propos");
+    expect(uncovered).not.toContain("/over-ons");
+    expect(uncovered.some((p) => p.startsWith("/wp-content/"))).toBe(false);
+    expect(coverage.covered + coverage.uncovered.length).toBe(coverage.total);
+    const detail = await getWordpressImport(importId, h.db);
+    expect(detail).toMatchObject({ status: "done", busy: false, draftPages: 7 });
+    const listed = await listWordpressImportItems(importId, { type: "page" }, h.db);
+    expect(listed).toHaveLength(10);
+    expect(listed[0]).toMatchObject({ wpType: "page", status: "imported", targetPageSlug: expect.any(String) });
   });
 
   it("chains chunks by offset and skips a stale round", async () => {

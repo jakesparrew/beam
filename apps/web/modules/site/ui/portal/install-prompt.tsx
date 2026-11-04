@@ -67,8 +67,9 @@ export function InstallPrompt({ labels }: { labels: InstallPromptLabels }) {
     const visits = countVisit(local, storage("session"));
     if (visits < 2 || isDismissed(local)) return;
     if (isIosSafari(navigator.userAgent, navigator.maxTouchPoints ?? 0)) {
-      setMode("ios");
-      return;
+      // iOS has no install event: show the instruction once the page has settled.
+      const timer = window.setTimeout(() => setMode("ios"), 0);
+      return () => window.clearTimeout(timer);
     }
     const onPrompt = (e: Event) => {
       e.preventDefault();

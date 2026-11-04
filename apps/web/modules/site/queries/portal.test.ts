@@ -123,3 +123,36 @@ describe("getAccountHome", () => {
     expect(home.firstName).toBe("Jo");
   });
 });
+
+describe("AccountHome", () => {
+  it("renders every card from its own result: a failed card says temporarily unavailable, the rest renders", async () => {
+    const { createElement } = await import("react");
+    const { renderToStaticMarkup } = await import("react-dom/server");
+    const { translator } = await import("@/lib/i18n");
+    const { AccountHome } = await import("../ui/portal/account-home");
+    const startsAt = new Date(Date.now() + DAY);
+    const html = renderToStaticMarkup(
+      createElement(AccountHome, {
+        locale: "en",
+        tr: translator("en"),
+        home: {
+          firstName: "Lotte",
+          bookings: { ok: true, data: [{ bookingId: "b1", sessionId: "s1", title: { en: "Day session" }, kind: "day", startsAt, isGuest: true, guestFirstName: "Gust" }] },
+          balances: { ok: false },
+          membership: { ok: true, data: null },
+          offers: { ok: true, data: [] },
+        },
+      }),
+    );
+    expect(html).toContain("Hello Lotte");
+    expect(html).toContain("Day session");
+    expect(html).toContain('href="/en/account/bookings/b1"');
+    expect(html).toContain("Guest: Gust");
+    expect(html.match(/data-card-unavailable/g)).toHaveLength(1);
+    expect(html).toMatch(/data-home-card="balance"[\s\S]*Temporarily unavailable/);
+    expect(html).not.toContain('data-home-card="membership"');
+    expect(html).not.toContain('data-home-card="offers"');
+    expect(html).toContain('href="/en/account/book?kind=day"');
+    expect(html).toContain('href="/en/account/profile"');
+  });
+});

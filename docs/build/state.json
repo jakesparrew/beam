@@ -407,8 +407,11 @@
       "attempts": 0
     },
     "commerce-P4a": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "9aa2a07",
+      "runId": "wf_efbad917-dd8",
+      "startedAt": "2026-11-04T04:28:44Z"
     },
     "credits-P4": {
       "status": "merged",

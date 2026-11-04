@@ -1584,7 +1584,7 @@
       "startedAt": "2026-11-04T18:11:02Z"
     },
     "fix-w09-credits-review": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "fixer": true,
       "module": "credits",
@@ -1599,7 +1599,10 @@
       "dependsOn": [],
       "baseSha": "d45e197",
       "runId": "wf_2223176e-c76",
-      "startedAt": "2026-11-04T18:11:03Z"
+      "startedAt": "2026-11-04T18:11:03Z",
+      "branchSha": "3ba4c54",
+      "endedAt": "2026-11-04T18:37:27Z",
+      "minutes": 23
     },
     "fix-w09-finance-review": {
       "status": "pending",
@@ -1653,7 +1656,7 @@
       "startedAt": "2026-11-04T18:11:03Z"
     },
     "fix-w09-automation-review": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "fixer": true,
       "module": "automation",
@@ -1668,7 +1671,10 @@
       "dependsOn": [],
       "baseSha": "d45e197",
       "runId": "wf_84d91cca-6fa",
-      "startedAt": "2026-11-04T18:11:03Z"
+      "startedAt": "2026-11-04T18:11:03Z",
+      "branchSha": "4b84122",
+      "endedAt": "2026-11-04T18:37:27Z",
+      "minutes": 20
     },
     "fix-w09-ops-review": {
       "status": "pending",

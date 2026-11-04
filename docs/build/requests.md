@@ -87,6 +87,9 @@ to "Served" with the package id.
 | ops-P5 | ops (owner of `ops.json`) | Missing catalogue keys `ops.privacy.{col_person,col_due,col_requested_by,progress_title,report_title,cancel_reason,lift_reason}`. |
 | ops-P5 | crm | crm's api barrel imports ops' api; the cycle makes `vi.mock('@/modules/crm/api')` hand ops modules the real module. Break the cycle (a lazy import). |
 | site-P7 | site (owner of `ui/admin/pages-table.tsx` and `site.json`) | Add `["/admin/site/imports", "nav.imports"]` to `SECTIONS` of `SiteSectionNav`; missing keys `site.admin.import.col.counts`, `site.admin.import.col.appliedAt`. |
+| fix-w09-credits-review | commerce (owner of `server/payments.ts`) | `onPaymentEnded` calls `credits.applyRenewalFailure` only when `payment.sequenceType === 'recurring'`; narrow commerce rule 33 to a failed recurring renewal charge; test that an ended oneoff payment on a renewal order does not call it (review finding). |
+| fix-w09-credits-review | commerce (schema) | `orders_renewal_chk` becomes `renewal_membership_id is null or renewal_period_end_on is not null` (drop and re-add); then credits removes the renewal-order guard in its `credits.memberships` sweep and its test asserts deletion. |
+| fix-w09-automation-review | plan (`docs/plan/modules/automation.md`) | A-7(a): `credits.grant_exhausted` and `credits.grant_expired` with `data.source='import'` still trigger; A-26a and the jobs table: the `:replan:<YYYY-MM-DDTHH:mm>` step key qualifier. |
 
 ## Served
 

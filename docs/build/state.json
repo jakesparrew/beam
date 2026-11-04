@@ -252,14 +252,16 @@
       "mergedAt": "2026-11-04T01:33:11Z"
     },
     "crm-P3": {
-      "status": "done",
+      "status": "merged",
       "attempts": 2,
       "baseSha": "4ea719a",
       "runId": "wf_24fe5aca-1d7",
       "startedAt": "2026-11-04T01:39:10Z",
       "branchSha": "990b28b",
-      "endedAt": "2026-11-04T02:23:03Z",
-      "minutes": 38
+      "endedAt": "2026-11-04T02:28:49Z",
+      "minutes": 38,
+      "mergeSha": "517b02d",
+      "mergedAt": "2026-11-04T02:31:55Z"
     },
     "crm-P4": {
       "status": "pending",
@@ -276,7 +278,7 @@
       "runId": "wf_2ca8ac6a-595",
       "startedAt": "2026-11-04T01:39:10Z",
       "branchSha": "074246c",
-      "endedAt": "2026-11-04T02:23:03Z",
+      "endedAt": "2026-11-04T02:23:06Z",
       "minutes": 39
     },
     "commerce-P3": {

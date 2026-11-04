@@ -63,7 +63,7 @@ export const deleteTag = action(
     const tag = await tagById(ctx.tx, input.id);
     if (tag.isSystem) throw new ConflictError("system_tag");
     await ctx.tx.execute(sql`select id from tags where id = ${tag.id}::uuid for update`);
-    const removed = await removeTagRows(ctx.tx, ctx, tag, "all");
+    const removed = await removeTagRows(ctx.tx, ctx, tag, "all", "manual");
     await ctx.tx.delete(personTags).where(eq(personTags.tagId, tag.id));
     await ctx.tx.delete(tags).where(eq(tags.id, tag.id));
     await ctx.audit({ action: "tag.delete", entityType: "tag", entityId: tag.id, oldValue: { key: tag.key, persons: removed.length } });
@@ -80,7 +80,7 @@ export const tagPersons = action({ name: "crm.tag_persons", audience: "staff", p
 
 export const untagPersons = action({ name: "crm.tag_persons", audience: "staff", permission: "persons.write", input: Bulk, audit: false }, async (ctx, input) => {
   const tag = await tagById(ctx.tx, input.tagId);
-  const removed = await removeTagRows(ctx.tx, ctx, tag, [...new Set(input.personIds)]);
+  const removed = await removeTagRows(ctx.tx, ctx, tag, [...new Set(input.personIds)], "manual");
   await ctx.audit({ action: "tag.assign", entityType: "tag", entityId: tag.id, newValue: { removed: removed.length, requested: input.personIds.length } });
   return { changed: removed.length };
 });

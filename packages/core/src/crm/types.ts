@@ -172,6 +172,10 @@ export type ImportPersonRow = {
   birthOn?: string | null;
   postalCode?: string | null;
   city?: string | null;
+  street?: string | null;
+  /** ISO 3166-1 alpha-2 (any case); a new address defaults to `BE`. */
+  country?: string | null;
+  preferredChannel?: "email" | "phone" | "whatsapp" | null;
   acquisition?: Omit<Acquisition, "captured_at">;
   externalIds?: Partial<Record<ExternalIdSource, string>>;
   tags?: string[];
@@ -185,6 +189,9 @@ export type PersonFieldPatch = {
   birthOn?: string;
   postalCode?: string;
   city?: string;
+  street?: string;
+  /** ISO 3166-1 alpha-2 (any case, stored upper-case). */
+  country?: string;
   preferredChannel?: "email" | "phone" | "whatsapp";
   emergencyContact?: EmergencyContact;
   externalIds?: Partial<Record<ExternalIdSource, string>>;

@@ -316,6 +316,31 @@ describe("email change and person fields (rules 3.52, 3.55)", () => {
     expect((await eventsOf(created.personId, "person.created"))[0]!.data).toMatchObject({ source: "import", acquisition_source: "import" });
   });
 
+  it("upsertPersonFromImport writes street, country and preferredChannel and overwrites with onlyEmpty false (ops rule 46, fix-w09-crm-review)", async () => {
+    const created = await api.upsertPersonFromImport(
+      tx(),
+      sysCtx(),
+      { email: `imp-${uniq()}@example.com`, firstName: "New", street: "Meir 1", postalCode: "2000", city: "Antwerpen", country: "nl", preferredChannel: "whatsapp" },
+      "imp-2",
+    );
+    expect(created.outcome).toBe("created");
+    expect(await row(created.personId)).toMatchObject({ preferredChannel: "whatsapp", address: { street: "Meir 1", postal_code: "2000", city: "Antwerpen", country: "NL" } });
+
+    const p = await makePerson(h.db, { firstName: "Keep", locale: "fr-BE", address: null, preferredChannel: null });
+    expect(
+      (await api.upsertPersonFromImport(tx(), sysCtx(), { email: p.email, street: "Kerkstraat 5", country: "BE", preferredChannel: "phone", firstName: "Other", locale: "en" }, "imp-2")).outcome,
+    ).toBe("updated");
+    expect(await row(p.id)).toMatchObject({ firstName: "Keep", locale: "fr-BE", preferredChannel: "phone", address: { street: "Kerkstraat 5", country: "BE" } });
+
+    // overwrite: filled fields change, locale and acquisition never do
+    const before = await row(p.id);
+    expect(
+      (await api.upsertPersonFromImport(tx(), sysCtx(), { email: p.email, firstName: "Other", street: "Meir 2", country: "FR", preferredChannel: "email", locale: "en" }, "imp-3", { onlyEmpty: false })).outcome,
+    ).toBe("updated");
+    expect(await row(p.id)).toMatchObject({ firstName: "Other", locale: "fr-BE", preferredChannel: "email", address: { street: "Meir 2", country: "FR" }, acquisition: before.acquisition });
+    await expect(api.upsertPersonFromImport(tx(), sysCtx(), { email: p.email, country: "Belgium" }, "imp-3")).rejects.toMatchObject({ code: "validation" });
+  });
+
   it("findPersonIdsByEmailHash includes merged rows; resolvePersonIds lists the winner and its losers", async () => {
     const winner = await makePerson(h.db);
     const email = `hash-${uniq()}@example.com`;

@@ -74,6 +74,10 @@ describe("wording versions (rule 3.14)", () => {
     expect(validateConsentInput({ purpose: "b2b", status: "granted", method: "staff", wordingVersion: "b2b@1", lawfulBasis: "legitimate_interest" }).ok).toBe(true);
     expect(validateConsentInput({ purpose: "newsletter", status: "granted", method: "staff", wordingVersion: "newsletter@1", lawfulBasis: "legitimate_interest" }).ok).toBe(false);
     expect(validateConsentInput({ purpose: "b2b", status: "granted", method: "staff", wordingVersion: "b2b@1" }).ok).toBe(false);
+    // staff-assisted form entry (forms ID10): a form wording version with lawful basis consent, any purpose
+    expect(validateConsentInput({ purpose: "newsletter", status: "granted", method: "staff", wordingVersion: "form:intake:v2:newsletter" }).ok).toBe(true);
+    expect(validateConsentInput({ purpose: "sensitive_processing", status: "granted", method: "staff", wordingVersion: "form:intake:v2:sensitive", lawfulBasis: "consent" }).ok).toBe(true);
+    expect(validateConsentInput({ purpose: "b2b", status: "granted", method: "staff", wordingVersion: "form:intake:v2:b2b", lawfulBasis: "legitimate_interest" }).ok).toBe(false);
     expect(validateConsentInput({ purpose: "newsletter", status: "granted", method: "unsubscribe_link", wordingVersion: "newsletter@1" }).ok).toBe(false);
   });
 

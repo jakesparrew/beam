@@ -19,6 +19,7 @@ import {
   normaliseEmail,
   purposesToWithdraw,
   validateConsentInput,
+  isFormWordingVersion,
   brusselsDay,
   type ConsentMethod,
   type ConsentOutcome,
@@ -31,7 +32,7 @@ import {
   type SuppressionReason,
   type SuppressionScope,
 } from "@beam/core/crm";
-import { actorJson, and, desc, eq, isNotNull, isNull, NotFoundError, sql, ValidationError, type Ctx } from "@/lib/ctx";
+import { actorJson, and, ctxState, desc, eq, isNotNull, isNull, NotFoundError, sql, ValidationError, type Ctx } from "@/lib/ctx";
 import { requestSuppressionExit } from "@/modules/automation/api";
 import { sendTransactional } from "@/modules/email/api";
 import type { EventCtx } from "../api";
@@ -67,7 +68,9 @@ export async function recordConsent(tx: Tx, ctx: EventCtx, input: RecordConsentI
   const lawfulBasis: LawfulBasis = input.lawfulBasis ?? "consent";
   const valid = validateConsentInput({ purpose: input.purpose, status: input.status, method: input.method, wordingVersion: input.wordingVersion, lawfulBasis });
   if (!valid.ok) throw new ValidationError(valid.reason, { wordingVersion: valid.reason });
-  if (input.status === "granted" && (input.method === "portal" || input.method === "preference_centre" || input.method === "staff")) {
+  // A staff-assisted form entry (forms ID10) carries the form's wording version, which forms owns.
+  const formWording = isFormWordingVersion(input.wordingVersion);
+  if (input.status === "granted" && (input.method === "portal" || input.method === "preference_centre" || (input.method === "staff" && !formWording))) {
     await assertPublishedWording(tx, input.wordingVersion);
   }
   const person = await activePerson(tx, input.personId);
@@ -95,7 +98,7 @@ export async function recordConsent(tx: Tx, ctx: EventCtx, input: RecordConsentI
     const forever = supp.some((s) => (s.scope === "all" || s.scope === purpose) && (s.scope === "all" || s.reason !== "unsubscribe"));
     if (forever) return { recordId: null, outcome: "skipped_suppressed" };
     const blocked = isSuppressedFor({ purpose, suppressions: supp, currentConsent: current });
-    if (blocked && input.method === "form" && formGrantNeedsConfirmation({ purpose, suppressions: supp, currentConsent: current })) {
+    if (blocked && (input.method === "form" || (input.method === "staff" && formWording)) && formGrantNeedsConfirmation({ purpose, suppressions: supp, currentConsent: current })) {
       await sendResubscribeConfirmation(tx, ctx, person, purpose);
       return { recordId: null, outcome: "needs_confirmation" };
     }
@@ -159,8 +162,25 @@ export async function addSuppression(
       }
     }
   }
-  await requestSuppressionExit(tx, { suppressionId });
+  const { jobId } = await requestSuppressionExit(tx, { suppressionId });
+  runAfterCommit(ctx, jobId);
   return { suppressionId, created };
+}
+
+/**
+ * Adds a job enqueued through another module's api (which has no ctx) to the context's
+ * after-commit list, so the action's `after()` kick runs it within seconds (A-23). A context
+ * not made by `createCtx` has no list; the job runner's poll picks the job up then.
+ */
+function runAfterCommit(ctx: EventCtx, jobId: string | null): void {
+  if (!jobId) return;
+  let ids: string[];
+  try {
+    ids = ctxState(ctx as Ctx).enqueuedIds;
+  } catch {
+    return;
+  }
+  if (!ids.includes(jobId)) ids.push(jobId);
 }
 
 /**

@@ -24,7 +24,7 @@ import {
 } from "@beam/core/crm";
 import { ForbiddenError } from "@beam/core/errors";
 import { AppError, actorJson, ConflictError, eq, inArray, NotFoundError, sql, type Ctx, type SQL } from "@/lib/ctx";
-import { rowsOf } from "@/lib/sensitive";
+import { decryptSensitive, encryptSensitive, loadCurrentKeyVersion, rowsOf, sensitiveAad } from "@/lib/sensitive";
 import { exitPersonEnrolments } from "@/modules/automation/api";
 import { onPersonsMerged } from "@/modules/credits/api";
 import { requestStatsRefresh } from "@/modules/ops/api";
@@ -44,6 +44,8 @@ export const HOOK_HANDLED_COLUMNS = [
   "referral_codes.person_id",
   "referral_attributions.*",
   "users.person_id",
+  // crm's own step: the values are re-encrypted with the winner's id in their AAD (moveSensitiveFields)
+  "person_sensitive_fields.person_id",
 ] as const;
 
 const APPEND_ONLY = new Set<string>(APPEND_ONLY_TABLES);
@@ -103,17 +105,11 @@ export async function listUniqueKeys(tx: DbOrTx, table: string): Promise<UniqueK
 }
 
 /**
- * Strategies for referencing columns with a person-including unique key that `MERGE_STRATEGIES`
- * in `@beam/core/crm` does not list yet (requested from its owner; an entry there wins).
- * `automation_enrolments`: automation's `exitPersonEnrolments` ends the loser's enrolments, which
- * stay on the loser as history. The others move unless the winner holds a row with the same key.
+ * Strategies for referencing columns that `MERGE_STRATEGIES` in `@beam/core/crm` does not list
+ * yet (an entry there wins). Empty since the crm-P4 additions moved into core
+ * (fix-w09-crm-review); kept for later packages that need an entry before core has it.
  */
-export const MERGE_STRATEGY_ADDITIONS: Record<string, MergeStrategy> = {
-  "automation_enrolments.person_id": "skip",
-  "privacy_requests.person_id": "repoint",
-  "provider_customers.person_id": "repoint",
-  "retention_list_items.person_id": "keep_winner",
-};
+export const MERGE_STRATEGY_ADDITIONS: Record<string, MergeStrategy> = {};
 
 /** The strategy for one referencing column: append-only tables and `persons` itself are always `skip`. */
 export function strategyOf(fk: PersonForeignKey): MergeStrategy {
@@ -196,7 +192,8 @@ export async function findMergeConflicts(tx: DbOrTx, winnerId: string, loserId: 
 export async function countLoserReferences(tx: DbOrTx, loserId: string): Promise<Record<string, number>> {
   const counts: Record<string, number> = {};
   for (const fk of await listPersonForeignKeys(tx)) {
-    if (strategyOf(fk) === "skip") continue;
+    // The sensitive fields move in their own step (moveSensitiveFields), but the preview still counts them.
+    if (strategyOf(fk) === "skip" && `${fk.table}.${fk.column}` !== SENSITIVE_FIELDS_COLUMN) continue;
     const rows = rowsOf<{ n: number | string }>(await tx.execute(sql`select count(*)::int as n from ${ident(fk.table)} where ${ident(fk.column)} = ${loserId}`));
     const n = Number(rows[0]?.n ?? 0);
     if (n > 0) counts[`${fk.table}.${fk.column}`] = n;
@@ -254,6 +251,46 @@ async function repointColumn(tx: DbOrTx, fk: PersonForeignKey, strategy: MergeSt
     sql`update ${t} set ${c} = ${winnerId} where ${c} = ${loserId}${colliding ? sql` and ctid not in (${colliding})` : sql``} returning 1`,
   );
   if (moved) out[key] = moved;
+}
+
+// ---------------------------------------------------------------------------
+// Sensitive fields
+// ---------------------------------------------------------------------------
+
+const SENSITIVE_FIELDS_COLUMN = "person_sensitive_fields.person_id";
+
+/**
+ * Moves the loser's `person_sensitive_fields` to the winner. Each value is encrypted with its
+ * owner's id in the AAD (`person_sensitive_fields:<person_id>:<key>`), so a plain repoint would
+ * leave ciphertext bound to the loser that no later read or `security.rekey` can open: the
+ * loser's rows whose key the winner already has are deleted (the winner's value is kept), the
+ * others are decrypted with the loser's AAD and re-encrypted with the winner's, at the current
+ * key version.
+ */
+async function moveSensitiveFields(tx: DbOrTx, winnerId: string, loserId: string, out: MergeRepointed): Promise<void> {
+  if (!(await tableExists(tx, "person_sensitive_fields"))) return;
+  const deleted = await affected(
+    tx,
+    sql`delete from person_sensitive_fields l where l.person_id = ${loserId}
+        and exists (select 1 from person_sensitive_fields w where w.person_id = ${winnerId} and w.key = l.key) returning 1`,
+  );
+  if (deleted) out[`${SENSITIVE_FIELDS_COLUMN}:deleted`] = deleted;
+  const rows = rowsOf<{ id: string; key: string; value_enc: Uint8Array; key_version: number | string }>(
+    await tx.execute(
+      sql`select id::text as id, key::text as key, value_enc, key_version from person_sensitive_fields where person_id = ${loserId} order by id for update`,
+    ),
+  );
+  if (!rows.length) return;
+  const version = await loadCurrentKeyVersion(tx);
+  for (const r of rows) {
+    const plain = decryptSensitive(r.value_enc, Number(r.key_version), sensitiveAad.personField(loserId, r.key));
+    const { valueEnc, keyVersion } = encryptSensitive(plain, sensitiveAad.personField(winnerId, r.key), version);
+    await tx.execute(
+      sql`update person_sensitive_fields set person_id = ${winnerId}, value_enc = ${Buffer.from(valueEnc)}, key_version = ${keyVersion}, updated_at = now()
+          where id::text = ${r.id}`,
+    );
+  }
+  out[SENSITIVE_FIELDS_COLUMN] = rows.length;
 }
 
 // ---------------------------------------------------------------------------
@@ -354,6 +391,9 @@ export async function executeMerge(
     if (gone) repointed["person_stats.person_id:deleted"] = gone;
     await requestStatsRefresh(tx, winnerId);
   }
+
+  // Sensitive fields are re-encrypted for the winner before the generic repoint (which skips them).
+  await moveSensitiveFields(tx, winnerId, loserId, repointed);
 
   // The generic repoint of every non-append foreign key to persons.id (rules 3.30 to 3.32).
   for (const fk of await listPersonForeignKeys(tx)) {

@@ -22,6 +22,7 @@ import {
   memberships,
   orders,
   personDuplicateCandidates,
+  personSensitiveFields,
   personMerges,
   persons,
   personTags,
@@ -31,6 +32,7 @@ import {
 } from "@beam/db/schema";
 
 process.env.SENSITIVE_DATA_KEY_V1 ??= randomBytes(32).toString("base64");
+process.env.SENSITIVE_DATA_KEY_V2 ??= randomBytes(32).toString("base64");
 process.env.AUTH_SECRET = "crm-p4-merge-secret";
 
 const jar = new Map<string, string>();
@@ -85,6 +87,8 @@ vi.mock("@/modules/platform/api", async (importOriginal) => {
 });
 
 const actions = await import("./actions");
+const sensitiveActions = await import("@/modules/crm/sensitive/actions");
+const sensitiveLib = await import("@/lib/sensitive");
 const queries = await import("./queries");
 const auth = await import("@/lib/auth");
 const { and, eq, setAppDb } = await import("@/lib/ctx");
@@ -309,5 +313,28 @@ describe("merge (rules 3.30 to 3.34)", () => {
     const loser = await makePerson(h.db, { statusOverride: "member", statusOverrideReason: "legacy member" });
     expect((await merge(winner.id, loser.id)).ok).toBe(true);
     expect(await person(winner.id)).toMatchObject({ statusOverride: "member", statusOverrideReason: "legacy member" });
+  });
+  it("3.31 sensitive fields move to the winner re-encrypted under the winner's id; the winner's own value wins a clash (fix-w09-crm-review)", async () => {
+    const winner = await makePerson(h.db);
+    const loser = await makePerson(h.db);
+    expect((await sensitiveActions.setSensitiveField({ personId: loser.id, key: "sleep", value: "loser sleeps four hours" })).ok).toBe(true);
+    expect((await sensitiveActions.setSensitiveField({ personId: loser.id, key: "stress", value: "loser stress" })).ok).toBe(true);
+    expect((await sensitiveActions.setSensitiveField({ personId: winner.id, key: "stress", value: "winner stress" })).ok).toBe(true);
+    expect((await queries.getMergePreview(h.db, winner.id, loser.id)).counts).toMatchObject({ "person_sensitive_fields.person_id": 2 });
+
+    const res = await merge(winner.id, loser.id);
+    expect(res.ok).toBe(true);
+    const [m] = await h.db.select().from(personMerges).where(eq(personMerges.loserPersonId, loser.id));
+    expect(m!.repointed).toMatchObject({ "person_sensitive_fields.person_id": 1, "person_sensitive_fields.person_id:deleted": 1 });
+
+    expect(await h.db.select().from(personSensitiveFields).where(eq(personSensitiveFields.personId, loser.id))).toHaveLength(0);
+    const revealed = await sensitiveActions.revealSensitive({ personId: winner.id, keys: ["sleep", "stress"] });
+    expect(revealed).toMatchObject({ ok: true, data: { fields: { sleep: "loser sleeps four hours", stress: "winner stress" } } });
+
+    const rekeyed = await sensitiveLib.rekeyChunk(h.db, { toVersion: 2, table: "person_sensitive_fields" });
+    expect(rekeyed.rows).toBeGreaterThanOrEqual(2);
+    const [row] = await h.db.select().from(personSensitiveFields).where(and(eq(personSensitiveFields.personId, winner.id), eq(personSensitiveFields.key, "sleep")));
+    expect(row!.keyVersion).toBe(2);
+    expect(sensitiveLib.decryptSensitive(row!.valueEnc, 2, sensitiveLib.sensitiveAad.personField(winner.id, "sleep"))).toBe("loser sleeps four hours");
   });
 });

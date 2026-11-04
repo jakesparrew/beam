@@ -7,7 +7,7 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTestDb, makePerson, makeUser } from "@beam/db/testing";
 import type { DbHandle } from "@beam/db";
-import { activityEvents, auditLog, personDeclarations } from "@beam/db/schema";
+import { activityEvents, auditLog, personDeclarations, persons } from "@beam/db/schema";
 
 process.env.SENSITIVE_DATA_KEY_V1 ??= randomBytes(32).toString("base64");
 process.env.AUTH_SECRET = "crm-p3-declarations-secret";
@@ -27,6 +27,10 @@ const legal = vi.hoisted(() => ({ current: null as null | { versionId: string; v
 vi.mock("@/modules/site/api", () => ({
   getCurrentLegalVersion: (_db: unknown, key: string) =>
     Promise.resolve(key === "guardian_consent" && legal.current ? { ...legal.current, publishedAt: new Date(), text: { en: "I consent" }, urlByLocale: {} } : null),
+  hasAcceptedCurrentTerms: () => Promise.resolve(false),
+}));
+vi.mock("@/modules/forms/api", () => ({
+  hasValidSubmission: () => Promise.resolve({ valid: false, completedAt: null, expiresAt: null }),
 }));
 
 const actions = await import("./actions");
@@ -34,7 +38,9 @@ const api = await import("./api");
 const queries = await import("./queries");
 const auth = await import("@/lib/auth");
 const { and, eq, setAppDb } = await import("@/lib/ctx");
-const { resetRuntime } = await import("@/lib/testing");
+const { makeCtx, resetRuntime } = await import("@/lib/testing");
+const consentApi = await import("../consent/api");
+const { getReceptionCard } = await import("../person360/api");
 
 let h: DbHandle;
 
@@ -116,6 +122,35 @@ describe("guardian consent (rule 3.54)", () => {
     await actions.recordDeclaration({ personId: minor.id, kind: "guardian_consent", guardianPersonId: guardian.id });
     await expect(h.db.update(personDeclarations).set({ status: "revoked" }).where(eq(personDeclarations.personId, minor.id))).rejects.toThrow();
     await expect(h.db.delete(personDeclarations).where(eq(personDeclarations.personId, minor.id))).rejects.toThrow();
+  });
+
+  it("3.32 and 3.54 a guardian consent on a merged loser counts for the winner: reception card, marketing grant, revoke (fix-w09-crm-review)", async () => {
+    const { minor: winner, guardian } = await minorAndGuardian();
+    const loser = await makePerson(h.db, { birthOn: "2014-03-02" });
+    // the duplicate profile holds the valid guardian consent; then it is merged into the winner
+    // (person_declarations is append-only and `skip` in MERGE_STRATEGIES, so the row stays on the loser)
+    expect((await actions.recordDeclaration({ personId: loser.id, kind: "guardian_consent", guardianPersonId: guardian.id })).ok).toBe(true);
+    await h.db.update(persons).set({ mergedIntoPersonId: winner.id }).where(eq(persons.id, loser.id));
+
+    expect(await valid(winner.id)).toBe(true);
+    expect((await getReceptionCard(h.db, winner.id)).declarations.guardianConsentValid).toBe(true);
+    const tx = h.db as unknown as Parameters<typeof consentApi.recordConsent>[0];
+    const grant = await consentApi.recordConsent(tx, makeCtx(h.db), {
+      personId: winner.id,
+      purpose: "newsletter",
+      status: "granted",
+      method: "form",
+      source: "form:contact",
+      wordingVersion: "form:contact:v1:newsletter",
+    });
+    expect(grant.outcome).toBe("recorded");
+
+    // revoking on the winner appends the revocation to the winner, after the loser's acceptance
+    expect((await actions.revokeDeclaration({ personId: winner.id, kind: "guardian_consent", reason: "Guardian asked" })).ok).toBe(true);
+    expect(await valid(winner.id)).toBe(false);
+    const own = await h.db.select().from(personDeclarations).where(eq(personDeclarations.personId, winner.id));
+    expect(own.map((r) => r.status)).toEqual(["revoked"]);
+    expect((await queries.listPersonDeclarations(h.db, winner.id)).map((r) => r.status)).toEqual(["revoked", "accepted"]);
   });
 
   it("3.54 a merged minor resolves to the winner", async () => {

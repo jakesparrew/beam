@@ -83,11 +83,15 @@ const PAYLOADS: Record<string, () => Promise<unknown>> = {
 };
 
 describe("crm jobs run twice yield the same state", () => {
-  it("covers every crm job kind", () => {
-    for (const def of jobs) expect(PAYLOADS[def.kind], def.kind).toBeDefined();
+  // Only the kinds this file has payloads for: the R3 kinds (pipeline, inbox) run twice in their
+  // own `pipeline/jobs.test.ts` and `inbox/jobs.test.ts` (CONVENTIONS item 11).
+  const OWN = jobs.filter((j) => j.kind in PAYLOADS);
+
+  it("every payload names a registered crm job", () => {
+    for (const k of Object.keys(PAYLOADS)) expect(jobs.some((j) => j.kind === k), k).toBe(true);
   });
 
-  it.each(jobs.map((j) => j.kind))("%s", async (kind) => {
+  it.each(OWN.map((j) => j.kind))("%s", async (kind) => {
     const payload = await PAYLOADS[kind]!();
     await twiceSameState(kind, payload);
   });

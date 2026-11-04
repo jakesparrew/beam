@@ -5,8 +5,9 @@
  * overwritten:
  *
  * 1. Provider payments `open`, `pending` or `authorized` older than 30 minutes: `payments.sync`
- *    is enqueued (key `payment_sync:<provider_payment_id>:<YYYY-MM-DDTHH:mm>`), so a lost webhook
- *    is caught up.
+ *    is enqueued (key `payment_sync:<provider_payment_id>:<YYYY-MM-DDTHH:mm>`; recurring debits
+ *    hourly, `payment_sync:<provider_payment_id>:<YYYY-MM-DDTHH>`, and after the one-off
+ *    payments in the batch), so a lost webhook is caught up.
  * 2. Those still in flight after 35 minutes become `expired` with source `local_timeout`
  *    (`applyProviderStatus`, so a later provider `paid` is still accepted, rule 28).
  * 3. `pending_payment` orders without a live payment whose `expires_at` passed become `expired`
@@ -23,7 +24,7 @@
  * timed out or alerted on here; recurring ones are synced like any other after 30 minutes.
  */
 import { orders, payments } from "@beam/db/schema";
-import { localMinuteKey, wallClock } from "@beam/core/platform";
+import { localHourKey, localMinuteKey, wallClock } from "@beam/core/platform";
 import { nextOrderStatus } from "@beam/core/commerce";
 import { and, asc, eq, inArray, lt, ne, notInArray, sql, type Ctx, type Tx } from "@/lib/ctx";
 import { notifySlack } from "@/lib/alerts";
@@ -59,18 +60,25 @@ function liveProviderWhere(before: Date, opts: { withRecurring: boolean }) {
   );
 }
 
-/** Step 1: one `payments.sync` per in-flight payment and minute. */
+/**
+ * Step 1: one `payments.sync` per in-flight payment and minute; recurring (SEPA) debits, which
+ * stay pending for days, once per hour (key `payment_sync:<id>:<YYYY-MM-DDTHH>`). One-off
+ * payments come first in the batch, so a backlog of pending debits never starves a card payment
+ * whose webhook was lost before step 2 times it out.
+ */
 async function enqueueSyncs(tx: Tx, ctx: Ctx): Promise<number> {
   const rows = await tx
-    .select({ id: payments.id, providerPaymentId: payments.providerPaymentId })
+    .select({ id: payments.id, providerPaymentId: payments.providerPaymentId, sequenceType: payments.sequenceType })
     .from(payments)
     .where(and(liveProviderWhere(ago(ctx, SYNC_AFTER_MINUTES), { withRecurring: true }), sql`${payments.providerPaymentId} is not null`))
-    .orderBy(asc(payments.createdAt))
+    .orderBy(sql`(${payments.sequenceType} = 'recurring')`, asc(payments.createdAt))
     .limit(BATCH)
     .for("update", { skipLocked: true });
   const minute = localMinuteKey(wallClock(ctx.now));
+  const hour = localHourKey(ctx.now);
   for (const r of rows) {
-    await ctx.enqueue({ kind: "payments.sync", payload: { providerPaymentId: r.providerPaymentId! }, key: `payment_sync:${r.providerPaymentId}:${minute}` });
+    const slot = r.sequenceType === "recurring" ? hour : minute;
+    await ctx.enqueue({ kind: "payments.sync", payload: { providerPaymentId: r.providerPaymentId! }, key: `payment_sync:${r.providerPaymentId}:${slot}` });
   }
   return rows.length;
 }

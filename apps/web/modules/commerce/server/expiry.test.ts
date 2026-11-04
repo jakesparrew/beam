@@ -30,6 +30,7 @@ vi.mock("@/modules/credits/api", async (importOriginal) => ({
 }));
 
 const { scanExpired, PENDING_ALERT_FINGERPRINT } = await import("./expiry");
+const { localHourKey } = await import("@beam/core/platform");
 const { createCtx, eq, and, sql } = await import("@/lib/ctx");
 const like = (col: unknown, pattern: string) => sql`${col} like ${pattern}`;
 const { makeCtx, resetRuntime, createFakeIntegrations } = await import("@/lib/testing");
@@ -182,5 +183,43 @@ describe("draft expiry (rule 22a)", () => {
     const [s] = await h.db.select().from(orders).where(eq(orders.id, stale.id));
     expect(s).toMatchObject({ status: "cancelled" });
     expect((await h.db.select().from(orders).where(eq(orders.id, fresh.id)))[0]!.status).toBe("draft");
+  });
+});
+
+describe("sync batch with a backlog of pending SEPA debits (review fix 6)", () => {
+  it("syncs a 31-minute card payment despite 201 older recurring debits, and debits only once per hour", async () => {
+    const now = new Date("2026-11-05T14:00:00.000Z");
+    const run = randomUUID().slice(0, 8);
+    const renewal = await makeOrder(h.db, { channel: "recurring", expiresAt: new Date(now.getTime() + 10 * DAY) });
+    const debits = Array.from({ length: 201 }, (_, i) => ({
+      orderId: renewal.id,
+      provider: "mollie" as const,
+      sequenceType: "recurring" as const,
+      providerPaymentId: `tr_sepa${run}_${i}`,
+      status: "pending" as const,
+      amountCents: 4500,
+      createdAt: new Date(now.getTime() - 3 * DAY + i * MIN),
+    }));
+    await h.db.insert(payments).values(debits);
+    const card = await makeOrder(h.db, { expiresAt: new Date(now.getTime() + 10 * MIN) });
+    const cardPaymentId = `tr_card${run}`;
+    await h.db.insert(payments).values({ orderId: card.id, provider: "mollie", providerPaymentId: cardPaymentId, status: "pending", amountCents: 4500, createdAt: new Date(now.getTime() - 31 * MIN) });
+
+    await scanAt(now);
+    const cardSyncs = await h.db.select().from(jobs).where(and(eq(jobs.kind, "payments.sync"), like(jobs.idempotencyKey, `payment_sync:${cardPaymentId}:%`)));
+    expect(cardSyncs).toHaveLength(1);
+    const debitSyncs = () => h.db.select().from(jobs).where(and(eq(jobs.kind, "payments.sync"), like(jobs.idempotencyKey, `payment_sync:tr_sepa${run}_%`)));
+    const first = await debitSyncs();
+    expect(first.length).toBeGreaterThan(0);
+    expect(first.length).toBeLessThan(201);
+    const hour = localHourKey(now);
+    for (const j of first) expect(j.idempotencyKey).toMatch(new RegExp(`^payment_sync:tr_sepa${run}_\\d+:${hour}$`));
+    // A minute later in the same hour: a new card sync, no new sync for the debits already queued.
+    const queued = new Set(first.map((j) => j.idempotencyKey));
+    await scanAt(new Date(now.getTime() + MIN));
+    expect(await h.db.select().from(jobs).where(and(eq(jobs.kind, "payments.sync"), like(jobs.idempotencyKey, `payment_sync:${cardPaymentId}:%`)))).toHaveLength(2);
+    const after = await debitSyncs();
+    expect(after.filter((j) => !queued.has(j.idempotencyKey))).toHaveLength(0);
+    await h.db.update(payments).set({ status: "failed" }).where(eq(payments.orderId, renewal.id));
   });
 });

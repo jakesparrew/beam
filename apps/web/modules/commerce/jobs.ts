@@ -60,7 +60,7 @@ export function runPaymentsCreate(ctx: JobCtx, input: z.infer<typeof PaymentsCre
   return createProviderPayment(ctx, input);
 }
 
-/** `payments.sync` (return-page polls and `payments.scan_expired`; key `payment_sync:<id>:<minute>`). */
+/** `payments.sync` (return-page polls and `payments.scan_expired`; key `payment_sync:<id>:<minute>`, recurring debits from the scan `payment_sync:<id>:<hour>`). */
 export async function runPaymentsSync(ctx: JobCtx, input: z.infer<typeof PaymentsSyncInput>): Promise<SyncResult> {
   const result = await syncPayment(ctx, input.providerPaymentId);
   await afterSync(ctx, result);

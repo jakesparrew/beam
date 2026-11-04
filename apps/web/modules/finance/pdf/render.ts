@@ -4,16 +4,13 @@
  * and the creation date is the document's `issued_at`, so the same document renders the same
  * text and metadata every time.
  *
- * The pure document model lives in `packages/core/src/finance/document-model.ts`. `@beam/core`
- * exports a module only through `src/<m>/index.ts`, which this package does not own, so the
- * model is imported here by path and re-exported for the rest of the finance module (request:
- * finance's `packages/core/src/finance/index.ts` adds `export * from "./document-model"`, then
- * this file imports `@beam/core/finance`).
+ * The pure document model lives in `@beam/core/finance` (`document-model.ts`); it is re-exported
+ * here for the rest of the finance module.
  */
 import "server-only";
 import { createElement, type ReactElement } from "react";
 import { renderToBuffer, type DocumentProps } from "@react-pdf/renderer";
-import type { InvoiceDocumentModel } from "../../../../../packages/core/src/finance/document-model";
+import type { InvoiceDocumentModel } from "@beam/core/finance";
 import { InvoiceDocument } from "./invoice-document";
 
 export {
@@ -25,7 +22,7 @@ export {
   type DocumentField,
   type DocumentRow,
   type InvoiceDocumentModel,
-} from "../../../../../packages/core/src/finance/document-model";
+} from "@beam/core/finance";
 
 /** Renders the document model to PDF bytes (A4, `%PDF-` header). */
 export async function renderInvoicePdf(model: InvoiceDocumentModel): Promise<Uint8Array> {

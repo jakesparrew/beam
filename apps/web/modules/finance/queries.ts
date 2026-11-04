@@ -34,6 +34,7 @@ import { and, asc, desc, eq, gte, lt, lte, or, sql, type SQL } from "@/lib/ctx";
 import { rowsOf } from "@/lib/sensitive";
 import { getSetting } from "@/lib/settings";
 import { brusselsDay } from "./service/billit-sync";
+import { blockedPdfIds } from "./service/pdf-file";
 
 export const INVOICE_PAGE_SIZE = 50;
 
@@ -433,10 +434,12 @@ export async function getInvoicingIdentity(db: DbOrTx, input: { locale?: Locale 
   };
 }
 
-/** Documents a staff "Re-render all blocked PDFs" would pick up: `pdf_status = 'failed'`. */
+/**
+ * Documents a staff "Re-render all blocked PDFs" would pick up (one batch, oldest first):
+ * `pdf_status = 'failed'`, or `rendered` whose file is missing or expired. Never reads bytes.
+ */
 export async function listBlockedPdfIds(db: DbOrTx): Promise<string[]> {
-  const rows = await db.select({ id: invoices.id }).from(invoices).where(eq(invoices.pdfStatus, "failed")).orderBy(asc(invoices.issuedAt));
-  return rows.map((r) => r.id);
+  return blockedPdfIds(db);
 }
 
 // ---------------------------------------------------------------------------

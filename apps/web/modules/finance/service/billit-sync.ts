@@ -32,7 +32,7 @@ import {
   toBillitParty,
   toBillitPayment,
   type BillitPaymentPart,
-} from "../../../../../packages/core/src/finance/billit-mapping";
+} from "@beam/core/finance";
 import { raiseAuthAlert, withBillitFailure } from "./billit-failure";
 import { enqueueFinanceJob, eventSubject, findInvoice, loadInvoice, updateInvoiceState, type InvoiceMutableFields } from "./invoice-state";
 import { markInvoicePaidInternal } from "./settle";

@@ -11,14 +11,12 @@
 import type { Tx } from "@beam/db";
 import { invoices, refunds } from "@beam/db/schema";
 import {
-  brusselsDateOf,
   buildSellerSnapshot,
   buildVatBreakdown,
   creditLines,
   documentTotals,
   FinanceConflictError,
   FinanceValidationError,
-  fiscalYearOf,
   formatNumber,
   type InvoiceLine,
   type InvoiceRecord,
@@ -27,7 +25,7 @@ import { and, eq, ne, NotFoundError, type Ctx } from "@/lib/ctx";
 import type { IssueCreditNoteInput } from "../api";
 import { assertCustomerOwns, enqueueFinanceJob, eventSubject, issuedByOf, loadInvoice, updateInvoiceState } from "./invoice-state";
 import { financeLabel, issuerSettings } from "./issue-invoice";
-import { allocateNumber } from "./sequences";
+import { allocateNumberAndInstant } from "./sequences";
 
 export type IssueCreditNoteResult = { creditNoteId: string; number: string; totalCents: number };
 
@@ -86,9 +84,8 @@ export async function issueCreditNote(tx: Tx, ctx: Ctx, input: IssueCreditNoteIn
   }
 
   const { company, finance } = await issuerSettings(tx);
-  const issuedAt = ctx.now;
-  const fiscalYear = fiscalYearOf(issuedAt);
-  const sequenceNumber = await allocateNumber(tx, "credit_note", fiscalYear);
+  // Rule 12: the issue instant is fixed under the sequence lock, never before it.
+  const { fiscalYear, sequenceNumber, issuedAt, issuedOn } = await allocateNumberAndInstant(tx, ctx, "credit_note");
   const number = formatNumber("credit_note", fiscalYear, sequenceNumber);
   const [row] = await tx
     .insert(invoices)
@@ -111,7 +108,7 @@ export async function issueCreditNote(tx: Tx, ctx: Ctx, input: IssueCreditNoteIn
       vatCents: totals.vatCents,
       totalCents: totals.totalCents,
       vatBreakdown: buildVatBreakdown(lines),
-      issuedOn: brusselsDateOf(issuedAt),
+      issuedOn,
       issuedAt,
       status: "issued",
       reason,

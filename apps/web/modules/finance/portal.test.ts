@@ -39,9 +39,15 @@ const pdfRoute = await import("../../app/[locale]/(portal)/account/invoices/[id]
 const { runFinanceDemoSeed } = await import("./seed");
 
 let h: DbHandle;
+/**
+ * An invoice issued two days ago. Issued first, before any other document: rule 12 clamps a
+ * backdated `issued_at` to the previous number's, so it cannot be issued after newer ones.
+ */
+let twoDaysOld: Awaited<ReturnType<typeof paidB2c>>;
 beforeAll(async () => {
   h = await setupDb();
   setAppDb(h.db);
+  twoDaysOld = await paidB2c(h.db, undefined, new Date(Date.now() - 2 * 86_400_000));
 });
 afterAll(async () => {
   resetRuntime();
@@ -50,7 +56,6 @@ afterAll(async () => {
 beforeEach(() => jar.clear());
 
 const now = () => new Date();
-const DAY_MS = 86_400_000;
 const billing = { isCompany: true, legalName: "Studio Noord BV", vatNumber: "BE0123456749", address: { line1: "Noordlaan 5", postal_code: "2000", city: "Antwerpen", country: "BE" } };
 const ok = <T>(r: { ok: boolean; data?: T; error?: unknown }): T => {
   if (!r.ok) throw new Error(`action failed: ${JSON.stringify(r.error)}`);
@@ -122,7 +127,7 @@ describe("company invoice requests", () => {
     expect(row).toMatchObject({ status: "requested", personId: inside.personId, billing: expect.objectContaining({ legalName: "Studio Noord BV", vatNumber: "BE0123456749" }) });
     expect(await h.db.select().from(activityEvents).where(and(eq(activityEvents.kind, "invoice.company_requested" as never), eq(activityEvents.personId, inside.personId)))).toHaveLength(1);
 
-    const outside = await paidB2c(h.db, undefined, new Date(now().getTime() - 2 * DAY_MS));
+    const outside = twoDaysOld;
     await setFinanceSettings(h.db, { company_request_window_days: 1 });
     await signInCustomer(jar, h.db, outside.personId);
     expect((await queries.getMyInvoice(h.db, { personId: outside.personId, id: outside.invoiceId }))!.canRequestCompanyInvoice).toBe(false);

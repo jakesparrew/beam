@@ -23,7 +23,6 @@ import {
 } from "@beam/core/finance";
 import { action } from "@/lib/action";
 import { and, desc, eq, gte, NotFoundError, or, sql, ValidationError, type Ctx, type JobKind } from "@/lib/ctx";
-import { readFile } from "@/modules/platform/api";
 import { cancelOrder, recordBankTransferPaid } from "@/modules/commerce/api";
 import { sendTransactional } from "@/modules/email/api";
 import { invoiceEmailData, invoiceEmailKey, invoiceEmailLocale } from "./jobs";
@@ -32,6 +31,7 @@ import { enqueueFinanceJob, findInvoice, loadInvoice, updateInvoiceState } from 
 import { issueCreditNote } from "./service/issue-credit-note";
 import { addDays, financeLabel, issuerSettings } from "./service/issue-invoice";
 import { reissueToCompany } from "./service/reissue";
+import { blockedPdfIds, pdfFileExists } from "./service/pdf-file";
 import { markInvoicePaidInternal } from "./service/settle";
 
 const uuid = z.uuid();
@@ -239,24 +239,29 @@ export const runBillitReconcileNow = action({ ...staff("finance.billit.reconcile
 
 const RerenderInvoicePdfInput = z.union([z.object({ invoiceId: uuid }), z.object({ allBlocked: z.literal(true) })]);
 
-/** A document may be re-rendered when its PDF failed or its file is missing, never after the retention sweep. */
+/**
+ * A document may be re-rendered when its PDF failed or its file is missing, never after the
+ * retention sweep. Checks the file's existence only, never its bytes.
+ */
 async function isBlocked(tx: Tx, doc: InvoiceRecord): Promise<boolean> {
   if (isAnonymisedSnapshot(doc.customerSnapshot)) return false;
   if (doc.pdfStatus === "failed") return true;
-  if (doc.pdfStatus === "rendered") return !doc.pdfFileId || (await readFile(tx, doc.pdfFileId)) === null;
+  if (doc.pdfStatus === "rendered") return !(await pdfFileExists(tx, doc.pdfFileId));
   return false;
 }
 
 /**
  * Edge case 16: refreshes `seller_snapshot` from the current settings when 2.2 allows it (no PDF
  * rendered, not in Billit), then queues `finance.render_pdf` with `invoice_pdf:<id>:r<n>`.
+ * `allBlocked` picks one batch of blocked documents with a single query (no bytes, no locks)
+ * and locks only those rows, each re-checked under its lock.
  */
 export const rerenderInvoicePdf = action({ ...staff("finance.pdf.rerender"), input: RerenderInvoicePdfInput }, async (ctx, input) => {
   const tx = ctx.tx;
   const ids =
     "invoiceId" in input
       ? [input.invoiceId]
-      : (await tx.select({ id: invoices.id }).from(invoices).where(or(eq(invoices.pdfStatus, "failed"), eq(invoices.pdfStatus, "rendered")))).map((r) => r.id);
+      : await blockedPdfIds(tx);
   const { company, finance } = await issuerSettings(tx);
   const jobIds: string[] = [];
   for (const id of ids) {

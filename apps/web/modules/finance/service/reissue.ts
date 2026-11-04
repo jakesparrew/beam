@@ -10,11 +10,9 @@ import type { Tx } from "@beam/db";
 import { invoices } from "@beam/db/schema";
 import {
   BillingDetailsInput,
-  brusselsDateOf,
   buildCustomerSnapshot,
   buildSellerSnapshot,
   FinanceConflictError,
-  fiscalYearOf,
   formatNumber,
   isAnonymisedSnapshot,
   structuredCommunication,
@@ -25,7 +23,7 @@ import { setOrderBillingDetails } from "./billing-details";
 import { enqueueFinanceJob, eventSubject, issuedByOf, loadInvoice } from "./invoice-state";
 import { issueCreditNote } from "./issue-credit-note";
 import { issuerSettings } from "./issue-invoice";
-import { allocateNumber } from "./sequences";
+import { allocateNumberAndInstant } from "./sequences";
 
 export type ReissueResult = { creditNoteId: string; invoiceId: string; number: string };
 
@@ -71,10 +69,8 @@ export async function reissueToCompany(tx: Tx, ctx: Ctx, input: { invoiceId: str
   const isCompany = snapshot.kind === "company" && !!snapshot.vat_number;
 
   const { company, finance } = await issuerSettings(tx);
-  const issuedAt = ctx.now;
-  const issuedOn = brusselsDateOf(issuedAt);
-  const fiscalYear = fiscalYearOf(issuedAt);
-  const sequenceNumber = await allocateNumber(tx, "invoice", fiscalYear);
+  // Rule 12: the issue instant is fixed under the sequence lock, never before it.
+  const { fiscalYear, sequenceNumber, issuedAt, issuedOn } = await allocateNumberAndInstant(tx, ctx, "invoice");
   const number = formatNumber("invoice", fiscalYear, sequenceNumber);
   const open = original.status === "open";
   const [row] = await tx

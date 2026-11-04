@@ -10,13 +10,11 @@
 import type { Tx } from "@beam/db";
 import { companies, invoices, orderLines, orders, payments, persons, products, sessions } from "@beam/db/schema";
 import {
-  brusselsDateOf,
   buildCustomerSnapshot,
   buildSellerSnapshot,
   buildVatBreakdown,
   documentTotals,
   FinanceConflictError,
-  fiscalYearOf,
   formatNumber,
   linesFromOrderLines,
   structuredCommunication,
@@ -32,7 +30,7 @@ import { getSetting } from "@/lib/settings";
 import type { IssueInvoiceInput, IssueInvoiceResult } from "../api";
 import { getOrderBillingDetails } from "./billing-details";
 import { assertCustomerOwns, enqueueFinanceJob, eventSubject, issuedByOf } from "./invoice-state";
-import { allocateNumber } from "./sequences";
+import { allocateNumberAndInstant } from "./sequences";
 import { markInvoicePaidInternal, paymentSnapshot } from "./settle";
 
 /** Payment statuses that count as money received for the payment snapshot. */
@@ -119,15 +117,13 @@ export async function issueInvoice(tx: Tx, ctx: Ctx, input: IssueInvoiceInput): 
   });
   const isCompany = snapshot.kind === "company" && !!snapshot.vat_number;
 
-  const issuedAt = ctx.now;
-  const issuedOn = brusselsDateOf(issuedAt);
-  const fiscalYear = fiscalYearOf(issuedAt);
+  // Rule 12: the issue instant is fixed under the sequence lock, never before it.
+  const { fiscalYear, sequenceNumber, issuedAt, issuedOn } = await allocateNumberAndInstant(tx, ctx, "invoice");
   const settlement =
     status === "paid"
       ? await paidSettlement(tx, order, input, issuedAt)
       : { paymentId: null, paymentProvider: null, paymentMethod: null, paymentTransactionRef: null, paidAt: null, settledVia: null };
 
-  const sequenceNumber = await allocateNumber(tx, "invoice", fiscalYear);
   const number = formatNumber("invoice", fiscalYear, sequenceNumber);
   const [row] = await tx
     .insert(invoices)

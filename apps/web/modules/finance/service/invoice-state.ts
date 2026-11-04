@@ -134,13 +134,14 @@ export function issuedByOf(ctx: Ctx): IssuedBy {
 /**
  * Customer actors only reach their own documents and orders (spec 4.2, rule 40): anything else
  * is `not_found`, never `forbidden`, so ids cannot be probed. Staff, system, job and webhook
- * actors pass; the calling action checks their permission.
+ * actors pass; the calling action checks their permission. Public actors pass too: they reach
+ * these facades only through another module's public action (commerce's guest checkout sets the
+ * billing details and issues the invoice of a zero-total order), and that module gates them.
  */
 export function assertCustomerOwns(ctx: Ctx, personId: string | null | undefined): void {
   if (ctx.actor.kind === "customer" && (!personId || personId !== ctx.actor.personId)) {
     throw new NotFoundError("finance.errors.not_found");
   }
-  if (ctx.actor.kind === "public") throw new NotFoundError("finance.errors.not_found");
 }
 
 /**

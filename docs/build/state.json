@@ -1766,7 +1766,7 @@
       "mergedAt": "2026-11-04T20:37:48Z"
     },
     "fix-w09-site-review": {
-      "status": "done",
+      "status": "red",
       "attempts": 1,
       "fixer": true,
       "module": "site",
@@ -1784,7 +1784,7 @@
         "site-P7"
       ],
       "branchSha": "938aa79",
-      "endedAt": "2026-11-04T19:49:31Z",
+      "endedAt": "2026-11-04T20:52:39Z",
       "minutes": 27,
       "baseSha": "fa5ed8b",
       "runId": "wf_3a5ca635-7e3",

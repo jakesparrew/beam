@@ -135,10 +135,10 @@ function batchApi() {
     results_url: status === "ended" ? "https://api.anthropic.test/v1/messages/batches/msgbatch_01/results" : null,
   });
   const json = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status, headers: { "content-type": "application/json" } });
-  const fetchFn = async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+  const answer = (input: string | URL | Request, init?: RequestInit): Response => {
     const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url);
     const method = init?.method ?? "GET";
-    seen.push({ method, path: url.pathname, body: init?.body ? (JSON.parse(String(init.body)) as unknown) : null });
+    seen.push({ method, path: url.pathname, body: typeof init?.body === "string" ? (JSON.parse(init.body) as unknown) : null });
     if (method === "POST" && url.pathname === "/v1/messages/batches") return json(batch("in_progress"));
     if (method === "GET" && url.pathname === "/v1/messages/batches/msgbatch_01") return json(batch("ended"));
     if (method === "GET" && url.pathname === "/v1/messages/batches/msgbatch_01/results") {
@@ -152,6 +152,7 @@ function batchApi() {
     if (url.pathname === "/v1/messages/batches/missing") return json({ type: "error", error: { type: "not_found_error", message: "not found" } }, 404);
     return json({ type: "error", error: { type: "api_error", message: "unexpected" } }, 500);
   };
+  const fetchFn = (input: string | URL | Request, init?: RequestInit): Promise<Response> => Promise.resolve(answer(input, init));
   return { seen, fetchFn };
 }
 

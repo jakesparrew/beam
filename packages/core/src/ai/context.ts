@@ -24,7 +24,14 @@ export const AI_ALLOWED_FIELDS = [
   "next_booking_at",
   "open_tasks",
   "granted_purposes",
+  // R4 (platform-P10): the two non-sensitive counts of webinar's `v_person_webinar_stats`.
+  "webinars_attended_live",
+  "watch_sec_total",
 ] as const;
+
+// The read-only SQL guard (platform-P10) is part of `@beam/core/ai`; the barrel re-exports this file.
+export { AI_SQL_CALL_KEYWORDS, AI_SQL_FORBIDDEN_WORDS, AI_SQL_FUNCTIONS, AI_SQL_MAX_LENGTH, AiSqlRejectedError, assertAiSqlSafe, checkAiSql } from "./sql-guard";
+export type { AiSqlCheck, AiSqlFunction, AiSqlRejection } from "./sql-guard";
 
 export type AiAllowedField = (typeof AI_ALLOWED_FIELDS)[number];
 
@@ -54,6 +61,8 @@ export type AiProfileInput = {
   next_booking_at?: Date | string | null;
   open_tasks?: number | null;
   granted_purposes?: readonly string[] | null;
+  webinars_attended_live?: number | null;
+  watch_sec_total?: number | null;
 };
 
 export function isAiAllowedField(field: string): field is AiAllowedField {
@@ -67,7 +76,15 @@ const DATE_FIELDS = new Set<AiAllowedField>([
   "membership_period_end_at",
   "next_booking_at",
 ]);
-const NUMBER_FIELDS = new Set<AiAllowedField>(["visits", "purchases", "revenue_cents", "credits_remaining", "open_tasks"]);
+const NUMBER_FIELDS = new Set<AiAllowedField>([
+  "visits",
+  "purchases",
+  "revenue_cents",
+  "credits_remaining",
+  "open_tasks",
+  "webinars_attended_live",
+  "watch_sec_total",
+]);
 const LIST_FIELDS = new Set<AiAllowedField>(["tags", "granted_purposes"]);
 const BOOLEAN_FIELDS = new Set<AiAllowedField>(["is_member"]);
 const MAX_TEXT = 100;

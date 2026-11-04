@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { SENSITIVE_FIELD_KEYS } from "../privacy/sensitive-keys";
-import { AI_ALLOWED_FIELDS, aiContextFields, aiContextJson, toAiContext, type AiProfileInput } from "./context";
+import { AI_ALLOWED_FIELDS, AI_SQL_FUNCTIONS, aiContextFields, aiContextJson, toAiContext, type AiProfileInput } from "./context";
+import { AI_SQL_FUNCTIONS as GUARD_FUNCTIONS } from "./sql-guard";
 
 /** Scenario 6: a person with every sensitive key filled and a free-text health note. */
 const SENSITIVE_VALUES = {
@@ -92,5 +93,19 @@ describe("toAiContext", () => {
       expect(AI_ALLOWED_FIELDS.some((f) => f.split(".").includes(key))).toBe(false);
     }
     for (const contact of ["email", "phone", "notes", "last_name"]) expect(AI_ALLOWED_FIELDS as readonly string[]).not.toContain(contact);
+  });
+
+  it("R4: carries the two non-sensitive webinar counts of v_person_webinar_stats as numbers", () => {
+    expect(AI_ALLOWED_FIELDS).toContain("webinars_attended_live");
+    expect(AI_ALLOWED_FIELDS).toContain("watch_sec_total");
+    const context = toAiContext({ ...profile, webinars_attended_live: 3, watchSecTotal: 5400, watch_segments: [[0, 60]], questions: "Can I bring my injury?" });
+    expect(context).toMatchObject({ webinars_attended_live: 3, watch_sec_total: 5400 });
+    expect(aiContextJson(context)).not.toMatch(/watch_segments|injury/);
+    expect(toAiContext({ webinars_attended_live: "3" } as unknown as AiProfileInput)).toEqual({ webinars_attended_live: null });
+  });
+
+  it("R4: still no SENSITIVE_FIELD_KEYS member after the additions, and the SQL guard is the same list", () => {
+    for (const key of SENSITIVE_FIELD_KEYS) expect(AI_ALLOWED_FIELDS as readonly string[]).not.toContain(key);
+    expect(AI_SQL_FUNCTIONS).toBe(GUARD_FUNCTIONS);
   });
 });

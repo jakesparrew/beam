@@ -92,7 +92,7 @@ describe("addGuestRow (R54-R56)", () => {
     const product = await sessionProduct(h.db);
     const session = await openSession(h.db, { ...FREE, productId: product.id });
     const owner = await makePerson(h.db, { firstName: "Ann" });
-    const ownerRow = await inTx(h.db, { kind: "staff", userId: staffUserId, roleKey: "reception", permissions: new Set(["bookings.write", "bookings.override"]), mfaAt: new Date() } as Actor, (tx, ctx) =>
+    const ownerRow = await inTx(h.db, staffActor({ userId: staffUserId, permissions: ["bookings.write", "bookings.override"] }), (tx, ctx) =>
       bookSeats(tx, ctx, { sessionId: session.id, personId: owner.id, payWith: "free", reason: "host", clientKey: randomUUID(), source: "admin", by: "staff" }),
     );
     const guestEmail = email();

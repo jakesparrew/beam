@@ -8,7 +8,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTestDb, makePerson, makeProduct, makeSession, makeUser } from "@beam/db/testing";
-import { ensureTermsVersion } from "@beam/db/testing/commerce-factories";
+import { ensureTermsVersion, makeOrder, makePaidOrder } from "@beam/db/testing/commerce-factories";
 import type { DbHandle, Tx } from "@beam/db";
 import { activityEvents, invoices, jobs, orderLines, orders, payments, personPrices, promotionRedemptions, promotions, vouchers } from "@beam/db/schema";
 
@@ -55,7 +55,7 @@ vi.mock("@/modules/booking/api", async (importOriginal) => {
   return out;
 });
 
-const { createOrder } = await import("./orders");
+const { createOrder, getOrderStatus, getPersonCommerceSummary, listPersonOrders } = await import("./orders");
 const { createCtx, eq, and } = await import("@/lib/ctx");
 const { makeCtx, resetRuntime, createFakeIntegrations } = await import("@/lib/testing");
 
@@ -271,5 +271,21 @@ describe("createOrder", () => {
 
     getCurrentLegalVersion.mockResolvedValueOnce(null);
     await expect(inTx((tx, ctx) => createOrder(tx, ctx, base(person.id, [{ productId: voucher.id, quantity: 1 }])))).rejects.toMatchObject({ message: "terms_unavailable" });
+  });
+});
+
+describe("order reads", () => {
+  it("summarises and lists a person's orders and reports the due amount", async () => {
+    const person = await makePerson(h.db);
+    const { order: paid } = await makePaidOrder(h.db, { personId: person.id, lines: [{ unitAmountCents: 3000 }, { unitAmountCents: 1500, quantity: 2 }] });
+    const open = await makeOrder(h.db, { personId: person.id, channel: "portal", subtotalCents: 2000, totalCents: 2000 });
+    await h.db.insert(payments).values({ orderId: open.id, provider: "credit_balance", status: "paid", amountCents: 500 });
+
+    expect(await getPersonCommerceSummary(h.db, person.id)).toMatchObject({ paidOrders: 1, paidCents: 6000, openOrders: 1, activeVouchers: 0 });
+    const list = await listPersonOrders(h.db, person.id, { limit: 10 });
+    expect(list.map((o) => o.orderId).sort()).toEqual([paid.id, open.id].sort());
+    expect(list.find((o) => o.orderId === paid.id)).toMatchObject({ status: "paid", totalCents: 6000, lineCount: 2 });
+    expect(await getOrderStatus(h.db, open.id)).toEqual({ status: "pending_payment", paidAt: null, dueCents: 1500 });
+    await expect(getOrderStatus(h.db, randomUUID())).rejects.toMatchObject({ code: "not_found" });
   });
 });

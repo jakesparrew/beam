@@ -347,7 +347,7 @@ export async function listPersonOrders(db: DbOrTx, personId: string, opts: { lim
       totalCents: orders.totalCents,
       createdAt: orders.createdAt,
       paidAt: orders.paidAt,
-      lineCount: sql<number>`(select count(*)::int from order_lines l where l.order_id = ${orders.id})`,
+      lineCount: sql<number>`(select count(*)::int from order_lines l where l.order_id = "orders"."id")`,
     })
     .from(orders)
     .where(eq(orders.personId, personId))

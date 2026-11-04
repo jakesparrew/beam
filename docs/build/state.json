@@ -531,8 +531,11 @@
       "minutes": 36
     },
     "ops-P6": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "e2c5e08",
+      "runId": "wf_15fff030-3fe",
+      "startedAt": "2026-11-04T07:25:56Z"
     },
     "site-P3": {
       "status": "pending",
@@ -551,8 +554,11 @@
       "mergedAt": "2026-11-04T06:49:03Z"
     },
     "crm-P7": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "e2c5e08",
+      "runId": "wf_f1bc1a00-de8",
+      "startedAt": "2026-11-04T07:25:56Z"
     },
     "booking-P4": {
       "status": "done",
@@ -634,16 +640,22 @@
       "attempts": 0
     },
     "commerce-P5": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "e2c5e08",
+      "runId": "wf_642d0648-c5a",
+      "startedAt": "2026-11-04T07:25:56Z"
     },
     "credits-P6": {
       "status": "pending",
       "attempts": 0
     },
     "finance-P5": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "e2c5e08",
+      "runId": "wf_efee6788-f9d",
+      "startedAt": "2026-11-04T07:25:56Z"
     },
     "forms-P6": {
       "status": "pending",
@@ -1267,8 +1279,8 @@
       ]
     },
     "fix-w07-site-1": {
-      "status": "pending",
-      "attempts": 0,
+      "status": "running",
+      "attempts": 1,
       "fixer": true,
       "module": "site",
       "goal": "Since site-P5 merged, every email send in the PGlite tests hangs until its time limit: email footerFor(tx, ...) calls legalLinksFor(locale) -> site.getLegalLinks(locale), which reads through getAppDb() outside the open send transaction, and PGlite has one connection, so the read waits for the transaction that waits for it. Fix: (1) site: getLegalLinks(locale, db?: DbOrTx) — when db is given, return loadLegalLinks(db, locale) directly (no unstable_cache, which cannot take a transaction); without it keep the cached app-db read. Add a legal.test.ts case that calls it inside h.db.transaction with the tx and gets the links. (2) email: legalLinksFor(locale, tx) passes the tx through, and footerFor passes its tx. (3) Remove the two fix-w07-site-1 lines from docs/build/known-red.txt and run test/wave0-email.test.ts and modules/email/jobs.test.ts alone (--maxWorkers=1): both must pass, together with modules/site and modules/email.",
@@ -1282,7 +1294,10 @@
         "apps/web/modules/email/server/context.ts",
         "docs/build/known-red.txt"
       ],
-      "dependsOn": []
+      "dependsOn": [],
+      "baseSha": "e2c5e08",
+      "runId": "wf_89916093-139",
+      "startedAt": "2026-11-04T07:25:56Z"
     }
   }
 }

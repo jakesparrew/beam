@@ -7,7 +7,7 @@
     "dev": "next dev -p 3000",
     "build": "next build --webpack",
     "start": "next start",
-    "typecheck": "next typegen && tsc --noEmit",
+    "typecheck": "next typegen && NODE_OPTIONS=--max-old-space-size=4608 tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run"
   },

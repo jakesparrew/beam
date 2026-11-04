@@ -21,3 +21,17 @@ orchestrator and, where they mention it, for every coding agent.
 | OD-14 | The merge gate's `vitest --changed <sha>` selected no tests at all when the short SHA was all digits (3825578, 6596011, 3436055): Vitest's CLI parses such an argument as a number and then ignores it, so only uncommitted files counted. finance-P2 (g40), automation-P2 (g42) and the six packages of batch g51 landed without their web tests. `gate.sh` now resolves `<since-sha>` to the full SHA. If a workspace's sources changed but Vitest still selects nothing, the gate runs that workspace's whole suite rather than trusting the empty selection. A quick gate (every test of every workspace) ran on the head right after the fix to cover what those landings skipped. |
 | OD-15 | A facade read that a caller may make inside its own transaction reads through that transaction, never through a second connection (`getAppDb()`). PGlite has one connection, so such a read deadlocks the tests until their time limit. In production it would also see a different snapshot from the caller. `site.getLegalLinks(locale, db?)` gains the optional `db` (02-data-model amended); email's footer passes its send transaction (fix-w07-site-1). Agents: a facade function that other modules call from jobs or actions takes the caller's `db`/`tx`. |
 | OD-16 | `docs/build/known-red.txt` merges as a set. Fixers that start from the same base each delete their own line, and git reports adjacent deletions as a conflict. When that file is the only conflicted path, `merge.sh` resolves it with `scripts/build/merge-known-red.mjs`: a base line survives only if neither side removed it, and a line either side added is kept. Any other conflict still aborts the merge. Requests whose target file no pending package owns become fix packages at the next checkpoint (runbook 5.6). They are triaged together with the review findings, one fixer per module. |
+
+## OD-17 Message catalogues merge key by key
+Every package owns its module's catalogue and many also add keys to `email.json`, so the scheduler
+serialised almost every remaining package on that one file. `scripts/build/merge-catalogues.mjs`
+resolves a conflicted catalogue with a three-way merge per key (a key changed differently on both
+sides stays a conflict), `merge.sh` uses it when only catalogues and `known-red.txt` conflict, and
+`ownsOverlap` no longer counts a shared catalogue as a clash.
+
+## OD-18 Typecheck heap and app smoke check
+`tsc` for apps/web ran out of the default 2 GB heap (g88-g92); the web `typecheck` script now gives
+it 4.5 GB. Running the app on beam_dev showed two defects no unit test could see: React
+`createContext` in `@beam/email` (not available in server components, so every page and every
+email job failed) and a non-function export in a `"use server"` file (every admin list failed).
+Both are fixed; the wave-7 checkpoint adds a smoke step that starts the app and loads each route.

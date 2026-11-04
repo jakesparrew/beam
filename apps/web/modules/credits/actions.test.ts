@@ -237,7 +237,8 @@ describe("grant actions", () => {
   it("bulkExtendGrants creates one row and enqueues one job, also when submitted twice", async () => {
     const soon = new Date(Date.now() + 20 * DAY);
     await makeCreditGrant(handle.db, { units: 2, source: "bonus", expiresAt: soon });
-    const day = soon.toISOString().slice(0, 10);
+    // The filter is in Brussels days; the UTC day differs between 23:00 and 00:00 (CET) or 22:00 and 00:00 (CEST).
+    const day = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Brussels" }).format(soon);
     const input = { days: 14, reason: "Closed for works", kinds: ["day" as const], sources: ["bonus" as const], expiresFromOn: day, expiresToOn: day, clientKey: randomUUID() };
     const first = ok<{ bulkExtensionId: string; matched: number; created: boolean }>(await actions.bulkExtendGrants(input));
     expect(first).toMatchObject({ bulkExtensionId: input.clientKey, created: true });

@@ -4,7 +4,8 @@
  * `buildFooter()` and handed in by `renderEmail()` through `EmailFooterContext`), the brand from
  * `layout/brand.ts`, `lang` and `dir` on `<html>` (rule 15b). The Wave 0 exports stay.
  */
-import { createContext, useContext, type ReactNode } from "react";
+import { AsyncLocalStorage } from "node:async_hooks";
+import type { ReactNode } from "react";
 import { Body, Button, Container, Head, Heading, Hr, Html, Link, Preview, Section, Text } from "react-email";
 import { t, type Locale } from "@beam/core/i18n";
 import { BRAND } from "./layout/brand";
@@ -17,7 +18,18 @@ export { BRAND };
  * caller passes one; `"none"` leaves the footer region empty (the plain-text pass, which
  * appends the footer's own text part instead).
  */
-export const EmailFooterContext = createContext<FooterParts | "none" | null>(null);
+const footerStore = new AsyncLocalStorage<FooterParts | "none" | null>();
+
+/**
+ * Not a React context: React server components (where route handlers, server actions and jobs
+ * render email) have no `createContext`, so the footer travels in async-local storage for the
+ * duration of one `render()` call instead. `EmailFooterContext.run(footer, () => render(el))`.
+ */
+export const EmailFooterContext = {
+  run<T>(value: FooterParts | "none" | null, fn: () => T): T {
+    return footerStore.run(value, fn);
+  },
+};
 
 export type EmailLayoutProps = {
   locale: Locale;
@@ -50,7 +62,7 @@ export function EmailLayout({ locale, preheader, children, footer }: EmailLayout
 }
 
 function EmailFooter({ locale, footer }: { locale: Locale; footer?: ReactNode }) {
-  const legal = useContext(EmailFooterContext);
+  const legal = footerStore.getStore() ?? null;
   if (legal === "none") return null;
   const lineStyle = { color: BRAND.muted, fontSize: "12px", lineHeight: "18px", margin: "0 0 8px" };
   return (

@@ -15,8 +15,15 @@ for id in "$@"; do
   wave=$(node -e "const p=require('./docs/plan/build-packages.json');console.log(p.packages.find(x=>x.id==='$id')?.wave??'fix')")
   if ! git merge --no-ff --no-edit -m "merge: $id (wave $wave)" "build/$id"; then
     # OD-16: parallel fixers each delete their own known-red line; that file merges as a set.
-    if [ "$(git diff --name-only --diff-filter=U)" = "docs/build/known-red.txt" ] && node scripts/build/merge-known-red.mjs; then
-      git add docs/build/known-red.txt && git commit -q --no-edit && continue
+    # OD-17: message catalogues merge key by key; any other conflicted file stays a conflict.
+    conflicted=$(git diff --name-only --diff-filter=U)
+    other=$(echo "$conflicted" | grep -vE '^(docs/build/known-red\.txt|packages/core/src/i18n/messages/[^/]+/[^/]+\.json)$' || true)
+    if [ -z "$other" ]; then
+      ok=1
+      if echo "$conflicted" | grep -qx 'docs/build/known-red.txt'; then node scripts/build/merge-known-red.mjs || ok=0; fi
+      cats=$(echo "$conflicted" | grep -E '^packages/core/src/i18n/messages/' || true)
+      if [ -n "$cats" ] && [ $ok = 1 ]; then node scripts/build/merge-catalogues.mjs $cats || ok=0; fi
+      if [ $ok = 1 ]; then git add $conflicted && git commit -q --no-edit && continue; fi
     fi
     echo "CONFLICT in $id"; git diff --name-only --diff-filter=U; git merge --abort; exit 3
   fi

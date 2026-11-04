@@ -63,8 +63,11 @@ export function entriesOverlap(a, b) {
   return pa.startsWith(pb) || pb.startsWith(pa);
 }
 
+// OD-17: message catalogues merge key by key (merge-catalogues.mjs), so sharing one is not a clash.
+const MERGEABLE = /^packages\/core\/src\/i18n\/messages\/[^/]+\/[^/]+\.json$/;
+
 export function ownsOverlap(listA, listB) {
-  for (const a of listA) for (const b of listB) if (entriesOverlap(a, b)) return [a, b];
+  for (const a of listA) for (const b of listB) if (!(MERGEABLE.test(a) && MERGEABLE.test(b)) && entriesOverlap(a, b)) return [a, b];
   return null;
 }
 

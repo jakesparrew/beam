@@ -20,8 +20,8 @@ import { marketingState, resolvePreferenceToken } from "./queries";
 const Purposes = z.object(Object.fromEntries(MARKETING_PURPOSES.map((p) => [p, z.boolean()])) as Record<MarketingPurpose, z.ZodBoolean>);
 const Token = z.string().min(16).max(200);
 
-/** Fresh preference links per person per day (crm spec 4.4). */
-export const PREFERENCE_LINK_DAILY_LIMIT = 3;
+/** Fresh preference links per person per day (crm spec 4.4). Not exported: a "use server" file may export only async functions. */
+const PREFERENCE_LINK_DAILY_LIMIT = 3;
 
 const staffId = (ctx: Ctx): string => (ctx.actor.kind === "staff" ? ctx.actor.userId : "unknown");
 

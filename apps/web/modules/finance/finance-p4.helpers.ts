@@ -57,8 +57,9 @@ export async function withPdf(db: Db, invoiceId: string, number = "doc"): Promis
 /** A paid B2C invoice (Bancontact) with its PDF. */
 export async function paidB2c(db: Db, lines?: Omit<LineOverrides, "orderId">[], now: Date = NOW) {
   const person = await makePerson(db);
-  const { order } = await makePaidOrder(db, { personId: person.id, ...(lines ? { lines } : {}) });
-  const p = await payment(db, order.id, { amountCents: order.totalCents });
+  // Paid at the test clock, not the wall clock: the Billit PaidDate is the Brussels day of payment.
+  const { order } = await makePaidOrder(db, { personId: person.id, order: { paidAt: now }, ...(lines ? { lines } : {}) });
+  const p = await payment(db, order.id, { amountCents: order.totalCents, paidAt: now });
   const r = await issueInvoice(asTx(db), ctxAt(db, now), { orderId: order.id, paymentId: p.id });
   if (r.status !== "issued") throw new Error("not issued");
   await withPdf(db, r.invoiceId, r.number);

@@ -141,8 +141,8 @@ async function elementParts(element: ReactElement, footer: FooterParts | null | 
     const text = (await render(element, { plainText: true })).trim();
     return { html, text };
   }
-  const html = await render(createElement(EmailFooterContext.Provider, { value: footer }, element));
-  const body = (await render(createElement(EmailFooterContext.Provider, { value: "none" }, element), { plainText: true })).trim();
+  const html = await EmailFooterContext.run(footer, () => render(element));
+  const body = (await EmailFooterContext.run("none", () => render(element, { plainText: true }))).trim();
   return { html, text: [body, footer.text].filter((p) => p.trim()).join("\n\n----------------------------------------\n\n") };
 }
 

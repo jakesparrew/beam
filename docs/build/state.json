@@ -758,13 +758,13 @@
       "startedAt": "2026-11-04T22:36:23Z"
     },
     "automation-P5": {
-      "status": "done",
+      "status": "red",
       "attempts": 1,
       "baseSha": "d6cadbf",
       "runId": "wf_7eacc5de-e6d",
       "startedAt": "2026-11-04T20:30:16Z",
       "branchSha": "0e03721",
-      "endedAt": "2026-11-04T22:35:15Z"
+      "endedAt": "2026-11-04T22:54:52Z"
     },
     "ops-P4": {
       "status": "merged",
@@ -911,7 +911,7 @@
       "attempts": 0
     },
     "webinar-P2": {
-      "status": "done",
+      "status": "red",
       "attempts": 1,
       "baseSha": "b2e6063",
       "runId": "wf_1adc04ad-c0d",
@@ -922,7 +922,7 @@
         "packages/core/src/i18n/messages/nl-BE/webinar.json"
       ],
       "branchSha": "62c585b",
-      "endedAt": "2026-11-04T22:35:15Z"
+      "endedAt": "2026-11-04T23:11:47Z"
     },
     "booking-P8": {
       "status": "pending",
@@ -1037,13 +1037,13 @@
       "attempts": 0
     },
     "platform-P10": {
-      "status": "done",
+      "status": "red",
       "attempts": 1,
       "baseSha": "b2e6063",
       "runId": "wf_9cb8f8c5-6cb",
       "startedAt": "2026-11-04T19:49:31Z",
       "branchSha": "b798707",
-      "endedAt": "2026-11-04T22:35:15Z"
+      "endedAt": "2026-11-04T22:57:39Z"
     },
     "crm-P10": {
       "status": "pending",

@@ -131,6 +131,14 @@ describe("eventEligibility (A-7)", () => {
     expect(eventEligibility(ev({ occurredAt: new Date("2026-11-02T11:00:00Z") }), NOW)).toEqual({ trigger: false, exit: true, reason: "stale" });
     expect(eventEligibility(ev({ occurredAt: new Date("2026-11-02T13:00:00Z") }), NOW)).toEqual({ trigger: true, exit: true, reason: null });
   });
+  it("a live exhaustion or expiry of an imported grant still triggers; credits.granted of the import does not", () => {
+    const fresh = { occurredAt: new Date("2026-11-04T11:00:00Z"), refType: "credit_grant", refId: "g1" };
+    expect(eventEligibility(ev({ ...fresh, kind: "credits.grant_exhausted", data: { source: "import" } }), NOW)).toEqual({ trigger: true, exit: true, reason: null });
+    expect(eventEligibility(ev({ ...fresh, kind: "credits.grant_expired", data: { source: "import" } }), NOW)).toEqual({ trigger: true, exit: true, reason: null });
+    expect(eventEligibility(ev({ ...fresh, kind: "credits.granted", data: { source: "import" } }), NOW)).toEqual({ trigger: false, exit: true, reason: "imported" });
+    expect(eventEligibility(ev({ ...fresh, kind: "credits.grant_exhausted", data: { source: "import", via_import: true } }), NOW).reason).toBe("imported");
+    expect(eventEligibility(ev({ kind: "credits.grant_exhausted", occurredAt: new Date("2026-11-01T11:00:00Z"), data: { source: "import" } }), NOW).reason).toBe("stale");
+  });
   it("subject keys", () => {
     expect(eventSubjectKey(ev())).toBe("booking:b1");
     expect(eventSubjectKey(ev({ refType: null }))).toBe("");

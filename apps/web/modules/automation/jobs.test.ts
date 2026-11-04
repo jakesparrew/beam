@@ -23,19 +23,20 @@ vi.mock("@/modules/email/api", async (orig) => ({
   ...(await orig<typeof EmailApi>()),
   getReachability: vi.fn(() => Promise.resolve({ isReachable: true, blockedReason: null })),
 }));
-// No network: the job's webhook client is the fake.
+// No network: the job's webhook poster is this counting fake, whichever path the job takes
+// (the real client when a secret is set, the process fake under `INTEGRATIONS=fake`).
 const webhookFake = vi.hoisted(() => ({ calls: 0 }));
 vi.mock("@beam/integrations/webhook", async (orig) => {
   const m = await orig<typeof WebhookMod>();
   const fake = m.createWebhookFake();
+  const postWebhook = async (input: Parameters<typeof fake.postWebhook>[0]) => {
+    webhookFake.calls++;
+    return fake.postWebhook(input);
+  };
   return {
     ...m,
-    createWebhookClient: () => ({
-      postWebhook: async (input: Parameters<typeof fake.postWebhook>[0]) => {
-        webhookFake.calls++;
-        return fake.postWebhook(input);
-      },
-    }),
+    createWebhookClient: () => ({ postWebhook }),
+    createWebhookFake: () => ({ ...fake, postWebhook }),
   };
 });
 

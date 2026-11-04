@@ -58,7 +58,7 @@ import { getCheckoutRecoveryProps, markCheckoutRecoveryMessage } from "@/modules
 import { applyTag, createTask, removeTag, setStatusOverride, updatePersonFields } from "@/modules/crm/api";
 import { getPublishedTemplateInfo, getReachability, queueAutomationEmail, queueMarketingEmail } from "@/modules/email/api";
 import { listStaffForAssignment, notifySlack } from "@/modules/platform/api";
-import { advance, lockEnrolment, replanDedupeKey, skipStep, storePlan, writeStepRun, type LockedEnrolment } from "./advance";
+import { advance, lockEnrolment, lockEnrolmentPerson, replanDedupeKey, skipStep, storePlan, writeStepRun, type LockedEnrolment } from "./advance";
 import { enrol, loadAutomations } from "./enrol";
 import { activeEnrolmentsOf, endEnrolmentWith } from "./exits";
 import { loadFacts, needsOf } from "./facts";
@@ -78,9 +78,10 @@ export const ANCHOR_MOVE_TOLERANCE_MS = 5 * 60_000;
 
 /**
  * The `automation.step` job key (A-26a): `automation:<enrolment_id>:<step_key>`, or with
- * `:resume:<YYYY-MM-DDTHH:mm>` / `:defer:<YYYY-MM-DDTHH:mm>` (UTC minute of the resume or run time).
+ * `:resume:<YYYY-MM-DDTHH:mm>` / `:defer:<YYYY-MM-DDTHH:mm>` / `:replan:<YYYY-MM-DDTHH:mm>` (UTC
+ * minute of the resume, run or re-planned due time).
  */
-export function stepJobKey(enrolmentId: string, stepKey: string, qualifier?: { kind: "resume" | "defer"; at: Date }): string {
+export function stepJobKey(enrolmentId: string, stepKey: string, qualifier?: { kind: "resume" | "defer" | "replan"; at: Date }): string {
   const base = `automation:${enrolmentId}:${stepKey}`;
   return qualifier ? `${base}:${qualifier.kind}:${utcMinuteBucket(qualifier.at)}` : base;
 }
@@ -116,8 +117,14 @@ async function movedAnchor(tx: Tx, e: LockedEnrolment, def: Definition, step: St
   return Math.abs(startsAt.getTime() - e.anchorAt.getTime()) > ANCHOR_MOVE_TOLERANCE_MS ? startsAt : null;
 }
 
-/** Re-plans the pending steps on the new anchor and sends nothing (A-27a, edge case 10b). */
-async function replanOnAnchor(tx: Tx, e: LockedEnrolment, def: Definition, anchorAt: Date, actor: Actor, now: Date): Promise<RunStepResult> {
+/**
+ * Re-plans the pending steps on the new anchor and sends nothing (A-27a, edge case 10b). When the
+ * re-planned next step is the step this job holds, its plain job key is already taken (a
+ * finished job keeps its key), so the step is enqueued again under `:replan:<due minute>`. A
+ * different next step keeps a free plain key and the evaluator picks it up.
+ */
+async function replanOnAnchor(tx: Tx, ctx: Ctx, e: LockedEnrolment, def: Definition, anchorAt: Date, now: Date): Promise<RunStepResult> {
+  const actor = ctx.actor;
   const before = new Map(e.plan.map((p) => [p.key, p.state]));
   const replanned = replanForAnchor(def, e.plan, { enteredAt: e.enteredAt, anchorAt }, now);
   const { plan, next } = startPlan(replanned);
@@ -141,6 +148,17 @@ async function replanOnAnchor(tx: Tx, e: LockedEnrolment, def: Definition, ancho
       actor,
       dedupeKey: replanDedupeKey(e.id, next.key, "anchor_moved", now),
     });
+    if (next.key === e.nextStepKey) {
+      const at = new Date(next.due_at);
+      await ctx.enqueue({
+        kind: "automation.step",
+        payload: { enrolmentId: e.id, stepKey: next.key },
+        key: stepJobKey(e.id, next.key, { kind: "replan", at }),
+        runAt: at,
+        lane: "fast",
+        priority: stepJobPriority(e.automation.isMarketing),
+      });
+    }
   } else {
     await endEnrolmentWith(tx, e.id, "completed", "anchor_passed", actor);
   }
@@ -152,6 +170,8 @@ export async function runStep(tx: Tx, input: RunStepInput, opts: RunStepOptions 
   const ctx = opts.ctx ?? createCtx({ tx, actor: { kind: "system", jobId: "" }, now: input.now });
   const actor = ctx.actor;
   const now = input.now;
+  // Person first, then the enrolment: the evaluator's order (advance.ts header).
+  if (!(await lockEnrolmentPerson(tx, input.enrolmentId))) return { status: "noop", reason: "missing" };
   const e = await lockEnrolment(tx, input.enrolmentId);
   if (!e) return { status: "noop", reason: "missing" };
   if (e.status !== "active") return { status: "noop", reason: "ended" };
@@ -182,7 +202,7 @@ export async function runStep(tx: Tx, input: RunStepInput, opts: RunStepOptions 
 
   // A-27a: the subject booking's session moved.
   const anchor = await movedAnchor(tx, e, def, step);
-  if (anchor) return replanOnAnchor(tx, e, def, anchor, actor, now);
+  if (anchor) return replanOnAnchor(tx, ctx, e, def, anchor, now);
 
   // A-28: overdue time-sensitive steps.
   const dueAt = e.nextStepAt ?? now;

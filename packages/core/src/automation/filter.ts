@@ -23,6 +23,12 @@ export type FilterVars = { trigger?: { data?: Record<string, unknown> } };
 /** Events older than this never trigger (A-7b). */
 export const TRIGGER_MAX_AGE_MS = 48 * 3_600_000;
 export const HISTORY_IMPORTED_KIND = "ops.history_imported";
+/**
+ * A-7(a): kinds whose `data.source` is the grant's origin, not what caused the event (credits
+ * section 4). A live exhaustion or expiry of an imported grant carries `source: 'import'` and
+ * still triggers; the 48-hour rule keeps old ones out.
+ */
+export const GRANT_ORIGIN_SOURCE_KINDS: ReadonlySet<string> = new Set(["credits.grant_exhausted", "credits.grant_expired"]);
 
 const PLACEHOLDER_RE = /^\{\{trigger\.data\.([a-z0-9_]+)\}\}$/;
 
@@ -139,7 +145,7 @@ export function eventEligibility(ev: EventView, now: Date): EventEligibility {
   if (ev.isSensitive) return { trigger: false, exit: false, reason: "sensitive" };
   if (ev.kind.startsWith("automation.")) return { trigger: false, exit: false, reason: "automation_kind" };
   if (ev.kind === HISTORY_IMPORTED_KIND) return { trigger: false, exit: true, reason: "history_imported" };
-  if (ev.data.source === "import" || ev.data.via_import === true) return { trigger: false, exit: true, reason: "imported" };
+  if ((ev.data.source === "import" && !GRANT_ORIGIN_SOURCE_KINDS.has(ev.kind)) || ev.data.via_import === true) return { trigger: false, exit: true, reason: "imported" };
   if (ev.data.source === "automation") return { trigger: false, exit: true, reason: "automation_source" };
   if (now.getTime() - ev.occurredAt.getTime() > TRIGGER_MAX_AGE_MS) return { trigger: false, exit: true, reason: "stale" };
   return { trigger: true, exit: true, reason: null };

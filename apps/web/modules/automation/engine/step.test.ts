@@ -398,6 +398,12 @@ describe("A-27a anchor moved by staff (edge case 10b)", () => {
     expect(row.nextStepAt).toEqual(new Date(moved.getTime() - 180 * 60_000));
     const scheduled = (await f.runsOfEnrolment(h.db, id)).filter((x) => x.outcome === "scheduled");
     expect(scheduled.map((s) => s.reason).sort()).toEqual(["anchor_moved", null]);
+    // The plain key `automation:<id>:day_of` belongs to the job that just ran: the re-planned
+    // step is enqueued under `:replan:<new due minute>` for the new due time.
+    const replanKey = `automation:${id}:day_of:replan:2026-11-15T06:00`;
+    expect(stepJobKey(id, "day_of", { kind: "replan", at: row.nextStepAt! })).toBe(replanKey);
+    const [replanJob] = await h.db.select().from(jobsTable).where(eq(jobsTable.idempotencyKey, replanKey));
+    expect(replanJob).toMatchObject({ kind: "automation.step", runAt: row.nextStepAt, payload: { enrolmentId: id, stepKey: "day_of" } });
     // On the new due time the step sends.
     expect(await run(id, "day_of", row.nextStepAt!)).toMatchObject({ outcome: "sent" });
   });

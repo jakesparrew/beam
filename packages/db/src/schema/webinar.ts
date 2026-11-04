@@ -204,12 +204,10 @@ export const webinarPresenters = pgTable(
   (t) => [
     check("webinar_presenters_identity_ck", sql`num_nonnulls(${t.userId}, ${t.personId}) = 1`),
     check("webinar_presenters_display_name_ck", sql`length(${t.displayName}) between 1 and 120`),
-    uniqueIndex("webinar_presenters_user_uq")
-      .on(t.webinarId, t.userId)
-      .where(sql`${t.userId} is not null`),
-    uniqueIndex("webinar_presenters_person_uq")
-      .on(t.webinarId, t.personId)
-      .where(sql`${t.personId} is not null`),
+    // One row per identity per webinar: the spec's two partial uniques on (webinar_id, user_id)
+    // and (webinar_id, person_id) as one index (exactly one of the two ids is set). A person
+    // merge never meets it: webinar's `mergePersons` hook moves or drops the loser's rows first.
+    uniqueIndex("webinar_presenters_identity_uq").on(t.webinarId, sql`coalesce(${t.userId}, ${t.personId})`),
     index("webinar_presenters_person_idx")
       .on(t.personId)
       .where(sql`${t.personId} is not null`),

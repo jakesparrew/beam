@@ -1,12 +1,21 @@
 /**
- * webinar's cross-module door (02-data-model section 6.12). Wave 0 stubs by platform-P7 with the
- * owner's final signatures: each throws `NotImplementedError('webinar.<fn>')` until webinar
- * implements it (R2), except `mergePersons` and `listPublicWebinars`, which crm-P4 and site-P3
- * call in V1 before any webinar package exists (build order, forward-call stubs).
+ * webinar's cross-module door (02-data-model section 6.12, webinar spec 4.7). Every function
+ * another module calls in R2-R4 is declared here with its final signature; each takes the
+ * caller's `db`/`tx` first (OD-15). Until its webinar package lands a function throws
+ * `NotImplementedError('webinar.<fn>')`, except `listPublicWebinars` (an empty list; site-P3
+ * calls it in V1) and `mergePersons`, implemented by webinar-P1 now that the tables exist.
+ *
+ * Implementing packages: webinar-P3 (`getWebinarForSession`, `listPublicWebinars`,
+ * `listPersonWebinars`, `listUpcomingRegistrationsForPerson`, `getWebinarCards`, `getAccessUrl`,
+ * `WebinarSignup`), webinar-P6 (`getPersonWebinarStats`, `countWebinarLeadsWithoutBooking`,
+ * `listWebinarLeadsWithoutBooking`, `listUpcomingWebinarHealth`), webinar-P7 (`getWebinarKpis`)
+ * and webinar-P8 (`getWebinarWeeklyFacts`).
  */
 import type { DbOrTx, Tx } from "@beam/db";
+import { webinarPresenters, webinarRegistrations } from "@beam/db/schema";
 import { NotImplementedError } from "@beam/core/errors";
 import type { Locale, LocalizedText } from "@beam/core/i18n";
+import { and, eq, inArray, notInArray, sql } from "@/lib/ctx";
 import type { WatchMode, WebinarMode, WebinarStatus } from "@beam/core/webinar";
 
 export type { WatchMode, WebinarMode, WebinarStatus } from "@beam/core/webinar";
@@ -84,9 +93,47 @@ export function getAccessUrl(_db: DbOrTx, _registrationId: string, _locale: Loca
   return notYet("getAccessUrl");
 }
 
-/** crm merge hook (edge case 19). Does not throw before R2: there are no registrations to move. */
-export function mergePersons(_tx: Tx, _winnerPersonId: string, _loserPersonId: string): Promise<{ moved: number; collapsed: number }> {
-  return Promise.resolve({ moved: 0, collapsed: 0 });
+/**
+ * crm's merge hook (edge case 19, cross-module decision 19), called before crm's generic repoint
+ * (`webinar_registrations` is `skip` there). A loser registration for a webinar the winner is not
+ * registered for is repointed to the winner (`moved`). When both are registered, the loser's
+ * registration stays on the loser id with its append-only segments and interactions
+ * (`collapsed`); the views fold it into the winner through `persons.merged_into_person_id`.
+ * Nothing in an append-only table is touched and `beam.allow_rewrite` is never set.
+ *
+ * Presenter rows (mutable) are settled here too, so the generic repoint never meets the
+ * presenter identity index: the loser's row moves to the winner, or is dropped when the winner
+ * already presents that webinar.
+ */
+export async function mergePersons(tx: Tx, winnerPersonId: string, loserPersonId: string): Promise<{ moved: number; collapsed: number }> {
+  if (winnerPersonId === loserPersonId) return { moved: 0, collapsed: 0 };
+  const winnerWebinars = tx
+    .select({ id: webinarRegistrations.webinarId })
+    .from(webinarRegistrations)
+    .where(eq(webinarRegistrations.personId, winnerPersonId));
+  const moved = await tx
+    .update(webinarRegistrations)
+    .set({ personId: winnerPersonId, updatedAt: new Date() })
+    .where(and(eq(webinarRegistrations.personId, loserPersonId), notInArray(webinarRegistrations.webinarId, winnerWebinars)))
+    .returning({ id: webinarRegistrations.id });
+  const [left] = await tx
+    .select({ n: sql<number>`count(*)::int` })
+    .from(webinarRegistrations)
+    .where(eq(webinarRegistrations.personId, loserPersonId));
+
+  const winnerPresents = tx
+    .select({ id: webinarPresenters.webinarId })
+    .from(webinarPresenters)
+    .where(eq(webinarPresenters.personId, winnerPersonId));
+  await tx
+    .delete(webinarPresenters)
+    .where(and(eq(webinarPresenters.personId, loserPersonId), inArray(webinarPresenters.webinarId, winnerPresents)));
+  await tx
+    .update(webinarPresenters)
+    .set({ personId: winnerPersonId, updatedAt: new Date() })
+    .where(eq(webinarPresenters.personId, loserPersonId));
+
+  return { moved: moved.length, collapsed: Number(left?.n ?? 0) };
 }
 
 /** R3. */

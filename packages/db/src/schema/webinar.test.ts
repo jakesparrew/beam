@@ -160,9 +160,12 @@ describe("webinar_presenters", () => {
     );
     await expectCheck(h.db.insert(webinarPresenters).values({ webinarId: w.id, userId, displayName: "" }), "webinar_presenters_display_name_ck");
     await h.db.insert(webinarPresenters).values({ webinarId: w.id, userId, displayName: "Host" });
-    await expectUnique(h.db.insert(webinarPresenters).values({ webinarId: w.id, userId, displayName: "Again" }), "webinar_presenters_user_uq");
+    await expectUnique(h.db.insert(webinarPresenters).values({ webinarId: w.id, userId, displayName: "Again" }), "webinar_presenters_identity_uq");
     const [p] = await h.db.insert(webinarPresenters).values({ webinarId: w.id, personId: person.id, displayName: "Guest" }).returning();
     expect(p!.role).toBe("presenter");
+    await expectUnique(h.db.insert(webinarPresenters).values({ webinarId: w.id, personId: person.id, displayName: "Twice" }), "webinar_presenters_identity_uq");
+    const other = await makeWebinar();
+    await h.db.insert(webinarPresenters).values({ webinarId: other.id, personId: person.id, displayName: "Guest" });
   });
 });
 

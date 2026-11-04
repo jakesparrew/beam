@@ -199,10 +199,13 @@ describe("createTestDb snapshot cache", () => {
   );
 
   it("changes the key when schema content changes, and only then", () => {
-    const copy = tempDir("pkg");
+    // The copy keeps the monorepo layout: `<root>/db` with its `<root>/core/src` sibling.
+    const root = tempDir("pkg");
+    const copy = path.join(root, "db");
     for (const rel of ["src/schema", "src/sql", "src/testing.ts", "scripts", "migrations"]) {
       cpSync(path.join(PACKAGE_DIR, rel), path.join(copy, rel), { recursive: true });
     }
+    cpSync(path.join(PACKAGE_DIR, "../core/src"), path.join(root, "core/src"), { recursive: true });
     const schemaKey = testDbCacheKey("schema");
     const migrationsKey = testDbCacheKey("migrations");
     // Paths are hashed relative to the package, so an identical copy has identical keys.
@@ -225,7 +228,17 @@ describe("createTestDb snapshot cache", () => {
     expect(withSql).not.toBe(changedSchemaKey);
     mkdirSync(path.join(copy, "src/schema/extra"), { recursive: true });
     writeFileSync(path.join(copy, "src/schema/extra/x.ts"), "export {};");
-    expect(testDbCacheKey("schema", { packageDir: copy })).not.toBe(withSql);
+    const withSchemaFile = testDbCacheKey("schema", { packageDir: copy });
+    expect(withSchemaFile).not.toBe(withSql);
+
+    // The schema builds enums and view SQL from @beam/core constants: a core change is a new key.
+    const coreFinance = path.join(root, "core/src/finance/index.ts");
+    writeFileSync(coreFinance, `${readFileSync(coreFinance, "utf8")}\n// changed\n`);
+    const withCore = testDbCacheKey("schema", { packageDir: copy });
+    expect(withCore).not.toBe(withSchemaFile);
+    // A core test file does not change it.
+    writeFileSync(path.join(root, "core/src/finance/extra.test.ts"), "export {};");
+    expect(testDbCacheKey("schema", { packageDir: copy })).toBe(withCore);
   });
 
   it(

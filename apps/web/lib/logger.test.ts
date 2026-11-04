@@ -68,6 +68,29 @@ describe("Sentry beforeSend (PL-72)", () => {
     expect(event.spans?.[0]?.description).toBe("GET /admin/invite/[token]");
   });
 
+  it("removes the module token routes from request.url, the Referer header and breadcrumbs", () => {
+    const cases: [string, string][] = [
+      ["/nl/preferences/pr3fT0k", "/nl/preferences/[token]"],
+      ["/nl/claim/cla1mT0k", "/nl/claim/[token]"],
+      ["/nl/pay/payT0k", "/nl/pay/[token]"],
+      ["/nl/f/intake/r/f0rmT0k", "/nl/f/intake/r/[token]"],
+      ["/api/public/unsubscribe/unsubT0k", "/api/public/unsubscribe/[token]"],
+      ["/api/public/preferences/pr3fT0k", "/api/public/preferences/[token]"],
+      ["/api/public/claim/cla1mT0k", "/api/public/claim/[token]"],
+      ["/api/public/forms/result/f0rmT0k/go/book", "/api/public/forms/result/[token]/go/book"],
+    ];
+    for (const [path, scrubbed] of cases) {
+      const event = scrubSentryEvent({
+        request: { url: `https://beam.example.com${path}?x=1`, headers: { Referer: `https://beam.example.com${path}` } },
+        breadcrumbs: [{ data: { from: "/nl", to: path } }],
+      });
+      expect(event.request?.url).toBe(`https://beam.example.com${scrubbed}`);
+      expect(event.request?.headers?.Referer).toBe(`https://beam.example.com${scrubbed}`);
+      expect(event.breadcrumbs?.[0]?.data?.to).toBe(scrubbed);
+    }
+    expect(scrubSentryEvent({ transaction: "/nl/account/preferences" }).transaction).toBe("/nl/account/preferences");
+  });
+
   it("maskPii leaves ids and amounts alone", () => {
     expect(maskPii("order 3f2a payment 1250 cents")).toBe("order 3f2a payment 1250 cents");
   });

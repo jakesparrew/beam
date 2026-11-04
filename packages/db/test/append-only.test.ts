@@ -34,6 +34,14 @@ async function insertAudit() {
   return row!;
 }
 
+/** Redefines `beam_protect_append_only()` from a generated text (one statement of it). */
+async function defineProtect(text: string): Promise<void> {
+  const start = text.indexOf("create or replace function beam_protect_append_only()");
+  const end = text.indexOf("$$;", start) + 3;
+  expect(start).toBeGreaterThanOrEqual(0);
+  await h.db.execute(sql.raw(text.slice(start, end)));
+}
+
 async function sqlState(
   promise: Promise<unknown>,
 ): Promise<string | undefined> {
@@ -107,25 +115,30 @@ describe("append-only triggers", () => {
   });
 
   it("protects a listed table created later on the next call, and a third call adds nothing", async () => {
-    await h.db.execute(
-      sql`create table webinar_moderation_actions (id uuid primary key default gen_random_uuid(), note text)`,
-    );
-    const second = rowsOf<{ added: number }>(
-      await h.db.execute(sql`select beam_protect_append_only() as added`),
-    );
-    expect(second[0]?.added).toBe(1);
-    const third = rowsOf<{ added: number }>(
-      await h.db.execute(sql`select beam_protect_append_only() as added`),
-    );
-    expect(third[0]?.added).toBe(0);
-    await h.db.execute(
-      sql`insert into webinar_moderation_actions (note) values ('muted')`,
-    );
-    expect(
-      await sqlState(
-        h.db.execute(sql`update webinar_moderation_actions set note = 'x'`),
-      ),
-    ).toBe("55000");
+    // A name no package creates, injected into the list for this test only, so the case does
+    // not depend on which listed tables exist yet.
+    const later = "fixture_append_only_later";
+    await defineProtect(appendOnlySql([...APPEND_ONLY_TABLES, later]));
+    try {
+      await h.db.execute(
+        sql.raw(`create table ${later} (id uuid primary key default gen_random_uuid(), note text)`),
+      );
+      const second = rowsOf<{ added: number }>(
+        await h.db.execute(sql`select beam_protect_append_only() as added`),
+      );
+      expect(second[0]?.added).toBe(1);
+      const third = rowsOf<{ added: number }>(
+        await h.db.execute(sql`select beam_protect_append_only() as added`),
+      );
+      expect(third[0]?.added).toBe(0);
+      await h.db.execute(sql.raw(`insert into ${later} (note) values ('muted')`));
+      expect(
+        await sqlState(h.db.execute(sql.raw(`update ${later} set note = 'x'`))),
+      ).toBe("55000");
+    } finally {
+      // Back to the committed list (and function) for the other cases.
+      await applyCustomSql(h, { files: ["0002_append_only.sql"] });
+    }
   });
 
   it("re-applying the custom SQL is idempotent", async () => {

@@ -1,2 +1,1 @@
 # <repo path> <fixer id> <reason>; the gate excludes these test files until the fixer lands
-packages/db/test/append-only.test.ts fix-w09-platform-review the "listed table created later" case creates webinar_moderation_actions, which webinar-P1 now creates

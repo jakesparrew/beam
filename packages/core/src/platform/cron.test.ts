@@ -119,6 +119,40 @@ describe("dueSlots (PL-33)", () => {
     expect(dueSlots("*/5 * * * *", null, at("2026-03-29T01:05:20Z")).map((s) => s.key)).toEqual(["2026-03-29T03:05"]);
   });
 
+  it("minute-level and sub-hourly schedules keep running through the repeated autumn hour", () => {
+    // 01:30 UTC on 2026-10-25 is the second 02:30 in Brussels (CET); 00:30 UTC was the first (CEST).
+    const second = at("2026-10-25T01:30:10Z");
+    for (const expr of ["* * * * *", "*/15 * * * *", "*/10 * * * *"]) {
+      const slots = dueSlots(expr, at("2026-10-25T01:29:10Z"), second);
+      expect(slots).toEqual([{ at: at("2026-10-25T01:30:00Z"), key: "2026-10-25T02:30:2" }]);
+      expect(dueSlots(expr, null, at("2026-10-25T00:30:10Z")).map((s) => s.key)).toEqual(["2026-10-25T02:30"]);
+    }
+    expect(dueSlots("5,35 * * * *", null, at("2026-10-25T01:35:00Z")).map((s) => s.key)).toEqual(["2026-10-25T02:35:2"]);
+    expect(dueSlots("*/15 * * * *", null, at("2026-10-25T01:31:00Z"))).toEqual([]);
+  });
+
+  it("over the autumn DST night every tick yields distinct keys and a daily 02:00 fires once", () => {
+    const keys = { minute: [] as string[], quarter: [] as string[], daily: [] as string[] };
+    let last: Date | null = null;
+    for (let t = at("2026-10-24T22:00:20Z").getTime(); t < at("2026-10-25T03:00:00Z").getTime(); t += 60_000) {
+      const now = new Date(t);
+      keys.minute.push(...dueSlots("* * * * *", last, now).map((s) => s.key));
+      keys.quarter.push(...dueSlots("*/15 * * * *", last, now).map((s) => s.key));
+      keys.daily.push(...dueSlots("0 2 * * *", last, now).map((s) => s.key));
+      last = now;
+    }
+    expect(keys.minute).toHaveLength(300);
+    expect(new Set(keys.minute).size).toBe(300);
+    expect(keys.quarter).toHaveLength(20);
+    expect(new Set(keys.quarter).size).toBe(20);
+    expect(keys.daily).toEqual(["2026-10-25T02:00"]);
+  });
+
+  it("a skipped spring slot of a sub-hourly schedule still fires once at 03:00", () => {
+    expect(dueSlots("5,35 * * * *", null, at("2026-03-29T01:00:20Z")).map((s) => s.key)).toEqual(["2026-03-29T02:35"]);
+    expect(dueSlots("5,35 * * * *", null, at("2026-03-29T01:01:20Z"))).toEqual([]);
+  });
+
   it("localHourKey is the Brussels hour bucket", () => {
     expect(localHourKey(at("2026-11-03T23:30:00Z"))).toBe("2026-11-04T00");
   });

@@ -4,7 +4,11 @@
  * (`integration_calls`: operation, request digest, status code, duration; never bodies).
  */
 
-/** Values of the `integration_calls_provider` enum (R3 adds `meta`). */
+/**
+ * Values of the `integration_calls_provider` enum, in its order: `meta` is crm's unified-inbox
+ * Meta messaging API (R3, distinct from `meta_ads`) and `webhook` automation's
+ * `automation.call_webhook` step.
+ */
 export const INTEGRATION_PROVIDERS = [
   "mollie",
   "stripe",
@@ -18,9 +22,11 @@ export const INTEGRATION_PROVIDERS = [
   "slack",
   "betterstack",
   "wordpress",
+  "meta",
+  "webhook",
 ] as const;
 
-export type IntegrationProvider = (typeof INTEGRATION_PROVIDERS)[number] | "meta";
+export type IntegrationProvider = (typeof INTEGRATION_PROVIDERS)[number];
 
 /** One provider call, as `integration_calls` stores it. */
 export type IntegrationCallEntry = {

@@ -879,8 +879,8 @@
       ]
     },
     "fix-w05-schema-1": {
-      "status": "pending",
-      "attempts": 0,
+      "status": "running",
+      "attempts": 1,
       "fixer": true,
       "module": "platform",
       "goal": "Add the foreign keys and checks that module schema packages deferred until their targets existed, and activate the parked booking and ops schedules (see the launch notes).",
@@ -908,7 +908,10 @@
         "packages/db/src/schema/site.test.ts",
         "packages/db/src/schema/automation.ts",
         "packages/db/src/schema/automation.test.ts"
-      ]
+      ],
+      "baseSha": "9a4438b",
+      "runId": "wf_936074f1-d92",
+      "startedAt": "2026-11-04T01:34:53Z"
     }
   }
 }

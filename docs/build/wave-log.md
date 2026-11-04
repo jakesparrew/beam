@@ -72,3 +72,4 @@ One entry per merge batch and gate (runbook section 5.7, adapted by OD-3).
 - crm-P2: merged as `f935750` in batch `g25-batch`.
 - credits-P3: merged as `8be7a14` in batch `g25-batch`.
 - Batch `g25-batch` (fix-w04-platform-3 crm-P2 credits-P3): merge gate green, peak 3823 MB.
+- 01:34 UTC: started fix-w05-schema-1 (deferred FKs and checks for booking, commerce, ops, site, automation; activates booking and ops schedules) from `9a4438b`.

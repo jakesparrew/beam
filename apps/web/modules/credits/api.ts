@@ -16,7 +16,12 @@ import type { LocalizedText } from "@beam/core/i18n";
 import type { AllocationResult, CreditKind, ReleaseReason, SharingReviewRow } from "@beam/core/credits";
 import type { Ctx } from "@/lib/ctx";
 import * as ledger from "./server/ledger";
-import * as membershipService from "./server/memberships";
+/**
+ * The membership service is loaded on first call: it imports commerce, crm and email, whose
+ * import graphs reach booking, and booking imports this file. A static import would close that
+ * cycle while this module is still evaluating (consumers would see a half-initialised module).
+ */
+const membershipService = () => import("./server/memberships");
 
 export type { AllocationResult, CreditKind, GrantSharing, ReleaseReason } from "@beam/core/credits";
 export { InsufficientCreditsError, SharingNotAllowedError, type GrantCreditsInput } from "./server/ledger";
@@ -91,7 +96,7 @@ export function activateMembership(
   ctx: Ctx,
   input: { personId: string; productId: string; orderId: string; priceVersionId: string; mandateId: string | null; startsAt: Date },
 ): Promise<{ membershipId: string; status: "active" | "pending"; created: boolean }> {
-  return membershipService.activateMembership(tx, ctx, input);
+  return membershipService().then((m) => m.activateMembership(tx, ctx, input));
 }
 
 export function applyRenewalPayment(
@@ -99,7 +104,7 @@ export function applyRenewalPayment(
   ctx: Ctx,
   input: { membershipId: string; orderId: string },
 ): Promise<{ periodStartAt: Date; periodEndAt: Date; applied: boolean }> {
-  return membershipService.applyRenewalPayment(tx, ctx, input);
+  return membershipService().then((m) => m.applyRenewalPayment(tx, ctx, input));
 }
 
 export function applyRenewalFailure(
@@ -107,11 +112,11 @@ export function applyRenewalFailure(
   ctx: Ctx,
   input: { membershipId: string; paymentId: string; reason: string },
 ): Promise<{ status: "past_due" | "expired"; dunningAttempt: number; applied: boolean }> {
-  return membershipService.applyRenewalFailure(tx, ctx, input);
+  return membershipService().then((m) => m.applyRenewalFailure(tx, ctx, input));
 }
 
 export function cancelMembershipForRefund(tx: Tx, ctx: Ctx, input: { membershipId: string; reason: string }): Promise<void> {
-  return membershipService.cancelMembershipForRefund(tx, ctx, input);
+  return membershipService().then((m) => m.cancelMembershipForRefund(tx, ctx, input));
 }
 
 export function getMembershipForPerson(
@@ -126,7 +131,7 @@ export function getMembershipForPerson(
   periodEndAt: Date | null;
   cancelAt: Date | null;
 }> {
-  return membershipService.getMembershipForPerson(db, personId);
+  return membershipService().then((m) => m.getMembershipForPerson(db, personId));
 }
 
 export function canStartMembership(
@@ -134,7 +139,7 @@ export function canStartMembership(
   personId: string,
   opts?: { startsOn?: string },
 ): Promise<{ ok: true } | { ok: false; reason: "already_member" | "pending_exists" }> {
-  return membershipService.canStartMembership(db, personId, opts);
+  return membershipService().then((m) => m.canStartMembership(db, personId, opts));
 }
 
 // ops, crm, site, booking, finance ---------------------------------------------------------
@@ -171,7 +176,7 @@ export function importMembership(
     mandateId?: string | null;
   },
 ): Promise<{ membershipId: string; created: boolean }> {
-  return membershipService.importMembership(tx, ctx, input);
+  return membershipService().then((m) => m.importMembership(tx, ctx, input));
 }
 
 export function getPersonCreditSummary(
@@ -190,7 +195,7 @@ export function getMembershipSummary(
   db: DbOrTx,
   personId: string,
 ): Promise<{ status: string; productName: LocalizedText; currentPeriodEndAt: Date; includedCredits: { kind: CreditKind; remainingUnits: number }[] } | null> {
-  return membershipService.getMembershipSummary(db, personId);
+  return membershipService().then((m) => m.getMembershipSummary(db, personId));
 }
 
 /** Finance month close (D29): the liability as it stood at `at`. */

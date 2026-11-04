@@ -26,6 +26,12 @@ export type JobCtx = Ctx & {
   job: { id: string; kind: JobKind; attempt: number; key: string };
   /** The shared provider clients (`getIntegrations()`, or the test's fakes). */
   integrations: Integrations;
+  /**
+   * Aborted when the job passes its `timeoutMs`. Pass it to provider calls and long loops: the
+   * runner waits for the handler to settle before it rolls the transaction back, so a handler
+   * that ignores it only delays the retry.
+   */
+  signal: AbortSignal;
 };
 
 export type JobDefinition<I extends z.ZodTypeAny = z.ZodTypeAny> = {
@@ -138,13 +144,33 @@ export async function claimJobs(db: Db, lane: "fast" | "bulk", limit: number, lo
 
 const errorText = (error: unknown) => maskPii(scrubError(error instanceof Error ? `${error.name}: ${error.message}` : String(error))).slice(0, 2000);
 
-async function withTimeout<T>(work: Promise<T>, ms: number): Promise<T> {
+type Settled<T> = { ok: true; value: T } | { ok: false; error: unknown };
+
+/**
+ * Races the handler against its timeout. On timeout it aborts `controller`, then waits for the
+ * handler to settle before throwing `RetryableError('timeout')`: the transaction (and its pooled
+ * connection) is rolled back and released only once nothing can still use `ctx.tx`, and late
+ * durable writes (ai_requests, integration_calls) are still flushed by `settle()`. Statement
+ * timeouts bound database work; the stale-lock reclaim covers a handler that never returns.
+ */
+async function withTimeout<T>(work: Promise<T>, ms: number, controller: AbortController): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
-  const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new RetryableError("timeout")), ms);
+  const settled: Promise<Settled<T>> = work.then(
+    (value) => ({ ok: true as const, value }),
+    (error: unknown) => ({ ok: false as const, error }),
+  );
+  const timedOut = new Promise<"timeout">((resolve) => {
+    timer = setTimeout(() => resolve("timeout"), ms);
   });
   try {
-    return await Promise.race([work, timeout]);
+    const first = await Promise.race([settled, timedOut]);
+    if (first !== "timeout") {
+      if (first.ok) return first.value;
+      throw first.error;
+    }
+    controller.abort(new RetryableError("timeout"));
+    await settled;
+    throw new RetryableError("timeout");
   } finally {
     if (timer) clearTimeout(timer);
   }
@@ -152,10 +178,21 @@ async function withTimeout<T>(work: Promise<T>, ms: number): Promise<T> {
 
 type Outcome = "succeeded" | "retried" | "dead";
 
-function buildJobCtx(base: Ctx, row: Claimed, integrations: Integrations): JobCtx {
+function buildJobCtx(base: Ctx, row: Claimed, integrations: Integrations, signal: AbortSignal = new AbortController().signal): JobCtx {
   return Object.assign(base, {
     job: { id: row.id, kind: row.kind as JobKind, attempt: row.attempts, key: row.idempotency_key },
     integrations,
+    signal,
+  });
+}
+
+/** Once its transaction has ended, a job context refuses `ctx.tx` (a stray promise must not reach a released connection). */
+function closeJobCtx(ctx: JobCtx): void {
+  Object.defineProperty(ctx, "tx", {
+    configurable: true,
+    get() {
+      throw new Error(`job_ctx_closed: ${ctx.job.kind} used ctx.tx after its transaction ended`);
+    },
   });
 }
 
@@ -166,7 +203,9 @@ async function runClaimed(db: Db, row: Claimed, opts: RunnerOptions): Promise<Ou
   const log: IntegrationCallEntry[] = [];
   let parsedInput: unknown;
   let jobCtx: JobCtx | undefined;
+  const controller = new AbortController();
   const settle = async () => {
+    if (jobCtx) closeJobCtx(jobCtx);
     await writeIntegrationCalls(db, log.splice(0), row.id).catch((e: unknown) => reportError(e, { tags: { where: "integration_calls" } }));
     if (jobCtx) await flushDurableWrites(db, jobCtx).catch((e: unknown) => reportError(e, { tags: { where: "durable_writes" } }));
   };
@@ -177,15 +216,18 @@ async function runClaimed(db: Db, row: Claimed, opts: RunnerOptions): Promise<Ou
     parsedInput = parsed.data;
     await db.transaction(async (tx) => {
       await tx.execute(sql.raw(`set local statement_timeout = ${Math.max(1, Math.floor(def.timeoutMs))}`));
+      // New sensitive writes use settings.security.current_key_version, read in this transaction (PL-69).
+      await loadCurrentKeyVersion(tx);
       const ctx = buildJobCtx(
         createCtx({ tx, actor: { kind: "system", jobId: row.id }, requestId: row.request_id ?? `job:${row.id}`, jobId: row.id, now: opts.now?.() }),
         row,
         integrations,
+        controller.signal,
       );
       jobCtx = ctx;
       const sink = (entry: IntegrationCallEntry) => void log.push(entry);
       ctx.integrationLog = sink;
-      const result = await withIntegrationLog(sink, () => withTimeout(def.run(ctx, parsedInput), def.timeoutMs));
+      const result = await withIntegrationLog(sink, () => withTimeout(def.run(ctx, parsedInput), def.timeoutMs, controller));
       await tx
         .update(jobs)
         .set({
@@ -226,22 +268,25 @@ async function failJob(db: Db, row: Claimed, def: JobDefinition | undefined, inp
       .update(jobs)
       .set({ status: "dead", lastError: message, finishedAt: sql`now()`, lockedAt: null, lockedBy: null })
       .where(eq(jobs.id, row.id));
-    if (row.kind !== "notify.slack") {
-      // PL-29: one Slack line per kind per Brussels hour.
-      await enqueueJob(tx, {
-        kind: "notify.slack" as JobKind,
-        payload: { fingerprint: `dead:${row.kind}`, severity: "high", text: `Job ${row.kind} is dead after ${row.attempts} attempt(s): ${message.slice(0, 300)}` },
-        key: `slack:dead:${row.kind}:${localHourKey(now)}`,
-      }).catch((e: unknown) => {
-        // A missing notify.slack definition (tests of other registries) must not keep the job alive.
-        if (!(e instanceof PermanentError)) throw e;
-      });
-    }
+    await enqueueDeadAlert(tx, row, message, now);
   });
   reportError(error, { tags: { job_kind: row.kind, job_id: row.id }, extra: { attempts: row.attempts } });
 
   if (def?.onDead && input !== undefined) await runOnDead(db, row, def, input, { message, permanent }, opts);
   return "dead";
+}
+
+/** PL-29: one Slack line per kind per Brussels hour for a job that turned dead (never for notify.slack itself). */
+async function enqueueDeadAlert(tx: Db | Ctx["tx"], row: Claimed, message: string, now: Date): Promise<void> {
+  if (row.kind === "notify.slack") return;
+  await enqueueJob(tx, {
+    kind: "notify.slack" as JobKind,
+    payload: { fingerprint: `dead:${row.kind}`, severity: "high", text: `Job ${row.kind} is dead after ${row.attempts} attempt(s): ${message.slice(0, 300)}` },
+    key: `slack:dead:${row.kind}:${localHourKey(now)}`,
+  }).catch((e: unknown) => {
+    // A missing notify.slack definition (tests of other registries) must not keep the job alive.
+    if (!(e instanceof PermanentError)) throw e;
+  });
 }
 
 /** Calls `onDead` once per dead transition, guarded by `result.on_dead_at` (PL-29a). */
@@ -273,15 +318,26 @@ async function runOnDead(
   });
 }
 
-async function runPool<T>(items: readonly T[], concurrency: number, work: (item: T) => Promise<void>): Promise<void> {
+/** Runs `items` `concurrency` at a time while `canStart()` holds; returns how many were started (a prefix). */
+async function runPool<T>(items: readonly T[], concurrency: number, canStart: () => boolean, work: (item: T) => Promise<void>): Promise<number> {
   let next = 0;
   const workers = Array.from({ length: Math.min(concurrency, items.length) }, async () => {
-    while (next < items.length) {
+    while (next < items.length && canStart()) {
       const item = items[next++]!;
       await work(item);
     }
   });
   await Promise.all(workers);
+  return next;
+}
+
+/** Hands claimed rows that never started back to `pending`, refunding the attempt the claim took. */
+async function releaseUnstarted(db: Db, rows: readonly Claimed[], lockedBy: string): Promise<void> {
+  if (!rows.length) return;
+  await db.execute(sql`
+    update jobs set status = 'pending', attempts = greatest(attempts - 1, 0), locked_at = null, locked_by = null,
+      started_at = null, updated_at = now()
+    where id in ${idList(rows.map((r) => r.id))} and status = 'running' and locked_by = ${lockedBy}`);
 }
 
 /**
@@ -299,21 +355,21 @@ export async function runJobs(
   const count = (o: Outcome) => {
     summary[o] += 1;
   };
+  // Every job starts inside the budget (a claimed batch is not run to the end regardless), so the
+  // tick ends by about budget + one job timeout, inside the route's maxDuration (PL-32).
+  const inBudget = () => Date.now() - started < opts.budgetMs;
+  const runLane = async (lane: "fast" | "bulk", limit: number, concurrency: number) => {
+    const batch = await claimJobs(db, lane, limit, lockedBy, opts.ids);
+    const startedCount = await runPool(batch, concurrency, inBudget, async (row) => count(await runClaimed(db, row, opts)));
+    await releaseUnstarted(db, batch.slice(startedCount), lockedBy);
+    summary.ran[lane] += startedCount;
+    return batch.length;
+  };
 
-  while (Date.now() - started < opts.budgetMs) {
+  while (inBudget()) {
     let claimed = 0;
-    if (lanes.includes("fast")) {
-      const batch = await claimJobs(db, "fast", FAST_CLAIM, lockedBy, opts.ids);
-      claimed += batch.length;
-      summary.ran.fast += batch.length;
-      await runPool(batch, FAST_CONCURRENCY, async (row) => count(await runClaimed(db, row, opts)));
-    }
-    if (lanes.includes("bulk") && Date.now() - started < opts.budgetMs) {
-      const batch = await claimJobs(db, "bulk", BULK_CLAIM, lockedBy, opts.ids);
-      claimed += batch.length;
-      summary.ran.bulk += batch.length;
-      await runPool(batch, BULK_CONCURRENCY, async (row) => count(await runClaimed(db, row, opts)));
-    }
+    if (lanes.includes("fast")) claimed += await runLane("fast", FAST_CLAIM, FAST_CONCURRENCY);
+    if (lanes.includes("bulk") && inBudget()) claimed += await runLane("bulk", BULK_CLAIM, BULK_CONCURRENCY);
     if (claimed > 0) continue;
     if (opts.ids || !opts.tickId) break;
     const soon = rowsOf<{ n: number | string }>(
@@ -348,14 +404,42 @@ export async function runJobInline<T>(
   throw new RetryableError(row?.lastError ?? `inline job ${String(kind)} did not finish`);
 }
 
-/** PL-30: `running` jobs locked more than 10 minutes ago go back to `pending` (the attempt counts). */
-export async function reclaimStaleLocks(db: Db): Promise<number> {
-  const rows = rowsOf<{ id: string }>(
+/**
+ * PL-30: `running` jobs locked more than 10 minutes ago go back to `pending` (the attempt counts).
+ * A row that has used up its attempts (a job that keeps killing its instance) turns `dead`
+ * instead, with the same Sentry event, Slack line and `onDead` call as `failJob` (PL-29, PL-29a).
+ */
+export async function reclaimStaleLocks(db: Db, opts: RunnerOptions = {}): Promise<number> {
+  const rows = rowsOf<Claimed & { status: string }>(
     await db.execute(sql`
-      update jobs set status = 'pending', locked_at = null, locked_by = null, last_error = 'stale lock', updated_at = now()
+      update jobs set
+        status = case when attempts >= max_attempts then 'dead'::jobs_status else 'pending'::jobs_status end,
+        finished_at = case when attempts >= max_attempts then now() else finished_at end,
+        locked_at = null, locked_by = null, last_error = 'stale lock', updated_at = now()
       where status = 'running' and locked_at < now() - make_interval(mins => ${STALE_LOCK_MINUTES})
-      returning id`),
+      returning id, kind, payload, idempotency_key, lane, attempts, max_attempts, request_id, result, status::text as status`),
   );
+  const dead = rows
+    .filter((r) => r.status === "dead")
+    .map((r) => ({ ...r, attempts: Number(r.attempts), max_attempts: Number(r.max_attempts) }));
+  if (!dead.length) return rows.length;
+  const now = opts.now?.() ?? new Date();
+  const registry = await loadJobs();
+  for (const row of dead) {
+    const message = "stale lock";
+    try {
+      await enqueueDeadAlert(db, row, message, now);
+      reportError(new Error(`stale lock: ${row.kind} is dead after ${row.attempts} attempt(s)`), {
+        tags: { job_kind: row.kind, job_id: row.id },
+        extra: { attempts: row.attempts },
+      });
+      const def = registry[row.kind];
+      const parsed = def?.input.safeParse(row.payload ?? {});
+      if (def?.onDead && parsed?.success) await runOnDead(db, row, def, parsed.data, { message, permanent: false }, opts);
+    } catch (error) {
+      reportError(error, { tags: { job_kind: row.kind, job_id: row.id, where: "stale_dead" } });
+    }
+  }
   return rows.length;
 }
 
@@ -429,13 +513,11 @@ export async function runTick(opts: { budgetMs?: number; tickId?: string } & Run
   const db = opts.db ?? (await getAppDb());
   const tickId = opts.tickId ?? `tick:${randomUUID()}`;
   const now = opts.now?.() ?? new Date();
-  // New sensitive writes in this instance use settings.security.current_key_version (PL-69).
-  await loadCurrentKeyVersion(db).catch((e: unknown) => reportError(e, { tags: { where: "key_version" } }));
   const last = (await getSetting(db, "last_tick_at" as never)) as unknown;
   const lastTickAt = typeof last === "string" && last ? new Date(last) : null;
   const enqueuedSchedules = await enqueueDueSchedules(db, now, lastTickAt);
   const summary = await runJobs({ ...opts, db, budgetMs: opts.budgetMs ?? 50_000, tickId });
-  const reclaimed = await reclaimStaleLocks(db);
+  const reclaimed = await reclaimStaleLocks(db, opts);
   await writeSystemSetting(db, "last_tick_at" as never, now.toISOString() as never);
   await pingHeartbeat(db);
   return { tickId, enqueuedSchedules, ran: summary.ran, reclaimed };

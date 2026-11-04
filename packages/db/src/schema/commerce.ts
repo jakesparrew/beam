@@ -29,11 +29,12 @@ import {
   uuid,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
-import { sessions } from "./booking";
-import { creditGrants } from "./credits";
-import { persons } from "./crm";
+import { sessions, ticketTypes } from "./booking";
+import { creditGrants, memberships } from "./credits";
+import { companies, persons } from "./crm";
 import { emailMessages } from "./email";
 import { invoices } from "./finance";
+import { pageVersions } from "./site";
 import {
   createdAt,
   id,
@@ -201,7 +202,7 @@ export const products = pgTable(
     recurringInterval: productsRecurringInterval(),
     includedCreditKind: productsCreditKind(),
     includedCreditUnits: integer(),
-    /** Required when kind = `item`; validated by the product action (a check would break Wave 0 factories). */
+    /** Required when kind = `item` (`products_item_category_chk`). */
     itemCategory: productsItemCategory(),
     isCustomAmount: boolean().notNull().default(false),
     minAmountCents: money(),
@@ -252,6 +253,10 @@ export const products = pgTable(
     check(
       "products_custom_amount_chk",
       sql`not ${t.isCustomAmount} or (${t.kind} = 'voucher' and 500 <= ${t.minAmountCents} and ${t.minAmountCents} <= ${t.maxAmountCents} and ${t.maxAmountCents} <= 100000)`,
+    ),
+    check(
+      "products_item_category_chk",
+      sql`${t.kind} <> 'item' or ${t.itemCategory} is not null`,
     ),
   ],
 );
@@ -307,8 +312,7 @@ export const orders = pgTable(
       .unique("orders_reference_unique")
       .default(sql`'BO-' || upper(substr(md5(gen_random_uuid()::text), 1, 8))`),
     personId: uuid().references(() => persons.id, { onDelete: "restrict" }),
-    // FK to companies is added by crm when it creates the table (Wave 2).
-    companyId: uuid(),
+    companyId: uuid().references((): AnyPgColumn => companies.id, { onDelete: "set null" }),
     checkoutId: uuid().references((): AnyPgColumn => checkouts.id),
     channel: ordersChannel().notNull(),
     status: ordersStatus().notNull().default("pending_payment"),
@@ -320,11 +324,9 @@ export const orders = pgTable(
     locale: text().notNull(),
     clientKey: uuid().notNull().unique("orders_client_key_unique"),
     expiresAt: tstz(),
-    // FK to memberships is added by credits when it creates the table (Wave 2).
-    renewalMembershipId: uuid(),
+    renewalMembershipId: uuid().references((): AnyPgColumn => memberships.id, { onDelete: "set null" }),
     renewalPeriodEndOn: date(),
-    // FK to page_versions is added by site when it creates the table (Wave 2).
-    termsVersionId: uuid(),
+    termsVersionId: uuid().references((): AnyPgColumn => pageVersions.id, { onDelete: "restrict" }),
     withdrawalUntilAt: tstz(),
     payTokenHash: text().unique("orders_pay_token_hash_unique"),
     payTokenExpiresAt: tstz(),
@@ -361,27 +363,20 @@ export const orders = pgTable(
       sql`${t.totalCents} = ${t.subtotalCents} - ${t.discountCents} and ${t.totalCents} >= 0`,
     ),
     check("orders_locale_chk", sql`${t.locale} in ('nl-BE', 'fr-BE', 'en')`),
-    // `orders_person_chk` and `orders_terms_chk` are ORDERS_PENDING_CHECKS below (see there).
+    check(
+      "orders_person_chk",
+      sql`${t.personId} is not null or ${t.companyId} is not null or ${t.channel} = 'pos' or ${t.isErasedSubject}`,
+    ),
+    check(
+      "orders_terms_chk",
+      sql`${t.channel} not in ('portal', 'site', 'link') or ${t.status} = 'draft' or ${t.termsVersionId} is not null`,
+    ),
     check(
       "orders_renewal_chk",
       sql`(${t.renewalMembershipId} is null) = (${t.renewalPeriodEndOn} is null)`,
     ),
   ],
 );
-
-/**
- * Two `orders` checks of the data model that are not on the table yet: platform's Wave 0 test
- * `apps/web/lib/alerts.test.ts` inserts a portal order without person and terms version, which
- * both would reject. They become `check(...)` entries above as soon as that fixture is fixed
- * (requested from platform); until then the order engine enforces them in code and
- * `commerce.test.ts` proves the SQL on a test database.
- */
-export const ORDERS_PENDING_CHECKS = {
-  orders_person_chk:
-    "person_id is not null or company_id is not null or channel = 'pos' or is_erased_subject",
-  orders_terms_chk:
-    "channel not in ('portal', 'site', 'link') or status = 'draft' or terms_version_id is not null",
-} as const;
 
 /** IMMUTABLE and APPEND. Holds no personal data. */
 export const orderLines = pgTable(
@@ -408,8 +403,7 @@ export const orderLines = pgTable(
     promotionId: uuid().references((): AnyPgColumn => promotions.id),
     pricingTrace: jsonb().notNull(),
     sessionId: uuid().references(() => sessions.id),
-    // FK to ticket_types is added by booking when it creates the table (Wave 2).
-    ticketTypeId: uuid(),
+    ticketTypeId: uuid().references((): AnyPgColumn => ticketTypes.id, { onDelete: "restrict" }),
     data: jsonb().$type<OrderLineData>().notNull().default({}),
     createdAt: createdAt(),
   },

@@ -87,3 +87,13 @@ One entry per merge batch and gate (runbook section 5.7, adapted by OD-3).
 - booking-P3a: merged as `03300f6` in batch `g32-batch`.
 - platform-P8: merged as `b0d6020` in batch `g32-batch`.
 - Batch `g32-batch` (booking-P3a platform-P8): merge gate green, peak 5934 MB.
+- fix-w05-crm-1 (6 min) landed through a full quick gate (`g31`, 509 s): the integration head is fully green again. booking-P3a (attempt 3, samples) and platform-P8 (attempt 4) landed in batch `g32`.
+- credits-P4 attempt 1 (37 min) done except two credits-P3 tests that pin stubs credits-P4 implements; CONVENTIONS.md item 11 now forbids such tests. Started credits-P4 attempt 2, fix-w05-schema-1 attempt 2 (every test file and fixture granted, commerce order factories, the mandate FK) and fix-w04-platform-4 (the 27 confirmed review findings plus platform requests) from `7b1c11d`.
+- site-P2: 38 min, merged as `e1c68f8`; gate `g33-site-P2` (merge) green, peak 9251 MB.
+- site-P2 (38 min) landed (`g33`, 863 s, peak 9.2 GB). createTestDb measured at 4 to 7 s per test file (818 DDL statements) against 1 to 2 s from a PGlite data-directory snapshot: fixer `fix-w05-platform-testdb` adds a snapshot cache (started from `ae984c2`).
+- forms-P2: 56 min, merged as `74e15ad`; gate `g34-forms-P2` (merge) green, peak 5289 MB.
+- fix-w05-schema-1: 58 min, merged as `2e3c058`, migrations 0026_w04.sql; gate `g35-fix-w05-schema-1` (merge) green, peak 7454 MB.
+- forms-P2 (56 min) landed (`g34`). fix-w05-schema-1 attempt 2 (25 min) landed (`g35`, 854 s): every deferred FK and check, booking and ops schedules active, `@beam/db/testing/commerce-factories` (makeOrder, makeOrderLine, makePaidOrder), the mandate FK, and the fixtures of six modules updated. Started finance-P2, commerce-P3, commerce-P2 from `d447ab3`.
+- fix-w04-platform-4: merged as `90cbe19` in batch `g37-batch`.
+- fix-w05-platform-testdb: merged as `45a8275` in batch `g37-batch`.
+- Batch `g37-batch` (fix-w04-platform-4 fix-w05-platform-testdb): merge gate green, peak 6152 MB.

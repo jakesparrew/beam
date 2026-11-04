@@ -142,8 +142,11 @@
       "mergedAt": "2026-11-04T00:38:17Z"
     },
     "commerce-P2": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "d447ab3",
+      "runId": "wf_a89c53db-43a",
+      "startedAt": "2026-11-04T03:39:30Z"
     },
     "credits-P1": {
       "status": "merged",
@@ -194,11 +197,16 @@
       "mergedAt": "2026-11-04T01:05:29Z"
     },
     "forms-P2": {
-      "status": "running",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "1b2926a",
       "runId": "wf_8e279d47-056",
-      "startedAt": "2026-11-04T02:23:03Z"
+      "startedAt": "2026-11-04T02:23:03Z",
+      "branchSha": "52ec960",
+      "endedAt": "2026-11-04T03:19:38Z",
+      "minutes": 56,
+      "mergeSha": "74e15ad",
+      "mergedAt": "2026-11-04T03:23:24Z"
     },
     "email-P1": {
       "status": "merged",
@@ -293,8 +301,11 @@
       "mergedAt": "2026-11-04T03:00:29Z"
     },
     "commerce-P3": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "d447ab3",
+      "runId": "wf_4e7022ef-505",
+      "startedAt": "2026-11-04T03:39:30Z"
     },
     "credits-P3": {
       "status": "merged",
@@ -309,8 +320,11 @@
       "mergedAt": "2026-11-04T01:33:16Z"
     },
     "finance-P2": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "d447ab3",
+      "runId": "wf_a0872452-35c",
+      "startedAt": "2026-11-04T03:39:30Z"
     },
     "forms-P3": {
       "status": "pending",
@@ -337,11 +351,16 @@
       "attempts": 0
     },
     "site-P2": {
-      "status": "running",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "1b2926a",
       "runId": "wf_b991b7b6-9ec",
-      "startedAt": "2026-11-04T02:23:03Z"
+      "startedAt": "2026-11-04T02:23:03Z",
+      "branchSha": "782380e",
+      "endedAt": "2026-11-04T03:02:09Z",
+      "minutes": 38,
+      "mergeSha": "e1c68f8",
+      "mergedAt": "2026-11-04T03:16:33Z"
     },
     "crm-P5": {
       "status": "pending",
@@ -368,15 +387,18 @@
       "attempts": 0
     },
     "credits-P4": {
-      "status": "running",
-      "attempts": 2,
-      "baseSha": "1b2926a",
-      "runId": "wf_765669e5-601",
-      "startedAt": "2026-11-04T02:23:03Z",
+      "status": "red",
+      "attempts": 3,
+      "baseSha": "7b1c11d",
+      "runId": "wf_cb3c7ced-194",
+      "startedAt": "2026-11-04T03:02:09Z",
       "extraOwns": [
         "apps/web/modules/credits/api.test.ts",
         "apps/web/modules/credits/jobs.test.ts"
-      ]
+      ],
+      "branchSha": "ebe47a7",
+      "endedAt": "2026-11-04T03:39:30Z",
+      "minutes": 62
     },
     "finance-P3": {
       "status": "pending",
@@ -797,8 +819,8 @@
       "mergedAt": "2026-11-04T01:33:08Z"
     },
     "fix-w04-platform-4": {
-      "status": "pending",
-      "attempts": 0,
+      "status": "merged",
+      "attempts": 1,
       "fixer": true,
       "module": "platform",
       "goal": "Fix the confirmed findings of the foundation review (see the launch notes).",
@@ -923,11 +945,19 @@
         "apps/web/modules/platform/schedules.test.ts",
         "apps/web/app/api/cron/tick/route.test.ts",
         "packages/core/src/credits/types.ts"
-      ]
+      ],
+      "baseSha": "7b1c11d",
+      "runId": "wf_8b56818b-687",
+      "startedAt": "2026-11-04T03:02:09Z",
+      "branchSha": "dbefb5d",
+      "endedAt": "2026-11-04T03:45:04Z",
+      "minutes": 37,
+      "mergeSha": "90cbe19",
+      "mergedAt": "2026-11-04T03:49:53Z"
     },
     "fix-w05-schema-1": {
-      "status": "done",
-      "attempts": 2,
+      "status": "merged",
+      "attempts": 3,
       "fixer": true,
       "module": "platform",
       "goal": "Add the foreign keys and checks that module schema packages deferred until their targets existed, and activate the parked booking and ops schedules (see the launch notes).",
@@ -956,12 +986,12 @@
         "packages/db/src/schema/automation.ts",
         "packages/db/src/schema/automation.test.ts"
       ],
-      "baseSha": "4ea719a",
-      "runId": "wf_523fa3f5-e74",
-      "startedAt": "2026-11-04T01:39:10Z",
-      "branchSha": "8a4b0e3",
-      "endedAt": "2026-11-04T02:23:03Z",
-      "minutes": 33,
+      "baseSha": "7b1c11d",
+      "runId": "wf_9ff94187-845",
+      "startedAt": "2026-11-04T03:02:09Z",
+      "branchSha": "dfe270c",
+      "endedAt": "2026-11-04T03:24:04Z",
+      "minutes": 58,
       "extraOwns": [
         "packages/db/src/testing/commerce-factories.ts",
         "packages/db/src/schema/credits.ts",
@@ -971,7 +1001,9 @@
         "packages/db/test/**",
         "apps/web/modules/*/server/*fixtures*.ts",
         "apps/web/modules/*/*fixtures*.ts"
-      ]
+      ],
+      "mergeSha": "2e3c058",
+      "mergedAt": "2026-11-04T03:38:32Z"
     },
     "fix-w05-crm-1": {
       "status": "merged",
@@ -999,6 +1031,29 @@
       "minutes": 6,
       "mergeSha": "fab14fa",
       "mergedAt": "2026-11-04T02:51:43Z"
+    },
+    "fix-w05-platform-testdb": {
+      "status": "merged",
+      "attempts": 1,
+      "fixer": true,
+      "module": "platform",
+      "goal": "Cache built PGlite test databases as data-directory snapshots so createTestDb is several times faster.",
+      "from": [
+        "platform-P2"
+      ],
+      "dependsOn": [],
+      "owns": [
+        "packages/db/src/testing.ts",
+        "packages/db/test/fix-w05-platform-testdb.cache.test.ts"
+      ],
+      "baseSha": "ae984c2",
+      "runId": "wf_e2f14529-da2",
+      "startedAt": "2026-11-04T03:19:38Z",
+      "branchSha": "79f29c9",
+      "endedAt": "2026-11-04T03:45:04Z",
+      "minutes": 22,
+      "mergeSha": "45a8275",
+      "mergedAt": "2026-11-04T03:49:56Z"
     }
   }
 }

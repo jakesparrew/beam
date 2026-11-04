@@ -22,6 +22,7 @@ import { actorHasPermission, createCtx, ctxState, flushDurableWrites, flushInteg
 import { runJobs } from "./job-runner";
 import { reportError } from "./logger";
 import { checkRateLimits, type RateLimitRequest } from "./rate-limit";
+import { loadCurrentKeyVersion } from "./sensitive";
 
 export type ActionErrorCode = "unauthorized" | "forbidden" | "validation" | "not_found" | "conflict" | "rate_limited" | "internal";
 
@@ -155,6 +156,8 @@ export function action<I extends z.ZodTypeAny, O>(
       }
       const locale = localeFor(session, meta.locale, raw);
       const data = await db.transaction(async (tx) => {
+        // New sensitive writes use settings.security.current_key_version, read in this transaction (PL-69).
+        await loadCurrentKeyVersion(tx);
         ctx = createCtx({ tx, actor, requestId, ip: meta.ip, locale });
         sessions.set(ctx, session);
         const out = await handler(ctx, input);

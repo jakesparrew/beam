@@ -5,7 +5,7 @@ import type { DbHandle } from "@beam/db";
 import { aiRequests, auditLog, authSessions, authVerificationTokens, featureFlags, files, users, webhookEvents } from "@beam/db/schema";
 import { isValidRetentionSeed } from "@beam/core/privacy";
 import { auditDigest } from "@/lib/audit";
-import { eq, sql } from "@/lib/ctx";
+import { eq, inArray, sql } from "@/lib/ctx";
 import { makeCtx, resetRuntime } from "@/lib/testing";
 import { noPiiTables, privacy } from "./privacy";
 
@@ -34,7 +34,10 @@ async function subject() {
   await makeCtx(handle.db).audit({ action: "person.update", entityType: "person", entityId: person.id, personId: person.id, oldValue: { first_name: "Old" }, newValue: { first_name: "New" } });
   await handle.db.insert(featureFlags).values({ key: `ff_platform_t${randomUUID().slice(0, 8)}`, state: "testers", personIds: [person.id], userIds: [user.id] });
   await handle.db.insert(webhookEvents).values({ provider: "resend", externalEventId: randomUUID(), payload: { to: [person.email] }, jobId: randomUUID() });
-  return { person, user, invoice: invoice!.id, receipt: receipt!.id, exported: exported!.id, rendered: rendered!.id };
+  // An external partner account linked to the same person (spec section 9: deleted with its sessions).
+  const partner = await makeUser(handle.db, { roleKey: "external_partner", personId: person.id });
+  await handle.db.insert(authSessions).values({ sessionToken: randomUUID(), userId: partner.id, audience: "staff", expires: later, absoluteExpiresAt: later });
+  return { person, user, partner, invoice: invoice!.id, receipt: receipt!.id, exported: exported!.id, rendered: rendered!.id };
 }
 
 describe("platform privacy registration", () => {
@@ -46,6 +49,7 @@ describe("platform privacy registration", () => {
     expect(data.audit_log![0]).not.toHaveProperty("new_value");
     const byKind = Object.fromEntries(data.files!.map((f) => [f.kind, f.bytes]));
     expect(byKind.invoice_pdf).toBe("AQ==");
+    expect(byKind.receipt).toBe("AQ==");
     expect(byKind.export).toBeNull();
     expect(data.ai_requests).toEqual([expect.objectContaining({ feature: "ai.draft_reply", prompt: "Hi Test" })]);
   });
@@ -54,7 +58,9 @@ describe("platform privacy registration", () => {
     const s = await subject();
     const other = await subject();
     const report = await handle.db.transaction((tx) => privacy.erase(tx, s.person.id));
-    expect(report.find((r) => r.table === "users")).toEqual({ table: "users", rows: 1, action: "deleted" });
+    expect(report.find((r) => r.table === "users")).toEqual({ table: "users", rows: 2, action: "deleted" });
+    expect(await handle.db.select().from(users).where(eq(users.id, s.partner.id))).toHaveLength(0);
+    expect(await handle.db.select().from(authSessions).where(eq(authSessions.userId, s.partner.id))).toHaveLength(0);
 
     expect(await handle.db.select().from(users).where(eq(users.id, s.user.id))).toHaveLength(0);
     expect(await handle.db.select().from(authSessions).where(eq(authSessions.userId, s.user.id))).toHaveLength(0);
@@ -67,6 +73,7 @@ describe("platform privacy registration", () => {
     expect(ids).not.toContain(s.exported);
     expect(ids).not.toContain(s.rendered);
     expect(left.find((f) => f.id === s.invoice)!.personId).toBeNull();
+    expect(left.find((f) => f.id === s.receipt)!.personId).toBeNull();
 
     const [audit] = await handle.db.select().from(auditLog).where(eq(auditLog.personId, s.person.id));
     expect(audit).toMatchObject({ isRedacted: true, ip: null, personId: s.person.id, oldValue: auditDigest({ first_name: "Old" }), newValue: auditDigest({ first_name: "New" }) });
@@ -81,15 +88,40 @@ describe("platform privacy registration", () => {
     expect(await handle.db.select().from(aiRequests).where(eq(aiRequests.personId, other.person.id))).toHaveLength(1);
   });
 
-  it("declares valid retention policies with a sweep for each", async () => {
+  it("declares valid retention policies with a sweep for each", () => {
     for (const seed of privacy.retention ?? []) {
       expect(isValidRetentionSeed(seed)).toBe(true);
       expect(privacy.sweep?.[seed.key]).toBeTypeOf("function");
     }
-    const old = new Date(Date.now() - 40 * 86_400_000);
-    await handle.db.insert(aiRequests).values({ feature: "ai.classify", model: "claude-haiku-5-5", actor: { kind: "system", id: null }, prompt: "x", status: "ok", createdAt: old });
-    const removed = await handle.db.transaction((tx) => privacy.sweep!["platform.ai_requests"]!(tx, new Date(Date.now() - 30 * 86_400_000)));
-    expect(removed).toBeGreaterThanOrEqual(1);
+  });
+
+  it("removes AI prompts and person links at 30 days but keeps the cost rows for the monthly report until 62", async () => {
+    const day = 86_400_000;
+    const person = await makePerson(handle.db);
+    const row = (ageDays: number, prompt: string) => ({
+      feature: "ai.classify",
+      model: "claude-haiku-5-5" as const,
+      actor: { kind: "system" as const, id: null },
+      personId: person.id,
+      fieldsSent: ["locale"],
+      prompt,
+      output: `out ${prompt}`,
+      costCents: "2.5",
+      status: "ok" as const,
+      createdAt: new Date(Date.now() - ageDays * day),
+    });
+    const [fresh, old, ancient] = await handle.db.insert(aiRequests).values([row(10, "fresh"), row(40, "old"), row(70, "ancient")]).returning({ id: aiRequests.id });
+    const days = Object.fromEntries((privacy.retention ?? []).map((r) => [r.key, r.days]));
+    expect(days).toMatchObject({ "platform.ai_requests": 30, "platform.ai_requests_rows": 62 });
+    const cutoff = (d: number) => new Date(Date.now() - d * day);
+    expect(await handle.db.transaction((tx) => privacy.sweep!["platform.ai_requests"]!(tx, cutoff(30)))).toBeGreaterThanOrEqual(2);
+    expect(await handle.db.transaction((tx) => privacy.sweep!["platform.ai_requests_rows"]!(tx, cutoff(62)))).toBeGreaterThanOrEqual(1);
+    const left = await handle.db.select().from(aiRequests).where(inArray(aiRequests.id, [fresh!.id, old!.id, ancient!.id]));
+    const byId = new Map(left.map((r) => [r.id, r]));
+    expect(byId.has(ancient!.id)).toBe(false);
+    expect(byId.get(fresh!.id)).toMatchObject({ prompt: "fresh", personId: person.id });
+    expect(byId.get(old!.id)).toMatchObject({ prompt: "", output: null, personId: null, fieldsSent: [] });
+    expect(Number(byId.get(old!.id)!.costCents)).toBe(2.5);
   });
 
   it("lists the platform tables without personal data", () => {

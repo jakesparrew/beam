@@ -1,0 +1,16 @@
+ALTER TABLE "sessions" DROP CONSTRAINT "sessions_event_category_ck";--> statement-breakpoint
+ALTER TABLE "automation_runs" ADD CONSTRAINT "automation_runs_task_id_tasks_id_fk" FOREIGN KEY ("task_id") REFERENCES "public"."tasks"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "capacity_holds" ADD CONSTRAINT "capacity_holds_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "sessions" ADD CONSTRAINT "sessions_partner_company_id_companies_id_fk" FOREIGN KEY ("partner_company_id") REFERENCES "public"."companies"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "waitlist_entries" ADD CONSTRAINT "waitlist_entries_person_id_persons_id_fk" FOREIGN KEY ("person_id") REFERENCES "public"."persons"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "order_lines" ADD CONSTRAINT "order_lines_ticket_type_id_ticket_types_id_fk" FOREIGN KEY ("ticket_type_id") REFERENCES "public"."ticket_types"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "orders" ADD CONSTRAINT "orders_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "orders" ADD CONSTRAINT "orders_renewal_membership_id_memberships_id_fk" FOREIGN KEY ("renewal_membership_id") REFERENCES "public"."memberships"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "orders" ADD CONSTRAINT "orders_terms_version_id_page_versions_id_fk" FOREIGN KEY ("terms_version_id") REFERENCES "public"."page_versions"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "memberships" ADD CONSTRAINT "memberships_mandate_id_mandates_id_fk" FOREIGN KEY ("mandate_id") REFERENCES "public"."mandates"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "retention_list_items" ADD CONSTRAINT "retention_list_items_task_id_tasks_id_fk" FOREIGN KEY ("task_id") REFERENCES "public"."tasks"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "pages" ADD CONSTRAINT "pages_partner_company_id_companies_id_fk" FOREIGN KEY ("partner_company_id") REFERENCES "public"."companies"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "sessions" ADD CONSTRAINT "sessions_event_category_ck" CHECK (("sessions"."kind" = 'event') = ("sessions"."event_category" is not null));--> statement-breakpoint
+ALTER TABLE "orders" ADD CONSTRAINT "orders_person_chk" CHECK ("orders"."person_id" is not null or "orders"."company_id" is not null or "orders"."channel" = 'pos' or "orders"."is_erased_subject");--> statement-breakpoint
+ALTER TABLE "orders" ADD CONSTRAINT "orders_terms_chk" CHECK ("orders"."channel" not in ('portal', 'site', 'link') or "orders"."status" = 'draft' or "orders"."terms_version_id" is not null);--> statement-breakpoint
+ALTER TABLE "products" ADD CONSTRAINT "products_item_category_chk" CHECK ("products"."kind" <> 'item' or "products"."item_category" is not null);

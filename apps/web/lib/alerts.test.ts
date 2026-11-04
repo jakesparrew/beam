@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { createTestDb, makePerson, makeUser } from "@beam/db/testing";
+import { ensureTermsVersion } from "@beam/db/testing/commerce-factories";
 import { enqueue, type DbHandle } from "@beam/db";
 import { aiRequests, integrationCalls, jobs, orders, securityIncidents, settings, supportRequests, webhookEvents } from "@beam/db/schema";
 import { GB, runCheckAlerts, type CheckAlertsDeps } from "./alerts";
@@ -63,7 +64,7 @@ describe("platform.check_alerts (PL-75)", () => {
     expect(await fingerprints()).not.toContain("mollie-silence");
     // A valid portal order: a person and an accepted terms version (orders_person_chk, orders_terms_chk).
     const personId = (await makePerson(handle.db)).id;
-    await handle.db.insert(orders).values({ channel: "portal", personId, termsVersionId: randomUUID(), subtotalCents: 1000, vatCents: 174, totalCents: 1000, locale: "nl-BE", clientKey: randomUUID() });
+    await handle.db.insert(orders).values({ channel: "portal", personId, termsVersionId: (await ensureTermsVersion(handle.db)).id, subtotalCents: 1000, vatCents: 174, totalCents: 1000, locale: "nl-BE", clientKey: randomUUID() });
     const raised = await check();
     expect(raised.find((r) => r.fingerprint === "mollie-silence")?.severity).toBe("high");
     await handle.db.insert(webhookEvents).values({ provider: "mollie", externalEventId: "tr_1:1", payload: {}, jobId: randomUUID() });

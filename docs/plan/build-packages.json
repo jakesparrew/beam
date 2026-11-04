@@ -7038,7 +7038,7 @@
         "getPipelineBoard",
         "listPlaybookStages",
         "crm.escalate_opportunities",
-        "crm.apply_b2c_playbook"
+        "crm.apply_btoc_playbook"
       ],
       "tests": [
         "apps/web/modules/crm/pipeline/pipeline.test.ts: rule 3.47 transitions: every allowed move, `won → lost` refused, `lost → target` reopens, stale `version` refused; rule 3.56: one task per `ops.stage_changed` event, overlapping windows create nothing new, inactive stage ignored ...",

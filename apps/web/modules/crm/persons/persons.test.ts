@@ -6,9 +6,10 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTestDb, makePerson, makeProduct, makeSession, makeUser } from "@beam/db/testing";
+import { makeOrder } from "@beam/db/testing/commerce-factories";
 import { makeMembership } from "@beam/db/testing/credits-factories";
 import type { DbHandle, DbOrTx } from "@beam/db";
-import { activityEvents, auditLog, jobs, orderLines, orders, persons, users, vStatusOverrideConflicts } from "@beam/db/schema";
+import { activityEvents, auditLog, jobs, orderLines, persons, users, vStatusOverrideConflicts } from "@beam/db/schema";
 import { emailHash } from "@beam/core/crm";
 
 process.env.SENSITIVE_DATA_KEY_V1 ??= randomBytes(32).toString("base64");
@@ -66,13 +67,10 @@ const eventsOf = async (personId: string, kind?: string) =>
     .where(kind ? and(eq(activityEvents.personId, personId), eq(activityEvents.kind, kind)) : eq(activityEvents.personId, personId));
 
 async function paidOrder(db: DbOrTx, personId: string, kind: "item" | "voucher" | "package" | "session") {
-  const [order] = await db
-    .insert(orders)
-    .values({ personId, channel: "portal", status: "paid", subtotalCents: 5000, vatCents: 0, totalCents: 5000, locale: "nl-BE", clientKey: randomUUID(), paidAt: new Date() })
-    .returning();
+  const order = await makeOrder(db, { personId, channel: "portal", status: "paid", subtotalCents: 5000, vatCents: 0, totalCents: 5000 });
   const product = await makeProduct(db, { kind });
   await db.insert(orderLines).values({
-    orderId: order!.id,
+    orderId: order.id,
     lineNo: 1,
     productId: product.id,
     sku: product.sku,
@@ -86,7 +84,7 @@ async function paidOrder(db: DbOrTx, personId: string, kind: "item" | "voucher" 
     vatCents: 0,
     pricingTrace: {},
   });
-  return order!;
+  return order;
 }
 
 describe("identity (rules 3.1 to 3.7)", () => {

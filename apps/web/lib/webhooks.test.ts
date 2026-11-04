@@ -56,10 +56,15 @@ describe("handleWebhook (PL-37 to PL-39)", () => {
     expect(row).toMatchObject({ provider: "resend", operation: "webhook.signature_failed", statusCode: 401, ok: false });
   });
 
-  it("more than 5 signature failures in 10 minutes raise one Slack alert", async () => {
-    for (let i = 0; i < 7; i++) await call(request({ id: `bad_${i}` }, "bad"));
-    const slack = await handle.db.select().from(jobs).where(eq(jobs.kind, "notify.slack"));
+  it("more than 5 signature failures in 10 minutes raise one Slack alert (5 raise none)", async () => {
+    const slackJobs = () => handle.db.select().from(jobs).where(eq(jobs.kind, "notify.slack"));
+    for (let i = 0; i < 5; i++) await call(request({ id: `bad_${i}` }, "bad"));
+    expect(await slackJobs()).toHaveLength(0);
+    await call(request({ id: "bad_5" }, "bad"));
+    const slack = await slackJobs();
     expect(slack).toHaveLength(1);
     expect(slack[0]!.idempotencyKey).toMatch(/^slack:webhook-signature-resend:\d{4}-\d{2}-\d{2}T\d{2}$/);
+    await call(request({ id: "bad_6" }, "bad"));
+    expect(await slackJobs()).toHaveLength(1);
   });
 });

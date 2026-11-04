@@ -77,6 +77,7 @@ export function makeJobCtx(
   return Object.assign(base, {
     job: { id: jobId, kind, attempt: opts.attempt ?? 1, key: opts.key ?? `test:${kind}:${jobId}` },
     integrations: opts.integrations ?? createFakeIntegrations(),
+    signal: new AbortController().signal,
   });
 }
 

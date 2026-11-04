@@ -6,6 +6,7 @@
  */
 import * as Sentry from "@sentry/nextjs";
 import pino, { type DestinationStream, type Logger } from "pino";
+import { scrubEvent, type ScrubbableEvent } from "./sentry-scrub";
 
 export const REDACT_PATHS = [
   "email",
@@ -55,32 +56,12 @@ export function maskPii(text: string): string {
   return text.replace(EMAIL, "[email]").replace(PHONE, "[phone]");
 }
 
-type ScrubbableEvent = {
-  message?: string;
-  request?: { data?: unknown; cookies?: unknown; headers?: Record<string, string>; query_string?: unknown };
-  exception?: { values?: { value?: string }[] };
-  breadcrumbs?: { message?: string }[];
-  user?: Record<string, unknown>;
-  extra?: Record<string, unknown>;
-};
-
-/** Sentry `beforeSend`: no request bodies or cookies, emails and phones masked (PL-72). */
+/**
+ * Sentry `beforeSend` / `beforeSendTransaction`: no request bodies, cookies or query strings,
+ * emails and phones masked, tokens removed from URLs (PL-72; shared with the browser config).
+ */
 export function scrubSentryEvent<E extends ScrubbableEvent>(event: E): E {
-  if (event.message) event.message = maskPii(event.message);
-  if (event.request) {
-    delete event.request.data;
-    delete event.request.cookies;
-    if (event.request.headers) {
-      for (const h of Object.keys(event.request.headers)) {
-        if (/^(cookie|authorization|set-cookie)$/i.test(h)) delete event.request.headers[h];
-      }
-    }
-    if (typeof event.request.query_string === "string") event.request.query_string = maskPii(event.request.query_string);
-  }
-  for (const v of event.exception?.values ?? []) if (v.value) v.value = maskPii(v.value);
-  for (const b of event.breadcrumbs ?? []) if (b.message) b.message = maskPii(b.message);
-  if (event.user) event.user = event.user.id ? { id: event.user.id } : {};
-  return event;
+  return scrubEvent(event);
 }
 
 // ---------------------------------------------------------------------------

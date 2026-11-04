@@ -1,7 +1,9 @@
 import { getAppDb } from "@/lib/ctx";
 import { serveFile, SESSION_COOKIE_NAMES } from "@/lib/files";
+import { limitApiRequest } from "@/lib/rate-limit";
 
 // PL-46, PL-50: public images, signed tokens, or the session's permission; 404 otherwise.
+// PL-68: 60 requests per IP per minute (the `api:ip` bucket), else 429 with Retry-After.
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -20,5 +22,8 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   const header = request.headers.get("cookie");
   const sessionToken = SESSION_COOKIE_NAMES.map((n) => cookie(header, n)).find((v) => !!v) ?? null;
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
-  return serveFile(await getAppDb(), { fileId: id, token: url.searchParams.get("t"), sessionToken, ip });
+  const db = await getAppDb();
+  const limited = await limitApiRequest(db, { pathname: url.pathname, ip: ip ?? "unknown" });
+  if (limited) return limited;
+  return serveFile(db, { fileId: id, token: url.searchParams.get("t"), sessionToken, ip });
 }

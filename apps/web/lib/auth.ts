@@ -15,7 +15,7 @@ import { redirect, notFound } from "next/navigation";
 import type { Db, DbOrTx } from "@beam/db";
 import { authSessions, authVerificationTokens, users, type RoleKey } from "@beam/db/schema";
 import { URL_SEGMENT, type Locale } from "@beam/core/i18n";
-import { findRecoveryCode, generateRecoveryCodes, hashRecoveryCode } from "@beam/core/platform";
+import { findRecoveryCode, generateRecoveryCodes, hashRecoveryCode, localDateKey, wallClock } from "@beam/core/platform";
 import { findOrCreatePersonByEmail } from "@/modules/crm/api";
 import { readReferralCode } from "@/modules/site/api";
 import { sendTransactional } from "@/modules/email/api";
@@ -24,7 +24,8 @@ import { SESSION_COOKIE, SESSION_COOKIE_SECURE } from "./auth-config";
 import { actorHasPermission, AppError, createCtx, ctxState, eq, getAppDb, sql, type Actor, type Ctx } from "./ctx";
 import { writeAuditRow } from "./audit";
 import { getSetting } from "./settings";
-import { decryptSensitive, encryptSensitive, rowsOf, sensitiveAad } from "./sensitive";
+import { decryptSensitive, encryptSensitive, loadCurrentKeyVersion, rowsOf, sensitiveAad } from "./sensitive";
+import { recordEvent as writeEvent } from "./events";
 import { scheduleJobs } from "./action";
 
 export { SESSION_COOKIE };
@@ -125,10 +126,21 @@ export async function consumeVerificationToken(tx: DbOrTx, prefix: string, token
   return row.identifier;
 }
 
-/** A same-origin path for `returnTo` (no scheme, no `//`, no backslash), else `fallback`. */
+/**
+ * A same-origin path for `returnTo`, else `fallback`: it must start with one `/`, contain no
+ * backslash or control character (browsers drop tab, CR and LF, so `/\t/evil.com` would become
+ * `//evil.com`), and resolve to the same origin.
+ */
 export function safeReturnTo(value: string | null | undefined, fallback: string): string {
-  if (!value || !value.startsWith("/") || value.startsWith("//") || value.includes("\\")) return fallback;
-  return value;
+  // eslint-disable-next-line no-control-regex
+  if (!value || !value.startsWith("/") || value.startsWith("//") || /[\\\u0000-\u001f\u007f]/.test(value)) return fallback;
+  try {
+    const url = new URL(value, "http://x.invalid");
+    if (url.origin !== "http://x.invalid") return fallback;
+    return url.pathname + url.search + url.hash;
+  } catch {
+    return fallback;
+  }
 }
 
 export function appUrl(path: string): string {
@@ -162,14 +174,33 @@ export async function createAuthSession(
   return { token, expires: idle };
 }
 
-/** The Auth.js adapter's `createSession` (magic link): a customer session with both expiries. */
+/** The dedupe key of `platform.signed_in` (spec 4.7): `signin:<user_id>:<Brussels YYYY-MM-DD>`. */
+export function signedInKey(userId: string, now: Date): string {
+  return `signin:${userId}:${localDateKey(wallClock(now))}`;
+}
+
+/** The Auth.js adapter's `createSession` (magic link): a customer session with both expiries, and `platform.signed_in`. */
 export async function insertCustomerSession(
   db: DbOrTx,
   input: { sessionToken: string; userId: string; ip?: string | null; userAgent?: string | null; now?: Date },
 ): Promise<{ sessionToken: string; userId: string; expires: Date }> {
   const now = input.now ?? new Date();
   const { expires } = await createAuthSession(db, { ...input, token: input.sessionToken, audience: "customer", roleKey: null, now });
-  await db.update(users).set({ lastLoginAt: now, failedLogins: 0, lockedUntil: null }).where(eq(users.id, input.userId));
+  const [user] = await db
+    .update(users)
+    .set({ lastLoginAt: now, failedLogins: 0, lockedUntil: null })
+    .where(eq(users.id, input.userId))
+    .returning({ personId: users.personId });
+  if (user?.personId) {
+    // Spec 4.7: one platform.signed_in per user per Brussels day.
+    await writeEvent(db, { kind: "customer", id: input.userId }, {
+      kind: "platform.signed_in",
+      personId: user.personId,
+      data: { method: "magic_link" },
+      dedupeKey: signedInKey(input.userId, now),
+      occurredAt: now,
+    });
+  }
   return { sessionToken: input.sessionToken, userId: input.userId, expires };
 }
 
@@ -392,8 +423,15 @@ export async function recordFailedLogin(
   input: { userId: string; audience: Audience; now: Date; requestId: string; ip: string | null; reason: "password" | "totp" | "recovery_code" },
 ): Promise<{ failedLogins: number; lockedUntil: Date | null }> {
   const policy = await sessionPolicy(db);
+  // A lock that has expired starts a fresh count (PL-6: the account locks at 10 failures, not at
+  // every failure after the first lock). Failures during a lock still count toward its audit.
+  const now = input.now.toISOString();
   const rows = rowsOf<{ failed_logins: number; locked_until: string | Date | null }>(
-    await db.execute(sql`update users set failed_logins = failed_logins + 1, updated_at = now() where id = ${input.userId}
+    await db.execute(sql`update users set
+        failed_logins = case when locked_until is not null and locked_until <= ${now}::timestamptz then 1 else failed_logins + 1 end,
+        locked_until = case when locked_until <= ${now}::timestamptz then null else locked_until end,
+        updated_at = now()
+      where id = ${input.userId}
       returning failed_logins, locked_until`),
   );
   const failed = Number(rows[0]?.failed_logins ?? 0);
@@ -434,10 +472,14 @@ export async function readMfaSecrets(tx: DbOrTx, userId: string): Promise<MfaSec
   return { totpSecret, codes };
 }
 
-/** Writes both secret columns with the current key version (they share `secret_key_version`). */
+/**
+ * Writes both secret columns with the current key version (they share `secret_key_version`),
+ * read from `settings.security.current_key_version` in `tx` (PL-69).
+ */
 export async function writeMfaSecrets(tx: DbOrTx, userId: string, secrets: MfaSecrets, extra: Partial<typeof users.$inferInsert> = {}): Promise<void> {
-  const totp = secrets.totpSecret ? encryptSensitive(secrets.totpSecret, sensitiveAad.totpSecret(userId)) : null;
-  const codes = encryptSensitive(JSON.stringify(secrets.codes), sensitiveAad.recoveryCodes(userId), totp?.keyVersion);
+  const version = await loadCurrentKeyVersion(tx);
+  const totp = secrets.totpSecret ? encryptSensitive(secrets.totpSecret, sensitiveAad.totpSecret(userId), version) : null;
+  const codes = encryptSensitive(JSON.stringify(secrets.codes), sensitiveAad.recoveryCodes(userId), version);
   await tx
     .update(users)
     .set({ totpSecretEnc: totp?.valueEnc ?? null, recoveryCodesEnc: codes.valueEnc, secretKeyVersion: codes.keyVersion, ...extra })
@@ -510,7 +552,7 @@ export async function createCustomerAccount(
       .insert(users)
       .values({ audience: "customer", email, personId, locale: input.locale, emailVerified: ctx.now })
       .returning({ id: users.id });
-    await ctx.recordEvent({ kind: "platform.account_created", personId, data: { user_id: user!.id, method: "magic_link" } });
+    await ctx.recordEvent({ kind: "platform.account_created", personId, data: { user_id: user!.id, method: "magic_link" }, dedupeKey: `account:${user!.id}` });
     enqueued = ctxState(ctx).enqueuedIds;
     return { userId: user!.id, personId, email, created: true };
   });
@@ -538,7 +580,8 @@ export async function notifySecurityChange(
     template: "platform.mfa_changed",
     to: input.email,
     locale: input.locale,
-    data: { change: input.change, when: ctx.now.toISOString(), url: appUrl("/admin/account") },
+    // The props of MfaChangedProps (packages/email/src/templates/platform/mfa-changed.tsx).
+    data: { change: input.change, occurredAt: ctx.now.toISOString(), url: appUrl("/admin/account") },
     key: `security_notice:${input.userId}:${auditId}`,
   });
 }

@@ -110,6 +110,15 @@ describe("dueSlots (PL-33)", () => {
     expect(dueSlots("* * * * *", null, at("2026-11-03T13:07:59Z")).map((s) => s.key)).toEqual(["2026-11-03T14:07"]);
   });
 
+  it("on the spring DST tick a minute-level schedule enqueues one slot, not the skipped hour", () => {
+    const tick = at("2026-03-29T01:00:20Z"); // 03:00 CEST, right after 02:00 CET was skipped
+    expect(dueSlots("*/5 * * * *", null, tick).map((s) => s.key)).toEqual(["2026-03-29T03:00"]);
+    expect(dueSlots("* * * * *", null, tick)).toHaveLength(1);
+    // A daily schedule in the skipped hour still fires once at 03:00 (PL-33).
+    expect(dueSlots("30 2 * * *", null, tick).map((s) => s.key)).toEqual(["2026-03-29T02:30"]);
+    expect(dueSlots("*/5 * * * *", null, at("2026-03-29T01:05:20Z")).map((s) => s.key)).toEqual(["2026-03-29T03:05"]);
+  });
+
   it("localHourKey is the Brussels hour bucket", () => {
     expect(localHourKey(at("2026-11-03T23:30:00Z"))).toBe("2026-11-04T00");
   });

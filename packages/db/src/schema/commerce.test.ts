@@ -3,9 +3,12 @@ import { sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { DbHandle } from "../client";
 import { applyCustomSql, createTestDb, makePerson, makeProduct, makeSession, makeUser } from "../testing";
+import { makeMembership } from "../testing/credits-factories";
+import { ticketTypes } from "./booking";
+import { companies } from "./crm";
+import { pages, pageVersions } from "./site";
 import {
   checkouts,
-  ORDERS_PENDING_CHECKS,
   orderLines,
   orders,
   payments,
@@ -61,6 +64,22 @@ async function makeOrder(over: Partial<OrderInsert> = {}, db = h.db) {
   return row!;
 }
 
+async function makeCompany(db = h.db) {
+  const [row] = await db.insert(companies).values({ name: "Partner BV" }).returning();
+  return row!;
+}
+
+let pageNo = 0;
+/** A published page version standing in for the accepted terms (any page kind will do). */
+async function makeTermsVersion(db = h.db) {
+  const [page] = await db.insert(pages).values({ kind: "standard", slug: `terms-${++pageNo}` }).returning();
+  const [version] = await db
+    .insert(pageVersions)
+    .values({ pageId: page!.id, version: 1, state: "published", publishedAt: new Date() })
+    .returning();
+  return version!;
+}
+
 type LineInsert = typeof orderLines.$inferInsert;
 async function lineValues(orderId: string, over: Partial<LineInsert> = {}): Promise<LineInsert> {
   const product = over.productId ? { id: over.productId } : await makeProduct(h.db, { kind: "item" });
@@ -96,8 +115,8 @@ describe("products checks", () => {
     ["products_membership_chk", { kind: "membership" }],
     ["products_membership_chk", { kind: "session", recurringInterval: "month" }],
     ["products_membership_chk", { kind: "membership", recurringInterval: "month", includedCreditKind: "day" }],
-    ["products_no_credit_chk", { kind: "item", creditKind: "day" }],
-    ["products_custom_amount_chk", { kind: "item", isCustomAmount: true, minAmountCents: 500, maxAmountCents: 1000 }],
+    ["products_no_credit_chk", { kind: "item", itemCategory: "merchandise", creditKind: "day" }],
+    ["products_custom_amount_chk", { kind: "item", itemCategory: "merchandise", isCustomAmount: true, minAmountCents: 500, maxAmountCents: 1000 }],
     [
       "products_custom_amount_chk",
       { kind: "voucher", creditKind: "euro", vatRatePct: "0.00", validityDays: 730, isCustomAmount: true, minAmountCents: 100, maxAmountCents: 1000 },
@@ -106,8 +125,9 @@ describe("products checks", () => {
       "products_custom_amount_chk",
       { kind: "voucher", creditKind: "euro", vatRatePct: "0.00", validityDays: 730, isCustomAmount: true, minAmountCents: 2500, maxAmountCents: 200000 },
     ],
-    ["products_sku_chk", { kind: "item", sku: "lower-case" }],
-    ["products_vat_rate_chk", { kind: "item", vatRatePct: "7.00" }],
+    ["products_sku_chk", { kind: "item", itemCategory: "merchandise", sku: "lower-case" }],
+    ["products_vat_rate_chk", { kind: "item", itemCategory: "merchandise", vatRatePct: "7.00" }],
+    ["products_item_category_chk", { kind: "item" }],
   ] as const)("%s rejects %j", async (constraint, values) => {
     const err = await pgError(h.db.insert(products).values({ ...base, ...values } as typeof products.$inferInsert));
     expect(err.message).toContain(constraint);
@@ -168,11 +188,12 @@ describe("orders checks", () => {
   });
 
   it("orders_renewal_chk: membership and period end together", async () => {
-    expect((await pgError(makeOrder({ channel: "recurring", renewalMembershipId: randomUUID() }))).message).toContain("orders_renewal_chk");
+    const membership = await makeMembership(h.db);
+    expect((await pgError(makeOrder({ channel: "recurring", renewalMembershipId: membership.id }))).message).toContain("orders_renewal_chk");
   });
 
   it("orders_renewal_uq refuses a second live renewal order for one period", async () => {
-    const membershipId = randomUUID();
+    const membershipId = (await makeMembership(h.db)).id;
     const renewal = { channel: "recurring" as const, renewalMembershipId: membershipId, renewalPeriodEndOn: "2026-12-01" };
     const first = await makeOrder(renewal);
     expect((await pgError(makeOrder(renewal))).message).toContain("orders_renewal_uq");
@@ -189,33 +210,81 @@ describe("orders checks", () => {
   });
 });
 
-describe("ORDERS_PENDING_CHECKS (orders_person_chk, orders_terms_chk)", () => {
-  let h2: DbHandle;
-  let person2: string;
-  beforeAll(async () => {
-    h2 = await createTestDb();
-    for (const [constraint, check] of Object.entries(ORDERS_PENDING_CHECKS)) {
-      await h2.db.execute(sql.raw(`alter table orders add constraint ${constraint} check (${check})`));
-    }
-    person2 = (await makePerson(h2.db)).id;
-  });
-  afterAll(() => h2.close());
-
+describe("orders_person_chk and orders_terms_chk (table checks since fix-w05-schema-1)", () => {
   it("orders_person_chk: a person, a company, a POS sale or an erased subject", async () => {
-    expect((await pgError(makeOrder({}, h2.db))).message).toContain("orders_person_chk");
-    await makeOrder({ personId: person2 }, h2.db);
-    await makeOrder({ channel: "pos" }, h2.db);
-    await makeOrder({ companyId: randomUUID() }, h2.db);
-    await makeOrder({ isErasedSubject: true }, h2.db);
+    expect((await pgError(makeOrder({ personId: null }))).message).toContain("orders_person_chk");
+    await makeOrder({ personId: personId });
+    await makeOrder({ personId: null, channel: "pos" });
+    await makeOrder({ personId: null, companyId: (await makeCompany()).id });
+    await makeOrder({ personId: null, isErasedSubject: true });
   });
 
   it("orders_terms_chk: portal, site and link orders need a terms version unless draft", async () => {
+    const terms = await makeTermsVersion();
     for (const channel of ["portal", "site", "link"] as const) {
-      expect((await pgError(makeOrder({ channel, personId: person2 }, h2.db))).message).toContain("orders_terms_chk");
-      await makeOrder({ channel, personId: person2, status: "draft" }, h2.db);
-      await makeOrder({ channel, personId: person2, termsVersionId: randomUUID() }, h2.db);
+      expect((await pgError(makeOrder({ channel }))).message).toContain("orders_terms_chk");
+      await makeOrder({ channel, status: "draft" });
+      await makeOrder({ channel, termsVersionId: terms.id });
     }
-    await makeOrder({ channel: "pos" }, h2.db);
+    await makeOrder({ personId: null, channel: "pos" });
+    await makeOrder({ channel: "admin" });
+  });
+});
+
+describe("orders and order_lines foreign keys (fix-w05-schema-1)", () => {
+  it("rejects unknown companies, memberships, terms versions and ticket types", async () => {
+    const fk = async (values: Partial<OrderInsert>, constraint: string) => {
+      const err = await pgError(makeOrder(values));
+      expect(err.code).toBe("23503");
+      expect(err.message).toContain(constraint);
+    };
+    await fk({ companyId: randomUUID() }, "orders_company_id_companies_id_fk");
+    await fk(
+      { channel: "recurring", renewalMembershipId: randomUUID(), renewalPeriodEndOn: "2027-02-01" },
+      "orders_renewal_membership_id_memberships_id_fk",
+    );
+    await fk({ channel: "portal", termsVersionId: randomUUID() }, "orders_terms_version_id_page_versions_id_fk");
+    const o = await makeOrder();
+    const err = await pgError(h.db.insert(orderLines).values(await lineValues(o.id, { ticketTypeId: randomUUID() })));
+    expect(err.code).toBe("23503");
+    expect(err.message).toContain("order_lines_ticket_type_id_ticket_types_id_fk");
+  });
+
+  it("a deleted company or membership leaves the order with a null reference", async () => {
+    const company = await makeCompany();
+    const b2b = await makeOrder({ companyId: company.id });
+    const membership = await makeMembership(h.db);
+    const renewal = await makeOrder({ channel: "recurring", renewalMembershipId: membership.id, renewalPeriodEndOn: "2027-03-01" });
+    await h.db.execute(sql`delete from companies where id = ${company.id}`);
+    // `orders_renewal_chk` pairs the membership with its period end, so a renewal order's
+    // membership can only go together with the period end; the FK itself is `set null`.
+    const err = await pgError(h.db.execute(sql`delete from memberships where id = ${membership.id}`));
+    expect(err.message).toContain("orders_renewal_chk");
+    const [after] = await h.db.select().from(orders).where(sql`${orders.id} = ${b2b.id}`);
+    expect(after!.companyId).toBeNull();
+    const [kept] = await h.db.select().from(orders).where(sql`${orders.id} = ${renewal.id}`);
+    expect(kept!.renewalMembershipId).toBe(membership.id);
+  });
+
+  it("a company-only order blocks deleting its company (orders_person_chk)", async () => {
+    const company = await makeCompany();
+    await makeOrder({ personId: null, companyId: company.id });
+    expect((await pgError(h.db.execute(sql`delete from companies where id = ${company.id}`))).message).toContain("orders_person_chk");
+  });
+
+  it("a referenced terms version and ticket type cannot be deleted (restrict)", async () => {
+    const terms = await makeTermsVersion();
+    await makeOrder({ channel: "portal", termsVersionId: terms.id });
+    expect((await pgError(h.db.execute(sql`delete from page_versions where id = ${terms.id}`))).code).toBe("23001");
+
+    const session = await makeSession(h.db, { kind: "event" });
+    const product = await makeProduct(h.db, { kind: "ticket" });
+    const [ticket] = await h.db.insert(ticketTypes).values({ sessionId: session.id, productId: product.id, name }).returning();
+    const o = await makeOrder();
+    await h.db.insert(orderLines).values(
+      await lineValues(o.id, { productId: product.id, productKind: "ticket", sessionId: session.id, ticketTypeId: ticket!.id }),
+    );
+    expect((await pgError(h.db.execute(sql`delete from ticket_types where id = ${ticket!.id}`))).code).toBe("23001");
   });
 });
 

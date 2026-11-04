@@ -3,6 +3,7 @@ import { eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { DbHandle } from "../client";
 import { createTestDb, makePerson, makeSession, makeUser } from "../testing";
+import { companies } from "./crm";
 import { files } from "./platform";
 import {
   cookieConsents,
@@ -123,6 +124,17 @@ describe("site tables and views", () => {
     expect((await pgError(page({ kind: "standard", sessionId: session.id }))).message).toMatch(/pages_session_kind_ck/);
     expect((await pgError(page({ kind: "standard", partnerCompanyId: randomUUID() }))).message).toMatch(/pages_partner_kind_ck/);
     expect((await pgError(page({ slug: "Bad Slug" }))).message).toMatch(/pages_slug_ck/);
+  });
+
+  it("pages.partner_company_id references companies, on delete set null (fix-w05-schema-1)", async () => {
+    const unknown = await pgError(page({ kind: "landing", partnerCompanyId: randomUUID() }));
+    expect(unknown.code).toBe("23503");
+    expect(unknown.message).toMatch(/pages_partner_company_id_companies_id_fk/);
+    const [company] = await h.db.insert(companies).values({ name: "Partner BV", isPartner: true }).returning();
+    const landing = await page({ kind: "landing", partnerCompanyId: company!.id });
+    await h.db.delete(companies).where(eq(companies.id, company!.id));
+    const [after] = await h.db.select().from(pages).where(eq(pages.id, landing.id));
+    expect(after!.partnerCompanyId).toBeNull();
   });
 
   it("routes are unique per locale and per page and locale", async () => {

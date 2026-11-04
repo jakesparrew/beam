@@ -51,6 +51,23 @@ describe("Sentry beforeSend (PL-72)", () => {
     expect(event.user).toEqual({ id: "u1" });
   });
 
+  it("removes reset/invite tokens and query strings from every URL of errors and transactions", () => {
+    const event = scrubSentryEvent({
+      transaction: "/admin/reset-password/s3cr3tT0ken",
+      request: { url: "https://beam.example.com/nl/account/login/verify?token=abc&email=ann@example.com", query_string: "token=abc&email=ann%40example.com" },
+      contexts: { trace: { data: { "url.full": "https://beam.example.com/admin/invite/inv1te?x=1" } } },
+      spans: [{ description: "GET /admin/invite/inv1te?x=1", data: { "http.url": "https://beam.example.com/admin/reset-password/tok#frag" } }],
+      breadcrumbs: [{ data: { from: "/admin/invite/inv1te", to: "/nl/account/login/verify?token=abc" } }],
+    });
+    const text = JSON.stringify(event);
+    for (const secret of ["s3cr3tT0ken", "inv1te", "tok#", "token=abc", "ann@example.com", "ann%40"]) expect(text).not.toContain(secret);
+    expect(event.transaction).toBe("/admin/reset-password/[token]");
+    expect(event.request).toEqual({ url: "https://beam.example.com/nl/account/login/verify" });
+    expect(event.contexts?.trace?.data?.["url.full"]).toBe("https://beam.example.com/admin/invite/[token]");
+    expect(event.breadcrumbs?.[0]?.data).toEqual({ from: "/admin/invite/[token]", to: "/nl/account/login/verify" });
+    expect(event.spans?.[0]?.description).toBe("GET /admin/invite/[token]");
+  });
+
   it("maskPii leaves ids and amounts alone", () => {
     expect(maskPii("order 3f2a payment 1250 cents")).toBe("order 3f2a payment 1250 cents");
   });

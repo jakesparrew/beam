@@ -8,7 +8,6 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { DbHandle } from "../client";
 import { IMMUTABLE_TABLES, SENSITIVE_COLUMNS } from "./_shared";
 import { bookings } from "./booking";
-import { orders } from "./commerce";
 import { companies } from "./crm";
 import {
   formImportEvents,
@@ -23,6 +22,7 @@ import {
 } from "./forms";
 import { vFormConversions, vFormFunnelDaily, vFormLatestResults } from "./forms.views";
 import { createTestDb, makePerson, makeSession, makeUser } from "../testing";
+import { makeOrder } from "../testing/commerce-factories";
 
 /** The Postgres error behind a failed Drizzle query (message, SQLSTATE and constraint). */
 async function pgError(promise: Promise<unknown>): Promise<{ message: string; code?: string; constraint?: string }> {
@@ -416,15 +416,13 @@ describe("views", () => {
     await book(other.id, 31);
     await book(other.id, 2, "cancelled");
     const order = (personId: string, days: number, totalCents: number) =>
-      h.db.insert(orders).values({
+      makeOrder(h.db, {
         personId,
         channel: "portal",
         status: "paid",
         subtotalCents: totalCents,
         vatCents: 0,
         totalCents,
-        locale: "nl-BE",
-        clientKey: randomUUID(),
         paidAt: new Date(at.getTime() + days * DAY),
       });
     await order(person.id, 3, 4500);

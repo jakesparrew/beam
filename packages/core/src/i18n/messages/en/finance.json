@@ -526,6 +526,113 @@
         "note_incomplete": "Missing: {locales}",
         "no_notes": "No VAT notes configured."
       }
+    },
+    "portal": {
+      "title": "Invoices",
+      "intro": "Your invoices and credit notes. Download the PDF for your records.",
+      "list": {
+        "caption": "Your invoices and credit notes, newest first",
+        "empty": "You have no invoices yet. Your first purchase creates one.",
+        "number": "Number",
+        "kind": "Type",
+        "date": "Date",
+        "total": "Total",
+        "status": "Status",
+        "pdf": "PDF",
+        "open_document": "View {number}"
+      },
+      "kind": {
+        "invoice": "Invoice",
+        "credit_note": "Credit note"
+      },
+      "status": {
+        "paid": "Paid",
+        "open": "Open",
+        "cancelled": "Cancelled",
+        "issued": "Issued",
+        "credit_note_paid": "Refunded"
+      },
+      "pdf": {
+        "download": "Download PDF",
+        "download_number": "Download PDF of {number}",
+        "preparing": "Being prepared"
+      },
+      "method": {
+        "bancontact": "Bancontact",
+        "creditcard": "Credit card",
+        "terminal": "Card at the counter",
+        "cash": "Cash",
+        "bank_transfer": "Bank transfer",
+        "voucher": "Credit balance",
+        "mixed": "Several payment methods"
+      },
+      "detail": {
+        "back": "All invoices",
+        "invoice_title": "Invoice {number}",
+        "credit_note_title": "Credit note {number}",
+        "issued_on": "Issued on {date}",
+        "due_on": "Pay by {date}",
+        "paid_on": "Paid on {date}",
+        "billed_to": "Billed to",
+        "vat_number": "VAT number: {vat}",
+        "lines": "Lines",
+        "lines_caption": "Lines of this document, amounts including VAT",
+        "description": "Description",
+        "quantity": "Quantity",
+        "unit_price": "Unit price",
+        "vat_rate": "VAT",
+        "amount": "Amount",
+        "breakdown": "VAT breakdown",
+        "breakdown_caption": "VAT per rate",
+        "rate": "Rate",
+        "net": "Excl. VAT",
+        "vat": "VAT",
+        "gross": "Incl. VAT",
+        "subtotal": "Total excl. VAT",
+        "vat_total": "VAT",
+        "total": "Total incl. VAT",
+        "payment": "Payment",
+        "paid_with": "Paid with {method}",
+        "credit_note_paid": "The amount was refunded.",
+        "credit_note_issued": "This credit note corrects the invoice; no money is due.",
+        "cancelled": "This invoice was cancelled by a credit note.",
+        "bank_title": "Pay by bank transfer",
+        "bank_intro": "Transfer the amount with the structured communication below so we can match your payment.",
+        "iban": "IBAN",
+        "bic": "BIC",
+        "structured_communication": "Structured communication",
+        "amount_due": "Amount",
+        "reason": "Reason: {reason}",
+        "credit_notes": "Credit notes for this invoice",
+        "reverses": "Credit note for invoice {number}",
+        "replaced_by": "Replaced by invoice {number}",
+        "related": "Related documents"
+      },
+      "request": {
+        "title": "Need an invoice in your company's name?",
+        "intro": "Request it until {date}. Our finance team checks the details and sends you an invoice in the company's name; this invoice is then cancelled with a credit note.",
+        "closed": "The period to request a company invoice for this invoice has ended.",
+        "submit": "Request company invoice",
+        "submitting": "Sending…",
+        "sent": "Your request was sent. We will let you know by email.",
+        "pending": "Your request for an invoice in the name of {name} is being reviewed.",
+        "cancel": "Withdraw request",
+        "cancelling": "Withdrawing…",
+        "cancelled_done": "Your request was withdrawn.",
+        "history": "Your requests",
+        "requested_on": "Requested on {date}",
+        "note": "Note from our team: {note}",
+        "error": "Something went wrong. Try again.",
+        "field_invalid": "Check this field.",
+        "check_fields": "Check the highlighted fields.",
+        "required_mark": " *",
+        "state": {
+          "requested": "Being reviewed",
+          "approved": "Approved",
+          "rejected": "Rejected",
+          "cancelled": "Withdrawn"
+        }
+      }
     }
   }
 }

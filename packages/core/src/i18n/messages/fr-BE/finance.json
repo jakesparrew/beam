@@ -526,6 +526,113 @@
         "note_incomplete": "Manquant : {locales}",
         "no_notes": "Aucune mention TVA configurée."
       }
+    },
+    "portal": {
+      "title": "Factures",
+      "intro": "Vos factures et notes de crédit. Téléchargez le PDF pour votre comptabilité.",
+      "list": {
+        "caption": "Vos factures et notes de crédit, les plus récentes d'abord",
+        "empty": "Vous n'avez pas encore de facture. Votre premier achat en crée une.",
+        "number": "Numéro",
+        "kind": "Type",
+        "date": "Date",
+        "total": "Total",
+        "status": "Statut",
+        "pdf": "PDF",
+        "open_document": "Voir {number}"
+      },
+      "kind": {
+        "invoice": "Facture",
+        "credit_note": "Note de crédit"
+      },
+      "status": {
+        "paid": "Payée",
+        "open": "Ouverte",
+        "cancelled": "Annulée",
+        "issued": "Émise",
+        "credit_note_paid": "Remboursée"
+      },
+      "pdf": {
+        "download": "Télécharger le PDF",
+        "download_number": "Télécharger le PDF de {number}",
+        "preparing": "En préparation"
+      },
+      "method": {
+        "bancontact": "Bancontact",
+        "creditcard": "Carte de crédit",
+        "terminal": "Carte au comptoir",
+        "cash": "Espèces",
+        "bank_transfer": "Virement bancaire",
+        "voucher": "Crédit",
+        "mixed": "Plusieurs moyens de paiement"
+      },
+      "detail": {
+        "back": "Toutes les factures",
+        "invoice_title": "Facture {number}",
+        "credit_note_title": "Note de crédit {number}",
+        "issued_on": "Émise le {date}",
+        "due_on": "À payer avant le {date}",
+        "paid_on": "Payée le {date}",
+        "billed_to": "Facturé à",
+        "vat_number": "Numéro de TVA : {vat}",
+        "lines": "Lignes",
+        "lines_caption": "Lignes de ce document, montants TVA comprise",
+        "description": "Description",
+        "quantity": "Quantité",
+        "unit_price": "Prix unitaire",
+        "vat_rate": "TVA",
+        "amount": "Montant",
+        "breakdown": "Détail de la TVA",
+        "breakdown_caption": "TVA par taux",
+        "rate": "Taux",
+        "net": "Hors TVA",
+        "vat": "TVA",
+        "gross": "TVA comprise",
+        "subtotal": "Total hors TVA",
+        "vat_total": "TVA",
+        "total": "Total TVA comprise",
+        "payment": "Paiement",
+        "paid_with": "Payé par {method}",
+        "credit_note_paid": "Le montant a été remboursé.",
+        "credit_note_issued": "Cette note de crédit corrige la facture ; aucun montant n'est dû.",
+        "cancelled": "Cette facture a été annulée par une note de crédit.",
+        "bank_title": "Payer par virement",
+        "bank_intro": "Virez le montant avec la communication structurée ci-dessous afin que nous puissions associer votre paiement.",
+        "iban": "IBAN",
+        "bic": "BIC",
+        "structured_communication": "Communication structurée",
+        "amount_due": "Montant",
+        "reason": "Motif : {reason}",
+        "credit_notes": "Notes de crédit de cette facture",
+        "reverses": "Note de crédit pour la facture {number}",
+        "replaced_by": "Remplacée par la facture {number}",
+        "related": "Documents liés"
+      },
+      "request": {
+        "title": "Besoin d'une facture au nom de votre société ?",
+        "intro": "Demandez-la jusqu'au {date}. Notre équipe financière vérifie les données et vous envoie une facture au nom de la société ; cette facture est alors annulée par une note de crédit.",
+        "closed": "Le délai pour demander une facture au nom d'une société pour cette facture est écoulé.",
+        "submit": "Demander une facture société",
+        "submitting": "Envoi en cours…",
+        "sent": "Votre demande a été envoyée. Nous vous répondrons par e-mail.",
+        "pending": "Votre demande de facture au nom de {name} est en cours d'examen.",
+        "cancel": "Retirer la demande",
+        "cancelling": "Retrait en cours…",
+        "cancelled_done": "Votre demande a été retirée.",
+        "history": "Vos demandes",
+        "requested_on": "Demandée le {date}",
+        "note": "Remarque de notre équipe : {note}",
+        "error": "Une erreur s'est produite. Réessayez.",
+        "field_invalid": "Vérifiez ce champ.",
+        "check_fields": "Vérifiez les champs indiqués.",
+        "required_mark": " *",
+        "state": {
+          "requested": "En cours d'examen",
+          "approved": "Acceptée",
+          "rejected": "Refusée",
+          "cancelled": "Retirée"
+        }
+      }
     }
   }
 }

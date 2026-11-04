@@ -526,6 +526,113 @@
         "note_incomplete": "Ontbreekt: {locales}",
         "no_notes": "Geen btw-vermeldingen ingesteld."
       }
+    },
+    "portal": {
+      "title": "Facturen",
+      "intro": "Je facturen en creditnota's. Download de pdf voor je administratie.",
+      "list": {
+        "caption": "Je facturen en creditnota's, nieuwste eerst",
+        "empty": "Je hebt nog geen facturen. Je eerste aankoop maakt er een aan.",
+        "number": "Nummer",
+        "kind": "Soort",
+        "date": "Datum",
+        "total": "Totaal",
+        "status": "Status",
+        "pdf": "Pdf",
+        "open_document": "{number} bekijken"
+      },
+      "kind": {
+        "invoice": "Factuur",
+        "credit_note": "Creditnota"
+      },
+      "status": {
+        "paid": "Betaald",
+        "open": "Openstaand",
+        "cancelled": "Geannuleerd",
+        "issued": "Uitgereikt",
+        "credit_note_paid": "Terugbetaald"
+      },
+      "pdf": {
+        "download": "Pdf downloaden",
+        "download_number": "Pdf van {number} downloaden",
+        "preparing": "Wordt voorbereid"
+      },
+      "method": {
+        "bancontact": "Bancontact",
+        "creditcard": "Kredietkaart",
+        "terminal": "Kaart aan de balie",
+        "cash": "Contant",
+        "bank_transfer": "Overschrijving",
+        "voucher": "Tegoed",
+        "mixed": "Meerdere betaalmethoden"
+      },
+      "detail": {
+        "back": "Alle facturen",
+        "invoice_title": "Factuur {number}",
+        "credit_note_title": "Creditnota {number}",
+        "issued_on": "Uitgereikt op {date}",
+        "due_on": "Te betalen vóór {date}",
+        "paid_on": "Betaald op {date}",
+        "billed_to": "Gefactureerd aan",
+        "vat_number": "Btw-nummer: {vat}",
+        "lines": "Lijnen",
+        "lines_caption": "Lijnen van dit document, bedragen inclusief btw",
+        "description": "Omschrijving",
+        "quantity": "Aantal",
+        "unit_price": "Eenheidsprijs",
+        "vat_rate": "Btw",
+        "amount": "Bedrag",
+        "breakdown": "Btw-overzicht",
+        "breakdown_caption": "Btw per tarief",
+        "rate": "Tarief",
+        "net": "Excl. btw",
+        "vat": "Btw",
+        "gross": "Incl. btw",
+        "subtotal": "Totaal excl. btw",
+        "vat_total": "Btw",
+        "total": "Totaal incl. btw",
+        "payment": "Betaling",
+        "paid_with": "Betaald met {method}",
+        "credit_note_paid": "Het bedrag werd terugbetaald.",
+        "credit_note_issued": "Deze creditnota corrigeert de factuur; er moet niets betaald worden.",
+        "cancelled": "Deze factuur werd geannuleerd met een creditnota.",
+        "bank_title": "Betalen met een overschrijving",
+        "bank_intro": "Schrijf het bedrag over met de gestructureerde mededeling hieronder, zodat we je betaling kunnen koppelen.",
+        "iban": "IBAN",
+        "bic": "BIC",
+        "structured_communication": "Gestructureerde mededeling",
+        "amount_due": "Bedrag",
+        "reason": "Reden: {reason}",
+        "credit_notes": "Creditnota's voor deze factuur",
+        "reverses": "Creditnota voor factuur {number}",
+        "replaced_by": "Vervangen door factuur {number}",
+        "related": "Gekoppelde documenten"
+      },
+      "request": {
+        "title": "Een factuur op naam van je bedrijf nodig?",
+        "intro": "Vraag ze aan tot en met {date}. Ons financieel team controleert de gegevens en stuurt je een factuur op naam van het bedrijf; deze factuur wordt dan geannuleerd met een creditnota.",
+        "closed": "De termijn om voor deze factuur een bedrijfsfactuur aan te vragen is verstreken.",
+        "submit": "Bedrijfsfactuur aanvragen",
+        "submitting": "Bezig met verzenden…",
+        "sent": "Je aanvraag is verstuurd. We laten je iets weten per e-mail.",
+        "pending": "Je aanvraag voor een factuur op naam van {name} wordt nagekeken.",
+        "cancel": "Aanvraag intrekken",
+        "cancelling": "Bezig met intrekken…",
+        "cancelled_done": "Je aanvraag is ingetrokken.",
+        "history": "Je aanvragen",
+        "requested_on": "Aangevraagd op {date}",
+        "note": "Opmerking van ons team: {note}",
+        "error": "Er ging iets mis. Probeer het opnieuw.",
+        "field_invalid": "Controleer dit veld.",
+        "check_fields": "Controleer de aangeduide velden.",
+        "required_mark": " *",
+        "state": {
+          "requested": "Wordt nagekeken",
+          "approved": "Goedgekeurd",
+          "rejected": "Geweigerd",
+          "cancelled": "Ingetrokken"
+        }
+      }
     }
   }
 }

@@ -81,7 +81,7 @@ async function overrideConfirmed(tx: DbOrTx, personId: string, override: PersonS
     )
     .orderBy(desc(activityEvents.occurredAt), desc(activityEvents.id))
     .limit(1);
-  const data = (row?.data ?? null);
+  const data: { status?: unknown; derived_status?: unknown } | null = row?.data ?? null;
   return !!data && data.status === override && data.derived_status === derived;
 }
 

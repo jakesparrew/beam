@@ -656,14 +656,16 @@
       "attempts": 0
     },
     "commerce-P5": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "e2c5e08",
       "runId": "wf_642d0648-c5a",
       "startedAt": "2026-11-04T07:25:56Z",
       "branchSha": "fbc566b",
-      "endedAt": "2026-11-04T08:06:04Z",
-      "minutes": 40
+      "endedAt": "2026-11-04T08:06:31Z",
+      "minutes": 40,
+      "mergeSha": "405a3c6",
+      "mergedAt": "2026-11-04T08:26:13Z"
     },
     "credits-P6": {
       "status": "running",
@@ -673,14 +675,16 @@
       "startedAt": "2026-11-04T07:39:40Z"
     },
     "finance-P5": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "e2c5e08",
       "runId": "wf_efee6788-f9d",
       "startedAt": "2026-11-04T07:25:56Z",
       "branchSha": "abab573",
-      "endedAt": "2026-11-04T08:05:46Z",
-      "minutes": 40
+      "endedAt": "2026-11-04T08:06:31Z",
+      "minutes": 40,
+      "mergeSha": "469306a",
+      "mergedAt": "2026-11-04T08:26:09Z"
     },
     "forms-P6": {
       "status": "pending",

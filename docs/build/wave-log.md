@@ -135,3 +135,6 @@ One entry per merge batch and gate (runbook section 5.7, adapted by OD-3).
 - automation-P3: merged as `f70e4e8` in batch `g55-batch`.
 - fix-w07-site-1: merged as `a4b1b87` in batch `g55-batch`.
 - Batch `g55-batch` (forms-P3 ops-P3 booking-P4 booking-P5 automation-P3 fix-w07-site-1): merge gate green, peak 6550 MB.
+- finance-P5: merged as `469306a` in batch `g56-batch`.
+- commerce-P5: merged as `405a3c6` in batch `g56-batch`.
+- Batch `g56-batch` (finance-P5 commerce-P5): merge gate green, peak 9140 MB.

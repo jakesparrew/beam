@@ -29,7 +29,8 @@ export type RecordTermsAcceptanceInput = {
   personId: string;
   versionId: string;
   context: TermsContext;
-  refType?: "order" | "booking" | "user";
+  /** `waitlist_entry`: terms accepted when joining a waitlist (booking R62). */
+  refType?: "order" | "booking" | "user" | "waitlist_entry";
   refId?: string;
   ip?: string | null;
 };

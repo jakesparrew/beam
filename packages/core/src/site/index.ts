@@ -16,6 +16,7 @@ export * from "./warnings";
 export * from "./jsonld";
 export * from "./consent";
 export * from "./analytics";
+export * from "./utm";
 export * from "./image-size";
 export * from "./availability";
 export * from "./company";

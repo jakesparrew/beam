@@ -145,6 +145,16 @@ describe("recordTermsAcceptance and hasAcceptedCurrentTerms", () => {
     expect(accepted[0]!.data).toEqual({ legal_key: "terms", context: "checkout", version_ordinal: terms.version });
   });
 
+  it("records an acceptance at a waitlist join with refType waitlist_entry (booking R62)", async () => {
+    const person = await makePerson(handle.db);
+    const terms = (await getCurrentLegalVersion(handle.db, "terms"))!;
+    const refId = randomUUID();
+    const res = await accept({ personId: person.id, versionId: terms.versionId, context: "booking", refType: "waitlist_entry", refId });
+    expect(res.created).toBe(true);
+    const [row] = await handle.db.select().from(termsAcceptances).where(eq(termsAcceptances.id, res.acceptanceId));
+    expect(row).toMatchObject({ refType: "waitlist_entry", refId, context: "booking" });
+  });
+
   it("refuses an unknown or unpublished version", async () => {
     const person = await makePerson(handle.db);
     await expect(

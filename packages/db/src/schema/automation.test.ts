@@ -17,7 +17,7 @@ import {
   automationVersions,
 } from "./automation";
 import { vAutomationDue, vAutomationStats, vPersonAutomationTimeline } from "./automation.views";
-import { activityEvents } from "./crm";
+import { activityEvents, tasks } from "./crm";
 
 async function pgError(promise: Promise<unknown>): Promise<{ message: string; code?: string; constraint?: string }> {
   try {
@@ -236,6 +236,30 @@ describe("automation_runs", () => {
     const [run] = await h.db.insert(automationRuns).values({ personId: p.id, automationId: a.automation.id, outcome: "entered", actor }).returning();
     const err = await pgError(h.db.update(automationRuns).set({ reason: "x" }).where(eq(automationRuns.id, run!.id)));
     expect(err.code).toBe("55000");
+  });
+
+  it("task_id references tasks; deleting the task nulls it under beam.allow_rewrite only (fix-w05-schema-1)", async () => {
+    const a = await makeAutomation();
+    const p = await makePerson(h.db);
+    const owner = await makeUser(h.db);
+    const run = { personId: p.id, automationId: a.automation.id, outcome: "entered" as const, actor };
+    const unknown = await pgError(h.db.insert(automationRuns).values({ ...run, taskId: crypto.randomUUID() }));
+    expect(unknown.code).toBe("23503");
+    expect(`${unknown.constraint ?? ""} ${unknown.message}`).toContain("automation_runs_task_id_tasks_id_fk");
+
+    const [task] = await h.db
+      .insert(tasks)
+      .values({ ownerUserId: owner.id, personId: p.id, title: "Call back", kind: "call", source: "automation", createdBy: actor })
+      .returning();
+    const [row] = await h.db.insert(automationRuns).values({ ...run, taskId: task!.id }).returning();
+    // The set-null action is an UPDATE of an append-only fact: refused outside erasure/retention.
+    expect((await pgError(h.db.delete(tasks).where(eq(tasks.id, task!.id)))).code).toBe("55000");
+    await h.db.transaction(async (tx) => {
+      await tx.execute(sql`set local beam.allow_rewrite = 'on'`);
+      await tx.delete(tasks).where(eq(tasks.id, task!.id));
+    });
+    const [after] = await h.db.select().from(automationRuns).where(eq(automationRuns.id, row!.id));
+    expect(after!.taskId).toBeNull();
   });
 });
 

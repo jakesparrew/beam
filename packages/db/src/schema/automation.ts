@@ -5,7 +5,7 @@
  *
  * `automation_versions` and `automation_runs` are in `APPEND_ONLY_TABLES`; the orchestrator's
  * `select beam_protect_append_only();` attaches the trigger once the tables exist (D43).
- * `automation_runs.task_id` has no FK yet: crm's `tasks` table is not in this package's base.
+ * `automation_runs.task_id` references crm's `tasks` (on delete set null, fix-w05-schema-1).
  */
 import type { PlannedStep } from "@beam/core/automation";
 import { sql } from "drizzle-orm";
@@ -25,7 +25,7 @@ import {
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import { createdAt, id, timestamps, tstz, type ActorJson } from "./_shared";
-import { activityEvents, persons } from "./crm";
+import { activityEvents, persons, tasks } from "./crm";
 import { emailMessages } from "./email";
 import { users } from "./platform";
 
@@ -265,8 +265,9 @@ export const automationRuns = pgTable(
     reason: text(),
     data: jsonb().$type<RunDataJson>().notNull().default({}),
     emailMessageId: uuid().references(() => emailMessages.id, { onDelete: "restrict" }),
-    // FK to crm's tasks is added once that table is in the base (Requests).
-    taskId: uuid(),
+    // Set null fires an UPDATE that the append-only trigger rejects unless `beam.allow_rewrite`
+    // is on, which is how crm's erasure and retention delete tasks.
+    taskId: uuid().references((): AnyPgColumn => tasks.id, { onDelete: "set null" }),
     actor: jsonb().$type<ActorJson>().notNull(),
     dedupeKey: text().unique("automation_runs_dedupe_key_unique"),
     occurredAt: tstz().notNull().defaultNow(),

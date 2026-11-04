@@ -5,6 +5,7 @@ import type { DbHandle } from "../client";
 import { createTestDb, makePerson, makeProduct, makeSession } from "../testing";
 import { bookings, capacityHolds, sessionExceptions, sessions, sessionTemplates, ticketTypes, waitlistEntries } from "./booking";
 import { vPersonBookings, vSessionAvailability, vSessionUtilisation } from "./booking.views";
+import { companies } from "./crm";
 
 /** The Postgres error behind a failed query (message and SQLSTATE). */
 async function pgError(promise: Promise<unknown>): Promise<{ message: string; code?: string }> {
@@ -40,6 +41,11 @@ beforeAll(async () => {
   h = await createTestDb();
 });
 afterAll(() => h.close());
+
+async function makeCompany() {
+  const [row] = await h.db.insert(companies).values({ name: "Partner BV" }).returning();
+  return row!;
+}
 
 async function availability(sessionId: string) {
   const [row] = await h.db.select().from(vSessionAvailability).where(eq(vSessionAvailability.sessionId, sessionId));
@@ -135,6 +141,13 @@ describe("sessions", () => {
     await expectCheck(makeSession(h.db, { status: "cancelled" }), "sessions_cancelled_at_ck");
     await expectCheck(makeSession(h.db, { cancelledAt: new Date() }), "sessions_cancelled_at_ck");
     await expectCheck(makeSession(h.db, { eventCategory: "lecture" }), "sessions_event_category_ck");
+    // Tightened by fix-w05-schema-1: an event needs a category too, a draft included.
+    await expectCheck(makeSession(h.db, { kind: "event", creditKind: null, eventCategory: null }), "sessions_event_category_ck");
+    await expectCheck(
+      makeSession(h.db, { kind: "event", creditKind: null, eventCategory: null, status: "closed" }),
+      "sessions_event_category_ck",
+    );
+    expect((await makeSession(h.db, { kind: "event" })).eventCategory).not.toBeNull();
     await makeSession(h.db, { status: "cancelled", cancelledAt: new Date(), cancelReason: "storm" });
     await makeSession(h.db, {
       kind: "event",
@@ -153,7 +166,7 @@ describe("capacity_holds and ticket_types", () => {
     const s = await makeSession(h.db, { kind: "event", creditKind: null, eventCategory: "concert" });
     await expectCheck(h.db.insert(capacityHolds).values({ sessionId: s.id, kind: "staff", quantity: 0 }), "capacity_holds_quantity_ck");
     await expectCheck(h.db.insert(capacityHolds).values({ sessionId: s.id, kind: "partner", quantity: 2 }), "capacity_holds_partner_company_ck");
-    await h.db.insert(capacityHolds).values({ sessionId: s.id, kind: "partner", quantity: 2, companyId: crypto.randomUUID() });
+    await h.db.insert(capacityHolds).values({ sessionId: s.id, kind: "partner", quantity: 2, companyId: (await makeCompany()).id });
     const product = await makeProduct(h.db);
     const tt = { sessionId: s.id, productId: product.id, name: title };
     await expectCheck(h.db.insert(ticketTypes).values({ ...tt, capacity: 0 }), "ticket_types_capacity_ck");
@@ -229,6 +242,45 @@ describe("waitlist_entries", () => {
     await expectCheck(entry({ rejoinCount: -1 }), "waitlist_entries_rejoin_count_ck");
     await expectCheck(entry({ state: "released", endedReason: "bored" }), "waitlist_entries_ended_reason_ck");
     await entry({ state: "released", endedReason: "session_cancelled", rejoinCount: 1, offersCount: 5 });
+  });
+
+  it("references persons (on delete restrict)", async () => {
+    const s = await makeSession(h.db);
+    const unknown = await pgError(h.db.insert(waitlistEntries).values({ sessionId: s.id, personId: crypto.randomUUID() }));
+    expect(unknown.code).toBe("23503");
+    expect(unknown.message).toContain("waitlist_entries_person_id_persons_id_fk");
+    const p = await makePerson(h.db);
+    await h.db.insert(waitlistEntries).values({ sessionId: s.id, personId: p.id });
+    expect((await pgError(h.db.execute(sql`delete from persons where id = ${p.id}`))).code).toBe("23001");
+  });
+});
+
+describe("company foreign keys (fix-w05-schema-1)", () => {
+  it("capacity_holds.company_id and sessions.partner_company_id reject unknown companies", async () => {
+    const s = await makeSession(h.db, { kind: "event", creditKind: null, eventCategory: "concert" });
+    const hold = await pgError(h.db.insert(capacityHolds).values({ sessionId: s.id, kind: "partner", quantity: 1, companyId: crypto.randomUUID() }));
+    expect(hold.code).toBe("23503");
+    expect(hold.message).toContain("capacity_holds_company_id_companies_id_fk");
+    const session = await pgError(makeSession(h.db, { partnerCompanyId: crypto.randomUUID() }));
+    expect(session.code).toBe("23503");
+    expect(session.message).toContain("sessions_partner_company_id_companies_id_fk");
+  });
+
+  it("deleting a company nulls the partner session; a partner hold keeps the company (capacity_holds_partner_company_ck)", async () => {
+    const company = await makeCompany();
+    const s = await makeSession(h.db, { kind: "event", creditKind: null, eventCategory: "concert", partnerCompanyId: company.id });
+    const [staffHold] = await h.db.insert(capacityHolds).values({ sessionId: s.id, kind: "staff", quantity: 1, companyId: company.id }).returning();
+    await h.db.execute(sql`delete from companies where id = ${company.id}`);
+    const [after] = await h.db.select().from(sessions).where(eq(sessions.id, s.id));
+    expect(after!.partnerCompanyId).toBeNull();
+    const [hold] = await h.db.select().from(capacityHolds).where(eq(capacityHolds.id, staffHold!.id));
+    expect(hold!.companyId).toBeNull();
+
+    const partner = await makeCompany();
+    await h.db.insert(capacityHolds).values({ sessionId: s.id, kind: "partner", quantity: 1, companyId: partner.id });
+    expect((await pgError(h.db.execute(sql`delete from companies where id = ${partner.id}`))).message).toContain(
+      "capacity_holds_partner_company_ck",
+    );
   });
 });
 

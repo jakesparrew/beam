@@ -48,8 +48,8 @@ async function open(options?: { from?: "schema" | "migrations" }): Promise<DbHan
 }
 
 async function rows(h: DbHandle, query: string): Promise<unknown[]> {
-  const result = (await h.db.execute(sql.raw(query))) as unknown as { rows: unknown[] };
-  return result.rows;
+  const result: unknown = await h.db.execute(sql.raw(query));
+  return (result as { rows: unknown[] }).rows;
 }
 
 /** Everything the snapshot must reproduce: tables, columns, views, triggers, enums, sequences, functions, settings. */
@@ -252,9 +252,11 @@ describe("createTestDb snapshot cache", () => {
         const bytes = corrupt ?? readFileSync(target).subarray(0, 1_048_576 + 512);
         writeFileSync(target, bytes);
         const h = await open();
-        expect(
-          await rows(h, "select count(*)::int as n from pg_tables where schemaname = 'public'"),
-        ).toEqual([{ n: expect.any(Number) }]);
+        const [count] = (await rows(
+          h,
+          "select count(*)::int as n from pg_tables where schemaname = 'public'",
+        )) as { n: number }[];
+        expect(count?.n).toBeGreaterThan(50);
         expect(await rows(h, "select to_regclass('audit_log') is not null as ok")).toEqual([
           { ok: true },
         ]);

@@ -73,7 +73,7 @@ beforeAll(async () => {
   h = await createTestDb();
   setAppDb(h.db);
   const c = lead();
-  const f = await insertForm(h.db, { kind: "lead", ...c });
+  const f = await insertForm(h.db, c);
   formId = f.formId;
   versionId = f.versionId;
   const owner = await makeUser(h.db, { roleKey: "marketing" });

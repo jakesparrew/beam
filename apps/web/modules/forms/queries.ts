@@ -6,7 +6,7 @@
 import type { DbOrTx } from "@beam/db";
 import { formImportSources, formLinks, forms, formSubmissions, formVersions, users, vFormFunnelDaily, type FormCtaWarningJson, type FormUtmJson } from "@beam/db/schema";
 import { brusselsDay, type FormDefinition, type FormKind, type FormLinkChannel, type FormScoring, type FormStatus } from "@beam/core/forms";
-import type { Locale, LocalizedText } from "@beam/core/i18n";
+import { MESSAGES, type Locale, type LocalizedText } from "@beam/core/i18n";
 import { and, asc, desc, eq, gte, inArray, isNull, sql } from "@/lib/ctx";
 import { diffVersions, type VersionDiff } from "./service/diff";
 import { trackedLinkUrl } from "./service/qr";
@@ -283,4 +283,33 @@ export async function getLink(db: DbOrTx, formId: string, linkId: string): Promi
     .where(and(eq(formLinks.id, linkId), eq(formLinks.formId, formId)));
   if (!row) return null;
   return { ...row, url: trackedLinkUrl({ slug: row.slug, locale: await linkLocale(db, formId), key: row.key }) };
+}
+
+type Tree = { readonly [key: string]: string | Tree };
+
+/**
+ * Screen copy for the admin client components: every `forms.<group>.*` message of the given groups
+ * as a flat map keyed relative to `forms.` (for example `builder.save`). Missing keys render as
+ * `⟦forms.<key>⟧` on the client.
+ */
+export function screenLabels(locale: Locale, groups: readonly string[]): Record<string, string> {
+  const root = (MESSAGES[locale]?.forms as Tree | undefined)?.forms as Tree | undefined;
+  const out: Record<string, string> = {};
+  const walk = (node: Tree, prefix: string) => {
+    for (const [k, v] of Object.entries(node)) {
+      if (typeof v === "string") out[`${prefix}${k}`] = v;
+      else walk(v, `${prefix}${k}.`);
+    }
+  };
+  for (const g of groups) {
+    const node = root?.[g];
+    if (node && typeof node !== "string") walk(node, `${g}.`);
+  }
+  return out;
+}
+
+/** The locale names shown on the locale tabs, in the staff locale. */
+export function localeNames(locale: Locale): Record<Locale, string> {
+  const l = screenLabels(locale, ["locale"]);
+  return { "nl-BE": l["locale.nl-BE"] ?? "Nederlands", "fr-BE": l["locale.fr-BE"] ?? "Français", en: l["locale.en"] ?? "English" };
 }

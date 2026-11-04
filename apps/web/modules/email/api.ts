@@ -4,14 +4,15 @@
  * function another module calls with its final signature; email-P3 implements the sending side:
  * `sendTransactional`, `queueMarketingEmail`, `queueAutomationEmail`, `getTemplateInfo`,
  * `getPublishedTemplateInfo`, `listPublishedTemplates`, `seedTemplate`, `getReachability`,
- * `resolveLinkToken`, `listPersonEmails`, `countBlockedMessages` and `cancelScheduledMessage`.
+ * `resolveLinkToken`, `listPersonEmails`, `countBlockedMessages` and `cancelScheduledMessage`;
+ * email-P4 adds `isSegmentInUse` (crm's archive guard) and `unsubscribeLinksFor` (crm's links of
+ * one message: `List-Unsubscribe`, footer links, `{{preferences_url}}` and `{{unsubscribe_url}}`).
  *
  * The queueing functions only write rows and enqueue inside the caller's transaction
  * (`ctx.tx`); they never call Resend and never throw for content problems (rule 39).
  *
- * Still stubs (later email packages): `findLatestMessage` (email-P8), `isSegmentInUse`
- * (email-P6), `getCampaignStats`, `getEmailHealth` and `PersonEmailHistory` (email-P7),
- * `getCampaignAttribution` (email-P9).
+ * Still stubs (later email packages): `findLatestMessage` (email-P8), `getCampaignStats`,
+ * `getEmailHealth` and `PersonEmailHistory` (email-P7), `getCampaignAttribution` (email-P9).
  */
 import type { DbOrTx, Tx } from "@beam/db";
 import { emailMessages, emailTemplates, emailTemplateVersions } from "@beam/db/schema";
@@ -33,8 +34,11 @@ import { and, desc, eq, gte, inArray, sql, type Ctx } from "@/lib/ctx";
 import * as context from "./server/context";
 import * as linkToken from "./server/link-token";
 import * as queue from "./server/queue-automation";
+import * as segments from "./server/segments";
 import * as send from "./server/send";
 import * as templates from "./server/templates-info";
+
+export { unsubscribeLinksFor, type UnsubscribeLinks, type UnsubscribeLinksInput } from "./server/unsubscribe-links";
 
 export type {
   AutomationEmailInput,
@@ -119,8 +123,8 @@ export function cancelScheduledMessage(ctx: Ctx, input: { messageId: string }): 
 }
 
 /** crm archive guard: campaigns not terminal using the segment as audience or exclusion. */
-export function isSegmentInUse(_db: DbOrTx, _segmentId: string): Promise<boolean> {
-  return notYet("isSegmentInUse");
+export function isSegmentInUse(db: DbOrTx, segmentId: string): Promise<boolean> {
+  return segments.isSegmentInUse(db, segmentId);
 }
 
 export const PERSON_EMAILS_PAGE_SIZE = 50;

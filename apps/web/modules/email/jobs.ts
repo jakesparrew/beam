@@ -12,8 +12,18 @@
  * - `email.check_domains` (fast, 5): `ResendClient.getDomain()` for both domains; a domain or
  *   record that is not `verified` posts a High Slack alert (schedule `10 5 * * *`).
  * - `webhookHandlers`: platform's `webhook.process` calls `processResendEvent()` for `resend`.
+ *
+ * email-P4: `email.send` builds crm's links of each message from that message's own link token
+ * (rules 2, 53, 55): marketing messages carry `List-Unsubscribe` (crm's one-click POST URL) and
+ * `List-Unsubscribe-Post`, transactional messages neither, and every footer the preference-centre
+ * link; `server/unsubscribe-links.ts` (`unsubscribeLinksFor`) is the single statement of that
+ * contract and `unsubscribe-links.test.ts` proves the sent headers and footers follow it. The
+ * scenario-2 checks run here without being told about an unsubscribe: `email.send` re-reads
+ * `v_marketing_reachability` and the `all` suppressions just before Resend (rules 40, 55), and
+ * the campaign chunk (email-P6) re-reads the view before every batch of 100 (rule 32).
  */
 import { z } from "zod";
+import type { AiFeatureKey } from "@beam/core/ai";
 import { sql } from "@/lib/ctx";
 import { notifySlack } from "@/lib/alerts";
 import { defineJob, type JobCtx } from "@/lib/job-runner";
@@ -46,6 +56,13 @@ export async function purgeProps(ctx: JobCtx): Promise<{ purged: number }> {
   }
   return { purged };
 }
+
+/**
+ * R4: the `callClaude` feature key of AI campaign drafts (platform-P3 request). The job kind is
+ * `ai.draft_email` and so is the feature register entry; email spec section 6 still writes
+ * `email.draft_email`, which `AI_FEATURES` does not know. email-P10 passes this constant.
+ */
+export const AI_DRAFT_EMAIL_FEATURE = "ai.draft_email" as const satisfies AiFeatureKey;
 
 export const DOMAINS = ["mail.beam.be", "news.beam.be"] as const;
 

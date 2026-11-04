@@ -42,6 +42,8 @@ to "Served" with the package id.
 | ops-P1 | ops (fixer) | FK `retention_list_items.task_id -> tasks.id` once crm's `tasks` table exists (`ops.ts` has no later owner). |
 | ops-P1 | ops-P5 | Wire `sweep` in `apps/web/modules/ops/privacy.ts` to ops-P6's `exports/sweep.ts` handlers. |
 | ops-P1 | platform-P8 | Nav section labels `platform.nav.section_insights`, `section_reports`, `section_data`; filter admin and portal nav entries by their optional `flag`. |
+| commerce-P2 | platform (fixer) | `apps/web/lib/integrations.ts` `buildIntegrations` builds `createMollieProvider({ apiKey: MOLLIE_API_KEY, webhookBaseUrl: APP_URL, webhookSecret: MOLLIE_WEBHOOK_SECRET, onCall })` from `@beam/integrations/payments` when the key is present, instead of `notConfigured('mollie')`. |
+| commerce-P2 | commerce-P3 | `config.ts` refines `payment_provider_by_channel` with `unconfiguredChannels(value, process.env)` from `@beam/integrations/payments`, so Stripe or Viva cannot be selected without their keys. |
 
 ## Served
 

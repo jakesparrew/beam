@@ -1,29 +1,24 @@
 "use client";
 /**
- * Client forms of the sign-in screens and the shared admin frame. Strings arrive as props
+ * Client forms of the sign-in screens. Strings arrive as props
  * (resolved on the server from the `platform` catalogue); `fill()` fills `{name}` and simple
  * ICU plurals for values only known in the browser (minutes, counts).
  */
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent, type ReactNode } from "react";
 import {
-  AdminShell,
   Alert,
   AlertDescription,
   Button,
   FormField,
   Input,
-  ReportProblemDialog,
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
-  type AdminShellProps,
-  type ReportProblemLabels,
 } from "@beam/ui";
 import {
   customerPasswordSignIn,
-  reportProblem,
   requestMagicLink,
   requestPasswordReset,
   revokeMyOtherSessions,
@@ -73,25 +68,8 @@ function ErrorBox({ message }: { message: string | null }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Admin frame: AdminShell with the "Report a problem" dialog (PL-86)
-// ---------------------------------------------------------------------------
-
 /** Auth.js's sign-out page deletes the database session and the cookie, then returns to the login. */
 export const ADMIN_SIGN_OUT_HREF = "/api/auth/signout?callbackUrl=%2Fadmin%2Flogin";
-
-export function AdminFrame(props: Omit<AdminShellProps, "userMenu"> & { reportLabels: ReportProblemLabels; emergencyPhone: string }) {
-  const { reportLabels, emergencyPhone, children, ...shell } = props;
-  const [open, setOpen] = useState(false);
-  return (
-    <>
-      <AdminShell {...shell} userMenu={{ onReportProblem: () => setOpen(true), signOutHref: ADMIN_SIGN_OUT_HREF }}>
-        {children}
-      </AdminShell>
-      <ReportProblemDialog open={open} onOpenChange={setOpen} labels={reportLabels} emergencyPhone={emergencyPhone} onSubmit={(input) => reportProblem(input)} />
-    </>
-  );
-}
 
 // ---------------------------------------------------------------------------
 // Staff login (/admin/login)

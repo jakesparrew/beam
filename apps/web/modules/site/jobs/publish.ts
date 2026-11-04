@@ -2,13 +2,14 @@
  * `site.publish_version` (site spec section 4, rule 13): scheduled publishing at `run_at`; site-P3.
  * Idempotency key `page_version:<version_id>:publish:<scheduled_publish_at YYYY-MM-DDTHH:mm>`.
  * Publishes only while the version is still `draft`/`proposed` and its `scheduled_publish_at`
- * equals the payload (a cancelled or moved schedule makes the job a no-op). Failed checks clear
+ * equals the payload (a cancelled or moved schedule makes the job a no-op); the schedule is checked
+ * again under the page lock (`expectedScheduledAt`), so a cancel that commits during the run wins. Failed checks clear
  * the schedule and write audit `site.page.schedule_failed` (system actor); no retry. A second run
  * finds the version published and does nothing.
  */
 import { z } from "zod";
 import { pageVersions } from "@beam/db/schema";
-import { eq } from "@/lib/ctx";
+import { ConflictError, eq } from "@/lib/ctx";
 import type { JobCtx } from "@/lib/job-runner";
 import { pageTags, revalidateSite } from "../server/cache";
 import { publishVersionTx, PublishBlockedError } from "../server/publish";
@@ -32,10 +33,12 @@ export async function publishScheduledVersion(ctx: JobCtx, input: PublishVersion
   const expected = new Date(input.scheduledPublishAt).getTime();
   if (!version.scheduledPublishAt || version.scheduledPublishAt.getTime() !== expected) return { outcome: "skipped", reason: "schedule_changed" };
   try {
-    const { publishedAt } = await publishVersionTx(ctx.tx, ctx, version.id, { scheduledBy: input.scheduledByUserId ?? "schedule" });
+    const { publishedAt } = await publishVersionTx(ctx.tx, ctx, version.id, { scheduledBy: input.scheduledByUserId ?? "schedule", expectedScheduledAt: new Date(expected) });
     revalidateSite(pageTags(version.pageId));
     return { outcome: "published", publishedAt: publishedAt.toISOString() };
   } catch (error) {
+    // A cancel, reschedule or publish that committed before the page lock was taken: a no-op.
+    if (error instanceof ConflictError) return { outcome: "skipped", reason: error.message };
     if (!(error instanceof PublishBlockedError)) throw error;
     await ctx.tx.update(pageVersions).set({ scheduledPublishAt: null }).where(eq(pageVersions.id, version.id));
     await ctx.audit({

@@ -1,7 +1,8 @@
 /**
  * site-P3 `site.publish_version` (site spec section 4 jobs, rule 13, edge case 12): publishes at
  * run time, failed checks clear the schedule and audit `site.page.schedule_failed`, a changed
- * schedule makes the job a no-op, and a double run yields one publish.
+ * schedule makes the job a no-op (also when it changes between the job's read and the page lock),
+ * and a double run yields one publish.
  */
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
@@ -11,6 +12,22 @@ import { createTestDb } from "@beam/db/testing";
 
 vi.mock("next/cache", () => ({ revalidateTag: () => undefined, unstable_cache: (fn: (...a: unknown[]) => unknown) => fn }));
 vi.mock("next/server", () => ({ after: () => undefined }));
+// A stale read of the version (taken before the page lock), handed out once when set.
+const stale = vi.hoisted(() => ({ row: null as unknown }));
+vi.mock("../server/versions", async (importOriginal) => {
+  const real = await importOriginal<typeof import("../server/versions")>();
+  return {
+    ...real,
+    getVersionRow: async (...args: Parameters<typeof real.getVersionRow>) => {
+      if (stale.row) {
+        const row = stale.row as Awaited<ReturnType<typeof real.getVersionRow>>;
+        stale.row = null;
+        return row;
+      }
+      return real.getVersionRow(...args);
+    },
+  };
+});
 
 const { and, eq, setAppDb } = await import("@/lib/ctx");
 const { resetRuntime, runJobTwice } = await import("@/lib/testing");
@@ -74,5 +91,22 @@ describe("site.publish_version", () => {
     expect((await h.db.select().from(pageVersions).where(eq(pageVersions.id, s.versionId)))[0]!.state).toBe("draft");
     const gone = await runJobTwice(h.db, "site.publish_version", { versionId: randomUUID(), scheduledPublishAt: s.at.toISOString() });
     expect(gone.first).toMatchObject({ outcome: "skipped", reason: "version_missing" });
+  });
+  it("re-checks the schedule under the page lock: a cancel or reschedule committed after the job's read wins", async () => {
+    for (const change of [null, 3_600_000] as const) {
+      const s = await scheduledDraft();
+      const [before] = await h.db.select().from(pageVersions).where(eq(pageVersions.id, s.versionId));
+      stale.row = before;
+      // Staff cancel (or move) the schedule between the job's read and its page lock.
+      await h.db
+        .update(pageVersions)
+        .set({ scheduledPublishAt: change === null ? null : new Date(s.at.getTime() + change) })
+        .where(eq(pageVersions.id, s.versionId));
+      const { first } = await runJobTwice(h.db, "site.publish_version", { versionId: s.versionId, scheduledPublishAt: s.at.toISOString() });
+      expect(first).toMatchObject({ outcome: "skipped", reason: "schedule_changed" });
+      expect((await h.db.select().from(pageVersions).where(eq(pageVersions.id, s.versionId)))[0]).toMatchObject({ state: "draft", publishedAt: null });
+      expect((await h.db.select().from(pages).where(eq(pages.id, s.pageId)))[0]).toMatchObject({ status: "draft", currentVersionId: null });
+      expect(await h.db.select().from(pageRoutes).where(eq(pageRoutes.pageId, s.pageId))).toHaveLength(0);
+    }
   });
 });

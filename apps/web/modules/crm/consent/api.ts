@@ -32,7 +32,7 @@ import {
   type SuppressionReason,
   type SuppressionScope,
 } from "@beam/core/crm";
-import { actorJson, and, desc, eq, isNotNull, isNull, NotFoundError, sql, ValidationError, type Ctx } from "@/lib/ctx";
+import { actorJson, and, ctxState, desc, eq, isNotNull, isNull, NotFoundError, sql, ValidationError, type Ctx } from "@/lib/ctx";
 import { requestSuppressionExit } from "@/modules/automation/api";
 import { sendTransactional } from "@/modules/email/api";
 import type { EventCtx } from "../api";
@@ -162,8 +162,25 @@ export async function addSuppression(
       }
     }
   }
-  await requestSuppressionExit(tx, { suppressionId });
+  const { jobId } = await requestSuppressionExit(tx, { suppressionId });
+  runAfterCommit(ctx, jobId);
   return { suppressionId, created };
+}
+
+/**
+ * Adds a job enqueued through another module's api (which has no ctx) to the context's
+ * after-commit list, so the action's `after()` kick runs it within seconds (A-23). A context
+ * not made by `createCtx` has no list; the job runner's poll picks the job up then.
+ */
+function runAfterCommit(ctx: EventCtx, jobId: string | null): void {
+  if (!jobId) return;
+  let ids: string[];
+  try {
+    ids = ctxState(ctx as Ctx).enqueuedIds;
+  } catch {
+    return;
+  }
+  if (!ids.includes(jobId)) ids.push(jobId);
 }
 
 /**

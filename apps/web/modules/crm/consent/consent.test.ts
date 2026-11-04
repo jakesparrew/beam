@@ -30,11 +30,12 @@ const mocks = vi.hoisted(() => ({
   exits: [] as { tx: unknown; suppressionId: string }[],
   sent: [] as { template: string; key: string; personId?: string; data: Record<string, unknown> }[],
   legal: null as null | { versionId: string; version: number; requiresReacceptance: boolean },
+  jobId: null as string | null,
 }));
 vi.mock("@/modules/automation/api", () => ({
   requestSuppressionExit: (tx: unknown, input: { suppressionId: string }) => {
     mocks.exits.push({ tx, suppressionId: input.suppressionId });
-    return Promise.resolve({ jobId: null });
+    return Promise.resolve({ jobId: mocks.jobId });
   },
 }));
 vi.mock("@/modules/email/api", () => ({
@@ -52,7 +53,7 @@ const api = await import("./api");
 const actions = await import("./actions");
 const declarations = await import("../declarations/api");
 const auth = await import("@/lib/auth");
-const { and, createCtx, eq, setAppDb } = await import("@/lib/ctx");
+const { and, createCtx, ctxState, eq, setAppDb } = await import("@/lib/ctx");
 const { makeCtx, resetRuntime } = await import("@/lib/testing");
 
 let h: DbHandle;
@@ -74,6 +75,7 @@ beforeEach(async () => {
   mocks.exits.length = 0;
   mocks.sent.length = 0;
   mocks.legal = null;
+  mocks.jobId = null;
   owner = await makeUser(h.db, { roleKey: "owner" });
   const { token } = await auth.createAuthSession(h.db, { userId: owner.id, audience: "staff", roleKey: "owner", now: new Date(), mfaAt: new Date() });
   jar.set(auth.SESSION_COOKIE, token);
@@ -225,6 +227,15 @@ describe("suppression lifecycle (rules 3.19 to 3.22)", () => {
     const later = new Date(Date.now() + 60_000);
     expect((await grant(p.id, "newsletter", "preference_centre", later)).outcome).toBe("recorded");
     expect(await api.isSuppressed(tx(), p.email!, "newsletter")).toBe(false);
+  });
+
+  it("A-23 addSuppression puts the exit job into the context's after-commit list once (fix-w09-crm-review)", async () => {
+    const p = await person();
+    mocks.jobId = randomUUID();
+    const ctx = sys();
+    await api.addSuppression(tx(), ctx, { email: p.email!, scope: "newsletter", reason: "manual", source: "staff:test" });
+    await api.addSuppression(tx(), ctx, { email: p.email!, scope: "newsletter", reason: "manual", source: "staff:test" });
+    expect(ctxState(ctx).enqueuedIds.filter((id) => id === mocks.jobId)).toHaveLength(1);
   });
 
   it("3.19 scope all never lifts, whatever the grant", async () => {

@@ -17,7 +17,7 @@ import { and, eq, lte, writeDurably } from "@/lib/ctx";
 import { defineJob, PermanentError, RetryableError, type JobCtx } from "@/lib/job-runner";
 import { createTask } from "@/modules/crm/api";
 import { sendTransactional } from "@/modules/email/api";
-import { notifySlack, readFile, storeFile } from "@/modules/platform/api";
+import { notifySlack, storeFile } from "@/modules/platform/api";
 import { assertRenderableSeller, buildInvoiceDocumentModel, formatIban, MissingCompanySettingsError, renderInvoicePdf } from "./pdf/render";
 import { raiseAuthAlert } from "./service/billit-failure";
 import {
@@ -31,6 +31,7 @@ import {
   runSyncPending,
 } from "./service/billit-sync";
 import { getOrderBillingDetails } from "./service/billing-details";
+import { pdfFileExists } from "./service/pdf-file";
 import { enqueueFinanceJob, eventSubject, findInvoice, loadInvoice, updateInvoiceState } from "./service/invoice-state";
 import { addDays, issuerSettings } from "./service/issue-invoice";
 import { countDocuments, reconcile, upsertReconcileRun } from "./service/reconcile";
@@ -62,7 +63,7 @@ export function emailsOnIssue(doc: Pick<InvoiceRecord, "kind" | "isCompany" | "s
 }
 
 async function hasRenderedFile(tx: DbOrTx, doc: InvoiceRecord): Promise<boolean> {
-  return doc.pdfStatus === "rendered" && !!doc.pdfFileId && (await readFile(tx, doc.pdfFileId)) !== null;
+  return doc.pdfStatus === "rendered" && (await pdfFileExists(tx, doc.pdfFileId));
 }
 
 /** Marks the document's PDF `failed` in a write that survives the job's rollback. */

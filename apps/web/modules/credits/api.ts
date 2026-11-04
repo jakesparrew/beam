@@ -18,6 +18,7 @@ import type { LocalizedText } from "@beam/core/i18n";
 import { assertMembershipTransition, type AllocationResult, type CreditKind, type ReleaseReason } from "@beam/core/credits";
 import type { SharedPackage } from "./queries";
 import type { SharingReviewRow } from "./server/sharing";
+import type { DeskCreditsBadge as DeskBadgeComponent, DeskCreditsLine as DeskLineComponent } from "./ui/desk-credits-badge";
 import { asc, ConflictError, eq, inArray, sql, ValidationError, type Ctx } from "@/lib/ctx";
 import { rowsOf } from "@/lib/sensitive";
 import * as ledger from "./server/ledger";
@@ -34,8 +35,8 @@ export type { SharingReviewRow } from "./server/sharing";
 export type { SharedPackage } from "./queries";
 export type { DeskCredits } from "./ui/desk-credits-badge";
 
-type DeskBadgeProps = Parameters<typeof import("./ui/desk-credits-badge").DeskCreditsBadge>[0];
-type DeskLineProps = Parameters<typeof import("./ui/desk-credits-badge").DeskCreditsLine>[0];
+type DeskBadgeProps = Parameters<typeof DeskBadgeComponent>[0];
+type DeskLineProps = Parameters<typeof DeskLineComponent>[0];
 
 /**
  * booking-P4's check-in desk and commerce's POS (credits-P6 request): server components loaded on

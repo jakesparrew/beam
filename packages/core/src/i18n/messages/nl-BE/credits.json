@@ -61,11 +61,22 @@
         "cta": "Bekijk mijn lidmaatschap",
         "ends_on": "Je blijft lid tot {date}.",
         "ended_now": "Je lidmaatschap is beëindigd op {date}."
+      },
+      "share_invitation": {
+        "subject": "{ownerName} deelde een pakket met je",
+        "preheader": "Boek op je eigen account met het gedeelde pakket.",
+        "heading": "Er werd een pakket met je gedeeld",
+        "body": "Meld je aan op je BEAM-account om het pakket te bekijken en een sessie of een nacht te boeken op je eigen account. De eenheden komen uit het gedeelde pakket.",
+        "cta": "Mijn pakketten bekijken",
+        "what_day": "{name} deelde een pakket sessies met je.",
+        "what_night": "{name} deelde een pakket nachten met je.",
+        "limit": "{count, plural, one {Je kunt er # eenheid van gebruiken.} other {Je kunt er tot # eenheden van gebruiken.}}"
       }
     },
     "nav": {
       "packages": "Pakketten",
-      "memberships": "Lidmaatschappen"
+      "memberships": "Lidmaatschappen",
+      "sharing_review": "Controle delen"
     },
     "enum": {
       "kind": {
@@ -217,7 +228,11 @@
       "forbidden": "Je hebt hiervoor geen toestemming.",
       "generic": "Er ging iets mis, probeer opnieuw.",
       "no_mandate": "Er is geen geldig betaalmandaat voor dit lid.",
-      "too_many_benefits": "Een formule heeft maximaal 12 actieve voordelen."
+      "too_many_benefits": "Een formule heeft maximaal 12 actieve voordelen.",
+      "already_shared": "Dit pakket wordt al met deze persoon gedeeld.",
+      "share_with_owner": "Je kunt een pakket niet met de eigenaar zelf delen.",
+      "grant_not_active": "Dit pakket kan niet meer gedeeld worden.",
+      "review_item_not_found": "Dit item hoeft niet meer nagekeken te worden. Laad de pagina opnieuw."
     },
     "admin": {
       "common": {
@@ -562,6 +577,55 @@
         "member_until": "Lid tot {date}",
         "past_due": "Achterstallig",
         "nothing": "Geen pakketten"
+      },
+      "sharing": {
+        "title": "Delen",
+        "mode": "Deelmodus",
+        "max_guests": "Gastgebruik per maand",
+        "max_guests_hint": "0 tot 31. 0 betekent geen gasten.",
+        "save": "Delen opslaan",
+        "saved": "Delen opgeslagen.",
+        "shares_caption": "Delen op naam van dit pakket",
+        "col_name": "Naam",
+        "col_limit": "Limiet",
+        "col_status": "Status",
+        "col_since": "Sinds",
+        "unlimited": "Tot het saldo",
+        "revoke": "Delen stoppen",
+        "revoke_label": "Het delen met {name} stoppen",
+        "add_title": "Delen met een persoon op naam",
+        "add_hint": "Het pakket schakelt over naar delen op naam. De persoon krijgt een e-mail.",
+        "add_submit": "Delen toevoegen",
+        "added": "Delen toegevoegd.",
+        "status_active": "Actief",
+        "status_revoked": "Gestopt",
+        "not_shareable": "Tegoed en sessies van een lidmaatschap kunnen niet gedeeld worden."
+      },
+      "sharing_review": {
+        "title": "Controle delen",
+        "intro": "Pakketten met veel verschillende gasten en gasten die de pakketten van meerdere eigenaars gebruiken in de laatste 30 dagen.",
+        "caption": "Deelpatronen die nagekeken moeten worden",
+        "empty": "Er zijn geen deelpatronen om na te kijken.",
+        "col_rule": "Patroon",
+        "col_subject": "Pakket of gast",
+        "col_count": "Verschillende personen",
+        "col_people": "Personen",
+        "col_last": "Laatste gebruik",
+        "col_decision": "Beslissing",
+        "rule_many_guests": "Veel gasten op één pakket",
+        "rule_guest_hopping": "Gast op pakketten van meerdere eigenaars",
+        "package_of": "Pakket van {name}",
+        "guest": "Gast {name}",
+        "decision": "Beslissing",
+        "decision_ok": "In orde",
+        "decision_warned": "Gewaarschuwd",
+        "decision_sharing_disabled": "Delen uitschakelen",
+        "note": "Notitie (alleen personeel)",
+        "submit": "Beslissing opslaan",
+        "done": "Beslissing opgeslagen.",
+        "read_only": "Je kunt deze lijst bekijken, maar niet beslissen.",
+        "open_grant": "Pakket openen",
+        "open_person": "Persoon openen"
       }
     },
     "units": {
@@ -722,6 +786,33 @@
         "nothing_to_pay": "Er staat nu niets open om te betalen.",
         "rate_limited": "Te veel pogingen. Wacht even en probeer opnieuw.",
         "validation": "Controleer het veld en probeer opnieuw."
+      },
+      "sharing": {
+        "title": "Delen",
+        "intro": "Deel dit pakket op naam met maximaal {count} personen. Zij boeken op hun eigen account en de eenheden komen uit dit pakket.",
+        "list_caption": "Personen met wie je dit pakket deelt",
+        "empty": "Je hebt dit pakket nog niet gedeeld.",
+        "col_name": "Naam",
+        "col_limit": "Limiet",
+        "col_used": "Gebruikt",
+        "col_status": "Status",
+        "unlimited": "Tot wat overblijft",
+        "status_active": "Actief",
+        "status_revoked": "Gestopt",
+        "revoke": "Stoppen met delen",
+        "revoke_label": "Stoppen met delen met {name}",
+        "revoke_confirm": "Wil je stoppen met dit pakket te delen met {name}? Boekingen die al gemaakt zijn, blijven geldig.",
+        "invite_title": "Delen met iemand",
+        "email": "E-mailadres",
+        "first_name": "Voornaam",
+        "last_name": "Achternaam",
+        "max_units": "Maximum aantal eenheden voor deze persoon",
+        "max_units_hint": "Laat leeg om deze persoon te laten gebruiken wat overblijft.",
+        "submit": "Pakket delen",
+        "busy": "Bezig met delen…",
+        "done": "Het pakket is gedeeld. We stuurden deze persoon een e-mail.",
+        "limit_reached": "Je deelt dit pakket met het maximum van {count} personen.",
+        "not_named": "Dit pakket kan niet op naam gedeeld worden. Neem contact op met BEAM als je het wilt delen."
       }
     }
   }

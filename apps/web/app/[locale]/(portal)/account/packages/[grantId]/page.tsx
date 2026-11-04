@@ -4,8 +4,9 @@ import { formatDate, localeFromSegment, URL_SEGMENT } from "@beam/core/i18n";
 import { requireCustomer } from "@/lib/auth";
 import { getAppDb, NotFoundError } from "@/lib/ctx";
 import { translator } from "@/lib/i18n";
-import { getMyPackage } from "@/modules/credits/queries";
+import { creditsLabels, getMyPackage, getMyShares } from "@/modules/credits/queries";
 import { grantTitle, PackageStatusBadge, UnitsProgress, unitsOfText, unitsText } from "@/modules/credits/ui/package-card";
+import { SharingPanel } from "@/modules/credits/ui/sharing-panel";
 import { StoreCreditOrders, UsageHistory } from "@/modules/credits/ui/usage-history";
 
 /**
@@ -13,7 +14,9 @@ import { StoreCreditOrders, UsageHistory } from "@/modules/credits/ui/usage-hist
  * history of one package of the customer (or one shared with them): date, session, who used it
  * and the attendance; returned, expired, "Adjusted by BEAM" and "Extended by BEAM until …"
  * lines; the guest uses left this month; for store credit the orders it paid. A package of
- * someone else is the standard 404.
+ * someone else is the standard 404. R2 (credits-P8, rules 41 and 42): when the reader owns a
+ * package in mode `named`, the sharing section lists the people it is shared with (first name and
+ * initial, limit, used), lets them stop a share and invite up to 5 people by email.
  */
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const locale = localeFromSegment((await params).locale);
@@ -35,6 +38,8 @@ export default async function AccountPackagePage({ params }: { params: Promise<{
   const p = detail.package;
   const title = grantTitle(p, locale, tr);
   const open = p.status === "active";
+  // R2 (credits-P8): the owner of a package in mode `named` manages its shares here.
+  const sharing = detail.isOwner && detail.sharingMode === "named" ? await getMyShares(await getAppDb(), actor.personId, { grantId: p.grantId }) : null;
 
   return (
     <article aria-labelledby="package-title" className="grid max-w-4xl gap-6">
@@ -72,6 +77,27 @@ export default async function AccountPackagePage({ params }: { params: Promise<{
         <UsageHistory detail={detail} locale={locale} />
       </section>
       <StoreCreditOrders detail={detail} locale={locale} />
+      {sharing ? (
+        <SharingPanel
+          grantId={p.grantId}
+          variant="portal"
+          shares={sharing.shares.map((s) => ({
+            shareId: s.shareId,
+            name: s.sharedWithName,
+            limitText: s.maxUnits == null ? tr("credits.portal.sharing.unlimited") : String(s.maxUnits),
+            usedText: String(s.usedUnits),
+            status: s.status,
+            sinceText: formatDate(s.createdAt, locale),
+          }))}
+          canAdd={sharing.canAdd}
+          canEdit
+          notice={open && !sharing.canAdd ? tr("credits.portal.sharing.limit_reached", { count: sharing.maxShares }) : null}
+          labels={{
+            ...creditsLabels(locale, ["admin.common", "errors", "portal.sharing"]),
+            "portal.sharing.intro": tr("credits.portal.sharing.intro", { count: sharing.maxShares }),
+          }}
+        />
+      ) : null}
     </article>
   );
 }

@@ -11,7 +11,7 @@ import { createTestDb, makeUser } from "@beam/db/testing";
 import { makeCreditGrant, makeMembership } from "@beam/db/testing/credits-factories";
 import { DEFAULT_ROLE_GRANTS } from "@beam/db/seed/platform";
 import type { DbHandle } from "@beam/db";
-import { auditLog, creditBulkExtensions, creditEntries, roles } from "@beam/db/schema";
+import { auditLog, creditBulkExtensions, creditEntries, creditSharingReviews, packageShares, roles } from "@beam/db/schema";
 import type { RoleKey } from "@beam/db/schema";
 import { permissions } from "./permissions";
 
@@ -144,6 +144,80 @@ describe("credits.adjust actions", () => {
     await asStaff("customer_service", ["credits.read", "credits.adjust"]);
     expect(await actions.adjustGrant({ grantId: grant.id, quantity: -1, reason: "Correction", clientKey: randomUUID() })).toMatchObject({ ok: true, data: { oldBalance: 5, newBalance: 4 } });
     expect(await actions.setPlanInclusion({ productId: randomUUID(), kind: "night", unitsPerPeriod: 1, isActive: true })).toMatchObject(forbidden);
+  });
+});
+
+// credits-P8 (R2): the sharing actions. Staff variants need credits.adjust; the customer variants
+// act only on the reader's own grants (a foreign grant or share is not_found).
+async function sharingCalls(): Promise<Call[]> {
+  const grant = await makeCreditGrant(handle.db, { units: 5, sharing: { mode: "named", max_guest_uses_per_month: 0, allowed_person_ids: [] } });
+  const sharee = await makeUser(handle.db, { audience: "customer" });
+  const [share] = await handle.db.insert(packageShares).values({ grantId: grant.id, sharedWithPersonId: sharee.personId!, createdByPersonId: grant.personId }).returning();
+  return [
+    ["updateGrantSharing", () => actions.updateGrantSharing({ grantId: grant.id, mode: "guests", maxGuestUsesPerMonth: 2 })],
+    ["addPackageShare", () => actions.addPackageShare({ grantId: grant.id, email: `staff-share-${randomUUID().slice(0, 8)}@example.com`, firstName: "Lien" })],
+    ["revokePackageShare", () => actions.revokePackageShare({ shareId: share!.id })],
+    ["reviewSharing", () => actions.reviewSharing({ rule: "many_guests", grantId: grant.id, decision: "ok" })],
+  ];
+}
+
+async function writesWithShares() {
+  const [base, shares, reviews] = await Promise.all([
+    writes(),
+    handle.db.select({ id: packageShares.id, status: packageShares.status }).from(packageShares),
+    handle.db.select({ id: creditSharingReviews.id }).from(creditSharingReviews),
+  ]);
+  return { ...base, shares: shares.map((s) => `${s.id}:${s.status}`).sort(), reviews: reviews.length };
+}
+
+describe("sharing actions (R2)", () => {
+  it("lists credits.adjust as the permission of every staff sharing action and refuses staff without it, before writing", async () => {
+    const list = await sharingCalls();
+    await asStaff("finance", ["credits.read", "memberships.write", "persons.read"]);
+    const before = await writesWithShares();
+    for (const [name, run] of list) expect(await run(), name).toMatchObject(forbidden);
+    expect(await writesWithShares()).toEqual(before);
+  });
+
+  it("refuses reception, a customer session and no session on the staff sharing actions", async () => {
+    const list = await sharingCalls();
+    await asStaff("reception", DEFAULT_ROLE_GRANTS.reception);
+    for (const [name, run] of list) expect(await run(), name).toMatchObject(forbidden);
+    await asCustomer();
+    for (const [name, run] of list) expect(await run(), name).toMatchObject(unauthorized);
+    jar.clear();
+    for (const [name, run] of list) expect(await run(), name).toMatchObject(unauthorized);
+  });
+
+  it("lets staff with credits.adjust change sharing, with one audit row", async () => {
+    const grant = await makeCreditGrant(handle.db, { units: 5 });
+    await asStaff("customer_service", ["credits.read", "credits.adjust"]);
+    expect(await actions.updateGrantSharing({ grantId: grant.id, mode: "guests", maxGuestUsesPerMonth: 3 })).toMatchObject({ ok: true, data: { sharing: { mode: "guests", max_guest_uses_per_month: 3 } } });
+    expect(await handle.db.select().from(auditLog).where(eq(auditLog.entityId, grant.id))).toEqual([expect.objectContaining({ action: "credits.sharing_changed" })]);
+  });
+
+  it("lets a customer manage shares of their own grant only; staff sessions are refused on the portal variants", async () => {
+    const owner = await makeUser(handle.db, { audience: "customer" });
+    const own = await makeCreditGrant(handle.db, { personId: owner.personId!, units: 5, sharing: { mode: "named", max_guest_uses_per_month: 0, allowed_person_ids: [] } });
+    const foreign = await makeCreditGrant(handle.db, { units: 5, sharing: { mode: "named", max_guest_uses_per_month: 0, allowed_person_ids: [] } });
+    const sharee = await makeUser(handle.db, { audience: "customer" });
+    const [foreignShare] = await handle.db.insert(packageShares).values({ grantId: foreign.id, sharedWithPersonId: sharee.personId!, createdByPersonId: foreign.personId }).returning();
+    const { token } = await createAuthSession(handle.db, { userId: owner.id, audience: "customer", roleKey: null, now: new Date() });
+    jar.set(SESSION_COOKIE, token);
+    const email = () => `friend-${randomUUID().slice(0, 8)}@example.com`;
+    const added = await actions.addMyPackageShare({ grantId: own.id, email: email(), firstName: "Jan", maxUnits: 2 });
+    expect(added).toMatchObject({ ok: true, data: { created: true } });
+    expect(await actions.addMyPackageShare({ grantId: foreign.id, email: email(), firstName: "Jan" })).toMatchObject({ ok: false, error: { code: "not_found" } });
+    expect(await actions.revokeMyPackageShare({ shareId: foreignShare!.id })).toMatchObject({ ok: false, error: { code: "not_found" } });
+    const shareId = (added as { data: { shareId: string } }).data.shareId;
+    expect(await actions.revokeMyPackageShare({ shareId })).toMatchObject({ ok: true, data: { revoked: true } });
+    const audits = await handle.db.select().from(auditLog).where(eq(auditLog.entityId, own.id));
+    expect(audits.map((a) => a.action).sort()).toEqual(["credits.share_added", "credits.share_revoked"]);
+
+    await asStaff("customer_service", ["credits.read", "credits.adjust"]);
+    expect(await actions.addMyPackageShare({ grantId: own.id, email: email(), firstName: "Jan" })).toMatchObject(unauthorized);
+    jar.clear();
+    expect(await actions.revokeMyPackageShare({ shareId })).toMatchObject(unauthorized);
   });
 });
 

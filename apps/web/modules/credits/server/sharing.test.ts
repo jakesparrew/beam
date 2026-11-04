@@ -221,6 +221,30 @@ describe("review list (rule 43)", () => {
     expect(await h.db.select().from(auditLog).where(and(eq(auditLog.action, "credits.sharing_reviewed"), eq(auditLog.entityId, guest.id)))).toHaveLength(1);
   });
 
+  it("serves the list through api.ts and removes an erased person from the stored review sets", async () => {
+    const api = await import("../api");
+    const { privacy } = await import("../privacy");
+    const owner = await makePerson(h.db);
+    const grant = await makeCreditGrant(h.db, { personId: owner.id, units: 20, sharing: { mode: "guests", max_guest_uses_per_month: 10, allowed_person_ids: [] } });
+    const guests = [];
+    for (let i = 0; i < 4; i++) {
+      const g = await makePerson(h.db);
+      await guestUse(grant.id, owner.id, g.id);
+      guests.push(g);
+    }
+    const listed = await api.listSharingReview(h.db, { limit: 500 });
+    expect(listed.some((r) => r.grantId === grant.id)).toBe(true);
+    expect(await api.countSharingReviewItems(h.db)).toBeGreaterThanOrEqual(1);
+    await reviewSharing(tx(), staff(), { rule: "many_guests", grantId: grant.id, decision: "ok", note: "Family of the owner" });
+
+    const report = await privacy.erase(tx(), guests[0]!.id);
+    expect(report).toEqual(expect.arrayContaining([{ table: "credit_sharing_reviews", rows: 1, action: "anonymised" }]));
+    const [review] = await h.db.select().from(creditSharingReviews).where(eq(creditSharingReviews.grantId, grant.id));
+    expect(review!.guestPersonIds).not.toContain(guests[0]!.id);
+    expect(review!.guestPersonIds).toHaveLength(3);
+    expect(review!.note).toBeNull();
+  });
+
   it("sets mode none on the grant for a many_guests sharing_disabled decision and refuses an item that is not listed", async () => {
     const owner = await makePerson(h.db);
     const grant = await makeCreditGrant(h.db, { personId: owner.id, units: 20, sharing: { ...named } });

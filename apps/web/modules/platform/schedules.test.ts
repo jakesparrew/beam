@@ -17,19 +17,25 @@ beforeEach(async () => {
 });
 
 const brussels = (day: number, hour: number, minute: number) => zonedTimeToUtc({ year: 2026, month: 11, day, hour, minute });
-const keys = async () => (await handle.db.select({ key: jobs.idempotencyKey }).from(jobs)).map((r) => r.key).sort();
+// Modules register their own schedules too: these tests look only at platform's kinds.
+const platformKinds = new Set<string>(schedules.map((s) => s.kind));
+const allKeys = async () => (await handle.db.select({ key: jobs.idempotencyKey }).from(jobs)).map((r) => r.key);
+const keys = async () => (await allKeys()).filter((k) => platformKinds.has(k.split(":")[1]!)).sort();
 
 describe("platform schedules (PL-33)", () => {
   it("are all registered with valid crons", async () => {
     const registered = await loadSchedules();
-    expect(registered.map((s) => s.kind).sort()).toEqual(schedules.map((s) => s.kind).sort());
+    const kinds = registered.map((s) => s.kind);
+    expect(new Set(kinds).size).toBe(kinds.length);
+    expect(registered.filter((s) => platformKinds.has(s.kind))).toEqual(expect.arrayContaining([...schedules]));
+    expect(kinds.filter((k) => platformKinds.has(k)).sort()).toEqual([...platformKinds].sort());
     expect(schedules.find((s) => s.kind === "platform.check_alerts")).toMatchObject({ cron: "*/5 * * * *", catchUp: false });
   });
 
   it("a daily schedule catches up a missed slot within 60 minutes", async () => {
     const inserted = await enqueueDueSchedules(handle.db, brussels(10, 2, 31), brussels(10, 1, 55));
     expect(await keys()).toEqual(["schedule:files.purge_expired:2026-11-10T02:00", "schedule:platform.prune_ephemeral:2026-11-10T02:17"]);
-    expect(inserted).toBe(2);
+    expect(inserted).toBe((await allKeys()).length);
   });
 
   it("does not catch up more than 60 minutes back", async () => {
@@ -47,8 +53,10 @@ describe("platform schedules (PL-33)", () => {
 
   it("enqueues each slot once across overlapping ticks", async () => {
     const now = brussels(10, 3, 30);
-    expect(await enqueueDueSchedules(handle.db, now, null)).toBe(2);
+    const first = await enqueueDueSchedules(handle.db, now, null);
+    expect(first).toBe((await allKeys()).length);
     expect(await enqueueDueSchedules(handle.db, now, null)).toBe(0);
+    expect((await allKeys()).length).toBe(first);
     expect(await keys()).toEqual(["schedule:jobs.prune:2026-11-10T03:30", "schedule:platform.check_alerts:2026-11-10T03:30"]);
   });
 

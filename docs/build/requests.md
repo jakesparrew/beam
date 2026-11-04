@@ -22,6 +22,14 @@ to "Served" with the package id.
 | platform-P6 | platform-P8 | Implement the `reportProblem` handler; the stub in `modules/platform/actions.ts` has its final signature. |
 | platform-P6 | platform-P8 | Call `notifySecurityChange` from `lib/auth.ts` in `resetUserMfa` (PL-9). |
 | platform-P6 | platform-P8 | Build `/admin/settings` (an owner signing in to `/admin` is redirected to the first permitted nav entry, which is a 404 until then). |
+| credits-P2 | credits (the package that owns `packages/core/src/credits/types.ts`), else platform | `types.ts` has Wave 0 guesses of `GrantSharing` (`max_guests_per_month`, `named_person_ids`) and `AllocationResult` (`allocations`/`quantity`) that do not match the spec; `credits/index.ts` re-exports the spec shapes (`GrantSharing` = `{ mode, max_guest_uses_per_month, allowed_person_ids }`, `AllocationResult` = `{ ok: true, parts } \| { ok: false, reason, available }`). Align `types.ts` with them or remove the two guesses. |
+| credits-P1 | credits-P4 | Add the FK `memberships.mandate_id -> mandates.id` once commerce's `mandates` table has merged (the column exists without an FK). |
+| credits-P1 | every module | Module factories and seed helpers are importable without editing shared files: `@beam/db/testing/<m>-factories` (for example `makeCreditGrant`, `makeMembership`, `makeEntry` from `@beam/db/testing/credits-factories`) and `@beam/db/seed/<m>` (for example `seedCreditsDemo` from `@beam/db/seed/credits`). |
+| commerce-P1 | platform (fixer) | `apps/web/lib/alerts.test.ts`: the Mollie-silence fixture should insert a valid order (a person from `makePerson`, a `termsVersionId`), so commerce can turn `ORDERS_PENDING_CHECKS` (`orders_person_chk`, `orders_terms_chk`) into real table checks. |
+| commerce-P1 | platform (fixer) | `makeProduct` in `packages/db/src/testing/factories.ts` sets `itemCategory: 'merchandise'` for `kind: 'item'`, so commerce can add `products_item_category_chk`. |
+| commerce-P1 | commerce (fixer after the platform fixer) | Turn `ORDERS_PENDING_CHECKS` into table checks and add `products_item_category_chk` in `packages/db/src/schema/commerce.ts`. |
+| commerce-P1 | commerce-P3 | `config.ts` imports `CommerceSettings`, `PaymentProviderByChannel` and their defaults from `@beam/core/commerce`. |
+| commerce-P1 | crm, booking, site, credits | Add the FKs `orders.company_id -> companies` (crm), `order_lines.ticket_type_id -> ticket_types` (booking), `orders.terms_version_id -> page_versions` (site), `orders.renewal_membership_id -> memberships` (credits): the owner of the target table asks commerce's schema owner, because the column is in `commerce.ts`. |
 
 ## Served
 

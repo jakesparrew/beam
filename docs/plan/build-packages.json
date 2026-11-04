@@ -1435,7 +1435,8 @@
         "apps/web/modules/booking/ui/session-waitlist-tab.tsx",
         "packages/core/src/i18n/messages/en/booking.json",
         "packages/core/src/i18n/messages/nl-BE/booking.json",
-        "packages/core/src/i18n/messages/fr-BE/booking.json"
+        "packages/core/src/i18n/messages/fr-BE/booking.json",
+        "apps/web/modules/booking/privacy.ts"
       ],
       "exposes": [
         "apps/web/modules/booking/api.ts: every function of the booking spec section 4 that another module calls, with its final signature, as a typed stub (throws NotImplementedError; no-op or null where 03-build-order.md says so)",
@@ -1503,7 +1504,8 @@
         "packages/core/src/commerce/state-machine.test.ts",
         "packages/core/src/commerce/refunds.test.ts",
         "packages/core/src/commerce/vouchers.test.ts",
-        "packages/db/src/schema/commerce.test.ts"
+        "packages/db/src/schema/commerce.test.ts",
+        "apps/web/modules/commerce/privacy.ts"
       ],
       "exposes": [
         "apps/web/modules/commerce/api.ts: every function of the commerce spec section 4 that another module calls, with its final signature, as a typed stub (throws NotImplementedError; no-op or null where 03-build-order.md says so)",
@@ -1597,7 +1599,8 @@
         "packages/db/src/testing/credits-factories.ts",
         "packages/db/src/schema/credits.test.ts",
         "packages/db/src/schema/credits.views.test.ts",
-        "apps/web/modules/credits/api.ts"
+        "apps/web/modules/credits/api.ts",
+        "apps/web/modules/credits/privacy.ts"
       ],
       "exposes": [
         "apps/web/modules/credits/api.ts: every function of the credits spec section 4 that another module calls, with its final signature, as a typed stub (throws NotImplementedError; no-op or null where 03-build-order.md says so)",
@@ -1726,7 +1729,8 @@
         "packages/core/src/finance/transitions.test.ts",
         "packages/core/src/finance/seller.test.ts",
         "packages/core/src/finance/retention.test.ts",
-        "apps/web/modules/finance/schema.test.ts"
+        "apps/web/modules/finance/schema.test.ts",
+        "apps/web/modules/finance/privacy.ts"
       ],
       "exposes": [
         "apps/web/modules/finance/api.ts: every function of the finance spec section 4 that another module calls, with its final signature, as a typed stub (throws NotImplementedError; no-op or null where 03-build-order.md says so)",
@@ -1787,7 +1791,8 @@
         "packages/db/src/schema/forms.ts",
         "packages/db/src/schema/forms.views.ts",
         "packages/db/src/schema/forms.test.ts",
-        "apps/web/modules/forms/api.ts"
+        "apps/web/modules/forms/api.ts",
+        "apps/web/modules/forms/privacy.ts"
       ],
       "exposes": [
         "apps/web/modules/forms/api.ts: every function of the forms spec section 4 that another module calls, with its final signature, as a typed stub (throws NotImplementedError; no-op or null where 03-build-order.md says so)",
@@ -1916,7 +1921,8 @@
         "packages/core/src/email/send-window.test.ts",
         "packages/integrations/src/resend/webhook.test.ts",
         "packages/integrations/src/resend/client.test.ts",
-        "packages/db/src/schema/email.test.ts"
+        "packages/db/src/schema/email.test.ts",
+        "apps/web/modules/email/privacy.ts"
       ],
       "exposes": [
         "apps/web/modules/email/api.ts: every function of the email spec section 4 that another module calls, with its final signature, as a typed stub (throws NotImplementedError; no-op or null where 03-build-order.md says so)",
@@ -1997,7 +2003,8 @@
         "packages/core/src/automation/definition.test.ts",
         "packages/core/src/automation/webhook.test.ts",
         "packages/db/src/schema/automation.test.ts",
-        "packages/db/src/schema/automation.append-only.test.ts"
+        "packages/db/src/schema/automation.append-only.test.ts",
+        "apps/web/modules/automation/privacy.ts"
       ],
       "exposes": [
         "apps/web/modules/automation/api.ts: every function of the automation spec section 4 that another module calls, with its final signature, as a typed stub (throws NotImplementedError; no-op or null where 03-build-order.md says so)",
@@ -6027,7 +6034,8 @@
         "packages/core/src/webinar/polls.test.ts",
         "packages/core/src/webinar/index.ts",
         "apps/web/modules/webinar/test/factories.ts",
-        "apps/web/modules/webinar/api.ts"
+        "apps/web/modules/webinar/api.ts",
+        "apps/web/modules/webinar/privacy.ts"
       ],
       "exposes": [
         "apps/web/modules/webinar/api.ts: every webinar function another module calls in R2-R4 (getWebinarForSession, listPublicWebinars, getWebinarCards, countWebinarLeadsWithoutBooking, listWebinarLeadsWithoutBooking, listUpcomingWebinarHealth, getWebinarKpis, mergePersons) as typed stubs",

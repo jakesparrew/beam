@@ -44,3 +44,14 @@ One entry per merge batch and gate (runbook section 5.7, adapted by OD-3).
 - platform-P6 attempt 2 done in 5 minutes (265 web tests); merged as `58d8fd8`; gate `g10-p6` green in 141 s.
 - **Wave 3 checkpoint `g11-w3` (e2e mode)**: install, gen, migrations, typecheck, lint, i18n, all tests (101 s), gdpr, production build (129 s), `db:migrate` and `seed:demo` on beam_dev (44 s) green. Playwright: 7 passed (smoke 5, login page accessible, owner signs in with password and TOTP and signs out), 54 skipped (later-wave shells), 1 failed twice: "ten wrong passwords lock the account". The audit log on beam_dev shows the lock works (`auth.locked` at 10); the test's bare `getByRole("alert")` wait passed before each server action finished, so attempts overlapped the counter read and the restore step. A stale `next start` from the Neon setup held port 3100 and was stopped first.
 - Fixer `fix-w03-platform-2` makes `platform.spec.ts` wait for the action response; CONVENTIONS.md item 10 now forbids bare alert waits. Wave 4 starts in parallel, because the failure is in the test, not the product.
+
+## Wave 4 (dependency-scheduled from here on)
+
+- 23:35 UTC: started fix-w03-platform-2, credits-P1, commerce-P1, credits-P2, crm-P1, booking-P1 from `9892b11` (6 agents).
+- Foundation review (run `wf_ffea3f4a-fbc`): five reviewers (security, runtime, data, spec, tests) over platform-P1 to P7, each finding checked by an adversarial verifier; confirmed findings become platform fixer packages.
+- fix-w03-platform-2: 13 min, merged as `5c125ff`; gate `g12-fix-w03-platform-2` (merge) green, peak 2914 MB.
+- credits-P2: 14 min, merged as `b3ca117`; gate `g13-credits-P2` (merge) green, peak 3520 MB.
+- 23:52 UTC: started email-P1, site-P1 from `7835fd3`. Wave 3 checkpoint now green: `fix-w03-platform-2` ran `platform.spec.ts` 4/4 twice against beam_dev (magic link included).
+- credits-P1 attempt 1 done in 18 minutes (102 db tests) but gdpr coverage would fail: its three person-referencing tables were not registered, because credits' `privacy.ts` belonged to credits-P5. Plan amended (OD-9): every module's schema package owns its `privacy.ts`. Attempt 2 (run `wf_bba4be41-aca`) registers the tables. `@beam/db` now exports `./testing/*` and `./seed/*`.
+- credits-P1: 23 min, merged as `ea67dfd`, migrations 0003_w04.sql 0004_w04_views.sql 0005_w04_protect.sql; gate `g14-credits-P1` (merge) green, peak 4539 MB.
+- 00:06 UTC: started forms-P1 from `ea67dfd`.

@@ -22,6 +22,27 @@
       "when": 1793741195741,
       "tag": "0002_init_views",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793750477942,
+      "tag": "0003_w04",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793750481256,
+      "tag": "0004_w04_views",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793750482688,
+      "tag": "0005_w04_protect",
+      "breakpoints": true
     }
   ]
 }

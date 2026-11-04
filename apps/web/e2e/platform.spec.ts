@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { sql } from "drizzle-orm";
 import { expectAccessible } from "./support/a11y";
-import { demoStaffEmail, signInCustomer, signInStaff } from "./support/auth";
+import { demoStaffEmail, formError, signInCustomer, signInStaff, staffLoginMessages, submitAndWait } from "./support/auth";
 import { closeE2eDb, e2eRows } from "./support/db";
 
 /**
@@ -45,14 +45,24 @@ test("ten wrong passwords lock the account", async ({ page }) => {
   const email = demoStaffEmail("reception");
   // The per-IP login limit (10 per minute, PL-68) would answer rate_limited before the lock.
   const clearLoginLimits = () => e2eRows(sql`delete from rate_limits where key like 'login:%'`);
-  try {
+  // Restore before as well as after, so a run that died half-way cannot break the next one.
+  const restore = async () => {
+    await e2eRows(sql`update users set failed_logins = 0, locked_until = null where email = ${email}`);
     await clearLoginLimits();
+  };
+  const attempt = async (password: string) => {
+    await page.goto("/admin/login");
+    await page.getByLabel(/e-?mail/i).fill(email);
+    await page.locator('input[name="password"]').fill(password);
+    // Each attempt waits for its server action to answer, so no attempt overlaps the next one,
+    // the counter read below or the restore step.
+    await submitAndWait(page);
+  };
+  try {
+    await restore();
     for (let i = 0; i < 10; i++) {
-      await page.goto("/admin/login");
-      await page.getByLabel(/e-?mail/i).fill(email);
-      await page.locator('input[name="password"]').fill(`Wrong-password-${i}-x!`);
-      await page.locator('form button[type="submit"]').click();
-      await expect(page.getByRole("alert")).toBeVisible();
+      await attempt(`Wrong-password-${i}-x!`);
+      await expect(formError(page)).toContainText(staffLoginMessages.invalidCredentials);
     }
     const [row] = await e2eRows<{ failed_logins: number; locked: boolean }>(
       sql`select failed_logins, (locked_until > now()) as locked from users where email = ${email}`,
@@ -61,14 +71,11 @@ test("ten wrong passwords lock the account", async ({ page }) => {
     expect(row?.locked).toBe(true);
 
     await clearLoginLimits();
-    await page.goto("/admin/login");
-    await page.getByLabel(/e-?mail/i).fill(email);
-    await page.locator('input[name="password"]').fill(process.env.DEMO_STAFF_PASSWORD ?? "");
-    await page.locator('form button[type="submit"]').click();
-    await expect(page.getByRole("alert")).toContainText(/\d{2}[:.]\d{2}/);
+    await attempt(process.env.DEMO_STAFF_PASSWORD ?? "");
+    await expect(formError(page)).toContainText(staffLoginMessages.locked);
+    await expect(page).toHaveURL(/\/admin\/login/);
   } finally {
-    await e2eRows(sql`update users set failed_logins = 0, locked_until = null where email = ${email}`);
-    await clearLoginLimits();
+    await restore();
   }
 });
 

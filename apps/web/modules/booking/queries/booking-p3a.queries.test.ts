@@ -80,11 +80,11 @@ describe("booking queries (booking-P3a)", () => {
     expect(await listRescheduleTargets(h.db, (await makePerson(h.db)).id, row.id)).toEqual([]);
   });
 
-  it("getBookableSession lists payment options, the emergency contact need and tolerates the forms stub", async () => {
+  it("getBookableSession lists payment options, the emergency contact need and reports a missing health declaration", async () => {
     const person = await makePerson(h.db);
     const night = await openSession(h.db, { kind: "night", creditKind: "night", startsAt: at(4) });
     const view = await getBookableSession(h.db, person.id, night.id);
-    expect(view).toMatchObject({ payOptions: [], needsEmergencyContact: true, healthDeclaration: null, credit: { ok: false } });
+    expect(view).toMatchObject({ payOptions: [], needsEmergencyContact: true, healthDeclaration: { valid: false, expiresAt: null }, credit: { ok: false } });
     expect(view.availability.reason).toBe("ok");
   });
 

@@ -1,3 +1,2 @@
 # <repo path> <fixer id> <reason>; the gate excludes these test files until the fixer lands
-apps/web/modules/booking/queries/booking-p3a.queries.test.ts fix-w07-booking-1 forms-P3 made hasValidSubmission real; the test still expects the forms stub (CONVENTIONS rule 11)
 apps/web/modules/booking/queries/attendance.test.ts fix-w08-booking-2 crm-P7 made getReceptionCard real; the test still expects the stub's fallback (receptionCard null), CONVENTIONS item 11

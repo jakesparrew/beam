@@ -90,7 +90,11 @@
       "attempts": 3,
       "baseSha": "1b2926a",
       "runId": "wf_f1aaa625-34d",
-      "startedAt": "2026-11-04T02:23:03Z"
+      "startedAt": "2026-11-04T02:23:03Z",
+      "extraOwns": [
+        "apps/web/modules/platform/actions.test.ts",
+        "apps/web/modules/platform/ui/login-form.tsx"
+      ]
     },
     "crm-P1": {
       "status": "merged",

@@ -537,7 +537,10 @@
     },
     "finance-P4": {
       "status": "pending",
-      "attempts": 0
+      "attempts": 0,
+      "extraOwns": [
+        "packages/integrations/src/_shared/platform-p3.shared.test.ts"
+      ]
     },
     "forms-P5": {
       "status": "pending",

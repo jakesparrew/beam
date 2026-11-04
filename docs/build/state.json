@@ -759,7 +759,7 @@
       "mergedAt": "2026-11-04T05:38:04Z"
     },
     "site-P7": {
-      "status": "running",
+      "status": "pending",
       "attempts": 2,
       "baseSha": "e8be046",
       "runId": "wf_8d216848-937",
@@ -778,7 +778,7 @@
       "mergedAt": "2026-11-04T09:25:07Z"
     },
     "commerce-P6": {
-      "status": "running",
+      "status": "failed",
       "attempts": 2,
       "baseSha": "9430fed",
       "runId": "wf_bc54cf34-5b4",
@@ -825,7 +825,7 @@
       "attempts": 0
     },
     "ops-P5": {
-      "status": "running",
+      "status": "pending",
       "attempts": 1,
       "baseSha": "e8be046",
       "runId": "wf_e267b4aa-3a5",
@@ -844,7 +844,7 @@
       "attempts": 0
     },
     "webinar-P1": {
-      "status": "running",
+      "status": "pending",
       "attempts": 2,
       "baseSha": "e8be046",
       "runId": "wf_cc288b51-eb8",
@@ -915,7 +915,7 @@
       "attempts": 0
     },
     "platform-P9": {
-      "status": "running",
+      "status": "pending",
       "attempts": 1,
       "baseSha": "e8be046",
       "runId": "wf_6dcb7365-3f7",
@@ -1448,7 +1448,7 @@
       "mergedAt": "2026-11-04T09:08:15Z"
     },
     "fix-w08-booking-2": {
-      "status": "running",
+      "status": "pending",
       "attempts": 1,
       "fixer": true,
       "module": "booking",

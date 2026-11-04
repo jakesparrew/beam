@@ -3,6 +3,8 @@
  * back-office. Each takes the database first; the admin pages check the permission
  * (`pricing.write`, or `commerce.sell` for read-only product lists) before calling them.
  * Later commerce packages add the order, checkout, POS and attention queries here.
+ * commerce-P5: the customer reads of the shop, checkout, order payment, return and orders pages
+ * (`./server/checkouts`), each filtered on the viewer (session person or signed viewer cookie).
  */
 import { orders, personPrices, persons, priceVersions, products, promotionRedemptions, promotions, users } from "@beam/db/schema";
 import type { Audience, ProductKind } from "@beam/core/commerce";
@@ -249,3 +251,20 @@ export async function listProductOptions(db: DbOrTx): Promise<Pick<ProductRow, "
     .from(products)
     .orderBy(asc(products.sortOrder), asc(products.sku));
 }
+
+// ---------------------------------------------------------------------------
+// Customer reads (commerce-P5, section 5.2 and 5.3)
+// ---------------------------------------------------------------------------
+
+export {
+  getCheckout,
+  getShopCatalogue,
+  getShopProduct,
+  listMyOrders,
+  getOrderForViewer as getOrderForPayment,
+  getOrderForViewer as getMyOrder,
+  readViewer,
+  orderNeedsTerms,
+  SHOP_KINDS,
+} from "./server/checkouts";
+export type { CheckoutView, CheckoutLineView, CheckoutViewer, CustomerOrderView, MyOrderRow, MyVoucherRow, ShopProduct } from "./server/checkouts";

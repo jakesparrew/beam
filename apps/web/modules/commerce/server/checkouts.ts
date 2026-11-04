@@ -767,6 +767,10 @@ export type CustomerOrderView = {
   refunds: { id: string; amountCents: number; status: string; createdAt: Date }[];
   needsTerms: boolean;
   euroBalanceCents: number;
+  /** `expired`, or `pending_payment` past `expires_at` (read time). */
+  isExpired: boolean;
+  /** The withdrawal deadline (rule 54) has not passed. */
+  withdrawalOpen: boolean;
 };
 
 function lineText(description: unknown, locale: Locale, fallback: string): string {
@@ -780,6 +784,7 @@ async function orderView(db: DbOrTx, order: OrderRow, locale: Locale): Promise<C
   const refundRows = await db.select().from(refunds).where(eq(refunds.orderId, order.id)).orderBy(asc(refunds.createdAt));
   const paid = await paidCentsOf(db, order.id);
   const isPending = order.status === "pending_payment";
+  const now = Date.now();
   return {
     orderId: order.id,
     reference: order.reference,
@@ -796,6 +801,8 @@ async function orderView(db: DbOrTx, order: OrderRow, locale: Locale): Promise<C
     refunds: refundRows.map((r) => ({ id: r.id, amountCents: r.amountCents, status: r.status, createdAt: r.createdAt })),
     needsTerms: isPending ? await orderNeedsTerms(db, order) : false,
     euroBalanceCents: isPending && order.personId ? (await getEuroBalance(db, order.personId)).remainingCents : 0,
+    isExpired: order.status === "expired" || (isPending && !!order.expiresAt && order.expiresAt.getTime() <= now),
+    withdrawalOpen: !!order.withdrawalUntilAt && order.withdrawalUntilAt.getTime() > now,
   };
 }
 

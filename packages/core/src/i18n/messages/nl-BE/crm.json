@@ -57,7 +57,8 @@
       "next": "Volgende",
       "switch_on": "Aan",
       "switch_off": "Uit",
-      "customer_number": "Klantnummer"
+      "customer_number": "Klantnummer",
+      "complete": "Afronden"
     },
     "enums": {
       "person_status": {
@@ -280,7 +281,9 @@
         "bulk_limit": "Selecteer maximaal 5000 personen tegelijk.",
         "empty": "Nog geen personen. Maak er een aan of importeer een lijst.",
         "empty_create": "Persoon aanmaken",
-        "empty_import": "Lijst importeren"
+        "empty_import": "Lijst importeren",
+        "empty_filtered": "Niemand voldoet aan deze filters.",
+        "bulk_changed": "{count} personen gewijzigd"
       },
       "new": {
         "title": "Nieuwe persoon",
@@ -334,7 +337,9 @@
         "companies": "Bedrijven",
         "emergency_contact": "Noodcontact",
         "no_emergency_contact": "Geen noodcontact",
-        "minor": "Minderjarig"
+        "minor": "Minderjarig",
+        "tester": "Tester",
+        "birth_on": "Geboortedatum"
       },
       "banners": {
         "override_conflict": "Manuele status {override} verschilt van berekende {derived}",
@@ -389,14 +394,25 @@
         "unsubscribe_all": "Uitschrijven voor alle marketing",
         "merge_with": "Samenvoegen met…",
         "book": "Boeken voor deze persoon",
-        "sell": "Verkopen"
+        "sell": "Verkopen",
+        "interaction_occurred_at": "Wanneer (leeg = nu)"
       },
       "sensitive": {
         "hidden": "Gevoelige gegevens zijn verborgen.",
         "reveal": "Tonen",
         "empty": "Geen gevoelige gegevens geregistreerd.",
         "updated": "Laatst gewijzigd op {date}",
-        "value": "Waarde"
+        "value": "Waarde",
+        "key": "Veld",
+        "clear": "Wissen"
+      },
+      "credit_kinds": {
+        "day": "Dagbeurten",
+        "night": "Nachtbeurten",
+        "euro": "Eurotegoed"
+      },
+      "timeline_ui": {
+        "all": "Alles"
       }
     },
     "timeline": {
@@ -446,7 +462,33 @@
       "company_created": "Bedrijf aangemaakt",
       "company_updated": "Bedrijfsgegevens gewijzigd: {fields}",
       "company_contact_linked": "Gekoppeld als contactpersoon van {company}",
-      "company_contact_unlinked": "Geen contactpersoon meer van {company}"
+      "company_contact_unlinked": "Geen contactpersoon meer van {company}",
+      "automation_item": "{automation}: {outcome}",
+      "automation_outcomes": {
+        "entered": "Gestart",
+        "scheduled": "Volgende stap gepland",
+        "sent": "E-mail verstuurd",
+        "task_created": "Taak aangemaakt",
+        "tag_applied": "Tag toegevoegd",
+        "tag_removed": "Tag verwijderd",
+        "field_set": "Veld bijgewerkt",
+        "status_set": "Status ingesteld",
+        "enrolled": "Ingeschreven in een andere automatisering",
+        "notified": "Team verwittigd",
+        "webhook_called": "Webhook aangeroepen",
+        "branched": "Vertakking gekozen",
+        "skipped_late_entry": "Overgeslagen: te laat ingestapt",
+        "skipped_condition": "Overgeslagen: voorwaarde niet vervuld",
+        "skipped_unreachable": "Overgeslagen: niet bereikbaar",
+        "skipped_translation": "Overgeslagen: vertaling ontbreekt",
+        "skipped_exclusive": "Overgeslagen: in een andere exclusieve automatisering",
+        "skipped_paused": "Overgeslagen: automatisering gepauzeerd",
+        "skipped_stale": "Overgeslagen: te oud",
+        "skipped_frequency_cap": "Overgeslagen: e-maillimiet bereikt",
+        "exited": "Automatisering verlaten",
+        "completed": "Automatisering afgerond",
+        "failed": "Stap mislukt"
+      }
     },
     "duplicates": {
       "title": "Mogelijke dubbels",
@@ -490,7 +532,8 @@
       "delete": "Tag verwijderen",
       "description": "Beschrijving",
       "system_locked": "Systeemtags kunnen niet verwijderd worden.",
-      "key_hint": "Kleine letters, cijfers, _ : en -. Interesses beginnen met interest:."
+      "key_hint": "Kleine letters, cijfers, _ : en -. Interesses beginnen met interest:.",
+      "key_taken": "Er bestaat al een tag met deze sleutel."
     },
     "consentWordings": {
       "title": "Toestemmingsteksten",
@@ -516,7 +559,8 @@
       "none": "Geen toestemming van ouder of voogd geregistreerd.",
       "none_published": "Er is nog geen tekst voor de toestemming van ouder of voogd gepubliceerd.",
       "minor_notice": "Een ouder of voogd moet deze toestemming geven.",
-      "reacceptance": "Een nieuwe versie van de tekst vraagt een nieuwe toestemming."
+      "reacceptance": "Een nieuwe versie van de tekst vraagt een nieuwe toestemming.",
+      "guardian_id": "Ouder of voogd (persoons-id)"
     },
     "reception": {
       "title": "Onthaal",
@@ -543,7 +587,10 @@
         "col_kind": "Soort",
         "col_count": "Personen",
         "col_refreshed": "Laatst vernieuwd",
-        "col_used_by": "Gebruikt door"
+        "col_used_by": "Gebruikt door",
+        "used_by_campaigns": "Campagnes",
+        "used_by_automations": "Automatiseringen",
+        "archived": "Gearchiveerd"
       },
       "builder": {
         "title_new": "Nieuw segment",
@@ -597,7 +644,8 @@
         "cycle": "Een segment kan zichzelf niet via een ander segment bevatten.",
         "too_many_rules": "Gebruik maximaal 50 regels.",
         "too_deep": "Nest groepen maximaal 4 niveaus diep.",
-        "sql": "Gegenereerde SQL"
+        "sql": "Gegenereerde SQL",
+        "unknown_customer_numbers": "Onbekende klantnummers: {numbers}"
       },
       "comparators": {
         "eq": "is",
@@ -802,7 +850,9 @@
         "link_new": "Nieuwe persoon",
         "end_contact": "Heeft het bedrijf verlaten",
         "ended": "Tot {date}",
-        "primary": "Hoofdcontact"
+        "primary": "Hoofdcontact",
+        "email_taken": "Dit e-mailadres hoort bij een andere persoon. Koppel die persoon.",
+        "contact_exists": "Deze persoon is al contact van dit bedrijf."
       },
       "form": {
         "name": "Naam",
@@ -909,6 +959,22 @@
         "cta": "Mijn e-mails beheren",
         "footer": "Heb je deze link niet gevraagd? Negeer dan deze e-mail."
       }
+    },
+    "consentPanel": {
+      "not_recorded": "Niet geregistreerd",
+      "reachable": "Bereikbaar",
+      "unreachable": "Niet bereikbaar",
+      "grant": "Toestemming geven (B2B, gerechtvaardigd belang)",
+      "withdraw": "Intrekken",
+      "unsubscribe_all_note": "Blokkeert alle marketingmails naar dit adres. Boekings- en betalingsmails komen nog aan.",
+      "col_purpose": "Doel",
+      "col_status": "Status",
+      "col_method": "Methode",
+      "col_source": "Bron",
+      "col_version": "Tekstversie",
+      "col_date": "Datum",
+      "col_scope": "Bereik",
+      "col_reason": "Reden"
     }
   }
 }

@@ -197,11 +197,16 @@
       "startedAt": "2026-11-04T00:33:51Z"
     },
     "site-P1": {
-      "status": "running",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "7835fd3",
       "runId": "wf_644a077c-2e6",
-      "startedAt": "2026-11-03T23:52:17Z"
+      "startedAt": "2026-11-03T23:52:17Z",
+      "branchSha": "62401fb",
+      "endedAt": "2026-11-04T00:51:04Z",
+      "minutes": 42,
+      "mergeSha": "4219fa2",
+      "mergedAt": "2026-11-04T00:58:57Z"
     },
     "crm-P2": {
       "status": "running",

@@ -831,7 +831,8 @@
       "day_link": "Dagoverzicht en afsluiting",
       "quantity": "Aantal",
       "col_product": "Product",
-      "col_amount": "Bedrag"
+      "col_amount": "Bedrag",
+      "choose_other": "Andere methode kiezen"
     },
     "pos_day": {
       "title": "Dag aan het onthaal",

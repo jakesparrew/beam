@@ -186,7 +186,7 @@ export async function posPayOrder(tx: Tx, ctx: Ctx, input: PosPaymentInput & { o
   if (input.billingDetails) await setOrderBillingDetails(tx, ctx, { orderId: order.id, details: input.billingDetails });
 
   let result: PosPayResult;
-  if (input.useEuroCredit && (await useEuroCredit(tx, ctx, order)) && order.totalCents - (await paidCentsOf(tx, order.id)) <= 0) {
+  if (input.useEuroCredit && (await applyEuroCredit(tx, ctx, order)) && order.totalCents - (await paidCentsOf(tx, order.id)) <= 0) {
     await finalizePaidOrder(tx, ctx, order.id);
     result = { orderId: order.id, status: "paid" };
   } else {
@@ -203,7 +203,7 @@ export async function posPayOrder(tx: Tx, ctx: Ctx, input: PosPaymentInput & { o
 }
 
 /** Rule 25 for an existing order: the person's euro credit pays what it can (once per order). */
-async function useEuroCredit(tx: Tx, ctx: Ctx, order: OrderRow): Promise<boolean> {
+async function applyEuroCredit(tx: Tx, ctx: Ctx, order: OrderRow): Promise<boolean> {
   if (!order.personId) return false;
   const [already] = await tx
     .select({ id: payments.id })

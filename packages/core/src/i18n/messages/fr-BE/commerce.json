@@ -831,7 +831,8 @@
       "day_link": "Résumé et clôture de la journée",
       "quantity": "Quantité",
       "col_product": "Produit",
-      "col_amount": "Montant"
+      "col_amount": "Montant",
+      "choose_other": "Choisir un autre mode"
     },
     "pos_day": {
       "title": "Journée à l’accueil",

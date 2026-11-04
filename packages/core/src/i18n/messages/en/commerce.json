@@ -831,7 +831,8 @@
       "day_link": "Day summary and close",
       "quantity": "Quantity",
       "col_product": "Product",
-      "col_amount": "Amount"
+      "col_amount": "Amount",
+      "choose_other": "Choose another method"
     },
     "pos_day": {
       "title": "Front-desk day",

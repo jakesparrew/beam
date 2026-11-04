@@ -447,4 +447,4 @@ export { getAttentionFeed, groupAttention, listPaymentAttention, ATTENTION_KINDS
 export { getPayOrderByToken, type PayPageView } from "./server/payment-links";
 
 export { getPosOrder, getPosPaymentState, ANONYMOUS_KINDS, type PosOrderView } from "./server/pos";
-export { getPosDaySummary, businessDayOf, POS_DIFFERENCE_TASK_CENTS, type PosDaySummary, type PosDayTotals } from "./server/pos-day";
+export { getPosDaySummary, businessDayOf, isPosDayClosed, POS_DIFFERENCE_TASK_CENTS, type PosDaySummary, type PosDayTotals } from "./server/pos-day";

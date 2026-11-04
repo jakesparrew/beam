@@ -4,6 +4,7 @@ import { createTestDb, makePerson } from "@beam/db/testing";
 import { DEFAULT_BOOKING_RULES, brusselsDate } from "@beam/core/booking";
 import { NotImplementedError } from "@beam/core/errors";
 import { resetRuntime } from "@/lib/testing";
+import { getReceptionCard, type ReceptionCardData } from "@/modules/crm/api";
 import { hasValidSubmission } from "@/modules/forms/api";
 import { DAY, HOUR, openSession, setBookingRules } from "../server/booking-p3a.fixtures";
 import { rawBooking, unpaidOrderBooking } from "../server/booking-p3b.fixtures";
@@ -11,6 +12,19 @@ import { attendanceFlags, codeFromScan, getCheckinCard, getCheckinDay, getSessio
 
 vi.mock("@/lib/auth", () => ({ requirePermission: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("@/modules/forms/api", async (orig) => ({ ...(await orig<Record<string, unknown>>()), hasValidSubmission: vi.fn() }));
+vi.mock("@/modules/crm/api", async (orig) => ({ ...(await orig<Record<string, unknown>>()), getReceptionCard: vi.fn() }));
+
+/** A reception card of the crm contract shape (crm getReceptionCard), returned by the mock. */
+const receptionCard: ReceptionCardData = {
+  name: "Rita Receptie",
+  customerNumber: "B-000123",
+  status: "member",
+  isMember: true,
+  tags: ["vip"],
+  emergencyContact: { name: "Rudi Receptie", phone: "+32 470 00 00 00" },
+  declarations: { termsAccepted: true, healthDeclarationValid: false, guardianConsentValid: false },
+  isMinor: false,
+};
 
 let h: DbHandle;
 const valid = new Set<string>();
@@ -30,6 +44,7 @@ beforeEach(() => {
     if (expired.has(personId)) return Promise.resolve({ valid: false, completedAt: new Date(Date.now() - 400 * DAY), expiresAt: new Date(Date.now() - 35 * DAY) });
     return Promise.resolve({ valid: false, completedAt: null, expiresAt: null });
   });
+  vi.mocked(getReceptionCard).mockReset().mockResolvedValue(receptionCard);
 });
 
 describe("codeFromScan", () => {
@@ -104,7 +119,9 @@ describe("getCheckinCard and getCheckinDay", () => {
     const owner = await rawBooking(h.db, { sessionId: s.id });
     const guest = await rawBooking(h.db, { sessionId: s.id, guestOfBookingId: owner.id, paidWith: "guest" });
     const card = await getCheckinCard(h.db, { code: `https://beam.example.com/admin/bookings/checkin?c=${owner.checkinCode}`, now });
-    expect(card).toMatchObject({ bookingId: owner.id, status: "confirmed", canCheckIn: true, canUndo: false, canMarkNoShow: true, wrongDay: false, inWindow: true, receptionCard: null });
+    expect(card).toMatchObject({ bookingId: owner.id, status: "confirmed", canCheckIn: true, canUndo: false, canMarkNoShow: true, wrongDay: false, inWindow: true });
+    expect(card?.receptionCard).toEqual(receptionCard);
+    expect(vi.mocked(getReceptionCard)).toHaveBeenCalledWith(h.db, owner.personId);
     expect(card?.guests.map((g) => g.bookingId)).toEqual([guest.id]);
 
     const unpaid = await unpaidOrderBooking(h.db, { sessionId: s.id, isPayAtDesk: true, reservedUntil: s.endsAt });

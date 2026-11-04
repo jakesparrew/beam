@@ -1,3 +1,1 @@
 # <repo path> <fixer id> <reason>; the gate excludes these test files until the fixer lands
-apps/web/modules/booking/queries/attendance.test.ts fix-w08-booking-2 crm-P7 made getReceptionCard real; the test still expects the stub's fallback (receptionCard null), CONVENTIONS item 11
-apps/web/modules/booking/fix-w05-schema-1.schedules.test.ts fix-w08-booking-2 asserts the old privacy stub returns {} and [] on a fake tx; booking-P6 made export and erase real (CONVENTIONS item 11)

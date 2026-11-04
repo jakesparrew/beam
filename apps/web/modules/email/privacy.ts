@@ -6,11 +6,15 @@
  *   times), its events (type and time), the campaign memberships (campaign name, status) and the
  *   current reachability per purpose. Resend keeps delivery logs for 30 days, which its API
  *   cannot export; the export says so.
- * - `erase` (runs under `beam.allow_rewrite`, before automation and crm): unlinks
- *   `campaign_recipients.email_message_id` and soft-bounce retry links, deletes the person's
+ * - `erase` (runs under `beam.allow_rewrite`, after automation, before forms, commerce and crm): unlinks
+ *   `campaign_recipients.email_message_id`, soft-bounce retry links and the other modules' links
+ *   (see `unlinkMessages`), deletes the person's
  *   `campaign_recipients` and `email_messages` (cascading `email_events`). It enqueues nothing:
  *   the provider-side step (`ResendClient.deleteContact`) is ops' `privacy.erase_external`.
- * - `sweep`: one handler per retention key, each deleting at most 5,000 rows per call.
+ * - `sweep`: one handler per retention key, each deleting at most 5,000 rows per call. Before a
+ *   message is deleted, every nullable link to it is cleared (`unlinkMessages`, also for erase);
+ *   a message an `automation_runs` row still references (`on delete restrict`, append-only) is
+ *   skipped until automation's own 730-day sweep has removed that run.
  */
 import type { Tx } from "@beam/db";
 import type { PrivacyRegistration, RetentionPolicySeed } from "@beam/core/privacy";
@@ -26,10 +30,21 @@ const allowRewrite = (tx: DbOrTx) => tx.execute(sql`set local beam.allow_rewrite
 /** Retention rows (the same list the `defaults` seed inserts); ops seeds them from `GDPR_REGISTRY`. */
 export const retention: readonly RetentionPolicySeed[] = EMAIL_RETENTION_POLICIES;
 
-/** Unlinks recipients and retries from the messages selected by `where` (a `m.` predicate). */
+/**
+ * Clears every nullable reference to the messages selected by `ids` before they are deleted:
+ * email's own (campaign recipients, soft-bounce retries) and the three links other modules keep
+ * with `on delete no action` (`form_submissions.result_email_message_id`,
+ * `checkouts.recovery_message_id`, `vouchers.email_message_id`). Erasure runs email before forms
+ * and commerce (ERASE_ORDER), and those rows outlive email's 730-day retention, so without this
+ * both the erase step and the `email.email_messages` sweep fail on the foreign keys. The link is
+ * only a pointer to the delivered email; the submission, checkout and voucher stay intact.
+ */
 async function unlinkMessages(tx: DbOrTx, ids: ReturnType<typeof sql>): Promise<void> {
   await tx.execute(sql`update campaign_recipients set email_message_id = null, updated_at = now() where email_message_id in (${ids})`);
   await tx.execute(sql`update email_messages set retry_of_message_id = null, updated_at = now() where retry_of_message_id in (${ids})`);
+  await tx.execute(sql`update form_submissions set result_email_message_id = null, updated_at = now() where result_email_message_id in (${ids})`);
+  await tx.execute(sql`update checkouts set recovery_message_id = null, updated_at = now() where recovery_message_id in (${ids})`);
+  await tx.execute(sql`update vouchers set email_message_id = null, updated_at = now() where email_message_id in (${ids})`);
 }
 
 export const sweep: Record<string, (tx: Tx, cutoff: Date) => Promise<number>> = {
@@ -43,6 +58,8 @@ export const sweep: Record<string, (tx: Tx, cutoff: Date) => Promise<number>> = 
       await tx.execute(sql`
         select m.id from email_messages m left join campaigns c on c.id = m.campaign_id
         where m.created_at < ${cutoff} and (m.campaign_id is null or c.stats_snapshot is not null)
+          and not exists (select 1 from automation_runs r where r.email_message_id = m.id)
+        order by m.created_at
         limit ${BATCH}`),
     ).map((r) => r.id);
     if (!due.length) return 0;

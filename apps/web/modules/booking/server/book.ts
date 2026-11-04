@@ -291,6 +291,10 @@ export async function bookSeats(tx: Tx, ctx: Ctx, input: BookSeatsInput): Promis
     throw new ValidationError("pay_at_desk_not_available", { payAtDesk: "not_available" });
   }
   if (input.payWith === "guest" && !input.grantOwnerPersonId) throw new ValidationError("grant_owner_required", { grantOwnerPersonId: "required" });
+  // A customer pays only from their own grants (credits rule 17's owner guest use): credits checks no
+  // package_shares row or owner consent on that branch, so a foreign owner is refused here. Staff are
+  // trusted (`bookings.write`). R2 named sharing will take credits' rule-18 branch instead.
+  if (!staff && input.grantOwnerPersonId && input.grantOwnerPersonId !== input.personId) throw new BookingConflictError("sharing_not_allowed");
 
   // R13: shared beds only on nights, at most `max_shared_bed_guests_per_booking`.
   const sharers = guests.filter((g) => g.sharesBed).length;

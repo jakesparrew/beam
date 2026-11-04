@@ -125,12 +125,35 @@ describe("credit bookings (R17)", () => {
     spy.mockRestore();
   });
 
-  it("a shared package: the sharee books for themself with paid_with guest against the owner's grant (R55)", async () => {
+  it("a customer cannot pay with another person's shareable package through grantOwnerPersonId", async () => {
+    const session = await openSession(h.db);
+    const owner = await makePerson(h.db);
+    const other = await makePerson(h.db);
+    const g = await grantFor(owner.id, 5, { sharing: { mode: "guests", max_guest_uses_per_month: 4, allowed_person_ids: [] } });
+    await expect(
+      book(customerActor(other.id), { sessionId: session.id, personId: other.id, payWith: "guest", grantOwnerPersonId: owner.id }),
+    ).rejects.toMatchObject({ code: "conflict", reason: "sharing_not_allowed" });
+    // Also as the payer of a guest row.
+    await grantFor(other.id, 5);
+    await expect(
+      book(customerActor(other.id), {
+        sessionId: session.id,
+        personId: other.id,
+        payWith: "credit",
+        grantOwnerPersonId: owner.id,
+        guests: [{ firstName: "Gast", lastName: "Twee", payWith: "guest" }],
+      }),
+    ).rejects.toMatchObject({ reason: "sharing_not_allowed" });
+    expect(await rowsOf(session.id)).toHaveLength(0);
+    expect(await h.db.select().from(creditEntries).where(and(eq(creditEntries.grantId, g.id), eq(creditEntries.kind, "consume")))).toHaveLength(0);
+  });
+
+  it("staff book a sharee for themself with paid_with guest against the owner's grant (R55)", async () => {
     const session = await openSession(h.db);
     const owner = await makePerson(h.db);
     const sharee = await makePerson(h.db);
     const g = await grantFor(owner.id, 5, { sharing: { mode: "guests", max_guest_uses_per_month: 4, allowed_person_ids: [] } });
-    await book(customerActor(sharee.id), { sessionId: session.id, personId: sharee.id, payWith: "guest", grantOwnerPersonId: owner.id });
+    await book(staff(), { sessionId: session.id, personId: sharee.id, payWith: "guest", grantOwnerPersonId: owner.id });
     const [row] = await rowsOf(session.id);
     expect(row).toMatchObject({ personId: sharee.id, paidWith: "guest", status: "confirmed" });
     const [entry] = await h.db.select().from(creditEntries).where(and(eq(creditEntries.refId, row!.id), eq(creditEntries.kind, "consume")));

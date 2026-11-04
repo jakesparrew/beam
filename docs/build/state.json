@@ -104,11 +104,11 @@
       "startedAt": "2026-11-03T23:35:56Z"
     },
     "commerce-P1": {
-      "status": "red",
-      "attempts": 1,
-      "baseSha": "9892b11",
-      "runId": "wf_a55fc3c3-fdb",
-      "startedAt": "2026-11-03T23:35:56Z",
+      "status": "running",
+      "attempts": 2,
+      "baseSha": "cb309dd",
+      "runId": "wf_c50753e8-3c3",
+      "startedAt": "2026-11-04T00:10:11Z",
       "branchSha": "e2a285c",
       "endedAt": "2026-11-04T00:07:37Z",
       "minutes": 35,

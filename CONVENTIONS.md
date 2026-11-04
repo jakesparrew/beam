@@ -28,21 +28,27 @@ Every coding agent reads this page first. The long reference with examples is
    commit message.
 5. **Mutations** are `action()` in `actions.ts`. **Side effects** are jobs
    (`defineJob`) enqueued in the same transaction. A request never calls a provider.
-6. **Facts are append-only.** Never update or delete rows of an APPEND table;
+6. **Contract tables are shared.** Other modules' code and fixtures insert into contract
+   tables (persons, orders, order_lines, products, sessions, bookings, invoices,
+   email_messages, ...). A column you add to one must be nullable or have a default, unless
+   the spec requires otherwise; then list every other module's fixture that breaks under
+   `Requests:`. In tests, create another module's rows through the shared factories
+   (`@beam/db/testing`, `@beam/db/testing/<m>-factories`), not raw inserts.
+7. **Facts are append-only.** Never update or delete rows of an APPEND table;
    balances and statuses are views.
-7. **Naming.** Tables snake_case plural; enums `<table>_<column>`; views `v_<name>`;
+8. **Naming.** Tables snake_case plural; enums `<table>_<column>`; views `v_<name>`;
    event kinds `<entity>.<past_tense_or_fact>`; job kinds `<module_or_entity>.<verb_noun>`;
    permissions `<module>.<action>`; i18n keys `<m>.<screen>.<element>`; flags
    `ff_<m>_<name>`; settings keys snake_case in `config.ts`; idempotency keys
    `<noun>:<id>[:<qualifier>]` (no wall-clock timestamps); transactional templates
    `<m>.<snake_name>`, marketing templates kebab-case; files kebab-case, React
    components PascalCase.
-8. **Money, time, language.** Integer cents in EUR, VAT per line; UTC in the
+9. **Money, time, language.** Integer cents in EUR, VAT per line; UTC in the
    database, `Europe/Brussels` in logic; `nl-BE`, `fr-BE` and `en` everywhere, with
    no fallback language.
-9. **Sensitive data** is read only through `readSensitive()`; never in logs, AI
+10. **Sensitive data** is read only through `readSensitive()`; never in logs, AI
    context, segments or exports.
-10. **Tests.** Vitest beside the code; integration tests use `createTestDb()` and the
+11. **Tests.** Vitest beside the code; integration tests use `createTestDb()` and the
     factories; provider fakes only, no network; every job runs twice in `jobs.test.ts`;
     `privacy.test.ts` and `permissions.test.ts` per module. Playwright specs are
     written and listed (`playwright test --list`), never run by a coding agent.
@@ -51,9 +57,9 @@ Every coding agent reads this page first. The long reference with examples is
     server action finishes. Wait for the action's POST response
     (`page.waitForResponse`) or for the specific message text, and reset the
     shared demo rows you touch both before and after the test.
-11. **Before you commit**, run the command list of section 4 of
+12. **Before you commit**, run the command list of section 4 of
     `docs/plan/04-build-session.md` (install offline, `gen:indexes`, typecheck,
     eslint on your files, `i18n:check`, your Vitest suites, the ownership check).
-12. **Commit** on branch `build/<package-id>` with the message `<module>: <summary>`
+13. **Commit** on branch `build/<package-id>` with the message `<module>: <summary>`
     and the trailers of section 4 (`Package`, `Wave`, `Tests`, `Decisions`,
     `Requests`, `Dependency-requests`, `Missing-catalogue-keys`). Never push.

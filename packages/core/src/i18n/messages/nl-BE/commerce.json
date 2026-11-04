@@ -273,7 +273,91 @@
       "missing_translation": "Er ontbreken vertalingen.",
       "no_price": "Er geldt nu geen publieke prijs.",
       "forbidden": "Je hebt hiervoor geen toestemming.",
-      "not_found": "Niet gevonden."
+      "not_found": "Niet gevonden.",
+      "order_expired": "Deze bestelling is verlopen.",
+      "amount_out_of_range": "Kies een bedrag binnen de toegelaten grenzen."
+    },
+    "email": {
+      "order_confirmation": {
+        "subject": "Je BEAM-bestelling {reference}",
+        "preheader": "Bedankt, we hebben je betaling ontvangen.",
+        "heading": "Bedankt voor je bestelling",
+        "body": "We hebben je betaling voor bestelling {reference} ontvangen. Je kasticket zit in de bijlage.",
+        "cta": "Bekijk je bestelling",
+        "total": "Totaal betaald (incl. btw): {total}",
+        "withdrawal": "Je hebt het recht om deze aankoop tot en met {date} zonder opgave van reden te herroepen. Gebruik daarvoor het herroepingsformulier op je bestelpagina:"
+      },
+      "payment_failed": {
+        "subject": "Je betaling voor {reference} is niet gelukt",
+        "preheader": "Je kunt het meteen opnieuw proberen.",
+        "heading": "Je betaling is niet gelukt",
+        "body": "De betaling van {amount} voor bestelling {reference} werd niet afgerond. Er werd niets aangerekend. Je kunt opnieuw betalen zolang je bestelling openstaat.",
+        "cta": "Opnieuw betalen"
+      },
+      "portal_invitation": {
+        "subject": "Je BEAM-account staat klaar",
+        "preheader": "Bekijk je aankopen en boekingen op één plek.",
+        "heading": "Welkom bij BEAM",
+        "body": "Bedankt voor bestelling {reference}. Meld je aan op je BEAM-account met dit e-mailadres om je aankopen, tegoeden en boekingen te bekijken. We sturen je een aanmeldlink, een wachtwoord is niet nodig.",
+        "cta": "Aanmelden"
+      }
+    },
+    "receipt": {
+      "title": "Kasticket",
+      "reference": "Referentie",
+      "date": "Datum",
+      "vat_number": "Btw {number}",
+      "col_description": "Omschrijving",
+      "col_quantity": "Aantal",
+      "col_vat": "Btw",
+      "col_amount": "Bedrag",
+      "line_discount": "Korting {amount}",
+      "subtotal": "Subtotaal",
+      "discount": "Korting",
+      "total": "Totaal incl. btw",
+      "vat_included": "Waarvan btw",
+      "vat_rate": "Btw {rate} %",
+      "vat_summary": "Btw per tarief",
+      "net": "Excl. btw",
+      "vat_amount": "Btw",
+      "gross": "Incl. btw",
+      "paid_with": "Betaald met",
+      "method_bancontact": "Bancontact",
+      "method_creditcard": "Kredietkaart",
+      "method_kbc": "KBC/CBC-betaalknop",
+      "method_belfius": "Belfius Pay",
+      "method_ideal": "iDEAL",
+      "method_paypal": "PayPal",
+      "method_pointofsale": "Kaart aan de balie",
+      "method_cash": "Contant",
+      "method_banktransfer": "Overschrijving",
+      "method_credit_balance": "Tegoed van cadeaubon",
+      "method_directdebit": "Domiciliëring",
+      "method_other": "Andere betaling",
+      "withdrawal": "Herroepingsrecht: je kunt de pakketten, abonnementen en cadeaubonnen van deze bestelling tot en met {date} zonder opgave van reden herroepen via het herroepingsformulier op je bestelpagina. Sessies, nachten en tickets op een vaste datum zijn uitgesloten."
+    },
+    "tasks": {
+      "chargeback": "Terugboeking op bestelling {reference}"
+    },
+    "order_status": {
+      "draft": "Concept",
+      "pending_payment": "Wacht op betaling",
+      "paid": "Betaald",
+      "cancelled": "Geannuleerd",
+      "expired": "Verlopen",
+      "refunded": "Terugbetaald",
+      "partially_refunded": "Deels terugbetaald"
+    },
+    "payment_status": {
+      "open": "Open",
+      "pending": "In behandeling",
+      "authorized": "Geautoriseerd",
+      "paid": "Betaald",
+      "failed": "Mislukt",
+      "expired": "Verlopen",
+      "cancelled": "Geannuleerd",
+      "refunded": "Terugbetaald",
+      "partially_refunded": "Deels terugbetaald"
     }
   }
 }

@@ -1,8 +1,10 @@
 /**
  * commerce's cross-module door (commerce spec section 4.8, 02-data-model section 6.4). Every
  * function another module calls is declared here with its final signature (commerce-P1, build
- * order rule 1); each throws `NotImplementedError('commerce.<fn>')` until the commerce package
- * that implements it replaces the body. `quote` is the pure core function, re-exported.
+ * order rule 1); a function whose package has not landed yet throws
+ * `NotImplementedError('commerce.<fn>')`. commerce-P3 serves `getQuote`, `getProductPrice`,
+ * `listPublicPrices` and `getProductCards` (`./server/catalogue`); commerce-P4a `createOrder`,
+ * `startPayment`, `getOrderStatus`, `getPersonCommerceSummary` and `listPersonOrders`. `quote` is the pure core function, re-exported.
  * `redeemVoucher` is re-exported from `./actions` once commerce-P6 builds that server action
  * (actions are `export {}` until then; DM-13).
  */
@@ -22,6 +24,17 @@ import type {
   Quote,
 } from "@beam/core/commerce";
 import type { Ctx } from "@/lib/ctx";
+import type { CreateOrderInput, CreateOrderResult } from "./server/orders";
+
+/**
+ * The catalogue, order and payment services are loaded on first call: they import booking, credits, crm,
+ * email, finance and site, whose import graphs reach booking, and booking imports this file. A
+ * static import would close that cycle while this module is still evaluating (and would hand
+ * the real functions to a module that a test mocks this file for).
+ */
+const catalogueService = () => import("./server/catalogue");
+const orderService = () => import("./server/orders");
+const paymentService = () => import("./server/payments");
 
 export { quote } from "@beam/core/commerce";
 export type {
@@ -40,42 +53,34 @@ export type {
 
 const notYet = <T>(fn: string): Promise<T> => Promise.reject(new NotImplementedError(`commerce.${fn}`));
 
-export type CreateOrderInput = {
-  personId: string | null;
-  companyId?: string | null;
-  channel: OrderChannel;
-  items: CartItem[];
-  promoCode?: string | null;
-  clientKey: string;
-  checkoutId?: string;
-  locale: Locale;
-  useEuroCredit?: boolean;
-  note?: string;
-  /** Channel `admin` only (booking R63 pay-at-desk: the session's `ends_at`). */
-  expiresAt?: Date;
-};
+export type { CreateOrderInput, CreateOrderResult } from "./server/orders";
+export type { DeliveredLine } from "./server/paid";
+export type { ReportedPayment, SyncResult } from "./server/payments";
 
+/** Loads products, prices, member benefits and eligible promotions, then calls the pure `quote` (commerce-P3). */
 export function getQuote(
-  _db: DbOrTx,
-  _args: { personId: string | null; companyId?: string | null; items: CartItem[]; promoCode?: string | null; channel: OrderChannel; at?: Date },
+  db: DbOrTx,
+  args: { personId: string | null; companyId?: string | null; items: CartItem[]; promoCode?: string | null; channel: OrderChannel; at?: Date },
 ): Promise<Quote> {
-  return notYet("getQuote");
+  return catalogueService().then((m) => m.getQuote(db, args));
 }
 
-export function createOrder(
-  _tx: Tx,
-  _ctx: Ctx,
-  _input: CreateOrderInput,
-): Promise<{ orderId: string; reference: string; lineIds: string[]; totalCents: number; status: OrderStatus; expiresAt: Date | null; isExisting: boolean }> {
-  return notYet("createOrder");
+/**
+ * Prices and writes an order with its lines in the caller's transaction (rules 19 to 27).
+ * `lineIds` come back in item order; `items[].bookingIds` are stored in
+ * `order_lines.data.booking_ids` and booking is never called (rule 21, cross-module D21).
+ */
+export function createOrder(tx: Tx, ctx: Ctx, input: CreateOrderInput): Promise<CreateOrderResult> {
+  return orderService().then((m) => m.createOrder(tx, ctx, input));
 }
 
-export function startPayment(_tx: Tx, _ctx: Ctx, _input: { orderId: string; returnPath?: string }): Promise<{ paymentId: string | null; redirectUrl: string }> {
-  return notYet("startPayment");
+/** Inline `payments.create`; `redirectUrl` = the provider page, or the return page when nothing is due. */
+export function startPayment(tx: Tx, ctx: Ctx, input: { orderId: string; returnPath?: string }): Promise<{ paymentId: string | null; redirectUrl: string }> {
+  return paymentService().then((m) => m.startPayment(tx, ctx, input));
 }
 
-export function getOrderStatus(_db: DbOrTx, _orderId: string): Promise<{ status: OrderStatus; paidAt: Date | null; dueCents: number }> {
-  return notYet("getOrderStatus");
+export function getOrderStatus(db: DbOrTx, orderId: string): Promise<{ status: OrderStatus; paidAt: Date | null; dueCents: number }> {
+  return orderService().then((m) => m.getOrderStatus(db, orderId));
 }
 
 export function cancelOrder(_tx: Tx, _ctx: Ctx, _input: { orderId: string; reason: string }): Promise<{ cancelled: boolean }> {
@@ -156,28 +161,23 @@ export function listPaymentAttention(_db: DbOrTx, _opts: { limit: number }): Pro
 }
 
 export function getPersonCommerceSummary(
-  _db: DbOrTx,
-  _personId: string,
+  db: DbOrTx,
+  personId: string,
 ): Promise<{ paidOrders: number; paidCents: number; lastPaidAt: Date | null; openOrders: number; activeVouchers: number }> {
-  return notYet("getPersonCommerceSummary");
+  return orderService().then((m) => m.getPersonCommerceSummary(db, personId));
 }
 
-export function listPersonOrders(_tx: DbOrTx, _personId: string, _opts: { limit: number }): Promise<OrderSummary[]> {
-  return notYet("listPersonOrders");
+export function listPersonOrders(tx: DbOrTx, personId: string, opts: { limit: number }): Promise<OrderSummary[]> {
+  return orderService().then((m) => m.listPersonOrders(tx, personId, opts));
 }
 
-export function getProductPrice(
-  _db: DbOrTx,
-  _productId: string,
-  _audience: Audience,
-  _at?: Date,
-): Promise<{ priceVersionId: string; amountCents: number } | null> {
-  return notYet("getProductPrice");
+export function getProductPrice(db: DbOrTx, productId: string, audience: Audience, at?: Date): Promise<{ priceVersionId: string; amountCents: number } | null> {
+  return catalogueService().then((m) => m.getProductPrice(db, productId, audience, at));
 }
 
 export function listPublicPrices(
-  _db: DbOrTx,
-  _input: { productIds?: string[]; at: Date },
+  db: DbOrTx,
+  input: { productIds?: string[]; at: Date },
 ): Promise<
   Array<{
     productId: string;
@@ -193,11 +193,11 @@ export function listPublicPrices(
     isActive: boolean;
   }>
 > {
-  return notYet("listPublicPrices");
+  return catalogueService().then((m) => m.listPublicPrices(db, input));
 }
 
-export function getProductCards(_tx: DbOrTx, _productIds: string[], _locale: Locale): Promise<ProductCard[]> {
-  return notYet("getProductCards");
+export function getProductCards(tx: DbOrTx, productIds: string[], locale: Locale): Promise<ProductCard[]> {
+  return catalogueService().then((m) => m.getProductCards(tx, productIds, locale));
 }
 
 export function countOrdersByLanding(

@@ -52,7 +52,7 @@ function jsonReplacer(this: unknown, key: string, value: unknown): unknown {
 export const toJsonText = (value: unknown): string => `${JSON.stringify(value, jsonReplacer, 2)}\n`;
 
 async function* once(bytes: Uint8Array): AsyncIterable<Uint8Array> {
-  yield bytes;
+  yield await Promise.resolve(bytes);
 }
 
 const textEntry = (name: string, text: string): ZipEntry => ({ name, data: once(new TextEncoder().encode(text)) });
@@ -141,12 +141,12 @@ function moduleOrder(registry: Registry): string[] {
  * `privacy_export`).
  */
 export async function* buildSubjectExport(tx: Tx, ctx: JobCtx, personId: string, registry: Registry = GDPR_REGISTRY as unknown as Registry): AsyncIterable<{ name: string; data: AsyncIterable<Uint8Array> }> {
-  for (const module of moduleOrder(registry)) {
-    const reg = registry[module];
+  for (const moduleId of moduleOrder(registry)) {
+    const reg = registry[moduleId];
     if (!reg) continue;
     const data = (await reg.export(tx, personId)) ?? {};
-    yield textEntry(`${module}.json`, toJsonText(data));
-    for (const entry of csvEntries(module, data)) yield entry;
+    yield textEntry(`${moduleId}.json`, toJsonText(data));
+    for (const entry of csvEntries(moduleId, data)) yield entry;
   }
   // `ctx.tx` is `tx` (the export job's transaction); `readSensitive` audits through `ctx`.
   const sensitive = await readSensitive(ctx, personId, "privacy_export");

@@ -14,9 +14,9 @@ const revoke = vi.hoisted(() => ({ calls: [] as { personId: string; isTx: boolea
 vi.mock("next/server", () => ({ after: () => undefined }));
 vi.mock("@/modules/commerce/api", async (importOriginal) => ({
   ...(await importOriginal<object>()),
-  revokeMandatesForPerson: vi.fn(async (tx: { execute?: unknown }, _ctx: unknown, personId: string) => {
+  revokeMandatesForPerson: vi.fn((tx: { execute?: unknown }, _ctx: unknown, personId: string) => {
     revoke.calls.push({ personId, isTx: typeof tx?.execute === "function" });
-    return { revoked: 1 };
+    return Promise.resolve({ revoked: 1 });
   }),
 }));
 

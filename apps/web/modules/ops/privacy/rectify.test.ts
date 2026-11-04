@@ -12,8 +12,9 @@ const resync = vi.hoisted(() => ({ calls: [] as { tx: unknown; personId: string 
 vi.mock("next/server", () => ({ after: () => undefined }));
 vi.mock("@/modules/finance/api", async (importOriginal) => ({
   ...(await importOriginal<object>()),
-  resyncCustomer: vi.fn(async (tx: unknown, _ctx: unknown, personId: string) => {
+  resyncCustomer: vi.fn((tx: unknown, _ctx: unknown, personId: string) => {
     resync.calls.push({ tx, personId });
+    return Promise.resolve();
   }),
 }));
 

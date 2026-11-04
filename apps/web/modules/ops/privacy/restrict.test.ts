@@ -7,6 +7,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import type { DbHandle } from "@beam/db";
 import { consentRecords, processingRestrictions, suppressions } from "@beam/db/schema";
 import { createTestDb, makePerson, makeUser } from "@beam/db/testing";
+import type * as AutomationApi from "@/modules/automation/api";
+import type * as CrmApi from "@/modules/crm/api";
 
 const spy = vi.hoisted(() => ({
   restrict: [] as { tx: unknown; personId: string; restricted: boolean }[],
@@ -16,7 +18,7 @@ const spy = vi.hoisted(() => ({
 vi.mock("next/server", () => ({ after: () => undefined }));
 // crm's api barrel imports ops' api (a cycle), so the spy sits on the file that defines the function.
 vi.mock("@/modules/crm/persons/api", async (importOriginal) => {
-  const real = await importOriginal<typeof import("@/modules/crm/persons/api")>();
+  const real = await importOriginal<Pick<typeof CrmApi, "restrictProcessing">>();
   return {
     ...real,
     restrictProcessing: async (...args: Parameters<typeof real.restrictProcessing>) => {
@@ -26,7 +28,7 @@ vi.mock("@/modules/crm/persons/api", async (importOriginal) => {
   };
 });
 vi.mock("@/modules/automation/api", async (importOriginal) => {
-  const real = await importOriginal<typeof import("@/modules/automation/api")>();
+  const real = await importOriginal<typeof AutomationApi>();
   return {
     ...real,
     exitAllForPerson: async (...args: Parameters<typeof real.exitAllForPerson>) => {

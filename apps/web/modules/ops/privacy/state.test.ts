@@ -7,7 +7,7 @@ import { createTestDb, makePerson, makeUser } from "@beam/db/testing";
 import { makeOrder } from "@beam/db/testing/commerce-factories";
 
 vi.mock("next/server", () => ({ after: () => undefined }));
-vi.mock("@/modules/finance/api", async (importOriginal) => ({ ...(await importOriginal<object>()), resyncCustomer: vi.fn(async () => undefined) }));
+vi.mock("@/modules/finance/api", async (importOriginal) => ({ ...(await importOriginal<object>()), resyncCustomer: vi.fn(() => Promise.resolve()) }));
 
 const { setAppDb } = await import("@/lib/ctx");
 const { makeCtx, resetRuntime, staffActor } = await import("@/lib/testing");

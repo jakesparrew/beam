@@ -9,6 +9,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import type { DbHandle } from "@beam/db";
 import { createTestDb, makePerson, makeUser } from "@beam/db/testing";
 import { ERASE_ORDER } from "@beam/core/ops";
+import type * as PrivacyRegistry from "@/registry/privacy.generated";
 
 const hooks = vi.hoisted(() => ({
   seen: [] as { module: string; allow: string | null; requestSetting: string | null; inTx: boolean }[],
@@ -17,7 +18,7 @@ const hooks = vi.hoisted(() => ({
 
 vi.mock("next/server", () => ({ after: () => undefined }));
 vi.mock("@/registry/privacy.generated", async (importOriginal) => {
-  const mod = await importOriginal<typeof import("@/registry/privacy.generated")>();
+  const mod = await importOriginal<typeof PrivacyRegistry>();
   const wrapped = Object.fromEntries(
     Object.entries(mod.GDPR_REGISTRY).map(([module, reg]) => [
       module,

@@ -324,7 +324,7 @@ export async function runNow(ctx: Ctx, requestId: string): Promise<{ jobId: stri
   const row = await requireRequest(ctx.tx, requestId);
   if (row.kind === "erase") ctx.require("persons.erase");
   if (row.kind !== "erase" && row.kind !== "export") throw new ValidationError("not_runnable", { requestId: "kind" });
-  let next = row;
+  let next: PrivacyRequestRow;
   if (row.status === "failed") {
     [next] = (await ctx.tx
       .update(privacyRequests)
@@ -387,7 +387,7 @@ export async function startErasure(ctx: Ctx, requestId: string): Promise<StartOu
   external = setExternal(external, "anthropic", "provider_retains");
   const report: PrivacyReport = { ...previous, external, startedAt: previous.startedAt ?? ctx.now.toISOString() };
   delete report.finishedAt;
-  await writeReport(tx as Tx, row.id, report, { status: "running", needsManualFollowup: false });
+  await writeReport(tx, row.id, report, { status: "running", needsManualFollowup: false });
   const running = { id: row.id, runAttempt: row.runAttempt };
   for (const provider of ERASE_EXTERNAL_PROVIDERS) {
     await ctx.enqueue({ kind: "privacy.erase_external", payload: { requestId: row.id, provider }, key: externalKey(running, provider) });

@@ -20,6 +20,9 @@ import { getMyPrivacyRequests } from "@/modules/ops/privacy/queries";
  */
 type Op = PrivacyKind | "cancel";
 
+/** The 24-hour cancel window is still open. */
+const isFuture = (at: Date) => at.getTime() > Date.now();
+
 export default async function AccountPrivacyPage({ params, searchParams }: { params: Promise<{ locale: string }>; searchParams: Promise<{ error?: string; done?: string }> }) {
   const { locale: seg } = await params;
   const locale = localeFromSegment(seg);
@@ -30,9 +33,8 @@ export default async function AccountPrivacyPage({ params, searchParams }: { par
   const requests = await getMyPrivacyRequests(await getAppDb(), actor.personId);
   const here = `/${URL_SEGMENT[locale]}/account/privacy`;
   const word = ERASE_CONFIRM_WORDS[locale];
-  const now = Date.now();
   const openKinds = new Set(requests.filter((r) => r.status === "received" || r.status === "verified" || r.status === "running").map((r) => r.kind));
-  const pendingErasure = requests.find((r) => r.kind === "erase" && r.status === "verified" && r.scheduledForAt && r.scheduledForAt.getTime() > now);
+  const pendingErasure = requests.find((r) => r.kind === "erase" && r.status === "verified" && r.scheduledForAt && isFuture(r.scheduledForAt));
 
   async function act(fd: FormData) {
     "use server";

@@ -114,7 +114,7 @@ export function unzip(bytes: Uint8Array): { name: string; bytes: Uint8Array; tex
     const start = local + 30 + lNameLen + lExtraLen;
     const raw = bytes.subarray(start, start + size);
     const data = method === 8 ? new Uint8Array(inflateRawSync(raw)) : raw;
-    out.push({ name, bytes: data, text: dec.decode(data).replace(/^﻿/, "") });
+    out.push({ name, bytes: data, text: dec.decode(data).replace(/^\uFEFF/, "") });
     at += 46 + nameLen + extraLen + commentLen;
   }
   return out;

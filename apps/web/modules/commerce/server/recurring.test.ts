@@ -48,6 +48,8 @@ const { getPayLinkForOrder, findOrderByPayToken } = await import("./payment-link
 const { cancelRenewalOrder } = await import("./cancel");
 const { createCtx, eq, and } = await import("@/lib/ctx");
 const { makeCtx, makeJobCtx, resetRuntime, runJobTwice, createFakeIntegrations } = await import("@/lib/testing");
+const { IntegrationError } = await import("@beam/integrations/_shared");
+const { RetryableError } = await import("@/lib/job-runner");
 
 let h: DbHandle;
 let fake: ReturnType<typeof createFakeIntegrations>;
@@ -169,6 +171,31 @@ describe("payments.charge_recurring", () => {
     expect((await h.db.select().from(payments).where(eq(payments.id, r.paymentId)))[0]!.status).toBe("failed");
     expect(credits.applyRenewalFailure).toHaveBeenCalledTimes(1);
     expect(credits.applyRenewalFailure).toHaveBeenCalledWith(expect.anything(), expect.anything(), { membershipId: membership.id, paymentId: r.paymentId, reason: "provider_rejected" });
+  });
+});
+
+describe("payments.charge_recurring on an unconfirmed provider answer (review fix 1)", () => {
+  it.each([
+    ["an unparseable 2xx", { statusCode: 201, code: "invalid_response" }],
+    ["a 401 (BEAM key fault)", { statusCode: 401 }],
+    ["a 403", { statusCode: 403 }],
+  ])("keeps the payment open and retries the job on %s", async (_label, err) => {
+    const { person, plan, membership, mandate } = await member();
+    const r = await inTx((tx, ctx) => createRecurringCharge(tx, ctx, { membershipId: membership.id, personId: person.id, productId: plan.id, mandateId: mandate.id, periodEndOn: "2026-12-04" }));
+    const key = `charge_recurring:${r.paymentId}`;
+    const spy = vi.spyOn(fake.payments, "createRecurringPayment");
+    spy.mockRejectedValueOnce(new IntegrationError({ provider: "mollie", operation: "payments.create_recurring", retryable: false, message: "unconfirmed", ...err }));
+    const run = () => h.db.transaction((tx) => chargeRecurringPayment(makeJobCtx(h.db, "payments.charge_recurring", { tx, integrations: fake, key }), { paymentId: r.paymentId }));
+    await expect(run()).rejects.toBeInstanceOf(RetryableError);
+    const [row] = await h.db.select().from(payments).where(eq(payments.id, r.paymentId));
+    expect(row).toMatchObject({ status: "open", providerPaymentId: null });
+    expect(credits.applyRenewalFailure).not.toHaveBeenCalled();
+    // The retry sends the same Idempotency-Key and stores the provider payment.
+    const retried = await run();
+    expect((retried as { providerPaymentId: string }).providerPaymentId).toMatch(/^tr_/);
+    expect(spy.mock.calls.map((c) => c[0].idempotencyKey)).toEqual([key, key]);
+    expect(credits.applyRenewalFailure).not.toHaveBeenCalled();
+    spy.mockRestore();
   });
 });
 

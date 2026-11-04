@@ -12,6 +12,12 @@
  * sync (job and webhook) a provider `paid` for a cancelled order is refunded in full (edge case 36).
  *
  * commerce-P5: `checkouts.mark_abandoned` (every 10 minutes; rules 49, 50).
+ *
+ * commerce-P6: `payments.refund` (provider refunds), `payments.create_link` (the
+ * `commerce.payment_link` email), `commerce.issue_voucher_email` (rule 45a),
+ * `commerce.expire_vouchers` (daily, rule 47a) and the handler of
+ * `commerce.refund_unavailable_lines`. After every sync the payment's `sent` refunds take the
+ * provider's final status.
  */
 import { z } from "zod";
 import { files, orders, persons } from "@beam/db/schema";
@@ -30,6 +36,9 @@ import { markAbandoned } from "./server/checkouts";
 import { cancelProviderPayment, chargeRecurringPayment, refundLatePaidOnCancelledOrder } from "./server/recurring";
 import { eraseProviderCustomer, revokeMandateAtProvider } from "./server/mandates";
 import { loadReceiptInput, renderReceiptPdf } from "./ui/receipt-pdf";
+import { runProviderRefund, syncProviderRefunds } from "./server/refunds";
+import { CreatePayLinkInput, createPayLinkJob } from "./server/payment-links";
+import { expireVouchers, issueVoucherEmail } from "./server/vouchers";
 
 export const PaymentsCreateInput = z.object({ paymentId: z.uuid(), redirectUrl: z.string().url().optional() });
 export const PaymentsSyncInput = z.object({ providerPaymentId: z.string().min(1) });
@@ -41,6 +50,10 @@ export const ChargeRecurringInput = z.object({ paymentId: z.uuid() });
 export const PaymentsCancelInput = z.object({ paymentId: z.uuid() });
 export const RevokeMandateInput = z.object({ mandateId: z.uuid() });
 export const EraseProviderCustomerInput = z.object({ providerCustomerId: z.string().min(1), mandateIds: z.array(z.string().min(1)) });
+export const PaymentsRefundInput = z.object({ refundId: z.uuid() });
+export { CreatePayLinkInput };
+export const IssueVoucherEmailInput = z.object({ voucherId: z.uuid(), n: z.number().int().min(0), email: z.string().email().optional() });
+export const ExpireVouchersInput = z.object({}).passthrough();
 
 /** `payments.create` (inline at checkout, key `payment_create:<payment_id>`). */
 export function runPaymentsCreate(ctx: JobCtx, input: z.infer<typeof PaymentsCreateInput>) {
@@ -56,7 +69,29 @@ export async function runPaymentsSync(ctx: JobCtx, input: z.infer<typeof Payment
 
 /** Edge case 36: a provider `paid` that reached a cancelled (renewal) order is refunded in full. */
 async function afterSync(ctx: Parameters<typeof refundLatePaidOnCancelledOrder>[0], result: SyncResult): Promise<void> {
-  if (!result.ignored && result.status === "paid") await refundLatePaidOnCancelledOrder(ctx, result.paymentId);
+  if (result.ignored) return;
+  if (result.status === "paid") await refundLatePaidOnCancelledOrder(ctx, result.paymentId);
+  await syncProviderRefunds(ctx, result.paymentId);
+}
+
+/** `payments.refund` (key `refund:<refund_id>`, staff retries `refund:<id>:retry:<n>`). */
+export function runPaymentsRefund(ctx: JobCtx, input: z.infer<typeof PaymentsRefundInput>) {
+  return runProviderRefund(ctx, input);
+}
+
+/** `payments.create_link` (key `pay_link:<order_id>:<version>`). */
+export function runCreatePayLink(ctx: JobCtx, input: z.infer<typeof CreatePayLinkInput>) {
+  return createPayLinkJob(ctx, input);
+}
+
+/** `commerce.issue_voucher_email` (key `voucher_email:<voucher_id>:<n>`). */
+export function runIssueVoucherEmail(ctx: JobCtx, input: z.infer<typeof IssueVoucherEmailInput>) {
+  return issueVoucherEmail(ctx, input);
+}
+
+/** `commerce.expire_vouchers` (daily 00:20; key `schedule:commerce.expire_vouchers:<minute>`). */
+export function runExpireVouchers(ctx: JobCtx) {
+  return expireVouchers(ctx);
 }
 
 /** `payments.scan_expired` (every minute; rules 22, 22a, 34). */
@@ -159,6 +194,10 @@ export const jobs = [
   defineJob({ kind: "payments.cancel", lane: "fast", priority: 2, maxAttempts: 6, input: PaymentsCancelInput, run: runPaymentsCancel }),
   defineJob({ kind: "commerce.revoke_mandate", lane: "fast", priority: 3, maxAttempts: 6, input: RevokeMandateInput, run: runRevokeMandate }),
   defineJob({ kind: "commerce.erase_provider_customer", lane: "fast", priority: 5, maxAttempts: 6, input: EraseProviderCustomerInput, run: runEraseProviderCustomer }),
+  defineJob({ kind: "payments.refund", lane: "fast", priority: 2, maxAttempts: 6, input: PaymentsRefundInput, run: runPaymentsRefund }),
+  defineJob({ kind: "payments.create_link", lane: "fast", priority: 2, maxAttempts: 6, input: CreatePayLinkInput, run: runCreatePayLink }),
+  defineJob({ kind: "commerce.issue_voucher_email", lane: "fast", priority: 2, maxAttempts: 6, input: IssueVoucherEmailInput, run: runIssueVoucherEmail }),
+  defineJob({ kind: "commerce.expire_vouchers", lane: "bulk", priority: 9, maxAttempts: 3, input: ExpireVouchersInput, run: runExpireVouchers }),
 ];
 
 /**

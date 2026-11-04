@@ -877,6 +877,38 @@
         "apps/web/app/api/cron/tick/route.test.ts",
         "packages/core/src/credits/types.ts"
       ]
+    },
+    "fix-w05-schema-1": {
+      "status": "pending",
+      "attempts": 0,
+      "fixer": true,
+      "module": "platform",
+      "goal": "Add the foreign keys and checks that module schema packages deferred until their targets existed, and activate the parked booking and ops schedules (see the launch notes).",
+      "from": [
+        "booking-P1",
+        "commerce-P1",
+        "ops-P1",
+        "site-P1",
+        "automation-P1"
+      ],
+      "dependsOn": [
+        "fix-w04-platform-3"
+      ],
+      "owns": [
+        "packages/db/src/schema/booking.ts",
+        "packages/db/src/schema/booking.test.ts",
+        "apps/web/modules/booking/privacy.ts",
+        "apps/web/modules/booking/schedules.ts",
+        "packages/db/src/schema/commerce.ts",
+        "packages/db/src/schema/commerce.test.ts",
+        "packages/db/src/schema/ops.ts",
+        "packages/db/src/schema/ops.test.ts",
+        "apps/web/modules/ops/schedules.ts",
+        "packages/db/src/schema/site.ts",
+        "packages/db/src/schema/site.test.ts",
+        "packages/db/src/schema/automation.ts",
+        "packages/db/src/schema/automation.test.ts"
+      ]
     }
   }
 }

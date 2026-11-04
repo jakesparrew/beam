@@ -3,7 +3,7 @@
  * rules 55 to 57) on fixtures built through crm's real consent functions. Acceptance "suppression
  * survives an import" (email side).
  */
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createTestDb } from "@beam/db/testing";
 import type { DbHandle } from "@beam/db";
 import { consentRecords, persons, vConsentCurrent, vMarketingReachability, vSuppressionStatus } from "@beam/db/schema";
@@ -14,11 +14,6 @@ import { makeCtx, resetRuntime } from "@/lib/testing";
 import { addSuppression, unsubscribe } from "@/modules/crm/api";
 import { getReachability } from "./api";
 import { consent, personWith } from "./email-p3.fixtures";
-
-vi.mock("@/modules/automation/api", async (orig) => ({
-  ...(await orig<Record<string, unknown>>()),
-  requestSuppressionExit: vi.fn(() => Promise.resolve({ jobId: null })),
-}));
 
 let h: DbHandle;
 beforeAll(async () => {

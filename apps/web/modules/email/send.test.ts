@@ -14,11 +14,6 @@ import { cancelScheduledMessage, queueMarketingEmail, sendTransactional } from "
 import { sendEmailMessage } from "./jobs";
 import { blockTemplate, completeCompany, consent, messageOf, personWith, resetEmailTables, sendJobOf, timeline } from "./email-p3.fixtures";
 
-vi.mock("@/modules/automation/api", async (orig) => ({
-  ...(await orig<Record<string, unknown>>()),
-  requestSuppressionExit: vi.fn(() => Promise.resolve({ jobId: null })),
-}));
-
 let h: DbHandle;
 let fakes: FakeIntegrations;
 beforeAll(async () => {

@@ -1,7 +1,8 @@
 /**
  * email-P3: Resend events (email spec rules 46 to 49; edge cases 1 to 3), through crm's real
- * `addSuppression` (automation's `requestSuppressionExit` is a stub until automation lands, so it
- * is mocked and asserted). Acceptance: "hard bounces are suppressed".
+ * `addSuppression`, which calls automation's real `requestSuppressionExit`; the exit is asserted as
+ * the queued `automation.exit_for_suppression` job (key `supp:<suppressionId>`). Acceptance:
+ * "hard bounces are suppressed".
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTestDb } from "@beam/db/testing";
@@ -10,17 +11,11 @@ import { emailMessages, suppressions, webhookEvents } from "@beam/db/schema";
 import { emailHash } from "@beam/core/crm";
 import { eq } from "@/lib/ctx";
 import { createFakeIntegrations, makeCtx, makeJobCtx, resetRuntime, type FakeIntegrations } from "@/lib/testing";
-import { requestSuppressionExit } from "@/modules/automation/api";
 import { getCurrentConsents } from "@/modules/crm/api";
 import { queueMarketingEmail, sendTransactional } from "../api";
 import { sendEmailMessage } from "../jobs";
 import { blockTemplate, completeCompany, consent, eventsOf, jobsOf, messageOf, personWith, resetEmailTables, timeline } from "../email-p3.fixtures";
 import { processResendEvent, retrySoftBounce } from "./process-event";
-
-vi.mock("@/modules/automation/api", async (orig) => ({
-  ...(await orig<Record<string, unknown>>()),
-  requestSuppressionExit: vi.fn(() => Promise.resolve({ jobId: null })),
-}));
 
 let h: DbHandle;
 let fakes: FakeIntegrations;
@@ -36,7 +31,6 @@ afterAll(async () => {
 beforeEach(async () => {
   await resetEmailTables(h.db);
   fakes = createFakeIntegrations();
-  vi.mocked(requestSuppressionExit).mockClear();
   vi.stubEnv("EMAIL_SINK", "");
   vi.stubEnv("APP_ENV", "local");
   vi.stubEnv("INTEGRATIONS", "fake");
@@ -64,6 +58,10 @@ async function deliver(type: string, resendId: string, extra: Record<string, unk
   return processResendEvent(makeJobCtx(h.db, "webhook.process"), { id: row!.id, payload: emitted.payload });
 }
 
+/** The exit jobs crm.addSuppression queued through automation.requestSuppressionExit. */
+const exitJobsOf = async () =>
+  (await jobsOf(h.db, "automation.exit_for_suppression")).map((j) => ({ idempotencyKey: j.idempotencyKey, payload: j.payload }));
+
 const suppressionsOf = (email: string) => h.db.select().from(suppressions).where(eq(suppressions.emailHash, emailHash(email)));
 
 describe("processResendEvent", () => {
@@ -73,7 +71,7 @@ describe("processResendEvent", () => {
     expect(await messageOf(h.db, message.id)).toMatchObject({ status: "bounced", bounceType: "hard" });
     const [s] = await suppressionsOf(person.email!);
     expect(s).toMatchObject({ scope: "all", reason: "hard_bounce", source: `resend:${message.resendId}` });
-    expect(requestSuppressionExit).toHaveBeenCalledWith(expect.anything(), { suppressionId: s!.id });
+    expect(await exitJobsOf()).toEqual([{ idempotencyKey: `supp:${s!.id}`, payload: { suppressionId: s!.id } }]);
     expect(await timeline(h.db, person.id, "email.bounced")).toHaveLength(1);
     const [event] = await eventsOf(h.db, message.id);
     expect(event!.payload).toEqual({ bounce: { type: "Permanent", subType: "General", message: "550 no such user" } });
@@ -87,9 +85,10 @@ describe("processResendEvent", () => {
     const m = await messageOf(h.db, r.messageId);
     await deliver("email.complained", m.resendId!);
     expect((await messageOf(h.db, m.id)).status).toBe("complained");
-    expect((await suppressionsOf(p.email!))[0]).toMatchObject({ scope: "all", reason: "complaint" });
+    const [s] = await suppressionsOf(p.email!);
+    expect(s).toMatchObject({ scope: "all", reason: "complaint" });
     expect((await getCurrentConsents(h.db, p.id)).newsletter?.status).toBe("withdrawn");
-    expect(requestSuppressionExit).toHaveBeenCalledTimes(1);
+    expect(await exitJobsOf()).toEqual([{ idempotencyKey: `supp:${s!.id}`, payload: { suppressionId: s!.id } }]);
   });
 
   it("a soft bounce of a transactional message is retried once, one hour later", async () => {

@@ -1,6 +1,6 @@
 /**
  * crm-P2 tags: system tags cannot be deleted, a person carries a tag at most once, and every
- * `tag.added` / `tag.removed` carries `data.source` equal to the tag's source.
+ * `tag.added` / `tag.removed` carries `data.source` naming who added or removed the tag.
  */
 import { randomBytes, randomUUID } from "node:crypto";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -86,7 +86,8 @@ describe("tags", () => {
     await api.applyTag(tx(), makeCtx(h.db), p.id, plain.key, "form");
     expect(await actions.deleteTag({ id: plain.id })).toEqual({ ok: true, data: {} });
     expect(await h.db.select().from(tags).where(eq(tags.id, plain.id))).toHaveLength(0);
-    expect((await eventsOf(p.id, "tag.removed"))[0]!.data).toEqual({ tag_key: plain.key, source: "form" });
+    // the source is who removed the tag (staff deleting it), not the form that added it
+    expect((await eventsOf(p.id, "tag.removed"))[0]!.data).toEqual({ tag_key: plain.key, source: "manual" });
   });
 
   it("a person carries a tag once; events carry data.source equal to the tag source", async () => {
@@ -96,10 +97,29 @@ describe("tags", () => {
     expect(await api.applyTag(tx(), makeCtx(h.db), p.id, tag.key, "manual")).toEqual({ applied: false });
     expect(await h.db.select().from(personTags).where(and(eq(personTags.personId, p.id), eq(personTags.tagId, tag.id)))).toHaveLength(1);
     expect((await eventsOf(p.id, "tag.added")).map((e) => e.data)).toEqual([{ tag_key: tag.key, source: "automation" }]);
-    expect(await api.removeTag(tx(), makeCtx(h.db), p.id, tag.key)).toEqual({ removed: true });
-    expect(await api.removeTag(tx(), makeCtx(h.db), p.id, tag.key)).toEqual({ removed: false });
-    expect((await eventsOf(p.id, "tag.removed")).map((e) => e.data)).toEqual([{ tag_key: tag.key, source: "automation" }]);
+    expect(await api.removeTag(tx(), makeCtx(h.db), p.id, tag.key, "import")).toEqual({ removed: true });
+    expect(await api.removeTag(tx(), makeCtx(h.db), p.id, tag.key, "import")).toEqual({ removed: false });
+    expect((await eventsOf(p.id, "tag.removed")).map((e) => e.data)).toEqual([{ tag_key: tag.key, source: "import" }]);
     await expect(api.applyTag(tx(), makeCtx(h.db), p.id, "no-such-tag", "import")).rejects.toMatchObject({ code: "not_found" });
+  });
+
+  it("tag.removed records who removed the tag, not who added it (A-7, fix-w09-crm-review)", async () => {
+    const tag = await newTag();
+    // staff added it; an automation's untag step (system actor, source 'automation') removes it
+    const p = await makePerson(h.db);
+    await api.applyTag(tx(), makeCtx(h.db), p.id, tag.key, "manual");
+    expect(await api.removeTag(tx(), makeCtx(h.db), p.id, tag.key, "automation")).toEqual({ removed: true });
+    expect((await eventsOf(p.id, "tag.removed")).map((e) => e.data)).toEqual([{ tag_key: tag.key, source: "automation" }]);
+    // a caller that does not name the source: a system actor counts as an automation
+    const q = await makePerson(h.db);
+    await api.applyTag(tx(), makeCtx(h.db), q.id, tag.key, "manual");
+    expect(await api.removeTag(tx(), makeCtx(h.db), q.id, tag.key)).toEqual({ removed: true });
+    expect((await eventsOf(q.id, "tag.removed")).map((e) => e.data)).toEqual([{ tag_key: tag.key, source: "automation" }]);
+    // staff untagging an imported tag records 'manual'
+    const r = await makePerson(h.db);
+    await api.applyTag(tx(), makeCtx(h.db), r.id, tag.key, "import");
+    expect(await actions.untagPersons({ tagId: tag.id, personIds: [r.id] })).toEqual({ ok: true, data: { changed: 1 } });
+    expect((await eventsOf(r.id, "tag.removed")).map((e) => e.data)).toEqual([{ tag_key: tag.key, source: "manual" }]);
   });
 
   it("bulk tag and untag change each person once, skip merged persons, and audit counts", async () => {

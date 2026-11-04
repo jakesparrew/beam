@@ -1,7 +1,8 @@
 /**
  * Tag api (crm spec 4.8), crm-P2: one tag per person at most (`person_tags` unique), and every
- * change records `tag.added` / `tag.removed` with `data.source` equal to the tag's source, so
- * automation rule A-7 can ignore what an automation or an import did.
+ * change records `tag.added` / `tag.removed` with `data.source` naming who caused that change
+ * (the source that added the tag, or the one that removed it), so automation rule A-7 can
+ * ignore what an automation or an import did.
  */
 import type { DbOrTx, Tx } from "@beam/db";
 import { personTags, tags } from "@beam/db/schema";
@@ -17,10 +18,15 @@ export async function applyTag(tx: Tx, ctx: EventCtx, personId: string, tagKey: 
   return { applied: added.length > 0 };
 }
 
-export async function removeTag(tx: Tx, ctx: EventCtx, personId: string, tagKey: string): Promise<{ removed: boolean }> {
+/**
+ * Removes one tag from a person. `source` is who removes it (an automation's untag step passes
+ * `'automation'`); when a caller leaves it out, a staff actor counts as `'manual'` and any other
+ * actor (jobs, automations) as `'automation'`, so an unattributed removal never triggers journeys.
+ */
+export async function removeTag(tx: Tx, ctx: EventCtx, personId: string, tagKey: string, source?: PersonTagSource): Promise<{ removed: boolean }> {
   const tag = await tagByKey(tx, tagKey);
   const person = await lockActivePerson(tx, personId);
-  const removed = await removeTagRows(tx, ctx, tag, [person.id]);
+  const removed = await removeTagRows(tx, ctx, tag, [person.id], source ?? (ctx.actor.kind === "staff" ? "manual" : "automation"));
   return { removed: removed.length > 0 };
 }
 
@@ -60,12 +66,15 @@ export async function addTagRows(tx: DbOrTx, ctx: EventCtx, tag: TagRef, personI
   return inserted.map((r) => r.personId);
 }
 
-/** Deletes `person_tags` rows and records one `tag.removed` each, with the removed row's source. */
-export async function removeTagRows(tx: DbOrTx, ctx: EventCtx, tag: TagRef, personIds: string[] | "all"): Promise<string[]> {
+/**
+ * Deletes `person_tags` rows and records one `tag.removed` each, with `source` = who removed the
+ * tag (not the source that once added it: A-7 must see an automation's untag as `'automation'`).
+ */
+export async function removeTagRows(tx: DbOrTx, ctx: EventCtx, tag: TagRef, personIds: string[] | "all", source: PersonTagSource): Promise<string[]> {
   if (personIds !== "all" && !personIds.length) return [];
   const where = personIds === "all" ? eq(personTags.tagId, tag.id) : and(eq(personTags.tagId, tag.id), inArray(personTags.personId, personIds));
-  const removed = await tx.delete(personTags).where(where).returning({ personId: personTags.personId, source: personTags.source });
-  for (const { personId, source } of removed) {
+  const removed = await tx.delete(personTags).where(where).returning({ personId: personTags.personId });
+  for (const { personId } of removed) {
     await ctx.recordEvent({ kind: "tag.removed", personId, data: { tag_key: tag.key, source } });
   }
   return removed.map((r) => r.personId);

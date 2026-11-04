@@ -128,6 +128,18 @@ describe("segment compiler (rules 3.38, 3.39)", () => {
     expect(validateSegmentRule({ type: "event", kind: "form.completed", where: { form_slug: { gte: 1 } } }).ok).toBe(false);
   });
 
+  it("fix-w07-crm-1 allows per form kind only the keys that kind's data carries", () => {
+    expect(SEGMENT_EVENT_DATA_KEYS["form.started"]).toEqual(["form_slug", "funnel", "form_kind"]);
+    expect(SEGMENT_EVENT_DATA_KEYS["form.completed"]).toEqual(["form_slug", "outcome_key", "funnel", "form_kind"]);
+    expect(SEGMENT_EVENT_DATA_KEYS["form.abandoned"]).toEqual(["form_slug"]);
+    expect(SEGMENT_EVENT_DATA_KEYS["form.result_viewed"]).toEqual(["form_slug", "outcome_key"]);
+    expect(SEGMENT_EVENT_DATA_KEYS["assessment.result_generated"]).toEqual(["form_slug", "outcome_key", "funnel", "form_kind"]);
+    expect(SEGMENT_EVENT_DATA_KEYS["assessment.cta_clicked"]).toEqual(["form_slug", "outcome_key", "cta_key"]);
+    expect(validateSegmentRule({ type: "event", kind: "assessment.cta_clicked", where: { cta_key: "book" } }).ok).toBe(true);
+    expect(validateSegmentRule({ type: "event", kind: "form.started", where: { outcome_key: "x" } }).ok).toBe(false);
+    expect(validateSegmentRule({ type: "event", kind: "form.abandoned", where: { funnel: "x" } }).ok).toBe(false);
+  });
+
   it("wraps a rule in the audience query that excludes erased, merged and restricted persons", () => {
     const out = fragmentToText(segmentAudienceFragment(field("is_member", "is_true"), { now }));
     expect(out.text).toBe(

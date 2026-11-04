@@ -72,6 +72,7 @@ export type ImportDetail = {
   startedAt: Date | null;
   finishedAt: Date | null;
   createdAt: Date;
+  fileId: string;
   partCount: number;
 };
 
@@ -97,6 +98,7 @@ export async function getImport(db: DbOrTx, importId: string): Promise<ImportDet
       startedAt: imports.startedAt,
       finishedAt: imports.finishedAt,
       createdAt: imports.createdAt,
+      fileId: imports.fileId,
       partFileIds: imports.partFileIds,
     })
     .from(imports)

@@ -1587,7 +1587,7 @@
       "startedAt": "2026-11-04T18:11:02Z"
     },
     "fix-w09-credits-review": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "fixer": true,
       "module": "credits",
@@ -1604,8 +1604,10 @@
       "runId": "wf_2223176e-c76",
       "startedAt": "2026-11-04T18:11:03Z",
       "branchSha": "3ba4c54",
-      "endedAt": "2026-11-04T18:37:27Z",
-      "minutes": 23
+      "endedAt": "2026-11-04T19:17:52Z",
+      "minutes": 23,
+      "mergeSha": "f48397d",
+      "mergedAt": "2026-11-04T19:31:58Z"
     },
     "fix-w09-finance-review": {
       "status": "running",
@@ -1662,7 +1664,7 @@
       "startedAt": "2026-11-04T18:11:03Z"
     },
     "fix-w09-automation-review": {
-      "status": "done",
+      "status": "red",
       "attempts": 1,
       "fixer": true,
       "module": "automation",
@@ -1679,7 +1681,7 @@
       "runId": "wf_84d91cca-6fa",
       "startedAt": "2026-11-04T18:11:03Z",
       "branchSha": "4b84122",
-      "endedAt": "2026-11-04T18:37:27Z",
+      "endedAt": "2026-11-04T18:53:12Z",
       "minutes": 20
     },
     "fix-w09-ops-review": {

@@ -10,6 +10,8 @@ set -uo pipefail
 mode="${1:-quick}"; label="${2:-adhoc}"; since="${3:-}"
 cd "$(dirname "$0")/../.."
 logs=docs/build/logs; mkdir -p "$logs"
+# OD-13: every landing waits on the gate, so it runs ahead of the agents' own test runs.
+renice -n -10 -p $$ >/dev/null 2>&1 || true
 # The production database is the path segment /neondb (the role name neondb_owner is not it).
 prod_db='\.neon\.tech/neondb([?"'"'"'[:space:]]|$)'
 if grep -Eq "^DATABASE_URL(_UNPOOLED)?=.*${prod_db}" .env.local 2>/dev/null || grep -Eq "$prod_db" <<<"${DATABASE_URL:-} ${DATABASE_URL_UNPOOLED:-}"; then
@@ -25,7 +27,7 @@ step() {
   local name="$1"; shift
   local s=$(date +%s)
   echo "== $name"
-  if "$@" >"$logs/$label-$name.log" 2>&1; then echo "   ok ($(( $(date +%s) - s ))s)"; else
+  if "$@" >"$logs/$label-$name.log" 2>&1; then echo "   ok ($(( $(date +%s) - s ))s)"; grep -h "^TIMEOUT-RETRY" "$logs/$label-$name.log" || true; else
     echo "RED: $name after $(( $(date +%s) - s ))s (log: $logs/$label-$name.log)"; tail -80 "$logs/$label-$name.log"; exit 1; fi
 }
 skip() { echo "== $1 (skipped: $2)"; }
@@ -45,6 +47,19 @@ known_red_excludes() {
   [ -f docs/build/known-red.txt ] || return 0
   grep -v '^#' docs/build/known-red.txt | awk -v ws="$ws/" '$1 ~ "^"ws {sub("^"ws, "", $1); printf " --exclude %s", $1}'
 }
+# One workspace's Vitest run. When it is red and every failed file failed on a timeout (CPU
+# contention from the parallel agents), exactly those files are re-run once, alone, and accepted
+# only if they pass (OD-13). Any other failure stays red.
+vitest_ws() {
+  local ws="$1" root="$PWD" rep files; shift
+  rep="$root/$logs/$label-timeouts-${ws//\//-}.json"; rm -f "$rep"
+  if (cd "$ws" && BEAM_TIMEOUT_REPORT="$rep" pnpm exec vitest run "$@" --reporter=default --reporter="$root/scripts/build/timeout-reporter.mjs"); then return 0; fi
+  files=$(node scripts/build/timeout-reporter.mjs --retryable "$rep" "$ws") || return 1
+  echo "--- only timeouts failed in $ws; re-running alone: $files"
+  # shellcheck disable=SC2086
+  (cd "$ws" && pnpm exec vitest run --maxWorkers=1 --passWithNoTests $files) || return 1
+  echo "TIMEOUT-RETRY green in $ws: $files"
+}
 changed_tests() {
   local ws dir rc=0 ex
   for ws in apps/web packages/db packages/core packages/email packages/integrations packages/ui packages/config; do
@@ -53,7 +68,7 @@ changed_tests() {
     ex=$(known_red_excludes "$ws")
     echo "--- vitest --changed in $ws${ex:+ (known red excluded:$ex)}"
     # shellcheck disable=SC2086
-    (cd "$ws" && pnpm exec vitest run --changed "$since" --passWithNoTests $ex) || rc=1
+    vitest_ws "$ws" --changed "$since" --passWithNoTests $ex || rc=1
   done
   return $rc
 }
@@ -64,7 +79,7 @@ all_tests() {
     ex=$(known_red_excludes "$ws")
     echo "--- vitest in $ws${ex:+ (known red excluded:$ex)}"
     # shellcheck disable=SC2086
-    (cd "$ws" && pnpm exec vitest run --passWithNoTests $ex) || rc=1
+    vitest_ws "$ws" --passWithNoTests $ex || rc=1
   done
   return $rc
 }
@@ -81,7 +96,7 @@ if has eslint.config.js; then
 else skip lint "no eslint config yet"; fi
 if has packages/core/scripts/i18n-check.ts; then step i18n pnpm i18n:check; else skip i18n "no i18n check yet"; fi
 if [ -s docs/build/known-red.txt ] && grep -qv '^#' docs/build/known-red.txt; then echo "   known red (excluded until their fixer lands):"; grep -v '^#' docs/build/known-red.txt | sed 's/^/     /'; fi
-if [ "$mode" = merge ]; then step test changed_tests; elif [ -s docs/build/known-red.txt ] && grep -qv '^#' docs/build/known-red.txt; then step test all_tests; else step test pnpm test; fi
+if [ "$mode" = merge ]; then step test changed_tests; else step test all_tests; fi
 if has apps/web/test/gdpr-coverage.test.ts; then step gdpr pnpm gdpr:coverage; else skip gdpr "no gdpr coverage test yet"; fi
 if [ "$mode" = full ] || [ "$mode" = e2e ]; then step build pnpm build; fi
 if [ "$mode" = e2e ]; then

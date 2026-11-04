@@ -517,13 +517,13 @@
       "attempts": 0
     },
     "site-P5": {
-      "status": "done",
+      "status": "red",
       "attempts": 1,
       "baseSha": "beb4769",
       "runId": "wf_cc4b715f-5dc",
       "startedAt": "2026-11-04T05:03:43Z",
       "branchSha": "41e7bad",
-      "endedAt": "2026-11-04T05:51:03Z",
+      "endedAt": "2026-11-04T06:18:59Z",
       "minutes": 36
     },
     "crm-P7": {

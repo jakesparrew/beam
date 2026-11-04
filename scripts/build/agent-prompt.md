@@ -122,14 +122,20 @@ pnpm typecheck
 pnpm exec eslint $(git diff --name-only --diff-filter=ACMR "$BASE" -- '*.ts' '*.tsx' '*.js' '*.mjs')   # once eslint.config.js exists
 pnpm i18n:check                                                                      # once the script exists
 pnpm gdpr:coverage      # every table referencing persons must be in a privacy.ts registration (your module's, if you own it)
-# your Vitest suites, per workspace you touched, for example:
-pnpm --filter @beam/web exec vitest run modules/<module> app
-pnpm --filter @beam/core exec vitest run src/<module>
-pnpm --filter @beam/db exec vitest run
+# your Vitest suites, one worker, per workspace you touched (other agents share the 4 CPUs):
+pnpm --filter @beam/web exec vitest run --maxWorkers=1 modules/<module> <app/ paths you touched> test/registries.test.ts test/i18n-parity.test.ts modules/platform/schedules.test.ts
+pnpm --filter @beam/core exec vitest run --maxWorkers=1 src/<module>
+pnpm --filter @beam/db exec vitest run --maxWorkers=1    # only if you touched packages/db
 pnpm --filter @beam/web exec playwright test --list      # only if you own e2e specs
 
 node scripts/build/ownership.mjs --check "$ID" "$BASE" HEAD
 ```
+Run only your module's suites, the files you touched and the cross-module checks above. Add another
+module's directory only when your change touches code it imports. Never run a whole workspace's
+suite (`vitest run` with no paths in apps/web): it takes most of an hour while other agents run,
+and the gate runs every affected test after the merge (OD-13). A test that times out while other
+agents are busy is most likely CPU contention: re-run that one file alone before you debug it; one
+that fails the same way twice is real.
 If a suite of another module fails because of your change, fix your change. If it fails
 without your change (it fails on `BASE` too), note it in the report and do not touch it.
 

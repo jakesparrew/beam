@@ -140,7 +140,7 @@ export async function signInStaff(
   db: Db,
   jar: Map<string, string>,
   permissions: string[],
-  roleKey: "management" | "reception" | "owner" | "technical_admin" | "sales" = "management",
+  roleKey: "management" | "reception" | "technical_admin" | "sales" | "external_partner" = "management",
 ) {
   const { createAuthSession, SESSION_COOKIE } = await import("@/lib/auth");
   const { roles } = await import("@beam/db/schema");

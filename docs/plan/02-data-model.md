@@ -3110,7 +3110,7 @@ All booking kinds carry R61's keys `session_id, session_kind, event_category, st
 | `email.sent` | email | `template_slug`, `campaign_id`, `enrolment_id` | O |
 | `email.opened` (first only), `email.clicked` (`link_index`, `url`), `email.bounced` (`bounce_type`), `email.complained`, `email.blocked` (`reason`) | email | as listed | automation triggers on `email.opened`, `email.clicked`; S |
 | `person.inactive_days` | ops | `days` (30, 60, 90, 180), `anchor_at`, `has_future_booking` | automation `inactivity` |
-| `ops.stage_changed` | ops | `from`, `to` (`person_stats_b2c_stage`) | automation R2 B2C playbook journeys; crm R3 `crm.apply_b2c_playbook` |
+| `ops.stage_changed` | ops | `from`, `to` (`person_stats_b2c_stage`) | automation R2 B2C playbook journeys; crm R3 `crm.apply_btoc_playbook` |
 | `ops.history_imported` | ops | `kind`, `source`, `amount_cents?` | — |
 | `privacy.requested`, `privacy.verified`, `privacy.cancelled` | ops | `kind` | — |
 | `privacy.restricted`, `privacy.restriction_lifted`, `privacy.objected`, `privacy.exported` | ops | — | — |
@@ -3191,7 +3191,7 @@ Format `<module_or_entity>.<verb_noun>` (check `^[a-z_]+\.[a-z_]+$`). Every hand
 | `segments.refresh` | crm | fast, 5 | schedule | `7 * * * *` |
 | `segments.refresh_one` | crm | bulk, 5 | `segment:<id>:refresh:<YYYY-MM-DDTHH>` or `segment:<id>:refresh:<reason>:<request_id or campaign_id>` | `segments.refresh`, save, campaign |
 | `crm.escalate_opportunities` (R3) | crm | fast, 5 | schedule | `20 * * * *` |
-| `crm.apply_b2c_playbook` (R3) | crm | fast, 5 | schedule | `*/5 * * * *` |
+| `crm.apply_btoc_playbook` (R3) | crm | fast, 5 | schedule | `*/5 * * * *` |
 | `crm.escalate_threads` (R3) | crm | fast, 5 | schedule | `25 * * * *` |
 | `crm.close_stale_threads` (R3) | crm | bulk, 9 | schedule | `10 5 * * *` |
 | `crm.send_meta_reply` (R3) | crm | fast, 1 | `meta_reply:<message_id>` | inbox reply |

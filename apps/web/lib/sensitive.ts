@@ -229,7 +229,7 @@ export async function readSensitive(ctx: Ctx, personId: string, purpose: Sensiti
     const eventFilter = scope?.eventIds?.length ? sql` and id::text in ${list(scope.eventIds)}` : sql``;
     const rows = rowsOf<{ id: string; data: { body_enc?: string; key_version?: number } }>(
       await tx.execute(
-        sql`select id::text as id, data from activity_events where person_id = ${personId} and is_sensitive${eventFilter} order by occurred_at, id`,
+        sql`select id::text as id, data from activity_events where person_id = ${personId} and is_sensitive${eventFilter} order by occurred_at, activity_events.id`,
       ),
     );
     for (const r of rows) {

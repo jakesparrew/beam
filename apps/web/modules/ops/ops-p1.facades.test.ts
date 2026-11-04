@@ -1,6 +1,6 @@
 /**
- * ops-P1: the module skeleton. The api stubs keep their final names and throw
- * `NotImplementedError`, every job kind is registered with a no-op handler, the facades point at
+ * ops-P1: the module skeleton. Every api function keeps its final name (the area packages
+ * replace the stubs), every job kind is registered once with an input schema, the facades point at
  * catalogue keys that exist in all three locales, and the demo seed inserts every module's
  * declared retention rows once.
  */
@@ -8,15 +8,12 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createTestDb } from "@beam/db/testing";
 import type { DbHandle } from "@beam/db";
 import { retentionPolicies } from "@beam/db/schema";
-import { NotImplementedError } from "@beam/core/errors";
 import { ERASE_ORDER as CORE_ERASE_ORDER, RETENTION_DEFAULTS, RetentionDefaults } from "@beam/core/ops";
 import en from "@beam/core/i18n/messages/en/ops.json";
 import fr from "@beam/core/i18n/messages/fr-BE/ops.json";
 import nl from "@beam/core/i18n/messages/nl-BE/ops.json";
 import { OPS_RETENTION_POLICIES } from "@beam/db/seed/ops";
 import { eq } from "@/lib/ctx";
-import type { Ctx } from "@/lib/ctx";
-import type { JobCtx } from "@/lib/job-runner";
 import * as api from "./api";
 import { flags, settings } from "./config";
 import { events } from "./events";
@@ -47,29 +44,19 @@ beforeAll(async () => {
 });
 afterAll(() => h.close());
 
-describe("api.ts stubs (ops spec 4.7)", () => {
-  const db = {} as never;
-  const tx = {} as never;
-  const id = "00000000-0000-4000-8000-000000000001";
-
-  it("throws NotImplementedError('ops.<fn>') for every V1 function", async () => {
-    const calls: [string, Promise<unknown>][] = [
-      ["getPersonStats", api.getPersonStats(db, id)],
-      ["refreshPersonStats", api.refreshPersonStats(tx, id)],
-      ["requestStatsRefresh", api.requestStatsRefresh(tx, id)],
-      ["isProcessingRestricted", api.isProcessingRestricted(db, id)],
-      ["listRetentionReasons", api.listRetentionReasons(db, id)],
-      ["createPrivacyRequest", api.createPrivacyRequest({} as Ctx, { personId: id, kind: "export", requestedBy: "staff" })],
-      ["getOpenPrivacyRequests", api.getOpenPrivacyRequests(db, id)],
-      ["isDpiaApproved", api.isDpiaApproved(db, "sensitive_assessment_processing")],
-    ];
-    for (const [fn, p] of calls) {
-      const err = await p.then(
-        () => null,
-        (e: unknown) => e,
-      );
-      expect(err, fn).toBeInstanceOf(NotImplementedError);
-      expect((err as Error).message, fn).toContain(`ops.${fn}`);
+describe("api.ts (ops spec 4.7)", () => {
+  it("exports every V1 function", () => {
+    for (const fn of [
+      "getPersonStats",
+      "refreshPersonStats",
+      "requestStatsRefresh",
+      "isProcessingRestricted",
+      "listRetentionReasons",
+      "createPrivacyRequest",
+      "getOpenPrivacyRequests",
+      "isDpiaApproved",
+    ] as const) {
+      expect(typeof api[fn], fn).toBe("function");
     }
   });
 
@@ -112,7 +99,7 @@ describe("jobs.ts and schedules.ts", () => {
     expect(jobs.filter((j) => j.kind.startsWith("privacy.erase")).every((j) => j.lane === "fast" && j.priority === 1)).toBe(true);
   });
 
-  it("runs every stub handler twice without effect", async () => {
+  it("gives every job an input schema that parses its sample payload", () => {
     const samples: Record<string, unknown> = {
       "ops.refresh_person": { personId: "00000000-0000-4000-8000-000000000001" },
       "import.parse": { importId: "00000000-0000-4000-8000-000000000001", runSeq: 1 },
@@ -130,8 +117,8 @@ describe("jobs.ts and schedules.ts", () => {
       "ai.answer_question": { questionId: "00000000-0000-4000-8000-000000000001" },
     };
     for (const j of jobs) {
-      const input = j.input.parse(samples[j.kind] ?? {}) as never;
-      for (let i = 0; i < 2; i++) await expect(j.run({} as JobCtx, input), j.kind).resolves.toEqual({ implemented: false });
+      expect(j.input.safeParse(samples[j.kind] ?? {}).success, j.kind).toBe(true);
+      expect(typeof j.run, j.kind).toBe("function");
     }
   });
 

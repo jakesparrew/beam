@@ -3,16 +3,50 @@
  * its polls, CTAs, presenters, series and broadcast job state, and the staff owner options.
  * Every function takes the caller's database or transaction first. webinar-P3 adds the public
  * landing data, the public and portal lists and the registrant list; webinar-P5 the host console
- * state (`getHostConsoleState`, built in `server/interactions.ts`); later packages the reports.
+ * state (`getHostConsoleState`, built in `server/interactions.ts`); webinar-P6 the report
+ * (`getWebinarReport`, `getPollResults`, `getCtaResults`, built in `server/report.ts`; the page
+ * checks `webinars.host` or `reports.read` with `canReadWebinarReport`).
  */
 import { jobs, persons, users, vWebinarWatch, watchSegments, webinarCtas, webinarInteractions, webinarPolls, webinarPresenters, webinarRegistrations, webinars } from "@beam/db/schema";
 import type { Locale } from "@beam/core/i18n";
 import { canRegister, registeredModeFor, replayAccess, resolveMode, type WatchMode, type WebinarMode, type WebinarStatus } from "@beam/core/webinar";
-import { and, asc, desc, eq, inArray, ne, or, sql, type DbOrTx, type SQL } from "@/lib/ctx";
+import { ForbiddenError } from "@beam/core/errors";
+import { actorHasPermission, and, asc, desc, eq, inArray, ne, or, sql, type Actor, type DbOrTx, type SQL } from "@/lib/ctx";
 import { rowsOf } from "@/lib/sensitive";
 import { resolvePersonIds } from "@/modules/crm/api";
 export { getHostConsoleState, type HostConsoleState, type HostCta, type HostPoll, type MessageRow } from "./server/interactions";
+export {
+  REPORT_PERIODS,
+  REPORT_SEGMENTS,
+  buildReportCsv,
+  buildRegistrantsCsv,
+  buildWebinarReport,
+  getCtaResults,
+  getPollResults,
+  getWebinarReport,
+  isReportPeriod,
+  type CtaResult,
+  type ModeRow,
+  type PollResult,
+  type ReportPeriod,
+  type ReportSegment,
+  type SegmentRow,
+  type UtmRow,
+  type WebinarReport,
+} from "./server/report";
 import { jobKeys, type CtaRow, type PollRow, type PresenterRow, type WebinarRow } from "./server/lifecycle";
+import { buildWebinarReport, type WebinarReport } from "./server/report";
+
+/** The aggregate report (no personal data) opens with `webinars.host` or `reports.read` (section 7). */
+export function canReadWebinarReport(actor: Actor | null | undefined): boolean {
+  return !!actor && actor.kind === "staff" && (actorHasPermission(actor, "webinars.host") || actorHasPermission(actor, "reports.read"));
+}
+
+/** The report for a staff actor; `ForbiddenError` without `webinars.host` or `reports.read`. */
+export async function getWebinarReportFor(actor: Actor | null | undefined, db: DbOrTx, webinarId: string, opts: { periodDays: number }): Promise<WebinarReport> {
+  if (!canReadWebinarReport(actor)) throw new ForbiddenError("webinars.host or reports.read");
+  return buildWebinarReport(db, webinarId, opts.periodDays);
+}
 
 /** The tabs of `/admin/webinars` (section 5.1). */
 export const WEBINAR_TABS = ["upcoming", "live", "ended", "on_demand", "drafts", "cancelled", "archived"] as const;

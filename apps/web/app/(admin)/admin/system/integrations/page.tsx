@@ -56,7 +56,7 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
                 <p className={Number(h.errors_24h) > 0 ? "text-destructive" : undefined}>{t("errors_24h", { count: Number(h.errors_24h) })}</p>
                 <p className="text-xs text-muted-foreground">{t("last_ok", { when: when(h.last_ok_at) })}</p>
                 <p className="text-xs text-muted-foreground">{t("last_error", { when: when(h.last_error_at) })}</p>
-                <TokenStatus status={tokenOf(h.provider)} ok={t("ok")} missing={tr("platform.settings.locale_missing")} dataAsOf={(d) => tr("ops.common.data_as_of", { date: when(d) })} />
+                <TokenStatus status={tokenOf(h.provider)} ok={t("token_ok")} missing={t("token_missing")} dataAsOf={(d) => t("data_as_of", { date: when(d) })} />
               </CardContent>
             </Card>
           </li>

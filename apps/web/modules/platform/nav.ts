@@ -163,7 +163,7 @@ export const nav = [
     key: "platform.partner",
     area: "admin",
     section: "insights",
-    labelKey: "platform.roles.external_partner",
+    labelKey: "platform.nav.partner",
     href: "/admin/partner",
     permission: "partner.own",
     icon: "briefcase",

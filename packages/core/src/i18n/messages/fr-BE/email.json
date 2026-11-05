@@ -218,7 +218,11 @@
       "warning_footer_incomplete": "Le pied de page légal ne peut pas être construit : les données de l'entreprise sont incomplètes.",
       "warning_missing_translation": "Cette langue n'a pas encore de contenu.",
       "warning_image_too_large": "Une image utilisée dépasse 1 Mo.",
-      "warning_compile_error": "L'e-mail n'a pas pu être construit à partir de ces blocs."
+      "warning_compile_error": "L'e-mail n'a pas pu être construit à partir de ces blocs.",
+      "type_webinar": "Webinaire",
+      "field_webinar_id": "Identifiant du webinaire",
+      "show_lead_window": "Afficher la fenêtre réservée aux leads",
+      "show_lead_window_help": "Pendant la fenêtre d'un Lead Magnet, les contacts qui ne sont pas des leads voient « Ouvert pour vous le ... » au lieu du bouton de réservation."
     },
     "preview": {
       "title": "Aperçu du modèle",
@@ -622,6 +626,10 @@
       "blocked_suppressed": "supprimé",
       "blocked_withdrawn": "consentement retiré",
       "blocked_no_consent": "pas de consentement"
+    },
+    "blocks": {
+      "event_opens_for_you": "Ouvert pour vous le {date}",
+      "event_view": "Voir l'événement"
     }
   }
 }

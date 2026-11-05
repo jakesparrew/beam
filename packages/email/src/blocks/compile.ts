@@ -8,19 +8,38 @@
  * the first variant whose `when` matches (`status` from `v_person_status`, or the latest
  * assessment outcome of a form), else the fallback (rule 18).
  *
+ * R2 (email-P8): a locale with an `event` block that has `showLeadWindow` (at any depth) gets one
+ * more segment at the end of every path, `lead_window:0` (the lead view: booking button) or
+ * `lead_window:f` (everyone else: "Opens for you on ..." while the card has
+ * `opensForCustomersAt`). `selectVariant()` gives a recipient with status `lead` the lead view.
+ * The `f` value keeps the "every segment ends in `:f`" fallback of the renderer on the cautious
+ * view. Webinar cards come from `CompileContext.webinars` (`webinar.getWebinarCards`) or from
+ * `resolveCards`' `webinars`.
+ *
  * MJML runs with `validationLevel: 'strict'`; a validation error throws `CompileError` (a
  * `PermanentError`) carrying the MJML messages, which blocks publishing (rule 12). HTML above
  * 102 KB adds an `html_too_large` warning (Gmail clipping, rule 21) and still compiles.
  */
 import mjml2html from "mjml";
-import { validateDocument, type Block, type BlockDocument, type DynamicBlock } from "@beam/core/email";
+import { validateDocument, walkBlocks, type Block, type BlockDocument, type DynamicBlock } from "@beam/core/email";
 import { PermanentError } from "@beam/core/errors";
 import { MissingTranslationError, type Locale } from "@beam/core/i18n";
 import type { FooterParts } from "../layout/footer";
 import { BRAND, type Brand } from "../layout/brand";
 import { marketingShell } from "../layout/marketing-shell";
 import { checkAccessibility, checkHtmlAccessibility, type Warning } from "./a11y";
-import { blocksToMjml, cardRefs, EMPTY_CARDS, type ResolveCards, type ResolvedCards, type VariantChoice } from "./to-mjml";
+import {
+  blocksToMjml,
+  cardRefs,
+  EMPTY_CARDS,
+  LEAD_WINDOW_KEY,
+  type CardRefs,
+  type ResolveCards,
+  type ResolvedCards,
+  type ResolveWebinars,
+  type VariantChoice,
+  type WebinarCard,
+} from "./to-mjml";
 import { blocksToText } from "./to-text";
 
 export type VariantPath = string;
@@ -39,6 +58,8 @@ export type CompileContext = {
   brand?: Brand;
   /** Product and event cards, resolved once per compile (rule 19). */
   resolveCards?: ResolveCards;
+  /** R2: webinar cards (`webinar.getWebinarCards` bound to the transaction); they win over `resolveCards`' `webinars`. */
+  webinars?: ResolveWebinars;
   subject?: string;
   preheader?: string;
 };
@@ -62,10 +83,19 @@ function dynamicBlocks(blocks: readonly Block[]): DynamicBlock[] {
   return blocks.filter((b): b is DynamicBlock => b.type === "dynamic");
 }
 
+/** Whether a locale's blocks hold an `event` block with `showLeadWindow` (at any depth, R2). */
+export function hasLeadWindowEvent(blocks: readonly Block[]): boolean {
+  let found = false;
+  walkBlocks(blocks, (b) => {
+    if (b.type === "event" && b.showLeadWindow === true) found = true;
+  });
+  return found;
+}
+
 export function encodeVariant(choice: VariantChoice, blocks: readonly Block[]): VariantPath {
-  const dyn = dynamicBlocks(blocks);
-  if (!dyn.length) return DEFAULT_VARIANT;
-  return dyn.map((d) => `${d.id}:${choice[d.id] === undefined || choice[d.id] === "fallback" ? "f" : String(choice[d.id])}`).join(",");
+  const parts = dynamicBlocks(blocks).map((d) => `${d.id}:${choice[d.id] === undefined || choice[d.id] === "fallback" ? "f" : String(choice[d.id])}`);
+  if (hasLeadWindowEvent(blocks)) parts.push(`${LEAD_WINDOW_KEY}:${choice[LEAD_WINDOW_KEY] === 0 ? "0" : "f"}`);
+  return parts.length ? parts.join(",") : DEFAULT_VARIANT;
 }
 
 export function decodeVariant(path: VariantPath): VariantChoice {
@@ -80,13 +110,14 @@ export function decodeVariant(path: VariantPath): VariantChoice {
   return out;
 }
 
-/** Every variant path of one locale's blocks (the product of each dynamic block's branches). */
+/** Every variant path of one locale's blocks (the product of each dynamic block's branches, times the two lead-window views). */
 export function variantChoices(blocks: readonly Block[]): VariantChoice[] {
   let combos: Record<string, number | "fallback">[] = [{}];
   for (const d of dynamicBlocks(blocks)) {
     const options: (number | "fallback")[] = [...d.variants.map((_v, i) => i), "fallback"];
     combos = combos.flatMap((c) => options.map((o) => ({ ...c, [d.id]: o })));
   }
+  if (hasLeadWindowEvent(blocks)) combos = combos.flatMap((c) => [0, "fallback" as const].map((o) => ({ ...c, [LEAD_WINDOW_KEY]: o })));
   return combos;
 }
 
@@ -104,7 +135,18 @@ export function selectVariant(doc: BlockDocument, locale: Locale, recipient: Var
     const index = d.variants.findIndex((v) => matches(v.when, recipient));
     choice[d.id] = index === -1 ? "fallback" : index;
   }
+  // Scenario 3: a lead is inside the lead window and books; everyone else waits for the release.
+  choice[LEAD_WINDOW_KEY] = recipient.status === "lead" ? 0 : "fallback";
   return encodeVariant(choice, blocks);
+}
+
+/** The cards of `refs`: `resolveCards` for products and events, `webinars` (when given) for webinar cards. */
+async function resolveAll(refs: CardRefs, locale: Locale, ctx: Pick<CompileContext, "resolveCards" | "webinars">): Promise<ResolvedCards> {
+  const base: ResolvedCards = ctx.resolveCards ? await ctx.resolveCards(refs) : EMPTY_CARDS;
+  if (!ctx.webinars || !refs.webinarIds.length) return base;
+  const webinars: Record<string, WebinarCard> = { ...(base.webinars ?? {}) };
+  for (const card of await ctx.webinars(refs.webinarIds, locale)) webinars[card.id] = card;
+  return { ...base, webinars };
 }
 
 /** Runs MJML strictly; validation errors become a `CompileError`. */
@@ -134,7 +176,7 @@ export async function compileMarketing(doc: BlockDocument, locale: Locale, ctx: 
   const blocks = doc.locales[locale];
   if (!blocks || !blocks.length) throw new MissingTranslationError([locale], "document");
   const brand = ctx.brand ?? BRAND;
-  const cards: ResolvedCards = ctx.resolveCards ? await ctx.resolveCards(cardRefs([blocks])) : EMPTY_CARDS;
+  const cards = await resolveAll(cardRefs([blocks]), locale, ctx);
 
   const warnings: Warning[] = [...checkAccessibility(doc, locale, brand)];
   const cardWarnings = new Map<string, Warning>();
@@ -179,6 +221,7 @@ export async function compileDocument(
       footer: ctx.footerFor(locale),
       ...(ctx.brand ? { brand: ctx.brand } : {}),
       ...(ctx.resolveCards ? { resolveCards: ctx.resolveCards } : {}),
+      ...(ctx.webinars ? { webinars: ctx.webinars } : {}),
       ...(subject ? { subject } : {}),
       ...(preheader ? { preheader } : {}),
     });

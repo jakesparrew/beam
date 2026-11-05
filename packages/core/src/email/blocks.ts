@@ -20,6 +20,7 @@ export const BLOCK_TYPES = [
   "product",
   "event",
   "dynamic",
+  "webinar",
 ] as const;
 export type BlockType = (typeof BLOCK_TYPES)[number];
 
@@ -55,10 +56,18 @@ export type ButtonBlock = { id: string; type: "button"; label: string; href: str
 export type DividerBlock = { id: string; type: "divider" };
 export type SpacerBlock = { id: string; type: "spacer"; height: number };
 export type ProductBlock = { id: string; type: "product"; productId: string; showPrice: boolean; ctaLabel: string };
-export type EventBlock = { id: string; type: "event"; sessionId: string; ctaLabel: string };
+/**
+ * `showLeadWindow` (R2, email-P8): while a Lead Magnet session is in its lead window with no
+ * general seat left, a recipient whose status is not `lead` sees "Opens for you on <date time>"
+ * instead of the booking button (booking `getSessionCards().opensForCustomersAt`, scenario 3).
+ * Absent means false.
+ */
+export type EventBlock = { id: string; type: "event"; sessionId: string; ctaLabel: string; showLeadWindow?: boolean };
+/** R2 (email-P8): a webinar card (`webinar.getWebinarCards`): title, Brussels date and time, and a button to its landing page. */
+export type WebinarBlock = { id: string; type: "webinar"; webinarId: string; ctaLabel: string };
 
 /** A block that holds no other blocks. */
-export type LeafBlock = HeadingBlock | TextBlock | ImageBlock | ButtonBlock | DividerBlock | SpacerBlock | ProductBlock | EventBlock;
+export type LeafBlock = HeadingBlock | TextBlock | ImageBlock | ButtonBlock | DividerBlock | SpacerBlock | ProductBlock | EventBlock | WebinarBlock;
 export type Column = { width: number; blocks: LeafBlock[] };
 export type ColumnsBlock = { id: string; type: "columns"; columns: Column[]; stackOnMobile: boolean };
 export type DynamicVariant = { when: DynamicCondition; blocks: (LeafBlock | ColumnsBlock)[] };
@@ -90,7 +99,10 @@ export const SpacerBlockSchema = z.object({ id: blockId, type: z.literal("spacer
 export const ProductBlockSchema = z
   .object({ id: blockId, type: z.literal("product"), productId: z.string().uuid(), showPrice: z.boolean(), ctaLabel: z.string() })
   .strict();
-export const EventBlockSchema = z.object({ id: blockId, type: z.literal("event"), sessionId: z.string().uuid(), ctaLabel: z.string() }).strict();
+export const EventBlockSchema = z
+  .object({ id: blockId, type: z.literal("event"), sessionId: z.string().uuid(), ctaLabel: z.string(), showLeadWindow: z.boolean().optional() })
+  .strict();
+export const WebinarBlockSchema = z.object({ id: blockId, type: z.literal("webinar"), webinarId: z.string().uuid(), ctaLabel: z.string() }).strict();
 
 export const LeafBlockSchema = z.discriminatedUnion("type", [
   HeadingBlockSchema,
@@ -101,6 +113,7 @@ export const LeafBlockSchema = z.discriminatedUnion("type", [
   SpacerBlockSchema,
   ProductBlockSchema,
   EventBlockSchema,
+  WebinarBlockSchema,
 ]);
 
 export const ColumnsBlockSchema = z

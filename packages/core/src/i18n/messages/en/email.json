@@ -218,7 +218,11 @@
       "warning_footer_incomplete": "The legal footer cannot be built: company details are incomplete.",
       "warning_missing_translation": "This language has no content yet.",
       "warning_image_too_large": "A referenced image is larger than 1 MB.",
-      "warning_compile_error": "The email could not be built from these blocks."
+      "warning_compile_error": "The email could not be built from these blocks.",
+      "type_webinar": "Webinar",
+      "field_webinar_id": "Webinar id",
+      "show_lead_window": "Show the lead window",
+      "show_lead_window_help": "During a Lead Magnet window, contacts who are not leads see \"Opens for you on ...\" instead of the booking button."
     },
     "preview": {
       "title": "Template preview",
@@ -622,6 +626,10 @@
       "blocked_suppressed": "suppressed",
       "blocked_withdrawn": "consent withdrawn",
       "blocked_no_consent": "no consent"
+    },
+    "blocks": {
+      "event_opens_for_you": "Opens for you on {date}",
+      "event_view": "View the event"
     }
   }
 }

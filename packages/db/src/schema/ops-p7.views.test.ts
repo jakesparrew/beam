@@ -57,11 +57,10 @@ const profile = async (personId: string) => (await h.db.select().from(vPersonPro
 
 describe("v_person_profile R2 webinar columns", () => {
   it("has every column of PERSON_PROFILE_COLUMNS in order", async () => {
-    const cols = (
-      await h.db.execute<{ column_name: string }>(
-        sql`select column_name from information_schema.columns where table_name = 'v_person_profile' order by ordinal_position`,
-      )
-    ).rows.map((c) => c.column_name);
+    const r = (await h.db.execute(sql`select column_name from information_schema.columns where table_name = 'v_person_profile' order by ordinal_position`)) as unknown as {
+      rows: { column_name: string }[];
+    };
+    const cols = r.rows.map((c) => c.column_name);
     expect(cols).toEqual(PERSON_PROFILE_COLUMNS.map((c) => c.name));
   });
 

@@ -345,7 +345,7 @@ async function loadSharedPackageAbuse(db: DbOrTx, _env: CardEnv, limit: number, 
       personId,
       refType: r.rule === "many_guests" ? "credit_grant" : "person",
       refId: (r.rule === "many_guests" ? r.grantId : r.guestPersonId) ?? "",
-      params: { guests: r.distinctCount, rule: r.rule, date: new Date(r.lastAt).toISOString() } as Record<string, string | number | null>,
+      params: { guests: r.distinctCount, rule: r.rule, date: new Date(r.lastAt).toISOString() },
     };
   });
   const names = await namesOf(db, reviewRows.flatMap((r) => (r.personId ? [r.personId] : [])));

@@ -9,7 +9,7 @@ import { B2C_STAGES, RETENTION_REASONS, type B2cStage, type RetentionReason } fr
 import { sql } from "@/lib/ctx";
 import { rowsOf } from "@/lib/sensitive";
 import { computeAbandonedReport, type AbandonedReport } from "../reports/abandoned";
-import { CAPACITY_DEFAULT_SPAN, computeCapacityReport, parseGroupBy, type CapacityGroupBy, type CapacityReport } from "../reports/capacity";
+import { CAPACITY_DEFAULT_SPAN, computeCapacityReport, parseGroupBy, type CapacityReport } from "../reports/capacity";
 import { computeNoShowReport, parseDateRange, type NoShowReport } from "../reports/no-shows";
 import { computePipelineBoard, type PipelineBoard, type PipelineFilters } from "../reports/pipeline";
 import { requireAny, type OpsReadCtx } from "../reports/registry";
@@ -42,7 +42,7 @@ export type WeeklyRetentionList = {
   items: RetentionListItem[];
 };
 
-const toDate = (v: unknown): Date | null => (v === null || v === undefined ? null : v instanceof Date ? v : new Date(String(v)));
+const toDate = (v: unknown): Date | null => (v === null || v === undefined ? null : v instanceof Date ? v : new Date(v as string));
 const json = (v: unknown): Record<string, unknown> => (typeof v === "string" ? (JSON.parse(v) as Record<string, unknown>) : ((v as Record<string, unknown> | null) ?? {}));
 const textArray = (v: unknown): string[] => (Array.isArray(v) ? v.map(String) : typeof v === "string" ? v.replace(/^\{|\}$/g, "").split(",").filter(Boolean) : []);
 
@@ -142,7 +142,7 @@ export async function getAbandonedCheckoutReport(ctx: OpsReadCtx, input: RangeIn
 }
 
 /** Capacity utilisation (`reports.read`) of `from`-`to` (default the past 90 and next 90 days), grouped by template, weekday, hour or month. */
-export async function getCapacityReport(ctx: OpsReadCtx, input: RangeInput & { groupBy?: CapacityGroupBy | string } = {}): Promise<CapacityReport> {
+export async function getCapacityReport(ctx: OpsReadCtx, input: RangeInput & { groupBy?: string } = {}): Promise<CapacityReport> {
   requireAny(ctx, "reports.read");
   return computeCapacityReport(ctx.tx, { range: parseDateRange(input, ctx.now, CAPACITY_DEFAULT_SPAN), groupBy: parseGroupBy(input.groupBy) });
 }

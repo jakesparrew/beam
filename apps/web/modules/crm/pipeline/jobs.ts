@@ -75,11 +75,11 @@ async function escalate(
       dueAt: ctx.now,
       ...(input.personId ? { personId: input.personId } : {}),
       ...(input.companyId ? { companyId: input.companyId } : {}),
+      ...(input.opportunityId ? { opportunityId: input.opportunityId } : {}),
       source: "system",
       ref: input.ref,
       dedupeKey: input.key,
     });
-    if (task.created && input.opportunityId) await ctx.tx.update(tasks).set({ opportunityId: input.opportunityId }).where(eq(tasks.id, task.taskId));
     fresh = task.created;
   }
   if (fresh) await notifySlack(ctx, { fingerprint: input.fingerprint, severity: "normal", text: input.slackText });

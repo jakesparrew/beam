@@ -15,7 +15,7 @@
  *   (`probability_set_manually_at >= stage_entered_at`).
  */
 import type { DbOrTx, Tx } from "@beam/db";
-import { companies, OPPORTUNITY_STAGES, opportunities, persons, playbookStages, ROLE_KEYS, tasks, users, type OpportunityStage, type PlaybookPipeline, type RoleKey } from "@beam/db/schema";
+import { companies, OPPORTUNITY_STAGES, opportunities, persons, playbookStages, ROLE_KEYS, users, type OpportunityStage, type PlaybookPipeline, type RoleKey } from "@beam/db/schema";
 import { LOCALES, missingLocales, type Locale, type LocalizedText } from "@beam/core/i18n";
 import { and, ConflictError, eq, NotFoundError, ValidationError, type Ctx } from "@/lib/ctx";
 import { enrolPersonBySlug } from "@/modules/automation/api";
@@ -100,11 +100,11 @@ export async function enterStage(tx: Tx, ctx: EventCtx, opp: OpportunityRecord):
     ownerUserId: opp.ownerUserId,
     dueAt: new Date(opp.stageEnteredAt.getTime() + stage.deadlineDays * DAY_MS),
     companyId: opp.companyId,
+    opportunityId: opp.id,
     source: "system",
     ref: { type: "opportunity", id: opp.id },
     dedupeKey: playbookTaskKey(opp.id, opp.stage, opp.stageEnteredAt),
   });
-  if (task.created) await tx.update(tasks).set({ opportunityId: opp.id }).where(eq(tasks.id, task.taskId));
   let enrolled = false;
   const slug = stage.automatedCommunication.automation_slug?.trim();
   if (task.created && slug && opp.primaryContactPersonId) {

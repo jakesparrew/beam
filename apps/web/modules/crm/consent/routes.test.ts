@@ -99,7 +99,7 @@ describe("one-click unsubscribe route", () => {
     expect(await res.text()).toBe("");
     const withdrawn = (await recordsOf(p.id)).filter((r) => r.status === "withdrawn");
     expect(withdrawn).toHaveLength(1);
-    expect(withdrawn[0]).toMatchObject({ purpose: "newsletter", method: "unsubscribe_link", source: `one_click:${emailMessageId}` });
+    expect(withdrawn[0]).toMatchObject({ purpose: "newsletter", method: "unsubscribe_link", source: `one_click:${emailMessageId}`, refType: "email_message", refId: emailMessageId });
     const [supp] = await suppressionsOf(p.email!);
     expect(supp).toMatchObject({ scope: "newsletter", reason: "unsubscribe", source: `one_click:${emailMessageId}` });
     expect(mocks.exits).toEqual([supp!.id]);
@@ -157,13 +157,17 @@ describe("preference centre route", () => {
 
   it("POST saves the switches with method preference_centre and changes the language", async () => {
     const p = await subscribed(["newsletter"]);
-    const { token } = link(p.id, null);
+    const { token, emailMessageId } = link(p.id, null);
     const res = await preferencesRoute.POST(post("https://beam.example.com/x", { purposes: { ...allOff, events: true }, locale: "fr-BE" }), params(token));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: true });
     const current = await api.getCurrentConsents(h.db, p.id);
     expect(current.events).toMatchObject({ status: "granted", method: "preference_centre", source: "preference_centre", wordingVersion: "events@1" });
     expect(current.newsletter).toMatchObject({ status: "withdrawn", method: "preference_centre" });
+    // ops-P8: preference-centre records name the email message whose link was used.
+    const centre = (await recordsOf(p.id)).filter((r) => r.method === "preference_centre");
+    expect(centre).toHaveLength(2);
+    for (const r of centre) expect(r).toMatchObject({ refType: "email_message", refId: emailMessageId });
     expect((await h.db.select().from(persons).where(eq(persons.id, p.id)))[0]!.locale).toBe("fr-BE");
   });
 

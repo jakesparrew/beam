@@ -276,8 +276,8 @@ export const metaWebhookHandler = defineWebhookHandler({
 });
 
 export const INBOX_JOBS = [
-  defineJob({ kind: "crm.send_meta_reply" as never, lane: "fast", priority: 1, input: SendMetaReplyInput, run: runSendMetaReply }),
-  defineJob({ kind: "crm.close_stale_threads" as never, lane: "bulk", priority: 9, input: CloseStaleThreadsInput, run: runCloseStaleThreads }),
-  defineJob({ kind: "crm.escalate_threads" as never, lane: "fast", priority: 5, input: EscalateThreadsInput, run: runEscalateThreads }),
-  defineJob({ kind: "ai.draft_reply" as never, lane: "fast", priority: 5, maxAttempts: 3, input: DraftReplyInput, run: runDraftReply, onDead: onDraftReplyDead }),
+  defineJob({ kind: "crm.send_meta_reply", lane: "fast", priority: 1, input: SendMetaReplyInput, run: runSendMetaReply }),
+  defineJob({ kind: "crm.close_stale_threads", lane: "bulk", priority: 9, input: CloseStaleThreadsInput, run: runCloseStaleThreads }),
+  defineJob({ kind: "crm.escalate_threads", lane: "fast", priority: 5, input: EscalateThreadsInput, run: runEscalateThreads }),
+  defineJob({ kind: "ai.draft_reply", lane: "fast", priority: 5, maxAttempts: 3, input: DraftReplyInput, run: runDraftReply, onDead: onDraftReplyDead }),
 ];

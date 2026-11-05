@@ -6,7 +6,7 @@ import { sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { SEGMENT_ALLOWED_EVENT_KINDS, SEGMENT_ALLOWED_FIELDS, emailHash } from "@beam/core/crm";
 import type { DbHandle } from "../client";
-import { seed as crmSeed } from "../seed/crm";
+import { seed as crmSeed, SYSTEM_TAGS } from "../seed/crm";
 import { createTestDb, makePerson, makeUser } from "../testing";
 import { SENSITIVE_COLUMNS } from "./_shared";
 import {
@@ -287,7 +287,10 @@ describe("allow-lists and seed", () => {
     await crmSeed.run(h.db, {});
     await crmSeed.run(h.db, {});
     const t = rows<{ key: string; is_system: boolean }>(await h.db.execute(sql`select key, is_system from tags where is_system order by key`));
-    expect(t.map((x) => x.key)).toEqual(["interest:breathwork", "interest:events", "interest:sleep", "vip"]);
+    // Compared with the exported constant (CONVENTIONS item 11): later packages may add system tags.
+    for (const key of SYSTEM_TAGS.map((x) => x.key)) expect(t.map((x) => x.key), key).toContain(key);
+    for (const key of ["vip", "engaged", "package_nearly_used", "dormant", "reviewed"]) expect(SYSTEM_TAGS.map((x) => x.key)).toContain(key);
+    for (const tag of SYSTEM_TAGS) expect(Object.keys(tag.name).sort(), tag.key).toEqual(["en", "fr-BE", "nl-BE"]);
     const w = rows<{ purpose: string; text: Record<string, string> }>(await h.db.execute(sql`select purpose::text, text from consent_wordings where version = 1 order by purpose`));
     expect(w.length).toBe(7);
     for (const row of w) expect(Object.keys(row.text).sort()).toEqual(["en", "fr-BE", "nl-BE"]);

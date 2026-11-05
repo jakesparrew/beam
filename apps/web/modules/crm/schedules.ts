@@ -10,4 +10,6 @@ export const schedules = [
   defineSchedule({ kind: "crm.detect_duplicates", cron: "50 3 * * *" }),
   defineSchedule({ kind: "crm.escalate_opportunities", cron: "20 * * * *" }),
   defineSchedule({ kind: "crm.apply_btoc_playbook", cron: "*/5 * * * *" }),
+  defineSchedule({ kind: "crm.escalate_threads", cron: "25 * * * *" }),
+  defineSchedule({ kind: "crm.close_stale_threads", cron: "10 5 * * *" }),
 ];

@@ -8,7 +8,7 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTestDb, makePerson, makeUser } from "@beam/db/testing";
 import type { DbHandle } from "@beam/db";
-import { activityEvents, persons } from "@beam/db/schema";
+import { activityEvents, companies, persons } from "@beam/db/schema";
 import type { AutomationTimelineItem } from "@beam/core/automation";
 
 process.env.SENSITIVE_DATA_KEY_V1 ??= randomBytes(32).toString("base64");
@@ -196,6 +196,28 @@ describe("timeline (rules 3.35 to 3.37)", () => {
       ["legacy.something_odd", "legacy.something_odd", true],
       ["consent.withdrawn", "Consent withdrawn for Newsletter", false],
     ]);
+  });
+
+  it("names the stages in opportunity summaries (fix-w20-crm-wiring)", async () => {
+    const [company] = await h.db.insert(companies).values({ name: `Acme ${randomUUID().slice(0, 6)}` }).returning();
+    const companyId = company!.id;
+    const oppId = randomUUID();
+    const ev = (kind: string, occurredAt: Date, data: Record<string, unknown>) =>
+      recordEvent(h.db, SYSTEM, { kind: kind as never, companyId, occurredAt, ref: { type: "opportunity", id: oppId }, data: { opportunity_id: oppId, ...data } });
+    await ev("opportunity.created", at("2026-09-01T10:00:00Z"), { to_stage: "target", value_cents: 0 });
+    await ev("opportunity.stage_changed", at("2026-09-02T10:00:00Z"), { from_stage: "target", to_stage: "proposal", value_cents: 0 });
+    await ev("opportunity.updated", at("2026-09-03T10:00:00Z"), { value_cents: 10, fields: ["value_cents", "title"] });
+    await ev("opportunity.reopened", at("2026-09-04T10:00:00Z"), { from_stage: "lost", to_stage: "negotiation", value_cents: 0 });
+    const page = await listTimeline(h.db, { companyId });
+    const rows = await toTimelineRows(h.db, page.items, "en");
+    expect(rows.map((r) => [r.kind, r.summary, r.isUnknown])).toEqual([
+      ["opportunity.reopened", "Opportunity reopened in stage Negotiation", false],
+      ["opportunity.updated", "Opportunity details changed: value_cents, title", false],
+      ["opportunity.stage_changed", "Opportunity moved from Target to Proposal", false],
+      ["opportunity.created", "Opportunity created in stage Target", false],
+    ]);
+    const nl = await toTimelineRows(h.db, page.items, "nl-BE");
+    expect(nl.every((r) => !r.isUnknown && !r.summary.includes("{"))).toBe(true);
   });
 
   it("3.36 carries the mode of webinar-style activity", async () => {

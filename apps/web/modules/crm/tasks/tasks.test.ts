@@ -7,7 +7,7 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTestDb, makePerson, makeUser } from "@beam/db/testing";
 import type { DbHandle } from "@beam/db";
-import { activityEvents, auditLog, tasks } from "@beam/db/schema";
+import { activityEvents, auditLog, companies, opportunities, tasks } from "@beam/db/schema";
 import type { TaskStatus } from "@beam/core/crm";
 
 process.env.SENSITIVE_DATA_KEY_V1 ??= randomBytes(32).toString("base64");
@@ -253,5 +253,25 @@ describe("owner resolution (rule 3.42: a task needs an owner)", () => {
     const { taskId } = await api.createTask(tx(), ctxFor(me), { title: "Tidy the desk", kind: "other", source: "manual", ownerUserId: me.userId });
     await api.transitionTask(ctxFor(me), taskId, "complete");
     expect(await eventsOf(taskId)).toHaveLength(0);
+  });
+});
+
+describe("tasks of an opportunity (R3, fix-w20-crm-wiring)", () => {
+  it("createTask stores opportunityId and listTasks filters on it", async () => {
+    const owner = await staff();
+    const [company] = await h.db.insert(companies).values({ name: `Acme ${randomUUID().slice(0, 6)}` }).returning();
+    const newOpp = async (title: string) => (await h.db.insert(opportunities).values({ companyId: company!.id, title, ownerUserId: owner.userId }).returning())[0]!;
+    const opp = await newOpp("Team days");
+    const other = await newOpp("Other deal");
+
+    const linked = await api.createTask(tx(), ctxFor(owner), { title: "Send the proposal", kind: "follow_up", source: "system", ownerUserId: owner.userId, companyId: company!.id, opportunityId: opp.id });
+    await api.createTask(tx(), ctxFor(owner), { title: "Other deal call", kind: "call", source: "system", ownerUserId: owner.userId, companyId: company!.id, opportunityId: other.id });
+    await api.createTask(tx(), ctxFor(owner), { title: "Company only", kind: "call", source: "manual", ownerUserId: owner.userId, companyId: company!.id });
+
+    expect((await taskRow(linked.taskId)).opportunityId).toBe(opp.id);
+    const rows = await listTasks(h.db, { userId: owner.userId, scope: "all", opportunityId: opp.id });
+    expect(rows.map((r) => r.id)).toEqual([linked.taskId]);
+    const byCompany = await listTasks(h.db, { userId: owner.userId, scope: "all", companyId: company!.id });
+    expect(byCompany).toHaveLength(3);
   });
 });

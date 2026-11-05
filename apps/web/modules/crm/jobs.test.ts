@@ -103,3 +103,25 @@ describe("crm jobs run twice yield the same state", () => {
     expect(Number(rows[0]!.n)).toBe(1);
   });
 });
+
+describe("inbox registration (fix-w20-crm-wiring)", () => {
+  it("registers every inbox job with the lane, priority and handler of INBOX_JOBS", async () => {
+    const { INBOX_JOBS } = await import("./inbox/jobs");
+    for (const def of INBOX_JOBS) {
+      const registered = jobs.find((j) => j.kind === def.kind);
+      expect(registered, def.kind).toBeDefined();
+      expect({ lane: registered!.lane, priority: registered!.priority, run: registered!.run }).toEqual({ lane: def.lane, priority: def.priority, run: def.run });
+    }
+    const { JOB_BY_KIND } = await import("@/registry/jobs.generated");
+    for (const def of INBOX_JOBS) expect((JOB_BY_KIND as Record<string, unknown>)[def.kind], def.kind).toBeDefined();
+  });
+
+  it("exports the meta webhook handler and schedules the inbox sweeps", async () => {
+    const { webhookHandlers } = await import("./jobs");
+    expect(webhookHandlers.map((w) => w.provider)).toContain("meta");
+    const { schedules } = await import("./schedules");
+    const cron = Object.fromEntries(schedules.map((s) => [s.kind, s.cron]));
+    expect(cron["crm.escalate_threads"]).toBe("25 * * * *");
+    expect(cron["crm.close_stale_threads"]).toBe("10 5 * * *");
+  });
+});

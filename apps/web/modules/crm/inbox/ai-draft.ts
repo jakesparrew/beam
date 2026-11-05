@@ -24,14 +24,14 @@ import { z } from "zod";
 import type { DbOrTx } from "@beam/db";
 import { inboxMessages, inboxThreads, jobs, persons, supportKnowledgeArticles, type InboxAiDraftStatus } from "@beam/db/schema";
 import { AI_FEATURES, aiContextFields, aiContextJson, toAiContext, type AiContext, type AiProfileInput } from "@beam/core/ai";
+import { screenSensitiveAll } from "@beam/core/crm";
 import { PermanentError } from "@beam/core/errors";
 import { LOCALES, missingLocales, type Locale, type LocalizedText } from "@beam/core/i18n";
 import { callClaude } from "@/lib/ai";
-import { and, asc, ConflictError, desc, eq, lte, ne, NotFoundError, sql, ValidationError, writeDurably, type Ctx, type JobKind } from "@/lib/ctx";
+import { and, asc, ConflictError, desc, eq, lte, ne, NotFoundError, sql, ValidationError, writeDurably, type Ctx } from "@/lib/ctx";
 import type { JobCtx } from "@/lib/job-runner";
 import { rowsOf } from "@/lib/sensitive";
 import { getSetting } from "@/lib/settings";
-import { screenSensitiveAll } from "../../../../../packages/core/src/crm/sensitive-screen";
 import { replyStaffThread } from "./api";
 import type { ThreadMessage } from "./queries";
 
@@ -194,7 +194,7 @@ export async function requestDraft(ctx: Ctx, input: { messageId: string }): Prom
     const base = `ai:draft_reply:${m.id}`;
     const [prior] = rowsOf<{ n: number }>(await ctx.tx.execute(sql`select count(*)::int as n from ${jobs} where ${jobs.idempotencyKey} = ${base} or ${jobs.idempotencyKey} like ${`${base}:r%`}`));
     const n = Number(prior?.n ?? 0);
-    const job = await ctx.enqueue({ kind: AI_DRAFT_JOB_KIND as JobKind, payload: { messageId: m.id }, key: n === 0 ? base : `${base}:r${n}` });
+    const job = await ctx.enqueue({ kind: AI_DRAFT_JOB_KIND, payload: { messageId: m.id }, key: n === 0 ? base : `${base}:r${n}` });
     jobId = job.id;
     status = "pending";
     await setStatus(ctx.tx, m.id, { aiDraftStatus: status, aiDraft: null });

@@ -122,7 +122,10 @@ describe("opportunity events: the primary contact as the person, owner_user_id i
     await moveTo(o, ["qualified"]);
     const list = await eventsOf(o.id);
     expect(list.length).toBeGreaterThanOrEqual(2);
-    for (const e of list) expect(e, e.kind).toMatchObject({ personId: null, companyId: o.companyId, data: expect.objectContaining({ owner_user_id: ownerId }) });
+    for (const e of list) {
+      expect(e, e.kind).toMatchObject({ personId: null, companyId: o.companyId });
+      expect(e.data, e.kind).toMatchObject({ owner_user_id: ownerId });
+    }
   });
 });
 

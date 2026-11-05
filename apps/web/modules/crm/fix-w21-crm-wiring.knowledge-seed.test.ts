@@ -24,7 +24,7 @@ describe("crm demo knowledge articles", () => {
       for (const l of LOCALES) {
         expect(a.title[l]?.trim(), `${a.key} title ${l}`).toBeTruthy();
         expect(a.body[l]?.trim(), `${a.key} body ${l}`).toBeTruthy();
-        expect(a.body[l]!.length).toBeLessThanOrEqual(5_000);
+        expect(a.body[l].length).toBeLessThanOrEqual(5_000);
         expect(a.body[l]).not.toMatch(/@/); // policy text, never an address
       }
     }

@@ -8,6 +8,9 @@
  * and thresholds plus the raw segments CSV"). webinar-P5 completes the interaction rows: the CTA
  * target of a click and the viewer's chat and questions with their text (section 9.1: "every row
  * with webinar title, mode, kind, poll question and chosen option labels, CTA label, text, time").
+ * webinar-P6 completes it: every text follows the language of the registration the row belongs
+ * to (a merged person's registration of the same webinar keeps its own), and the merged watch per
+ * webinar is titled in the subject's own registration language.
  *
  * - `export` and `erase` cover every id of `crm.resolvePersonIds` (the subject and the persons
  *   merged into it).
@@ -102,12 +105,16 @@ async function exportPerson(tx: Tx, personId: string): Promise<PrivacyExport> {
     .innerJoin(webinars, eq(webinars.id, webinarRegistrations.webinarId))
     .where(inArray(webinarRegistrations.personId, ids))
     .orderBy(asc(webinarRegistrations.createdAt), asc(webinarRegistrations.id));
-  const titleOf = new Map(regs.map(({ r, title }) => [r.webinarId, inLocale(title, r.locale)]));
-  const localeOf = new Map(regs.map(({ r }) => [r.webinarId, r.locale]));
+  // The subject's own registration names the webinar (a merged person's one of the same webinar may have another language).
+  const own = [...regs].sort((a, b) => Number(b.r.personId === personId) - Number(a.r.personId === personId));
+  const titleOf = new Map([...own].reverse().map(({ r, title }) => [r.webinarId, inLocale(title, r.locale)]));
+  /** Texts of an interaction follow the language of the registration it belongs to. */
+  const localeOfReg = new Map(regs.map(({ r }) => [r.id, r.locale]));
+  const titleOfReg = new Map(regs.map(({ r, title }) => [r.id, inLocale(title, r.locale)]));
   const regIds = regs.map(({ r }) => r.id);
 
   const registrations = regs.map(({ r, mode, startsAt }) => ({
-    webinar_title: titleOf.get(r.webinarId) ?? null,
+    webinar_title: titleOfReg.get(r.id) ?? null,
     webinar_mode: mode,
     starts_at: iso(startsAt),
     registered_mode: r.registeredMode,
@@ -140,7 +147,7 @@ async function exportPerson(tx: Tx, personId: string): Promise<PrivacyExport> {
           .from(watchSegments)
           .where(inArray(watchSegments.registrationId, regIds))
           .orderBy(asc(watchSegments.recordedAt), asc(watchSegments.id))
-      ).map((s) => ({ webinar_title: titleOf.get(s.webinarId) ?? null, mode: s.mode, from_sec: s.fromSec, to_sec: s.toSec, recorded_at: iso(s.recordedAt) }))
+      ).map((s) => ({ webinar_title: titleOfReg.get(s.registrationId) ?? titleOf.get(s.webinarId) ?? null, mode: s.mode, from_sec: s.fromSec, to_sec: s.toSec, recorded_at: iso(s.recordedAt) }))
     : [];
 
   const interactions = regIds.length
@@ -153,10 +160,10 @@ async function exportPerson(tx: Tx, personId: string): Promise<PrivacyExport> {
         .orderBy(asc(webinarInteractions.occurredAt), asc(webinarInteractions.id))
     : [];
   const interactionRows = interactions.map(({ i, question, options, ctaLabel }) => {
-    const locale = localeOf.get(i.webinarId) ?? "nl-BE";
+    const locale = localeOfReg.get(i.registrationId) ?? "nl-BE";
     const chosen = Array.isArray(i.payload.option_keys) ? (i.payload.option_keys as string[]) : null;
     return {
-      webinar_title: titleOf.get(i.webinarId) ?? null,
+      webinar_title: titleOfReg.get(i.registrationId) ?? titleOf.get(i.webinarId) ?? null,
       mode: i.mode,
       kind: i.kind,
       poll_question: inLocale(question, locale),
@@ -176,7 +183,7 @@ async function exportPerson(tx: Tx, personId: string): Promise<PrivacyExport> {
           .from(webinarModerationActions)
           .where(inArray(webinarModerationActions.registrationId, regIds))
           .orderBy(asc(webinarModerationActions.createdAt), asc(webinarModerationActions.id))
-      ).map((m) => ({ webinar_title: titleOf.get(m.webinarId) ?? null, action: m.action, at: iso(m.createdAt) }))
+      ).map((m) => ({ webinar_title: titleOfReg.get(m.registrationId) ?? titleOf.get(m.webinarId) ?? null, action: m.action, at: iso(m.createdAt) }))
     : [];
 
   const presenters = (

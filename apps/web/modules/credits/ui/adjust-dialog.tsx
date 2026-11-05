@@ -39,7 +39,21 @@ export function fill(template: string | undefined, params: Record<string, string
   return (template ?? "").replace(/\{(\w+)\}/g, (_, k: string) => String(params[k] ?? `{${k}}`));
 }
 
-const SPECIFIC = ["insufficient", "guest_limit", "not_shareable", "share_limit", "stale_version", "already_member", "no_mandate", "too_many_benefits"];
+const SPECIFIC = [
+  "insufficient",
+  "guest_limit",
+  "not_shareable",
+  "share_limit",
+  "stale_version",
+  "already_member",
+  "no_mandate",
+  "too_many_benefits",
+  // R2 sharing (credits-P8): a share dialog or the review list names these.
+  "already_shared",
+  "share_with_owner",
+  "grant_not_active",
+  "review_item_not_found",
+];
 
 /** The words for an action error: a specific credits error when the message names one, else the code's. */
 export function errorMessage(error: { code: string; message: string }, l: Labels): string {

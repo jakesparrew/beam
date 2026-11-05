@@ -16,11 +16,5 @@ export type ReleaseReason =
 
 // `GrantSharing` and `AllocationResult` are the spec shapes of `schemas.ts` and `allocate.ts`
 // (credits section 4), re-exported by `index.ts`; the Wave 0 guesses that stood here are gone.
-
-export type SharingReviewRow = {
-  personId: string;
-  grantId: string;
-  distinctGuests30d: number;
-  guestUses30d: number;
-  lastUseAt: Date | null;
-};
+// `SharingReviewRow` is the real row type of `apps/web/modules/credits/server/sharing.ts`,
+// exported from `apps/web/modules/credits/api.ts`; the Wave 0 guess that stood here is gone.

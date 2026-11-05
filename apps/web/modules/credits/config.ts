@@ -6,9 +6,7 @@
  * rewards, the yearly cap of rewarded referrals, the qualification days and the commission window.
  */
 import type { z } from "zod";
-import { CREDITS_SETTINGS_DEFAULTS, CreditsSettings } from "@beam/core/credits";
-// `@beam/core/credits` does not re-export `referrals.ts` yet (requested from the owner of its index).
-import { REFERRALS_SETTINGS_DEFAULTS, ReferralsSettings } from "../../../../packages/core/src/credits/referrals";
+import { CREDITS_SETTINGS_DEFAULTS, CreditsSettings, REFERRALS_SETTINGS_DEFAULTS, ReferralsSettings } from "@beam/core/credits";
 import { defineSetting } from "@/lib/settings";
 
 export { CreditsSettings, ReferralsSettings };

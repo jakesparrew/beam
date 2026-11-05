@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Badge, Card, CardContent, CardHeader, CardTitle } from "@beam/ui";
+import { Badge, Card, CardContent } from "@beam/ui";
 import { brusselsDateKey } from "@beam/core/credits";
 import { formatDate, formatMoney } from "@beam/core/i18n";
 import { hasPermission, requireStaff } from "@/lib/auth";
@@ -14,9 +14,15 @@ import { GrantLedger } from "@/modules/credits/ui/grant-ledger";
 import { grantName, statusVariant } from "@/modules/credits/ui/grants-table";
 import { GuestHistory } from "@/modules/credits/ui/guest-history";
 import { RevokeDialog } from "@/modules/credits/ui/revoke-dialog";
+import { SharingPanel } from "@/modules/credits/ui/sharing-panel";
 import { TransferDialog } from "@/modules/credits/ui/transfer-dialog";
 
-/** `/admin/credits/grants/[grantId]` (`credits.read`; the actions need `credits.adjust`), credits spec section 5. */
+/**
+ * `/admin/credits/grants/[grantId]` (`credits.read`; the actions need `credits.adjust`), credits
+ * spec section 5. R2 (rules 40 to 42): the staff `SharingPanel` sets the sharing mode and monthly
+ * guest limit, lists the named shares with full names, stops a share and adds one; read-only
+ * without `credits.adjust`.
+ */
 export default async function GrantPage({ params }: { params: Promise<{ grantId: string }> }) {
   const actor = await requireStaff({ permission: "credits.read" });
   const { grantId } = await params;
@@ -33,6 +39,9 @@ export default async function GrantPage({ params }: { params: Promise<{ grantId:
   const none = tr("credits.admin.common.none");
   const canAdjust = hasPermission(actor, "credits.adjust");
   const labels = canAdjust ? creditsLabels(locale, ["admin.common", "admin.grant", "admin.adjust", "admin.extend", "admin.revoke", "admin.transfer", "admin.person_picker", "errors"]) : {};
+  // Rules 2 and 31: store credit and membership inclusions are never shared (R2 staff sharing panel).
+  const shareable = !isEuro && grant.source !== "membership";
+  const sharingLabels = creditsLabels(locale, ["admin.common", "admin.grant", "admin.sharing", "portal.sharing", "enum.sharing_mode", "errors"]);
   const title = grantName({ productName: detail.productName, label: grant.label, source: grant.source }, locale, g("title"));
   const facts: [string, ReactNode][] = [
     [g("owner"), <Link key="o" href={`/admin/persons/${grant.personId}`} className="hover:underline">{detail.personName || none}</Link>],
@@ -98,26 +107,21 @@ export default async function GrantPage({ params }: { params: Promise<{ grantId:
           <GuestHistory guests={detail.guests} locale={locale} />
         </section>
       ) : null}
-      {detail.shares.length ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>{g("shares")}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="grid gap-1 text-sm">
-              {detail.shares.map((s) => (
-                <li key={s.shareId} className="flex flex-wrap gap-2">
-                  <Link href={`/admin/persons/${s.personId}`} className="hover:underline">
-                    {s.name || none}
-                  </Link>
-                  {s.maxUnits ? <span>{g("share_max", { count: s.maxUnits })}</span> : null}
-                  <Badge variant="outline">{tr(`credits.enum.grant_status.${s.status}`)}</Badge>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-      ) : null}
+      <SharingPanel
+        grantId={grant.id}
+        variant="staff"
+        shares={detail.shares.map((s) => ({
+          shareId: s.shareId,
+          name: s.name || none,
+          limitText: s.maxUnits ? g("share_max", { count: s.maxUnits }) : tr("credits.admin.sharing.unlimited"),
+          status: s.status === "active" ? "active" : "revoked",
+          sinceText: formatDate(s.createdAt, locale, "medium"),
+        }))}
+        canAdd={shareable && grant.status === "active"}
+        canEdit={canAdjust}
+        settings={{ mode: grant.sharing.mode, maxGuestUsesPerMonth: grant.sharing.max_guest_uses_per_month, shareable }}
+        labels={sharingLabels}
+      />
       {canAdjust ? (
         <section className="grid max-w-2xl gap-3">
           <GrantNoteForm grantId={grant.id} note={grant.note} labels={labels} />

@@ -490,7 +490,10 @@ function rangeLeaves(c: Condition): { dimension: string; key: string }[] {
   return "range" in c ? [c.range] : [];
 }
 
-/** F5: each CTA kind needs its target id or URL. */
+/**
+ * F5: each CTA kind needs its target id or URL. A `webinar` CTA (R2) needs its `webinarId`; that
+ * the webinar exists and is linkable is the server's P7 check (`cta-targets.ts`).
+ */
 export function ctaHasTarget(c: Cta): boolean {
   switch (c.kind) {
     case "booking":

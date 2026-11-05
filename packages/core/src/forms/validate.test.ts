@@ -310,3 +310,24 @@ describe("P8: warnings", () => {
     expect(codes(f, "warning")).toEqual(["result_without_cta"]);
   });
 });
+
+describe("forms-P8: webinar CTAs (R2)", () => {
+  it("F5: a webinar CTA with its webinarId publishes; without it -> cta_target_missing", () => {
+    const ok = edit(recovery(), (d) => {
+      d.endings[0]!.ctas.push({ key: "webinar", label: T, kind: "webinar", webinarId: UUID });
+    });
+    expect(codes(ok)).toEqual([]);
+    expect(issues(ok).some((i) => i.path.includes("ctas.webinar"))).toBe(false);
+    const missing = edit(recovery(), (d) => {
+      d.endings[0]!.ctas.push({ key: "webinar", label: T, kind: "webinar" });
+    });
+    const errors = issues(missing).filter((i) => i.level === "error");
+    expect(errors.map((i) => [i.code, i.path])).toEqual([["cta_target_missing", `endings.${missing.definition.endings[0]!.key}.ctas.webinar`]]);
+  });
+  it("a webinar CTA label must be complete in every locale like any other CTA", () => {
+    const f = edit(recovery(), (d) => {
+      d.endings[0]!.ctas.push({ key: "webinar", label: { en: "Join" }, kind: "webinar", webinarId: UUID });
+    });
+    expect(codes(f)).toContain("incomplete_text");
+  });
+});

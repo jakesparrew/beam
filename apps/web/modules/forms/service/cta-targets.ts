@@ -3,10 +3,13 @@
  * `checkCtaTargets` lists the broken CTAs of a definition (publish check of forms-P5 and the
  * nightly `forms.check_cta_targets`); `resolveCtaTarget` gives the redirect of the `go` route,
  * falling back to the ending's first `url` CTA or the locale home with `fallback = true`.
- * `webinar` targets arrive in R2 (forms-P8): until then they are always `missing_webinar`.
+ * `webinar` targets (R2, forms-P8) read webinar's stable contract columns `webinars.id`, `slug`
+ * and `status` (webinar spec 2.3): a webinar is linkable while `status in ('published','live',
+ * 'ended')` and resolves to `/<locale>/webinars/<slug>`; any other status, or a missing row, is
+ * `missing_webinar`.
  */
 import type { DbOrTx } from "@beam/db";
-import { forms, formVersions, products, sessions, sessionTemplates, type FormCtaWarningJson } from "@beam/db/schema";
+import { forms, formVersions, products, sessions, sessionTemplates, webinars, type FormCtaWarningJson } from "@beam/db/schema";
 import { FormDefinition as FormDefinitionSchema, type Cta, type FormDefinition, type PublishIssue } from "@beam/core/forms";
 import type { Locale } from "@beam/core/i18n";
 import { and, eq, inArray, isNotNull } from "@/lib/ctx";
@@ -15,6 +18,18 @@ import { appOrigin, localeSegment } from "./tokens";
 
 export type CtaWarning = FormCtaWarningJson;
 type Reason = CtaWarning["reason"];
+
+/** Webinar statuses with a public page a result CTA may link to (webinar spec 2.3). */
+export const LINKABLE_WEBINAR_STATUSES = ["published", "live", "ended"] as const;
+
+/** The slug of a linkable webinar, or null (unknown id or a status outside `LINKABLE_WEBINAR_STATUSES`). */
+export async function linkableWebinarSlug(db: DbOrTx, webinarId: string): Promise<string | null> {
+  const [w] = await db
+    .select({ slug: webinars.slug })
+    .from(webinars)
+    .where(and(eq(webinars.id, webinarId), inArray(webinars.status, [...LINKABLE_WEBINAR_STATUSES])));
+  return w?.slug ?? null;
+}
 
 /** Why a CTA's target is unusable now, or null when it is fine (`url` CTAs never break). */
 export async function ctaProblem(db: DbOrTx, cta: Cta, now: Date = new Date()): Promise<Reason | null> {
@@ -36,7 +51,7 @@ export async function ctaProblem(db: DbOrTx, cta: Cta, now: Date = new Date()): 
       return p?.a ? null : "inactive_product";
     }
     case "webinar":
-      return "missing_webinar";
+      return cta.webinarId && (await linkableWebinarSlug(db, cta.webinarId)) ? null : "missing_webinar";
     case "url":
       return null;
   }
@@ -79,7 +94,7 @@ export function withResultUtm(url: string, slug: string | undefined): string | n
 }
 
 /**
- * The redirect target of a CTA. Internal targets (booking, experience, event, product) are
+ * The redirect target of a CTA. Internal targets (booking, experience, event, product, webinar) are
  * absolute BEAM URLs; the `go` route appends `pt=<identity token>` to them (ID7). A broken
  * target falls back to `opts.fallbackUrl` (the ending's first `url` CTA) or the locale home.
  */
@@ -106,6 +121,10 @@ export async function resolveCtaTarget(
     }
     case "product":
       return { url: `${origin}/${seg}/account/shop?product=${encodeURIComponent(cta.productId!)}`, fallback: false };
+    case "webinar": {
+      const slug = await linkableWebinarSlug(db, cta.webinarId!);
+      return slug ? { url: `${origin}/${seg}/webinars/${encodeURIComponent(slug)}`, fallback: false } : fallback();
+    }
     case "url": {
       const u = cta.url ? withResultUtm(cta.url, opts.formSlug) : null;
       return u ? { url: u, fallback: false } : fallback();
@@ -115,9 +134,9 @@ export async function resolveCtaTarget(
   }
 }
 
-/** True for targets on the BEAM origin (they receive `pt`). */
+/** True for targets on the BEAM origin (they receive `pt`, ID7); the webinar page is one of them. */
 export function isInternalCta(cta: Cta): boolean {
-  return cta.kind !== "url" && cta.kind !== "webinar";
+  return cta.kind !== "url";
 }
 
 /** `forms.check_cta_targets`: overwrites `forms.cta_warnings` of every published form; returns the forms checked. */

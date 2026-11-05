@@ -1,11 +1,11 @@
 /**
  * forms' cross-module door (forms spec section 4 "Cross-module API", 02-data-model section 6.7).
  * Implemented by forms-P3 on top of `./service/*`; signatures are the Wave 0 contract.
- * `countLandingConversions` (R3, forms-P9) is still a stub; `FormEmbed` is forms-P4's server
- * component.
+ * `countLandingConversions` (R3) is a typed stub returning `[]` until forms-P9 implements it
+ * (forms-P8, 03-build-order forward-call stubs: site-P9 runs in the same wave); `FormEmbed` is
+ * forms-P4's server component.
  */
 import type { DbOrTx } from "@beam/db";
-import { NotImplementedError } from "@beam/core/errors";
 import type { Locale, LocalizedText } from "@beam/core/i18n";
 import type { AcquisitionSource } from "@beam/core/crm";
 import type { LatestOutcome, PersonSubmissionSummary, PublicFormRef, UtmParams } from "@beam/core/forms";
@@ -84,12 +84,12 @@ export function buildFormUrl(input: {
   });
 }
 
-/** Site insights (R3, forms-P9). */
+/** Site insights (R3): submissions and new persons per landing path and campaign. Typed stub returning `[]` until forms-P9. */
 export function countLandingConversions(
   _db: DbOrTx,
   _input: { from: Date; to: Date },
 ): Promise<{ landingPath: string; utmCampaign: string | null; submissions: number; newPersons: number }[]> {
-  return Promise.reject(new NotImplementedError("forms.countLandingConversions"));
+  return Promise.resolve([]);
 }
 
 /** Daily digest and alerts (ops, platform). */

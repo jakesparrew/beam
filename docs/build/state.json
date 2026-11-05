@@ -1178,7 +1178,7 @@
       "mergedAt": "2026-11-05T06:04:24Z"
     },
     "webinar-P6": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "20a96b3",
       "runId": null,
@@ -1191,18 +1191,22 @@
         "apps/web/modules/ops/dashboard/cards.test.ts"
       ],
       "branchSha": "66fda77",
-      "endedAt": "2026-11-05T07:03:35Z",
-      "minutes": 50
+      "endedAt": "2026-11-05T08:38:24Z",
+      "minutes": 50,
+      "mergeSha": "991796f",
+      "mergedAt": "2026-11-05T09:08:44Z"
     },
     "automation-P8": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "20a96b3",
       "runId": null,
       "startedAt": "2026-11-05T06:04:50Z",
       "branchSha": "b0dec38",
-      "endedAt": "2026-11-05T06:34:35Z",
-      "minutes": 30
+      "endedAt": "2026-11-05T08:38:24Z",
+      "minutes": 30,
+      "mergeSha": "d16238a",
+      "mergedAt": "2026-11-05T09:08:57Z"
     },
     "platform-P13": {
       "status": "pending",
@@ -1248,7 +1252,7 @@
       "mergedAt": "2026-11-05T02:51:42Z"
     },
     "commerce-P9": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "20a96b3",
       "runId": null,
@@ -1258,8 +1262,10 @@
         "packages/db/src/schema/commerce.test.ts"
       ],
       "branchSha": "93d7667",
-      "endedAt": "2026-11-05T07:03:35Z",
-      "minutes": 51
+      "endedAt": "2026-11-05T08:38:24Z",
+      "minutes": 51,
+      "mergeSha": "2e8634e",
+      "mergedAt": "2026-11-05T09:08:47Z"
     },
     "credits-P9": {
       "status": "merged",
@@ -1344,14 +1350,16 @@
       "mergedAt": "2026-11-05T07:19:02Z"
     },
     "forms-P9": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "103826d",
       "runId": null,
       "startedAt": "2026-11-05T05:29:29Z",
       "branchSha": "0d39eaa",
-      "endedAt": "2026-11-05T06:05:29Z",
-      "minutes": 36
+      "endedAt": "2026-11-05T08:38:24Z",
+      "minutes": 36,
+      "mergeSha": "d40a341",
+      "mergedAt": "2026-11-05T09:08:50Z"
     },
     "webinar-P7": {
       "status": "pending",
@@ -1445,14 +1453,16 @@
       "attempts": 0
     },
     "platform-P14": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "20a96b3",
       "runId": null,
       "startedAt": "2026-11-05T06:04:51Z",
       "branchSha": "315d012",
-      "endedAt": "2026-11-05T06:24:56Z",
-      "minutes": 16
+      "endedAt": "2026-11-05T08:38:24Z",
+      "minutes": 16,
+      "mergeSha": "70af819",
+      "mergedAt": "2026-11-05T09:08:54Z"
     },
     "fix-w03-platform-1": {
       "status": "merged",
@@ -2205,7 +2215,7 @@
       "mergedAt": "2026-11-04T20:52:34Z"
     },
     "fix-w20-crm-wiring": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "fixer": true,
       "module": "crm",
@@ -2451,11 +2461,13 @@
       "runId": null,
       "startedAt": "2026-11-05T06:04:50Z",
       "branchSha": "dbb0a1e",
-      "endedAt": "2026-11-05T06:54:04Z",
-      "minutes": 45
+      "endedAt": "2026-11-05T08:38:24Z",
+      "minutes": 45,
+      "mergeSha": "583cdbb",
+      "mergedAt": "2026-11-05T09:08:37Z"
     },
     "fix-w20-booking-wiring": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "fixer": true,
       "module": "booking",
@@ -2670,8 +2682,10 @@
       "runId": null,
       "startedAt": "2026-11-05T06:04:50Z",
       "branchSha": "4eacf1d",
-      "endedAt": "2026-11-05T07:13:40Z",
-      "minutes": 58
+      "endedAt": "2026-11-05T08:38:24Z",
+      "minutes": 58,
+      "mergeSha": "50d3de4",
+      "mergedAt": "2026-11-05T09:08:41Z"
     },
     "fix-w20-finance-wiring": {
       "status": "merged",

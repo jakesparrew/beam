@@ -226,3 +226,11 @@ One entry per merge batch and gate (runbook section 5.7, adapted by OD-3).
 - ops-P9: 53 min, merged as `60866a7`, migrations 0046_w22_views.sql; gate `g113-ops-P9` (merge) green, peak 4366 MB.
 - fix-w20-credits-wiring: 15 min, merged as `9f28fc7`; gate `g114-fix-w20-credits-wiring` (merge) green, peak 4360 MB.
 - fix-w20-finance-wiring: 25 min, merged as `64e512c`, migrations 0047_w04.sql; gate `g115-fix-w20-finance-wiring` (merge) green, peak 4050 MB.
+- fix-w20-crm-wiring: merged as `583cdbb` in batch `g116-batch`.
+- fix-w20-booking-wiring: merged as `50d3de4` in batch `g116-batch`.
+- webinar-P6: merged as `991796f` in batch `g116-batch`.
+- commerce-P9: merged as `2e8634e` in batch `g116-batch`.
+- forms-P9: merged as `d40a341` in batch `g116-batch`.
+- platform-P14: merged as `70af819` in batch `g116-batch`.
+- automation-P8: merged as `d16238a` in batch `g116-batch`.
+- Batch `g116-batch` (fix-w20-crm-wiring fix-w20-booking-wiring webinar-P6 commerce-P9 forms-P9 platform-P14 automation-P8): migrations 0048_w21.sql 0049_w21_views.sql 0050_w21_protect.sql; merge gate green, peak 5020 MB.

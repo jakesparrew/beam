@@ -234,3 +234,5 @@ One entry per merge batch and gate (runbook section 5.7, adapted by OD-3).
 - platform-P14: merged as `70af819` in batch `g116-batch`.
 - automation-P8: merged as `d16238a` in batch `g116-batch`.
 - Batch `g116-batch` (fix-w20-crm-wiring fix-w20-booking-wiring webinar-P6 commerce-P9 forms-P9 platform-P14 automation-P8): migrations 0048_w21.sql 0049_w21_views.sql 0050_w21_protect.sql; merge gate green, peak 5020 MB.
+- automation-P9: merged as `b416719` in batch `g117-batch`.
+- Batch `g117-batch` (automation-P9): merge gate green, peak 11856 MB.

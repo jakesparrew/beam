@@ -49,11 +49,34 @@ export type RegistrationFormProps = {
   labels: RegistrationFormLabels;
   /** Portal: whether the consent boxes are offered (shown once, until the person answered). */
   showConsents?: boolean;
+  /**
+   * crm's published consent wording (`registrationConsentWordings(tx, locale)` in
+   * `server/registration.ts`): its text replaces the catalogue label of each box and its
+   * `wordingVersion` replaces the prop of that name. Without it (or for a purpose whose text is
+   * null) the form shows the catalogue label as version 1.
+   */
+  consentWordings?: { wordingVersion: string; events: string | null; newsletter: string | null } | null;
 };
+
+/** The wording version to send back and the text of each consent box (webinar-P3 request). */
+export function resolveConsentWording(
+  wordingVersion: string,
+  labels: Pick<RegistrationFormLabels, "consentEvents" | "consentNewsletter">,
+  consentWordings: RegistrationFormProps["consentWordings"],
+): { wordingVersion: string; events: string; newsletter: string } {
+  if (!consentWordings) return { wordingVersion, events: labels.consentEvents, newsletter: labels.consentNewsletter };
+  return {
+    wordingVersion: consentWordings.wordingVersion,
+    events: consentWordings.events ?? labels.consentEvents,
+    newsletter: consentWordings.newsletter ?? labels.consentNewsletter,
+  };
+}
 
 const checkboxClass = "mt-1 size-4 shrink-0 rounded border border-input accent-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
 
-export function RegistrationForm({ variant, webinarId, slug, locale, wordingVersion, privacyHref, labels, showConsents = true }: RegistrationFormProps) {
+export function RegistrationForm({ variant, webinarId, slug, locale, wordingVersion: fallbackVersion, privacyHref, labels, showConsents = true, consentWordings }: RegistrationFormProps) {
+  const wording = resolveConsentWording(fallbackVersion, labels, consentWordings);
+  const wordingVersion = wording.wordingVersion;
   const router = useRouter();
   const ids = useId();
   const [pending, setPending] = useState(false);
@@ -145,11 +168,11 @@ export function RegistrationForm({ variant, webinarId, slug, locale, wordingVers
           <legend className="text-sm font-medium">{labels.consentLegend}</legend>
           <label className="flex items-start gap-2 text-sm">
             <input type="checkbox" name="consent_events" className={checkboxClass} />
-            <span>{labels.consentEvents}</span>
+            <span>{wording.events}</span>
           </label>
           <label className="flex items-start gap-2 text-sm">
             <input type="checkbox" name="consent_newsletter" className={checkboxClass} />
-            <span>{labels.consentNewsletter}</span>
+            <span>{wording.newsletter}</span>
           </label>
           <p className="text-xs text-muted-foreground">{labels.consentHint}</p>
         </fieldset>

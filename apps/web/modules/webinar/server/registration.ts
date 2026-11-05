@@ -39,7 +39,7 @@ import {
 } from "@beam/email/templates/webinar";
 import { ConflictError, NotFoundError, ValidationError, and, eq, inArray, type Ctx, type DbOrTx, type Tx } from "@/lib/ctx";
 import { rateLimit } from "@/lib/rate-limit";
-import { findOrCreatePersonByEmail, findPersonIdsByEmailHash, getPersonStatus, recordConsent, resolveCanonicalPersonId, resolvePersonIds } from "@/modules/crm/api";
+import { findOrCreatePersonByEmail, findPersonIdsByEmailHash, getCurrentMarketingWordings, getPersonStatus, recordConsent, resolveCanonicalPersonId, resolvePersonIds } from "@/modules/crm/api";
 import { sendTransactional } from "@/modules/email/api";
 import { endsAtOf, type WebinarRow } from "./lifecycle";
 
@@ -65,8 +65,38 @@ export const ACCESS_EMAILS_PER_HOUR = 3;
 const HOUR_MS = 3_600_000;
 /** Public registrations and lost-link requests per IP per minute (section 4.4). */
 export const PUBLIC_REGISTER_PER_MINUTE = 20;
-/** The consent wording version the registration form shows (`<purpose>@1`). */
+/**
+ * The fallback consent wording version: the form's catalogue text, recorded as `<purpose>@1`.
+ * The form shows crm's published wording instead when there is one
+ * (`registrationConsentWordings`, webinar-P3 request).
+ */
 export const WEBINAR_CONSENT_WORDING_VERSION = "v1";
+
+/** What the registration form shows for its two consent boxes (rule 18). */
+export type RegistrationConsentWordings = {
+  /** `events@<n>,newsletter@<m>`: the version of each text shown, sent back with the form. */
+  wordingVersion: string;
+  /** crm's published text in the locale; null means the form shows its catalogue label (version 1). */
+  events: string | null;
+  newsletter: string | null;
+};
+
+/**
+ * crm's currently published wording of `events` and `newsletter` in `locale`, with the version
+ * the form sends back. A purpose without a published wording (or without text in this locale)
+ * falls back to the catalogue label recorded as version 1.
+ */
+export async function registrationConsentWordings(tx: DbOrTx, locale: Locale): Promise<RegistrationConsentWordings> {
+  const published = await getCurrentMarketingWordings(tx);
+  const pick = (purpose: "events" | "newsletter") => {
+    const w = published[purpose];
+    const text = w?.text?.[locale]?.trim();
+    return w && text ? { text, version: `${purpose}@${w.version}` } : { text: null, version: `${purpose}@1` };
+  };
+  const events = pick("events");
+  const newsletter = pick("newsletter");
+  return { wordingVersion: `${events.version},${newsletter.version}`, events: events.text, newsletter: newsletter.text };
+}
 
 /** Error messages of the registration paths (the UI maps them to `webinar.register.errors.*`). */
 export const REGISTER_ERRORS = { closed: "webinar.register.closed", blocked: "webinar.access.blocked" } as const;
@@ -93,12 +123,15 @@ async function lockRegistration(tx: Tx, registrationId: string): Promise<Registr
 
 /**
  * `<purpose>@<n>` for a wording version the form showed: `v1` (or `1`) means version 1 of each
- * purpose; `events@2` is used as is for its own purpose.
+ * purpose; `events@2` is used as is for its own purpose, and a comma-separated list
+ * (`events@2,newsletter@3`, from `registrationConsentWordings`) gives each purpose its own.
  */
 export function consentWordingVersion(purpose: "events" | "newsletter", wordingVersion: string | undefined): string {
   const v = (wordingVersion ?? WEBINAR_CONSENT_WORDING_VERSION).trim();
-  const own = /^([a-z_]+)@([1-9][0-9]*)$/.exec(v);
-  if (own && own[1] === purpose) return v;
+  for (const part of v.split(",")) {
+    const own = /^([a-z_]+)@([1-9][0-9]*)$/.exec(part.trim());
+    if (own && own[1] === purpose) return part.trim();
+  }
   const n = /^v?([1-9][0-9]*)$/.exec(v);
   if (n) return `${purpose}@${n[1]}`;
   throw new ValidationError("invalid_wording_version", { wordingVersion: "invalid_wording_version" });

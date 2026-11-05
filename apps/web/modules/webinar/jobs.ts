@@ -3,7 +3,8 @@
  * `kind` is a literal. webinar-P2: the YouTube and Meet jobs (`create_broadcast`,
  * `update_broadcast`, `delete_broadcast`, `create_meet_space`), live status and recording sync
  * (`sync_status`, `fetch_recording`), the reschedule and cancel notices (`notify_registrants`) and
- * the two scans of `schedules.ts`. Every handler is idempotent: a second run with the same
+ * the two scans of `schedules.ts`. webinar-P4: `webinar.finalise` (no-shows and back-filled
+ * thresholds, rule 29) and its scan `webinar.scan_finalise`. Every handler is idempotent: a second run with the same
  * payload leaves the same state (`jobs.test.ts`).
  *
  * The YouTube client is not one of the shared `getIntegrations()` clients: `youtubeFor(ctx)`
@@ -22,7 +23,8 @@ import { and, asc, desc, enqueueJob, eq, sql, writeDurably, type Ctx } from "@/l
 import { integrationMode, routedOnCall } from "@/lib/integrations";
 import { defineJob, type JobCtx } from "@/lib/job-runner";
 import { sendTransactional } from "@/modules/email/api";
-import { ScanLiveInput, ScanRecordingsInput, runScanLive, runScanRecordings } from "./schedules";
+import { ScanFinaliseInput, ScanLiveInput, ScanRecordingsInput, runScanFinalise, runScanLive, runScanRecordings } from "./schedules";
+import { finaliseWebinar } from "./server/watch";
 import { completeBroadcastPublish, jobKeys, lockWebinar, moveLiveState, noticeEmailKey, textIn, type NoticeReason, type WebinarRow } from "./server/lifecycle";
 
 // ---------------------------------------------------------------------------------------------
@@ -345,6 +347,19 @@ export async function runNotifyRegistrants(ctx: JobCtx, input: z.infer<typeof No
 }
 
 // ---------------------------------------------------------------------------------------------
+// webinar.finalise (rule 29, edge cases 8 and 22)
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * Writes the no-shows and back-fills the live thresholds of one ended webinar, or marks a webinar
+ * that never went live (`finaliseWebinar`). The scan enqueues it only when the replay situation is
+ * known; a run that finds it still unknown returns `deferred` and changes nothing.
+ */
+export async function runFinalise(ctx: JobCtx, input: z.infer<typeof WebinarIdInput>) {
+  return finaliseWebinar(ctx.tx, ctx, input.webinarId, ctx.now);
+}
+
+// ---------------------------------------------------------------------------------------------
 // Registration
 // ---------------------------------------------------------------------------------------------
 
@@ -358,4 +373,6 @@ export const jobs = [
   defineJob({ kind: "webinar.notify_registrants", lane: "bulk", priority: 5, maxAttempts: 6, input: NotifyInput, run: runNotifyRegistrants }),
   defineJob({ kind: "webinar.scan_live", lane: "fast", priority: 2, maxAttempts: 2, input: ScanLiveInput, run: runScanLive }),
   defineJob({ kind: "webinar.scan_recordings", lane: "fast", priority: 2, maxAttempts: 2, input: ScanRecordingsInput, run: runScanRecordings }),
+  defineJob({ kind: "webinar.finalise", lane: "fast", priority: 5, maxAttempts: 6, input: WebinarIdInput, run: runFinalise }),
+  defineJob({ kind: "webinar.scan_finalise", lane: "fast", priority: 2, maxAttempts: 2, input: ScanFinaliseInput, run: runScanFinalise }),
 ];

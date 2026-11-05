@@ -408,6 +408,14 @@
         "rate_limited": "Trop de tentatives. Réessayez dans une minute.",
         "invalid": "Indiquez une adresse e-mail valide.",
         "back": "Retour au webinaire"
+      },
+      "token": {
+        "greeting": "Bienvenue, {name}.",
+        "not_you": "Ce n'est pas vous ?",
+        "invalid_title": "Ce lien n'est plus valable",
+        "invalid_body": "Votre lien personnel a été remplacé ou ne fonctionne plus. Demandez un nouveau lien avec votre adresse e-mail.",
+        "request_link": "Recevoir un nouveau lien",
+        "all_webinars": "Tous les webinaires"
       }
     },
     "register": {
@@ -457,6 +465,50 @@
         "register": "S’inscrire",
         "error": "Cela n’a pas fonctionné. Réessayez."
       }
+    },
+    "player": {
+      "notice": {
+        "title": "Avant le chargement de la vidéo",
+        "body": "La vidéo est diffusée par YouTube (Google). Lorsque vous la chargez, Google reçoit votre adresse IP et des données sur votre appareil, et peut enregistrer des données sur celui-ci. BEAM n'envoie jamais à Google votre nom, votre adresse e-mail, vos réponses ou vos messages.",
+        "accept": "Charger la vidéo",
+        "privacy_link": "Lire notre déclaration de confidentialité"
+      },
+      "loading": "Chargement de la vidéo…",
+      "countdown": "Le webinaire commence dans {time}.",
+      "waiting": "En attente de l'animateur. Le webinaire commence dans un instant.",
+      "mode": {
+        "live": "En direct",
+        "replay": "Rediffusion",
+        "on_demand": "À la demande"
+      },
+      "now_watching": "La vidéo est prête. Appuyez sur lecture pour commencer.",
+      "refusal": {
+        "ended": "Ce webinaire est terminé. Il n'y a pas de rediffusion.",
+        "expired": "Votre accès à cette vidéo a expiré.",
+        "limit_reached": "Vous avez utilisé tous vos visionnages de cette rediffusion.",
+        "blocked": "Vous ne pouvez plus regarder ce webinaire.",
+        "cancelled": "Votre inscription à ce webinaire est annulée.",
+        "unauthorized": "Connectez-vous pour regarder ce webinaire.",
+        "invalid_token": "Ce lien n'est plus valable.",
+        "not_registered": "Vous n'êtes pas inscrit à ce webinaire.",
+        "error": "Une erreur s'est produite. Rechargez la page pour réessayer."
+      },
+      "contact": "Des questions ? Contactez-nous.",
+      "captions_on": "Activer les sous-titres",
+      "captions_off": "Désactiver les sous-titres",
+      "play": "Lecture",
+      "pause": "Pause",
+      "error": "La vidéo n'a pas pu être lue ici.",
+      "fallback_link": "Regarder sur youtube.com",
+      "fallback_note": "Ce lien quitte BEAM.",
+      "reloading": "Le webinaire a changé. Chargement de la nouvelle vue…",
+      "simulated": "Lecteur de test (sans YouTube)",
+      "position": "Position {time}",
+      "views_left": "Visionnages restants : {count}",
+      "page_title": "Regarder le webinaire",
+      "back": "Mes webinaires",
+      "register_title": "Inscrivez-vous pour regarder",
+      "register_body": "Vous n'êtes pas encore inscrit à ce webinaire."
     }
   }
 }

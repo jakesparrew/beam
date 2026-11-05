@@ -4,7 +4,7 @@
  * one indexed select, then one `enqueue` per webinar with the per-minute key of section 4.5.
  *
  * webinar-P2: `webinar.scan_live` (every minute) and `webinar.scan_recordings` (every 10
- * minutes). webinar-P4 adds `webinar.scan_finalise`, webinar-P6 `webinar.preflight`.
+ * minutes). webinar-P4 adds `webinar.scan_finalise` (every 5 minutes), webinar-P6 `webinar.preflight`.
  */
 import { z } from "zod";
 import { webinars } from "@beam/db/schema";
@@ -14,6 +14,7 @@ import { jobKeys } from "./server/lifecycle";
 
 export const ScanLiveInput = z.object({}).passthrough();
 export const ScanRecordingsInput = z.object({}).passthrough();
+export const ScanFinaliseInput = z.object({}).passthrough();
 
 /** A published webinar is synced from 30 minutes before its start. */
 export const SYNC_LEAD_MS = 30 * 60_000;
@@ -73,7 +74,44 @@ export async function runScanRecordings(ctx: JobCtx): Promise<{ enqueued: number
   return { enqueued: rows.length };
 }
 
+/**
+ * `webinar.finalise` (rule 29) for webinars not finalised yet: live and simulive webinars `ended`
+ * at least 30 minutes ago whose replay situation is known (recording and duration set, replay
+ * disabled, or ended 48 h ago), and live webinars still `published` 2 hours after their start
+ * (never live). The job key carries `version`, so a reschedule gets its own finalise.
+ */
+export async function runScanFinalise(ctx: JobCtx): Promise<{ enqueued: number }> {
+  const now = ctx.now;
+  const endedBefore = new Date(now.getTime() - 30 * 60_000);
+  const waitedOut = new Date(now.getTime() - RECORDING_WINDOW_MS);
+  const neverLiveBefore = new Date(now.getTime() - 2 * 3600_000);
+  const rows = await ctx.tx
+    .select({ id: webinars.id, version: webinars.version })
+    .from(webinars)
+    .where(
+      and(
+        isNull(webinars.finalisedAt),
+        or(
+          and(
+            inArray(webinars.mode, ["live", "simulive"]),
+            eq(webinars.status, "ended"),
+            lte(webinars.liveEndedAt, endedBefore),
+            or(
+              eq(webinars.isReplayEnabled, false),
+              and(isNotNull(webinars.recordingVideoId), isNotNull(webinars.durationSec)),
+              lte(webinars.liveEndedAt, waitedOut),
+            ),
+          ),
+          and(eq(webinars.mode, "live"), eq(webinars.status, "published"), lte(webinars.startsAt, neverLiveBefore)),
+        ),
+      ),
+    );
+  for (const r of rows) await ctx.enqueue({ kind: "webinar.finalise", payload: { webinarId: r.id }, key: jobKeys.finalise(r.id, r.version) });
+  return { enqueued: rows.length };
+}
+
 export const schedules = [
   defineSchedule({ kind: "webinar.scan_live", cron: "* * * * *", catchUp: false }),
   defineSchedule({ kind: "webinar.scan_recordings", cron: "*/10 * * * *", catchUp: false }),
+  defineSchedule({ kind: "webinar.scan_finalise", cron: "*/5 * * * *", catchUp: false }),
 ];

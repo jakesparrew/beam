@@ -408,6 +408,14 @@
         "rate_limited": "Te veel pogingen. Probeer het over een minuut opnieuw.",
         "invalid": "Vul een geldig e-mailadres in.",
         "back": "Terug naar de webinar"
+      },
+      "token": {
+        "greeting": "Welkom, {name}.",
+        "not_you": "Ben jij dit niet?",
+        "invalid_title": "Deze link is niet meer geldig",
+        "invalid_body": "Je persoonlijke link werd vervangen of werkt niet meer. Vraag een nieuwe link aan met je e-mailadres.",
+        "request_link": "Nieuwe link aanvragen",
+        "all_webinars": "Alle webinars"
       }
     },
     "register": {
@@ -457,6 +465,50 @@
         "register": "Inschrijven",
         "error": "Dit is niet gelukt. Probeer het opnieuw."
       }
+    },
+    "player": {
+      "notice": {
+        "title": "Voor de video laadt",
+        "body": "De video wordt afgespeeld door YouTube (Google). Wanneer je hem laadt, ontvangt Google je IP-adres en toestelgegevens en kan het gegevens op je toestel bewaren. BEAM stuurt Google nooit je naam, e-mailadres, antwoorden of berichten.",
+        "accept": "Video laden",
+        "privacy_link": "Lees onze privacyverklaring"
+      },
+      "loading": "De video wordt geladen…",
+      "countdown": "Het webinar begint over {time}.",
+      "waiting": "Wachten op de host. Het webinar begint zo meteen.",
+      "mode": {
+        "live": "Live",
+        "replay": "Herbekijken",
+        "on_demand": "On demand"
+      },
+      "now_watching": "De video is klaar. Druk op afspelen om te beginnen.",
+      "refusal": {
+        "ended": "Dit webinar is afgelopen. Er is geen herbekijkversie.",
+        "expired": "Je toegang tot deze video is verlopen.",
+        "limit_reached": "Je hebt al je weergaven van deze opname gebruikt.",
+        "blocked": "Je kunt dit webinar niet meer bekijken.",
+        "cancelled": "Je inschrijving voor dit webinar is geannuleerd.",
+        "unauthorized": "Meld je aan om dit webinar te bekijken.",
+        "invalid_token": "Deze link is niet meer geldig.",
+        "not_registered": "Je bent niet ingeschreven voor dit webinar.",
+        "error": "Er ging iets mis. Laad de pagina opnieuw om het nog eens te proberen."
+      },
+      "contact": "Vragen? Neem contact met ons op.",
+      "captions_on": "Ondertitels aanzetten",
+      "captions_off": "Ondertitels uitzetten",
+      "play": "Afspelen",
+      "pause": "Pauzeren",
+      "error": "De video kon hier niet worden afgespeeld.",
+      "fallback_link": "Bekijk op youtube.com",
+      "fallback_note": "Deze link verlaat BEAM.",
+      "reloading": "Het webinar is veranderd. De nieuwe weergave wordt geladen…",
+      "simulated": "Testspeler (geen YouTube)",
+      "position": "Positie {time}",
+      "views_left": "Resterende weergaven: {count}",
+      "page_title": "Bekijk het webinar",
+      "back": "Mijn webinars",
+      "register_title": "Schrijf je in om te kijken",
+      "register_body": "Je bent nog niet ingeschreven voor dit webinar."
     }
   }
 }

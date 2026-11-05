@@ -7,8 +7,10 @@
  * `webinar.rescheduled` per registration, and the fresh `webinar.registered` (with
  * `rescheduled: true`) a reschedule writes so the reminder journey re-enrols (edge case 9).
  * webinar-P3 registers people (`webinar.registered`, also after a re-registration that follows a
- * cancellation) and cancels registrations (`webinar.registration_cancelled`); later packages add
- * the watch, interaction and no-show facts.
+ * cancellation) and cancels registrations (`webinar.registration_cancelled`). webinar-P4 adds the
+ * watch facts of rules 27-29: `webinar.started` (first view of a mode), `webinar.attended`,
+ * `webinar.watched` (`data.threshold`) and `webinar.no_show` (mode `live`, written by finalise);
+ * webinar-P5 adds the interaction facts.
  */
 import { z } from "zod";
 import { WATCH_MODES, WEBINAR_MODES } from "@beam/core/webinar";
@@ -54,6 +56,32 @@ export const WebinarRegistrationCancelledData = z.object({
 });
 export type WebinarRegistrationCancelledData = z.input<typeof WebinarRegistrationCancelledData>;
 
+/** `webinar.started`: the first view of a registration in a mode (rule 28). */
+export const WebinarStartedData = z.object({ webinar_id: z.uuid(), registration_id: z.uuid() });
+export type WebinarStartedData = z.input<typeof WebinarStartedData>;
+
+/** `webinar.attended`: `attended_min_sec` reached in the event's mode (rule 27). */
+export const WebinarAttendedData = z.object({ webinar_id: z.uuid(), registration_id: z.uuid(), watched_sec: z.number().int().min(0) });
+export type WebinarAttendedData = z.input<typeof WebinarAttendedData>;
+
+/** `webinar.watched`: one threshold of rule 27 reached in the event's mode. */
+export const WebinarWatchedData = z.object({
+  webinar_id: z.uuid(),
+  registration_id: z.uuid(),
+  threshold: z.enum(["15m", "30m", "50pct", "end"]),
+  watched_sec: z.number().int().min(0),
+});
+export type WebinarWatchedData = z.input<typeof WebinarWatchedData>;
+
+/** `webinar.no_show` (mode `live`): registered for live, no live attendance (rule 29). */
+export const WebinarNoShowData = z.object({
+  webinar_id: z.uuid(),
+  registration_id: z.uuid(),
+  replay_available: z.boolean(),
+  replay_until_at: instant.nullable(),
+});
+export type WebinarNoShowData = z.input<typeof WebinarNoShowData>;
+
 /** The mode values an event row may carry (`activity_events.mode`). */
 export const EVENT_MODES = WATCH_MODES;
 
@@ -62,4 +90,8 @@ export const events = [
   defineEvent({ kind: "webinar.registration_cancelled", subject: "person", data: WebinarRegistrationCancelledData }),
   defineEvent({ kind: "webinar.cancelled", subject: "person", data: WebinarCancelledData }),
   defineEvent({ kind: "webinar.rescheduled", subject: "person", data: WebinarRescheduledData }),
+  defineEvent({ kind: "webinar.started", subject: "person", data: WebinarStartedData }),
+  defineEvent({ kind: "webinar.attended", subject: "person", data: WebinarAttendedData }),
+  defineEvent({ kind: "webinar.watched", subject: "person", data: WebinarWatchedData }),
+  defineEvent({ kind: "webinar.no_show", subject: "person", data: WebinarNoShowData }),
 ] as const;

@@ -37,7 +37,9 @@ import { brusselsDayBounds, warmupCap, warmupWeek } from "@beam/core/email";
 import { readFile } from "@/lib/files";
 import { rowsOf } from "@/lib/sensitive";
 import { getSetting } from "@/lib/settings";
+import { campaignAttributionTotals, type AttributionTotals } from "./server/attribution";
 import type { ComplaintState } from "./server/complaints";
+import { getCampaignReport as baseCampaignReport, type CampaignReport as BaseCampaignReport } from "./server/reports";
 import type { DeliveryCheck, EmailHealth } from "./server/delivery-watch";
 import { listCampaignRows, listRecipientRows, loadCampaignDetail, maskEmail, type CampaignDetail } from "./server/campaigns";
 import { buildPreview, personRecipient, samplePersona, type PreviewResult } from "./server/preview";
@@ -129,8 +131,23 @@ export function listCampaignRecipients(db: DbOrTx, input: ListCampaignRecipients
 // email-P7: reports, deliverability, the message log and the person history
 // ---------------------------------------------------------------------------
 
-export type { BounceRow, CampaignReport, LinkClicks, LocaleCounts, ReportStats, TimelineBucket } from "./server/reports";
-export { campaignReportCsv, getCampaignReport } from "./server/reports";
+export type { BounceRow, LinkClicks, LocaleCounts, ReportStats, TimelineBucket } from "./server/reports";
+export { campaignReportCsv } from "./server/reports";
+export type { AttributionTotals, CampaignAttributionRow } from "./server/attribution";
+
+/** The campaign report with R3 attribution (email-P9): orders, revenue and first purchases. */
+export type CampaignReport = Omit<BaseCampaignReport, "attribution"> & { attribution: AttributionTotals };
+
+/**
+ * `getCampaignReport(db, campaignId, { unmasked })` (spec section 4): stats, clicks per link, per
+ * locale, sends timeline, bounces and, R3, `attribution: { orders, revenueCents, firstPurchases }`
+ * from `v_email_attribution` (every order attributed to the campaign, whenever it was paid).
+ */
+export async function getCampaignReport(db: DbOrTx, campaignId: string, opts: { unmasked: boolean } = { unmasked: false }): Promise<CampaignReport | null> {
+  const report = await baseCampaignReport(db, campaignId, opts);
+  if (!report) return null;
+  return { ...report, attribution: await campaignAttributionTotals(db, campaignId) };
+}
 export type { ComplaintState, DeliveryCheck, EmailHealth };
 
 const MESSAGES_PAGE_SIZE = 50;

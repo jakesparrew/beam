@@ -47,3 +47,25 @@ Also set `BETTERSTACK_MONITOR_ID` to the health monitor's id, so the monthly rep
 2. Production deploy from `main`; `/api/health` 200; tick fresh on `/admin/system`.
 3. Run `pnpm db:seed --profile defaults` (runs on every deploy) and never the demo profile.
 4. Sidestream watches `/admin/system` and Slack for the first 48 hours.
+
+## Go-live of release 2 and release 3
+
+The seed writes the journeys of R2 and R3 as drafts. On the day a release goes live, after the
+release's flags are switched on and its deploy is healthy:
+
+5. Switch on the release's seeded journeys once on the production database, exactly as described
+   in [`automations.md`, "Switching on a release's journeys"](automations.md#switching-on-a-releases-journeys-go-live-of-r2-and-r3)
+   (`releaseActivationCli` in `packages/db/src/seed/automation.ts`, decision 30, A-5a). From the
+   repository root, with `DATABASE_URL_UNPOOLED` set (and `DATABASE_DRIVER=neon-ws` where TCP
+   5432 is blocked), replacing `R2` by `R3` for release 3:
+
+   ```bash
+   pnpm --filter @beam/db exec tsx --eval 'import("./src/seed/automation.ts").then((m) => m.releaseActivationCli(["R2"])).then((code) => process.exit(code))'
+   ```
+
+   The command prints `R2: <n> journey(s) activated: <slugs>` and one line per journey that waits
+   for a DPIA; it exits 1 on an unknown release or a database error. It is idempotent: run it again
+   after a DPIA is approved on `/admin/privacy/dpia`, and it activates only what is still a
+   never-activated draft.
+6. Check `/admin/automations` (status `active`): the release's journeys are active; a DPIA-gated
+   journey stays draft until its DPIA is approved.

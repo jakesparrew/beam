@@ -3701,7 +3701,7 @@
       "mergedAt": "2026-11-05T14:08:13Z"
     },
     "fix-w21-platform-wiring": {
-      "status": "running",
+      "status": "merged",
       "attempts": 1,
       "fixer": true,
       "module": "platform",
@@ -4327,7 +4327,12 @@
       ],
       "baseSha": "3033515",
       "runId": null,
-      "startedAt": "2026-11-05T15:30:53Z"
+      "startedAt": "2026-11-05T15:30:53Z",
+      "branchSha": "d3e2513",
+      "endedAt": "2026-11-05T16:37:09Z",
+      "minutes": 95,
+      "mergeSha": "65cee9f",
+      "mergedAt": "2026-11-05T17:03:20Z"
     },
     "fix-w21-crm-wiring": {
       "status": "merged",

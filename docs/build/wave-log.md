@@ -255,3 +255,5 @@ One entry per merge batch and gate (runbook section 5.7, adapted by OD-3).
 - fix-w22-webinar-wiring: merged as `0dd9660` in batch `g127-batch`.
 - ops-P10: merged as `d9c7d25` in batch `g127-batch`.
 - Batch `g127-batch` (fix-w22-automation-wiring fix-w22-site-wiring fix-w22-webinar-wiring ops-P10): merge gate green, peak 4597 MB.
+- fix-w21-platform-wiring: merged as `65cee9f` in batch `g128-batch`.
+- Batch `g128-batch` (fix-w21-platform-wiring): merge gate green, peak 4311 MB.

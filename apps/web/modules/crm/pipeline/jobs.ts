@@ -17,9 +17,9 @@
  * `create_task: false`, its once-guard) is new, so reruns and overlapping windows are harmless.
  */
 import { z } from "zod";
-import { activityEvents, opportunities, persons, playbookStages, tasks } from "@beam/db/schema";
+import { activityEvents, opportunities, persons, playbookStages, tasks, type RoleKey } from "@beam/db/schema";
 import type { Tx } from "@beam/db";
-import { and, eq, gte, isNull, lt, notInArray, sql } from "@/lib/ctx";
+import { and, eq, gte, isNull, lt, notInArray, sql, ValidationError } from "@/lib/ctx";
 import { claimOnce } from "@/lib/alerts";
 import type { JobCtx } from "@/lib/job-runner";
 import { enrolPersonBySlug } from "@/modules/automation/api";
@@ -35,6 +35,16 @@ const DAY_MS = 86_400_000;
 export const BTOC_WINDOW_MS = 30 * 60_000;
 /** How long a `create_task: false` escalation's once-guard lives. */
 const ONCE_GUARD_MS = 400 * DAY_MS;
+
+/** The first active user of `role` (else the owner role holder), or `null` when nobody qualifies. */
+async function ownerFor(tx: Tx, role: RoleKey | undefined): Promise<string | null> {
+  try {
+    return await resolveTaskOwner(tx, role ? { ownerRole: role } : { ownerRole: "owner" });
+  } catch (error) {
+    if (error instanceof ValidationError) return null;
+    throw error;
+  }
+}
 
 const afterDays = (stage: PlaybookStageRecord): number | null => {
   const n = stage.escalation.after_days;
@@ -55,7 +65,8 @@ async function escalate(
   if (stage.escalation.create_task === false) {
     fresh = await claimOnce(ctx.tx, input.key, new Date(ctx.now.getTime() + ONCE_GUARD_MS));
   } else {
-    const ownerUserId = role ? await resolveTaskOwner(ctx.tx, { ownerRole: role }) : input.fallbackOwnerUserId;
+    const ownerUserId = (role ? await ownerFor(ctx.tx, role) : null) ?? input.fallbackOwnerUserId;
+    if (!ownerUserId) return false;
     const task = await createTask(ctx.tx, ctx, {
       title: input.title,
       kind: "follow_up",
@@ -95,7 +106,7 @@ export async function runEscalateOpportunities(ctx: JobCtx, _input: z.infer<type
     const days = afterDays(s);
     if (days === null || ctx.now.getTime() <= o.stageEnteredAt.getTime() + days * DAY_MS) continue;
     const role = asRoleKey(s.escalation.notify_role);
-    const titleUser = role ? await resolveTaskOwner(ctx.tx, { ownerRole: role }) : o.ownerUserId;
+    const titleUser = (role ? await ownerFor(ctx.tx, role) : null) ?? o.ownerUserId;
     const done = await escalate(ctx, s, {
       key: escalationKey(o.id, o.stage, o.stageEnteredAt),
       title: await escalationTitle(ctx.tx, s, titleUser, ESCALATED),
@@ -129,7 +140,9 @@ export async function runApplyBtocPlaybook(ctx: JobCtx, _input: z.infer<typeof A
   for (const e of events) {
     const stage = stages.get(e.to);
     if (!stage || !e.personId) continue;
-    const ownerUserId = await resolveTaskOwner(ctx.tx, { ...(asRoleKey(stage.ownerRole) ? { ownerRole: asRoleKey(stage.ownerRole) } : {}) }, ctx.actor);
+    // No staff user for the role (nor an owner): skip; the event stays in the window for the next run.
+    const ownerUserId = await ownerFor(ctx.tx, asRoleKey(stage.ownerRole));
+    if (!ownerUserId) continue;
     const locale = await userLocale(ctx.tx, ownerUserId);
     const task = await createTask(ctx.tx, ctx, {
       title: titleFrom(stage.requiredAction, locale),
@@ -166,7 +179,7 @@ async function escalateBtocTasks(ctx: JobCtx, stages: ReadonlyMap<string, Playbo
     const days = stage ? afterDays(stage) : null;
     if (!stage || days === null || ctx.now.getTime() <= t.createdAt.getTime() + days * DAY_MS) continue;
     const role = asRoleKey(stage.escalation.notify_role);
-    const titleUser = role ? await resolveTaskOwner(ctx.tx, { ownerRole: role }) : t.ownerUserId;
+    const titleUser = (role ? await ownerFor(ctx.tx, role) : null) ?? t.ownerUserId;
     const done = await escalate(ctx, stage, {
       key: `escalate:b2c:${t.id}`,
       title: await escalationTitle(ctx.tx, stage, titleUser, ESCALATED),

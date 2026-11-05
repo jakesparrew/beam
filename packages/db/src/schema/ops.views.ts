@@ -368,3 +368,97 @@ export const vAbandonedCheckouts = pgView("v_abandoned_checkouts", {
   recoveredRevenueCents: integer("recovered_revenue_cents"),
   recoveredAt: tz("recovered_at"),
 }).existing();
+
+// ---------------------------------------------------------------------------
+// Attribution (R3, ops-P8): v_marketing_touches and v_person_first_touch
+// ---------------------------------------------------------------------------
+
+/**
+ * The canonical source of a touch (rule 73): BEAM's UTM convention is `utm_source = meta|google`;
+ * crm's acquisition sources `paid_meta` and `paid_google` and the Meta and Google spellings of
+ * forms' rule A2 (`facebook`, `fb`, `instagram`, `ig`, `adwords`) map to the same two values, so
+ * a person acquired through a Meta ad and a later Meta checkout share one campaign key and both
+ * join `ad_spend_daily`. Every other value is lower-cased and trimmed; empty becomes null.
+ */
+const canonSource = (expr: string) => `case when lower(trim(${expr})) in ('paid_meta', 'meta', 'facebook', 'fb', 'instagram', 'ig') then 'meta'
+            when lower(trim(${expr})) in ('paid_google', 'google', 'adwords') then 'google'
+            else nullif(lower(trim(${expr})), '') end`;
+
+/** The acquisition campaign of `persons p`, lower-cased (the stored `campaign`, else `utm.campaign`). */
+const ACQ_CAMPAIGN = `nullif(lower(trim(coalesce(nullif(trim(p.acquisition->>'campaign'), ''), p.acquisition->'utm'->>'campaign'))), '')`;
+const ACQ_MEDIUM = `nullif(lower(trim(coalesce(p.acquisition->>'medium', p.acquisition->'utm'->>'medium'))), '')`;
+
+/**
+ * `v_marketing_touches` (R3): one row per marketing touch of a person, the union of
+ * `persons.acquisition` (at `persons.created_at`, kind `acquisition`), completed
+ * `form_submissions` (forms' derived `source` and `campaign`, at `completed_at`, kind `form`) and
+ * `checkouts.utm` (at `created_at`, kind `checkout`). Null and empty campaigns are removed;
+ * values are lower-cased; `campaign_key = source|campaign` with `direct` for a missing source.
+ */
+export const vMarketingTouchesSql = `select t.person_id, t.touched_at, t.source, t.medium, t.campaign, t.touch_kind,
+       t.source || '|' || t.campaign as campaign_key
+from (
+  select p.id as person_id, p.created_at as touched_at,
+         coalesce(${canonSource("p.acquisition->>'source'")}, 'direct') as source,
+         ${ACQ_MEDIUM} as medium,
+         ${ACQ_CAMPAIGN} as campaign,
+         'acquisition' as touch_kind
+  from persons p
+  where p.merged_into_person_id is null and jsonb_typeof(p.acquisition) = 'object'
+  union all
+  select fs.person_id, fs.completed_at,
+         coalesce(${canonSource("fs.source")}, 'direct'),
+         nullif(lower(trim(fs.utm->>'medium')), ''),
+         nullif(lower(trim(coalesce(nullif(trim(fs.campaign), ''), fs.utm->>'campaign'))), ''),
+         'form'
+  from form_submissions fs
+  where fs.person_id is not null and fs.status = 'completed' and fs.completed_at is not null
+  union all
+  select c.person_id, c.created_at,
+         coalesce(${canonSource("c.utm->>'source'")}, 'direct'),
+         nullif(lower(trim(c.utm->>'medium')), ''),
+         nullif(lower(trim(c.utm->>'campaign')), ''),
+         'checkout'
+  from checkouts c
+  where c.person_id is not null and jsonb_typeof(c.utm) = 'object'
+) t
+where t.campaign is not null`;
+
+export const vMarketingTouches = pgView("v_marketing_touches", {
+  personId: uuid("person_id").notNull(),
+  touchedAt: tz("touched_at").notNull(),
+  source: text("source").notNull(),
+  medium: text("medium"),
+  campaign: text("campaign").notNull(),
+  touchKind: text("touch_kind").$type<"acquisition" | "form" | "checkout">().notNull(),
+  campaignKey: text("campaign_key").notNull(),
+}).existing();
+
+/**
+ * `v_person_first_touch` (R3, +): the first touch of every person who is not merged, from
+ * `persons.acquisition` (rule 72): the canonical source, medium and campaign, and the campaign
+ * key `source|campaign`, `direct|none` when the acquisition has no campaign. Erased people keep
+ * their row: erasure keeps `{ source, campaign, medium }` for aggregate attribution (crm spec 9).
+ * The first-touch credits, cost per lead, CAC, LTV by campaign and the funnel read it.
+ */
+export const vPersonFirstTouchSql = `select p.id as person_id, p.created_at, p.is_tester, p.erased_at is not null as is_erased,
+       p.acquisition->>'source' as acquisition_source,
+       coalesce(${canonSource("p.acquisition->>'source'")}, 'direct') as source,
+       ${ACQ_MEDIUM} as medium,
+       ${ACQ_CAMPAIGN} as campaign,
+       case when ${ACQ_CAMPAIGN} is null then 'direct|none'
+            else coalesce(${canonSource("p.acquisition->>'source'")}, 'direct') || '|' || ${ACQ_CAMPAIGN} end as campaign_key
+from persons p
+where p.merged_into_person_id is null`;
+
+export const vPersonFirstTouch = pgView("v_person_first_touch", {
+  personId: uuid("person_id").notNull(),
+  createdAt: tz("created_at").notNull(),
+  isTester: boolean("is_tester").notNull(),
+  isErased: boolean("is_erased").notNull(),
+  acquisitionSource: text("acquisition_source"),
+  source: text("source").notNull(),
+  medium: text("medium"),
+  campaign: text("campaign"),
+  campaignKey: text("campaign_key").notNull(),
+}).existing();

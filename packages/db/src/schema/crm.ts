@@ -43,7 +43,7 @@ import {
   type LocalizedText,
 } from "./_shared";
 import { emailMessages } from "./email";
-import { aiRequests, users } from "./platform";
+import { users } from "./platform";
 
 /** `tsvector` (read-only generated column). */
 const tsvector = customType<{ data: string }>({ dataType: () => "tsvector" });
@@ -967,8 +967,12 @@ export const inboxMessages = pgTable(
     aiDraft: text(),
     /** R4 (crm-P10): `pending` once requested, `ready` with a draft, `used` once staff sent it. */
     aiDraftStatus: inboxMessagesAiDraftStatus().notNull().default("none"),
-    /** R4 (crm-P10): the `ai_requests` row of the draft (null once the 30-day sweep removed it). */
-    aiRequestId: uuid().references(() => aiRequests.id, { onDelete: "set null" }),
+    /**
+     * R4 (crm-P10): the `ai_requests` row of the draft. No foreign key: `callClaude` writes that
+     * row durably after the job's transaction (it survives a rollback), and the 30-day sweep
+     * deletes it while the message stays (as `page_edit_requests.ai_request_id` in site).
+     */
+    aiRequestId: uuid(),
     sentByUserId: uuid().references(() => users.id),
     emailMessageId: uuid().references(() => emailMessages.id),
     attachmentCount: smallint().notNull().default(0),

@@ -1242,6 +1242,73 @@
         "not_found": "Ce tableau de bord n'existe plus.",
         "generic": "Une erreur s'est produite. Réessayez."
       }
+    },
+    "ask": {
+      "title": "Poser une question",
+      "intro": "Posez une question sur les données de BEAM. Claude rédige une requête en lecture seule sur les vues de reporting non sensibles ; la réponse affiche le tableau, une courte explication et la requête.",
+      "label": "Votre question",
+      "placeholder": "Quels clients ont généré le plus de chiffre d’affaires cette année ?",
+      "submit": "Demander",
+      "examples_title": "Exemples",
+      "empty": "Posez une question sur les données de BEAM",
+      "history_title": "Vos questions",
+      "history_empty": "Vous n’avez encore posé aucune question.",
+      "answer_title": "Réponse",
+      "explanation": "Explication",
+      "sql": "Requête générée",
+      "rows": "{count, plural, one {# ligne} other {# lignes}}",
+      "rows_expired": "Les lignes de cette réponse ne sont plus conservées. Posez à nouveau la question pour les voir.",
+      "no_rows": "La requête n’a renvoyé aucune ligne.",
+      "unavailable": "IA indisponible, utilisez les rapports.",
+      "privacy_note": "Seul le personnel voit les noms ; ils ne sont jamais envoyés à Claude.",
+      "example": {
+        "top_revenue": "Quels clients ont généré le plus de chiffre d’affaires cette année ?",
+        "best_campaign": "Quelle campagne a amené les clients à la plus forte valeur ?",
+        "no_repurchase": "Qui a acheté une carte de 10 séances sans en racheter ?",
+        "month_change": "Comment le chiffre d’affaires de septembre se compare-t-il à celui d’août, et qu’est-ce qui a le plus changé ?",
+        "b2b_attention": "Quelles opportunités B2B demandent de l’attention ?",
+        "contact_week": "Quels 50 clients devons-nous contacter cette semaine ?"
+      },
+      "status": {
+        "answered": "Répondu",
+        "refused": "Refusé",
+        "error": "Erreur",
+        "timeout": "Délai dépassé",
+        "budget_exceeded": "Budget IA atteint"
+      },
+      "status_text": {
+        "refused": "Cette question ne peut pas être traitée avec les vues de reporting, ou elle demande des données que l’IA ne peut pas lire.",
+        "error": "Une erreur s’est produite pendant la réponse. Réessayez ou utilisez les rapports.",
+        "timeout": "La requête a pris plus de 5 secondes. Posez une question plus ciblée.",
+        "budget_exceeded": "Le budget IA mensuel est épuisé. Utilisez les rapports jusqu’au mois prochain."
+      },
+      "error": {
+        "validation": "Écrivez une question de 3 à 500 caractères.",
+        "generic": "La question n’a pas pu être posée. Réessayez."
+      }
+    },
+    "summary": {
+      "title": "Résumé hebdomadaire",
+      "intro": "Chaque lundi à 06:30, Claude résume les chiffres de la semaine passée (uniquement des totaux, aucune donnée personnelle).",
+      "empty": "Le premier résumé arrive lundi à 06:30",
+      "week_of": "Semaine du {date}",
+      "regenerate": "Régénérer",
+      "regenerated": "Un nouveau résumé est en cours de création. Il apparaîtra ici d’ici quelques minutes.",
+      "english_only": "En anglais uniquement",
+      "status": {
+        "pending": "En cours de création",
+        "ready": "Prêt",
+        "failed": "Échec",
+        "skipped_budget": "Ignoré : budget IA atteint"
+      },
+      "pending_text": "Le résumé est en cours de création.",
+      "failed_text": "Aucun résumé n’a pu être créé pour cette semaine.",
+      "skipped_text": "Ignoré car le budget IA mensuel est épuisé.",
+      "error": {
+        "conflict": "Un résumé de cette semaine est encore en cours de création.",
+        "generic": "Le résumé n’a pas pu être régénéré. Réessayez."
+      },
+      "updated": "Mis à jour le {date}"
     }
   }
 }

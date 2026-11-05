@@ -1,7 +1,8 @@
 /**
  * The registrant table of `/admin/webinars/[id]/registrations` (webinar spec 5.1): name, email,
  * status, the lead/customer/member snapshot, registered mode, source, watch minutes per mode and
- * the last activity, with Cancel, Resend link and Revoke link per row. A server-rendered table:
+ * the last activity, with Resend link, Revoke link, Mute or Unmute, Block and Cancel per registered
+ * row and Unblock per blocked row (fix-w22-webinar-wiring). A server-rendered table:
  * each action is a plain form posting the page's server action (`op` + `registrationId`), so it
  * works without client JavaScript. Every text arrives from the page.
  */
@@ -9,6 +10,10 @@ import type { ReactNode } from "react";
 import { Badge, Button, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@beam/ui";
 
 type WatchMode = "live" | "replay" | "on_demand";
+
+/** The row operations the page's server action handles. */
+export const REGISTRATION_OPS = ["cancel", "resend", "revoke", "mute", "unmute", "block", "unblock"] as const;
+export type RegistrationOp = (typeof REGISTRATION_OPS)[number];
 
 export type RegistrationsTableRow = {
   id: string;
@@ -45,6 +50,11 @@ export type RegistrationsTableLabels = {
   resend: string;
   revoke: string;
   revokeHint: string;
+  mute: string;
+  unmute: string;
+  block: string;
+  unblock: string;
+  blockHint: string;
 };
 
 export function RegistrationsTable({
@@ -55,15 +65,15 @@ export function RegistrationsTable({
 }: {
   rows: RegistrationsTableRow[];
   labels: RegistrationsTableLabels;
-  /** The page's server action; reads `op` (`cancel` | `resend` | `revoke`) and `registrationId`. */
+  /** The page's server action; reads `op` (a `RegistrationOp`) and `registrationId`. */
   action: (formData: FormData) => Promise<void>;
   canAct: boolean;
 }) {
-  const button = (row: RegistrationsTableRow, op: "cancel" | "resend" | "revoke", text: string, title?: string): ReactNode => (
+  const button = (row: RegistrationsTableRow, op: RegistrationOp, text: string, title?: string): ReactNode => (
     <form action={action} key={op}>
       <input type="hidden" name="op" value={op} />
       <input type="hidden" name="registrationId" value={row.id} />
-      <Button type="submit" variant={op === "revoke" ? "outline" : "secondary"} size="sm" title={title} aria-label={`${text}: ${row.name}`}>
+      <Button type="submit" variant={op === "revoke" || op === "block" ? "outline" : "secondary"} size="sm" title={title} aria-label={`${text}: ${row.name}`}>
         {text}
       </Button>
     </form>
@@ -108,7 +118,17 @@ export function RegistrationsTable({
               {canAct ? (
                 <TableCell>
                   <div className="flex flex-wrap gap-2">
-                    {r.status === "registered" ? [button(r, "resend", labels.resend), button(r, "revoke", labels.revoke, labels.revokeHint), button(r, "cancel", labels.cancel)] : null}
+                    {r.status === "registered"
+                      ? [
+                          button(r, "resend", labels.resend),
+                          button(r, "revoke", labels.revoke, labels.revokeHint),
+                          r.muted ? button(r, "unmute", labels.unmute) : button(r, "mute", labels.mute),
+                          button(r, "block", labels.block, labels.blockHint),
+                          button(r, "cancel", labels.cancel),
+                        ]
+                      : r.status === "blocked"
+                        ? [button(r, "unblock", labels.unblock)]
+                        : null}
                   </div>
                 </TableCell>
               ) : null}

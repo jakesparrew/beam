@@ -9,10 +9,10 @@ import { hasPermission, requireStaff } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
 import { adminLocale, translator } from "@/lib/i18n";
 import { findPersonIdsByEmailHash } from "@/modules/crm/api";
-import { cancelRegistrationByStaff, registerPersonByStaff, resendAccessLink, revokeAccessLink } from "@/modules/webinar/actions";
+import { cancelRegistrationByStaff, exportWebinarRegistrants, moderate, registerPersonByStaff, resendAccessLink, revokeAccessLink } from "@/modules/webinar/actions";
 import { getWebinar, listRegistrations, type RegistrantRow } from "@/modules/webinar/queries";
 import { textIn } from "@/modules/webinar/server/lifecycle";
-import { RegistrationsTable, type RegistrationsTableRow } from "@/modules/webinar/ui/registrations-table";
+import { REGISTRATION_OPS, RegistrationsTable, type RegistrationOp, type RegistrationsTableRow } from "@/modules/webinar/ui/registrations-table";
 
 export const dynamic = "force-dynamic";
 
@@ -25,16 +25,20 @@ const textField = (f: FormData, k: string): string => {
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const STATUSES = ["registered", "cancelled", "blocked"] as const;
 const SEGMENTS = ["lead", "customer", "member"] as const;
+const FILE_ID = /^[0-9a-f-]{36}$/i;
+/** The `moderate` action of each moderation op of the table. */
+const MODERATION = { mute: "mute_viewer", unmute: "unmute_viewer", block: "block_viewer", unblock: "unblock_viewer" } as const;
 
-type Props = { params: Promise<{ id: string }>; searchParams: Promise<{ q?: string; status?: string; segment?: string; page?: string; done?: string; error?: string }> };
+type Props = { params: Promise<{ id: string }>; searchParams: Promise<{ q?: string; status?: string; segment?: string; page?: string; done?: string; error?: string; file?: string }> };
 
 /**
  * `/admin/webinars/[id]/registrations` (`webinars.host` + `persons.read`, webinar spec 5.1 and
  * section 7): registrants with name, email, status, the lead/customer/member snapshot, registered
  * mode, source, watch minutes per mode and the last activity; register an existing person (by
- * email, with or without the access email), cancel, resend and revoke a link. Empty state
- * "Nobody registered yet. Share the landing page: <url>." Muting, blocking and the CSV export
- * come with the host console and reporting packages.
+ * email, with or without the access email), cancel, resend and revoke a link, mute or unmute and
+ * block or unblock a viewer (`moderate`). "Export CSV" (`persons.export` on top) runs
+ * `exportWebinarRegistrants` and comes back with the file's download link. Empty state
+ * "Nobody registered yet. Share the landing page: <url>."
  */
 export default async function WebinarRegistrationsPage({ params, searchParams }: Props) {
   const actor = await requireStaff({ permission: "webinars.host" });
@@ -57,14 +61,18 @@ export default async function WebinarRegistrationsPage({ params, searchParams }:
 
   async function act(formData: FormData) {
     "use server";
-    const op = textField(formData, "op");
+    const posted = textField(formData, "op");
+    const op = REGISTRATION_OPS.find((o): o is RegistrationOp => o === posted);
     const registrationId = textField(formData, "registrationId");
+    if (!op) redirect(`${here}?error=internal` as Route);
     const res =
       op === "cancel"
         ? await cancelRegistrationByStaff({ registrationId })
         : op === "resend"
           ? await resendAccessLink({ registrationId })
-          : await revokeAccessLink({ registrationId });
+          : op === "revoke"
+            ? await revokeAccessLink({ registrationId })
+            : await moderate({ webinarId: w.id, action: MODERATION[op], registrationId });
     redirect((res.ok ? `${here}?done=1` : `${here}?error=${encodeURIComponent(res.error.code)}`) as Route);
   }
 
@@ -78,6 +86,14 @@ export default async function WebinarRegistrationsPage({ params, searchParams }:
     redirect((reason ? `${here}?error=${encodeURIComponent(reason)}` : `${here}?done=1`) as Route);
   }
 
+  async function exportCsv() {
+    "use server";
+    const res = await exportWebinarRegistrants({ webinarId: w.id });
+    redirect((res.ok ? `${here}?file=${res.data.fileId}` : `${here}?error=${encodeURIComponent(res.error.code)}`) as Route);
+  }
+
+  const canExport = hasPermission(actor, "persons.export");
+  const fileId = sp.file && FILE_ID.test(sp.file) ? sp.file : null;
   const errorText = sp.error
     ? sp.error === "person_not_found"
       ? g("register_not_found")
@@ -107,12 +123,29 @@ export default async function WebinarRegistrationsPage({ params, searchParams }:
       </Link>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h1 className="text-2xl font-semibold">{g("title")}</h1>
-        <p className="text-sm text-muted-foreground">{g("count", { count: list.total })}</p>
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="text-sm text-muted-foreground">{g("count", { count: list.total })}</p>
+          {canExport ? (
+            <form action={exportCsv} data-testid="webinar-registrants-export">
+              <Button type="submit" variant="outline" size="sm">
+                {g("export")}
+              </Button>
+            </form>
+          ) : null}
+        </div>
       </div>
       <div aria-live="polite">
         {sp.done ? (
           <p role="status" className="rounded-md border border-border p-3 text-sm">
             {g("done")}
+          </p>
+        ) : null}
+        {fileId ? (
+          <p role="status" className="rounded-md border border-border p-3 text-sm">
+            {g("export_ready")}{" "}
+            <a href={`/api/public/files/${fileId}`} className="underline" download>
+              {g("export_download")}
+            </a>
           </p>
         ) : null}
         {errorText ? <p className="rounded-md border border-destructive p-3 text-sm">{errorText}</p> : null}
@@ -193,6 +226,11 @@ export default async function WebinarRegistrationsPage({ params, searchParams }:
             resend: g("resend"),
             revoke: g("revoke"),
             revokeHint: g("revoke_confirm"),
+            mute: g("mute"),
+            unmute: g("unmute"),
+            block: g("block"),
+            unblock: g("unblock"),
+            blockHint: g("block_hint"),
           }}
         />
       )}

@@ -14,7 +14,7 @@ import { z } from "zod";
 import type { Answers } from "@beam/core/forms";
 import { formSubmissions } from "@beam/db/schema";
 import { eq } from "@/lib/ctx";
-import { completeSubmission } from "@/modules/forms/service/submissions";
+import { completeSubmission, referralCodeOf } from "@/modules/forms/service/submissions";
 import { AnswersBody, FSID_COOKIE, handlePublic, parseBody, submissionDefinition, withKnownAnswers } from "@/modules/forms/ui/public/http";
 
 export const runtime = "nodejs";
@@ -46,6 +46,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
         ip,
         userAgent,
         honeypot: input.honeypot ?? null,
+        referralCode: referralCodeOf(req),
       });
       const after = await read();
       const completedNow = before !== "completed" && after?.s === "completed";

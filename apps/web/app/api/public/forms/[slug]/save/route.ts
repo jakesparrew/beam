@@ -9,7 +9,7 @@
  */
 import { z } from "zod";
 import type { Answers } from "@beam/core/forms";
-import { saveSection } from "@/modules/forms/service/submissions";
+import { referralCodeOf, saveSection } from "@/modules/forms/service/submissions";
 import { AnswersBody, FSID_COOKIE, handlePublic, parseBody, submissionDefinition, withKnownAnswers } from "@/modules/forms/ui/public/http";
 
 export const runtime = "nodejs";
@@ -36,6 +36,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
         proof: { resumeToken: input.resumeToken ?? null, fsid: cookie(FSID_COOKIE), identityToken: input.identityToken ?? null },
         sectionKey: input.sectionKey,
         answers,
+        referralCode: referralCodeOf(req),
       });
     },
     { route: "save", slug },

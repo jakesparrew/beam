@@ -856,6 +856,7 @@
       "secret_help": "The secret is shown only once, when the source is created or the secret is rotated.",
       "secret_once": "Copy this URL now and paste it in the provider's webhook settings; it will not be shown again.",
       "copy": "Copy",
+      "done": "Done",
       "copied": "Copied",
       "rotate": "Rotate secret",
       "rotate_confirm": "The old URL stops working at once. Continue?",

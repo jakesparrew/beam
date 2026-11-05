@@ -856,6 +856,7 @@
       "secret_help": "Het geheim wordt maar één keer getoond: bij het aanmaken van de bron of na het vernieuwen van het geheim.",
       "secret_once": "Kopieer deze URL nu en plak hem in de webhookinstellingen van de aanbieder; hij wordt niet opnieuw getoond.",
       "copy": "Kopiëren",
+      "done": "Klaar",
       "copied": "Gekopieerd",
       "rotate": "Geheim vernieuwen",
       "rotate_confirm": "De oude URL werkt meteen niet meer. Doorgaan?",

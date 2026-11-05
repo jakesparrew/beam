@@ -352,3 +352,29 @@ describe("I5: CSV backfill", () => {
     expect(after!.error).toBe("duplicate_result");
   });
 });
+
+describe("queries: listImportSources, getImportSource, listImportEvents", () => {
+  it("counts per status, masks the secret and pages the events newest first", async () => {
+    const { getImportSource, listImportEvents, listImportSources } = await import("../queries");
+    const s = await scoreappSource();
+    const csv = ["id,lead.email", ...Array.from({ length: 3 }, (_, n) => `q-${n},q${n}@example.com`), "q-x,"].join("\n");
+    await imp.ingestCsv(h.db as never, staffCtx(), s.sourceId, csv);
+    for (const e of await eventsOfSource(s.sourceId)) await process(e.id);
+
+    const row = (await listImportSources(h.db)).find((r) => r.id === s.sourceId);
+    expect(row).toMatchObject({ provider: "scoreapp", formId: s.formId, formSlug: `import-${s.key}`, isActive: true, counts: { received: 0, processed: 3, skipped: 1, failed: 0 } });
+    const detail = await getImportSource(h.db, s.sourceId);
+    const { secret } = parts(s.url);
+    expect(detail!.maskedUrl).toContain(`/api/public/forms/import/${s.key}/`);
+    expect(JSON.stringify(detail)).not.toContain(secret);
+    expect(detail).not.toHaveProperty("tokenHash");
+    expect(detail!.mapping?.email).toBe("lead.email");
+
+    const skipped = await listImportEvents(h.db, { sourceId: s.sourceId, status: "skipped" });
+    expect(skipped.rows.map((r) => r.error)).toEqual(["missing_email"]);
+    expect(skipped.rows[0]).not.toHaveProperty("payload");
+    const all = await listImportEvents(h.db, { sourceId: s.sourceId });
+    expect(all.rows).toHaveLength(4);
+    expect(all.nextCursor).toBeNull();
+  });
+});

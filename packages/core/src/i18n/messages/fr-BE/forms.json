@@ -856,6 +856,7 @@
       "secret_help": "Le secret n'est affiché qu'une seule fois : à la création de la source ou après son renouvellement.",
       "secret_once": "Copiez cette URL maintenant et collez-la dans les paramètres webhook du fournisseur ; elle ne sera plus affichée.",
       "copy": "Copier",
+      "done": "Terminé",
       "copied": "Copié",
       "rotate": "Renouveler le secret",
       "rotate_confirm": "L'ancienne URL cesse immédiatement de fonctionner. Continuer ?",

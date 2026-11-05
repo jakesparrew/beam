@@ -8,9 +8,9 @@
  * `getMembershipForPerson`, `getMembershipSummary`, `canStartMembership`, `importMembership`) on
  * `server/memberships.ts`; credits-P5 the merge hook `onPersonsMerged` (here); credits-P8 the
  * sharing review functions (`countSharingReviewItems`, `listSharingReview`) on `server/sharing.ts`,
- * `listGrantsSharedWith` and the desk badge re-exports. The three R3 referral hooks that V1 code
- * calls at runtime return `null` or nothing until credits-P9. Every write function runs in the
- * caller's transaction.
+ * `listGrantsSharedWith` and the desk badge re-exports; credits-P9 the three R3 referral hooks
+ * (`resolveReferralCode`, `onOrderPaidForReferrals`, `onOrderRefundedForReferrals`) on
+ * `server/referrals.ts`. Every write function runs in the caller's transaction.
  */
 import type { DbOrTx, Tx } from "@beam/db";
 import { creditGrants, memberships } from "@beam/db/schema";
@@ -239,7 +239,9 @@ export function getCreditLiabilityAsOf(
  * `pending` memberships: the later-starting one is `cancelled` (`end_reason = merged`), audited
  * `memberships.merged`, and customer service gets a refund-review task. A share that would point
  * the winner at their own grant, or duplicate the winner's active share, is revoked (`merged`);
- * the sharing caches of the touched grants are rebuilt. R3 referral rows: credits-P9.
+ * the sharing caches of the touched grants are rebuilt. R3 (credits-P9): referral codes and
+ * attributions move to the winner (`mergeReferrals`: one active personal code, the earlier
+ * attribution kept, no self-referral left).
  */
 export async function onPersonsMerged(tx: Tx, ctx: Ctx, input: { winnerPersonId: string; loserPersonId: string }): Promise<void> {
   const { winnerPersonId: winner, loserPersonId: loser } = input;
@@ -261,6 +263,7 @@ export async function onPersonsMerged(tx: Tx, ctx: Ctx, input: { winnerPersonId:
   await ledger.lockGrants(tx, grantIds);
   await tx.update(creditGrants).set({ personId: winner, updatedAt: ctx.now }).where(eq(creditGrants.personId, loser));
   await mergeShares(tx, ctx, winner, loser);
+  await (await referralService()).mergeReferrals(tx, ctx, winner, loser);
 }
 
 type MembershipRow = typeof memberships.$inferSelect;
@@ -351,22 +354,36 @@ export function listGrantsSharedWith(db: DbOrTx, personId: string): Promise<Shar
 }
 
 /**
- * R3, crm person creation. V1 code calls it at runtime, so until credits-P9 implements referral
- * codes it resolves to `null` (no code known) instead of throwing (03-build-order rule 1).
+ * Referrals (credits-P9, R3), loaded on call: `server/referrals.ts` reaches email's api, whose
+ * graph reaches booking, which imports this file.
+ */
+const referralService = () => import("./server/referrals");
+
+/**
+ * R3, crm person creation (crm rule 3.4): an active code by its text (any case) with uses left,
+ * else `null`; crm stores `acquisition.referral_code` and fills the referrer or partner from it.
  */
 export function resolveReferralCode(
-  _db: DbOrTx,
-  _code: string,
+  db: DbOrTx,
+  code: string,
 ): Promise<{ codeId: string; referrerPersonId: string | null; partnerCompanyId: string | null } | null> {
-  return Promise.resolve(null);
+  return referralService().then((r) => r.resolveReferralCode(db, code));
 }
 
-/** R3, commerce paid transaction. No effect until credits-P9 (03-build-order rule 1). */
-export function onOrderPaidForReferrals(_tx: Tx, _ctx: Ctx, _input: { orderId: string }): Promise<void> {
-  return Promise.resolve();
+/**
+ * R3, commerce paid transaction (commerce rule 32): the referred person's first paid order above
+ * 0 after attribution sets the attribution `qualified` (reward 14 days later); a partner-attributed
+ * order inside the 12-month window accrues commission (key `commission:<order_id>`). Idempotent.
+ */
+export function onOrderPaidForReferrals(tx: Tx, ctx: Ctx, input: { orderId: string }): Promise<void> {
+  return referralService().then((r) => r.onOrderPaidForReferrals(tx, ctx, input));
 }
 
-/** R3, commerce refund transaction. No effect until credits-P9 (03-build-order rule 1). */
-export function onOrderRefundedForReferrals(_tx: Tx, _ctx: Ctx, _input: { orderId: string; refundId: string }): Promise<void> {
-  return Promise.resolve();
+/**
+ * R3, commerce refund transaction: a negative commission row for an order that accrued one (key
+ * `commission:refund:<refund_id>`); the qualifying order refunded in full before `qualifies_at`
+ * returns the attribution to `pending`. Idempotent.
+ */
+export function onOrderRefundedForReferrals(tx: Tx, ctx: Ctx, input: { orderId: string; refundId: string }): Promise<void> {
+  return referralService().then((r) => r.onOrderRefundedForReferrals(tx, ctx, input));
 }

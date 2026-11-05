@@ -40,6 +40,7 @@ import { and, asc, desc, eq, inArray, NotFoundError, sql, type SQL } from "@/lib
 import { previewBulkExtension as previewBulk, type BulkExtensionFilter } from "./server/bulk-extend";
 import { getPersonCreditSummary } from "./server/ledger";
 import { getMySharesGiven, listSharingReview as listReviewRows, MAX_PORTAL_SHARES, personNames, type MyShareRow, type SharingReviewRow } from "./server/sharing";
+import * as referralService from "./server/referrals";
 
 export type GrantStatus = "active" | "exhausted" | "expired" | "revoked";
 export type GrantSource = "purchase" | "voucher" | "membership" | "bonus" | "import" | "manual" | "referral" | "transfer";
@@ -1115,4 +1116,55 @@ export async function getMyShares(
   const shares = await getMySharesGiven(db, personId, opts);
   const activeCount = shares.filter((s) => s.status === "active").length;
   return { shares, canAdd: canAdd && activeCount < MAX_PORTAL_SHARES, maxShares: MAX_PORTAL_SHARES, activeCount };
+}
+
+// ---------------------------------------------------------------------------
+// Referrals and partners (credits-P9, R3)
+// ---------------------------------------------------------------------------
+
+export type {
+  AttributionListRow,
+  CodeListRow,
+  CommissionListRow,
+  MyReferrals,
+  PartnerPerformanceRow,
+} from "./server/referrals";
+
+/**
+ * Customer (own `personId`): the active personal code with its share link (null until the first
+ * visit creates it), friends referred (count only) and rewards received (rule 60).
+ */
+export async function getMyReferrals(db: DbOrTx, personId: string, locale: Locale): Promise<referralService.MyReferrals & { shareUrl: string | null }> {
+  const r = await referralService.getMyReferrals(db, personId);
+  return { ...r, shareUrl: r.code ? referralService.shareUrlFor(r.code, locale) : null };
+}
+
+/** Staff (`referrals.manage` or `reports.read`): the four tabs of `/admin/referrals`. */
+export async function getReferralsOverview(db: DbOrTx, opts: { attributionStatus?: referralService.AttributionRow["status"] } = {}) {
+  const [codes, attributions, commissions, partners, partnerCompanies] = await Promise.all([
+    referralService.listReferralCodes(db),
+    referralService.listAttributions(db, opts.attributionStatus ? { status: opts.attributionStatus } : {}),
+    referralService.listCommissions(db),
+    referralService.getPartnerPerformance(db, null),
+    referralService.listPartnerCompanies(db),
+  ]);
+  return { codes, attributions, commissions, partners, partnerCompanies };
+}
+
+export const listAttributions = referralService.listAttributions;
+export const listCommissions = referralService.listCommissions;
+export const listReferralCodes = referralService.listReferralCodes;
+
+/** Staff: one partner's figures per month (`v_partner_performance`). */
+export function getPartnerPerformance(db: DbOrTx, companyId: string) {
+  return referralService.getPartnerPerformance(db, companyId);
+}
+
+/**
+ * Partner (`partner.own`, scoped by platform's `partnerScope`): their own company's figures per
+ * month and their codes. Aggregates only: no customer names or ids (credits spec section 7).
+ */
+export async function getMyPartnerPerformance(db: DbOrTx, companyId: string) {
+  const [months, codes] = await Promise.all([referralService.getPartnerPerformance(db, companyId), referralService.listPartnerCodes(db, companyId)]);
+  return { months: months.map(({ companyName: _drop, ...m }) => m), codes };
 }

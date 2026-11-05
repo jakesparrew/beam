@@ -71,12 +71,26 @@
         "what_day": "{name} deelde een pakket sessies met je.",
         "what_night": "{name} deelde een pakket nachten met je.",
         "limit": "{count, plural, one {Je kunt er # eenheid van gebruiken.} other {Je kunt er tot # eenheden van gebruiken.}}"
+      },
+      "referral_reward": {
+        "subject": "Er staat een bedankje van BEAM voor je klaar",
+        "preheader": "Het staat al in je account.",
+        "heading": "Bedankt om BEAM aan te raden",
+        "body": "Je kunt er meteen mee boeken vanuit je BEAM-account.",
+        "cta": "Bekijk mijn pakketten",
+        "why_referrer": "Een vriend die je uitnodigde, deed een eerste aankoop bij BEAM.",
+        "why_referee": "Welkom bij BEAM: je kwam via een uitnodiging.",
+        "what_day": "{count, plural, one {Je kreeg # sessie.} other {Je kreeg # sessies.}}",
+        "what_night": "{count, plural, one {Je kreeg # nacht.} other {Je kreeg # nachten.}}",
+        "valid_until": "Geldig tot {date}."
       }
     },
     "nav": {
       "packages": "Pakketten",
       "memberships": "Lidmaatschappen",
-      "sharing_review": "Controle delen"
+      "sharing_review": "Controle delen",
+      "referrals": "Doorverwijzingen",
+      "my_referrals": "Nodig een vriend uit"
     },
     "enum": {
       "kind": {
@@ -212,6 +226,24 @@
         "cancelled": "Opgezegd",
         "expired": "Vervallen",
         "period_extended": "Periode verlengd"
+      },
+      "attribution_status": {
+        "pending": "In afwachting",
+        "qualified": "Gekwalificeerd",
+        "rewarded": "Beloond",
+        "rejected": "Afgewezen"
+      },
+      "attribution_source": {
+        "code": "Code",
+        "link": "Link",
+        "staff": "Medewerker",
+        "import": "Import"
+      },
+      "commission_status": {
+        "accrued": "Opgebouwd",
+        "approved": "Goedgekeurd",
+        "paid": "Uitbetaald",
+        "void": "Vervallen"
       }
     },
     "errors": {
@@ -232,7 +264,13 @@
       "already_shared": "Dit pakket wordt al met deze persoon gedeeld.",
       "share_with_owner": "Je kunt een pakket niet met de eigenaar zelf delen.",
       "grant_not_active": "Dit pakket kan niet meer gedeeld worden.",
-      "review_item_not_found": "Dit item hoeft niet meer nagekeken te worden. Laad de pagina opnieuw."
+      "review_item_not_found": "Dit item hoeft niet meer nagekeken te worden. Laad de pagina opnieuw.",
+      "code_taken": "Deze code is al in gebruik. Kies een andere.",
+      "code_exists": "Deze persoon heeft al een actieve code.",
+      "not_a_partner": "Dit bedrijf is niet als partner aangeduid.",
+      "already_attributed": "Deze persoon werd al doorverwezen (de eerste doorverwijzing telt).",
+      "attribution_not_pending": "Alleen een doorverwijzing in afwachting kan worden afgewezen.",
+      "referrer_required": "Kies wie deze persoon doorverwees."
     },
     "admin": {
       "common": {
@@ -626,6 +664,109 @@
         "read_only": "Je kunt deze lijst bekijken, maar niet beslissen.",
         "open_grant": "Pakket openen",
         "open_person": "Persoon openen"
+      },
+      "referrals": {
+        "title": "Doorverwijzingen en partners",
+        "intro": "Doorverwijscodes, wie wie doorverwees, de bedankingen en partnercommissies. Een beloning volgt 14 dagen na de eerste betaalde bestelling van de vriend, als die niet werd terugbetaald.",
+        "read_only": "Je kunt deze cijfers bekijken; wijzigen vraagt het recht voor doorverwijzingen.",
+        "empty": "Nog geen doorverwijzingen.",
+        "tab_codes": "Codes",
+        "tab_attributions": "Toewijzingen",
+        "tab_commissions": "Commissies",
+        "tab_partners": "Partners",
+        "new_code": "Nieuwe partnercode",
+        "new_code_title": "Nieuwe partnercode",
+        "create": "Code aanmaken",
+        "partner": "Partnerbedrijf",
+        "partner_pick": "Kies een partner",
+        "code_optional": "Code (optioneel)",
+        "code_hint": "6 tot 12 letters of cijfers. Laat leeg om er een te laten maken.",
+        "max_uses": "Maximaal aantal keer (optioneel)",
+        "referrer_reward": "Beloning voor wie doorverwijst",
+        "referee_reward": "Beloning voor de nieuwe klant",
+        "reward_units": "Eenheden",
+        "reward_default": "Leeg: de standaard uit de instellingen, of geen.",
+        "reward_kind": "Soort",
+        "reward_validity_days": "Geldig gedurende (dagen)",
+        "codes_caption": "Doorverwijscodes",
+        "col_code": "Code",
+        "col_owner": "Eigenaar",
+        "col_uses": "Gebruikt",
+        "col_rewards": "Beloningen",
+        "col_status": "Status",
+        "col_actions": "Acties",
+        "active": "Actief",
+        "inactive": "Inactief",
+        "activate": "Activeren",
+        "deactivate": "Deactiveren",
+        "uses_of": "{uses} van {max}",
+        "referrer_short": "Doorverwijzer",
+        "referee_short": "Nieuwe klant",
+        "reward_value": "{units} × {kind}, {days} dagen",
+        "reward_settings": "standaard",
+        "attribute": "Doorverwijzing toewijzen",
+        "attribute_title": "Wie verwees deze persoon door?",
+        "attribute_submit": "Toewijzen",
+        "referred_person": "Doorverwezen persoon",
+        "referrer_person": "Doorverwezen door",
+        "search": "Zoeken",
+        "search_hint": "Naam of e-mail",
+        "no_results": "Geen persoon gevonden.",
+        "change": "Wijzigen",
+        "attributions_caption": "Toewijzingen van doorverwijzingen",
+        "col_referred": "Doorverwezen persoon",
+        "col_referrer": "Doorverwijzer of partner",
+        "col_source": "Bron",
+        "col_attributed": "Toegewezen",
+        "col_first_paid": "Eerste betaling",
+        "col_reward": "Beloning",
+        "reject": "Afwijzen",
+        "reject_title": "Deze doorverwijzing afwijzen",
+        "reject_submit": "Afwijzen",
+        "reward_granted": "Toegekend",
+        "reward_none": "Geen beloning ingesteld",
+        "reward_due": "Op {date}",
+        "rejected_self_referral": "Zichzelf doorverwezen",
+        "rejected_already_customer": "Al klant",
+        "rejected_cap_reached": "Jaarlimiet bereikt",
+        "rejected_staff": "Afgewezen door een medewerker",
+        "commissions_caption": "Partnercommissies",
+        "select": "Selecteren",
+        "selected_count": "{count} geselecteerd",
+        "approve": "Goedkeuren",
+        "mark_paid": "Als uitbetaald markeren",
+        "void": "Laten vervallen",
+        "col_month": "Maand",
+        "col_partner": "Partner",
+        "col_order": "Bestelling",
+        "col_base": "Basis excl. btw",
+        "col_pct": "Percentage",
+        "col_amount": "Commissie",
+        "refund": "terugbetaling",
+        "partners_caption": "Resultaten per partner",
+        "col_referred_count": "Doorverwezen",
+        "col_customers": "Klanten",
+        "col_revenue": "Omzet",
+        "col_accrued": "Commissie open",
+        "col_paid": "Commissie uitbetaald",
+        "total": "Totaal"
+      },
+      "partner": {
+        "title": "Mijn partnercijfers",
+        "intro": "De klanten die je naar BEAM doorverwees, per maand. Enkel totalen, nooit namen.",
+        "caption": "Cijfers per maand",
+        "col_month": "Maand",
+        "col_referred": "Doorverwezen",
+        "col_customers": "Klanten",
+        "col_revenue": "Omzet",
+        "col_accrued": "Commissie open",
+        "col_paid": "Commissie uitbetaald",
+        "total": "Totaal",
+        "empty": "Nog geen doorverwezen klanten.",
+        "codes_title": "Jouw codes",
+        "code_uses": "{count, plural, one {# keer gebruikt} other {# keer gebruikt}}",
+        "code_inactive": "inactief",
+        "codes_empty": "Nog geen code. Vraag er een aan BEAM."
       }
     },
     "units": {
@@ -813,6 +954,22 @@
         "done": "Het pakket is gedeeld. We stuurden deze persoon een e-mail.",
         "limit_reached": "Je deelt dit pakket met het maximum van {count} personen.",
         "not_named": "Dit pakket kan niet op naam gedeeld worden. Neem contact op met BEAM als je het wilt delen."
+      },
+      "referrals": {
+        "title": "Nodig een vriend uit",
+        "intro": "Deel je persoonlijke link. Doet een vriend een eerste aankoop, dan krijg je 14 dagen later een bedanksessie.",
+        "empty": "Nodig een vriend uit en krijg een sessie wanneer die een eerste aankoop doet.",
+        "code_label": "Jouw code",
+        "link_label": "Jouw deellink",
+        "get_link": "Mijn link aanmaken",
+        "copy": "Link kopiëren",
+        "copied": "Link gekopieerd.",
+        "error": "Er ging iets mis, probeer opnieuw.",
+        "referred_count": "{count, plural, =0 {Nog geen vriend kwam via jouw link.} one {# vriend kwam via jouw link.} other {# vrienden kwamen via jouw link.}}",
+        "rewards_title": "Ontvangen beloningen",
+        "rewards_empty": "Nog geen beloningen.",
+        "reward_line_sessions": "{date}: {count, plural, one {# sessie} other {# sessies}}",
+        "reward_line_nights": "{date}: {count, plural, one {# nacht} other {# nachten}}"
       }
     }
   }

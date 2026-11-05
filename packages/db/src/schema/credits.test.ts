@@ -477,6 +477,7 @@ describe("credits seeds", () => {
       "credits.memberships": 3653,
       "credits.reconciliation_runs": 365,
       "credits.sharing_reviews": 730,
+      "credits.referral_attributions": 1095,
     });
     expect(rows).toHaveLength(CREDITS_RETENTION_POLICIES.length);
     await h.db.execute(sql`drop table retention_policies`);

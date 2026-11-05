@@ -177,4 +177,21 @@ export const events = [
     subject: "person",
     data: z.object({ membership_id: uuid, days: z.number().int().min(1).max(90), period_end_on: dateOn }),
   }),
+  // R3 (credits-P9): on the referred person's timeline (`rewarded` also on the referrer's), ref
+  // `referral_attribution`, dedupe `referral:<attribution_id>:<suffix>`.
+  defineEvent({
+    kind: "referral.attributed",
+    subject: "person",
+    data: z.object({ attribution_id: uuid, source: z.enum(["code", "link", "staff", "import"]), via_partner: z.boolean() }),
+  }),
+  defineEvent({
+    kind: "referral.rewarded",
+    subject: "person",
+    data: z.object({ attribution_id: uuid, role: z.enum(["referrer", "referee"]), grant_id: uuid.nullable() }),
+  }),
+  defineEvent({
+    kind: "referral.rejected",
+    subject: "person",
+    data: z.object({ attribution_id: uuid.nullable(), reason: z.string().min(1).max(64) }),
+  }),
 ];

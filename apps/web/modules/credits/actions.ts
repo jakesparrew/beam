@@ -43,6 +43,7 @@ import * as ledger from "./server/ledger";
 import { canPayRenewal } from "./queries";
 import { lockMembership, renewalJobKey } from "./server/memberships";
 import * as membershipService from "./server/memberships";
+import * as referrals from "./server/referrals";
 import * as sharing from "./server/sharing";
 
 /** At most 12 active benefits per plan (spec section 2, `membership_plan_benefits`). */
@@ -551,4 +552,105 @@ export const revokeMyPackageShare = action(
 export const reviewSharing = action(
   { name: "credits.review_sharing", audience: "staff", permission: "credits.adjust", input: sharing.ReviewSharingInput, audit: false },
   async (ctx, input) => sharing.reviewSharing(ctx.tx, ctx, input),
+);
+
+// ---------------------------------------------------------------------------
+// Referrals and partners (credits-P9, R3: rules 60 to 63). The handlers write their own audit rows.
+// ---------------------------------------------------------------------------
+
+const uuidInput = z.string().uuid();
+const blankToUndefined = (v: unknown) => (v === "" || v === null ? undefined : v);
+const RewardInput = z
+  .object({
+    credit_kind: z.enum(["day", "night"]),
+    units: z.coerce.number().int().min(1).max(20),
+    validity_days: z.coerce.number().int().min(1).max(1825),
+  })
+  .nullable();
+const MaxUsesInput = z.preprocess((v) => (v === "" ? null : v), z.coerce.number().int().min(1).max(100_000).nullable());
+
+const CreateReferralCodeInput = z
+  .object({
+    partnerCompanyId: z.preprocess(blankToUndefined, uuidInput.optional()),
+    personId: z.preprocess(blankToUndefined, uuidInput.optional()),
+    code: z.preprocess(blankToUndefined, z.string().trim().toUpperCase().regex(/^[A-Z0-9]{6,12}$/, "invalid_code").optional()),
+    referrerReward: RewardInput.optional(),
+    refereeReward: RewardInput.optional(),
+    maxUses: MaxUsesInput.optional(),
+  })
+  .refine((v) => !!v.partnerCompanyId !== !!v.personId, { path: ["partnerCompanyId"], message: "one_owner" });
+
+const UpdateReferralCodeInput = z.object({
+  codeId: uuidInput,
+  isActive: z.boolean().optional(),
+  referrerReward: RewardInput.optional(),
+  refereeReward: RewardInput.optional(),
+  maxUses: MaxUsesInput.optional(),
+});
+
+const AttributeReferralInput = z
+  .object({
+    referredPersonId: uuidInput,
+    codeId: z.preprocess(blankToUndefined, uuidInput.optional()),
+    referrerPersonId: z.preprocess(blankToUndefined, uuidInput.optional()),
+    partnerCompanyId: z.preprocess(blankToUndefined, uuidInput.optional()),
+  })
+  .refine((v) => !!(v.codeId || v.referrerPersonId || v.partnerCompanyId), { path: ["codeId"], message: "referrer_required" });
+
+const RejectAttributionInput = z.object({ attributionId: uuidInput, reason: z.string().trim().min(3).max(500) });
+
+const SetCommissionStatusInput = z.object({
+  commissionIds: z.array(uuidInput).min(1).max(500),
+  status: z.enum(["approved", "paid", "void"]),
+  note: z.preprocess(blankToUndefined, z.string().trim().max(1000).optional()),
+});
+
+/** Rule 60 (staff): a partner code for a company with `is_partner`, or a personal code; audit `referrals.code_created`. */
+export const createReferralCode = action(
+  { name: "referrals.create_code", audience: "staff", permission: "referrals.manage", input: CreateReferralCodeInput, audit: false },
+  async (ctx, input) => referrals.createReferralCode(ctx.tx, ctx, input),
+);
+
+/** Staff: active flag, rewards and use limit of a code; audit `referrals.code_changed`. */
+export const updateReferralCode = action(
+  { name: "referrals.update_code", audience: "staff", permission: "referrals.manage", input: UpdateReferralCodeInput, audit: false },
+  async (ctx, input) => referrals.updateReferralCode(ctx.tx, ctx, input),
+);
+
+/** Rule 60 (portal): the reader's personal code, created on first call, with the share link. */
+export const getOrCreateMyReferralCode = action(
+  { name: "referrals.portal_code", audience: "customer", input: z.object({}), audit: false },
+  async (ctx) => {
+    if (ctx.actor.kind !== "customer") throw new NotFoundError("person_not_found");
+    const { code } = await referrals.getOrCreatePersonalCode(ctx.tx, ctx, ctx.actor.personId);
+    return { code, shareUrl: referrals.shareUrlFor(code, ctx.locale) };
+  },
+);
+
+/** Rule 61 (staff): attributes a referred person (first touch; an existing attribution wins); audit `referrals.attributed`. */
+export const attributeReferral = action(
+  { name: "referrals.attribute", audience: "staff", permission: "referrals.manage", input: AttributeReferralInput, audit: false },
+  async (ctx, input) => {
+    const r = await referrals.attributeReferral(ctx.tx, ctx, { ...input, source: "staff" });
+    if (!r.created && r.attributionId) throw new ConflictError("already_attributed");
+    return r;
+  },
+);
+
+/** Staff: a `pending` attribution is rejected with a reason; audit `referrals.attribution_rejected`. */
+export const rejectAttribution = action(
+  { name: "referrals.reject_attribution", audience: "staff", permission: "referrals.manage", input: RejectAttributionInput, audit: false },
+  async (ctx, input) => referrals.rejectAttribution(ctx.tx, ctx, input),
+);
+
+/** Rule 63 (finance): approve, mark paid or void up to 500 commission rows; one audit row per row. */
+export const setCommissionStatus = action(
+  { name: "referrals.commission_status", audience: "staff", permission: "referrals.manage", input: SetCommissionStatusInput, audit: false },
+  async (ctx, input) => referrals.setCommissionStatus(ctx.tx, ctx, input),
+);
+
+/** The person picker of the referral forms (up to 8 matches; `referrals.manage`). */
+export const findReferralPersons = action(
+  { name: "referrals.find_persons", audience: "staff", permission: "referrals.manage", input: z.object({ q: z.string().trim().min(2).max(100) }), audit: false },
+  async (ctx, input) => (await searchPersons(ctx.tx, { q: input.q, limit: 8 })).map((p) => ({ id: p.personId, name: p.name, email: p.email })),
 );

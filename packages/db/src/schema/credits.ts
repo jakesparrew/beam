@@ -12,6 +12,7 @@ import { sql } from "drizzle-orm";
 import {
   boolean,
   check,
+  date,
   index,
   integer,
   jsonb,
@@ -25,8 +26,8 @@ import {
   uuid,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
-import { mandates, orderLines, orders, priceVersions, products } from "./commerce";
-import { persons } from "./crm";
+import { mandates, orderLines, orders, priceVersions, products, refunds } from "./commerce";
+import { companies, persons } from "./crm";
 import { users } from "./platform";
 import {
   createdAt,
@@ -108,6 +109,10 @@ export const creditReconciliationRunsStatus = pgEnum("credit_reconciliation_runs
 /** R2 (credits-P8): the two abuse rules of `v_sharing_review` and a reviewer's decision. */
 export const creditSharingReviewsRule = pgEnum("credit_sharing_reviews_rule", ["many_guests", "guest_hopping"]);
 export const creditSharingReviewsDecision = pgEnum("credit_sharing_reviews_decision", ["ok", "warned", "sharing_disabled"]);
+/** R3 (credits-P9): how an attribution came about, its status, and a partner commission's status. */
+export const referralAttributionsSource = pgEnum("referral_attributions_source", ["code", "link", "staff", "import"]);
+export const referralAttributionsStatus = pgEnum("referral_attributions_status", ["pending", "qualified", "rewarded", "rejected"]);
+export const partnerCommissionsStatus = pgEnum("partner_commissions_status", ["accrued", "approved", "paid", "void"]);
 
 /** The values of `credit_entries.ref_type` (check constraint `credit_entries_ref_type_ck`). */
 export const CREDIT_ENTRY_REF_TYPES = [
@@ -155,6 +160,9 @@ export type CreditEntryDataJson = {
   reason?: string;
   [key: string]: unknown;
 };
+
+/** `referral_codes.referrer_reward` / `referee_reward` (null = the settings default, or none for the referee). */
+export type ReferralRewardJson = { credit_kind: "day" | "night"; units: number; validity_days: number };
 
 /** `credit_bulk_extensions.filter`. */
 export type BulkExtensionFilterJson = {
@@ -319,6 +327,8 @@ export const creditGrants = pgTable(
     // commerce `vouchers.id`; no FK (commerce's `vouchers.credit_grant_id` references this table).
     voucherId: uuid(),
     membershipId: uuid().references(() => memberships.id),
+    /** R3 (credits-P9): set for `referral` grants; nulled when the attribution is erased. */
+    referralAttributionId: uuid().references((): AnyPgColumn => referralAttributions.id, { onDelete: "set null" }),
     creditKind: creditGrantsCreditKind().notNull(),
     unitsGranted: integer().notNull(),
     unitValueCents: integer().notNull().default(0),
@@ -552,5 +562,116 @@ export const creditSharingReviews = pgTable(
       sql`(${t.rule} = 'many_guests' and ${t.grantId} is not null and ${t.guestPersonId} is null) or (${t.rule} = 'guest_hopping' and ${t.guestPersonId} is not null and ${t.grantId} is null)`,
     ),
     check("credit_sharing_reviews_note_ck", sql`${t.note} is null or length(${t.note}) <= 1000`),
+  ],
+);
+
+// ---------------------------------------------------------------------------
+// R3 (credits-P9): referral and partner management (rules 60 to 63)
+// ---------------------------------------------------------------------------
+
+/**
+ * A referral code of one person (personal, generated on first visit to `/account/referrals`) or
+ * of one partner company (staff). At most one active personal code per person.
+ */
+export const referralCodes = pgTable(
+  "referral_codes",
+  {
+    id: id(),
+    code: text().notNull(),
+    personId: uuid().references(() => persons.id, { onDelete: "restrict" }),
+    partnerCompanyId: uuid().references(() => companies.id, { onDelete: "restrict" }),
+    referrerReward: jsonb().$type<ReferralRewardJson>(),
+    refereeReward: jsonb().$type<ReferralRewardJson>(),
+    maxUses: integer(),
+    isActive: boolean().notNull().default(true),
+    createdByUserId: uuid().references(() => users.id),
+    ...timestamps(),
+  },
+  (t) => [
+    uniqueIndex("referral_codes_code_uq").on(sql`upper(${t.code})`),
+    uniqueIndex("referral_codes_person_active_uq")
+      .on(t.personId)
+      .where(sql`${t.isActive} and ${t.personId} is not null`),
+    index("referral_codes_partner_idx").on(t.partnerCompanyId),
+    check("referral_codes_code_ck", sql`${t.code} ~ '^[A-Z0-9]{6,12}$'`),
+    check("referral_codes_owner_ck", sql`num_nonnulls(${t.personId}, ${t.partnerCompanyId}) = 1`),
+    check("referral_codes_max_uses_ck", sql`${t.maxUses} is null or ${t.maxUses} > 0`),
+  ],
+);
+
+/** First-touch attribution, one per referred person (rule 61). */
+export const referralAttributions = pgTable(
+  "referral_attributions",
+  {
+    id: id(),
+    referredPersonId: uuid()
+      .notNull()
+      .references(() => persons.id, { onDelete: "restrict" })
+      .unique("referral_attributions_referred_person_id_unique"),
+    codeId: uuid().references(() => referralCodes.id, { onDelete: "set null" }),
+    referrerPersonId: uuid().references(() => persons.id, { onDelete: "restrict" }),
+    partnerCompanyId: uuid().references(() => companies.id, { onDelete: "restrict" }),
+    source: referralAttributionsSource().notNull(),
+    status: referralAttributionsStatus().notNull().default("pending"),
+    attributedAt: tstz().notNull(),
+    firstPaidOrderId: uuid().references(() => orders.id),
+    firstPaidAt: tstz(),
+    qualifiesAt: tstz(),
+    commissionUntilAt: tstz(),
+    rejectedReason: text(),
+    referrerRewardGrantId: uuid().references((): AnyPgColumn => creditGrants.id, { onDelete: "set null" }),
+    refereeRewardGrantId: uuid().references((): AnyPgColumn => creditGrants.id, { onDelete: "set null" }),
+    createdByUserId: uuid().references(() => users.id),
+    ...timestamps(),
+  },
+  (t) => [
+    index("referral_attributions_referrer_idx").on(t.referrerPersonId),
+    index("referral_attributions_partner_idx").on(t.partnerCompanyId),
+    index("referral_attributions_status_qualifies_idx").on(t.status, t.qualifiesAt),
+    check("referral_attributions_party_ck", sql`num_nonnulls(${t.referrerPersonId}, ${t.partnerCompanyId}) >= 1`),
+    check("referral_attributions_self_ck", sql`${t.referrerPersonId} is distinct from ${t.referredPersonId}`),
+    check(
+      "referral_attributions_qualified_ck",
+      sql`${t.status} <> 'qualified' or (${t.firstPaidOrderId} is not null and ${t.firstPaidAt} is not null and ${t.qualifiesAt} is not null)`,
+    ),
+    check("referral_attributions_rejected_ck", sql`(${t.status} = 'rejected') = (${t.rejectedReason} is not null)`),
+  ],
+);
+
+/**
+ * A partner's commission on one paid order of an attributed person, or the negative row of a
+ * refund (rule 63). Retained with the order (no person column); `note` is PII-risk.
+ */
+export const partnerCommissions = pgTable(
+  "partner_commissions",
+  {
+    id: id(),
+    partnerCompanyId: uuid()
+      .notNull()
+      .references(() => companies.id, { onDelete: "restrict" }),
+    attributionId: uuid().references(() => referralAttributions.id, { onDelete: "set null" }),
+    orderId: uuid()
+      .notNull()
+      .references(() => orders.id),
+    refundId: uuid().references(() => refunds.id),
+    baseCents: integer().notNull(),
+    commissionPct: numeric({ precision: 5, scale: 2 }).notNull(),
+    amountCents: integer().notNull(),
+    status: partnerCommissionsStatus().notNull().default("accrued"),
+    periodMonth: date().notNull(),
+    approvedByUserId: uuid().references(() => users.id),
+    paidAt: tstz(),
+    note: text(),
+    idempotencyKey: text().notNull().unique("partner_commissions_idempotency_key_unique"),
+    ...timestamps(),
+  },
+  (t) => [
+    index("partner_commissions_partner_month_idx").on(t.partnerCompanyId, t.periodMonth),
+    index("partner_commissions_order_idx").on(t.orderId),
+    check("partner_commissions_pct_ck", sql`${t.commissionPct} between 0 and 100`),
+    check("partner_commissions_refund_sign_ck", sql`${t.refundId} is not null or ${t.baseCents} >= 0`),
+    check("partner_commissions_period_ck", sql`extract(day from ${t.periodMonth}) = 1`),
+    check("partner_commissions_paid_ck", sql`${t.status} <> 'paid' or ${t.paidAt} is not null`),
+    check("partner_commissions_note_ck", sql`${t.note} is null or length(${t.note}) <= 1000`),
   ],
 );

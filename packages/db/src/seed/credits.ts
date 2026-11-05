@@ -68,6 +68,13 @@ export const CREDITS_RETENTION_POLICIES = [
     action: "delete",
     description: "Nightly ledger reconciliation runs after 1 year",
   },
+  {
+    key: "credits.referral_attributions",
+    tableName: "referral_attributions",
+    days: 1095,
+    action: "delete",
+    description: "Referral attributions 3 years after attribution, unless a partner commission links to them",
+  },
 ] as const;
 
 const rowsOf = <T>(result: unknown): T[] =>

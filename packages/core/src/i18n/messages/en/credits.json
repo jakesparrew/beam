@@ -61,11 +61,22 @@
         "cta": "View my membership",
         "ends_on": "You remain a member until {date}.",
         "ended_now": "Your membership ended on {date}."
+      },
+      "share_invitation": {
+        "subject": "{ownerName} shared a package with you",
+        "preheader": "Book on your own account with the shared package.",
+        "heading": "A package was shared with you",
+        "body": "Sign in to your BEAM account to see the package and book a session or a night on your own account. The units come from the shared package.",
+        "cta": "View my packages",
+        "what_day": "{name} shared a package of sessions with you.",
+        "what_night": "{name} shared a package of nights with you.",
+        "limit": "{count, plural, one {You can use # unit of it.} other {You can use up to # units of it.}}"
       }
     },
     "nav": {
       "packages": "Packages",
-      "memberships": "Memberships"
+      "memberships": "Memberships",
+      "sharing_review": "Sharing review"
     },
     "enum": {
       "kind": {
@@ -217,7 +228,11 @@
       "forbidden": "You do not have permission for this.",
       "generic": "Something went wrong, try again.",
       "no_mandate": "There is no valid payment mandate for this member.",
-      "too_many_benefits": "A plan has at most 12 active benefits."
+      "too_many_benefits": "A plan has at most 12 active benefits.",
+      "already_shared": "This package is already shared with this person.",
+      "share_with_owner": "You cannot share a package with its owner.",
+      "grant_not_active": "This package can no longer be shared.",
+      "review_item_not_found": "This item no longer needs a review. Reload the page."
     },
     "admin": {
       "common": {
@@ -562,6 +577,55 @@
         "member_until": "Member until {date}",
         "past_due": "Past due",
         "nothing": "No packages"
+      },
+      "sharing": {
+        "title": "Sharing",
+        "mode": "Sharing mode",
+        "max_guests": "Guest uses per month",
+        "max_guests_hint": "0 to 31. 0 means no guests.",
+        "save": "Save sharing",
+        "saved": "Sharing saved.",
+        "shares_caption": "Named shares of this package",
+        "col_name": "Name",
+        "col_limit": "Limit",
+        "col_status": "Status",
+        "col_since": "Since",
+        "unlimited": "Up to the balance",
+        "revoke": "Stop share",
+        "revoke_label": "Stop the share with {name}",
+        "add_title": "Share with a named person",
+        "add_hint": "The package switches to named sharing. The person receives an email.",
+        "add_submit": "Add share",
+        "added": "Share added.",
+        "status_active": "Active",
+        "status_revoked": "Stopped",
+        "not_shareable": "Store credit and membership sessions cannot be shared."
+      },
+      "sharing_review": {
+        "title": "Sharing review",
+        "intro": "Packages with many different guests and guests who use the packages of several owners in the last 30 days.",
+        "caption": "Sharing patterns that need a review",
+        "empty": "No sharing patterns need review.",
+        "col_rule": "Pattern",
+        "col_subject": "Package or guest",
+        "col_count": "Distinct people",
+        "col_people": "People",
+        "col_last": "Last use",
+        "col_decision": "Decision",
+        "rule_many_guests": "Many guests on one package",
+        "rule_guest_hopping": "Guest on several owners' packages",
+        "package_of": "Package of {name}",
+        "guest": "Guest {name}",
+        "decision": "Decision",
+        "decision_ok": "OK",
+        "decision_warned": "Warned",
+        "decision_sharing_disabled": "Disable sharing",
+        "note": "Note (staff only)",
+        "submit": "Save decision",
+        "done": "Decision saved.",
+        "read_only": "You can view this list but not decide.",
+        "open_grant": "Open package",
+        "open_person": "Open person"
       }
     },
     "units": {
@@ -722,6 +786,33 @@
         "nothing_to_pay": "There is nothing to pay right now.",
         "rate_limited": "Too many attempts. Wait a moment and try again.",
         "validation": "Check the field and try again."
+      },
+      "sharing": {
+        "title": "Sharing",
+        "intro": "Share this package with up to {count} people by name. They book on their own account and the units come from this package.",
+        "list_caption": "People you shared this package with",
+        "empty": "You have not shared this package yet.",
+        "col_name": "Name",
+        "col_limit": "Limit",
+        "col_used": "Used",
+        "col_status": "Status",
+        "unlimited": "Up to what is left",
+        "status_active": "Active",
+        "status_revoked": "Stopped",
+        "revoke": "Stop sharing",
+        "revoke_label": "Stop sharing with {name}",
+        "revoke_confirm": "Stop sharing this package with {name}? Bookings already made stay valid.",
+        "invite_title": "Share with someone",
+        "email": "Email address",
+        "first_name": "First name",
+        "last_name": "Last name",
+        "max_units": "Maximum units for this person",
+        "max_units_hint": "Leave empty to let them use what is left.",
+        "submit": "Share package",
+        "busy": "Sharing…",
+        "done": "The package is shared. We sent them an email.",
+        "limit_reached": "You share this package with the maximum of {count} people.",
+        "not_named": "This package cannot be shared by name. Contact BEAM if you would like to share it."
       }
     }
   }

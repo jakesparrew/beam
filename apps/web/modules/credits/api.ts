@@ -6,15 +6,19 @@
  * `getCreditLiabilityAsOf`) on `server/ledger.ts`; credits-P4 the membership functions
  * (`activateMembership`, `applyRenewalPayment`, `applyRenewalFailure`, `cancelMembershipForRefund`,
  * `getMembershipForPerson`, `getMembershipSummary`, `canStartMembership`, `importMembership`) on
- * `server/memberships.ts`; credits-P5 the merge hook `onPersonsMerged` (here); the sharing review
- * functions still throw `NotImplementedError('credits.<fn>')` until credits-P8. The three R3 referral hooks that V1 code calls at runtime return `null` or
- * nothing until credits-P9. Every write function runs in the caller's transaction.
+ * `server/memberships.ts`; credits-P5 the merge hook `onPersonsMerged` (here); credits-P8 the
+ * sharing review functions (`countSharingReviewItems`, `listSharingReview`) on `server/sharing.ts`,
+ * `listGrantsSharedWith` and the desk badge re-exports. The three R3 referral hooks that V1 code
+ * calls at runtime return `null` or nothing until credits-P9. Every write function runs in the
+ * caller's transaction.
  */
 import type { DbOrTx, Tx } from "@beam/db";
 import { creditGrants, memberships } from "@beam/db/schema";
-import { NotImplementedError } from "@beam/core/errors";
 import type { LocalizedText } from "@beam/core/i18n";
-import { assertMembershipTransition, type AllocationResult, type CreditKind, type ReleaseReason, type SharingReviewRow } from "@beam/core/credits";
+import { assertMembershipTransition, type AllocationResult, type CreditKind, type ReleaseReason } from "@beam/core/credits";
+import type { SharedPackage } from "./queries";
+import type { SharingReviewRow } from "./server/sharing";
+import type { DeskCreditsBadge as DeskBadgeComponent, DeskCreditsLine as DeskLineComponent } from "./ui/desk-credits-badge";
 import { asc, ConflictError, eq, inArray, sql, ValidationError, type Ctx } from "@/lib/ctx";
 import { rowsOf } from "@/lib/sensitive";
 import * as ledger from "./server/ledger";
@@ -27,8 +31,26 @@ const membershipService = () => import("./server/memberships");
 
 export type { AllocationResult, CreditKind, GrantSharing, ReleaseReason } from "@beam/core/credits";
 export { InsufficientCreditsError, SharingNotAllowedError, type GrantCreditsInput } from "./server/ledger";
+export type { SharingReviewRow } from "./server/sharing";
+export type { SharedPackage } from "./queries";
+export type { DeskCredits } from "./ui/desk-credits-badge";
 
-const notYet = <T>(fn: string): Promise<T> => Promise.reject(new NotImplementedError(`credits.${fn}`));
+type DeskBadgeProps = Parameters<typeof DeskBadgeComponent>[0];
+type DeskLineProps = Parameters<typeof DeskLineComponent>[0];
+
+/**
+ * booking-P4's check-in desk and commerce's POS (credits-P6 request): server components loaded on
+ * render, because the badge reads the session (`@/lib/auth`), whose graph reaches crm and booking.
+ */
+export async function DeskCreditsBadge(props: DeskBadgeProps) {
+  const ui = await import("./ui/desk-credits-badge");
+  return ui.DeskCreditsBadge(props);
+}
+
+export async function DeskCreditsLine(props: DeskLineProps) {
+  const ui = await import("./ui/desk-credits-badge");
+  return ui.DeskCreditsLine(props);
+}
 
 // booking and commerce ------------------------------------------------------------------
 
@@ -303,14 +325,29 @@ async function mergeShares(tx: Tx, ctx: Ctx, winner: string, loser: string): Pro
     where g.id = any(${`{${touched.join(",")}}`}::uuid[])`);
 }
 
-/** R2. */
-export function countSharingReviewItems(_db: DbOrTx): Promise<number> {
-  return notYet("countSharingReviewItems");
+/**
+ * Sharing (credits-P8, R2), loaded on call: `server/sharing.ts` reaches crm's api, whose graph
+ * reaches booking, which imports this file.
+ */
+const sharingService = () => import("./server/sharing");
+
+/** R2 (rule 43): open `v_sharing_review` items; ops action dashboard and booking's abuse list. */
+export function countSharingReviewItems(db: DbOrTx): Promise<number> {
+  return sharingService().then((s) => s.countSharingReviewItems(db));
 }
 
-/** R2. */
-export function listSharingReview(_db: DbOrTx, _opts: { limit: number }): Promise<SharingReviewRow[]> {
-  return notYet("listSharingReview");
+/** R2 (rule 43): the open review items, most recent use first. */
+export function listSharingReview(db: DbOrTx, opts: { limit: number }): Promise<SharingReviewRow[]> {
+  return sharingService().then((s) => s.listSharingReview(db, opts));
+}
+
+/**
+ * R2 (booking-P6 request): the packages named-shared with `personId` that they may book on their
+ * own account, with the units left for them (`unitsForMe`), so the portal booking form can offer
+ * "use a package shared with me".
+ */
+export function listGrantsSharedWith(db: DbOrTx, personId: string): Promise<SharedPackage[]> {
+  return import("./queries").then((q) => q.listGrantsSharedWith(db, personId));
 }
 
 /**

@@ -61,11 +61,22 @@
         "cta": "Voir mon abonnement",
         "ends_on": "Vous restez membre jusqu’au {date}.",
         "ended_now": "Votre abonnement a pris fin le {date}."
+      },
+      "share_invitation": {
+        "subject": "{ownerName} a partagé un forfait avec vous",
+        "preheader": "Réservez sur votre propre compte avec le forfait partagé.",
+        "heading": "Un forfait a été partagé avec vous",
+        "body": "Connectez-vous à votre compte BEAM pour voir le forfait et réserver une séance ou une nuit sur votre propre compte. Les unités proviennent du forfait partagé.",
+        "cta": "Voir mes forfaits",
+        "what_day": "{name} a partagé un forfait de séances avec vous.",
+        "what_night": "{name} a partagé un forfait de nuits avec vous.",
+        "limit": "{count, plural, one {Vous pouvez en utiliser # unité.} other {Vous pouvez en utiliser jusqu’à # unités.}}"
       }
     },
     "nav": {
       "packages": "Forfaits",
-      "memberships": "Abonnements"
+      "memberships": "Abonnements",
+      "sharing_review": "Contrôle du partage"
     },
     "enum": {
       "kind": {
@@ -217,7 +228,11 @@
       "forbidden": "Vous n'avez pas l'autorisation pour cela.",
       "generic": "Une erreur s'est produite, réessayez.",
       "no_mandate": "Il n'y a pas de mandat de paiement valide pour ce membre.",
-      "too_many_benefits": "Une formule a au maximum 12 avantages actifs."
+      "too_many_benefits": "Une formule a au maximum 12 avantages actifs.",
+      "already_shared": "Ce forfait est déjà partagé avec cette personne.",
+      "share_with_owner": "Vous ne pouvez pas partager un forfait avec son propriétaire.",
+      "grant_not_active": "Ce forfait ne peut plus être partagé.",
+      "review_item_not_found": "Cet élément ne doit plus être examiné. Rechargez la page."
     },
     "admin": {
       "common": {
@@ -562,6 +577,55 @@
         "member_until": "Membre jusqu'au {date}",
         "past_due": "En retard de paiement",
         "nothing": "Aucun forfait"
+      },
+      "sharing": {
+        "title": "Partage",
+        "mode": "Mode de partage",
+        "max_guests": "Utilisations par des invités par mois",
+        "max_guests_hint": "De 0 à 31. 0 signifie aucun invité.",
+        "save": "Enregistrer le partage",
+        "saved": "Partage enregistré.",
+        "shares_caption": "Partages nominatifs de ce forfait",
+        "col_name": "Nom",
+        "col_limit": "Limite",
+        "col_status": "Statut",
+        "col_since": "Depuis",
+        "unlimited": "Jusqu’au solde",
+        "revoke": "Arrêter le partage",
+        "revoke_label": "Arrêter le partage avec {name}",
+        "add_title": "Partager avec une personne nommée",
+        "add_hint": "Le forfait passe au partage nominatif. La personne reçoit un e-mail.",
+        "add_submit": "Ajouter le partage",
+        "added": "Partage ajouté.",
+        "status_active": "Actif",
+        "status_revoked": "Arrêté",
+        "not_shareable": "Le crédit d’achat et les séances d’un abonnement ne peuvent pas être partagés."
+      },
+      "sharing_review": {
+        "title": "Contrôle du partage",
+        "intro": "Forfaits avec beaucoup d’invités différents et invités qui utilisent les forfaits de plusieurs propriétaires au cours des 30 derniers jours.",
+        "caption": "Schémas de partage à examiner",
+        "empty": "Aucun schéma de partage à examiner.",
+        "col_rule": "Schéma",
+        "col_subject": "Forfait ou invité",
+        "col_count": "Personnes distinctes",
+        "col_people": "Personnes",
+        "col_last": "Dernière utilisation",
+        "col_decision": "Décision",
+        "rule_many_guests": "Beaucoup d’invités sur un forfait",
+        "rule_guest_hopping": "Invité sur les forfaits de plusieurs propriétaires",
+        "package_of": "Forfait de {name}",
+        "guest": "Invité {name}",
+        "decision": "Décision",
+        "decision_ok": "En ordre",
+        "decision_warned": "Averti",
+        "decision_sharing_disabled": "Désactiver le partage",
+        "note": "Note (personnel uniquement)",
+        "submit": "Enregistrer la décision",
+        "done": "Décision enregistrée.",
+        "read_only": "Vous pouvez consulter cette liste mais pas décider.",
+        "open_grant": "Ouvrir le forfait",
+        "open_person": "Ouvrir la personne"
       }
     },
     "units": {
@@ -722,6 +786,33 @@
         "nothing_to_pay": "Il n’y a rien à payer pour le moment.",
         "rate_limited": "Trop de tentatives. Patientez un instant et réessayez.",
         "validation": "Vérifiez le champ et réessayez."
+      },
+      "sharing": {
+        "title": "Partage",
+        "intro": "Partagez ce forfait nominativement avec {count} personnes au maximum. Elles réservent sur leur propre compte et les unités proviennent de ce forfait.",
+        "list_caption": "Personnes avec qui vous partagez ce forfait",
+        "empty": "Vous n’avez pas encore partagé ce forfait.",
+        "col_name": "Nom",
+        "col_limit": "Limite",
+        "col_used": "Utilisé",
+        "col_status": "Statut",
+        "unlimited": "Jusqu’à ce qui reste",
+        "status_active": "Actif",
+        "status_revoked": "Arrêté",
+        "revoke": "Arrêter le partage",
+        "revoke_label": "Arrêter le partage avec {name}",
+        "revoke_confirm": "Arrêter de partager ce forfait avec {name} ? Les réservations déjà faites restent valables.",
+        "invite_title": "Partager avec quelqu’un",
+        "email": "Adresse e-mail",
+        "first_name": "Prénom",
+        "last_name": "Nom",
+        "max_units": "Nombre maximum d’unités pour cette personne",
+        "max_units_hint": "Laissez vide pour lui permettre d’utiliser ce qui reste.",
+        "submit": "Partager le forfait",
+        "busy": "Partage en cours…",
+        "done": "Le forfait est partagé. Nous avons envoyé un e-mail à cette personne.",
+        "limit_reached": "Vous partagez ce forfait avec le maximum de {count} personnes.",
+        "not_named": "Ce forfait ne peut pas être partagé nominativement. Contactez BEAM si vous souhaitez le partager."
       }
     }
   }

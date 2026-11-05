@@ -1515,14 +1515,16 @@
       "mergedAt": "2026-11-05T07:45:23Z"
     },
     "ops-P10": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "bce8252",
       "runId": null,
       "startedAt": "2026-11-05T12:41:39Z",
       "branchSha": "ce0bf83",
-      "endedAt": "2026-11-05T13:40:50Z",
-      "minutes": 60
+      "endedAt": "2026-11-05T15:02:45Z",
+      "minutes": 60,
+      "mergeSha": "d9c7d25",
+      "mergedAt": "2026-11-05T15:30:14Z"
     },
     "forms-P10": {
       "status": "merged",
@@ -4577,7 +4579,7 @@
       "mergedAt": "2026-11-05T13:40:37Z"
     },
     "fix-w22-automation-wiring": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "fixer": true,
       "module": "automation",
@@ -4757,11 +4759,13 @@
         "apps/web/modules/automation/automation-p10.builder.test.ts"
       ],
       "branchSha": "0490800",
-      "endedAt": "2026-11-05T12:19:17Z",
-      "minutes": 35
+      "endedAt": "2026-11-05T15:02:45Z",
+      "minutes": 35,
+      "mergeSha": "1712350",
+      "mergedAt": "2026-11-05T15:30:06Z"
     },
     "fix-w22-site-wiring": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "fixer": true,
       "module": "site",
@@ -5016,11 +5020,13 @@
       "runId": null,
       "startedAt": "2026-11-05T13:11:33Z",
       "branchSha": "c44be9a",
-      "endedAt": "2026-11-05T13:31:37Z",
-      "minutes": 25
+      "endedAt": "2026-11-05T15:02:45Z",
+      "minutes": 25,
+      "mergeSha": "0bf0165",
+      "mergedAt": "2026-11-05T15:30:09Z"
     },
     "fix-w22-webinar-wiring": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "fixer": true,
       "module": "webinar",
@@ -5171,8 +5177,10 @@
         "packages/core/src/i18n/messages/fr-BE/webinar.json"
       ],
       "branchSha": "f7ccdda",
-      "endedAt": "2026-11-05T13:40:50Z",
-      "minutes": 25
+      "endedAt": "2026-11-05T15:02:45Z",
+      "minutes": 25,
+      "mergeSha": "0dd9660",
+      "mergedAt": "2026-11-05T15:30:11Z"
     }
   }
 }

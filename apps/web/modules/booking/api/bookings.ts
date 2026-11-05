@@ -45,6 +45,9 @@ const publicBand = (status: SessionStatus, availableGeneral: number): Availabili
 
 // availability ------------------------------------------------------------------
 
+/** booking-P7: the phase-aware availability of a session for one person (R20-R27, edge case 37). */
+export { availabilityFor } from "../server/book";
+
 /** One session's availability for a person (or the public), with the view's pools (Wave 0 contract). */
 export async function getAvailability(
   db: DbOrTx,

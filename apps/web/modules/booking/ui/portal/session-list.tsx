@@ -3,7 +3,9 @@
  * each a link with an accessible name ("Tuesday 14 January, 10:00, Day session, 3 places
  * left"). Availability is written out, never shown by colour alone; the member-only and
  * "Opens for you on ..." messages are text badges. Every text comes from the page, already
- * translated and formatted; the component renders only.
+ * translated and formatted; the component renders only. booking-P7 (R22, R24): on a Lead Magnet
+ * the availability label of a viewer whose seats are not open yet reads "Opens for you on
+ * {date}" (`describeAvailability`); `opensLabel` adds an explicit line when the page passes one.
  */
 import Link from "next/link";
 import type { Route } from "next";
@@ -55,7 +57,11 @@ export function SessionList({ items, emptyLabel }: { items: SessionListItem[]; e
                 {s.timeLabel} · {s.title}
               </span>
               {s.priceLabel ? <span className="text-sm text-muted-foreground">{s.priceLabel}</span> : null}
-              {s.opensLabel ? <span className="text-sm">{s.opensLabel}</span> : null}
+              {s.opensLabel ? (
+                <span className="text-sm" data-testid={`session-opens-${s.sessionId}`}>
+                  {s.opensLabel}
+                </span>
+              ) : null}
             </span>
             <span className="flex flex-wrap items-center gap-2">
               {s.memberLabel ? <Badge variant="secondary">{s.memberLabel}</Badge> : null}

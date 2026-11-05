@@ -9,9 +9,11 @@
  * merged length of a mode's segments (gaps and islands; overlapping and touching intervals
  * merge), the SQL twin of `mergeIntervals()` in `@beam/core/webinar`.
  *
- * `v_webinar_performance_daily` (R4) is added by webinar-P8. Counts are cast to `int`.
+ * `v_webinar_performance_daily` (R4, webinar-P8) holds non-personal aggregates per webinar and
+ * Brussels day for ops' `ai.webinar_performance_daily` and the weekly summary. Counts are cast
+ * to `int`.
  */
-import { boolean, integer, pgView, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { boolean, date, doublePrecision, integer, pgView, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 const tz = (name: string) => timestamp(name, { withTimezone: true });
 type WatchModeValue = "live" | "replay" | "on_demand";
@@ -262,3 +264,130 @@ export const vPersonWebinarStats = pgView("v_person_webinar_stats", {
   importedWebinarsRegistered: integer("imported_webinars_registered").notNull(),
   importedWebinarsAttended: integer("imported_webinars_attended").notNull(),
 }).existing();
+
+// ---------------------------------------------------------------------------
+// v_webinar_performance_daily (R4)
+// ---------------------------------------------------------------------------
+
+/** The Brussels calendar day of a `timestamptz` expression. */
+const brusselsDay = (expr: string) => `(${expr} at time zone 'Europe/Brussels')::date`;
+
+/** The column prefix of each watch mode in the performance view. */
+const PERF_MODES = ["live", "replay", "on_demand"] as const satisfies readonly WatchModeValue[];
+
+/**
+ * Per webinar per Brussels day (`day_on`); no person id, name, e-mail or text column, so ops can
+ * expose it to the read-only `ai` schema as is (cross-module decision 46). Tester persons are
+ * left out and persons are resolved through `merged_into_person_id` (the underlying views fold a
+ * merged loser into the winner). Each fact falls on the day it happened:
+ *
+ * - `registrations`: native registrations not cancelled, on the day they were made;
+ * - `live_attendees`, `replay_viewers`, `on_demand_viewers`: persons who reached the webinar's
+ *   attendance threshold in that mode (`v_webinar_watch.is_attended`, the `webinar.attended`
+ *   trigger), on the day of their first watch in the mode; `<mode>_watchers` and
+ *   `<mode>_watch_sec` count everyone with watch time in the mode and its merged seconds, and
+ *   `avg_<mode>_watch_min` = `<mode>_watch_sec ÷ <mode>_watchers ÷ 60` (one decimal, null
+ *   without watchers), so a longer period is averaged from the sums;
+ * - `poll_answers`: one per person, poll and mode (as `v_webinar_registration_facts`), on the day
+ *   of the first answer; `cta_clicks`: every click, on its day;
+ * - `conversions_30d`: registrations (not cancelled) whose person booked (confirmed or attended)
+ *   or paid an order within 30 days after the anchor (`v_webinar_conversions`), on the anchor's
+ *   day (the webinar's start for live registrations).
+ */
+export const vWebinarPerformanceDailySql = `with reg as (
+  select f.webinar_id, ${brusselsDay("f.registered_at")} as day_on, count(*)::int as registrations
+  from v_webinar_registration_facts f join persons pe on pe.id = f.person_id
+  where f.status <> 'cancelled' and pe.is_tester = false
+  group by 1, 2),
+wa as (
+  select ww.webinar_id, ${brusselsDay("ww.first_watched_at")} as day_on,
+         ${PERF_MODES.map(
+           (m) => `count(*) filter (where ww.mode = '${m}' and ww.is_attended)::int as ${m}_attended,
+         count(*) filter (where ww.mode = '${m}')::int as ${m}_watchers,
+         coalesce(sum(ww.watched_sec) filter (where ww.mode = '${m}'), 0)::int as ${m}_watch_sec`,
+         ).join(",\n         ")}
+  from v_webinar_watch ww join persons pe on pe.id = ww.person_id
+  where pe.is_tester = false
+  group by 1, 2),
+ia as (
+  select i.webinar_id, coalesce(p.merged_into_person_id, r.person_id) as person_id, i.kind, i.mode, i.poll_id, i.occurred_at
+  from webinar_interactions i
+  join webinar_registrations r on r.id = i.registration_id
+  join persons p on p.id = r.person_id
+  join persons pe on pe.id = coalesce(p.merged_into_person_id, r.person_id)
+  where i.kind in ('poll_answer', 'cta_clicked') and pe.is_tester = false),
+pa as (
+  select webinar_id, ${brusselsDay("min(occurred_at)")} as day_on
+  from ia where kind = 'poll_answer'
+  group by webinar_id, person_id, poll_id, mode),
+pol as (select webinar_id, day_on, count(*)::int as poll_answers from pa group by 1, 2),
+cta as (
+  select webinar_id, ${brusselsDay("occurred_at")} as day_on, count(*)::int as cta_clicks
+  from ia where kind = 'cta_clicked' group by 1, 2),
+conv as (
+  select c.webinar_id, ${brusselsDay("c.anchor_at")} as day_on, count(*)::int as conversions_30d
+  from v_webinar_conversions c
+  join webinar_registrations r on r.id = c.registration_id
+  join persons pe on pe.id = c.person_id
+  where r.status <> 'cancelled' and pe.is_tester = false
+    and (c.first_booking_at <= c.anchor_at + interval '30 days'
+         or c.first_paid_order_at <= c.anchor_at + interval '30 days')
+  group by 1, 2),
+k as (
+  select webinar_id, day_on from reg union select webinar_id, day_on from wa
+  union select webinar_id, day_on from pol union select webinar_id, day_on from cta
+  union select webinar_id, day_on from conv)
+select k.webinar_id, k.day_on,
+       coalesce(reg.registrations, 0) as registrations,
+       coalesce(wa.live_attended, 0) as live_attendees,
+       coalesce(wa.replay_attended, 0) as replay_viewers,
+       coalesce(wa.on_demand_attended, 0) as on_demand_viewers,
+       ${PERF_MODES.map(
+         (m) => `coalesce(wa.${m}_watchers, 0) as ${m}_watchers,
+       coalesce(wa.${m}_watch_sec, 0) as ${m}_watch_sec,
+       case when wa.${m}_watchers > 0 then round(wa.${m}_watch_sec / 60.0 / wa.${m}_watchers, 1)::float8 end as avg_${m}_watch_min`,
+       ).join(",\n       ")},
+       coalesce(pol.poll_answers, 0) as poll_answers,
+       coalesce(cta.cta_clicks, 0) as cta_clicks,
+       coalesce(conv.conversions_30d, 0) as conversions_30d
+from k
+left join reg on reg.webinar_id = k.webinar_id and reg.day_on = k.day_on
+left join wa on wa.webinar_id = k.webinar_id and wa.day_on = k.day_on
+left join pol on pol.webinar_id = k.webinar_id and pol.day_on = k.day_on
+left join cta on cta.webinar_id = k.webinar_id and cta.day_on = k.day_on
+left join conv on conv.webinar_id = k.webinar_id and conv.day_on = k.day_on`;
+
+export const vWebinarPerformanceDaily = pgView("v_webinar_performance_daily", {
+  webinarId: uuid("webinar_id").notNull(),
+  dayOn: date("day_on", { mode: "string" }).notNull(),
+  registrations: integer("registrations").notNull(),
+  liveAttendees: integer("live_attendees").notNull(),
+  replayViewers: integer("replay_viewers").notNull(),
+  onDemandViewers: integer("on_demand_viewers").notNull(),
+  liveWatchers: integer("live_watchers").notNull(),
+  liveWatchSec: integer("live_watch_sec").notNull(),
+  avgLiveWatchMin: doublePrecision("avg_live_watch_min"),
+  replayWatchers: integer("replay_watchers").notNull(),
+  replayWatchSec: integer("replay_watch_sec").notNull(),
+  avgReplayWatchMin: doublePrecision("avg_replay_watch_min"),
+  onDemandWatchers: integer("on_demand_watchers").notNull(),
+  onDemandWatchSec: integer("on_demand_watch_sec").notNull(),
+  avgOnDemandWatchMin: doublePrecision("avg_on_demand_watch_min"),
+  pollAnswers: integer("poll_answers").notNull(),
+  ctaClicks: integer("cta_clicks").notNull(),
+  conversions30d: integer("conversions_30d").notNull(),
+}).existing();
+
+/** The column names of `v_webinar_performance_daily`, for tests and ops' AI field lists. */
+export const WEBINAR_PERFORMANCE_DAILY_COLUMNS = [
+  "webinar_id",
+  "day_on",
+  "registrations",
+  "live_attendees",
+  "replay_viewers",
+  "on_demand_viewers",
+  ...PERF_MODES.flatMap((m) => [`${m}_watchers`, `${m}_watch_sec`, `avg_${m}_watch_min`]),
+  "poll_answers",
+  "cta_clicks",
+  "conversions_30d",
+] as const;

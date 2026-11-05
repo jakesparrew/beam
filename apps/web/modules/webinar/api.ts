@@ -1,14 +1,14 @@
 /**
  * webinar's cross-module door (02-data-model section 6.12, webinar spec 4.7). Every function
  * another module calls in R2-R4 is declared here with its final signature; each takes the
- * caller's `db`/`tx` first (OD-15). Until its webinar package lands a function throws
- * `NotImplementedError('webinar.<fn>')`. webinar-P1 implemented `mergePersons`; webinar-P3 the
- * registration and discovery functions (`getWebinarForSession`, `listPublicWebinars`,
+ * caller's `db`/`tx` first (OD-15). Every function is implemented now: webinar-P1 implemented
+ * `mergePersons`; webinar-P3 the registration and discovery functions (`getWebinarForSession`, `listPublicWebinars`,
  * `listPersonWebinars`, `listUpcomingRegistrationsForPerson`, `getWebinarCards`, `getAccessUrl`,
  * `WebinarSignup`); webinar-P6 the ops-facing stats (`getPersonWebinarStats`,
  * `countWebinarLeadsWithoutBooking`, `listWebinarLeadsWithoutBooking`, `listUpcomingWebinarHealth`,
  * built in `server/report.ts`); webinar-P7 the marketing figures (`getWebinarKpis`,
- * `funnelByCampaign`, built in `server/kpis.ts`).
+ * `funnelByCampaign`, built in `server/kpis.ts`); webinar-P8 the R4 weekly facts
+ * (`getWebinarWeeklyFacts`, built in `server/ai-facts.ts` over `v_webinar_performance_daily`).
  *
  * Implementing packages: webinar-P3 (`getWebinarForSession`, `listPublicWebinars`,
  * `listPersonWebinars`, `listUpcomingRegistrationsForPerson`, `getWebinarCards`, `getAccessUrl`,
@@ -18,7 +18,6 @@
  */
 import type { DbOrTx, Tx } from "@beam/db";
 import { webinarPresenters, webinarRegistrations, webinars } from "@beam/db/schema";
-import { NotImplementedError } from "@beam/core/errors";
 import { URL_SEGMENT, type Locale, type LocalizedText } from "@beam/core/i18n";
 import { titleIn, webinarLandingUrl } from "@beam/email/templates/webinar";
 import { and, eq, inArray, notInArray, sql } from "@/lib/ctx";
@@ -27,12 +26,12 @@ import { PUBLIC_STATUSES, isUpcoming, listPersonRegistrations, listPublicWebinar
 import { accessUrlOf } from "./server/registration";
 import { countLeadsWithoutBooking, listLeadsWithoutBooking, personWebinarStats, upcomingWebinarHealth } from "./server/report";
 import { funnelByCampaign as campaignFunnel, webinarKpis, type CampaignFunnelRow } from "./server/kpis";
+import { webinarWeeklyFacts } from "./server/ai-facts";
 import type { WebinarRow } from "./server/lifecycle";
 
 export type { WatchMode, WebinarMode, WebinarStatus } from "@beam/core/webinar";
 export type { CampaignFunnelRow } from "./server/kpis";
 
-const notYet = <T>(fn: string): Promise<T> => Promise.reject(new NotImplementedError(`webinar.${fn}`));
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 export type WebinarSummary = {
@@ -200,9 +199,14 @@ export function funnelByCampaign(db: DbOrTx, input: { from: Date; to: Date; peri
   return campaignFunnel(db, input);
 }
 
-/** R4. */
-export function getWebinarWeeklyFacts(_db: DbOrTx, _weekStart: Date): Promise<Array<{ fact: string; value: number }>> {
-  return notYet("getWebinarWeeklyFacts");
+/**
+ * R4, ops' weekly management summary (rule 78): non-personal sums of `v_webinar_performance_daily`
+ * over the seven Brussels days starting on the date of `weekStart`, as the facts
+ * `registrations`, `live_attendees`, `replay_viewers`, `on_demand_viewers`, `avg_live_watch_min`,
+ * `cta_clicks` and `conversions_30d` (in that order; see `server/ai-facts.ts`).
+ */
+export function getWebinarWeeklyFacts(db: DbOrTx, weekStart: Date): Promise<Array<{ fact: string; value: number }>> {
+  return webinarWeeklyFacts(db, weekStart);
 }
 
 /**

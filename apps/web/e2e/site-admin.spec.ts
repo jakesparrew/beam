@@ -84,7 +84,9 @@ test("marketing creates, publishes and renames an offer page", async ({ page }) 
 
   // A new page is incomplete: the issue list names what is missing before publishing.
   await expect(page.getByRole("heading", { name: label("editor.issues") })).toBeVisible();
-  await expect(page.getByText(label("issue.blocks_empty")).first()).toBeVisible();
+  // Each issue line names its locale first ("nl-BE: Add at least one block.").
+  const blocksEmpty = new RegExp(`^nl-BE: ${label("issue.blocks_empty").source.slice(1)}`);
+  await expect(page.getByText(blocksEmpty).first()).toBeVisible();
 
   // Fill every locale: a hero, an image with the uploaded media, and the SEO texts.
   for (const l of ["nl-BE", "fr-BE", "en"] as const) {

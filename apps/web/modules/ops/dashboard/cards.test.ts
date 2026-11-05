@@ -262,6 +262,7 @@ describe("permissions (ops spec 7)", () => {
     }
     const [c] = (await getActionDashboard(ctxFor())).filter((x) => x.key === "webinar_leads_not_booked");
     expect(c!.rows).toHaveLength(10);
-    expect(c!.count).toBeGreaterThan(10);
+    // From R2 the imported registrations are the card's second figure (webinar's native count is `count`).
+    expect(c!.count + (c!.secondary?.count ?? 0)).toBeGreaterThan(10);
   });
 });

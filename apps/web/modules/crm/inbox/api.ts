@@ -23,7 +23,7 @@ import { inboxMessages, inboxReplyTemplates, inboxThreads, persons, type InboxCh
 import type { Locale, LocalizedText } from "@beam/core/i18n";
 import { missingLocales } from "@beam/core/i18n";
 import type { MetaInbound } from "@beam/integrations/meta-messaging";
-import { and, ConflictError, desc, eq, isNull, ne, NotFoundError, sql, ValidationError, type Ctx, type JobKind } from "@/lib/ctx";
+import { and, ConflictError, desc, eq, isNull, ne, NotFoundError, sql, ValidationError, type Ctx } from "@/lib/ctx";
 import { getSetting } from "@/lib/settings";
 import type { EventCtx } from "../api";
 
@@ -349,7 +349,7 @@ export async function replyStaffThread(ctx: Ctx, input: { threadId: string; body
   const messageId = msg!.id;
 
   if (meta) {
-    await ctx.enqueue({ kind: "crm.send_meta_reply" as JobKind, payload: { messageId }, key: `meta_reply:${messageId}`, priority: 1 });
+    await ctx.enqueue({ kind: "crm.send_meta_reply", payload: { messageId }, key: `meta_reply:${messageId}`, priority: 1 });
   } else {
     const ids = await inboundMessageIds(tx, t.id);
     const last = ids.at(-1);

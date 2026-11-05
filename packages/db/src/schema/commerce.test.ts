@@ -256,14 +256,18 @@ describe("orders and order_lines foreign keys (fix-w05-schema-1)", () => {
     const membership = await makeMembership(h.db);
     const renewal = await makeOrder({ channel: "recurring", renewalMembershipId: membership.id, renewalPeriodEndOn: "2027-03-01" });
     await h.db.execute(sql`delete from companies where id = ${company.id}`);
-    // `orders_renewal_chk` pairs the membership with its period end, so a renewal order's
-    // membership can only go together with the period end; the FK itself is `set null`.
-    const err = await pgError(h.db.execute(sql`delete from memberships where id = ${membership.id}`));
-    expect(err.message).toContain("orders_renewal_chk");
+    // `orders_renewal_chk` only requires a period end while a membership is linked
+    // (fix-w09-credits-review request, served by commerce-P9), so the `set null` FK lets the
+    // membership go and the renewal order keeps its period.
+    await h.db.execute(sql`delete from memberships where id = ${membership.id}`);
     const [after] = await h.db.select().from(orders).where(sql`${orders.id} = ${b2b.id}`);
     expect(after!.companyId).toBeNull();
     const [kept] = await h.db.select().from(orders).where(sql`${orders.id} = ${renewal.id}`);
-    expect(kept!.renewalMembershipId).toBe(membership.id);
+    expect(kept!.renewalMembershipId).toBeNull();
+    expect(kept!.renewalPeriodEndOn).toBe("2027-03-01");
+    // A linked membership without its period end is still refused.
+    const other = await makeMembership(h.db);
+    expect((await pgError(makeOrder({ channel: "recurring", renewalMembershipId: other.id, renewalPeriodEndOn: null }))).message).toContain("orders_renewal_chk");
   });
 
   it("a company-only order blocks deleting its company (orders_person_chk)", async () => {

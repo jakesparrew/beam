@@ -635,6 +635,43 @@
     "blocks": {
       "event_opens_for_you": "Opent voor jou op {date}",
       "event_view": "Bekijk het evenement"
+    },
+    "ai": {
+      "tab_manual": "Handmatig starten",
+      "tab_ai": "Opstellen met AI",
+      "intro": "Beschrijf de campagne. Claude stelt onderwerp, preheader en inhoud op in het Nederlands, Frans en Engels op basis van de tone of voice van BEAM, eerdere campagnes en de evenementen die je kiest. Jij leest en bewerkt alles na; er wordt niets automatisch ingepland.",
+      "brief": "Briefing",
+      "brief_hint": "Waarover gaat de campagne, voor wie is ze en wat moeten lezers doen? 10 tot 4.000 tekens. Vermeld geen persoonsgegevens.",
+      "purpose": "Doel",
+      "sessions": "Evenementen (maximaal 3)",
+      "sessions_none": "Geen komende evenementen",
+      "segment": "Segmentsuggestie",
+      "segment_none": "Geen voorkeur",
+      "request": "AI-concept aanvragen",
+      "requested": "Concept aangevraagd. Het is meestal binnen een minuut klaar.",
+      "drafts_title": "Jouw AI-concepten",
+      "drafts_empty": "Nog geen AI-concepten",
+      "status_queued": "Wordt opgesteld…",
+      "status_ready": "Klaar om na te lezen",
+      "status_failed": "Mislukt",
+      "status_accepted": "Aanvaard",
+      "status_discarded": "Verworpen",
+      "unavailable": "AI niet beschikbaar, schrijf handmatig",
+      "error_budget": "Het maandelijkse AI-budget is op. Schrijf deze campagne handmatig.",
+      "subject": "Onderwerp",
+      "preheader": "Preheader",
+      "suggested_segment": "Voorgesteld publiek",
+      "suggested_send_at": "Voorgesteld verzendmoment",
+      "notes": "Aandachtspunten bij het nalezen",
+      "blocks": "Inhoudsblokken",
+      "campaign_name": "Naam van de campagne",
+      "accept": "Conceptcampagne aanmaken",
+      "accept_note": "Maakt een conceptcampagne die je kunt bewerken. Inplannen blijft een aparte stap.",
+      "discard": "Verwerpen",
+      "open_campaign": "Campagne openen",
+      "refresh": "Vernieuwen",
+      "no_permission": "Opstellen met AI vereist de AI-machtiging (ai.use).",
+      "error_generic": "Er ging iets mis. Probeer opnieuw."
     }
   }
 }

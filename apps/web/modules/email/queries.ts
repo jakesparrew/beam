@@ -16,6 +16,9 @@
  * `listCampaignRecipients(db, { campaignId, status?, q?, page, pageSize: 50 }, { unmasked })`
  * (addresses masked unless `persons.read`).
  *
+ * email-P10 (R4): `listAiDrafts(db, { createdByUserId?, campaignId?, limit? })`, the newest AI
+ * drafts with their parsed output (the "Draft with AI" tab of `/admin/campaigns/new`).
+ *
  * The pages call these after `requireStaff({ permission: 'email.write' })` (spec: staff queries
  * need `email.write`); the functions take the database so tests and pages share them.
  */
@@ -37,6 +40,7 @@ import { brusselsDayBounds, warmupCap, warmupWeek } from "@beam/core/email";
 import { readFile } from "@/lib/files";
 import { rowsOf } from "@/lib/sensitive";
 import { getSetting } from "@/lib/settings";
+import { listAiDraftRows, type AiDraftListRow } from "./server/ai-draft";
 import { campaignAttributionTotals, type AttributionTotals } from "./server/attribution";
 import type { ComplaintState } from "./server/complaints";
 import { getCampaignReport as baseCampaignReport, type CampaignReport as BaseCampaignReport } from "./server/reports";
@@ -47,6 +51,7 @@ import { draftVersionOf, listTemplateRows, loadTemplateDetail, loadTemplateVersi
 
 export type { CampaignDetail, CampaignListRow, RecipientListRow, ReviewChecklist } from "./server/campaigns";
 export type { AudienceEstimate } from "./server/plan";
+export type { AiDraftListRow } from "./server/ai-draft";
 export { getAudienceEstimate } from "./server/plan";
 export type { PreviewResult, PreviewWarning, RecipientContext } from "./server/preview";
 export type { TemplateDetail, TemplateListRow } from "./server/templates";
@@ -484,4 +489,9 @@ export async function getDeliverability(db: DbOrTx, now: Date = new Date()): Pro
     suppressions: supp.map((s) => ({ id: s.id, email: maskEmail(s.email), reason: s.reason, scope: s.scope, createdAt: new Date(s.created_at) })),
     hasAnyMessage: n("any_message") > 0,
   };
+}
+
+/** R4: the newest AI campaign drafts (email spec section 4 "Queries"); pages require `email.write`. */
+export async function listAiDrafts(db: DbOrTx, input: { createdByUserId?: string; campaignId?: string; limit?: number } = {}): Promise<AiDraftListRow[]> {
+  return listAiDraftRows(db, input);
 }

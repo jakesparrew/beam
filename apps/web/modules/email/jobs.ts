@@ -37,6 +37,11 @@
  * - `email.watch_complaints` (fast, 5; schedule every 15 minutes): rule 38, and rule 37
  *   re-evaluated for campaigns `sending` (`server/complaints.ts`).
  * - `email.watch_delivery` (fast, 3; schedule every 5 minutes): rule 38a (`server/delivery-watch.ts`).
+ *
+ * email-P10, R4 AI drafts:
+ * - `ai.draft_email` (fast, 5; 2 attempts; key `ai:draft:<draft_id>`): section 6 Claude draft of a
+ *   campaign from aggregates only (`server/ai-draft.ts`); a budget stop, a refusal or invalid
+ *   output on the last attempt leaves the draft `failed` with the error code, and so does `onDead`.
  */
 import { z } from "zod";
 import type { AiFeatureKey } from "@beam/core/ai";
@@ -46,6 +51,7 @@ import { defineJob, type JobCtx } from "@/lib/job-runner";
 import { rowsOf } from "@/lib/sensitive";
 import { defineWebhookHandler } from "@/lib/webhooks";
 import { CampaignChunkJobInput, CampaignPlanJobInput } from "@beam/core/email";
+import { AI_DRAFT_MAX_ATTEMPTS, DraftEmailJobInput, onDraftEmailDead, runDraftEmail } from "./server/ai-draft";
 import { watchComplaints } from "./server/complaints";
 import { watchDelivery } from "./server/delivery-watch";
 import { freezeCampaignStats, freezeDueStats } from "./server/freeze";
@@ -117,6 +123,16 @@ export const jobs = [
   defineJob({ kind: "email.freeze_due_stats", lane: "bulk", priority: 9, maxAttempts: 3, input: z.object({}).passthrough(), run: freezeDueStats }),
   defineJob({ kind: "email.watch_complaints", lane: "fast", priority: 5, maxAttempts: 3, input: z.object({}).passthrough(), run: watchComplaints }),
   defineJob({ kind: "email.watch_delivery", lane: "fast", priority: 3, maxAttempts: 3, input: z.object({}).passthrough(), run: watchDelivery }),
+  defineJob({
+    kind: "ai.draft_email",
+    lane: "fast",
+    priority: 5,
+    maxAttempts: AI_DRAFT_MAX_ATTEMPTS,
+    timeoutMs: 120_000,
+    input: DraftEmailJobInput,
+    run: runDraftEmail,
+    onDead: onDraftEmailDead,
+  }),
 ];
 
 export const webhookHandlers = [

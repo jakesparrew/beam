@@ -13,13 +13,17 @@
  *   walks the registry and calls `insertSystemTemplate()` (this package never imports apps/web).
  *
  * Settings defaults are the declared defaults of `apps/web/modules/email/config.ts`:
- * `getSetting()` returns them while no row exists, so no settings row is written here.
+ * `getSetting()` returns them while no row exists. The one exception is `email_brand` (email-P10,
+ * R4): the declared default is empty, so the seed writes BEAM's starting tone of voice,
+ * guidelines, do-not-say list and sample phrases (`EMAIL_BRAND_DEFAULTS`) once,
+ * `on conflict (key) do nothing`, and marketing edits it from there.
  */
 import type { RetentionPolicySeed } from "@beam/core/privacy";
 import type { BlockDocument } from "@beam/core/email";
 import type { DbOrTx } from "../client";
 import type { LocalizedText } from "../schema/_shared";
 import { emailTemplates, emailTemplateVersions } from "../schema/email";
+import { settings } from "../schema/platform";
 import { eq } from "drizzle-orm";
 import { insertRetentionPolicies } from "./ops";
 import type { DefaultSeed } from "./run";
@@ -49,6 +53,28 @@ export const EMAIL_RETENTION_POLICIES: readonly RetentionPolicySeed[] = [
   },
   { key: "email.email_ai_drafts", tableName: "email_ai_drafts", days: 365, action: "delete", description: "AI campaign drafts after 1 year", runOrder: 420, batchSize: 5000 },
 ];
+
+/** `settings.email_brand` starting values for AI campaign drafts (email spec section 6). */
+export const EMAIL_BRAND_DEFAULTS = {
+  tone_of_voice:
+    "Warm, encouraging and personal, like a coach who knows you. Short sentences, active verbs, no jargon. We say 'je' in Dutch, 'vous' in French and 'you' in English. Energetic but calm; never pushy.",
+  guidelines:
+    "Lead with the benefit for the reader, then the practical details (date, time, place). One clear call to action per email. Keep subjects under 50 characters and preheaders under 90. Mention member advantages only when they apply to the audience. No medical promises or health claims; speak about feeling stronger, fitter and more energetic. Write each language natively instead of translating word for word.",
+  do_not_say: ["miracle", "guaranteed results", "lose weight fast", "cure", "last chance", "act now", "100% free"],
+  sample_phrases: [
+    { "nl-BE": "Klaar om je sterker te voelen?", "fr-BE": "Prêt à vous sentir plus fort ?", en: "Ready to feel stronger?" },
+    { "nl-BE": "We zien je graag in BEAM.", "fr-BE": "Au plaisir de vous voir chez BEAM.", en: "We look forward to seeing you at BEAM." },
+    { "nl-BE": "Reserveer je plek in de app of op onze website.", "fr-BE": "Réservez votre place dans l'app ou sur notre site.", en: "Book your spot in the app or on our website." },
+  ],
+} as const satisfies { tone_of_voice: string; guidelines: string; do_not_say: readonly string[]; sample_phrases: readonly LocalizedText[] };
+
+/** Writes `settings.email_brand` unless a row exists (a staff edit survives every reseed). */
+export async function insertEmailBrandDefaults(db: DbOrTx): Promise<void> {
+  await db
+    .insert(settings)
+    .values({ key: "email_brand", value: { ...EMAIL_BRAND_DEFAULTS, do_not_say: [...EMAIL_BRAND_DEFAULTS.do_not_say], sample_phrases: EMAIL_BRAND_DEFAULTS.sample_phrases.map((p) => ({ ...p })) } })
+    .onConflictDoNothing({ target: settings.key });
+}
 
 export type SystemTemplateInput = {
   /** The registry key `<module>.<name>`. */
@@ -150,5 +176,6 @@ export const seed: DefaultSeed = {
   after: ["platform", "ops"],
   run: async (db) => {
     await insertRetentionPolicies(db, EMAIL_RETENTION_POLICIES);
+    await insertEmailBrandDefaults(db);
   },
 };

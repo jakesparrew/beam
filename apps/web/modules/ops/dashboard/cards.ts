@@ -10,19 +10,29 @@
  * V1 cards: packages nearing completion (23), VIP inactive (24), new leads (25), memberships
  * expiring (27), failed payments (28), webinar leads from imported registrations (29), unused
  * packages expiring (30), overdue tasks (32) and privacy requests near their due date (screen
- * table, `privacy.run`). `b2b_proposals` (R3) and `shared_package_abuse` (R2) are added by the
- * packages of those releases.
+ * table, `privacy.run`). `b2b_proposals` (R3) is added by its release package.
+ *
+ * R2 (ops-P7): rule 29's native part comes from webinar's one definition: the count is
+ * `countWebinarLeadsWithoutBooking(db, { startedSince })` and the first rows come from
+ * `listWebinarLeadsWithoutBooking`; the imported (old-tool) registrations keep the V1 query and
+ * are shown apart as `secondary` ("imported"), their rows after the native ones. Rule 31's
+ * `shared_package_abuse` counts credits' `countSharingReviewItems` plus the flagged waitlist
+ * entries, lists credits' `listSharingReview` rows then those entries, and links to credits'
+ * review screen. A card with a `load` function computes itself; the others are one SQL query.
  */
 import type { DbOrTx, Tx } from "@beam/db";
-import { persons, sessionExceptions, tasks, users } from "@beam/db/schema";
+import { creditGrants, persons, sessionExceptions, tasks, users } from "@beam/db/schema";
 import { DEFAULT_BUSINESS_HOURS } from "@beam/core/booking";
 import type { TaskKind } from "@beam/core/crm";
 import { t, type Locale } from "@beam/core/i18n";
 import { nextBusinessDay, periodRange, type ActionCardKey, type RetentionDefaults, type RetentionReason } from "@beam/core/ops";
+import { NotImplementedError } from "@beam/core/errors";
 import { and, eq, gte, inArray, isNull, lte, NotFoundError, sql, ValidationError, type Actor, type Permission, type SQL } from "@/lib/ctx";
 import { rowsOf } from "@/lib/sensitive";
 import { getSetting } from "@/lib/settings";
+import { countSharingReviewItems, listSharingReview } from "@/modules/credits/api";
 import { createTask, type EventCtx } from "@/modules/crm/api";
+import { countWebinarLeadsWithoutBooking, listWebinarLeadsWithoutBooking } from "@/modules/webinar/api";
 import { holdsAny } from "../reports/registry";
 import { brusselsDate } from "../reports/revenue";
 
@@ -44,6 +54,10 @@ export type ActionCard = {
   rows: ActionCardRow[];
   /** "Create task" is offered on the rows (the card makes tasks and the actor holds `tasks.all`). */
   canCreateTask: boolean;
+  /** A second figure shown apart from `count` (rule 29: the imported registrations, label `ops.dashboard.card.<key>.secondary`). */
+  secondary?: { key: "imported"; count: number };
+  /** Where the card's list is worked on, when another module's screen owns it (rule 31: credits' sharing review). */
+  linkHref?: string;
 };
 
 export type CardEnv = { now: Date; cfg: RetentionDefaults; add: number; view: DashboardView; actor: Actor };
@@ -56,6 +70,8 @@ type CardDef = {
   reason?: RetentionReason;
   createsTasks: boolean;
   query: (env: CardEnv) => { base: SQL; order: SQL };
+  /** A card that computes itself (R2 cards over other modules' api); `sqlCard` runs `query` as a plain card. */
+  load?: (db: DbOrTx, env: CardEnv, limit: number, sqlCard: () => Promise<ActionCard>) => Promise<ActionCard>;
 };
 
 /** The permissions that open the dashboard itself (ops spec 7). */
@@ -149,6 +165,7 @@ export const CARDS: readonly CardDef[] = [
     key: "webinar_leads_not_booked",
     anyOf: null,
     createsTasks: true,
+    load: loadWebinarLeads,
     query: ({ now, cfg, add }) => ({
       base: sql`select * from (
           select distinct on (ih.person_id) ih.person_id, 'imported_history' as ref_type, ih.id::text as ref_id,
@@ -163,6 +180,14 @@ export const CARDS: readonly CardDef[] = [
           order by ih.person_id, ih.occurred_at desc) wl`,
       order: sql`b.sort1 desc, b.person_id`,
     }),
+  },
+  // Rule 31 (R2): credits' sharing review items plus flagged waitlist entries; reviewed on credits' screen.
+  {
+    key: "shared_package_abuse",
+    anyOf: ["credits.read"],
+    createsTasks: true,
+    load: loadSharedPackageAbuse,
+    query: () => ({ base: FLAGGED_WAITLIST, order: sql`b.sort1 desc, b.ref_id` }),
   },
   // Rule 30: rows of reason `package_expiring`, the expiry window widened in the week view.
   {
@@ -221,6 +246,11 @@ type RawRow = { person_id: string | null; ref_type: string; ref_id: string; para
 
 /** Count and the first `limit` rows of one card. */
 export async function loadCard(db: DbOrTx, card: CardDef, env: CardEnv, limit: number): Promise<ActionCard> {
+  const sqlCard = () => loadSqlCard(db, card, env, limit);
+  return card.load ? card.load(db, env, limit, sqlCard) : sqlCard();
+}
+
+async function loadSqlCard(db: DbOrTx, card: CardDef, env: CardEnv, limit: number): Promise<ActionCard> {
   const { base, order } = card.query(env);
   const raw = rowsOf<RawRow>(
     await db.execute(sql`select b.person_id, b.ref_type, b.ref_id, b.params, count(*) over () as total,
@@ -242,6 +272,88 @@ export async function loadCard(db: DbOrTx, card: CardDef, env: CardEnv, limit: n
       };
     }),
     canCreateTask: card.createsTasks && holdsAny(env.actor, "tasks.all"),
+  };
+}
+
+// ---------------------------------------------------------------------------------------------
+// R2 cards over other modules' api (rules 29 and 31)
+// ---------------------------------------------------------------------------------------------
+
+const isStub = (e: unknown) => e instanceof NotImplementedError || (e as { name?: string } | null)?.name === "NotImplementedError";
+
+/** Display names of `personIds` (staff screen). */
+async function namesOf(db: DbOrTx, personIds: string[]): Promise<Map<string, string | null>> {
+  const ids = [...new Set(personIds)];
+  if (!ids.length) return new Map();
+  const rows = await db
+    .select({ id: persons.id, name: sql<string | null>`nullif(trim(concat_ws(' ', ${persons.firstName}, ${persons.lastName})), '')` })
+    .from(persons)
+    .where(inArray(persons.id, ids));
+  return new Map(rows.map((r) => [r.id, r.name]));
+}
+
+/**
+ * Rule 29 from R2: the native count and first rows from webinar's api (registrations of webinars
+ * started since `now - (webinar_lead_window_days + add)` days), the imported registrations as the
+ * second figure. While webinar's functions are not implemented, the card stays the V1 card.
+ */
+async function loadWebinarLeads(db: DbOrTx, env: CardEnv, limit: number, sqlCard: () => Promise<ActionCard>): Promise<ActionCard> {
+  const imported = await sqlCard();
+  const startedSince = new Date(env.now.getTime() - (env.cfg.webinar_lead_window_days + env.add) * 86_400_000);
+  let count: number;
+  let native: Awaited<ReturnType<typeof listWebinarLeadsWithoutBooking>>;
+  try {
+    count = await countWebinarLeadsWithoutBooking(db, { startedSince });
+    native = await listWebinarLeadsWithoutBooking(db, { startedSince, limit });
+  } catch (error) {
+    if (isStub(error)) return imported;
+    throw error;
+  }
+  const names = await namesOf(db, native.map((r) => r.personId));
+  const rows: ActionCardRow[] = native.slice(0, limit).map((r) => ({
+    personId: r.personId,
+    name: names.get(r.personId) ?? null,
+    refType: "webinar",
+    refId: r.webinarId,
+    params: { date: new Date(r.registeredAt).toISOString() },
+  }));
+  return { ...imported, count, rows: [...rows, ...imported.rows].slice(0, limit), secondary: { key: "imported", count: imported.count } };
+}
+
+/** Waitlist entries flagged as duplicates (rule 31), as card rows. */
+const FLAGGED_WAITLIST = sql`select w.person_id, 'waitlist_entry' as ref_type, w.id::text as ref_id, extract(epoch from w.created_at)::numeric as sort1,
+    jsonb_build_object('date', w.created_at) as params
+  from waitlist_entries w join persons pe on pe.id = w.person_id
+  where w.is_flagged_duplicate and w.state in ('waiting', 'offered') and pe.is_tester = false`;
+
+/** Credits' review screen of rule 31. */
+export const SHARING_REVIEW_HREF = "/admin/credits/sharing-review";
+
+/** Rule 31: credits' `countSharingReviewItems` plus the flagged waitlist entries; credits' rows first. */
+async function loadSharedPackageAbuse(db: DbOrTx, _env: CardEnv, limit: number, sqlCard: () => Promise<ActionCard>): Promise<ActionCard> {
+  const waitlist = await sqlCard();
+  const [reviewCount, review] = [await countSharingReviewItems(db), await listSharingReview(db, { limit })];
+  const grantIds = review.flatMap((r) => (r.rule === "many_guests" && r.grantId ? [r.grantId] : []));
+  const owners = new Map<string, string>();
+  if (grantIds.length) {
+    const rows = await db.select({ id: creditGrants.id, personId: creditGrants.personId }).from(creditGrants).where(inArray(creditGrants.id, grantIds));
+    for (const r of rows) owners.set(r.id, r.personId);
+  }
+  const reviewRows = review.map((r) => {
+    const personId = r.rule === "many_guests" ? (r.grantId ? (owners.get(r.grantId) ?? null) : null) : r.guestPersonId;
+    return {
+      personId,
+      refType: r.rule === "many_guests" ? "credit_grant" : "person",
+      refId: (r.rule === "many_guests" ? r.grantId : r.guestPersonId) ?? "",
+      params: { guests: r.distinctCount, rule: r.rule, date: new Date(r.lastAt).toISOString() } as Record<string, string | number | null>,
+    };
+  });
+  const names = await namesOf(db, reviewRows.flatMap((r) => (r.personId ? [r.personId] : [])));
+  return {
+    ...waitlist,
+    count: reviewCount + waitlist.count,
+    rows: [...reviewRows.map((r) => ({ ...r, name: r.personId ? (names.get(r.personId) ?? null) : null })), ...waitlist.rows].slice(0, limit),
+    linkHref: SHARING_REVIEW_HREF,
   };
 }
 

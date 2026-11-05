@@ -26,11 +26,11 @@ import {
   type DupCandidate,
   type PaidWith,
 } from "@beam/core/booking";
-import { URL_SEGMENT, formatDateTime, pick, type Locale } from "@beam/core/i18n";
+import { URL_SEGMENT, formatDateTime, missingLocales, pick, type Locale } from "@beam/core/i18n";
 import { NotFoundError, ValidationError, actorHasPermission, and, createCtx, eq, gt, inArray, ne, or, sql, writeDurably, type Ctx } from "@/lib/ctx";
 import { getSetting } from "@/lib/settings";
 import { createOrder } from "@/modules/commerce/api";
-import { InsufficientCreditsError, SharingNotAllowedError, consumeCredits, getMembershipForPerson } from "@/modules/credits/api";
+import { InsufficientCreditsError, SharingNotAllowedError, checkCredits, consumeCredits, getMembershipForPerson } from "@/modules/credits/api";
 import { createPersonWithoutEmail, findOrCreatePersonByEmail, getPersonStatus } from "@/modules/crm/api";
 import { sendTransactional } from "@/modules/email/api";
 import { ensureHealthAndContact, type EmergencyContactInput } from "./declarations";
@@ -398,6 +398,96 @@ async function holdFree(tx: Tx, holdId: string, sessionId: string): Promise<numb
   return hold.quantity - Number(used?.n ?? 0);
 }
 
+// ---------------------------------------------------------------------------
+// Ticket types (R2, R50-R52; booking-P8)
+// ---------------------------------------------------------------------------
+
+export type TicketTypeRow = typeof ticketTypes.$inferSelect;
+
+/**
+ * R51: a ticket type is on sale while active, from `sales_start_at` (null = from publication)
+ * until `sales_end_at` (null = until the session starts). Same rule as `v_ticket_type_availability`,
+ * evaluated at `now` so callers can pin the clock.
+ */
+export function isTicketOnSale(t: Pick<TicketTypeRow, "isActive" | "salesStartAt" | "salesEndAt">, session: Pick<SessionRow, "startsAt">, now: Date): boolean {
+  if (!t.isActive) return false;
+  if (t.salesStartAt && now.getTime() < t.salesStartAt.getTime()) return false;
+  const end = t.salesEndAt ?? session.startsAt;
+  return now.getTime() < end.getTime();
+}
+
+/** R51: live rows of a ticket type (`reserved` not yet expired, `confirmed`, `attended`, `no_show`). */
+export async function ticketTypeSold(tx: DbOrTx, ticketTypeId: string, now: Date): Promise<number> {
+  const [row] = await tx
+    .select({ n: sql<number>`count(*)::int` })
+    .from(bookings)
+    .where(
+      and(
+        eq(bookings.ticketTypeId, ticketTypeId),
+        or(inArray(bookings.status, ["confirmed", "attended", "no_show"]), and(eq(bookings.status, "reserved"), gt(bookings.reservedUntil, now))),
+      ),
+    );
+  return Number(row?.n ?? 0);
+}
+
+/** The active ticket types of a session, in `sort_order`. */
+export function activeTicketTypes(db: DbOrTx, sessionId: string): Promise<TicketTypeRow[]> {
+  return db
+    .select()
+    .from(ticketTypes)
+    .where(and(eq(ticketTypes.sessionId, sessionId), eq(ticketTypes.isActive, true)))
+    .orderBy(ticketTypes.sortOrder, ticketTypes.createdAt);
+}
+
+/**
+ * R50: before an event is published every active ticket type name is complete in all three
+ * locales. Throws `validation` with `ticketTypes.<id>.name.<locale>` fields. `publishSession`
+ * calls it (booking-P8 request); `upsertTicketType` applies the same rule on a published event.
+ */
+export async function assertTicketTypesPublishable(db: DbOrTx, sessionId: string): Promise<void> {
+  const fields: Record<string, string> = {};
+  for (const t of await activeTicketTypes(db, sessionId)) for (const l of missingLocales(t.name)) fields[`ticketTypes.${t.id}.name.${l}`] = "missing";
+  if (Object.keys(fields).length) throw new ValidationError("missing_translation", fields);
+}
+
+/**
+ * R51, R52: the ticket type of a booking, checked. An event with active ticket types needs one on
+ * every booking (holds excepted: a hold seat is not sold); it must belong to the session, be on
+ * sale (staff with `bookings.override` may sell outside the window), respect `is_member_only`
+ * (override bypasses) and `max_per_booking` (owner plus guests); with `requires_guest_details`
+ * every guest needs a first and last name. Null when the booking carries no type.
+ */
+async function resolveTicketType(
+  tx: Tx,
+  session: SessionRow,
+  input: Pick<BookSeatsInput, "ticketTypeId" | "holdId" | "personId">,
+  guests: GuestSeatInput[],
+  opts: { staff: boolean; override: boolean; now: Date },
+): Promise<TicketTypeRow | null> {
+  if (!input.ticketTypeId) {
+    if (session.kind === "event" && !input.holdId && (await activeTicketTypes(tx, session.id)).length > 0) {
+      throw new ValidationError("ticket_type_required", { ticketTypeId: "required" });
+    }
+    return null;
+  }
+  const [tt] = await tx.select().from(ticketTypes).where(and(eq(ticketTypes.id, input.ticketTypeId), eq(ticketTypes.sessionId, session.id)));
+  if (!tt || !tt.isActive) throw new BookingConflictError("not_on_sale");
+  if (!isTicketOnSale(tt, session, opts.now) && !opts.override) throw new BookingConflictError("not_on_sale", { ticketTypeId: tt.id });
+  if (tt.isMemberOnly && !opts.override && !(await getMembershipForPerson(tx, input.personId)).isMember) {
+    throw new BookingConflictError("member_only", { ticketTypeId: tt.id });
+  }
+  if (1 + guests.length > tt.maxPerBooking) throw new ValidationError("too_many_tickets", { guests: `max_per_booking:${tt.maxPerBooking}` });
+  if (tt.requiresGuestDetails) {
+    const fields: Record<string, string> = {};
+    guests.forEach((g, i) => {
+      if (!g.firstName?.trim()) fields[`guests.${i}.firstName`] = "required";
+      if (!g.lastName?.trim()) fields[`guests.${i}.lastName`] = "required";
+    });
+    if (Object.keys(fields).length) throw new ValidationError("guest_details_required", fields);
+  }
+  return tt;
+}
+
 /** Books the owner and guests (R8-R19, R54-R56, R62, R62b, R63). Runs in the caller's transaction. */
 export async function bookSeats(tx: Tx, ctx: Ctx, input: BookSeatsInput): Promise<BookResult> {
   const staff = input.by === "staff";
@@ -425,12 +515,9 @@ export async function bookSeats(tx: Tx, ctx: Ctx, input: BookSeatsInput): Promis
   const sharers = guests.filter((g) => g.sharesBed).length;
   if (sharers > 0 && (session.kind !== "night" || sharers > rules.max_shared_bed_guests_per_booking)) throw new BookingConflictError("shared_bed_limit");
 
-  let productId = session.productId;
-  if (input.ticketTypeId) {
-    const [tt] = await tx.select().from(ticketTypes).where(and(eq(ticketTypes.id, input.ticketTypeId), eq(ticketTypes.sessionId, session.id)));
-    if (!tt || !tt.isActive) throw new BookingConflictError("not_on_sale");
-    productId = tt.productId;
-  }
+  // R51, R52 (booking-P8): ticket type checks under the session lock.
+  const ticket = await resolveTicketType(tx, session, input, guests, { staff, override, now: ctx.now });
+  const productId = ticket ? ticket.productId : session.productId;
   const payOpts = { staff, override, reason: input.reason };
   assertPayable(session, input.payWith, productId, payOpts);
   for (const g of guests) assertPayable(session, g.payWith, productId, payOpts);
@@ -511,6 +598,14 @@ export async function bookSeats(tx: Tx, ctx: Ctx, input: BookSeatsInput): Promis
     }
     if (free < units) {
       if (!(override && input.overCapacity)) throw new SessionFullError({ free, needed: units });
+      isOverCapacity = true;
+    }
+  }
+  // R51: the ticket type's own capacity (the session capacity above stays the hard limit).
+  if (ticket && ticket.capacity !== null) {
+    const left = ticket.capacity - (await ticketTypeSold(tx, ticket.id, ctx.now));
+    if (left < rows.length) {
+      if (!(override && input.overCapacity)) throw new SessionFullError({ ticketTypeId: ticket.id, free: Math.max(0, left), needed: rows.length });
       isOverCapacity = true;
     }
   }
@@ -640,4 +735,21 @@ export async function bookSeats(tx: Tx, ctx: Ctx, input: BookSeatsInput): Promis
   if (!orderId) return { kind: "confirmed", bookingIds };
   const redirectTo = staff ? `/admin/pos?order=${orderId}` : `/${URL_SEGMENT[locale]}/account/checkout/${orderId}`;
   return { kind: "checkout", bookingIds, orderId, redirectTo };
+}
+
+/**
+ * R55 "{n} guest uses left this month" at booking time: whether the owner's package can pay for a
+ * guest on this session now, through `credits.checkCredits` with a stand-in guest (no row is
+ * written). `usesLeft` is the number when credits can tell it (null until credits exposes the
+ * monthly count, see the booking-P8 request); `reason` is credits' refusal (`guest_limit`,
+ * `not_shareable`, `insufficient`). Null when the session cannot be paid with credits.
+ */
+export async function guestUseState(
+  db: DbOrTx,
+  ownerPersonId: string,
+  session: Pick<SessionRow, "creditKind" | "creditCost" | "startsAt">,
+): Promise<{ allowed: boolean; usesLeft: number | null; reason: string | null } | null> {
+  if (!session.creditKind || session.creditCost <= 0) return null;
+  const r = await checkCredits(db, { personId: ownerPersonId, beneficiaryPersonId: randomUUID(), kind: session.creditKind, units: session.creditCost, validAt: session.startsAt });
+  return r.ok ? { allowed: true, usesLeft: null, reason: null } : { allowed: false, usesLeft: 0, reason: r.reason };
 }

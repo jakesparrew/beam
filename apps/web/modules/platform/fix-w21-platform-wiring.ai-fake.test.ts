@@ -1,6 +1,7 @@
 import { FAKE_CUSTOMER_REVENUE_ANSWER, FAKE_DAILY_REVENUE_ANSWER } from "@beam/integrations/anthropic/fake";
 import { describe, expect, it } from "vitest";
-import { DPIA_KEYS, type DpiaKey } from "../../../../packages/core/src/ops/dpia";
+import { DPIA_KEYS } from "../../../../packages/core/src/ops/dpia";
+import type { DpiaKey } from "../../../../packages/core/src/ops/types";
 import { validateAiSql } from "../../../../packages/core/src/ops/validate-ai-sql";
 
 const noDpia = Object.fromEntries(DPIA_KEYS.map((k) => [k, false])) as Record<DpiaKey, boolean>;

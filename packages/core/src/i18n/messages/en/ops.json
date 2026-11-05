@@ -1175,8 +1175,14 @@
         "retention": "Retention",
         "b2b": "B2B",
         "marketing": "Marketing",
+        "forms": "Forms",
         "lists": "Lists",
         "finance": "Finance"
+      },
+      "forms": {
+        "funnel": "Form funnel",
+        "outcomes": "Form outcomes",
+        "conversion": "Form conversions (30 days)"
       }
     },
     "opportunity": {

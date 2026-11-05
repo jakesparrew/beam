@@ -14,7 +14,7 @@ import { eq } from "@/lib/ctx";
 import { makeJobCtx } from "@/lib/testing";
 import { rowsOf } from "@/lib/sensitive";
 import { runAiReadOnlyQuery } from "@/modules/platform/api";
-import { AI_VIEWS } from "../../../../../packages/core/src/ops/ai-schema-doc";
+import { AI_VIEWS } from "@beam/core/ops";
 
 let handle: DbHandle;
 let db: Db;

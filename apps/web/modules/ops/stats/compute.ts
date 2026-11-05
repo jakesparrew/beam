@@ -18,21 +18,21 @@
 import type { DbOrTx, Tx } from "@beam/db";
 import { personStats, type ActorJson } from "@beam/db/schema";
 import {
-  RETENTION_DEFAULTS,
+  type B2cStage,
   brusselsDate,
   computeB2cStage,
   inactivityDedupeKey,
   inactivityEventsFor,
+  type InactivityThreshold,
+  predictIndicators,
+  RETENTION_DEFAULTS,
+  type RetentionDefaults,
   stageAnchor,
   stageChangedDedupeKey,
-  type B2cStage,
-  type InactivityThreshold,
-  type RetentionDefaults,
+  tenureYears,
 } from "@beam/core/ops";
 import { sql } from "@/lib/ctx";
 import { isDpiaApproved } from "../exports/api";
-// Relative until `@beam/core/ops` re-exports `./predict` (index.ts is not ops-P9's file).
-import { predictIndicators, tenureYears } from "../../../../../packages/core/src/ops/predict";
 import { recordEvent } from "@/lib/events";
 import { rowsOf } from "@/lib/sensitive";
 import { getSetting } from "@/lib/settings";

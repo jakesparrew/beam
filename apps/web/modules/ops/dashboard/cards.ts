@@ -21,15 +21,16 @@
  * review screen. A card with a `load` function computes itself; the others are one SQL query.
  */
 import type { DbOrTx, Tx } from "@beam/db";
-import { creditGrants, persons, sessionExceptions, tasks, users } from "@beam/db/schema";
+import { creditGrants, persons, tasks, users } from "@beam/db/schema";
 import { DEFAULT_BUSINESS_HOURS } from "@beam/core/booking";
 import type { TaskKind } from "@beam/core/crm";
 import { t, type Locale } from "@beam/core/i18n";
 import { nextBusinessDay, periodRange, type ActionCardKey, type RetentionDefaults, type RetentionReason } from "@beam/core/ops";
 import { NotImplementedError } from "@beam/core/errors";
-import { and, eq, gte, inArray, isNull, lte, NotFoundError, sql, ValidationError, type Actor, type Permission, type SQL } from "@/lib/ctx";
+import { and, eq, inArray, isNull, NotFoundError, sql, ValidationError, type Actor, type Permission, type SQL } from "@/lib/ctx";
 import { rowsOf } from "@/lib/sensitive";
 import { getSetting } from "@/lib/settings";
+import { listClosedDays } from "@/modules/booking/api";
 import { countSharingReviewItems, listSharingReview } from "@/modules/credits/api";
 import { createTask, type EventCtx } from "@/modules/crm/api";
 import { countWebinarLeadsWithoutBooking, listWebinarLeadsWithoutBooking } from "@/modules/webinar/api";
@@ -405,15 +406,14 @@ export function taskTitleFor(card: ActionCardKey, locale: Locale): string {
   return t(locale, reason ? `ops.retention.task_title.${reason}` : `ops.dashboard.card.${card}.title`);
 }
 
-/** Booking's closed-day exceptions for every template (`closed`, `holiday`) from the Brussels date of `at` for a year. */
+/**
+ * Booking's closed days for every template (`closed`, `holiday`) from the Brussels date of `at`
+ * for a year, through booking's `listClosedDays` (ops reads no `session_exceptions`).
+ */
 export async function closedDaysFrom(db: DbOrTx, at: Date): Promise<string[]> {
   const from = brusselsDate(at);
   const to = brusselsDate(new Date(at.getTime() + 367 * 86_400_000));
-  const rows = await db
-    .select({ onDate: sessionExceptions.onDate })
-    .from(sessionExceptions)
-    .where(and(inArray(sessionExceptions.kind, ["closed", "holiday"]), isNull(sessionExceptions.templateIds), gte(sessionExceptions.onDate, from), lte(sessionExceptions.onDate, to)));
-  return rows.map((r) => String(r.onDate).slice(0, 10));
+  return listClosedDays(db, from, to);
 }
 
 /** 10:00 Brussels on the next business day after `at` (booking's hours and closed days, Belgian holidays). */

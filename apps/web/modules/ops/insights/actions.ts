@@ -12,12 +12,11 @@
  *
  * A "use server" file exports async functions only.
  */
-import { DeleteDashboardInput, SaveDashboardInput } from "@beam/core/ops";
+import { checkDashboardDefinition, DeleteDashboardInput, SaveDashboardInput } from "@beam/core/ops";
 import { dashboards, featureFlags, users } from "@beam/db/schema";
 import { action } from "@/lib/action";
 import { ForbiddenError } from "@beam/core/errors";
 import { eq, NotFoundError, ValidationError, type Ctx } from "@/lib/ctx";
-import { checkDashboardDefinition } from "../../../../../packages/core/src/ops/kpis";
 import { canEditDashboard, loadVisibleDashboard } from "./queries";
 
 /**

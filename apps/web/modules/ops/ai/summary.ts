@@ -19,7 +19,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { aiRequests, managementSummaries, roles, users } from "@beam/db/schema";
 import { AI_FEATURES, costCents, modelIdFor, pricingFor, type AiPricing } from "@beam/core/ai";
-import { brusselsDate, brusselsMidnight, periodRange, type RetentionReason } from "@beam/core/ops";
+import { brusselsDate, brusselsMidnight, KPI_REGISTRY, type KpiKey, periodRange, type RetentionReason } from "@beam/core/ops";
 import { LOCALES, type Locale } from "@beam/core/i18n";
 import type { ClaudeBatchItem, ClaudeRequest } from "@beam/integrations/anthropic";
 import { actorJson, and, eq, inArray, sql, writeDurably, type Actor } from "@/lib/ctx";
@@ -29,7 +29,6 @@ import type { JobCtx } from "@/lib/job-runner";
 import { rowsOf } from "@/lib/sensitive";
 import { getSetting, notifySlack } from "@/modules/platform/api";
 import { evaluateKpi } from "../insights/evaluate-kpi";
-import { KPI_REGISTRY, type KpiKey } from "../../../../../packages/core/src/ops/kpis";
 
 /** Rules 34-38: revenue, sales mix, customers, retention, B2B. */
 export const SUMMARY_KPIS = [

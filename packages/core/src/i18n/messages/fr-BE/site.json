@@ -197,6 +197,17 @@
         "noindex": "Masquer aux moteurs de recherche",
         "ogImage": "Image de partage social",
         "outOfDate": "Une version plus récente a été publiée après le début de ce brouillon.",
+        "partner": {
+          "company": "Partenaire",
+          "error": "Le partenaire n'a pas pu être enregistré. Réessayez.",
+          "help": "Les prospects des formulaires de cette page d'atterrissage sont attribués à ce partenaire. Le changement s'applique immédiatement à la page en ligne.",
+          "landingOnly": "Seules les pages d'atterrissage peuvent avoir un partenaire.",
+          "loading": "Chargement des partenaires...",
+          "none": "Aucun partenaire",
+          "save": "Enregistrer le partenaire",
+          "saved": "Partenaire enregistré.",
+          "title": "Entreprise partenaire"
+        },
         "path": "Adresse",
         "pathHelp": "Jusqu'à 3 parties de mots en minuscules reliés par des traits d'union.",
         "preview": "Aperçu",
@@ -261,6 +272,28 @@
         "title": "Import WordPress",
         "tooLarge": "Le fichier dépasse 10 Mo ; exportez pages, articles et médias séparément.",
         "upload": "Téléverser l'export WXR"
+      },
+      "insights": {
+        "apply": "Afficher",
+        "col": {
+          "campaign": "Campagne UTM",
+          "landingPath": "Chemin d'arrivée",
+          "newPersons": "Nouvelles personnes",
+          "orders": "Commandes",
+          "page": "Page d'atterrissage",
+          "revenue": "Chiffre d'affaires",
+          "submissions": "Formulaires envoyés"
+        },
+        "empty": "Aucune arrivée suivie sur cette période",
+        "export": "Exporter en CSV",
+        "from": "Du",
+        "intro": "Formulaires envoyés, nouvelles personnes, commandes et chiffre d'affaires par page d'atterrissage et campagne UTM sur la période.",
+        "noCampaign": "Aucune campagne",
+        "noPath": "Commandes sans page d'atterrissage",
+        "title": "Analyse des pages d'atterrissage",
+        "to": "Au",
+        "total": "Total",
+        "unknownPage": "Page plus en ligne"
       },
       "issue": {
         "alt_missing": "Une image n'a pas de texte alternatif dans cette langue.",
@@ -338,6 +371,7 @@
       },
       "nav": {
         "imports": "Import WordPress",
+        "insights": "Analyses",
         "media": "Médias",
         "navigation": "Navigation",
         "pages": "Pages",
@@ -527,7 +561,7 @@
     "cookies": {
       "banner": {
         "acceptAll": "Tout accepter",
-        "body": "Nous utilisons des cookies nécessaires au fonctionnement du site. Avec votre accord, nous utilisons aussi des cookies analytiques pour l'améliorer.",
+        "body": "Nous utilisons des cookies nécessaires au fonctionnement du site. Avec votre accord, nous utilisons aussi des cookies analytiques pour l'améliorer et des cookies marketing pour mesurer nos annonces.",
         "choose": "Choisir",
         "rejectAll": "Tout refuser",
         "title": "Cookies sur ce site"
@@ -539,7 +573,7 @@
         },
         "close": "Fermer",
         "marketing": {
-          "body": "Mesurer les résultats de nos annonces et mémoriser un code de parrainage.",
+          "body": "Google Ads et Meta mesurent les résultats de nos annonces, et nous mémorisons pendant 30 jours le code de parrainage avec lequel vous êtes arrivé.",
           "title": "Marketing"
         },
         "necessary": {

@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { cookies, headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { localeFromSegment, type Locale } from "@beam/core/i18n";
-import { analyticsAllowedOnPath, CONSENT_COOKIE, gaIdFor, localePath, parseSiteSettings } from "@beam/core/site";
+import { analyticsAllowedOnPath, CONSENT_COOKIE, gaIdFor, localePath, marketingTagIds, parseSiteSettings, type MarketingTagIds } from "@beam/core/site";
 import { getAppDb } from "@/lib/ctx";
 import { translator } from "@/lib/i18n";
 import { reportError } from "@/lib/logger";
@@ -11,6 +11,7 @@ import { getCompanyFooter, getNavMenus, type CompanyFooterView, type PublicNavMe
 import { analyticsProductionMode, consentLabels, getConsentChromeState, type ConsentChromeState } from "@/modules/site/server/consent";
 import { AnalyticsLoader } from "@/modules/site/ui/public/analytics-loader";
 import { ConsentProvider } from "@/modules/site/ui/public/consent-provider";
+import { ReferralCapture } from "@/modules/site/ui/public/referral-capture";
 import { SiteFooter } from "@/modules/site/ui/public/site-footer";
 import { SiteHeader } from "@/modules/site/ui/public/site-header";
 import { SwRegister } from "@/modules/site/ui/public/sw-register";
@@ -21,7 +22,9 @@ import { UtmCapture } from "@/modules/site/ui/public/utm-capture";
  * `header` menu and the locale switch, the main landmark and the footer with menus, newsletter
  * and company identification; around it `ConsentProvider` (cookie banner and settings dialog,
  * opened by the footer's `data-cookie-settings` button), the consent-gated analytics loader with
- * the request nonce, UTM capture and the service worker registration. A failing menu, settings
+ * the request nonce (from R3 also the Google Ads and Meta Pixel ids, which load only after
+ * marketing consent), UTM capture, referral capture (`?ref=`, rule 63) and the service worker
+ * registration. A failing menu, settings
  * or consent read renders the chrome without it (reported), never an error page. No analytics
  * script loads on a page whose URL carries a credential (claim, preference centre, payment link,
  * form result link; `analyticsAllowedOnPath`), nor when the requested path is unknown.
@@ -38,11 +41,21 @@ async function safe<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
 const NO_MENUS: PublicNavMenus = { header: [], footer: [], legal: [] };
 const NO_CONSENT_STATE: ConsentChromeState = { bannerVersion: 0, latestMaterialOrdinal: null, cookieNoticeHref: null };
 
-/** GA4 loads only in production with `settings.site.analytics_enabled` and a measurement id (rule 37). */
-async function gaMeasurementId(): Promise<string | null> {
-  if (!analyticsProductionMode()) return null;
+type TagIds = MarketingTagIds & { gaId: string | null };
+const NO_TAGS: TagIds = { gaId: null, googleAdsId: null, metaPixelId: null };
+
+/**
+ * GA4 loads only in production with `settings.site.analytics_enabled` and a measurement id (rule
+ * 37); the R3 Google Ads and Meta Pixel ids are passed only in production too (marketing consent
+ * decides in the browser).
+ */
+async function tagIds(): Promise<TagIds> {
+  if (!analyticsProductionMode()) return NO_TAGS;
   const site = parseSiteSettings(await getSetting(await getAppDb(), "site"));
-  return gaIdFor({ isProduction: true, analyticsEnabled: site.analytics_enabled, gaMeasurementId: site.ga_measurement_id });
+  return {
+    gaId: gaIdFor({ isProduction: true, analyticsEnabled: site.analytics_enabled, gaMeasurementId: site.ga_measurement_id }),
+    ...marketingTagIds({ isProduction: true, googleAdsConversionId: site.google_ads_conversion_id, metaPixelId: site.meta_pixel_id }),
+  };
 }
 
 async function consentCookie(): Promise<string | null> {
@@ -59,11 +72,11 @@ export default async function SiteLayout({ children, params }: { children: React
   if (!maybeLocale) notFound();
   const locale: Locale = maybeLocale;
   const tr = translator(locale);
-  const [menus, company, consent, gaId, initialCookie] = await Promise.all([
+  const [menus, company, consent, tags, initialCookie] = await Promise.all([
     safe(() => getNavMenus(locale), NO_MENUS),
     safe<CompanyFooterView | null>(() => getCompanyFooter(locale), null),
     safe(() => getConsentChromeState(locale), NO_CONSENT_STATE),
-    safe(gaMeasurementId, null),
+    safe(tagIds, NO_TAGS),
     consentCookie(),
   ]);
   const h = await headers();
@@ -78,7 +91,7 @@ export default async function SiteLayout({ children, params }: { children: React
       latestMaterialOrdinal={consent.latestMaterialOrdinal}
       initialCookie={initialCookie}
       cookieNoticeHref={consent.cookieNoticeHref}
-      gaMeasurementId={gaId}
+      gaMeasurementId={tags.gaId}
       labels={consentLabels(tr)}
     >
       <div className="flex min-h-dvh flex-col">
@@ -94,8 +107,9 @@ export default async function SiteLayout({ children, params }: { children: React
         </main>
         <SiteFooter locale={locale} footer={menus.footer} legal={menus.legal} company={company} tr={tr} pagePath={pagePath} />
       </div>
-      {analyticsAllowed ? <AnalyticsLoader nonce={nonce} gaMeasurementId={gaId} /> : null}
+      {analyticsAllowed ? <AnalyticsLoader nonce={nonce} gaMeasurementId={tags.gaId} googleAdsId={tags.googleAdsId} metaPixelId={tags.metaPixelId} /> : null}
       <UtmCapture />
+      <ReferralCapture />
       <SwRegister />
     </ConsentProvider>
   );

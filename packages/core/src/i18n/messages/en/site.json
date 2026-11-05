@@ -197,6 +197,17 @@
         "noindex": "Hide from search engines",
         "ogImage": "Social sharing image",
         "outOfDate": "A newer version was published after this draft was started.",
+        "partner": {
+          "company": "Partner",
+          "error": "The partner could not be saved. Try again.",
+          "help": "Leads from the forms on this landing page are attributed to this partner. The change applies to the live page at once.",
+          "landingOnly": "Only landing pages can have a partner.",
+          "loading": "Loading partners...",
+          "none": "No partner",
+          "save": "Save partner",
+          "saved": "Partner saved.",
+          "title": "Partner company"
+        },
         "path": "Address",
         "pathHelp": "Up to 3 parts of lower-case words joined by hyphens.",
         "preview": "Preview",
@@ -261,6 +272,28 @@
         "title": "WordPress import",
         "tooLarge": "The file is larger than 10 MB; export pages, posts and media separately.",
         "upload": "Upload WXR export"
+      },
+      "insights": {
+        "apply": "Show",
+        "col": {
+          "campaign": "UTM campaign",
+          "landingPath": "Landing path",
+          "newPersons": "New persons",
+          "orders": "Orders",
+          "page": "Landing page",
+          "revenue": "Revenue",
+          "submissions": "Form submissions"
+        },
+        "empty": "No tracked landings in this period",
+        "export": "Export CSV",
+        "from": "From",
+        "intro": "Form submissions, new persons, orders and revenue per landing page and UTM campaign in the period.",
+        "noCampaign": "No campaign",
+        "noPath": "Orders without a landing page",
+        "title": "Landing page insights",
+        "to": "To",
+        "total": "Total",
+        "unknownPage": "Page no longer live"
       },
       "issue": {
         "alt_missing": "An image has no alt text in this language.",
@@ -338,6 +371,7 @@
       },
       "nav": {
         "imports": "WordPress import",
+        "insights": "Insights",
         "media": "Media",
         "navigation": "Navigation",
         "pages": "Pages",
@@ -527,7 +561,7 @@
     "cookies": {
       "banner": {
         "acceptAll": "Accept all",
-        "body": "We use necessary cookies to make this site work. With your permission we also use analytics cookies to improve it.",
+        "body": "We use necessary cookies to make this site work. With your permission we also use analytics cookies to improve it and marketing cookies to measure our ads.",
         "choose": "Choose",
         "rejectAll": "Reject all",
         "title": "Cookies on this website"
@@ -539,7 +573,7 @@
         },
         "close": "Close",
         "marketing": {
-          "body": "Measure the results of our ads and remember a referral code.",
+          "body": "Google Ads and Meta measure the results of our ads, and we remember the referral code you arrived with for 30 days.",
           "title": "Marketing"
         },
         "necessary": {

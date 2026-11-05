@@ -7,6 +7,8 @@
  * Unpublish, Archive (with a redirect target) and Restore. Publish controls are hidden without
  * `site.publish`. A save conflict keeps the unsaved text in a side panel for copying (edge case 1).
  * The Claude panel (site-P4) is mounted in the side column; it hides itself without `ai.use`.
+ * A `landing` page's settings tab has the partner picker (R3, site-P9): it links the page to a
+ * partner company (`setPagePartner`, `site.publish`), whose id its form embeds then pass to forms.
  */
 import { useCallback, useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
 import type { Route } from "next";
@@ -14,6 +16,7 @@ import { useRouter } from "next/navigation";
 import { Alert, AlertDescription, Badge, Button, Checkbox, Input, Label, Tabs, TabsContent, TabsList, TabsTrigger, Textarea } from "@beam/ui";
 import { LOCALES, type Locale, type LocalizedText } from "@beam/core/i18n";
 import { EXCERPT_KINDS, issuesByLocale, LEGAL_KEYS, PAGE_KINDS, prefixFromLocale, type Block, type LegalKey, type Link, type PageKind, type PageSeo, type PublishIssue } from "@beam/core/site";
+import { getPagePartnerOptions, setPagePartner, type PagePartnerOptions } from "../../actions/partner";
 import { archivePage, cancelScheduledPublish, createPage, discardDraft, publishVersion, restoreArchivedPage, saveDraft, unpublishPage } from "../../actions/pages";
 import type { EditorPickers, PageEditorData, SiteAdminLabels } from "../../queries/admin";
 import { BlockListEditor } from "./block-list-editor";
@@ -279,6 +282,7 @@ export function PageEditor({ data, pickers, L, rich, canPublish, staffLocale, cl
               </label>
             ) : null}
             <TextField label={lbl(L, "editor.changeSummary")} multiline max={500} value={content.changeSummary ?? ""} onChange={(v) => update({ changeSummary: v || null })} />
+            {data.page.kind === "landing" ? <PartnerPicker pageId={data.page.pageId} L={L} canPublish={canPublish && !archived} /> : null}
           </TabsContent>
 
           <TabsContent value="history" className="pt-3">
@@ -508,5 +512,80 @@ export function NewPageForm({ L, sessions }: { L: SiteAdminLabels; sessions: { i
         {lbl(L, "newPage.create")}
       </Button>
     </form>
+  );
+}
+
+/**
+ * The partner picker of a landing page (R3): loads the partner companies through
+ * `getPagePartnerOptions` and saves with `setPagePartner`. Without `site.publish` it only shows
+ * the current partner. The partner applies to the live page at once (no publish needed).
+ */
+export function PartnerPicker({ pageId, L, canPublish }: { pageId: string; L: SiteAdminLabels; canPublish: boolean }) {
+  const [data, setData] = useState<PagePartnerOptions | null>(null);
+  const [value, setValue] = useState("");
+  const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
+  const [pending, start] = useTransition();
+
+  useEffect(() => {
+    let live = true;
+    void getPagePartnerOptions({ pageId }).then((r) => {
+      if (!live) return;
+      if (r.ok) {
+        setData(r.data);
+        setValue(r.data.current?.id ?? "");
+      } else setMessage({ tone: "error", text: lbl(L, "editor.partner.error") });
+    });
+    return () => {
+      live = false;
+    };
+  }, [pageId, L]);
+
+  const save = () =>
+    start(async () => {
+      setMessage(null);
+      const r = await setPagePartner({ pageId, companyId: value || null });
+      if (r.ok) {
+        const name = data?.options.find((o) => o.id === value)?.name ?? null;
+        setData((d) => (d ? { ...d, current: value && name ? { id: value, name } : null } : d));
+        setMessage({ tone: "ok", text: lbl(L, "editor.partner.saved") });
+      } else {
+        setMessage({ tone: "error", text: lbl(L, r.error.fields?.companyId === "landing_only" ? "editor.partner.landingOnly" : "editor.partner.error") });
+      }
+    });
+
+  return (
+    <fieldset className="grid gap-2 rounded-md border p-3" data-partner-picker>
+      <legend className="px-1 text-sm font-medium">{lbl(L, "editor.partner.title")}</legend>
+      <p id={`partner-help-${pageId}`} className="text-sm text-muted-foreground">
+        {lbl(L, "editor.partner.help")}
+      </p>
+      {!data ? (
+        <p className="text-sm text-muted-foreground">{message ? null : lbl(L, "editor.partner.loading")}</p>
+      ) : canPublish ? (
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="grid min-w-60 flex-1 gap-1">
+            <Label htmlFor={`partner-${pageId}`}>{lbl(L, "editor.partner.company")}</Label>
+            <select id={`partner-${pageId}`} aria-describedby={`partner-help-${pageId}`} className={selectClass} value={value} onChange={(e) => setValue(e.target.value)} disabled={pending}>
+              <option value="">{lbl(L, "editor.partner.none")}</option>
+              {data.options.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <Button type="button" variant="secondary" onClick={save} disabled={pending || value === (data.current?.id ?? "")}>
+            {lbl(L, "editor.partner.save")}
+          </Button>
+        </div>
+      ) : (
+        <p className="text-sm">{data.current ? data.current.name : lbl(L, "editor.partner.none")}</p>
+      )}
+      {message ? (
+        <p role="status" className={message.tone === "error" ? "text-sm text-destructive" : "text-sm text-muted-foreground"}>
+          {message.text}
+        </p>
+      ) : null}
+    </fieldset>
   );
 }

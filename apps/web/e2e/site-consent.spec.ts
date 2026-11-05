@@ -7,6 +7,10 @@
  * and restores); withdrawing from the footer removes the `_ga` cookies; the three banner
  * buttons have the same size. Third-party scripts are answered by `page.route`, so the spec
  * never talks to Google. The manifest and the service worker pass Chrome's installability basics.
+ * R3 (site-P9): without marketing consent no Google Ads or Meta request is made and no `beam_ref`
+ * cookie is set, a `?ref=` code rides only on that page view's portal, checkout and form links;
+ * with it both tags load with the nonce, `beam_ref` keeps the first code for 30 days, and
+ * withdrawing marketing deletes it (the Ads and Pixel ids are set in `settings.site` and restored).
  */
 import { expect, test, type Page, type Request } from "@playwright/test";
 import { settings } from "@beam/db/schema";
@@ -54,6 +58,46 @@ async function enableGa(): Promise<void> {
   const db = await e2eDb();
   const base = (originalSite && typeof originalSite === "object" ? originalSite : {}) as Record<string, unknown>;
   await db.update(settings).set({ value: { ...base, analytics_enabled: true, ga_measurement_id: GA_ID } }).where(eq(settings.key, "site"));
+}
+
+const ADS_ID = "AW-123456789";
+const PIXEL_ID = "1234567890123";
+const isMarketing = (url: string) =>
+  /googleadservices\.com|googleads\.g\.doubleclick\.net|connect\.facebook\.net|facebook\.com\/tr/.test(url) || url.includes(`gtag/js?id=${ADS_ID}`);
+
+/** Sets the R3 marketing tag ids (GA4 off, so gtag.js loads with the Ads id). */
+async function enableMarketingTags(): Promise<void> {
+  const db = await e2eDb();
+  const base = (originalSite && typeof originalSite === "object" ? originalSite : {}) as Record<string, unknown>;
+  await db.update(settings).set({ value: { ...base, analytics_enabled: false, google_ads_conversion_id: ADS_ID, meta_pixel_id: PIXEL_ID } }).where(eq(settings.key, "site"));
+}
+
+/** Collects marketing requests and stubs the Google Ads and Meta scripts. */
+async function watchMarketing(page: Page): Promise<string[]> {
+  const seen: string[] = [];
+  page.on("request", (req: Request) => {
+    if (isMarketing(req.url())) seen.push(req.url());
+  });
+  await page.route(/googleadservices\.com|googleads\.g\.doubleclick\.net|connect\.facebook\.net|facebook\.com\/tr/, (route) =>
+    route.fulfill({ status: 200, contentType: "application/javascript", body: "/* e2e stub */" }),
+  );
+  return seen;
+}
+
+/** Appends portal, checkout, form and other links after hydration (the capture also handles late links). */
+async function injectLinks(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const nav = document.createElement("nav");
+    nav.id = "e2e-ref-links";
+    for (const [id, href] of [["signin", "/nl/account/login"], ["checkout", "/nl/checkout?sku=DAY"], ["form", "/nl/f/contact"], ["other", "/nl/prijzen"]]) {
+      const a = document.createElement("a");
+      a.id = `e2e-${id}`;
+      a.href = href!;
+      a.textContent = id!;
+      nav.append(a);
+    }
+    document.body.append(nav);
+  });
 }
 
 async function restoreSite(): Promise<void> {
@@ -149,6 +193,85 @@ test.describe("cookie consent", () => {
     const names = (await context.cookies()).map((c) => c.name);
     expect(names.filter((n) => /^_ga/.test(n))).toEqual([]);
     expect((await context.cookies()).find((c) => c.name === "beam_consent")?.value).toMatch(/\.0\.0\.\d+$/);
+  });
+});
+
+test.describe("marketing tags and referral links (R3)", () => {
+  test("without marketing consent: no marketing tag, no beam_ref, the code only on portal, checkout and form links", async ({ page, context }) => {
+    await enableMarketingTags();
+    try {
+      await watch(page);
+      const marketing = await watchMarketing(page);
+      await page.goto("/nl?ref=ABCD2345");
+      const posted = page.waitForResponse((res) => res.url().endsWith("/api/public/cookie-consent") && res.request().method() === "POST");
+      await banner(page).locator('[data-consent="reject_all"]').click();
+      expect((await posted).status()).toBe(200);
+      await injectLinks(page);
+      await expect(page.locator("#e2e-signin")).toHaveAttribute("href", "/nl/account/login?ref=ABCD2345");
+      await expect(page.locator("#e2e-checkout")).toHaveAttribute("href", "/nl/checkout?sku=DAY&ref=ABCD2345");
+      await expect(page.locator("#e2e-form")).toHaveAttribute("href", "/nl/f/contact?ref=ABCD2345");
+      await expect(page.locator("#e2e-other")).toHaveAttribute("href", "/nl/prijzen");
+      await page.waitForLoadState("networkidle");
+      expect(marketing).toEqual([]);
+      expect((await context.cookies()).map((c) => c.name)).not.toContain("beam_ref");
+      // The next page view without `?ref=` carries no code.
+      await page.goto("/nl");
+      await injectLinks(page);
+      await expect(page.locator("#e2e-signin")).toHaveAttribute("href", "/nl/account/login");
+    } finally {
+      await restoreSite();
+    }
+  });
+
+  test("with marketing consent: Google Ads and Meta Pixel load with the nonce; beam_ref keeps the first code for 30 days", async ({ page, context }) => {
+    await enableMarketingTags();
+    try {
+      const w = await watch(page);
+      await watchMarketing(page);
+      await page.goto("/nl?ref=ABCD2345");
+      const posted = page.waitForResponse((res) => res.url().endsWith("/api/public/cookie-consent") && res.request().method() === "POST");
+      const gtag = page.waitForRequest((req) => req.url().startsWith(`https://www.googletagmanager.com/gtag/js?id=${ADS_ID}`));
+      const pixel = page.waitForRequest((req) => req.url().startsWith("https://connect.facebook.net/en_US/fbevents.js"));
+      await banner(page).locator('[data-consent="accept_all"]').click();
+      expect((await posted).status()).toBe(200);
+      await Promise.all([gtag, pixel]);
+      const nonces = await page.evaluate(() => {
+        const own = [...document.querySelectorAll<HTMLScriptElement>("script")].find((s) => s.src.includes("/_next/") && s.nonce)?.nonce ?? null;
+        const third = [...document.querySelectorAll<HTMLScriptElement>("script")].filter((s) => /googletagmanager\.com|connect\.facebook\.net/.test(s.src)).map((s) => s.nonce);
+        return { own, third };
+      });
+      expect(nonces.own).toBeTruthy();
+      expect(nonces.third).toHaveLength(2);
+      for (const n of nonces.third) expect(n).toBe(nonces.own);
+      expect(await w.violations()).toEqual([]);
+
+      await expect.poll(async () => (await context.cookies()).find((c) => c.name === "beam_ref")?.value ?? null).toBe("ABCD2345");
+      const ref = (await context.cookies()).find((c) => c.name === "beam_ref")!;
+      const days = (ref.expires - Date.now() / 1000) / 86_400;
+      expect(days).toBeGreaterThan(29.9);
+      expect(days).toBeLessThanOrEqual(30.01);
+      expect(ref.sameSite).toBe("Lax");
+      await injectLinks(page);
+      await expect(page.locator("#e2e-signin")).toHaveAttribute("href", "/nl/account/login");
+
+      // A later code does not replace the first one.
+      await page.goto("/nl?ref=WXYZ6789");
+      await page.waitForLoadState("networkidle");
+      expect((await context.cookies()).find((c) => c.name === "beam_ref")?.value).toBe("ABCD2345");
+
+      // Withdrawing marketing deletes beam_ref.
+      await page.locator("footer [data-cookie-settings]").click();
+      const dialog = page.locator("dialog[data-cookie-dialog]");
+      await expect(dialog).toBeVisible();
+      await dialog.getByRole("switch").nth(2).uncheck();
+      const saved = page.waitForResponse((res) => res.url().endsWith("/api/public/cookie-consent") && res.request().method() === "POST");
+      await dialog.locator('[data-consent="save"]').click();
+      expect((await saved).status()).toBe(200);
+      await expect(dialog).toBeHidden();
+      await expect.poll(async () => (await context.cookies()).map((c) => c.name)).not.toContain("beam_ref");
+    } finally {
+      await restoreSite();
+    }
   });
 });
 

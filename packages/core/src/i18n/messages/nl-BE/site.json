@@ -197,6 +197,17 @@
         "noindex": "Verbergen voor zoekmachines",
         "ogImage": "Afbeelding voor sociale media",
         "outOfDate": "Na de start van dit concept werd een nieuwere versie gepubliceerd.",
+        "partner": {
+          "company": "Partner",
+          "error": "De partner kon niet worden opgeslagen. Probeer het opnieuw.",
+          "help": "Leads uit de formulieren op deze landingspagina worden aan deze partner toegeschreven. De wijziging geldt meteen voor de live pagina.",
+          "landingOnly": "Alleen landingspagina's kunnen een partner hebben.",
+          "loading": "Partners laden...",
+          "none": "Geen partner",
+          "save": "Partner opslaan",
+          "saved": "Partner opgeslagen.",
+          "title": "Partnerbedrijf"
+        },
         "path": "Adres",
         "pathHelp": "Maximaal 3 delen met woorden in kleine letters, verbonden door koppeltekens.",
         "preview": "Voorbeeld",
@@ -261,6 +272,28 @@
         "title": "WordPress-import",
         "tooLarge": "Het bestand is groter dan 10 MB; exporteer pagina's, berichten en media apart.",
         "upload": "WXR-export uploaden"
+      },
+      "insights": {
+        "apply": "Tonen",
+        "col": {
+          "campaign": "UTM-campagne",
+          "landingPath": "Landingspad",
+          "newPersons": "Nieuwe personen",
+          "orders": "Bestellingen",
+          "page": "Landingspagina",
+          "revenue": "Omzet",
+          "submissions": "Formulierinzendingen"
+        },
+        "empty": "Geen gevolgde landingen in deze periode",
+        "export": "CSV exporteren",
+        "from": "Van",
+        "intro": "Formulierinzendingen, nieuwe personen, bestellingen en omzet per landingspagina en UTM-campagne in de periode.",
+        "noCampaign": "Geen campagne",
+        "noPath": "Bestellingen zonder landingspagina",
+        "title": "Inzichten landingspagina's",
+        "to": "Tot en met",
+        "total": "Totaal",
+        "unknownPage": "Pagina niet meer online"
       },
       "issue": {
         "alt_missing": "Een afbeelding heeft geen alt-tekst in deze taal.",
@@ -338,6 +371,7 @@
       },
       "nav": {
         "imports": "WordPress-import",
+        "insights": "Inzichten",
         "media": "Media",
         "navigation": "Navigatie",
         "pages": "Pagina's",
@@ -527,7 +561,7 @@
     "cookies": {
       "banner": {
         "acceptAll": "Alles aanvaarden",
-        "body": "We gebruiken noodzakelijke cookies om deze site te laten werken. Met je toestemming gebruiken we ook analytische cookies om ze te verbeteren.",
+        "body": "We gebruiken noodzakelijke cookies om deze site te laten werken. Met je toestemming gebruiken we ook analytische cookies om ze te verbeteren en marketingcookies om onze advertenties te meten.",
         "choose": "Zelf kiezen",
         "rejectAll": "Alles weigeren",
         "title": "Cookies op deze website"
@@ -539,7 +573,7 @@
         },
         "close": "Sluiten",
         "marketing": {
-          "body": "Meten wat onze advertenties opleveren en een doorverwijscode onthouden.",
+          "body": "Google Ads en Meta meten wat onze advertenties opleveren, en we onthouden de doorverwijscode waarmee je binnenkwam 30 dagen lang.",
           "title": "Marketing"
         },
         "necessary": {

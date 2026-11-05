@@ -472,7 +472,12 @@
           "none": "(geen)",
           "registrations": "Inschrijvingen",
           "attended": "Bijgewoond",
-          "converted": "Geconverteerd"
+          "converted": "Geconverteerd",
+          "spend": "Advertentie-uitgaven",
+          "cost_per_registration": "Kost per inschrijving",
+          "click_to_registration": "Klik-naar-inschrijvingsratio",
+          "no_spend": "Geen advertentie-uitgaven",
+          "spend_hint": "Advertentie-uitgaven van de campagne van de eerste tot de laatste inschrijvingsdag; een campagne die onder meerdere bronnen voorkomt, toont haar cijfers op elke rij."
         }
       }
     },

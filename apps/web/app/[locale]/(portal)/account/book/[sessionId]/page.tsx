@@ -57,7 +57,10 @@ function guestsOf(fd: FormData) {
  * the session and its booking form, or the waiting-list button when it is full, the opening time
  * when it is not open yet, "Closed for booking", or "For members" with the membership link.
  * A confirmed booking lands on its booking page; an order-paid one on commerce's
- * `/account/checkout/<orderId>`. Errors come back as `?error=<reason>` and are announced.
+ * `/account/checkout/<orderId>`. Errors come back as `?error=<reason>` and are announced. Wired by
+ * fix-w20-booking-wiring: the ticket type picker with prices (R51), guest rows on ticketed events,
+ * "{n} guest uses left this month" (R55), "Use a package shared with me" (R2) and the lead seat
+ * notice (R22).
  */
 export default async function BookSessionPage({
   params,

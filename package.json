@@ -23,7 +23,7 @@
     "db:migrate": "pnpm --filter @beam/db migrate",
     "db:check": "pnpm --filter @beam/db check",
     "db:check-migrations": "pnpm --filter @beam/db check-migrations",
-    "db:seed": "pnpm --filter @beam/web exec tsx scripts/seed-demo.ts",
+    "db:seed": "pnpm --filter @beam/web exec tsx --import ./scripts/stub-server-only.mjs scripts/seed-demo.ts",
     "seed:demo": "pnpm db:seed --profile demo",
     "docs:schema": "pnpm --filter @beam/db docs-schema",
     "admin:reset-mfa": "pnpm --filter @beam/web exec tsx scripts/admin-reset-mfa.ts",

@@ -31,12 +31,13 @@ import {
   users,
   vCreditGrantBalances,
   vCreditLiability,
+  vPackageCycles,
   vouchers,
 } from "@beam/db/schema";
 import { brusselsMonthWindow } from "./server/ledger";
 import type { CreditKind } from "@beam/core/credits";
 import { messagesFor, type Locale, type LocalizedText } from "@beam/core/i18n";
-import { and, asc, desc, eq, inArray, NotFoundError, sql, type SQL } from "@/lib/ctx";
+import { and, asc, desc, eq, gte, inArray, lt, NotFoundError, sql, ValidationError, type SQL } from "@/lib/ctx";
 import { previewBulkExtension as previewBulk, type BulkExtensionFilter } from "./server/bulk-extend";
 import { getPersonCreditSummary } from "./server/ledger";
 import { getMySharesGiven, listSharingReview as listReviewRows, MAX_PORTAL_SHARES, personNames, type MyShareRow, type SharingReviewRow } from "./server/sharing";
@@ -1167,4 +1168,93 @@ export function getPartnerPerformance(db: DbOrTx, companyId: string) {
 export async function getMyPartnerPerformance(db: DbOrTx, companyId: string) {
   const [months, codes] = await Promise.all([referralService.getPartnerPerformance(db, companyId), referralService.listPartnerCodes(db, companyId)]);
   return { months: months.map(({ companyName: _drop, ...m }) => m), codes };
+}
+
+// R4 (credits-P10): repurchase indicators; guest uses left (booking-P8 request) -------------
+
+export type PackageCycle = {
+  personId: string;
+  grantId: string;
+  closedAt: Date;
+  repurchased: boolean;
+  daysToRepurchase: number | null;
+};
+
+const isValidDate = (d: unknown): d is Date => d instanceof Date && !Number.isNaN(d.getTime());
+
+/**
+ * Closed packages (`v_package_cycles`: purchased grants that became `exhausted` or `expired`)
+ * whose `closed_at` falls in `[from, to)`, oldest first, for ops' churn and repurchase
+ * indicators. Ids and dates only; the caller checks its own permission. An empty or inverted
+ * window returns no rows.
+ */
+export async function listPackageCycles(db: DbOrTx, input: { from: Date; to: Date }): Promise<PackageCycle[]> {
+  if (!isValidDate(input.from) || !isValidDate(input.to)) throw new ValidationError("invalid_window", { from: "date", to: "date" });
+  if (input.to.getTime() <= input.from.getTime()) return [];
+  const rows = await db
+    .select({
+      personId: vPackageCycles.personId,
+      grantId: vPackageCycles.grantId,
+      closedAt: vPackageCycles.closedAt,
+      repurchased: vPackageCycles.repurchased,
+      daysToRepurchase: vPackageCycles.daysToRepurchase,
+    })
+    .from(vPackageCycles)
+    .where(and(gte(vPackageCycles.closedAt, input.from), lt(vPackageCycles.closedAt, input.to)))
+    .orderBy(asc(vPackageCycles.closedAt), asc(vPackageCycles.grantId));
+  return rows.map((r) => ({
+    personId: r.personId,
+    grantId: r.grantId,
+    closedAt: new Date(r.closedAt),
+    repurchased: Boolean(r.repurchased),
+    daysToRepurchase: r.daysToRepurchase === null ? null : Number(r.daysToRepurchase),
+  }));
+}
+
+/**
+ * Guest uses a person may still give this month from their own packages of `kind` (booking R55,
+ * "{n} guest uses left this month"): over every own `active` grant valid at `at` with units left
+ * whose sharing allows guests (mode `guests` or `named` with a positive monthly limit), the sum of
+ * `max_guest_uses_per_month` minus the distinct guest bookings already paid from it in the
+ * Brussels month of `at` (released uses do not count), never below 0 per grant. The same count
+ * `consumeCredits` enforces (rule 17); 0 when no package allows guests.
+ */
+export async function getGuestUsesLeft(db: DbOrTx, input: { personId: string; kind: CreditKind; at: Date }): Promise<number> {
+  if (!UUID_RE.test(input.personId)) return 0;
+  if (!isValidDate(input.at)) throw new ValidationError("invalid_at", { at: "date" });
+  const atIso = input.at.toISOString();
+  const grants = await db
+    .select({ id: vCreditGrantBalances.grantId, sharing: vCreditGrantBalances.sharing })
+    .from(vCreditGrantBalances)
+    .where(
+      and(
+        eq(vCreditGrantBalances.personId, input.personId),
+        eq(vCreditGrantBalances.creditKind, input.kind),
+        eq(vCreditGrantBalances.status, "active"),
+        sql`${vCreditGrantBalances.remainingUnits} > 0`,
+        sql`${vCreditGrantBalances.startsAt} <= ${atIso}::timestamptz`,
+        sql`(${vCreditGrantBalances.expiresAt} is null or ${vCreditGrantBalances.expiresAt} > ${atIso}::timestamptz)`,
+      ),
+    );
+  const open = grants.filter((g) => g.sharing.mode !== "none" && g.sharing.max_guest_uses_per_month > 0);
+  if (open.length === 0) return 0;
+  const month = brusselsMonthWindow(input.at);
+  const used = await db
+    .select({ grantId: creditEntries.grantId, n: sql<number>`count(distinct ${creditEntries.refId})::int` })
+    .from(creditEntries)
+    .where(
+      and(
+        inArray(
+          creditEntries.grantId,
+          open.map((g) => g.id),
+        ),
+        eq(creditEntries.kind, "consume"),
+        sql`${creditEntries.beneficiaryPersonId} is not null and ${creditEntries.beneficiaryPersonId} <> ${creditEntries.personId}`,
+        sql`${creditEntries.createdAt} >= ${month.from.toISOString()}::timestamptz and ${creditEntries.createdAt} < ${month.to.toISOString()}::timestamptz`,
+        sql`not exists (select 1 from credit_entries r where r.reverses_entry_id = credit_entries.id)`,
+      ),
+    )
+    .groupBy(creditEntries.grantId);
+  const usedBy = new Map(used.map((u) => [u.grantId, Number(u.n)]));
+  return open.reduce((n, g) => n + Math.max(0, g.sharing.max_guest_uses_per_month - (usedBy.get(g.id) ?? 0)), 0);
 }

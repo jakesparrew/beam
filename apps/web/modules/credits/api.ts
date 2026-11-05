@@ -10,7 +10,8 @@
  * sharing review functions (`countSharingReviewItems`, `listSharingReview`) on `server/sharing.ts`,
  * `listGrantsSharedWith` and the desk badge re-exports; credits-P9 the three R3 referral hooks
  * (`resolveReferralCode`, `onOrderPaidForReferrals`, `onOrderRefundedForReferrals`) on
- * `server/referrals.ts`. Every write function runs in the caller's transaction.
+ * `server/referrals.ts`; credits-P10 the R4 `listPackageCycles` and `getGuestUsesLeft` on
+ * `queries.ts`. Every write function runs in the caller's transaction.
  */
 import type { DbOrTx, Tx } from "@beam/db";
 import { creditGrants, memberships } from "@beam/db/schema";
@@ -386,4 +387,26 @@ export function onOrderPaidForReferrals(tx: Tx, ctx: Ctx, input: { orderId: stri
  */
 export function onOrderRefundedForReferrals(tx: Tx, ctx: Ctx, input: { orderId: string; refundId: string }): Promise<void> {
   return referralService().then((r) => r.onOrderRefundedForReferrals(tx, ctx, input));
+}
+
+/**
+ * R4 (credits-P10): closed packages (`v_package_cycles`) whose `closedAt` falls in `[from, to)`,
+ * with whether and how many Brussels days later the person bought a package of the same credit
+ * kind; ops' churn and repurchase indicators and custom dashboards. Loaded on call like
+ * `listGrantsSharedWith` (queries reach modules whose graphs import this file).
+ */
+export function listPackageCycles(
+  db: DbOrTx,
+  input: { from: Date; to: Date },
+): Promise<{ personId: string; grantId: string; closedAt: Date; repurchased: boolean; daysToRepurchase: number | null }[]> {
+  return import("./queries").then((q) => q.listPackageCycles(db, input));
+}
+
+/**
+ * booking-P8 request (booking R55): the guest uses `personId` may still give in the Brussels
+ * month of `at` from their own packages of `kind` valid at `at` ("{n} guest uses left this
+ * month"); the count `consumeCredits` enforces. 0 when no package allows guests.
+ */
+export function getGuestUsesLeft(db: DbOrTx, input: { personId: string; kind: CreditKind; at: Date }): Promise<number> {
+  return import("./queries").then((q) => q.getGuestUsesLeft(db, input));
 }

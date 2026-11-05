@@ -1209,8 +1209,11 @@
       "mergedAt": "2026-11-05T09:08:57Z"
     },
     "platform-P13": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "dd43853",
+      "runId": null,
+      "startedAt": "2026-11-05T09:09:15Z"
     },
     "platform-P9": {
       "status": "merged",
@@ -1334,8 +1337,11 @@
       "mergedAt": "2026-11-05T04:56:18Z"
     },
     "automation-P9": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "dd43853",
+      "runId": null,
+      "startedAt": "2026-11-05T09:09:16Z"
     },
     "email-P9": {
       "status": "merged",
@@ -1362,12 +1368,18 @@
       "mergedAt": "2026-11-05T09:08:50Z"
     },
     "webinar-P7": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "dd43853",
+      "runId": null,
+      "startedAt": "2026-11-05T09:09:15Z"
     },
     "site-P9": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "dd43853",
+      "runId": null,
+      "startedAt": "2026-11-05T09:09:16Z"
     },
     "platform-P10": {
       "status": "merged",
@@ -1405,8 +1417,11 @@
       "mergedAt": "2026-11-05T04:23:24Z"
     },
     "email-P10": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "dd43853",
+      "runId": null,
+      "startedAt": "2026-11-05T09:09:16Z"
     },
     "finance-P10": {
       "status": "merged",
@@ -1449,8 +1464,11 @@
       "attempts": 0
     },
     "forms-P10": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "dd43853",
+      "runId": null,
+      "startedAt": "2026-11-05T09:09:16Z"
     },
     "platform-P14": {
       "status": "merged",

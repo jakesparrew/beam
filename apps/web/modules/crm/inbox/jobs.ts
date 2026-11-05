@@ -16,6 +16,7 @@
  * - Webhook handler `meta` (inside platform's `webhook.process`): every inbound message of the
  *   stored delivery goes through `ingestMetaMessage` (one message per `mid`).
  */
+import { createHash } from "node:crypto";
 import { z } from "zod";
 import type { Tx } from "@beam/db";
 import { inboxMessages, inboxThreads, type RoleKey } from "@beam/db/schema";
@@ -28,7 +29,7 @@ import { and, eq, isNull, lt, sql, ValidationError, writeDurably } from "@/lib/c
 import { integrationMode, routedOnCall } from "@/lib/integrations";
 import { defineJob, type JobCtx } from "@/lib/job-runner";
 import { getSetting } from "@/lib/settings";
-import { defineWebhookHandler } from "@/lib/webhooks";
+import { defineWebhookHandler, type VerifyResult } from "@/lib/webhooks";
 import { notifySlack } from "@/modules/platform/api";
 import { userLocale } from "../pipeline/api";
 import { createTask, resolveTaskOwner } from "../tasks/api";
@@ -186,8 +187,8 @@ export async function runEscalateThreads(ctx: JobCtx, _input: z.infer<typeof Esc
   const candidates = await ctx.tx
     .select({
       id: inboxThreads.id,
-      oldest: sql<Date | string | null>`(select min(m.occurred_at) from inbox_messages m where m.thread_id = ${inboxThreads.id} and m.direction = 'in'
-        and m.occurred_at > coalesce((select max(o.occurred_at) from inbox_messages o where o.thread_id = ${inboxThreads.id} and o.direction = 'out'), '-infinity'::timestamptz))`,
+      oldestMs: sql<number | string | null>`(select (extract(epoch from min(m.occurred_at)) * 1000)::float8 from inbox_messages m where m.thread_id = inbox_threads.id and m.direction = 'in'
+        and m.occurred_at > coalesce((select max(o.occurred_at) from inbox_messages o where o.thread_id = inbox_threads.id and o.direction = 'out'), '-infinity'::timestamptz))`,
     })
     .from(inboxThreads)
     .where(and(eq(inboxThreads.status, "open"), isNull(inboxThreads.escalatedAt)))
@@ -195,8 +196,8 @@ export async function runEscalateThreads(ctx: JobCtx, _input: z.infer<typeof Esc
 
   let escalated = 0;
   for (const c of candidates) {
-    if (!c.oldest) continue;
-    const due = openingHoursDueAt(new Date(c.oldest), escalation_hours, businessHours);
+    if (c.oldestMs === null || c.oldestMs === undefined) continue;
+    const due = openingHoursDueAt(new Date(Number(c.oldestMs)), escalation_hours, businessHours);
     if (!due || ctx.now.getTime() < due.getTime()) continue;
     const [t] = await ctx.tx
       .select()
@@ -234,6 +235,25 @@ export async function runEscalateThreads(ctx: JobCtx, _input: z.infer<typeof Esc
 // ---------------------------------------------------------------------------
 // Registrations (declared with literal keys in crm's `jobs.ts` facade)
 // ---------------------------------------------------------------------------
+
+/**
+ * The `verify` of the Meta webhook route: the `X-Hub-Signature-256` check and the event id, the
+ * first message `mid` (a delivery without a message, such as a read receipt, gets
+ * `nomid:<sha256 of the body>` and its handler ingests nothing).
+ */
+export function verifyMetaDelivery(raw: string, headers: Headers): Promise<VerifyResult> {
+  const client = metaMessagingClient();
+  if (!client.verifySignature(raw, headers.get("x-hub-signature-256") ?? "")) return Promise.resolve({ ok: false });
+  let payload: unknown;
+  try {
+    payload = JSON.parse(raw);
+  } catch {
+    return Promise.resolve({ ok: false });
+  }
+  const first = client.parseWebhook(payload)[0];
+  const externalEventId = first?.mid ?? `nomid:${createHash("sha256").update(raw).digest("hex")}`;
+  return Promise.resolve({ ok: true, externalEventId, payload });
+}
 
 /** The `meta` webhook handler: ingests every inbound message of the stored delivery. */
 export async function handleMetaWebhook(ctx: JobCtx, event: { id: string; payload: unknown }): Promise<{ ingested: number }> {

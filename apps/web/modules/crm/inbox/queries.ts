@@ -56,7 +56,7 @@ export async function listThreads(db: DbOrTx, filter: ThreadFilter = {}): Promis
       firstName: persons.firstName,
       lastName: persons.lastName,
       assigneeName: sql<string | null>`coalesce(${users.name}, ${users.email})`,
-      preview: sql<string | null>`(select left(m.body, 160) from inbox_messages m where m.thread_id = ${inboxThreads.id} and m.direction <> 'note' order by m.occurred_at desc, m.id desc limit 1)`,
+      preview: sql<string | null>`(select left(m.body, 160) from inbox_messages m where m.thread_id = inbox_threads.id and m.direction <> 'note' order by m.occurred_at desc, m.id desc limit 1)`,
     })
     .from(inboxThreads)
     .leftJoin(persons, eq(persons.id, inboxThreads.personId))
@@ -134,7 +134,7 @@ export async function getThread(db: DbOrTx, id: string, now: Date = new Date()):
     .select({
       m: inboxMessages,
       sentByName: sql<string | null>`coalesce(${users.name}, ${users.email})`,
-      emailStatus: sql<string | null>`(select e.status::text from email_messages e where e.id = ${inboxMessages.emailMessageId})`,
+      emailStatus: sql<string | null>`(select e.status::text from email_messages e where e.id = inbox_messages.email_message_id)`,
     })
     .from(inboxMessages)
     .leftJoin(users, eq(users.id, inboxMessages.sentByUserId))

@@ -4,10 +4,9 @@
  * sensitive split. Pure: the server runs it at every save and at submit, the client runs the
  * same functions for display; the server result is authoritative (L5).
  */
-import { z } from "zod";
 import { normalisePhone } from "../crm/normalise";
 import { computeScore, selectOutcome, sensitiveDimensions } from "./scoring";
-import { FORM_LIMITS } from "./definition";
+import { FORM_LIMITS } from "./limits";
 import type {
   AnswerValue,
   Answers,
@@ -285,7 +284,13 @@ export type AnswerError =
   | "invalid_phone"
   | "invalid_date";
 
-const EmailSchema = z.email();
+/**
+ * zod's `z.email()` pattern (`z.regexes.email`, kept equal by `logic.test.ts`), as a plain regex
+ * so the browser form engine needs no zod.
+ */
+// The escapes are zod's own spelling of the pattern (the test compares the sources).
+// eslint-disable-next-line no-useless-escape
+export const EMAIL_PATTERN = /^(?:[A-Za-z0-9_'+\-]+\.)*[A-Za-z0-9_'+\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\-]*\.)+[A-Za-z]{2,}$/;
 const HIDDEN_MAX = 100;
 
 /** A valid calendar date `YYYY-MM-DD`. */
@@ -316,7 +321,7 @@ export function checkValue(f: Field, raw: unknown): Checked {
     case "email": {
       if (typeof raw !== "string") return { error: "invalid_email" };
       const v = raw.trim().toLowerCase();
-      return v.length <= 254 && EmailSchema.safeParse(v).success ? { value: v } : { error: "invalid_email" };
+      return v.length <= 254 && EMAIL_PATTERN.test(v) ? { value: v } : { error: "invalid_email" };
     }
     case "phone": {
       if (typeof raw !== "string") return { error: "invalid_phone" };

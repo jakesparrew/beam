@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { z } from "zod";
 import {
   checkValue,
+  EMAIL_PATTERN,
   computePath,
   conditionRefs,
   deriveConsentPurposes,
@@ -342,5 +344,18 @@ describe("U2 with L4: validateSection (fix-w09-forms-review finding 3)", () => {
     const r = validateSection(cross(), ["s1", "s3"], "s3", { goal: "stress", age: 999 }, NO);
     expect(r).toEqual({ ok: false, fields: { stress: "required" } });
     expect(validateSection(cross(), ["s1", "s2", "s3"], "s3", { goal: "stress", age: 999, nap: true, stress: 2 }, NO)).toMatchObject({ ok: true });
+  });
+});
+
+describe("email check without zod (site rule 51)", () => {
+  it("uses exactly zod's z.email() pattern", () => {
+    expect(EMAIL_PATTERN.source).toBe(z.regexes.email.source);
+    expect(EMAIL_PATTERN.flags).toBe(z.regexes.email.flags);
+  });
+
+  it("accepts and rejects the same addresses as z.email()", () => {
+    for (const v of ["lotte@example.com", "a.b+c@sub.example.be", "x@y", "a..b@example.com", ".a@example.com", "a@-example.com", "a@example.c0m"]) {
+      expect(EMAIL_PATTERN.test(v), v).toBe(z.email().safeParse(v).success);
+    }
   });
 });

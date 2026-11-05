@@ -1467,14 +1467,16 @@
       "mergedAt": "2026-11-05T04:56:26Z"
     },
     "site-P10": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "a6d21c3",
       "runId": null,
       "startedAt": "2026-11-05T10:41:08Z",
       "branchSha": "2eeb5a4",
-      "endedAt": "2026-11-05T11:38:14Z",
-      "minutes": 40
+      "endedAt": "2026-11-05T12:38:30Z",
+      "minutes": 40,
+      "mergeSha": "b09a5c0",
+      "mergedAt": "2026-11-05T13:07:11Z"
     },
     "automation-P10": {
       "status": "merged",
@@ -1513,8 +1515,11 @@
       "mergedAt": "2026-11-05T07:45:23Z"
     },
     "ops-P10": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "bce8252",
+      "runId": null,
+      "startedAt": "2026-11-05T12:41:39Z"
     },
     "forms-P10": {
       "status": "merged",

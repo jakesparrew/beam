@@ -79,10 +79,11 @@ export const sweep: Record<string, (tx: Tx, cutoff: Date) => Promise<number>> = 
   },
   /**
    * Ended memberships (`cancelled`, `expired`) older than the cutoff whose grants are already gone,
-   * with their periods. A membership a renewal order still links to stays: the FK's `ON DELETE SET
-   * NULL` would clear `orders.renewal_membership_id` but keep `renewal_period_end_on`, which
-   * commerce's `orders_renewal_chk` refuses, failing the whole batch (fix-w09-credits-review 6;
-   * requested from commerce: relax the check, then drop this guard).
+   * with their periods. A membership a renewal order still links to stays for now. commerce has
+   * relaxed `orders_renewal_chk` (`renewal_membership_id is null or renewal_period_end_on is not
+   * null`), so the FK's `ON DELETE SET NULL` no longer fails the batch and this guard is redundant
+   * (proved by `fix-w23-leftovers.renewal-guard.test.ts`); it goes together with the flip of the
+   * fix-w09-credits-review 6 case in `privacy.test.ts`, which still asserts that the membership stays.
    */
   "credits.memberships": async (tx, cutoff) => {
     await allowRewrite(tx);

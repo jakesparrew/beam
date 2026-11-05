@@ -8,6 +8,10 @@
  *   tags on some of them.
  * - 5 companies (one partner) with contacts.
  * - 10 tasks owned by the demo staff users (skipped when no staff user exists).
+ * - 6 ordinary (non-tester) demo customers at `@demo.beam.be` (`DEMO_CUSTOMERS`, ops-P10
+ *   request; only once a staff user exists) and one open B2B opportunity of BrightOps owned by a
+ *   staff user, so the `ai` schema
+ *   and the ops reports show data; commerce gives the customers paid orders.
  * - 3 support knowledge articles in three locales (R4 AI reply drafts; BEAM policy, no person
  *   data), by key; an existing article is never overwritten (staff may have edited it).
  *
@@ -16,8 +20,8 @@
  * `crm.person.demo<n>`, `crm.company.<slug>`.
  */
 import type { DbOrTx } from "@beam/db";
-import { companies, companyContacts, persons, personTags, supportKnowledgeArticles, tags, tasks, users, type AcquisitionJson, type PostalAddressJson } from "@beam/db/schema";
-import { emailHash, normalisePhone, type AcquisitionSource } from "@beam/core/crm";
+import { companies, companyContacts, opportunities, persons, personTags, supportKnowledgeArticles, tags, tasks, users, type AcquisitionJson, type PostalAddressJson } from "@beam/db/schema";
+import { brusselsDay, emailHash, normalisePhone, type AcquisitionSource } from "@beam/core/crm";
 import type { Locale } from "@beam/core/i18n";
 import { and, eq, isNull, sql } from "@/lib/ctx";
 import { rowsOf } from "@/lib/sensitive";
@@ -114,6 +118,112 @@ const DEMO_TASKS: readonly { title: string; kind: (typeof tasks.$inferInsert)["k
   { title: "Confirm guardian consent at reception", kind: "other", role: "reception", person: 7, dueInDays: 0, priority: "high" },
   { title: "Renewal talk with Zorgpunt", kind: "proposal", role: "management", company: "zorgpunt", dueInDays: 14, priority: "normal" },
 ];
+
+/**
+ * ops-P10 request: a few ordinary (non-tester) demo customers, so the `ai` schema (which leaves
+ * testers out, ops spec 2.4) and the ops reports show data on a demo database. `@demo.beam.be`
+ * addresses, invented names, no real data. commerce's demo seed gives them paid orders (one buys
+ * the 10-session package). Ids are recorded as `crm.customer.<slug>`.
+ */
+export const DEMO_CUSTOMERS: readonly {
+  slug: string;
+  firstName: string;
+  lastName: string;
+  locale: Locale;
+  source: AcquisitionSource;
+  campaign?: string;
+  createdDaysAgo: number;
+}[] = [
+  { slug: "an-verbruggen", firstName: "An", lastName: "Verbruggen", locale: "nl-BE", source: "website", createdDaysAgo: 110 },
+  { slug: "koen-de-wilde", firstName: "Koen", lastName: "De Wilde", locale: "nl-BE", source: "paid_meta", campaign: "spring-sleep", createdDaysAgo: 95 },
+  { slug: "sarah-lenaerts", firstName: "Sarah", lastName: "Lenaerts", locale: "nl-BE", source: "referral", createdDaysAgo: 80 },
+  { slug: "julie-moreau", firstName: "Julie", lastName: "Moreau", locale: "fr-BE", source: "organic_search", createdDaysAgo: 70 },
+  { slug: "marc-gerard", firstName: "Marc", lastName: "Gérard", locale: "fr-BE", source: "event", createdDaysAgo: 60 },
+  { slug: "hannah-clarke", firstName: "Hannah", lastName: "Clarke", locale: "en", source: "social_media", createdDaysAgo: 45 },
+];
+
+export const demoCustomerEmail = (slug: string): string => `${slug.replace("-", ".")}@demo.beam.be`;
+
+/** ops-P10 request: one open B2B opportunity of a demo company (by title, so a rerun adds none). */
+export const DEMO_OPPORTUNITY = {
+  company: "brightops",
+  title: "Corporate recovery programme pilot",
+  stage: "proposal",
+  valueCents: 480_000,
+  probabilityPct: 40,
+  closesInDays: 30,
+  contact: 33,
+} as const;
+
+/**
+ * Inserts the non-tester demo customers and the demo opportunity (after `runCrmDemoSeed`, which
+ * creates the companies). Idempotent: persons by address, the opportunity by company and title.
+ * They belong to the staff-facing demo (a staff user owns the opportunity and works the orders),
+ * so a database without any active staff user (a demo run without the demo staff credentials)
+ * gets none of them and keeps no non-tester person.
+ */
+export async function runCrmDemoCustomersSeed(s: Pick<SeedCtx, "db" | "now" | "ids">): Promise<{ created: number; skipped: number }> {
+  const { db, now, ids } = s;
+  let created = 0;
+  let skipped = 0;
+  const owner = await staffOwner(db, ids, "sales");
+  if (!owner) return { created, skipped: DEMO_CUSTOMERS.length + 1 };
+  for (const c of DEMO_CUSTOMERS) {
+    const email = demoCustomerEmail(c.slug);
+    const [existing] = await db.select({ id: persons.id }).from(persons).where(sql`lower(${persons.email}) = ${email}`);
+    let id = existing?.id;
+    if (id) skipped++;
+    else {
+      const [row] = await db
+        .insert(persons)
+        .values({
+          email,
+          emailHash: emailHash(email),
+          firstName: c.firstName,
+          lastName: c.lastName,
+          locale: c.locale,
+          acquisition: { source: c.source, ...(c.campaign ? { campaign: c.campaign, medium: "cpc" } : {}), captured_at: new Date(now.getTime() - c.createdDaysAgo * DAY).toISOString() },
+          isTester: false,
+          createdAt: new Date(now.getTime() - c.createdDaysAgo * DAY),
+        })
+        .returning({ id: persons.id });
+      id = row!.id;
+      created++;
+    }
+    ids.set(`crm.customer.${c.slug}`, id);
+  }
+
+  const o = DEMO_OPPORTUNITY;
+  const vat = DEMO_COMPANIES.find((c) => c.slug === o.company)!.vatNumber;
+  const [company] = await db.select({ id: companies.id }).from(companies).where(eq(companies.vatNumber, vat));
+  if (!company) return { created, skipped: skipped + 1 };
+  const [known] = await db.select({ id: opportunities.id }).from(opportunities).where(and(eq(opportunities.companyId, company.id), eq(opportunities.title, o.title)));
+  if (known) {
+    ids.set("crm.opportunity.demo", known.id);
+    return { created, skipped: skipped + 1 };
+  }
+  const [contact] = await db.select({ id: persons.id }).from(persons).where(sql`lower(${persons.email}) = ${`crm-demo-${o.contact}@example.com`}`);
+  const [row] = await db
+    .insert(opportunities)
+    .values({
+      companyId: company.id,
+      title: o.title,
+      primaryContactPersonId: contact?.id ?? null,
+      stage: o.stage,
+      stageEnteredAt: new Date(now.getTime() - 6 * DAY),
+      valueCents: o.valueCents,
+      probabilityPct: o.probabilityPct,
+      expectedCloseOn: brusselsDay(new Date(now.getTime() + o.closesInDays * DAY + 12 * 60 * 60 * 1000)),
+      ownerUserId: owner,
+      nextAction: "Follow up on the proposal",
+      nextActionAt: new Date(now.getTime() + 3 * DAY + 10 * 60 * 60 * 1000),
+      source: "demo",
+      createdAt: new Date(now.getTime() - 20 * DAY),
+    })
+    .returning({ id: opportunities.id });
+  ids.set("crm.opportunity.demo", row!.id);
+  return { created: created + 1, skipped };
+}
 
 async function backfillIdentity(db: DbOrTx): Promise<number> {
   const rows = rowsOf<{ id: string; email: string | null; phone: string | null; email_hash: string | null; phone_e164: string | null }>(
@@ -276,7 +386,8 @@ export const seed = {
   after: ["platform"],
   run: async (s: SeedCtx) => {
     const main = await runCrmDemoSeed(s);
+    const customers = await runCrmDemoCustomersSeed(s);
     const articles = await seedDemoKnowledgeArticles(s.db);
-    return { created: main.created + articles.created, skipped: main.skipped + articles.skipped };
+    return { created: main.created + customers.created + articles.created, skipped: main.skipped + customers.skipped + articles.skipped };
   },
 };

@@ -54,7 +54,7 @@ const DeclineInput = z.union([z.object({ entryId: z.uuid() }), z.object({ token:
  * the public claim page (the token proves the offer).
  */
 export const declineOffer = action(
-  { name: "booking.decline_offer", audience: "public", input: DeclineInput, rateLimit: (_i, { ip }) => ({ route: "api", ip }) },
+  { name: "booking.decline_offer", audience: "public", input: DeclineInput, rateLimit: (_i, { ip }) => ({ route: "claim", ip }) },
   async (ctx, input) => declineOfferRow(ctx.tx, ctx, input),
 );
 
@@ -66,7 +66,7 @@ const ClaimInput = z.object({ token: Token, payWith: z.enum(["credit", "order"])
  * `sign_in_required` otherwise) and redirects to commerce's pay page.
  */
 export const claimSeat = action(
-  { name: "booking.claim_seat", audience: "public", input: ClaimInput, rateLimit: (_i, { ip }) => ({ route: "api", ip }) },
+  { name: "booking.claim_seat", audience: "public", input: ClaimInput, rateLimit: (_i, { ip }) => ({ route: "claim", ip }) },
   async (ctx, input): Promise<{ kind: "confirmed"; bookingId: string; redirectTo: string } | { kind: "checkout"; orderId: string; redirectTo: string }> => {
     const result = await claimSeatRow(ctx.tx, ctx, input);
     if ("bookingId" in result) {
@@ -79,7 +79,7 @@ export const claimSeat = action(
 
 /** R44 "Sign in to pay": platform's magic link to the entry person's email, back to the claim page. */
 export const requestClaimSignIn = action(
-  { name: "booking.request_claim_sign_in", audience: "public", input: z.object({ token: Token }), audit: false, rateLimit: (_i, { ip }) => ({ route: "api", ip }) },
+  { name: "booking.request_claim_sign_in", audience: "public", input: z.object({ token: Token }), audit: false, rateLimit: (_i, { ip }) => ({ route: "claim", ip }) },
   async (ctx, input) => sendClaimSignInLink(ctx.tx, ctx, input),
 );
 

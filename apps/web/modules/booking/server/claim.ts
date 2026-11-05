@@ -302,14 +302,18 @@ export type JoinWaitlistInput = {
 
 export type JoinWaitlistResult = { entryId: string; queue: WaitlistQueue; position?: number; isFlagged: boolean };
 
-/** R62 for a join: as `ensureTermsAccepted`, recorded without a booking ref (context `booking`). */
-async function ensureJoinTerms(tx: Tx, ctx: Ctx, personId: string, acceptTerms: boolean | undefined): Promise<void> {
+/**
+ * R62 for a join: as `ensureTermsAccepted` (context `booking`), recorded against the waitlist
+ * entry (`ref_type = 'waitlist_entry'`, `ref_id` = the entry id, which is known before the row is
+ * written; a refused join rolls the acceptance back with it).
+ */
+async function ensureJoinTerms(tx: Tx, ctx: Ctx, personId: string, entryId: string, acceptTerms: boolean | undefined): Promise<void> {
   if (await hasEverAcceptedTerms(tx, personId)) return;
   if (await hasAcceptedCurrentTerms(tx, personId)) return;
   const current = await getCurrentLegalVersion(tx, "terms");
   if (!current) return;
   if (acceptTerms !== true) throw new BookingConflictError("terms_required", { versionId: current.versionId });
-  await recordTermsAcceptance(tx, ctx, { personId, versionId: current.versionId, context: "booking", ip: ctx.ip });
+  await recordTermsAcceptance(tx, ctx, { personId, versionId: current.versionId, context: "booking", refType: "waitlist_entry", refId: entryId, ip: ctx.ip });
 }
 
 /** The R7/R15/R64 refusal for an `Availability.reason` that does not allow a join. */
@@ -418,7 +422,8 @@ export async function joinWaitlistRow(tx: Tx, ctx: Ctx, input: JoinWaitlistInput
   if (existing?.state === "confirmed") throw new ProtectedSeatError({ entryId: existing.id });
   const rejoined = existing ? transition(toLike(existing), "waiting", waitlistActor(ctx)) : null;
 
-  if (!staff) await ensureJoinTerms(tx, ctx, input.personId, input.acceptTerms);
+  const id = existing?.id ?? randomUUID();
+  if (!staff) await ensureJoinTerms(tx, ctx, input.personId, id, input.acceptTerms);
 
   const [person] = await tx
     .select({ email: persons.email, phone: persons.phone, lastName: persons.lastName, birthOn: persons.birthOn })
@@ -428,7 +433,6 @@ export async function joinWaitlistRow(tx: Tx, ctx: Ctx, input: JoinWaitlistInput
   const emailNormalised = person.email ? normaliseEmail(person.email) : null;
   // R48: the IP signal needs `ctx.ip`; without it (staff, null IP) it is skipped.
   const joinIpHash = staff || !ctx.ip ? null : hashIp(ctx.ip, deriveIpSalt(process.env.AUTH_SECRET ?? ""));
-  const id = existing?.id ?? randomUUID();
   const signals = await joinSignals(tx, session.id, {
     id,
     personId: input.personId,

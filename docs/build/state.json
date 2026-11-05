@@ -5514,6 +5514,35 @@
       "baseSha": "f1ecae1",
       "runId": null,
       "startedAt": "2026-11-05T17:04:32Z"
+    },
+    "fix-w23-leftovers": {
+      "status": "pending",
+      "attempts": 0,
+      "fixer": true,
+      "module": "cross-module",
+      "goal": "Serve the cross-module leftover rows of docs/build/requests.md listed in the launch message, inside the owned files only.",
+      "from": [],
+      "owns": [
+        "apps/web/modules/forms/service/submissions.ts",
+        "apps/web/modules/webinar/server/registration.ts",
+        "apps/web/modules/webinar/ui/registration-form.tsx",
+        "apps/web/modules/credits/privacy.ts",
+        "apps/web/modules/booking/server/claim.ts",
+        "apps/web/modules/booking/actions/waitlist.ts",
+        "apps/web/modules/crm/seed.ts",
+        "apps/web/modules/commerce/seed.ts",
+        "apps/web/modules/credits/seed.ts",
+        "apps/web/e2e/scenario-2-fast-unsubscribe.spec.ts",
+        "docs/plan/modules/automation.md",
+        "docs/plan/modules/finance.md",
+        "docs/plan/02-data-model.md",
+        "apps/web/modules/forms/fix-w23-leftovers*",
+        "apps/web/modules/webinar/fix-w23-leftovers*",
+        "apps/web/modules/credits/fix-w23-leftovers*",
+        "apps/web/modules/booking/fix-w23-leftovers*",
+        "apps/web/modules/crm/fix-w23-leftovers*"
+      ],
+      "dependsOn": []
     }
   }
 }

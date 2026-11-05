@@ -6,7 +6,7 @@
  * Read by ops (funnel, conversions, latest results), email (outcome blocks) and forms' own
  * reports. None of them exposes answer values or sensitive data. Counts are cast to `int`.
  */
-import { bigint, date, integer, numeric, pgView, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { bigint, date, integer, numeric, pgSchema, pgView, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 const tz = (name: string) => timestamp(name, { withTimezone: true });
 
@@ -196,3 +196,86 @@ export const vFormCampaignAttribution = pgView("v_form_campaign_attribution", {
   spendCents: bigint("spend_cents", { mode: "number" }).notNull(),
   costPerLeadCents: bigint("cost_per_lead_cents", { mode: "number" }),
 }).existing();
+
+// ---------------------------------------------------------------------------
+// R4 (forms-P10): non-sensitive form views in the read-only `ai` schema
+// ---------------------------------------------------------------------------
+
+/**
+ * The `ai` schema of the natural-language questions (`runAiReadOnlyQuery` as `beam_ai_ro`,
+ * platform's `0100_ai_readonly.sql`). Declared here so the schema exists before these views are
+ * created (`createTestDb()` builds it from the TypeScript schema); `0100` creates it with
+ * `if not exists` and holds the role's usage grant. `select` on the two views below is granted
+ * to `beam_ai_ro` with the custom SQL that grants ops' `ai` views (forms-P10 request).
+ */
+export const aiSchema = pgSchema("ai");
+
+/*
+ * Every `ai` view is declared twice with the same columns:
+ *
+ * - `aiFormFunnelDaily` / `aiFormOutcomes` are the typed handles for Drizzle queries
+ *   (`select ... from "ai"."form_funnel_daily"`), used by `modules/forms/dashboard-sources.ts`;
+ * - `aiFormFunnelDailyDdl` / `aiFormOutcomesDdl` carry the schema-qualified name that
+ *   `pnpm db:views` and `createTestDb()` read through `getViewConfig(view).name` to write
+ *   `create or replace view ai.<name>`; never query them (Drizzle would quote the dotted name).
+ *
+ * Neither view has a person id, a name, a contact field, an answer or a score: only form ids,
+ * slugs, kinds, versions, outcome keys, Brussels days and counts. No AI on answers (spec section 1).
+ */
+
+const aiFormFunnelDailyColumns = () => ({
+  formId: uuid("form_id").notNull(),
+  formSlug: text("form_slug").notNull(),
+  formKind: text("form_kind").notNull(),
+  dayOn: date("day_on", { mode: "string" }).notNull(),
+  views: integer("views").notNull(),
+  started: integer("started").notNull(),
+  engaged: integer("engaged").notNull(),
+  completed: integer("completed").notNull(),
+  abandoned: integer("abandoned").notNull(),
+});
+
+/**
+ * `ai.form_funnel_daily` (R4): `v_form_funnel_daily` with the form's slug and kind. One row per
+ * form per Brussels day; submissions count on the day they started (the report's cohort day).
+ */
+export const aiFormFunnelDailyDdlSql = `select f.id as form_id, f.slug as form_slug, f.kind::text as form_kind, d.day_on,
+       d.views, d.started, d.engaged, d.completed, d.abandoned
+from v_form_funnel_daily d join forms f on f.id = d.form_id`;
+
+export const aiFormFunnelDailyDdl = pgView("ai.form_funnel_daily", aiFormFunnelDailyColumns()).existing();
+export const aiFormFunnelDaily = aiSchema.view("form_funnel_daily", aiFormFunnelDailyColumns()).existing();
+
+/** Below this many completions of one outcome on one day and version, the outcome is reported as `other`. */
+export const AI_FORM_OUTCOME_MIN_COUNT = 5;
+/** The outcome key of the merged small groups in `ai.form_outcomes`. */
+export const AI_FORM_OUTCOME_OTHER = "other";
+
+const aiFormOutcomesColumns = () => ({
+  formId: uuid("form_id").notNull(),
+  formSlug: text("form_slug").notNull(),
+  formVersion: integer("form_version").notNull(),
+  dayOn: date("day_on", { mode: "string" }).notNull(),
+  /** Null = completed without an outcome; `other` also holds the outcomes merged below the minimum count. */
+  outcomeKey: text("outcome_key"),
+  completions: integer("completions").notNull(),
+});
+
+/**
+ * `ai.form_outcomes` (R4): completed submissions per form, version, Brussels day (the start day,
+ * as `v_form_funnel_daily` and `getFormReport` count them) and outcome key. An outcome (or "no
+ * outcome") with fewer than 5 completions on that day and version is merged into `other`, so a
+ * rare outcome cannot single out a person; the day's total stays exact.
+ */
+export const aiFormOutcomesDdlSql = `with c as (
+  select fs.form_id, fs.form_version_id, ${bxl("fs.started_at")} as day_on, fs.outcome_key, count(*)::int as n
+  from form_submissions fs where fs.status = 'completed'
+  group by 1, 2, 3, 4)
+select c.form_id, f.slug as form_slug, fv.version as form_version, c.day_on,
+       case when c.n < ${AI_FORM_OUTCOME_MIN_COUNT} then '${AI_FORM_OUTCOME_OTHER}' else c.outcome_key end as outcome_key,
+       sum(c.n)::int as completions
+from c join forms f on f.id = c.form_id join form_versions fv on fv.id = c.form_version_id
+group by 1, 2, 3, 4, 5`;
+
+export const aiFormOutcomesDdl = pgView("ai.form_outcomes", aiFormOutcomesColumns()).existing();
+export const aiFormOutcomes = aiSchema.view("form_outcomes", aiFormOutcomesColumns()).existing();

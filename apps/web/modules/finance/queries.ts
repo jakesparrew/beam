@@ -2,7 +2,7 @@
  * finance read functions for the back office (finance spec 4.3, finance-P5) and the customer
  * portal (`listMyInvoices`, `getMyInvoice`, `getMyInvoicePdf`, finance-P6). Staff pages check the
  * permission (`invoices.read`) before calling them; portal pages pass the signed-in customer's
- * person id, and the queries filter on it. `listFinanceExports` (finance-P7) and `getFinanceDashboard` (finance-P8) need `reports.finance`. Every function takes the database first.
+ * person id, and the queries filter on it. `listFinanceExports` (finance-P7), `getFinanceDashboard` (finance-P8), `getDeferredRevenue`, `getBreakage` and `getVoucherRedemptions` (finance-P9) need `reports.finance`. Every function takes the database first.
  * Explicit columns only; lists are keyset-paginated (50 rows, cursor `issued_at,id`).
  * Search is an exact document number or `ilike` on the customer name inside the period filter.
  */
@@ -45,6 +45,8 @@ import {
   type ResolvedPeriod,
 } from "../../../../packages/core/src/finance/periods";
 import { brusselsDay } from "./service/billit-sync";
+import * as deferred from "./service/deferred";
+import type { BreakageRow, DeferredRevenue, VoucherRedemptionRow } from "./service/deferred";
 import { listExports, type FinanceExportRow } from "./service/exports";
 import { blockedPdfIds } from "./service/pdf-file";
 
@@ -957,4 +959,29 @@ export async function getFinanceDashboard(db: DbOrTx, input: DashboardInput): Pr
       months,
     },
   };
+}
+
+// ---------------------------------------------------------------------------
+// Deferred revenue, breakage and voucher redemptions (R3, finance-P9, rule 43; `reports.finance`)
+// ---------------------------------------------------------------------------
+
+export type { BreakageRow, DeferredCreditKind, DeferredRateRow, DeferredRevenue, Money3, VoucherRedemptionRow } from "./service/deferred";
+
+/**
+ * Unused paid credits at the end of Brussels day `asOf`: `v_credit_liability` for today (or a
+ * later day), credits' `getCreditLiabilityAsOf(db, endOfDayBrussels(asOf))` for a past day; split
+ * into net and VAT per row (`multi_purpose` at 0 %).
+ */
+export function getDeferredRevenue(db: DbOrTx, input: { asOf: string; now?: Date }): Promise<DeferredRevenue> {
+  return deferred.getDeferredRevenue(db, input);
+}
+
+/** Per Brussels month, credit kind and rate: recognised `-(consume + release)`, breakage `-expire`, revoked `-revoke`. */
+export function getBreakage(db: DbOrTx, input: { from: string; to: string }): Promise<BreakageRow[]> {
+  return deferred.getBreakage(db, input);
+}
+
+/** Euro credit spends in the period with the invoice number of the order they paid (no person column). */
+export function getVoucherRedemptions(db: DbOrTx, input: { from: string; to: string }): Promise<VoucherRedemptionRow[]> {
+  return deferred.getVoucherRedemptions(db, input);
 }

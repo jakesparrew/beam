@@ -5191,7 +5191,7 @@
       "mergedAt": "2026-11-05T15:30:11Z"
     },
     "fix-w23-ops-wiring": {
-      "status": "running",
+      "status": "merged",
       "attempts": 1,
       "fixer": true,
       "module": "ops",
@@ -5513,10 +5513,15 @@
       ],
       "baseSha": "f1ecae1",
       "runId": null,
-      "startedAt": "2026-11-05T17:04:32Z"
+      "startedAt": "2026-11-05T17:04:32Z",
+      "branchSha": "1b097aa",
+      "endedAt": "2026-11-05T17:43:16Z",
+      "minutes": 45,
+      "mergeSha": "720b740",
+      "mergedAt": "2026-11-05T18:10:30Z"
     },
     "fix-w23-leftovers": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "fixer": true,
       "module": "cross-module",
@@ -5545,7 +5550,10 @@
       "dependsOn": [],
       "baseSha": "855bdbf",
       "runId": null,
-      "startedAt": "2026-11-05T17:05:10Z"
+      "startedAt": "2026-11-05T17:05:10Z",
+      "branchSha": "fb11c24",
+      "endedAt": "2026-11-05T18:03:09Z",
+      "minutes": 55
     }
   }
 }

@@ -46,7 +46,7 @@ function loadTokens(): string[] {
 
 async function timed(path: string, token: string, body: unknown): Promise<{ sample: Sample; json: unknown }> {
   const started = performance.now();
-  let status = 0;
+  let status: number;
   let json: unknown = null;
   try {
     const res = await fetch(`${BASE_URL}${path}`, {

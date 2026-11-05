@@ -23,7 +23,7 @@
  * Every text comes from the server as a prop (`labels`).
  */
 import Script from "next/script";
-import { useCallback, useEffect, useId, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore, type RefObject } from "react";
 import { Button } from "@beam/ui";
 import { PlayerNotice, type PlayerNoticeLabels } from "./player-notice";
 
@@ -108,17 +108,20 @@ function remaining(ms: number): string {
   return d > 0 ? `${d} d ${hms}` : hms;
 }
 
+const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
+function subscribeReducedMotion(onChange: () => void): () => void {
+  const q = window.matchMedia?.(REDUCED_MOTION);
+  if (!q) return () => undefined;
+  q.addEventListener("change", onChange);
+  return () => q.removeEventListener("change", onChange);
+}
+
 function useReducedMotion(): boolean {
-  const [reduced, setReduced] = useState(false);
-  useEffect(() => {
-    const q = window.matchMedia?.("(prefers-reduced-motion: reduce)");
-    if (!q) return;
-    setReduced(q.matches);
-    const on = (e: MediaQueryListEvent) => setReduced(e.matches);
-    q.addEventListener("change", on);
-    return () => q.removeEventListener("change", on);
-  }, []);
-  return reduced;
+  return useSyncExternalStore(
+    subscribeReducedMotion,
+    () => window.matchMedia?.(REDUCED_MOTION).matches ?? false,
+    () => false,
+  );
 }
 
 export function WebinarPlayer(props: WebinarPlayerProps) {
@@ -135,7 +138,7 @@ export function WebinarPlayer(props: WebinarPlayerProps) {
       const res = await fetch("/api/webinar/view", { method: "POST", headers: headers(), body: JSON.stringify({ webinarId }), credentials: "same-origin" });
       const body = (await res.json()) as Partial<ViewPayload> & { error?: Refusal; startsAt?: string | null };
       if (body.error || !body.viewId) {
-        const code = (body.error ?? "error") as Refusal;
+        const code: Refusal = body.error ?? "error";
         setPhase({ kind: "refused", code: code in labels.refusals ? code : "error", startsAt: body.startsAt ?? null });
         setAnnounce(labels.refusals[code] ?? labels.refusals.error);
         return;
@@ -199,7 +202,7 @@ function RefusalCard({ phase, labels, contactHref, onRetry }: { phase: Extract<P
     <div className="flex aspect-video w-full flex-col items-center justify-center gap-3 rounded-lg border border-border bg-muted p-6 text-center">
       {waiting ? (
         <p className="text-lg font-semibold text-foreground" data-testid="webinar-countdown">
-          {countdown ? fill(labels.countdown, { time: remaining(startsAt! - now) }) : labels.waiting}
+          {countdown && startsAt !== null ? fill(labels.countdown, { time: remaining(startsAt - now) }) : labels.waiting}
         </p>
       ) : (
         <>
@@ -230,8 +233,8 @@ function Watching(input: {
   const [apiReady, setApiReady] = useState(() => typeof window !== "undefined" && !!window.YT?.Player);
   const adapter = useRef<Adapter | null>(null);
   const lastPos = useRef(view.startSec);
-  const resumeAt = useRef(view.startSec);
-  const loadedAt = useRef(Date.now());
+  /** Where a reloaded player (captions toggle) starts: state, so rendering never reads a ref. */
+  const [resumeAt, setResumeAt] = useState(view.startSec);
 
   const send = useCallback(
     async (state: PlayState, keepalive = false) => {
@@ -286,7 +289,10 @@ function Watching(input: {
   useEffect(() => () => adapter.current?.destroy(), []);
 
   const toggleCaptions = () => {
-    resumeAt.current = view.controls && adapter.current ? adapter.current.time() : view.resync && view.showingStartedAt ? (Date.now() - new Date(view.showingStartedAt).getTime()) / 1000 : view.startSec + (Date.now() - loadedAt.current) / 1000;
+    const current = adapter.current;
+    // Replay and on-demand resume where the viewer was; simulive at the showing position; a live stream plays its live edge.
+    if (view.controls && current) setResumeAt(current.time());
+    else if (view.resync && view.showingStartedAt) setResumeAt((Date.now() - new Date(view.showingStartedAt).getTime()) / 1000);
     adapter.current?.destroy();
     adapter.current = null;
     setCaptions((c) => !c);
@@ -299,7 +305,7 @@ function Watching(input: {
         {view.viewsLeft !== null && <span className="ml-2 text-muted-foreground">{fill(labels.viewsLeft, { count: view.viewsLeft })}</span>}
       </p>
       {fake ? (
-        <SimulatedPlayer key={`${captions}`} view={view} startSec={resumeAt.current} labels={labels} adapterRef={adapter} onState={onState} />
+        <SimulatedPlayer key={`${captions}`} view={view} startSec={resumeAt} labels={labels} adapterRef={adapter} onState={onState} />
       ) : (
         <>
           {!apiReady && (
@@ -325,7 +331,7 @@ function Watching(input: {
             </div>
           ) : (
             apiReady && (
-              <YouTubeFrame key={`${captions}`} view={view} startSec={resumeAt.current} captions={captions} spokenLocale={props.spokenLocale} adapterRef={adapter} onState={onState} onError={() => setFailed(true)} />
+              <YouTubeFrame key={`${captions}`} view={view} startSec={resumeAt} captions={captions} spokenLocale={props.spokenLocale} adapterRef={adapter} onState={onState} onError={() => setFailed(true)} />
             )
           )}
         </>

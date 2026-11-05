@@ -179,7 +179,8 @@ export async function releaseOrderBookings(
   const lines = await orderSessionLines(tx, input.orderId);
   if (!lines.length) return { releasedBookingIds: [] };
   const released: string[] = [];
-  for (const sessionId of [...new Set(lines.map((l) => l.sessionId!))].sort()) await lockSession(tx, sessionId);
+  const locked = new Map<string, SessionRow>();
+  for (const sessionId of [...new Set(lines.map((l) => l.sessionId!))].sort()) locked.set(sessionId, await lockSession(tx, sessionId));
   const rows = await tx
     .select()
     .from(bookings)
@@ -193,11 +194,53 @@ export async function releaseOrderBookings(
       .returning();
     await recordBookingFact(ctx, "booking.cancelled", row!, { by: "system", cancelReasonCode: code });
     await sendCancelledEmail(ctx, row!);
+    // R44: a claimed offer whose payment did not complete ends `expired` (`payment_not_completed`).
+    await expireClaimedOffers(ctx, row!, locked.get(b.sessionId)!);
     // R34: freed capacity goes to the waitlist.
     await ctx.enqueue({ kind: "waitlist.offer_next", payload: { sessionId: b.sessionId, trigger: b.id }, key: `waitlist:${b.sessionId}:offer_next:${b.id}` });
     released.push(b.id);
   }
   return { releasedBookingIds: released };
+}
+
+/**
+ * R44, edge case 27: the `offered` waitlist entries whose claim made `booking` (its payment did not
+ * complete) become `expired` with `ended_reason = payment_not_completed` and a `waitlist.expired`
+ * fact. Used by `releaseOrderBookings` and `expireReservedRow`; the caller enqueues
+ * `waitlist.offer_next` for the freed seat. Returns how many entries ended.
+ */
+export async function expireClaimedOffers(ctx: Ctx, booking: BookingRow, session: SessionRow): Promise<number> {
+  const entries = await ctx.tx
+    .select()
+    .from(waitlistEntries)
+    .where(and(eq(waitlistEntries.bookingId, booking.id), eq(waitlistEntries.state, "offered")))
+    .for("update");
+  for (const entry of entries) {
+    waitlistTransition(entry, "expired", "system");
+    await ctx.tx.update(waitlistEntries).set({ state: "expired", endedReason: "payment_not_completed", updatedAt: ctx.now }).where(eq(waitlistEntries.id, entry.id));
+    await ctx.recordEvent({
+      kind: "waitlist.expired",
+      personId: entry.personId,
+      data: {
+        session_id: session.id,
+        session_kind: session.kind,
+        event_category: session.eventCategory,
+        starts_at: session.startsAt,
+        paid_with: booking.paidWith,
+        is_guest: false,
+        guest_of_person_id: null,
+        owner_person_id: entry.personId,
+        is_first_booking: false,
+        is_first_visit: false,
+        queue: entry.queue,
+        booking_id: booking.id,
+        ended_reason: "payment_not_completed",
+      },
+      ref: { type: "waitlist_entry", id: entry.id },
+      dedupeKey: `waitlist:${entry.id}:expired:${entry.offersCount}:${entry.rejoinCount}`,
+    });
+  }
+  return entries.length;
 }
 
 /** R59 `booking.booking_cancelled` (template from booking-P3b), `reason: 'payment_expired' | 'cancelled'`. */

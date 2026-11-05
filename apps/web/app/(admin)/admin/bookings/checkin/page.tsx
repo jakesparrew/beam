@@ -9,6 +9,7 @@ import { adminLocale, softTranslator, translator } from "@/lib/i18n";
 import { codeFromScan, getCheckinCard, getCheckinDay, searchCheckin, type CheckinCard, type CheckinRow } from "@/modules/booking/queries";
 import { BookingCard, type BookingCardView } from "@/modules/booking/ui/booking-card";
 import { CheckinDesk } from "@/modules/booking/ui/checkin-desk";
+import { DeskCreditsBadge } from "@/modules/credits/api";
 
 const show = (text: LocalizedText | null | undefined, locale: Locale) => text?.[locale] || text?.["nl-BE"] || text?.en || text?.["fr-BE"] || "";
 type Tr = (key: string, params?: Record<string, string | number>) => string;
@@ -153,6 +154,8 @@ export default async function CheckinPage({ searchParams }: { searchParams: Prom
         </div>
       </div>
       <CheckinDesk labels={{ scan: tr("booking.checkin.scan_label"), submit: soft("crm.common.search"), hint: orKey(soft, "booking.checkin.scan_hint", tr("booking.bookings.search")) }}>
+        {/* credits-P6: "Day: 4 · Night: 1 · Member until ..." in large type (renders nothing without `credits.read`). */}
+        {card ? <DeskCreditsBadge personId={card.personId} locale={locale} /> : null}
         {card ? <BookingCard card={cardView(card, locale, tr, soft, hasPermission(actor, "bookings.override"))} labels={cardLabels} canWrite /> : null}
         {notFound ? (
           <p role="status" className="rounded-md border border-destructive p-3 text-sm" data-testid="checkin-not-found">

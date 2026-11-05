@@ -69,6 +69,19 @@ export async function getOpeningHours(
 }
 
 /**
+ * ops-P3 request: the Brussels dates in `[from, to]` (inclusive, `YYYY-MM-DD`) closed for every
+ * template: a `closed` or `holiday` exception without template ids. Sorted, each date once; ops
+ * reads this instead of `session_exceptions`.
+ */
+export async function listClosedDays(db: DbOrTx, from: string, to: string): Promise<string[]> {
+  if (to < from) return [];
+  const rows = await loadExceptionRows(db, from, to);
+  const days = new Set<string>();
+  for (const e of rows) if ((e.kind === "closed" || e.kind === "holiday") && appliesToAll(e)) days.add(String(e.onDate).slice(0, 10));
+  return [...days].sort();
+}
+
+/**
  * Automation task due dates: the first open instant `>= from`, or null within 30 days (3.0b).
  * Belgian public holidays are skipped unless `includePublicHolidays` (office staff are off).
  */

@@ -17,7 +17,8 @@
       "rules": "Boekingsregels",
       "book": "Boeken",
       "my_bookings": "Mijn boekingen",
-      "my_waitlist": "Mijn wachtlijsten"
+      "my_waitlist": "Mijn wachtlijsten",
+      "partner_holds": "Mijn partnerplaatsen"
     },
     "common": {
       "save": "Opslaan",
@@ -187,7 +188,11 @@
       "invalid_transition": "Deze wijziging kan niet in de huidige status.",
       "shared_bed_limit": "Er kan maar één gast je bed delen.",
       "generic": "Er ging iets mis. Probeer het opnieuw.",
-      "validation": "Controleer de velden en probeer het opnieuw."
+      "validation": "Controleer de velden en probeer het opnieuw.",
+      "ticket_type_required": "Kies een tickettype.",
+      "too_many_tickets": "Dit tickettype laat minder tickets per boeking toe. Verwijder een gast of kies een ander ticket.",
+      "guest_details_required": "Vul de voor- en achternaam van elke gast in.",
+      "too_many_guests": "Je kunt minder gasten meebrengen op één boeking."
     },
     "calendar": {
       "title": "Sessies",
@@ -443,7 +448,8 @@
       "reason": "Reden",
       "send_email": "De bevestigingsmail versturen",
       "emergency_contact": "Noodcontact voor de nacht",
-      "create": "Boeking aanmaken"
+      "create": "Boeking aanmaken",
+      "ticket_type": "Tickettype"
     },
     "checkin": {
       "title": "Onthaal",
@@ -550,7 +556,8 @@
       "ticket_not_on_sale": "Nu niet te koop",
       "ticket_sales_from": "Te koop vanaf {date}",
       "ticket_members_only": "Voor leden",
-      "guest_uses_none": "Je pakket kan deze maand niet voor gasten gebruikt worden. Je kan wel voor je gast betalen."
+      "guest_uses_none": "Je pakket kan deze maand niet voor gasten gebruikt worden. Je kan wel voor je gast betalen.",
+      "shared_hint": "Gedeeld door {owner}: {count, plural, one {nog # sessie voor jou} other {nog # sessies voor jou}}"
     },
     "portalBookings": {
       "title": "Mijn boekingen",

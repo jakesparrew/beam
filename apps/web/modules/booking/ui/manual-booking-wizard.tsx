@@ -25,12 +25,16 @@ export type WizardSession = {
   isFree: boolean;
   /** "4 sessions left" for the chosen person, when the session takes credits. */
   creditBalance: string | null;
+  /** R51: an event's ticket types (label with price or state); staff pick one for every booking. */
+  ticketTypes?: Array<{ id: string; label: string; disabled: boolean }>;
 };
 
 export type WizardLabels = {
   session: string;
   choose: string;
   payment: string;
+  /** R51: the ticket type picker. */
+  ticketType?: string;
   payCredit: string;
   payOrderNow: string;
   payAtDesk: string;
@@ -76,6 +80,7 @@ export function ManualBookingWizard({
   const router = useRouter();
   const [sessionId, setSessionId] = useState(initialSessionId && sessions.some((s) => s.id === initialSessionId) ? initialSessionId : "");
   const [pay, setPay] = useState<Pay | "">("");
+  const [ticketTypeId, setTicketTypeId] = useState(() => sessions.find((s) => s.id === sessionId)?.ticketTypes?.find((t) => !t.disabled)?.id ?? "");
   const [guests, setGuests] = useState<Guest[]>([]);
   const [overCapacity, setOverCapacity] = useState(false);
   const [reason, setReason] = useState("");
@@ -86,6 +91,7 @@ export function ManualBookingWizard({
   const [clientKey] = useState(() => crypto.randomUUID());
 
   const session = useMemo(() => sessions.find((s) => s.id === sessionId) ?? null, [sessions, sessionId]);
+  const tickets = session?.ticketTypes ?? [];
   const options: Array<{ value: Pay; label: string }> = session
     ? [
         ...(session.canPayCredit ? [{ value: "credit" as const, label: session.creditBalance ? `${labels.payCredit} · ${session.creditBalance}` : labels.payCredit }] : []),
@@ -99,7 +105,7 @@ export function ManualBookingWizard({
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!session || !pay) return;
+    if (!session || !pay || (tickets.length > 0 && !ticketTypeId)) return;
     setPending(true);
     setError(null);
     try {
@@ -108,6 +114,7 @@ export function ManualBookingWizard({
       const res = await createManualBooking({
         sessionId: session.id,
         personId,
+        ...(tickets.length > 0 && ticketTypeId ? { ticketTypeId } : {}),
         payWith,
         ...(pay === "desk" ? { payAtDesk: true } : {}),
         ...(overCapacity ? { overCapacity: true } : {}),
@@ -137,6 +144,7 @@ export function ManualBookingWizard({
         <select className={selectClass} value={sessionId} onChange={(e) => {
             setSessionId(e.target.value);
             setPay("");
+            setTicketTypeId(sessions.find((s) => s.id === e.target.value)?.ticketTypes?.find((t) => !t.disabled)?.id ?? "");
           }} required>
           <option value="">{labels.choose}</option>
           {sessions.map((s) => (
@@ -151,6 +159,27 @@ export function ManualBookingWizard({
         <Alert variant={overCapacity ? "destructive" : "default"}>
           <AlertDescription>{labels.overCapacityWarning}</AlertDescription>
         </Alert>
+      ) : null}
+
+      {tickets.length > 0 ? (
+        <fieldset className="grid gap-2" data-testid="manual-ticket-types">
+          <legend className="text-sm font-medium">{labels.ticketType}</legend>
+          {tickets.map((t) => (
+            <label key={t.id} className={`flex min-h-11 items-center gap-2 text-sm${t.disabled && !canOverride ? " opacity-60" : ""}`}>
+              <input
+                type="radio"
+                name="ticketTypeId"
+                value={t.id}
+                checked={ticketTypeId === t.id}
+                onChange={() => setTicketTypeId(t.id)}
+                disabled={t.disabled && !canOverride}
+                className="size-4"
+                required
+              />
+              {t.label}
+            </label>
+          ))}
+        </fieldset>
       ) : null}
 
       {session ? (
@@ -231,7 +260,7 @@ export function ManualBookingWizard({
         </Alert>
       ) : null}
 
-      <Button type="submit" size="lg" className="w-fit" disabled={pending || !session || !pay}>
+      <Button type="submit" size="lg" className="w-fit" disabled={pending || !session || !pay || (tickets.length > 0 && !ticketTypeId)}>
         {labels.create}
       </Button>
     </form>

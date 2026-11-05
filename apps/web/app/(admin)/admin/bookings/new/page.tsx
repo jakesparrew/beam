@@ -86,14 +86,30 @@ export default async function NewBookingPage({ searchParams }: { searchParams: P
     availability: s.availableTotal > 0 ? tr("booking.availability.placesLeft", { count: s.availableTotal }) : tr("booking.availability.full"),
     isFull: s.availableTotal <= 0,
     canPayCredit: s.creditKind !== null && s.creditCost > 0,
-    canPayOrder: s.productId !== null,
+    canPayOrder: s.productId !== null || s.ticketTypes.length > 0,
     canPayAtDesk: s.payAtDeskAllowed,
-    isFree: s.productId === null && (s.creditKind === null || s.creditCost === 0),
+    isFree: s.productId === null && s.ticketTypes.length === 0 && (s.creditKind === null || s.creditCost === 0),
     creditBalance: s.creditBalance !== null ? tr("booking.manual.credit_balance", { count: s.creditBalance }) : null,
+    // R51: staff with `bookings.override` may sell a type outside its sales window (bookSeats checks it).
+    ticketTypes: s.ticketTypes.map((t) => {
+      const state =
+        t.state === "not_yet" || t.state === "not_on_sale"
+          ? tr("booking.portalSession.ticket_not_on_sale")
+          : t.state === "sold_out"
+            ? tr("booking.portalSession.ticket_sold_out")
+            : t.left !== null
+              ? tr("booking.portalSession.ticket_left", { count: t.left })
+              : null;
+      return { id: t.id, label: state ? `${show(t.name, locale)} · ${state}` : show(t.name, locale), disabled: t.state !== "on_sale" };
+    }),
   }));
   const errors = {
     ...Object.fromEntries(BOOKING_CONFLICT_REASONS.map((r) => [r, tr(`booking.errors.${r}`)])),
     validation: tr("platform.errors.validation"),
+    ticket_type_required: tr("booking.errors.ticket_type_required"),
+    too_many_tickets: tr("booking.errors.too_many_tickets"),
+    guest_details_required: tr("booking.errors.guest_details_required"),
+    too_many_guests: tr("booking.errors.too_many_guests"),
     reason_required: tr("booking.manual.reason"),
     forbidden: tr("platform.errors.forbidden"),
     not_found: tr("platform.errors.not_found"),
@@ -130,6 +146,7 @@ export default async function NewBookingPage({ searchParams }: { searchParams: P
           session: tr("booking.manual.session_picker"),
           choose: tr("booking.manual.session_picker"),
           payment: tr("booking.manual.payment"),
+          ticketType: tr("booking.manual.ticket_type"),
           payCredit: tr("booking.manual.pay_credit"),
           payOrderNow: tr("booking.manual.pay_order_now"),
           payAtDesk: tr("booking.manual.pay_at_desk"),

@@ -19,6 +19,7 @@ import { getReceptionCard, type ReceptionCardData } from "@/modules/crm/api";
 import { hasValidSubmission } from "@/modules/forms/api";
 import { checkInWindow, revertNoShowUntil } from "../jobs/attendance";
 import { HEALTH_DECLARATION_FORM } from "../server/declarations";
+import { ticketTypeOffers, type TicketTypeOffer } from "../server/book";
 import { hasEverAcceptedTerms } from "../server/terms";
 import type { AttendeeListLabels, AttendeeRowView } from "../ui/attendee-list";
 import type { ChangeDialogLabels } from "../ui/cancel-dialog";
@@ -335,6 +336,8 @@ export type ManualBookingSession = {
   payAtDeskAllowed: boolean;
   /** The person's remaining units of the session's credit kind; null without credits or a person. */
   creditBalance: number | null;
+  /** R51 (booking-P8 request): an event's active ticket types; staff pick one for every booking. */
+  ticketTypes: TicketTypeOffer[];
 };
 
 /**
@@ -372,13 +375,20 @@ export async function listManualBookingSessions(db: DbOrTx, input: { from: Date;
       if (!(error instanceof NotImplementedError)) throw error;
     }
   }
-  return rows.map((r) => ({
-    ...r,
-    availableTotal: Number(r.availableTotal ?? 0),
-    capacity: Number(r.capacity ?? 0),
-    payAtDeskAllowed: rules.pay_at_desk.enabled && rules.pay_at_desk.kinds.includes(r.kind) && r.productId !== null,
-    creditBalance: r.creditKind && balance ? (balance.get(r.creditKind) ?? 0) : null,
-  }));
+  const out: ManualBookingSession[] = [];
+  for (const r of rows) {
+    const ticketTypes = r.kind === "event" ? await ticketTypeOffers(db, r, null) : [];
+    const priced = r.productId !== null || ticketTypes.length > 0;
+    out.push({
+      ...r,
+      availableTotal: Number(r.availableTotal ?? 0),
+      capacity: Number(r.capacity ?? 0),
+      payAtDeskAllowed: rules.pay_at_desk.enabled && rules.pay_at_desk.kinds.includes(r.kind) && priced,
+      creditBalance: r.creditKind && balance ? (balance.get(r.creditKind) ?? 0) : null,
+      ticketTypes,
+    });
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------------------

@@ -14,12 +14,12 @@ import type { LocalizedText } from "@beam/core/i18n";
 import { requirePermission } from "@/lib/auth";
 import { NotFoundError, and, asc, desc, eq, gt, gte, inArray, isNull, lt, lte, or, sql, type SQL } from "@/lib/ctx";
 import { getSetting } from "@/lib/settings";
-import { checkCredits } from "@/modules/credits/api";
+import { checkCredits, listGrantsSharedWith } from "@/modules/credits/api";
 import { hasValidSubmission } from "@/modules/forms/api";
 import { listBookableSessions as listBookableSessionsApi } from "../api/bookings";
 import { HEALTH_DECLARATION_FORM } from "../server/declarations";
 import { checkinQrSvg } from "../server/qr";
-import { readAvailabilityRow, viewerFor } from "../server/book";
+import { guestUseState, readAvailabilityRow, ticketTypeOffers, viewerFor } from "../server/book";
 
 const PAGE = 50;
 
@@ -52,16 +52,30 @@ export type StaffBookingRow = {
   createdAt: Date;
 };
 
-/** `/admin/bookings`: filters and keyset on `(created_at, id)` descending, 50 per page. */
+/**
+ * `/admin/bookings`: filters (person, session, status, payment, source, the session's date range)
+ * and keyset on `(created_at, id)` descending, 50 per page.
+ */
 export async function listBookings(
   db: DbOrTx,
-  input: { personId?: string; sessionId?: string; status?: StaffBookingRow["status"]; from?: Date; to?: Date; cursor?: { createdAt: Date; id: string } | null },
+  input: {
+    personId?: string;
+    sessionId?: string;
+    status?: StaffBookingRow["status"];
+    paidWith?: PaidWith;
+    source?: StaffBookingRow["source"];
+    from?: Date;
+    to?: Date;
+    cursor?: { createdAt: Date; id: string } | null;
+  },
 ): Promise<{ rows: StaffBookingRow[]; nextCursor: { createdAt: Date; id: string } | null }> {
   await requirePermission("bookings.read");
   const where: (SQL | undefined)[] = [
     input.personId ? eq(bookings.personId, input.personId) : undefined,
     input.sessionId ? eq(bookings.sessionId, input.sessionId) : undefined,
     input.status ? eq(bookings.status, input.status) : undefined,
+    input.paidWith ? eq(bookings.paidWith, input.paidWith) : undefined,
+    input.source ? eq(bookings.source, input.source) : undefined,
     input.from ? gte(sessions.startsAt, input.from) : undefined,
     input.to ? lt(sessions.startsAt, input.to) : undefined,
     input.cursor
@@ -155,8 +169,10 @@ export function listBookableSessions(
 
 /**
  * `/account/book/[sessionId]`: availability for this person, payment options, the credit check,
- * the health declaration state and whether a night needs an emergency contact (R16, R62b).
- * Prices come from commerce's quote on the page itself (R19).
+ * the health declaration state and whether a night needs an emergency contact (R16, R62b), the
+ * event's ticket types with their state (R51), the guest uses left this month (R55) and the
+ * packages shared with this person that can pay for the session (R2). Prices come from commerce's
+ * quote on the page itself (R19).
  */
 export async function getBookableSession(db: DbOrTx, personId: string, sessionId: string) {
   const [session] = await db.select().from(sessions).where(and(eq(sessions.id, sessionId), isNull(sessions.webinarId)));
@@ -168,10 +184,26 @@ export async function getBookableSession(db: DbOrTx, personId: string, sessionId
     session.creditKind && session.creditCost > 0
       ? await checkCredits(db, { personId, beneficiaryPersonId: personId, kind: session.creditKind, units: session.creditCost, validAt: session.startsAt })
       : null;
+  // R51 (booking-P8 request): an event with ticket types sells them by order, each at its product.
+  const ticketTypes = session.kind === "event" ? await ticketTypeOffers(db, session, personId) : [];
   const payOptions: PaidWith[] = [];
   if (credit?.ok) payOptions.push("credit");
-  if (session.productId) payOptions.push("order");
-  if (!session.productId && (!session.creditKind || session.creditCost === 0)) payOptions.push("free");
+  if (session.productId || ticketTypes.length > 0) payOptions.push("order");
+  if (!session.productId && ticketTypes.length === 0 && (!session.creditKind || session.creditCost === 0)) payOptions.push("free");
+  // R55 guest uses, and R2 packages shared with this person that can pay for this session.
+  const guestUses = credit ? await guestUseState(db, personId, session) : null;
+  const sharedPackages =
+    session.creditKind && session.creditCost > 0
+      ? (await listGrantsSharedWith(db, personId))
+          .filter(
+            (p) =>
+              p.kind === session.creditKind &&
+              p.unitsForMe >= session.creditCost &&
+              p.startsAt.getTime() <= session.startsAt.getTime() &&
+              (p.expiresAt === null || p.expiresAt.getTime() > session.startsAt.getTime()),
+          )
+          .map((p) => ({ grantId: p.grantId, ownerName: p.ownerName, unitsForMe: p.unitsForMe, productName: p.productName, expiresAt: p.expiresAt }))
+      : [];
   const health =
     session.kind === "day" || session.kind === "night" ? await orNull(hasValidSubmission(db, { personId, formSlug: HEALTH_DECLARATION_FORM })) : null;
   const [me] = await db.select({ emergencyContact: persons.emergencyContact }).from(persons).where(eq(persons.id, personId));
@@ -181,6 +213,9 @@ export async function getBookableSession(db: DbOrTx, personId: string, sessionId
     availability,
     payOptions,
     credit: credit ? { ok: credit.ok, available: credit.ok ? session.creditCost : credit.available } : null,
+    ticketTypes,
+    guestUses,
+    sharedPackages,
     healthDeclaration: health ? { valid: health.valid, expiresAt: health.expiresAt } : null,
     healthDeclarationRequired: rules.require_health_declaration && (session.kind === "day" || session.kind === "night"),
     needsEmergencyContact: session.kind === "night" && rules.require_emergency_contact_for_nights && !(contact?.name && contact.phone),

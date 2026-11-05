@@ -29,6 +29,7 @@ import { grantCredits, releaseCredits } from "@/modules/credits/api";
 import { sendTransactional } from "@/modules/email/api";
 import { LIVE_STATUSES, lockSession, readAvailabilityRow, type BookingRow, type SessionRow } from "./book";
 import { recordBookingFact } from "./facts";
+import { expireClaimedOffers } from "./order-hooks";
 
 export type CancelBy = "customer" | "staff" | "beam" | "system";
 export type CancelForce = "release_credit" | "refund";
@@ -519,32 +520,7 @@ export async function expireReservedRow(tx: Tx, ctx: Ctx, bookingId: string): Pr
     .returning();
   await recordBookingFact(ctx, "booking.cancelled", row!, { by: "system", cancelReasonCode: "payment_expired" });
   await sendCancellationEmail(ctx, row!, session);
-  const entries = await tx.select().from(waitlistEntries).where(and(eq(waitlistEntries.bookingId, booking.id), eq(waitlistEntries.state, "offered"))).for("update");
-  for (const entry of entries) {
-    waitlistTransition(entry, "expired", "system");
-    await tx.update(waitlistEntries).set({ state: "expired", endedReason: "payment_not_completed", updatedAt: ctx.now }).where(eq(waitlistEntries.id, entry.id));
-    await ctx.recordEvent({
-      kind: "waitlist.expired",
-      personId: entry.personId,
-      data: {
-        session_id: session.id,
-        session_kind: session.kind,
-        event_category: session.eventCategory,
-        starts_at: session.startsAt,
-        paid_with: booking.paidWith,
-        is_guest: false,
-        guest_of_person_id: null,
-        owner_person_id: entry.personId,
-        is_first_booking: false,
-        is_first_visit: false,
-        queue: entry.queue,
-        booking_id: booking.id,
-        ended_reason: "payment_not_completed",
-      },
-      ref: { type: "waitlist_entry", id: entry.id },
-      dedupeKey: `waitlist:${entry.id}:expired:${entry.offersCount}:${entry.rejoinCount}`,
-    });
-  }
+  await expireClaimedOffers(ctx, row!, session);
   if (session.status !== "cancelled") await enqueueOfferNext(ctx, session.id, booking.id);
   return true;
 }

@@ -850,8 +850,11 @@
       "mergedAt": "2026-11-04T09:25:04Z"
     },
     "forms-P7": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "e402e9c",
+      "runId": null,
+      "startedAt": "2026-11-05T02:52:32Z"
     },
     "email-P6": {
       "status": "merged",
@@ -914,14 +917,16 @@
       "mergedAt": "2026-11-05T00:24:55Z"
     },
     "email-P7": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "ebbfa4d",
       "runId": null,
       "startedAt": "2026-11-05T01:57:36Z",
       "branchSha": "894701e",
-      "endedAt": "2026-11-05T02:50:16Z",
-      "minutes": 44
+      "endedAt": "2026-11-05T02:52:24Z",
+      "minutes": 44,
+      "mergeSha": "c59a364",
+      "mergedAt": "2026-11-05T03:25:19Z"
     },
     "ops-P5": {
       "status": "merged",
@@ -1012,8 +1017,11 @@
       "mergedAt": "2026-11-04T23:39:25Z"
     },
     "booking-P8": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "e402e9c",
+      "runId": null,
+      "startedAt": "2026-11-05T02:52:32Z"
     },
     "ops-P7": {
       "status": "merged",
@@ -1048,8 +1056,11 @@
       "mergedAt": "2026-11-05T02:51:32Z"
     },
     "webinar-P4": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "e402e9c",
+      "runId": null,
+      "startedAt": "2026-11-05T02:52:32Z"
     },
     "email-P8": {
       "status": "pending",
@@ -1142,20 +1153,35 @@
       "mergedAt": "2026-11-05T02:51:47Z"
     },
     "crm-P9": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "e402e9c",
+      "runId": null,
+      "startedAt": "2026-11-05T02:52:32Z"
     },
     "booking-P9": {
       "status": "pending",
       "attempts": 0
     },
     "finance-P9": {
-      "status": "pending",
-      "attempts": 0
+      "status": "done",
+      "attempts": 1,
+      "baseSha": "e402e9c",
+      "runId": null,
+      "startedAt": "2026-11-05T02:52:32Z",
+      "extraOwns": [
+        "apps/web/modules/finance/service/exports.test.ts"
+      ],
+      "branchSha": "0d81338",
+      "endedAt": "2026-11-05T03:23:34Z",
+      "minutes": 22
     },
     "ops-P8": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "e402e9c",
+      "runId": null,
+      "startedAt": "2026-11-05T02:52:32Z"
     },
     "automation-P9": {
       "status": "pending",

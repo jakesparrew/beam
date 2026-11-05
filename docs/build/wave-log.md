@@ -197,3 +197,5 @@ One entry per merge batch and gate (runbook section 5.7, adapted by OD-3).
 - automation-P7: merged as `61d4337` in batch `g104-batch`.
 - credits-P9: merged as `43c3abb` in batch `g104-batch`.
 - Batch `g104-batch` (crm-P8 webinar-P3 forms-P6 ops-P7 finance-P8 automation-P7 credits-P9): migrations 0038_w19.sql 0039_w19_views.sql; merge gate green, peak 6130 MB.
+- email-P7: merged as `c59a364` in batch `g105-batch`.
+- Batch `g105-batch` (email-P7): merge gate green, peak 13669 MB.

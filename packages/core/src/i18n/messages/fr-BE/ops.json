@@ -37,7 +37,24 @@
       "open_person": "Ouvrir la personne",
       "download_csv": "Télécharger le CSV",
       "no_data": "Aucune donnée",
-      "data_as_of": "Données au {date}"
+      "data_as_of": "Données au {date}",
+      "from": "Du",
+      "to": "Au",
+      "apply": "Appliquer",
+      "clear": "Effacer les filtres",
+      "previous_page": "Page précédente",
+      "next_page": "Page suivante",
+      "page": "Page {page}",
+      "flag_off": "Cet écran n’est pas encore activé.",
+      "weekday": {
+        "1": "Lundi",
+        "2": "Mardi",
+        "3": "Mercredi",
+        "4": "Jeudi",
+        "5": "Vendredi",
+        "6": "Samedi",
+        "7": "Dimanche"
+      }
     },
     "dashboard": {
       "title": "Aujourd’hui",
@@ -84,7 +101,8 @@
         "webinar_leads_not_booked": {
           "title": "Prospects webinaire sans réservation",
           "empty": "Rien ne demande votre attention aujourd’hui",
-          "row": "Inscrit le {date}"
+          "row": "Inscrit le {date}",
+          "secondary": "{count} importés de l’ancien outil de webinaires"
         },
         "unused_packages_expiring": {
           "title": "Forfaits inutilisés qui expirent",
@@ -94,7 +112,8 @@
         "shared_package_abuse": {
           "title": "Forfaits partagés à vérifier",
           "empty": "Rien ne demande votre attention aujourd’hui",
-          "row": "{guests} invités en 30 jours"
+          "row": "{guests} invités en 30 jours",
+          "review": "Examiner sur l’écran de partage"
         },
         "overdue_tasks": {
           "title": "Tâches en retard",
@@ -134,7 +153,17 @@
     "pipeline": {
       "title": "Pipeline B2C",
       "high_value": "Forte valeur",
-      "empty": "Aucune personne à cette étape"
+      "empty": "Aucune personne à cette étape",
+      "intro": "Chaque personne dans sa phase actuelle, dernier changement d’abord. La phase est calculée et ne peut pas être fixée à la main.",
+      "filter": {
+        "source": "Source",
+        "campaign": "Campagne",
+        "high_value": "Valeur élevée uniquement"
+      },
+      "changed": "Dans cette phase depuis le {date}",
+      "show_all": "Tout afficher dans cette phase",
+      "back": "Retour au tableau",
+      "high_value_count": "{count} à valeur élevée"
     },
     "retention": {
       "title": "Liste de fidélisation de la semaine",
@@ -167,7 +196,46 @@
         "already_contacted": "Déjà contacté",
         "do_not_contact": "Ne pas contacter",
         "other": "Autre"
-      }
+      },
+      "week_of": "Semaine du {date}",
+      "generated_at": "Établie le {date}",
+      "not_built": "La liste de cette semaine n’est pas encore établie. Elle est établie chaque lundi à 06:10.",
+      "tab": {
+        "list": "Cette semaine",
+        "candidates": "Tous les candidats"
+      },
+      "column": {
+        "rank": "#",
+        "person": "Personne",
+        "primary_reason": "Raison principale",
+        "reasons": "Toutes les raisons",
+        "score": "Score",
+        "revenue": "Chiffre d’affaires",
+        "last_visit": "Dernière visite",
+        "task": "Tâche",
+        "actions": "Actions"
+      },
+      "task_status": {
+        "none": "Pas de tâche",
+        "open": "Tâche ouverte",
+        "done": "Tâche terminée",
+        "cancelled": "Tâche annulée",
+        "dismissed": "Écarté : {reason}"
+      },
+      "dismiss_reason": "Raison",
+      "dismiss_note": "Note (facultative)",
+      "filter": {
+        "reason": "Raison",
+        "all": "Toutes les raisons"
+      },
+      "candidates_empty": "Aucun candidat pour cette raison",
+      "result": {
+        "task_created": "Tâche créée",
+        "tasks_created": "{count, plural, one {# tâche créée} other {# tâches créées}}",
+        "dismissed": "Écarté",
+        "rebuilt": "La liste a été réétablie"
+      },
+      "open_task": "Ouvrir la tâche"
     },
     "reports": {
       "title": "Rapports",
@@ -226,7 +294,100 @@
         "value": "Valeur",
         "vat_treatment": "Traitement TVA",
         "as_of": "Au {date}",
-        "empty": "Aucun crédit en cours"
+        "empty": "Aucun crédit en cours",
+        "kind": {
+          "day": "Séances de jour",
+          "night": "Nuits",
+          "euro": "Crédit en euros"
+        },
+        "vat": {
+          "single_purpose": "Bon à usage unique (TVA à la vente)",
+          "multi_purpose": "Bon à usages multiples (TVA à l’utilisation)",
+          "not_applicable": "Pas de TVA"
+        }
+      },
+      "no_shows": {
+        "title": "Absences et annulations",
+        "empty": "Aucune annulation ni absence sur cette période",
+        "intro": "Les séances annulées par BEAM sont montrées à part et ne comptent jamais contre un client.",
+        "status": {
+          "cancelled": "Annulé à temps",
+          "late_cancelled": "Annulé tardivement",
+          "no_show": "Absence"
+        },
+        "rate": "Taux d’absence",
+        "value_forfeited": "Valeur perdue",
+        "credits_forfeited": "Crédits perdus",
+        "session_cancelled": "Annulé par BEAM : {bookings} réservations sur {sessions} séances",
+        "by_customer": "Par client",
+        "by_template": "Par type de séance",
+        "by_weekday_hour": "Par jour et heure",
+        "pattern": "Récurrent",
+        "pattern_help": "Signalé à partir de {count} absences en {days} jours",
+        "column": {
+          "person": "Client",
+          "attended": "Présent",
+          "recent": "Absences en {days} jours",
+          "template": "Type de séance",
+          "weekday": "Jour",
+          "hour": "Heure"
+        },
+        "no_template": "Séance unique"
+      },
+      "abandoned": {
+        "title": "Paiements abandonnés",
+        "empty": "Aucun paiement abandonné",
+        "abandoned": "Abandonnés",
+        "recovered": "Récupérés",
+        "rate": "Taux de récupération",
+        "revenue": "Chiffre d’affaires récupéré",
+        "failure_share": "Paiements échoués",
+        "abandoned_value": "Valeur abandonnée",
+        "column": {
+          "abandoned_at": "Abandonné le",
+          "person": "Client",
+          "reason": "Raison",
+          "items": "Articles",
+          "value": "Valeur",
+          "recovery": "Rappel",
+          "outcome": "Résultat"
+        },
+        "reason": {
+          "left": "Paiement quitté",
+          "payment_failed": "Paiement échoué",
+          "payment_expired": "Paiement expiré"
+        },
+        "outcome": {
+          "recovered": "Récupéré ({amount})",
+          "open": "Non récupéré"
+        },
+        "guest": "Invité",
+        "no_reminder": "Aucun envoi"
+      },
+      "capacity": {
+        "title": "Occupation",
+        "empty": "Aucune séance sur cette période",
+        "intro": "Les séances passées comptent les places présentes et absentes, les séances à venir les places réservées.",
+        "group_by": "Grouper par",
+        "group": {
+          "template": "Type de séance",
+          "weekday": "Jour",
+          "hour": "Heure de début",
+          "month": "Mois"
+        },
+        "column": {
+          "sessions": "Séances",
+          "capacity": "Places",
+          "booked": "Réservées",
+          "attended": "Présents",
+          "no_shows": "Absences",
+          "cancellations": "Annulations",
+          "waitlist_peak": "Liste d’attente (max)",
+          "utilisation": "Occupation"
+        },
+        "total": "Total",
+        "no_template": "Séances uniques",
+        "hour": "{hour} h"
       }
     },
     "imports": {
@@ -329,7 +490,9 @@
         "webinar_title": "Titre du webinaire",
         "webinar_starts_at": "Début du webinaire",
         "outcome_key": "Résultat",
-        "unmapped": "Ne pas importer"
+        "unmapped": "Ne pas importer",
+        "mode": "Mode de visionnage (direct, rediffusion, à la demande)",
+        "watched_minutes": "Minutes regardées"
       },
       "option": {
         "delimiter": "Séparateur",
@@ -342,7 +505,8 @@
         "credit_kind": "Type de crédit",
         "tag_key": "Étiquette pour tout le fichier",
         "preset": "Correspondance prédéfinie",
-        "confirm_no_suppression_source": "Aucune source de désinscriptions n’existe"
+        "confirm_no_suppression_source": "Aucune source de désinscriptions n’existe",
+        "confirm_different_file": "Ce fichier diffère de celui de l’essai. L’exécuter quand même avec ce fichier ?"
       },
       "report": {
         "title": "Rapport",
@@ -378,7 +542,30 @@
         "go_live_gate": "Terminez d’abord le contrôle de mise en production",
         "dry_run_first": "Lancez d’abord un essai avec cette correspondance",
         "suppressions_first": "Importez d’abord les désinscriptions, ou confirmez qu’aucune source n’existe",
-        "another_running": "Une autre importation est en cours"
+        "another_running": "Une autre importation est en cours",
+        "past_booking": "La séance est passée : réservation non importée",
+        "invalid_status": "Statut non valide",
+        "missing_purpose": "Finalité du consentement manquante",
+        "invalid_purpose": "Finalité du consentement non valide",
+        "unknown_tag": "Étiquette inconnue",
+        "missing_tag": "Étiquette manquante",
+        "missing_name": "Nom manquant",
+        "invalid_scope": "Portée non valide",
+        "invalid_session_kind": "Type de séance non valide",
+        "invalid_paid_with": "Moyen de paiement non valide",
+        "zero_units": "Plus d’unités : forfait non importé",
+        "invalid_history_kind": "Type d’historique non valide",
+        "missing_history_kind": "Type d’historique manquant",
+        "missing_external_id": "Identifiant externe manquant",
+        "minor": "La personne a moins de 16 ans : ligne ignorée",
+        "unchanged": "Rien à modifier",
+        "duplicate_in_file": "Même adresse e-mail plus haut dans le fichier",
+        "chunk_failed": "Cette partie de l’import a échoué ; elle peut être reprise",
+        "not_utf8": "Le fichier n’est pas du texte UTF-8",
+        "file_missing": "Le fichier est manquant",
+        "same_file": "Ce fichier a déjà été chargé pour cet import",
+        "not_manual": "Seuls les imports manuels peuvent être modifiés ici",
+        "import_not_runnable": "Cet import ne peut pas être exécuté dans son état actuel"
       }
     },
     "cutover": {
@@ -441,6 +628,11 @@
         "campaigns": "Campagnes",
         "tasks": "Tâches",
         "activity_events": "Événements de la chronologie"
+      },
+      "column": {
+        "rows": "Lignes",
+        "created_by": "Demandé par",
+        "expires": "Expire"
       }
     },
     "privacy": {
@@ -606,7 +798,14 @@
           "customer_service": "Service client",
           "legal_obligations": "Obligations légales"
         }
-      }
+      },
+      "col_person": "Personne",
+      "col_due": "Échéance",
+      "col_requested_by": "Demandé par",
+      "progress_title": "Progression",
+      "report_title": "Rapport",
+      "cancel_reason": "Raison de l’annulation",
+      "lift_reason": "Raison de la levée de la limitation"
     },
     "retention_policy": {
       "ops_marketing_contact": "Contacts marketing sans achat",
@@ -639,7 +838,10 @@
       "ops_retention_lists": "Listes de fidélisation hebdomadaires",
       "ops_privacy_requests": "Demandes de confidentialité",
       "crm_suppressions": "Empreintes des désinscriptions",
-      "crm_consent_records": "Historique des consentements"
+      "crm_consent_records": "Historique des consentements",
+      "status": {
+        "no_handler": "Aucun gestionnaire"
+      }
     },
     "dpia": {
       "sensitive_assessment_processing": {
@@ -675,7 +877,13 @@
         "approved": "Approuvée",
         "rejected": "Rejetée",
         "not_required": "Non requise"
-      }
+      },
+      "purpose": "Finalité",
+      "risks": "Risques",
+      "measures": "Mesures",
+      "decision_note": "Note de décision",
+      "document": "Document",
+      "ai_features_title": "Fonctions d’IA et l’AIPD requise"
     },
     "digest": {
       "title": "Résumé quotidien BEAM du {date}",

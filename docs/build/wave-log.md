@@ -216,3 +216,9 @@ One entry per merge batch and gate (runbook section 5.7, adapted by OD-3).
 - platform-P11a: merged as `89e83b3` in batch `g109-batch`.
 - forms-P8: merged as `ea52e2d` in batch `g109-batch`.
 - Batch `g109-batch` (platform-P11a forms-P8): merge gate green, peak 9286 MB.
+- crm-P10: merged as `caa2daf` in batch `g110-batch`.
+- platform-P11b: merged as `1a84608` in batch `g110-batch`.
+- platform-P12: merged as `e66d650` in batch `g110-batch`.
+- webinar-P5: merged as `c7315a3` in batch `g110-batch`.
+- commerce-P8: merged as `b574f1f` in batch `g110-batch`.
+- Batch `g110-batch` (crm-P10 platform-P11b platform-P12 webinar-P5 commerce-P8): migrations 0044_w22.sql; merge gate green, peak 11788 MB.

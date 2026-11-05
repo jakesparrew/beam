@@ -46,7 +46,7 @@ afterAll(async () => {
 });
 beforeEach(async () => {
   await setBookingRules(h.db);
-  vi.mocked(getMembershipForPerson).mockReset().mockResolvedValue({ isMember: false, membershipId: null, planProductId: null, discountPct: 0, status: null, periodEndAt: null, cancelAt: null } as never);
+  vi.mocked(getMembershipForPerson).mockReset().mockResolvedValue({ isMember: false, membershipId: null, planProductId: null, discountPct: 0, status: null, periodEndAt: null, cancelAt: null });
   vi.mocked(getPersonStatus).mockReset().mockResolvedValue({ status: "customer", derivedStatus: "customer", override: null, hasActiveMembership: false } as never);
   vi.mocked(getCurrentLegalVersion).mockReset().mockResolvedValue({ versionId: VERSION_ID } as never);
   vi.mocked(hasAcceptedCurrentTerms).mockReset().mockResolvedValue(false);

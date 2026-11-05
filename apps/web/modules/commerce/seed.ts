@@ -23,7 +23,6 @@ import type { Tx } from "@beam/db";
 import { files, lightspeedImports, lightspeedSales, orders, payments, persons, products, users } from "@beam/db/schema";
 import { DEMO_SKUS, seedCommerceCatalogue } from "@beam/db/seed/commerce";
 import { businessDayRange, parseLightspeedCsv } from "@beam/core/commerce";
-import type { Locale } from "@beam/core/i18n";
 import { and, asc, createCtx, eq } from "@/lib/ctx";
 import { storeFile } from "@/lib/files";
 import type { SeedCtx } from "@/scripts/seed-demo";
@@ -163,7 +162,7 @@ export async function seedDemoCustomerOrders(s: Pick<SeedCtx, "db" | "now" | "id
       channel: "admin",
       items: [{ productId: product.id, quantity: o.quantity }],
       clientKey: demoUuid(`order:${o.customer}:${i + 1}`),
-      locale: person.locale as Locale,
+      locale: person.locale,
     });
     if (order.status !== "pending_payment") {
       skipped++;

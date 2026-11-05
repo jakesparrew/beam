@@ -21,6 +21,14 @@
  * scenario-2 checks run here without being told about an unsubscribe: `email.send` re-reads
  * `v_marketing_reachability` and the `all` suppressions just before Resend (rules 40, 55), and
  * the campaign chunk (email-P6) re-reads the view before every batch of 100 (rule 32).
+ *
+ * email-P6, campaigns:
+ * - `campaign.plan` (bulk, 9; 3 attempts; key `campaign:<id>:plan:<version>`): the audience
+ *   snapshot of rule 27 (`server/plan.ts`); the last failing attempt moves the campaign back to
+ *   `draft` with `last_error`.
+ * - `campaign.send_chunk` (bulk, 9; 6 attempts; key `campaign:<id>:chunk:<n>:r<run_no>`, plus
+ *   `:d<YYYY-MM-DD>` for a warm-up continuation): rules 32 to 34 and 37 (`server/send-chunk.ts`).
+ * - `email.dispatch_due_campaigns` (fast, 5; schedule `* * * * *`): rule 31.
  */
 import { z } from "zod";
 import type { AiFeatureKey } from "@beam/core/ai";
@@ -29,7 +37,10 @@ import { notifySlack } from "@/lib/alerts";
 import { defineJob, type JobCtx } from "@/lib/job-runner";
 import { rowsOf } from "@/lib/sensitive";
 import { defineWebhookHandler } from "@/lib/webhooks";
+import { CampaignChunkJobInput, CampaignPlanJobInput } from "@beam/core/email";
+import { dispatchDueCampaigns, PLAN_MAX_ATTEMPTS, planCampaign } from "./server/plan";
 import { processResendEvent, retrySoftBounce } from "./server/process-event";
+import { sendChunk } from "./server/send-chunk";
 import { sendEmailMessage } from "./server/send";
 
 export { sendEmailMessage };
@@ -88,6 +99,9 @@ export const jobs = [
   defineJob({ kind: "email.retry_soft_bounce", lane: "fast", priority: 5, maxAttempts: 3, input: z.object({ emailMessageId: z.string().uuid() }), run: retrySoftBounce }),
   defineJob({ kind: "email.purge_props", lane: "bulk", priority: 9, maxAttempts: 3, input: z.object({}).passthrough(), run: purgeProps }),
   defineJob({ kind: "email.check_domains", lane: "fast", priority: 5, maxAttempts: 3, input: z.object({}).passthrough(), run: checkDomains }),
+  defineJob({ kind: "campaign.plan", lane: "bulk", priority: 9, maxAttempts: PLAN_MAX_ATTEMPTS, timeoutMs: 120_000, input: CampaignPlanJobInput, run: planCampaign }),
+  defineJob({ kind: "campaign.send_chunk", lane: "bulk", priority: 9, maxAttempts: 6, timeoutMs: 120_000, input: CampaignChunkJobInput, run: sendChunk }),
+  defineJob({ kind: "email.dispatch_due_campaigns", lane: "fast", priority: 5, maxAttempts: 3, input: z.object({}).passthrough(), run: dispatchDueCampaigns }),
 ];
 
 export const webhookHandlers = [

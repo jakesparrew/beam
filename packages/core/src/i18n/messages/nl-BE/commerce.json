@@ -11,7 +11,8 @@
       "orders": "Bestellingen",
       "attention": "Betalingen opvolgen",
       "pos": "Onthaal",
-      "pos_day": "Dagafsluiting onthaal"
+      "pos_day": "Dagafsluiting onthaal",
+      "lightspeed": "Lightspeed-import"
     },
     "common": {
       "yes": "Ja",
@@ -555,7 +556,10 @@
       "method": "Methode",
       "withdrawal_until": "Je kan herroepen tot {date}.",
       "pay_now": "Nu betalen",
-      "back": "Terug naar mijn aankopen"
+      "back": "Terug naar mijn aankopen",
+      "invoice_title": "Factuur",
+      "invoice_link": "Factuur {number}",
+      "invoice_pending": "De factuur volgt per e-mail zodra ze is opgemaakt."
     },
     "gift": {
       "title": "Geef een BEAM-cadeaubon",
@@ -744,7 +748,12 @@
       "refundable": "Terug te betalen op deze bestelling: {amount}",
       "where": "Waar het geld naartoe gaat: eerst het tegoed, daarna de kaart- of cashbetalingen.",
       "second_permission": "Boven {amount} of op een bestelling ouder dan 365 dagen vraagt een terugbetaling ook het recht om facturen uit te reiken.",
-      "confirm": "Terugbetaling bevestigen"
+      "confirm": "Terugbetaling bevestigen",
+      "quick_amount": "Terug te betalen bedrag (EUR)",
+      "quick_intro": "Het bedrag wordt in volgorde over de lijnen verdeeld, tot wat per lijn nog terug te betalen is.",
+      "quick_default_reason": "Terugbetaling door een medewerker",
+      "per_line": "Per lijn terugbetalen",
+      "close": "Sluiten"
     },
     "admin_attention": {
       "title": "Betalingen opvolgen",

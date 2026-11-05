@@ -7,7 +7,7 @@ import { getAppDb } from "@/lib/ctx";
 import { adminLocale, translator } from "@/lib/i18n";
 import { uploadLightspeedCsv } from "@/modules/commerce/actions";
 import { businessDayOf } from "@/modules/commerce/queries";
-import { LIGHTSPEED_MAX_BYTES, getLightspeedDaily, listLightspeedImports } from "@/modules/commerce/server/lightspeed";
+import { LIGHTSPEED_MAX_BYTES, getLightspeedDaily, listLightspeedImports } from "@/modules/commerce/queries";
 
 type Search = Record<string, string | undefined>;
 const DAY = /^\d{4}-\d{2}-\d{2}$/;

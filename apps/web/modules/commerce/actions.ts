@@ -129,8 +129,12 @@ export const findPricePersons = action(
 // Customer checkout (commerce-P5, rules 16, 20, 26 to 26c, 48)
 // ---------------------------------------------------------------------------
 
-/** Public actions: 20 per minute per IP (`api` bucket); placements and payments also per id. */
-const perIp = (_input: unknown, meta: { ip: string }) => ({ route: "api" as const, ip: meta.ip });
+/**
+ * Public actions: 20 per minute per IP (route `commerce`, `commerce:ip:<ip>`, spec 4.2).
+ * Placements and payments are also limited per checkout or order inside their transaction
+ * (`commerce:pay:<id>`, 5 per minute, `limitPay`), so the route gets no `payId`.
+ */
+const perIp = (_input: unknown, meta: { ip: string }) => ({ route: "commerce" as const, ip: meta.ip });
 
 export const startCheckout = action(
   { name: "commerce.start_checkout", audience: "public", input: StartCheckoutInput, audit: false, rateLimit: perIp },

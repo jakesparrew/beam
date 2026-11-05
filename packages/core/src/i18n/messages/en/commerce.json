@@ -11,7 +11,8 @@
       "orders": "Orders",
       "attention": "Payment attention",
       "pos": "Front desk",
-      "pos_day": "Front-desk day close"
+      "pos_day": "Front-desk day close",
+      "lightspeed": "Lightspeed import"
     },
     "common": {
       "yes": "Yes",
@@ -555,7 +556,10 @@
       "method": "Method",
       "withdrawal_until": "You can withdraw until {date}.",
       "pay_now": "Pay now",
-      "back": "Back to my purchases"
+      "back": "Back to my purchases",
+      "invoice_title": "Invoice",
+      "invoice_link": "Invoice {number}",
+      "invoice_pending": "The invoice follows by email once it is issued."
     },
     "gift": {
       "title": "Give a BEAM gift voucher",
@@ -744,7 +748,12 @@
       "refundable": "Refundable on this order: {amount}",
       "where": "Where the money goes: credit balance first, then the card or cash payments.",
       "second_permission": "Above {amount} or on an order older than 365 days a refund also needs the permission to issue invoices.",
-      "confirm": "Confirm refund"
+      "confirm": "Confirm refund",
+      "quick_amount": "Amount to refund (EUR)",
+      "quick_intro": "The amount is spread over the lines in order, up to what is still refundable on each line.",
+      "quick_default_reason": "Refund by staff",
+      "per_line": "Refund per line",
+      "close": "Close"
     },
     "admin_attention": {
       "title": "Payment attention",

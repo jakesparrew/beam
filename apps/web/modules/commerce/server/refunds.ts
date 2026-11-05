@@ -8,7 +8,8 @@
  * credit-balance amount, else a `grantCredits` of the part, rule 38), applies the credit effects
  * per line (package grants revoked, bookings cancelled, the membership cancelled, vouchers voided
  * with a scheduled email withdrawn), issues one credit note per refund row, moves the payments
- * and the order to `partially_refunded` or `refunded` and writes `order.refunded`. Local money
+ * and the order to `partially_refunded` or `refunded`, writes `order.refunded` and hands every
+ * refund row to credits' `onOrderRefundedForReferrals` (negative partner commissions). Local money
  * (credit balance, cash) is `refunded` at once; a bank transfer is `sent` until staff confirm;
  * provider payments are refunded by the job `payments.refund`.
  *
@@ -16,7 +17,7 @@
  * for seats lost after a late payment: the full line, no permission, no booking call back,
  * idempotent per line and reason.
  */
-import { jobs, memberships, orderLines, orders, payments, persons, refunds, users, vouchers } from "@beam/db/schema";
+import { jobs, memberships, orderLines, orders, payments, persons, refunds, vouchers } from "@beam/db/schema";
 import {
   DATED_PRODUCT_KINDS,
   nextOrderStatus,
@@ -33,11 +34,10 @@ import type { PaymentProvider } from "@beam/integrations/payments";
 import { and, asc, desc, eq, inArray, isNotNull, sql, ConflictError, NotFoundError, ValidationError, createCtx, type Ctx, type DbOrTx, type Tx } from "@/lib/ctx";
 import { getIntegrations, type Integrations } from "@/lib/integrations";
 import type { JobCtx } from "@/lib/job-runner";
-import { cancelMembershipForRefund, getGrantUsage, grantCredits, releaseCredits, revokeGrantRemainder } from "@/modules/credits/api";
+import { cancelMembershipForRefund, getGrantUsage, grantCredits, onOrderRefundedForReferrals, releaseCredits, revokeGrantRemainder } from "@/modules/credits/api";
 import { createTask } from "@/modules/crm/api";
 import { cancelScheduledMessage, sendTransactional } from "@/modules/email/api";
 import { getInvoiceForOrder, issueCreditNote, markCreditNoteSettled } from "@/modules/finance/api";
-import { getCustomerAccount } from "@/modules/platform/api";
 import { commerceSettings, lockOrder, orderPageUrl, orderSubject, PAID_PAYMENT_STATUSES, type OrderLineRow, type OrderRow, type PaymentRow } from "./paid";
 
 /** booking's api is loaded on first use (booking imports commerce's api; see paid.ts). */
@@ -153,30 +153,40 @@ export async function getRefundPreview(db: DbOrTx, orderId: string, at: Date = n
   return { order, context: c, lines: plans, refundableCents: plans[0]?.plan.refundableCents ?? 0 };
 }
 
+/**
+ * The refund dialog of the order screen (finance-P6): one amount in cents spread over the lines
+ * of `getRefundPreview` in order, each line up to what is still refundable on it, with the whole
+ * remaining quantity. Null when the amount is not a positive whole number of cents or above what
+ * the order can refund; the per-line screen covers every other case.
+ */
+export function quickRefundLines(
+  preview: { lines: Array<{ line: { id: string }; left: number; plan: RefundPlan }> },
+  amountCents: number,
+): RefundRequestLine[] | null {
+  if (!Number.isInteger(amountCents) || amountCents <= 0) return null;
+  let need = amountCents;
+  const out: RefundRequestLine[] = [];
+  for (const { line, left, plan } of preview.lines) {
+    const max = plan.lines[0]?.maxAmountCents ?? 0;
+    if (need <= 0) break;
+    if (max <= 0 || left <= 0) continue;
+    const take = Math.min(need, max);
+    out.push({ orderLineId: line.id, quantity: left, amountCents: take });
+    need -= take;
+  }
+  return need > 0 || out.length === 0 ? null : out;
+}
+
 // ---------------------------------------------------------------------------
 // Who a refund row names
 // ---------------------------------------------------------------------------
 
 /**
- * `refunds.created_by_user_id` (not null until the schema fixer makes it nullable): the acting
- * user, else the staff user who created the order, else the buyer's customer account, else the
- * first active owner (a system refund: booking's session cancellation, lost seats).
+ * `refunds.created_by_user_id`: the acting staff user or customer account; null for a system
+ * refund (booking's session cancellation from a job, seats lost after a late payment, rule 37a).
  */
-async function refundCreator(tx: DbOrTx, ctx: Ctx, order: OrderRow): Promise<string> {
-  if (ctx.actor.kind === "staff" || ctx.actor.kind === "customer") return ctx.actor.userId;
-  if (order.createdByUserId) return order.createdByUserId;
-  if (order.personId) {
-    const account = await getCustomerAccount(tx, order.personId);
-    if (account) return account.userId;
-  }
-  const [owner] = await tx
-    .select({ id: users.id })
-    .from(users)
-    .where(and(eq(users.audience, "staff"), eq(users.status, "active")))
-    .orderBy(sql`case when ${users.roleKey} = 'owner' then 0 else 1 end`, asc(users.createdAt))
-    .limit(1);
-  if (!owner) throw new ConflictError("refund_creator_missing");
-  return owner.id;
+function refundCreator(ctx: Ctx): string | null {
+  return ctx.actor.kind === "staff" || ctx.actor.kind === "customer" ? ctx.actor.userId : null;
 }
 
 /** Finance never lets a customer issue a credit note; a customer's withdrawal or cancellation runs it as the system. */
@@ -248,7 +258,7 @@ export async function issueRefund(tx: Tx, ctx: Ctx, input: IssueRefundInput): Pr
     if (plan.totalCents > settings.refund_second_permission_above_cents || old) ctx.require("invoices.issue");
   }
 
-  const createdByUserId = await refundCreator(tx, ctx, order);
+  const createdByUserId = refundCreator(ctx);
   const portions = splitLines(plan);
   const paymentById = new Map(c.payments.map((p) => [p.id, p]));
   const refundRows: RefundRow[] = [];
@@ -355,6 +365,10 @@ export async function issueRefund(tx: Tx, ctx: Ctx, input: IssueRefundInput): Pr
       data: { order_id: order.id, amount_cents: plan.totalCents, reason },
     });
   }
+
+  // credits-P9: a refund of a referred customer's order writes the negative commission rows
+  // (and sends a qualified attribution in its 14-day window back to pending).
+  for (const row of refundRows) await onOrderRefundedForReferrals(tx, ctx, { orderId: order.id, refundId: row.id });
 
   // Refunds paid out locally are settled now; provider refunds go to `payments.refund`.
   for (const row of refundRows) {

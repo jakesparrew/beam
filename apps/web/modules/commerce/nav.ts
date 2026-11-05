@@ -5,7 +5,9 @@
  * An entry has one permission: the catalogue entries use `pricing.write`; staff with only
  * `commerce.sell` reach the read-only product list from the POS and order screens. commerce-P6 adds
  * the orders list and the payment attention feed (`commerce.sell`). commerce-P7 adds the front-desk
- * POS and its day close (`commerce.sell`).
+ * POS and its day close (`commerce.sell`). commerce-P9 (R3) adds the Lightspeed import
+ * (`commerce.sell`, the staff who upload the daily export; `reports.finance` without
+ * `commerce.sell` reaches the page from the finance reports).
  */
 export const nav = [
   {
@@ -67,5 +69,15 @@ export const nav = [
     permission: "commerce.sell",
     icon: "banknote",
     order: 295,
+  },
+  {
+    key: "commerce.lightspeed",
+    area: "admin",
+    section: "sales",
+    labelKey: "commerce.nav.lightspeed",
+    href: "/admin/pos/lightspeed",
+    permission: "commerce.sell",
+    icon: "upload",
+    order: 297,
   },
 ] as const;

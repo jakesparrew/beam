@@ -6,7 +6,7 @@ import { translator } from "@/lib/i18n";
 import { getCurrentLegalVersion } from "@/modules/site/api";
 import type { CheckoutView } from "../server/checkouts";
 import { PromoField } from "./promo-field";
-import { ReturnPoller, type ReturnPollStatus } from "./return-poller";
+import { ReturnPoller, type PurchaseConversion, type ReturnPollStatus } from "./return-poller";
 import { QuoteLines } from "./quote-lines";
 
 /** The live terms URL in the page locale (rule 26a); null when unreadable. */
@@ -167,7 +167,7 @@ export function TermsCheckbox({ locale, termsUrl, error }: { locale: Locale; ter
 export function ErrorSummary({ locale, error }: { locale: Locale; error: BasketError }) {
   if (!error) return null;
   const tr = translator(locale);
-  const known = new Set(["validation", "rate_limited", "payment_unavailable", "terms_unavailable", "already_member", "pending_exists", "product_unavailable", "checkout_closed", "checkout_not_found", "login_required", "order_expired", "invalid_transition", "not_found", "price_changed", "not_sold_online", "amount_out_of_range", "email_required"]);
+  const known = new Set(["validation", "rate_limited", "payment_unavailable", "terms_unavailable", "already_member", "pending_exists", "product_unavailable", "checkout_closed", "checkout_not_found", "login_required", "promo_not_eligible", "order_expired", "invalid_transition", "not_found", "price_changed", "not_sold_online", "amount_out_of_range", "email_required"]);
   return (
     <div role="alert" className="rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-900 dark:border-red-800 dark:bg-red-950 dark:text-red-100">
       {tr(`commerce.errors.${known.has(error.code) ? error.code : "validation"}`)}
@@ -262,6 +262,7 @@ export function OrderReturn({
   poll,
   retryAction,
   links,
+  conversion,
 }: {
   locale: Locale;
   reference: string;
@@ -270,6 +271,8 @@ export function OrderReturn({
   poll: () => Promise<{ ok: true; data: ReturnPollStatus } | { ok: false; error: { code: string; message: string } }>;
   retryAction: ((fd: FormData) => Promise<void>) | null;
   links: { href: string; label: string }[];
+  /** site-P9: the purchase conversion reported once the order is paid (site's return page). */
+  conversion?: PurchaseConversion | null;
 }) {
   const tr = translator(locale);
   return (
@@ -283,6 +286,7 @@ export function OrderReturn({
         initial={initial}
         poll={poll}
         retryAction={retryAction}
+        conversion={conversion ?? null}
         labels={{
           checking: tr("commerce.return.checking"),
           paid: tr("commerce.return.paid"),

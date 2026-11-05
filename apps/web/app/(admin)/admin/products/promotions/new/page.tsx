@@ -2,15 +2,16 @@ import Link from "next/link";
 import { requireStaff } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
 import { adminLocale, translator } from "@/lib/i18n";
-import { brusselsInputValue, commerceLabels, listProductOptions, promotionFormOptions } from "@/modules/commerce/queries";
+import { brusselsInputValue, commerceLabels, listProductOptions, listPromotionPartnerOptions, promotionFormOptions } from "@/modules/commerce/queries";
 import { PromotionForm } from "@/modules/commerce/ui/promotion-form";
 
-/** `/admin/products/promotions/new` (`pricing.write`): a code or an automatic offer (commerce spec 5.1). */
+/** `/admin/products/promotions/new` (`pricing.write`): a code or an automatic offer (commerce spec 5.1); R3: a code can name a partner. */
 export default async function NewPromotionPage() {
   await requireStaff({ permission: "pricing.write" });
   const locale = await adminLocale();
   const tr = translator(locale);
-  const products = await listProductOptions(await getAppDb());
+  const db = await getAppDb();
+  const [products, partners] = await Promise.all([listProductOptions(db), listPromotionPartnerOptions(db)]);
   return (
     <div className="grid gap-6">
       <Link href="/admin/products/promotions" className="text-sm underline-offset-4 hover:underline">
@@ -34,9 +35,10 @@ export default async function NewPromotionPage() {
           maxUses: "",
           maxUsesPerPerson: "",
           isActive: true,
+          partnerCompanyId: "",
         }}
         usesCount={0}
-        options={promotionFormOptions(tr, locale, products)}
+        options={{ ...promotionFormOptions(tr, locale, products), partners }}
         labels={{ ...commerceLabels(locale, ["common", "admin_promotions"]), invalid: tr("commerce.admin_products.invalid") }}
       />
     </div>

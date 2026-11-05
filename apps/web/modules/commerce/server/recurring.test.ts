@@ -13,7 +13,7 @@ import { createTestDb, makePerson, makeProduct } from "@beam/db/testing";
 import { ensureTermsVersion } from "@beam/db/testing/commerce-factories";
 import { makeMembership } from "@beam/db/testing/credits-factories";
 import type { DbHandle, Tx } from "@beam/db";
-import { activityEvents, jobs, mandates, orderLines, orders, payments, priceVersions } from "@beam/db/schema";
+import { activityEvents, jobs, mandates, orderLines, orders, payments, priceVersions, refunds } from "@beam/db/schema";
 
 vi.mock("next/headers", () => ({ cookies: () => Promise.resolve({ get: () => undefined }), headers: () => Promise.resolve(new Headers()) }));
 vi.mock("next/server", () => ({ after: () => undefined }));
@@ -46,6 +46,7 @@ vi.mock("@/modules/site/api", async (importOriginal) => ({
 const { createRecurringCharge, createRenewalLinkOrder, chargeRecurringPayment, getActiveMandate } = await import("./recurring");
 const { getPayLinkForOrder, findOrderByPayToken } = await import("./payment-links");
 const { cancelRenewalOrder } = await import("./cancel");
+const { applyProviderStatus, startPayment } = await import("./payments");
 const { createCtx, eq, and } = await import("@/lib/ctx");
 const { makeCtx, makeJobCtx, resetRuntime, runJobTwice, createFakeIntegrations } = await import("@/lib/testing");
 const { IntegrationError } = await import("@beam/integrations/_shared");
@@ -225,6 +226,25 @@ describe("createRenewalLinkOrder and getPayLinkForOrder", () => {
   });
 });
 
+describe("rule 33 on a renewal order (fix-w21-commerce-wiring)", () => {
+  it("does not call applyRenewalFailure when a one-off payment on the renewal link order ends unpaid", async () => {
+    const { person, plan, membership } = await member();
+    const link = await inTx((tx, ctx) => createRenewalLinkOrder(tx, ctx, { membershipId: membership.id, personId: person.id, productId: plan.id, periodEndOn: "2026-12-04" }));
+    const started = await inTx((tx, ctx) => startPayment(tx, ctx, { orderId: link.orderId }));
+    const [payment] = await h.db.select().from(payments).where(eq(payments.id, started.paymentId!));
+    expect(payment!.sequenceType).toBe("oneoff");
+    const out = await inTx(async (tx, ctx) => {
+      const [locked] = await tx.select().from(payments).where(eq(payments.id, payment!.id)).for("update");
+      return applyProviderStatus(tx, ctx, locked!, { status: "failed", reason: "card_declined" });
+    });
+    expect(out.changed).toBe(true);
+    expect((await h.db.select().from(payments).where(eq(payments.id, payment!.id)))[0]!.status).toBe("failed");
+    expect(credits.applyRenewalFailure).not.toHaveBeenCalled();
+    const failed = await h.db.select().from(activityEvents).where(and(eq(activityEvents.kind, "payment.failed"), eq(activityEvents.personId, person.id)));
+    expect(failed).toHaveLength(1);
+  });
+});
+
 describe("cancelRenewalOrder and a late paid", () => {
   it("enqueues payments.cancel for the open recurring payment and refunds a paid that still arrives", async () => {
     const { person, plan, membership, mandate } = await member();
@@ -247,6 +267,12 @@ describe("cancelRenewalOrder and a late paid", () => {
     const [after] = await h.db.select().from(payments).where(eq(payments.id, r.paymentId));
     expect(after).toMatchObject({ status: "refunded", refundedCents: 8900 });
     expect(fake.payments.payment(charged!.providerPaymentId!)!.refunds).toHaveLength(1);
+    // A system refunds row (created_by_user_id null, rule 22c) records the provider refund.
+    const rows = await h.db.select().from(refunds).where(eq(refunds.paymentId, r.paymentId));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ orderId: r.orderId, amountCents: 8900, reason: "order_cancelled", creditAction: "none", createdByUserId: null });
+    expect(["refunded", "sent"]).toContain(rows[0]!.status);
+    expect(rows[0]!.providerRefundId).toBe(fake.payments.payment(charged!.providerPaymentId!)!.refunds[0]!.providerRefundId);
     expect((await h.db.select().from(orders).where(eq(orders.id, r.orderId)))[0]!.status).toBe("cancelled");
     expect(credits.applyRenewalPayment).not.toHaveBeenCalled();
     expect(credits.activateMembership).not.toHaveBeenCalled();

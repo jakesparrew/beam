@@ -10,6 +10,8 @@
  * commerce-P7: the POS reads (`getPosOrder` for the `?order=` deep link, `getPosPaymentState`)
  * and the day summary (`getPosDaySummary`).
  * commerce-P8 (R2): the resume link read (`findCheckoutByResumeToken`, `resumeContinuePath`).
+ * commerce-P9 (R3): the partner options of the promotion form (`listPromotionPartnerOptions`) and
+ * the Lightspeed reads (`listLightspeedImports`, `getLightspeedDaily`).
  */
 import {
   activityEvents,
@@ -29,6 +31,7 @@ import {
 } from "@beam/db/schema";
 import type { InvoiceSummary } from "@beam/core/finance";
 import { getInvoiceForOrder } from "@/modules/finance/api";
+import { listPartnerCompanies } from "@/modules/crm/api";
 import type { Audience, ProductKind } from "@beam/core/commerce";
 import { priceVersionAt } from "@beam/core/commerce";
 import { messagesFor, TIME_ZONE, type Locale } from "@beam/core/i18n";
@@ -266,6 +269,21 @@ export function promotionFormOptions(tr: Tr, locale: Locale, productOptions: Pic
   };
 }
 
+/**
+ * R3: the partner options of the promotion form, from crm's partner companies
+ * (`listPartnerCompanies`). `keepId` (the promotion's current partner) stays selectable when that
+ * company is no longer a partner, so editing the promotion does not drop it silently.
+ */
+export async function listPromotionPartnerOptions(db: DbOrTx, keepId?: string | null): Promise<{ value: string; label: string }[]> {
+  const partners = await listPartnerCompanies(db);
+  const out = partners.map((p) => ({ value: p.id, label: p.name }));
+  if (keepId && !out.some((o) => o.value === keepId)) {
+    const [kept] = await db.select({ id: companies.id, name: companies.name }).from(companies).where(eq(companies.id, keepId));
+    if (kept) out.push({ value: kept.id, label: kept.name });
+  }
+  return out;
+}
+
 /** Product options for pickers (promotion `applies_to`, person prices): id, SKU, kind, name. */
 export async function listProductOptions(db: DbOrTx): Promise<Pick<ProductRow, "id" | "sku" | "kind" | "name" | "isActive">[]> {
   return db
@@ -434,7 +452,7 @@ export async function getOrder(db: DbOrTx, id: string): Promise<OrderDetail | nu
   };
 }
 
-export { getRefundPreview } from "./server/refunds";
+export { getRefundPreview, quickRefundLines } from "./server/refunds";
 export { getWithdrawalPreview, withdrawalBlocker } from "./server/withdrawals";
 
 /** The withdrawal plan of an order by id (the customer's order page), or null without a right. */
@@ -450,3 +468,4 @@ export { getPayOrderByToken, type PayPageView } from "./server/payment-links";
 export { getPosOrder, getPosPaymentState, ANONYMOUS_KINDS, type PosOrderView } from "./server/pos";
 export { getPosDaySummary, businessDayOf, isPosDayClosed, POS_DIFFERENCE_TASK_CENTS, type PosDaySummary, type PosDayTotals } from "./server/pos-day";
 export { findCheckoutByResumeToken, resumeContinuePath, type ResumeTarget } from "./server/recovery";
+export { getLightspeedDaily, listLightspeedImports, LIGHTSPEED_MAX_BYTES } from "./server/lightspeed";

@@ -1,13 +1,31 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { Badge, Button, buttonVariants, Input, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@beam/ui";
+import {
+  Badge,
+  Button,
+  buttonVariants,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  Input,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@beam/ui";
 import type { PricingTrace } from "@beam/core/commerce";
 import { formatDateTime, formatMoney, pick, t, type LocalizedText } from "@beam/core/i18n";
 import { hasPermission, requireStaff } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
 import { adminLocale, translator } from "@/lib/i18n";
-import { choosePaymentPath, cancelOrder, confirmManualRefund, emailReceipt, resendVoucher, retryRefund, sendPaymentLink, voidVoucher } from "@/modules/commerce/actions";
-import { getOrder } from "@/modules/commerce/queries";
+import { choosePaymentPath, cancelOrder, confirmManualRefund, emailReceipt, refundOrder, resendVoucher, retryRefund, sendPaymentLink, voidVoucher } from "@/modules/commerce/actions";
+import { getOrder, getRefundPreview, quickRefundLines } from "@/modules/commerce/queries";
 
 type Result = { ok: true } | { ok: false; error: { message: string } };
 
@@ -24,8 +42,9 @@ function text(form: FormData, key: string): string | undefined {
 /**
  * `/admin/orders/[id]` (commerce spec 5.1): lines with the price used (`pricing_trace`), payments
  * with their status history, refunds, vouchers, the invoice link (finance) and the order's
- * timeline events. Actions (server actions, no client script): choose the payment path (drafts),
- * send a payment link, cancel (draft or pending), refund (`commerce.refund`), retry a failed
+ * timeline events. Actions (server actions): choose the payment path (drafts), send a payment
+ * link, cancel (draft or pending), refund (`commerce.refund`: a dialog with one euro amount spread
+ * over the lines, `quickRefundLines`, and a link to the per-line refund screen), retry a failed
  * refund, confirm a manual refund, email the receipt, resend or void a voucher.
  */
 export default async function OrderPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ done?: string; error?: string }> }) {
@@ -46,6 +65,8 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
   const isOpen = order.status === "draft" || order.status === "pending_payment";
   const isPaid = order.status === "paid" || order.status === "partially_refunded";
   const line = (d: unknown, fallback: string) => pick(d as LocalizedText, locale, "order_lines.description") || fallback;
+  const r = (k: string, p?: Record<string, string | number>) => tr(`commerce.admin_refund.${k}`, p);
+  const refundableCents = canRefund && isPaid ? ((await getRefundPreview(await getAppDb(), id))?.refundableCents ?? 0) : 0;
 
   async function onPath(form: FormData) {
     "use server";
@@ -74,6 +95,15 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
   async function onResend(form: FormData) {
     "use server";
     back(id, await resendVoucher({ voucherId: text(form, "voucherId"), email: text(form, "email") }));
+  }
+  async function onQuickRefund(form: FormData) {
+    "use server";
+    const raw = (text(form, "amount") ?? "").replace(",", ".");
+    const euros = Number(raw);
+    const preview = await getRefundPreview(await getAppDb(), id);
+    const lines = preview && raw && Number.isFinite(euros) ? quickRefundLines(preview, Math.round(euros * 100)) : null;
+    if (!lines) back(id, { ok: false, error: { message: "refund_too_high" } });
+    back(id, await refundOrder({ orderId: id, lines, reason: text(form, "reason") ?? "", kind: "refund" }));
   }
   async function onVoid(form: FormData) {
     "use server";
@@ -322,10 +352,38 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
             </Button>
           </form>
         ) : null}
-        {canRefund && isPaid ? (
-          <Link href={`/admin/orders/${order.id}/refund`} className={buttonVariants({ variant: "outline" })}>
-            {c("refund")}
-          </Link>
+        {canRefund && isPaid && refundableCents > 0 ? (
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button type="button" variant="outline">
+                {c("refund")}
+              </Button>
+            </DialogTrigger>
+            <DialogContent closeLabel={r("close")}>
+              <DialogHeader>
+                <DialogTitle>{r("title", { reference: order.reference })}</DialogTitle>
+                <DialogDescription>{r("refundable", { amount: money(refundableCents) })}</DialogDescription>
+              </DialogHeader>
+              <form action={onQuickRefund} className="grid gap-3">
+                <label className="grid gap-1 text-sm">
+                  <span>{r("quick_amount")}</span>
+                  <Input name="amount" type="number" inputMode="decimal" step="0.01" min="0.01" max={(refundableCents / 100).toFixed(2)} defaultValue={(refundableCents / 100).toFixed(2)} required />
+                </label>
+                <p className="text-sm text-muted-foreground">{r("quick_intro")}</p>
+                <label className="grid gap-1 text-sm">
+                  <span>{r("reason")}</span>
+                  <Input name="reason" required minLength={5} maxLength={500} defaultValue={r("quick_default_reason")} />
+                </label>
+                <p className="text-sm text-muted-foreground">{r("where")}</p>
+                <DialogFooter className="items-center gap-2">
+                  <Link href={`/admin/orders/${order.id}/refund`} className="text-sm underline">
+                    {r("per_line")}
+                  </Link>
+                  <Button type="submit">{r("confirm")}</Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
         ) : null}
         {canSell && (isPaid || order.status === "refunded") ? (
           <form action={onReceipt} className="flex items-center gap-2">

@@ -234,7 +234,7 @@ describe("placeOrder (rules 20, 26a to 26c)", () => {
     });
   });
 
-  it("quotes a site guest as public even with a member's email; the member price needs a login (edge case 23)", async () => {
+  it("quotes and orders a site guest as public even with a member's email, attached to the member (edge case 23)", async () => {
     const member = await makePerson(h.db, { email: `member-${randomUUID().slice(0, 8)}@example.com` });
     memberIds.add(member.id);
     const product = await makeProduct(h.db, { kind: "package", priceCents: 10000 });
@@ -248,10 +248,11 @@ describe("placeOrder (rules 20, 26a to 26c)", () => {
     expect(guest.quote.totalCents).toBe(10000);
     const viewer = { personId: null, checkoutIds: [guest.checkoutId] };
     expect((await co.getCheckout(h.db, guest.checkoutId, viewer, "nl-BE"))!.quote.totalCents).toBe(10000);
-    await expect(inTx((tx, ctx) => co.placeOrder(tx, ctx, { checkoutId: guest.checkoutId, clientKey: randomUUID(), useEuroCredit: false, acceptTerms: true }, viewer))).rejects.toMatchObject({
-      message: "login_required",
-    });
-    expect(await h.db.select().from(orders).where(eq(orders.checkoutId, guest.checkoutId))).toHaveLength(0);
+    // The order attaches to the member at the public price (pricingPersonId null); no login needed.
+    const out = await inTx((tx, ctx) => co.placeOrder(tx, ctx, { checkoutId: guest.checkoutId, clientKey: randomUUID(), useEuroCredit: false, acceptTerms: true, expectedTotalCents: 10000 }, viewer));
+    const placed = await h.db.select().from(orders).where(eq(orders.checkoutId, guest.checkoutId));
+    expect(placed).toHaveLength(1);
+    expect(placed[0]).toMatchObject({ id: out.orderId, personId: member.id, totalCents: 10000 });
   });
 
   it("creates the guest's person from the email and attaches the site order to it", async () => {

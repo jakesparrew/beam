@@ -1515,11 +1515,14 @@
       "mergedAt": "2026-11-05T07:45:23Z"
     },
     "ops-P10": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "baseSha": "bce8252",
       "runId": null,
-      "startedAt": "2026-11-05T12:41:39Z"
+      "startedAt": "2026-11-05T12:41:39Z",
+      "branchSha": "ce0bf83",
+      "endedAt": "2026-11-05T13:40:50Z",
+      "minutes": 60
     },
     "forms-P10": {
       "status": "merged",
@@ -3503,7 +3506,7 @@
       "minutes": 45
     },
     "fix-w21-forms-wiring": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "fixer": true,
       "module": "forms",
@@ -3686,8 +3689,10 @@
       "runId": null,
       "startedAt": "2026-11-05T10:41:08Z",
       "branchSha": "27febae",
-      "endedAt": "2026-11-05T11:38:14Z",
-      "minutes": 50
+      "endedAt": "2026-11-05T13:40:42Z",
+      "minutes": 50,
+      "mergeSha": "bd2ea85",
+      "mergedAt": "2026-11-05T14:08:13Z"
     },
     "fix-w21-platform-wiring": {
       "status": "pending",
@@ -5011,7 +5016,7 @@
       "minutes": 25
     },
     "fix-w22-webinar-wiring": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "fixer": true,
       "module": "webinar",
@@ -5154,7 +5159,16 @@
       ],
       "baseSha": "b09a5c0",
       "runId": null,
-      "startedAt": "2026-11-05T13:11:33Z"
+      "startedAt": "2026-11-05T13:11:33Z",
+      "extraOwns": [
+        "packages/db/src/testing/webinar-factories.ts",
+        "packages/core/src/i18n/messages/en/webinar.json",
+        "packages/core/src/i18n/messages/nl-BE/webinar.json",
+        "packages/core/src/i18n/messages/fr-BE/webinar.json"
+      ],
+      "branchSha": "f7ccdda",
+      "endedAt": "2026-11-05T13:40:50Z",
+      "minutes": 25
     }
   }
 }

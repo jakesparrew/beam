@@ -247,3 +247,4 @@ One entry per merge batch and gate (runbook section 5.7, adapted by OD-3).
 - webinar-P8: 25 min, merged as `bce8252`, migrations 0053_w22_views.sql; gate `g121-webinar-P8` (merge) green, peak 5305 MB.
 - site-P10: 40 min, merged as `b09a5c0`; gate `g122-site-P10` (merge) green, peak 5416 MB.
 - fix-w21-crm-wiring: 39 min, merged as `ccf497b`; gate `g123-fix-w21-crm-wiring` (merge) green, peak 10512 MB.
+- fix-w21-forms-wiring: 50 min, merged as `bd2ea85`, migrations 0054_w04.sql; gate `g124-fix-w21-forms-wiring` (merge) green, peak 4342 MB.

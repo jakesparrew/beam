@@ -106,7 +106,10 @@ export default async function FinanceInvoicePage({ params }: { params: Promise<{
             {detail.replacedBy ? <Row label={l("detail.replaced_by")}>{docLink(detail.replacedBy)}</Row> : null}
             {detail.order ? (
               <Row label={l("detail.order")}>
-                <span className="font-mono text-xs">{detail.order.id}</span> ({detail.order.status}, {money(detail.order.totalCents)})
+                <Link href={`/admin/orders/${detail.order.id}`} className="font-mono text-xs underline-offset-4 hover:underline">
+                  {detail.order.id}
+                </Link>{" "}
+                ({detail.order.status}, {money(detail.order.totalCents)})
               </Row>
             ) : null}
             {doc.emailedAt ? <Row label={l("detail.emailed_at")}>{formatDateTime(doc.emailedAt, locale)}</Row> : null}

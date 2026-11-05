@@ -21,29 +21,26 @@ import {
   vFinanceRecurringMonthly,
 } from "@beam/db/schema";
 import {
+  addPeriodDays,
   buildSellerSnapshot,
   isAnonymisedSnapshot,
   missingIssuerFields,
   normaliseVatNumber,
+  resolvePeriod,
+  trendGranularity,
   type BillingDetails,
+  type DashboardPeriod,
+  type DateRange,
   type FinanceSetting,
   type InvoiceRecord,
   type ReconcileIssue,
+  type ResolvedPeriod,
   type SellerSnapshot,
 } from "@beam/core/finance";
 import { LOCALES, type Locale } from "@beam/core/i18n";
 import { and, asc, desc, eq, gte, lt, lte, or, sql, type SQL } from "@/lib/ctx";
 import { rowsOf } from "@/lib/sensitive";
 import { getSetting } from "@/lib/settings";
-// Relative until `@beam/core/finance` re-exports `./periods` (index.ts is not finance-P8's file).
-import {
-  addPeriodDays,
-  resolvePeriod,
-  trendGranularity,
-  type DashboardPeriod,
-  type DateRange,
-  type ResolvedPeriod,
-} from "../../../../packages/core/src/finance/periods";
 import { brusselsDay } from "./service/billit-sync";
 import * as deferred from "./service/deferred";
 import type { BreakageRow, DeferredRevenue, VoucherRedemptionRow } from "./service/deferred";

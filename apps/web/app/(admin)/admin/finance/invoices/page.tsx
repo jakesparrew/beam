@@ -8,6 +8,7 @@ import { adminLocale } from "@/lib/i18n";
 import { listInvoices, type ListInvoicesInput } from "@/modules/finance/queries";
 import { FinanceBadge } from "@/modules/finance/ui/badges";
 import { financeLabels } from "@/modules/finance/ui/labels";
+import { invoicesExportHref } from "@/modules/finance/ui/links";
 import { fillLabel } from "@/modules/finance/ui/text";
 
 type Search = { from?: string; to?: string; kind?: string; status?: string; billit?: string; b2b?: string; q?: string; cursor?: string };
@@ -42,11 +43,17 @@ export default async function FinanceInvoicesPage({ searchParams }: { searchPara
   const filtered = Object.keys(filter).length > 0;
   const params = new URLSearchParams(Object.entries(sp).filter((e): e is [string, string] => e[0] !== "cursor" && typeof e[1] === "string" && e[1] !== ""));
   const nextHref = page.nextCursor ? `/admin/finance/invoices?${new URLSearchParams({ ...Object.fromEntries(params), cursor: page.nextCursor }).toString()}` : null;
+  const exportHref = hasPermission(actor, "reports.finance") ? invoicesExportHref(filter) : null;
 
   return (
     <div className="grid gap-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">{l("invoices.title")}</h1>
+        {exportHref ? (
+          <Link href={exportHref} className={buttonVariants({ variant: "outline", size: "sm" })}>
+            {l("invoices.export")}
+          </Link>
+        ) : null}
       </header>
       <form className="flex flex-wrap items-end gap-3" role="search">
         <div className="grid gap-1">

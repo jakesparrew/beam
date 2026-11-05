@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { z } from "zod";
 import {
   Badge,
   Button,
@@ -21,13 +20,13 @@ import {
   TableRow,
 } from "@beam/ui";
 import { formatDate, formatMoney, formatNumber, type Locale } from "@beam/core/i18n";
-import { action } from "@/lib/action";
 import { requireStaff } from "@/lib/auth";
-import { getAppDb, NotFoundError } from "@/lib/ctx";
+import { getAppDb } from "@/lib/ctx";
 import { adminLocale } from "@/lib/i18n";
+import { requestFinanceExport } from "@/modules/finance/actions";
 import { getBreakage, getDeferredRevenue, getVoucherRedemptions, type Money3 } from "@/modules/finance/queries";
 import { brusselsDay } from "@/modules/finance/service/billit-sync";
-import { createFinanceExport, periodError } from "@/modules/finance/service/exports";
+import { periodError } from "@/modules/finance/service/exports";
 import { bucketLabel } from "@/modules/finance/ui/dashboard/format";
 import { financeLabels } from "@/modules/finance/ui/labels";
 import { actionErrorText, fillLabel } from "@/modules/finance/ui/text";
@@ -39,28 +38,12 @@ type R3ExportKind = (typeof EXPORT_KINDS)[number];
 /** Redemptions listed on screen; the CSV holds all of them. */
 const MAX_VOUCHER_ROWS = 200;
 
-const day = z.string().regex(DAY, "finance.errors.date_invalid");
-const RequestR3ExportInput = z
-  .object({ kind: z.enum(EXPORT_KINDS), from: day, to: day })
-  .refine((v) => periodError(v.from, v.to) !== "finance.errors.period_invalid", { path: ["to"], message: "finance.errors.period_invalid" })
-  .refine((v) => periodError(v.from, v.to) !== "finance.errors.period_too_long", { path: ["to"], message: "finance.errors.period_too_long" });
+const isR3ExportKind = (v: string): v is R3ExportKind => (EXPORT_KINDS as readonly string[]).includes(v);
 
 /**
- * Rule 42 for the three Release 3 kinds (`requestFinanceExport` in `actions.ts` accepts the V1
- * kinds only): queues the accountant CSV, audited as `finance.export_requested`.
+ * The export buttons' server action: queues the CSV through `requestFinanceExport` (rule 43,
+ * audited as `finance.export_requested`), then reloads the page with the outcome.
  */
-const requestR3Export = action(
-  { name: "finance.export.request_r3", audience: "staff", permission: "reports.finance", input: RequestR3ExportInput, audit: false },
-  async (ctx, input) => {
-    const userId = ctx.actor.kind === "staff" ? ctx.actor.userId : null;
-    if (!userId) throw new NotFoundError("finance.errors.not_found");
-    const { exportId } = await createFinanceExport(ctx, { kind: input.kind, from: input.from, to: input.to, userId });
-    await ctx.audit({ action: "finance.export_requested", entityType: "finance_export", entityId: exportId, newValue: input });
-    return { exportId };
-  },
-);
-
-/** The export buttons' server action: queues the CSV, then reloads the page with the outcome. */
 async function onExport(form: FormData) {
   "use server";
   const field = (name: string) => {
@@ -68,7 +51,9 @@ async function onExport(form: FormData) {
     return typeof v === "string" ? v : "";
   };
   const back = `asOf=${encodeURIComponent(field("asOf"))}&from=${encodeURIComponent(field("periodFrom"))}&to=${encodeURIComponent(field("periodTo"))}`;
-  const r = await requestR3Export({ kind: field("kind") as R3ExportKind, from: field("from"), to: field("to") });
+  const kind = field("kind");
+  if (!isR3ExportKind(kind)) redirect(`/admin/finance/deferred?error=finance.errors.export_kind_unavailable&${back}`);
+  const r = await requestFinanceExport({ kind, from: field("from"), to: field("to") });
   if (r.ok) redirect(`/admin/finance/deferred?requested=1&${back}`);
   const key = r.error.message.startsWith("finance.errors.") ? r.error.message : (Object.values(r.error.fields ?? {}).find((v) => v.startsWith("finance.errors.")) ?? r.error.code);
   redirect(`/admin/finance/deferred?error=${encodeURIComponent(key)}&${back}`);

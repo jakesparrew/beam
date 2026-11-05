@@ -1474,11 +1474,14 @@
       "startedAt": "2026-11-05T10:41:08Z"
     },
     "automation-P10": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "baseSha": "b3f6124",
       "runId": null,
-      "startedAt": "2026-11-05T10:10:41Z"
+      "startedAt": "2026-11-05T10:10:41Z",
+      "branchSha": "d623880",
+      "endedAt": "2026-11-05T10:44:20Z",
+      "minutes": 33
     },
     "webinar-P8": {
       "status": "running",

@@ -161,6 +161,9 @@ to "Served" with the package id.
 | site-P9 | site (owner of `ui/admin/pages-table.tsx`) | Add `["/admin/site/insights", "nav.insights"]` to `SECTIONS`. |
 | site-P9 | commerce | On the paid return page call `trackMarketingConversion("purchase", { valueCents })` when marketing consent is given. |
 | site-P9 | platform (`playwright.config.ts`) | `BEAM_ANALYTICS_PRODUCTION=1` in the webServer env (site-P5 row) for the marketing e2e cases. |
+| automation-P10 | automation (owner of `packages/core/src/automation/index.ts`) | `export * from "./builder"` (with `./frequency`), then switch `actions.ts`, `ui/builder/*`, the builder page and its test to `@beam/core/automation`. |
+| automation-P10 | automation (owner of `ui/automation-table.tsx`) | Add a builder tab to `AutomationHeader` (`automation.detail.tab_builder` exists). |
+| automation-P10 | automation (owner of `ui/step-forms.tsx`) | Export the single-step `StepForm` for the builder side panel. |
 
 ## Served
 

@@ -43,8 +43,32 @@ DMARC value:
 
 `dmarc@beam.be` is a Google group; Sidestream reads it weekly during warm-up and monthly after.
 
-Release 3 adds Resend Inbound for `in.beam.be` (MX `inbound-smtp.eu-west-1.amazonaws.com`,
-priority 10); email-P9 adds it to this runbook.
+### Inbound: `in.beam.be` (Release 3)
+
+Resend Inbound receives the mail of crm's unified inbox on `inbox@in.beam.be`. Only this
+subdomain points at Resend; `beam.be` keeps its Google Workspace MX.
+
+| Type | Name | Value | Notes |
+| --- | --- | --- | --- |
+| MX | `in.beam.be` | `inbound-smtp.eu-west-1.amazonaws.com` | priority 10; no other MX on this name |
+
+1. In Resend choose **Domains → Add domain** `in.beam.be` (region **EU (eu-west-1)**) and turn on
+   **Receiving**. Create the MX record above and press **Verify**.
+2. In Google Workspace (Admin console → Apps → Gmail → Routing, or the group settings of
+   `hello@beam.be`) forward `hello@beam.be` to `inbox@in.beam.be`. Keep a copy in Workspace for
+   the first weeks, so nothing is lost while the inbox is new.
+3. Add `email.received` to the webhook endpoint (section 4). Inbound events use the same endpoint
+   and the same signing secret.
+4. Check: `dig +short MX in.beam.be` shows `10 inbound-smtp.eu-west-1.amazonaws.com.`; send a mail
+   from a Gmail address to `hello@beam.be` and see a new thread on `/admin/inbox` within a minute.
+
+How it is handled: the webhook route stores the event once per `svix-id` in `webhook_events` and
+`webhook.process` maps the payload (rule 46) to crm's `ingestInboundEmail` (`messageId` from the
+`Message-ID` header, `inReplyTo`, sender address and name, subject, the text part or the text of
+the HTML part, the number of attachments, the received time). Attachments are counted, not stored,
+and the body is never kept in the `email_*` tables. A mail without a `Message-ID` header is
+ignored (the payload stays in `webhook_events`). A failing ingest retries in the job; a retry of
+the same mail joins the existing thread (crm is idempotent on the Message-ID).
 
 ## 3. Verify
 

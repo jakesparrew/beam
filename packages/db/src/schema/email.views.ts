@@ -8,9 +8,9 @@
  *   scoped unsubscribe", lives once in crm's `v_suppression_status`; this view only orders the
  *   reasons exactly as `resolveReachability()` (`@beam/core/email`) does.
  * - `v_campaign_stats`: the per-campaign counters and rates of the campaign report (rule 61).
- *   `v_email_attribution` (R3) is added by email-P9.
+ * - `v_email_attribution` (R3, email-P9): one row per order an email click led to (decision 45).
  */
-import { boolean, integer, numeric, pgView, text, uuid } from "drizzle-orm/pg-core";
+import { boolean, integer, numeric, pgView, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 export type ReachabilityPurpose = "newsletter" | "events" | "member_comms" | "b2b";
 export type ReachabilityBlockedReason = "erased" | "no_email" | "restricted" | "suppressed" | "withdrawn" | "no_consent";
@@ -128,4 +128,58 @@ export const vCampaignStats = pgView("v_campaign_stats", {
   bounceRate: numeric("bounce_rate", { precision: 6, scale: 4 }),
   complaintRate: numeric("complaint_rate", { precision: 6, scale: 4 }),
   unsubscribeRate: numeric("unsubscribe_rate", { precision: 6, scale: 4 }),
+}).existing();
+
+// ---------------------------------------------------------------------------
+// v_email_attribution (R3, email-P9)
+// ---------------------------------------------------------------------------
+
+/**
+ * One row per order that an email click led to (spec section 2, decision 45): an order with
+ * status `paid` or `partially_refunded` (fully `refunded` orders are left out; a partially
+ * refunded one counts with its paid `total_cents`) whose `paid_at` falls within 7 days after the
+ * `clicked_at` of a campaign or automation message to the same person. When several messages
+ * qualify, the latest click before `paid_at` wins. Automation messages carry `campaign_id` null
+ * and `enrolment_id`; `automation_id` is that enrolment's automation, so ops can group per
+ * automation. `is_first_purchase`: the person has no earlier `paid` or `partially_refunded`
+ * order (ties on `paid_at` broken by order id).
+ */
+export const vEmailAttributionSql = `with candidates as (
+  select o.id as order_id, o.person_id, o.paid_at, o.total_cents,
+    m.id as email_message_id, m.campaign_id, m.enrolment_id, m.clicked_at
+  from orders o
+  join email_messages m on m.person_id = o.person_id
+    and m.kind in ('campaign', 'automation')
+    and (m.campaign_id is not null or m.enrolment_id is not null)
+    and m.clicked_at is not null
+    and m.clicked_at <= o.paid_at
+    and o.paid_at <= m.clicked_at + interval '7 days'
+  where o.status in ('paid', 'partially_refunded') and o.paid_at is not null and o.person_id is not null
+), last_click as (
+  select distinct on (order_id) order_id, person_id, paid_at, total_cents, email_message_id, campaign_id, enrolment_id, clicked_at
+  from candidates
+  order by order_id, clicked_at desc, email_message_id
+)
+select lc.order_id, lc.person_id, lc.paid_at, lc.total_cents, lc.email_message_id, lc.clicked_at,
+  lc.campaign_id, lc.enrolment_id, ae.automation_id,
+  not exists (
+    select 1 from orders po
+    where po.person_id = lc.person_id and po.id <> lc.order_id
+      and po.status in ('paid', 'partially_refunded') and po.paid_at is not null
+      and (po.paid_at < lc.paid_at or (po.paid_at = lc.paid_at and po.id < lc.order_id))
+  ) as is_first_purchase
+from last_click lc
+left join automation_enrolments ae on ae.id = lc.enrolment_id`;
+
+export const vEmailAttribution = pgView("v_email_attribution", {
+  orderId: uuid("order_id").notNull(),
+  personId: uuid("person_id").notNull(),
+  paidAt: timestamp("paid_at", { withTimezone: true }).notNull(),
+  totalCents: integer("total_cents").notNull(),
+  emailMessageId: uuid("email_message_id").notNull(),
+  clickedAt: timestamp("clicked_at", { withTimezone: true }).notNull(),
+  campaignId: uuid("campaign_id"),
+  enrolmentId: uuid("enrolment_id"),
+  automationId: uuid("automation_id"),
+  isFirstPurchase: boolean("is_first_purchase").notNull(),
 }).existing();

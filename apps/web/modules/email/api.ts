@@ -16,12 +16,11 @@
  *
  * email-P8 implements `findLatestMessage` (commerce's checkout recovery attribution, R2).
  *
- * Still a stub (later email package): `getCampaignAttribution` (email-P9).
+ * email-P9 implements `getCampaignAttribution` (R3, `v_email_attribution`).
  */
 import type { ReactElement } from "react";
 import type { DbOrTx, Tx } from "@beam/db";
 import { emailMessages, emailTemplates, emailTemplateVersions } from "@beam/db/schema";
-import { NotImplementedError } from "@beam/core/errors";
 import type { Locale } from "@beam/core/i18n";
 import type {
   AutomationEmailInput,
@@ -58,8 +57,6 @@ export type {
   SendTransactionalInput,
   TemplateInfo,
 } from "@beam/core/email";
-
-const notYet = <T>(fn: string): Promise<T> => Promise.reject(new NotImplementedError(`email.${fn}`));
 
 /** The idempotency key of the `email.send` job of a message. */
 export const emailSendJobKey = send.emailSendJobKey;
@@ -201,12 +198,17 @@ export async function getEmailHealth(
   return deliveryWatch.getEmailHealth(db, now);
 }
 
-/** R3, ops dashboards. */
-export function getCampaignAttribution(
-  _db: DbOrTx,
-  _input: { from: Date; to: Date },
+/**
+ * R3, ops dashboards (decision 45): per campaign and per automation, the orders paid in
+ * `[from, to)` within 7 days after a click of one of its messages (last click wins), their
+ * revenue and how many were the person's first purchase.
+ */
+export async function getCampaignAttribution(
+  db: DbOrTx,
+  input: { from: Date; to: Date },
 ): Promise<{ campaignId: string | null; automationId: string | null; name: string; orders: number; revenueCents: number; firstPurchases: number }[]> {
-  return notYet("getCampaignAttribution");
+  const attribution = await import("./server/attribution");
+  return attribution.getCampaignAttribution(db, input);
 }
 
 export type { PersonEmailHistoryProps } from "./ui/PersonEmailHistory";

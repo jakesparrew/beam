@@ -3,7 +3,8 @@
  * The campaign report of `/admin/campaigns/[id]/report` (email spec rule 61, section 5):
  * `v_campaign_stats` tiles and rates (from the frozen snapshot when present, rule 62), skipped by
  * reason, not sent (stopped), sends per 15 minutes, clicks per link, the per-locale table and the
- * bounces and complaints list; "Export CSV" (ids, statuses, open and click times).
+ * bounces and complaints list; "Export CSV" (ids, statuses, open and click times). R3
+ * (email-P9): attributed revenue, orders and first purchases (last click within 7 days).
  *
  * Also the package's other client controls: `ResendMessageButton` (message detail and the
  * person history; `persons.write`) and `CancelScheduledButton` (`email.send`).
@@ -12,7 +13,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Alert, AlertDescription, Badge, Button, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@beam/ui";
 import { cancelScheduledMessage, exportCampaignReport, resendMessage } from "../actions";
-import type { CampaignReport as Report } from "../server/reports";
+import type { CampaignReport as Report } from "../queries";
 import { formatCount, formatRate, KpiTiles, type KpiTile } from "./KpiTiles";
 
 export type Labels = Readonly<Record<string, string>>;
@@ -58,6 +59,12 @@ export function CampaignReport(props: { report: Report; locale: string; labels: 
     { key: "complaint_rate", label: lab(labels, "rate_complaint"), value: pct(s.complaintRate) },
     { key: "unsubscribe_rate", label: lab(labels, "rate_unsubscribe"), value: pct(s.unsubscribeRate) },
   ];
+  const money = new Intl.NumberFormat(locale, { style: "currency", currency: "EUR" });
+  const attribution: KpiTile[] = [
+    { key: "attributed_revenue", label: lab(labels, "tile_revenue"), value: money.format(r.attribution.revenueCents / 100) },
+    { key: "attributed_orders", label: lab(labels, "tile_orders"), value: n(r.attribution.orders) },
+    { key: "first_purchases", label: lab(labels, "tile_first_purchases"), value: n(r.attribution.firstPurchases) },
+  ];
   const maxBucket = Math.max(1, ...r.timeline.map((b) => b.sent));
 
   if (s.recipients === 0 && s.sent === 0) {
@@ -78,6 +85,11 @@ export function CampaignReport(props: { report: Report; locale: string; labels: 
       <section className="grid gap-3">
         <h2 className="text-lg font-semibold">{lab(labels, "rates_title")}</h2>
         <KpiTiles tiles={rates} testId="report-rates" />
+      </section>
+      <section className="grid gap-3">
+        <h2 className="text-lg font-semibold">{lab(labels, "attribution_title")}</h2>
+        <KpiTiles tiles={attribution} testId="report-attribution" />
+        <p className="text-sm text-muted-foreground">{lab(labels, "attribution_hint", { days: 7 })}</p>
       </section>
 
       {skipped.length ? (

@@ -99,6 +99,7 @@ describe("commerce privacy registration", () => {
   it("registers the person tables, the retention seeds and a sweep per key", () => {
     for (const t of ["orders", "payments", "mandates", "provider_customers", "checkouts", "person_prices", "promotion_redemptions", "vouchers"]) expect(privacy.tables).toContain(t);
     expect(noPiiTables).toContain("pos_day_closes");
+    for (const t of ["lightspeed_imports", "lightspeed_sales"]) expect(noPiiTables).toContain(t);
     for (const seed of retention) {
       expect(isValidRetentionSeed(seed)).toBe(true);
       expect(sweep[seed.key]).toBeTypeOf("function");
@@ -108,6 +109,7 @@ describe("commerce privacy registration", () => {
       ["commerce.payments_raw", 90, "anonymise"],
       ["commerce.orders", 3653, "anonymise"],
       ["commerce.person_prices", 730, "delete"],
+      ["commerce.lightspeed_sales", 3653, "delete"],
     ]);
   });
 

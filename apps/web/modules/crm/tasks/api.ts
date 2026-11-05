@@ -73,6 +73,8 @@ export async function createTask(
     priority?: TaskPriority;
     personId?: string;
     companyId?: string;
+    /** R3: the opportunity a playbook or escalation task belongs to (`tasks.opportunity_id`). */
+    opportunityId?: string;
     source: TaskSource;
     ref?: { type: string; id: string };
     notes?: string;
@@ -97,6 +99,7 @@ export async function createTask(
       source: input.source,
       personId: input.personId ?? null,
       companyId: input.companyId ?? null,
+      opportunityId: input.opportunityId ?? null,
       refType: input.ref?.type ?? null,
       refId: input.ref?.id ?? null,
       notes: input.notes ?? null,

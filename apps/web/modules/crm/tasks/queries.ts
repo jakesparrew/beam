@@ -52,8 +52,6 @@ export function listTasks(
     limit?: number;
   },
 ): Promise<TaskRow[]> {
-  // `tasks.opportunity_id` arrives in R3 (crm-P8); before that no task belongs to an opportunity.
-  if (input.opportunityId) return Promise.resolve([]);
   const where: SQL[] = [];
   if (input.scope === "mine") where.push(eq(tasks.ownerUserId, input.userId));
   const status = input.overdueOnly || input.dueToday ? "open" : input.status;
@@ -62,6 +60,7 @@ export function listTasks(
   if (input.dueToday) where.push(dueTodaySql(input.now));
   if (input.personId) where.push(eq(tasks.personId, input.personId));
   if (input.companyId) where.push(eq(tasks.companyId, input.companyId));
+  if (input.opportunityId) where.push(eq(tasks.opportunityId, input.opportunityId));
 
   const overdue = overdueSql(input.now);
   return tx

@@ -13,16 +13,26 @@
  * A "use server" file exports async functions only.
  */
 import { DeleteDashboardInput, SaveDashboardInput } from "@beam/core/ops";
-import { dashboards } from "@beam/db/schema";
+import { dashboards, featureFlags, users } from "@beam/db/schema";
 import { action } from "@/lib/action";
 import { ForbiddenError } from "@beam/core/errors";
 import { eq, NotFoundError, ValidationError, type Ctx } from "@/lib/ctx";
-import { flag } from "@/lib/flags";
 import { checkDashboardDefinition } from "../../../../../packages/core/src/ops/kpis";
 import { canEditDashboard, loadVisibleDashboard } from "./queries";
 
+/**
+ * `ff_ops_ai` read through the action's transaction (`flag()` reads the app database outside
+ * it): `on`, or `testers` for a listed or tester user. Anything else is `not_found`.
+ */
 async function requireAiFlag(ctx: Ctx): Promise<void> {
-  if (!(await flag("ff_ops_ai", ctx.actor))) throw new NotFoundError("ff_ops_ai");
+  const [row] = await ctx.tx.select({ state: featureFlags.state, userIds: featureFlags.userIds }).from(featureFlags).where(eq(featureFlags.key, "ff_ops_ai")).limit(1);
+  if (row?.state === "on") return;
+  if (row?.state === "testers" && ctx.actor.kind === "staff") {
+    if ((row.userIds ?? []).includes(ctx.actor.userId)) return;
+    const [u] = await ctx.tx.select({ t: users.isTester }).from(users).where(eq(users.id, ctx.actor.userId)).limit(1);
+    if (u?.t) return;
+  }
+  throw new NotFoundError("ff_ops_ai");
 }
 
 export const saveDashboard = action(

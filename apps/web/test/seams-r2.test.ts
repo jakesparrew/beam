@@ -303,3 +303,81 @@ describe("seam 1: webinar.registered -> webinar-registration with late-entry ski
     expect(await deadJobs()).toEqual([]);
   });
 });
+
+/** A customer with a portal checkout for a 5-day package started at `startedAt` (commerce's own `startCheckout`). */
+async function abandonedCartOf(label: string, startedAt: Date) {
+  const person = await reachablePerson(label);
+  const user = await makeUser(h.db, { audience: "customer", email: person.email!, personId: person.id });
+  const actor: Actor = { kind: "customer", userId: user.id, personId: person.id };
+  const pkg = await makeProduct(h.db, { kind: "package", creditKind: "day", creditUnits: 5, validityDays: 180, priceCents: 20_000 });
+  const { checkoutId } = await inTx(actor, startedAt, (tx, ctx) =>
+    startCheckout(tx, ctx, { channel: "portal", items: [{ productId: pkg.id, quantity: 1 }], locale: "nl-BE" }, { personId: person.id }),
+  );
+  // Rule 49: idle for 60 minutes; `checkouts.mark_abandoned` (every 10 minutes) marks it a minute later.
+  const abandonedAt = new Date(startedAt.getTime() + 61 * MIN);
+  await fire("checkouts.mark_abandoned", abandonedAt, {}, { alone: true });
+  expect(await checkoutRow(checkoutId)).toMatchObject({ status: "abandoned", abandonedAt, personId: person.id });
+  expect(await eventKinds(person.id)).toContain("checkout.abandoned");
+  return { person, actor, checkoutId, abandonedAt };
+}
+
+describe("seam 2: checkout.abandoned -> recovery email -> checkout.completed attribution", () => {
+  it("the 1-hour reminder carries the resume link, the paid checkout ends the journey and the recovery is attributed to that email", async () => {
+    // The 1-hour reminder falls at 14:00 Brussels, outside the quiet hours.
+    const remindAt = nextAt("14:00", 3 * HOUR);
+    const { person, actor, checkoutId, abandonedAt } = await abandonedCartOf("recovered", new Date(remindAt.getTime() - 121 * MIN));
+
+    await tick(abandonedAt);
+    const [e] = await enrolmentsOf(person.id, "abandoned-checkout");
+    expect(e).toMatchObject({ status: "active", subjectKey: `checkout:${checkoutId}`, nextStepKey: "remind_1h", nextStepAt: remindAt });
+
+    await tick(remindAt);
+    const [message] = await messagesOf(e!.id);
+    const { resumeUrl } = await h.db.transaction((tx) => getCheckoutRecoveryProps(tx, checkoutId));
+    expect(resumeUrl).toMatch(/^https:\/\/app\.example\.com\/nl\/checkout\/resume\/[A-Za-z0-9_-]{43}$/);
+    expect(message).toMatchObject({ status: "sent", kind: "automation", purpose: "newsletter", personId: person.id, idempotencyKey: `automation:${e!.id}:remind_1h` });
+    expect(message!.context).toMatchObject({ checkout_id: checkoutId, resume_url: resumeUrl });
+    expect((await checkoutRow(checkoutId)).recoveryMessageId).toBe(message!.id);
+    const delivered = deliveredFor(message!.id);
+    expect(delivered).toHaveLength(1);
+    expect([delivered[0]!.to].flat()).toEqual([SINK]);
+    expect(String(delivered[0]!.from)).toMatch(/@news\.beam\.be>?$/);
+
+    // The customer comes back and pays (placeOrder on the abandoned checkout, fake Mollie paid).
+    const paidAt = new Date(remindAt.getTime() + 30 * MIN);
+    const placed = await inTx(actor, paidAt, (tx, ctx) =>
+      placeOrder(tx, ctx, { checkoutId, clientKey: randomUUID(), useEuroCredit: false, acceptTerms: true }, { personId: person.id }),
+    );
+    expect(placed.redirectUrl).toContain("/api/dev/fake-pay/");
+    const [payment] = await h.db.select().from(payments).where(eq(payments.orderId, placed.orderId));
+    fake.payments.settle(payment!.providerPaymentId!, "paid");
+    const res = await mollieWebhook(
+      new Request(`https://app.example.com/api/webhooks/mollie?t=${WEBHOOK_SECRET}`, {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body: `id=${payment!.providerPaymentId}`,
+      }),
+    );
+    expect(res.status).toBe(200);
+    await runDue(paidAt);
+    expect((await h.db.select({ status: orders.status }).from(orders).where(eq(orders.id, placed.orderId)))[0]?.status).toBe("paid");
+    expect(await checkoutRow(checkoutId)).toMatchObject({ status: "completed" });
+    expect(await eventKinds(person.id)).toEqual(expect.arrayContaining(["checkout.abandoned", "checkout.completed", "order.paid"]));
+
+    // checkout.completed (or order.paid, written with it) ends the journey before the 24-hour reminder.
+    await tick(new Date(paidAt.getTime() + MIN));
+    const [ended] = await enrolmentsOf(person.id, "abandoned-checkout");
+    expect(ended!.status).toBe("exited");
+    expect(ended!.endReason).toMatch(/^exit_event:(checkout\.completed|order\.paid)$/);
+
+    // The next mark_abandoned run attributes the recovery to the order and keeps the first email.
+    await fire("checkouts.mark_abandoned", new Date(paidAt.getTime() + 10 * MIN), {}, { alone: true });
+    expect(await checkoutRow(checkoutId)).toMatchObject({ recoveredOrderId: placed.orderId, recoveryMessageId: message!.id });
+    expect((await checkoutRow(checkoutId)).recoveredAt).not.toBeNull();
+    expect(await eventKinds(person.id)).toContain("checkout.recovered");
+
+    await tick(new Date(abandonedAt.getTime() + DAY + HOUR));
+    expect(await messagesOf(e!.id)).toHaveLength(1);
+    expect(await deadJobs()).toEqual([]);
+  });
+});

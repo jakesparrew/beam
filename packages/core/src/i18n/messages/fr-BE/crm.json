@@ -540,12 +540,12 @@
         "completed": "Automatisation terminée",
         "failed": "Étape échouée"
       },
-      "opportunity_created": "Opportunité créée",
-      "opportunity_updated": "Détails de l'opportunité modifiés",
-      "opportunity_stage_changed": "Opportunité déplacée vers une autre étape",
+      "opportunity_created": "Opportunité créée à l'étape {stage}",
+      "opportunity_updated": "Détails de l'opportunité modifiés : {fields}",
+      "opportunity_stage_changed": "Opportunité déplacée de {fromStage} vers {toStage}",
       "opportunity_won": "Opportunité gagnée",
       "opportunity_lost": "Opportunité perdue",
-      "opportunity_reopened": "Opportunité rouverte"
+      "opportunity_reopened": "Opportunité rouverte à l'étape {toStage}"
     },
     "duplicates": {
       "title": "Doublons possibles",

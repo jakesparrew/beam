@@ -69,7 +69,15 @@ function crmParams(item: TimelineItem, locale: Locale, l: Lookups): Record<strin
       return { source: enumLabel(locale, "acquisition_source", d.acquisition_source) };
     case "person.updated":
     case "company.updated":
+    case "opportunity.updated":
       return { fields };
+    case "opportunity.created":
+      return { stage: enumLabel(locale, "opportunity_stage", d.to_stage) };
+    case "opportunity.stage_changed":
+    case "opportunity.won":
+    case "opportunity.lost":
+    case "opportunity.reopened":
+      return { fromStage: enumLabel(locale, "opportunity_stage", d.from_stage), toStage: enumLabel(locale, "opportunity_stage", d.to_stage) };
     case "person.locale_changed":
       return { locale: enumLabel(locale, "locale", d.to) };
     case "person.status_overridden":

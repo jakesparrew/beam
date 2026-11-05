@@ -540,12 +540,12 @@
         "completed": "Automation completed",
         "failed": "Step failed"
       },
-      "opportunity_created": "Opportunity created",
-      "opportunity_updated": "Opportunity details changed",
-      "opportunity_stage_changed": "Opportunity moved to another stage",
+      "opportunity_created": "Opportunity created in stage {stage}",
+      "opportunity_updated": "Opportunity details changed: {fields}",
+      "opportunity_stage_changed": "Opportunity moved from {fromStage} to {toStage}",
       "opportunity_won": "Opportunity won",
       "opportunity_lost": "Opportunity lost",
-      "opportunity_reopened": "Opportunity reopened"
+      "opportunity_reopened": "Opportunity reopened in stage {toStage}"
     },
     "duplicates": {
       "title": "Possible duplicates",

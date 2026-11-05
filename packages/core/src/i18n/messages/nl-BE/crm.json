@@ -540,12 +540,12 @@
         "completed": "Automatisering afgerond",
         "failed": "Stap mislukt"
       },
-      "opportunity_created": "Opportuniteit aangemaakt",
-      "opportunity_updated": "Gegevens van de opportuniteit gewijzigd",
-      "opportunity_stage_changed": "Opportuniteit naar een andere fase verplaatst",
+      "opportunity_created": "Opportuniteit aangemaakt in fase {stage}",
+      "opportunity_updated": "Gegevens van de opportuniteit gewijzigd: {fields}",
+      "opportunity_stage_changed": "Opportuniteit verplaatst van {fromStage} naar {toStage}",
       "opportunity_won": "Opportuniteit gewonnen",
       "opportunity_lost": "Opportuniteit verloren",
-      "opportunity_reopened": "Opportuniteit heropend"
+      "opportunity_reopened": "Opportuniteit heropend in fase {toStage}"
     },
     "duplicates": {
       "title": "Mogelijke dubbels",

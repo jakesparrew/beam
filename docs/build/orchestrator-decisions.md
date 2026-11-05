@@ -35,3 +35,6 @@ it 4.5 GB. Running the app on beam_dev showed two defects no unit test could see
 `createContext` in `@beam/email` (not available in server components, so every page and every
 email job failed) and a non-function export in a `"use server"` file (every admin list failed).
 Both are fixed; the wave-7 checkpoint adds a smoke step that starts the app and loads each route.
+The gate's `NODE_OPTIONS` heap default never applied, because the container already sets
+`NODE_OPTIONS=--use-openssl-ca`; `gate.sh` now appends `--max-old-space-size=6144` (lint of a
+seven-package batch ran out of the 2 GB default in g102).

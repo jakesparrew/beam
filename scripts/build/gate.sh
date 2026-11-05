@@ -22,7 +22,7 @@ if [ "$mode" = merge ] && [ -z "$since" ]; then echo "merge mode needs <since-sh
 # selecting no tests at all; a full SHA is a string.
 if [ -n "$since" ]; then since=$(git rev-parse --verify "$since^{commit}") || { echo "unknown commit $since"; exit 2; }; fi
 export INTEGRATIONS=fake EMAIL_SINK=sink@beam.be APP_ENV=local
-export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=6144}"
+export NODE_OPTIONS="${NODE_OPTIONS:+$NODE_OPTIONS }--max-old-space-size=6144"  # appended: the container already sets NODE_OPTIONS (OD-18)
 ( while sleep 2; do free -m | awk 'NR==2{print $3}'; done ) > "$logs/$label-mem.log" & memp=$!
 trap 'kill $memp 2>/dev/null' EXIT
 t0=$(date +%s)

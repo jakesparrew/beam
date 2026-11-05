@@ -251,7 +251,7 @@ async function runBatch(ctx: JobCtx, env: ChunkEnv, input: CampaignChunkJobInput
     const p = personOf.get(r.personId);
     const rr = reachOf.get(r.personId);
     if (!p || p.erasedAt || !p.email) skip("skipped_unreachable", r.id);
-    else if (!rr?.isReachable) skip(skipFor(rr?.reason as BlockedReason | null), r.id);
+    else if (!rr?.isReachable) skip(skipFor(rr?.reason), r.id);
     else if (!isLocale(p.locale) || !env.version.locales.includes(p.locale)) skip("skipped_translation", r.id);
     else sendable.push({ r, p: { ...p, locale: p.locale } });
   }

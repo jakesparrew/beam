@@ -20,7 +20,7 @@ vi.mock("next/headers", () => ({
 vi.mock("next/server", () => ({ after: () => undefined }));
 
 import { createTestDb, makeUser } from "@beam/db/testing";
-import type { DbHandle, Tx } from "@beam/db";
+import type { DbHandle } from "@beam/db";
 import { auditLog, campaignRecipients, campaigns, emailMessages, jobs, roles, segmentMembers, settings } from "@beam/db/schema";
 import { createCtx, eq, sql, type Ctx } from "@/lib/ctx";
 import { createAuthSession, SESSION_COOKIE } from "@/lib/auth";
@@ -184,7 +184,7 @@ describe("scheduleCampaign checks (rule 26)", () => {
     await expect(updateCampaignRecord(staffCtx(), { campaignId: r.campaignId, expectedVersion: r.version - 1, name: "Stale" })).rejects.toMatchObject({ code: "conflict" });
     const inTx = () =>
       h.db.transaction(async (tx) => {
-        const ctx = createCtx({ tx: tx as unknown as Tx, actor: staffActor({ userId: user.id, permissions: ["campaigns.send", "email.send"] }), now: NOW });
+        const ctx = createCtx({ tx: tx, actor: staffActor({ userId: user.id, permissions: ["campaigns.send", "email.send"] }), now: NOW });
         return scheduleCampaignRecord(ctx, { campaignId: r.campaignId, expectedVersion: r.version, scheduledAt: IN_WINDOW });
       });
     const results = await Promise.allSettled([inTx(), inTx()]);
@@ -310,7 +310,7 @@ describe("email.dispatch_due_campaigns (rule 31)", () => {
     const r = await scheduled({ n: 1234 });
     const later = new Date(IN_WINDOW.getTime() + 60_000);
     const run = () =>
-      h.db.transaction(async (tx) => dispatchDueCampaigns(makeJobCtx(h.db, "email.dispatch_due_campaigns", { tx: tx as unknown as Tx, now: later })));
+      h.db.transaction(async (tx) => dispatchDueCampaigns(makeJobCtx(h.db, "email.dispatch_due_campaigns", { tx: tx, now: later })));
     const results = await Promise.all([run(), run()]);
     expect(results.flatMap((x) => x.dispatched).filter((id) => id === r.campaignId)).toHaveLength(1);
     const chunks = await jobsWithKeyPrefix(h.db, `campaign:${r.campaignId}:chunk:`);

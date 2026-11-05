@@ -6,7 +6,7 @@
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createTestDb } from "@beam/db/testing";
-import type { DbHandle, Tx } from "@beam/db";
+import type { DbHandle } from "@beam/db";
 import { auditLog, emailMessages, emailTemplates, jobs, tasks } from "@beam/db/schema";
 import { and, eq, sql } from "@/lib/ctx";
 import { makeJobCtx, resetRuntime } from "@/lib/testing";
@@ -54,7 +54,7 @@ async function campaignWith(status: "sending" | "sent", sent: number, hard: numb
 
 const evaluate = (campaignId: string) => {
   const ctx = makeJobCtx(h.db, "campaign.send_chunk");
-  return evaluateBounceRate(ctx.tx as Tx, campaignId, ctx);
+  return evaluateBounceRate(ctx.tx, campaignId, ctx);
 };
 const slackJobs = (campaignId: string) => h.db.select().from(jobs).where(sql`${jobs.idempotencyKey} like ${`slack:email:bounce:${campaignId}:%`}`);
 const tasksOf = (campaignId: string) => h.db.select().from(tasks).where(eq(tasks.dedupeKey, `email:bounce:${campaignId}`));
@@ -103,7 +103,7 @@ describe("evaluateBounceRate", () => {
 
   it("works with the caller's transaction alone (no context given)", async () => {
     const id = await campaignWith("sending", 150, 10);
-    await h.db.transaction(async (tx) => expect(await evaluateBounceRate(tx as unknown as Tx, id)).toBe("paused"));
+    await h.db.transaction(async (tx) => expect(await evaluateBounceRate(tx, id)).toBe("paused"));
     expect((await campaignOf(h.db, id)).status).toBe("paused");
     expect(await slackJobs(id)).toHaveLength(1);
   });

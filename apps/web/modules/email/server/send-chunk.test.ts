@@ -191,7 +191,7 @@ describe("campaign.send_chunk", () => {
       expect((await campaignOf(h.db, campaignId)).status).toBe("sending");
       // Two transactions: the one that commits last sees no planned row under the lock.
       await h.db.transaction(async (tx) => {
-        const ctx = makeJobCtx(h.db, "campaign.send_chunk", { integrations: fakes, now: NOW, tx: tx as unknown as Tx });
+        const ctx = makeJobCtx(h.db, "campaign.send_chunk", { integrations: fakes, now: NOW, tx: tx });
         expect(await sendChunk(ctx, { campaignId, chunkNo: b, runNo: 1 })).toMatchObject({ sent: 2, finished: true });
       });
       expect(await campaignOf(h.db, campaignId)).toMatchObject({ status: "sent", sentCount: 4 });
@@ -213,7 +213,7 @@ describe("campaign.send_chunk", () => {
     // The first attempt reaches Resend, then the job transaction rolls back (crash before commit).
     await expect(
       h.db.transaction(async (tx) => {
-        await sendChunk(makeJobCtx(h.db, "campaign.send_chunk", { integrations: fakes, now: NOW, tx: tx as unknown as Tx }), { campaignId, chunkNo: 0, runNo: 1 });
+        await sendChunk(makeJobCtx(h.db, "campaign.send_chunk", { integrations: fakes, now: NOW, tx: tx }), { campaignId, chunkNo: 0, runNo: 1 });
         throw new Error("crash after send");
       }),
     ).rejects.toThrow("crash after send");
@@ -238,7 +238,7 @@ describe("campaign.send_chunk", () => {
 
   it("two overlapping runs of one chunk send each recipient once", async () => {
     const { campaignId } = await sending({ n: 30 });
-    const run = () => h.db.transaction(async (tx) => sendChunk(makeJobCtx(h.db, "campaign.send_chunk", { integrations: fakes, now: NOW, tx: tx as unknown as Tx }), { campaignId, chunkNo: 0, runNo: 1 }));
+    const run = () => h.db.transaction(async (tx) => sendChunk(makeJobCtx(h.db, "campaign.send_chunk", { integrations: fakes, now: NOW, tx: tx }), { campaignId, chunkNo: 0, runNo: 1 }));
     const results = await Promise.all([run(), run()]);
     expect(results.reduce((n, r) => n + r.sent, 0)).toBe(30);
     expect(fakes.resend.sent).toHaveLength(30);

@@ -54,12 +54,14 @@ export function AudiencePicker(props: AudiencePickerProps) {
     const result = await Promise.race([estimateAudience({ segmentId, excludeSegmentIds: excluded.filter((e) => e !== segmentId), purpose: props.purpose }), timeout]);
     if (id !== request.current) return;
     setCounting(false);
-    if (result && result.ok) setEstimate(result.data as Estimate);
+    if (result && result.ok) setEstimate(result.data);
     else setUnavailable(true);
   }, [segmentId, excluded, props.purpose]);
 
+  // Debounced, so ticking several exclusions counts once.
   useEffect(() => {
-    void count();
+    const timer = setTimeout(() => void count(), 300);
+    return () => clearTimeout(timer);
   }, [count]);
 
   async function save() {

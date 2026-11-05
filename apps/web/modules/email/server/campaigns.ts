@@ -12,7 +12,7 @@
  * status (`email.campaign_*`, `email.recipient_remove|restore`); the action wrapper's own row is off.
  */
 import type { DbOrTx } from "@beam/db";
-import { campaignRecipients, campaigns, emailTemplates, emailTemplateVersions, vCampaignStats } from "@beam/db/schema";
+import { campaignRecipients, campaigns, emailTemplates, type emailTemplateVersions, vCampaignStats } from "@beam/db/schema";
 import {
   assertTransition,
   RECIPIENT_EDIT_STATUSES,
@@ -169,7 +169,7 @@ export async function updateCampaignRecord(ctx: Ctx, input: UpdateCampaignInput)
     entityType: "campaign",
     entityId: c.id,
     oldValue: { name: c.name, segmentId: c.segmentId, excludeSegmentIds: c.excludeSegmentIds, scheduledAt: c.scheduledAt },
-    newValue: patch as Record<string, unknown>,
+    newValue: patch,
   });
   return { version: row.version };
 }
@@ -232,7 +232,7 @@ export async function reviewChecklist(tx: DbOrTx, c: CampaignRow): Promise<Revie
   const tested = !!(content && c.testSentAt && c.testSentAt.getTime() > content.updatedAt.getTime());
   return {
     audienceLocales: locales,
-    missing: missing.map((m) => ({ locale: m.locale as Locale, missing: m.missing })),
+    missing: missing.map((m) => ({ locale: m.locale, missing: m.missing })),
     checks: [
       { key: "segment", ok: !!c.segmentId },
       { key: "content", ok: !!content },

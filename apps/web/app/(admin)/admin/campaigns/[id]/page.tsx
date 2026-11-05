@@ -22,6 +22,12 @@ function localValue(at: Date): string {
   return `${p.date}T${String(p.hour).padStart(2, "0")}:${String(p.minute).padStart(2, "0")}`;
 }
 
+/** The schedule field's start value: the draft's future `scheduled_at`, else the next quarter hour after an hour from now. */
+function suggestedStart(scheduledAt: Date | null): string {
+  const now = Date.now();
+  return localValue(scheduledAt && scheduledAt.getTime() > now ? scheduledAt : new Date(Math.ceil((now + 3600_000) / 900_000) * 900_000));
+}
+
 /**
  * `/admin/campaigns/[id]` (edit `email.write`; schedule and controls `campaigns.send`, buttons
  * hidden and server-refused otherwise; `reports.read` reads), email spec section 5: the stepper
@@ -180,7 +186,7 @@ export default async function CampaignPage({ params, searchParams }: { params: P
           <SchedulePanel
             campaignId={c.id}
             version={c.version}
-            initialLocal={localValue(c.scheduledAt && c.scheduledAt.getTime() > Date.now() ? c.scheduledAt : new Date(Math.ceil((Date.now() + 3600_000) / 900_000) * 900_000))}
+            initialLocal={suggestedStart(c.scheduledAt)}
             canSchedule={canSend}
             labels={labels}
           />

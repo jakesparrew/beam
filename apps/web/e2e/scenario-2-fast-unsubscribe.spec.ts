@@ -263,13 +263,13 @@ test.describe("Scenario 2: fast unsubscribe (proposal section 11)", () => {
   test("the campaign chunk marks the unsubscribed and the complaining person skipped_suppressed", async () => {
     test.setTimeout(4 * 60_000);
     const { a, b, campaignId } = ids!;
-    // The minute schedule `email.dispatch_due_campaigns` arrives with email-P6 (campaigns engine).
+    // The minute schedule `email.dispatch_due_campaigns` (email-P6's campaigns engine) must be running.
     const engine = await until(
       () => one<{ n: number }>(sql`select count(*)::int as n from jobs where kind = 'email.dispatch_due_campaigns'`),
       (r) => (r?.n ?? 0) > 0,
       75_000,
     );
-    test.fixme((engine?.n ?? 0) === 0, "campaign.send_chunk and email.dispatch_due_campaigns are built by email-P6");
+    expect(engine?.n ?? 0, "the minute schedule email.dispatch_due_campaigns enqueues its job").toBeGreaterThan(0);
 
     const since = new Date();
     await e2eRows(sql`update campaigns set scheduled_at = now() where id = ${campaignId} and status = 'scheduled'`);

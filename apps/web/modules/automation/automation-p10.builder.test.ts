@@ -2,9 +2,12 @@
  * automation-P10 (R4): `saveBuilderGraph` converts the builder's flow with `graphToDefinition`
  * and takes the path of `saveDraft` (saved even with field issues, one `automation.update_draft`
  * audit row); a flow with structural issues leaves the draft as it was and returns its issues
- * with `saved: false`; the permission is `automations.write`. Email's `getPublishedTemplateInfo`
+ * with `saved: false`; the permission is `automations.write`. The builder canvas renders every
+ * seeded journey as blocks and lanes without React context (CONVENTIONS 12). Email's `getPublishedTemplateInfo`
  * is mocked to the shape its contract promises (CONVENTIONS 11).
  */
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTestDb, makeUser } from "@beam/db/testing";
 import type { DbHandle } from "@beam/db";
@@ -24,6 +27,7 @@ vi.mock("next/headers", () => ({
   headers: () => Promise.resolve(new Headers({ "x-forwarded-for": "192.0.2.61" })),
 }));
 vi.mock("next/server", () => ({ after: () => undefined }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: () => undefined, push: () => undefined }) }));
 vi.mock("@/modules/email/api", async (orig) => ({
   ...(await orig<typeof EmailApi>()),
   getPublishedTemplateInfo: (_db: unknown, slugs: string[]) =>
@@ -35,6 +39,9 @@ const { createAuthSession, SESSION_COOKIE } = await import("@/lib/auth");
 const { and, eq, setAppDb } = await import("@/lib/ctx");
 const { resetRuntime } = await import("@/lib/testing");
 const { makeAutomation } = await import("./engine/automation-p2.fixtures");
+const { BuilderCanvas } = await import("./ui/builder/canvas");
+const { automationLabels } = await import("./queries");
+const { SEED_AUTOMATIONS } = await import("@beam/core/automation/seeds");
 
 let handle: DbHandle;
 let userId: string;
@@ -128,5 +135,42 @@ describe("saveBuilderGraph", () => {
     } finally {
       await handle.db.update(roles).set({ permissions: ["automations.write"] }).where(eq(roles.key, "marketing"));
     }
+  });
+});
+
+describe("BuilderCanvas", () => {
+  const labels = automationLabels("en", ["builder", "editor", "publish", "issue", "errors", "purpose", "status", "detail", "list", "common"]);
+  const options = { tags: ["engaged"], segments: [], eventKinds: ["booking.confirmed"], templates: [], automations: [], roles: ["marketing"] };
+  const render = (d: Definition, canEdit = true) =>
+    renderToStaticMarkup(
+      createElement(BuilderCanvas, {
+        automation: { id: "00000000-0000-4000-8000-000000000001", slug: "x", name: "X" },
+        initialGraph: definitionToGraph(d),
+        savedIssues: [],
+        options,
+        migratableCount: 0,
+        canEdit,
+        canPublish: canEdit,
+        labels,
+      }),
+    );
+
+  it("renders the trigger, the blocks and both lanes of a branch with their palette", () => {
+    const html = render(flow);
+    expect(html).toContain('data-testid="builder-block-trigger"');
+    for (const s of flow.steps) expect(html).toContain(`data-testid="builder-block-${s.key}"`);
+    expect(html).toContain('data-testid="builder-lane-branch-then"');
+    expect(html).toContain('data-testid="builder-lane-branch-else"');
+    expect(html).toContain('data-testid="builder-palette-webhook"');
+    expect(html).toContain(labels["builder.block.branch"]!);
+    expect(html).not.toContain("{count}");
+  });
+
+  it("renders every seeded journey, and read-only without palette or move controls", () => {
+    for (const seed of SEED_AUTOMATIONS) expect(() => render(seed.definition)).not.toThrow();
+    const ro = render(flow, false);
+    expect(ro).not.toContain('data-testid="builder-save"');
+    expect(ro).not.toContain('data-testid="builder-remove-delay"');
+    expect(ro).toContain(labels["builder.readonly"]!);
   });
 });

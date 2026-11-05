@@ -144,6 +144,8 @@ test.describe("V1 acceptance", () => {
 
     test("The package balance updates", async ({ page }) => {
       test.skip(!core.personId, "the core customer did not register");
+      // Sign-in, a credit booking, two balance checks, an axe scan and a reschedule: about 60 s alone.
+      test.setTimeout(2 * 60_000);
       await signInCustomer(page, core.email, "nl");
       await page.goto(`/nl/account/book/${fx.creditDay2}`);
       await expect(page.getByText(copy(LOCALE, "booking.portalSession.credits_left", { count: 5 }))).toBeVisible({ timeout: 30_000 });

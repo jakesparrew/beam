@@ -141,6 +141,8 @@ test.afterAll(async () => {
 });
 
 test("package balance updates: buy 10 sessions, book one, cancel it", async ({ page }) => {
+  // Sign-in, a purchase on the fake provider, a booking, a cancellation and two axe scans.
+  test.setTimeout(2 * 60_000);
   const before = await liabilityCents();
   await signInCustomer(page, email, "en");
   await buy(page, PACKAGE_SKU);
@@ -293,7 +295,9 @@ test("data can be exported: the privacy export of the test person contains the c
   const res = await page.request.get(`/en/account/privacy/${requestId}/download`);
   expect(res.status()).toBe(200);
   const body = await res.body();
-  expect(body.includes(Buffer.from("credits/credit_grants.csv"))).toBe(true);
+  // The zip holds one CSV per key of credits' privacy export (`grants`, `entries`, ...), not per table.
+  expect(body.subarray(0, 2).toString()).toBe("PK");
+  expect(body.includes(Buffer.from("credits/grants.csv"))).toBe(true);
 });
 
 test("reception: the desk shows the credit badge, a package sold at the POS books at once", async ({ page }) => {

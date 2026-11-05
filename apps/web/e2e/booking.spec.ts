@@ -8,7 +8,7 @@ import { claimToken, deriveClaimKey, hashToken } from "@beam/core/booking";
 import { makePerson, makeProduct, makeSession } from "@beam/db/testing";
 import { makeOrder, makeOrderLine } from "@beam/db/testing/commerce-factories";
 import { expectAccessible } from "./support/a11y";
-import { signInCustomer, signInStaff } from "./support/auth";
+import { demoStaffEmail, signInCustomer, signInStaff } from "./support/auth";
 import { closeE2eDb, e2eDb, e2eRows } from "./support/db";
 import { uniqueEmail } from "./support/ids";
 
@@ -210,8 +210,10 @@ async function createPortalFixture(): Promise<Portal> {
     .returning();
   const templateSession = await makeSession(db, { kind: "night", title: title("template night"), startsAt: inDays(9, 20), publishedAt: published, templateId: template!.id, templateVersion: 1 });
   const promoCode = `E2EPORTAL${Date.now().toString(36).toUpperCase()}`;
-  await e2eRows(sql`insert into promotions (code, name, kind, value, applies_to, starts_at, is_active)
-    values (${promoCode}, ${JSON.stringify(title("promo"))}::jsonb, 'percent', 20, ${JSON.stringify({ product_ids: [product.id], product_kinds: [] })}::jsonb, now() - interval '1 hour', true)`);
+  // promotions.created_by_user_id is required: the demo owner creates the code.
+  await e2eRows(sql`insert into promotions (code, name, kind, value, applies_to, starts_at, is_active, created_by_user_id)
+    values (${promoCode}, ${JSON.stringify(title("promo"))}::jsonb, 'percent', 20, ${JSON.stringify({ product_ids: [product.id], product_kinds: [] })}::jsonb, now() - interval '1 hour', true,
+      (select id from users where lower(email) = ${demoStaffEmail("owner").toLowerCase()}))`);
   return {
     productId: product.id,
     templateId: template!.id,

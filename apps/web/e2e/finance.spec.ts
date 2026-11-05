@@ -9,17 +9,20 @@
  *   skips itself while commerce's `/admin/orders/[id]` screen does not exist.
  * - The paid order counts in `/admin/finance` "issued today", the admin list finds it, and an
  *   `invoices` CSV export for today contains it (skipped until the exports screen exists).
- * The buyer is `customer3@example.com` (a demo customer with a portal user); the spec only adds
- * its own orders and documents, which are legal records and are never deleted.
+ * The buyer and the other customer are fresh customers per run, registered by their first magic
+ * link (shared demo customers run into the magic-link limit of 5 an hour, PL-68, across runs and
+ * parallel servers); the spec only adds its own people, orders and documents, which are legal
+ * records and are never deleted.
  */
 import { expect, test, type Page } from "@playwright/test";
 import { sql } from "drizzle-orm";
 import { expectAccessible } from "./support/a11y";
 import { signInCustomer, signInStaff } from "./support/auth";
 import { closeE2eDb, e2eRows } from "./support/db";
+import { uniqueEmail } from "./support/ids";
 
 const PACKAGE_SKU = "PKG-5-DAYS";
-const BUYER = "customer3@example.com";
+const BUYER = uniqueEmail("finance-buyer");
 const NUMBER_RE = /^BEAM-\d{4}-\d{6}$/;
 
 type Doc = { id: string; number: string; status: string; pdf_status: string; billit_status: string; order_id: string; total_cents: number };
@@ -96,7 +99,7 @@ test.describe.serial("invoices from purchase to report", () => {
 
   test("another customer gets 404 for this invoice and its PDF", async ({ page }) => {
     test.skip(!invoice, "needs the purchase of the first test");
-    await signInCustomer(page, "customer4@example.com", "nl");
+    await signInCustomer(page, uniqueEmail("finance-other"), "nl");
     // The portal pages stream behind `loading.tsx`, so Next.js has sent status 200 before the page
     // calls notFound(): the page answers with the 404 page (noindex) instead of the status. The PDF
     // route handler answers the 404 status itself (finance spec section 4, never 403).

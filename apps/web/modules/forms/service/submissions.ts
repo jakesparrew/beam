@@ -45,6 +45,7 @@ import { AppError, and, ConflictError, desc, eq, inArray, NotFoundError, sql, Va
 import { rowsOf } from "@/lib/sensitive";
 import { applyTag, createInboxThreadFromForm, fillAcquisitionIfEmpty, findOrCreatePersonByEmail, getPerson, getPersonPrefill, recordConsent, updatePersonFields } from "@/modules/crm/api";
 import { sendTransactional } from "@/modules/email/api";
+import { readReferralCode } from "@/modules/site/api";
 import { buildPrefill, isActiveStaff, mappedKeys, resolveIdentity, tokenFor, type Prefill } from "./identity";
 import { isBotSubmission, limitResultLink, limitStart, limitSubmit, logBotDropped } from "./rate-limit";
 import { deleteSensitiveExcept, hasSensitiveConsent, linkSensitive, scoreKey, sensitiveConsentKey, sensitiveKeysOf, storeSensitive } from "./sensitive";
@@ -307,18 +308,29 @@ export async function startSubmission(
   return { submissionId: row!.id, resumeToken, prefill };
 }
 
-/** The partner of the submission's tracked link (`form_submissions` has no partner column; see the package decisions). */
-async function partnerOf(tx: Tx, sub: SubmissionRow): Promise<string | null> {
-  if (!sub.linkId) return null;
-  const [r] = await tx.select({ p: formLinks.partnerCompanyId }).from(formLinks).where(eq(formLinks.id, sub.linkId));
-  return r?.p ?? null;
+/**
+ * The partner and the referrer (R3 referral links) of the submission's tracked link
+ * (`form_submissions` has no partner column; see the forms-P3 decisions).
+ */
+async function linkAttributionOf(tx: Tx, sub: SubmissionRow): Promise<{ partnerCompanyId: string | null; referrerPersonId: string | null }> {
+  if (!sub.linkId) return { partnerCompanyId: null, referrerPersonId: null };
+  const [r] = await tx.select({ p: formLinks.partnerCompanyId, r: formLinks.referrerPersonId }).from(formLinks).where(eq(formLinks.id, sub.linkId));
+  return { partnerCompanyId: r?.p ?? null, referrerPersonId: r?.r ?? null };
 }
 
+/**
+ * Who referred a person the submission creates (R3, rule A1 and A3): the tracked link's
+ * `referrer_person_id` and the `beam_ref` referral code. Both apply to a new person only, so they
+ * are left out of `fillAcquisitionIfEmpty` for an existing person: an existing customer who opens
+ * a friend's link or carries a code is not that friend's referral.
+ */
+export type ReferralInput = { referralCode: string | null };
+
 /** A3: the person's acquisition in crm's shape, from the submission's own attribution. */
-async function acquisitionOf(tx: Tx, l: Loaded): Promise<Omit<Acquisition, "captured_at">> {
+async function acquisitionOf(tx: Tx, l: Loaded, referral: ReferralInput | null = null): Promise<Omit<Acquisition, "captured_at">> {
   const s = l.sub;
   const utm = s.utm ?? {};
-  const partner = await partnerOf(tx, s);
+  const link = await linkAttributionOf(tx, s);
   return {
     source: s.source as AcquisitionSource,
     funnel: s.funnel,
@@ -326,9 +338,70 @@ async function acquisitionOf(tx: Tx, l: Loaded): Promise<Omit<Acquisition, "capt
     ...(s.campaign ? { campaign: s.campaign } : {}),
     ...(utm.medium ? { medium: utm.medium } : {}),
     ...(Object.keys(utm).length ? { utm } : {}),
-    ...(partner ? { partner_company_id: partner } : {}),
+    ...(link.partnerCompanyId ? { partner_company_id: link.partnerCompanyId } : {}),
+    ...(referral && link.referrerPersonId ? { referrer_person_id: link.referrerPersonId } : {}),
+    ...(referral?.referralCode ? { referral_code: referral.referralCode } : {}),
   };
 }
+
+/** A referral code as crm accepts it (trimmed, 1 to 64 characters of `[A-Za-z0-9-]`), else null. */
+export function cleanReferralCode(code: string | null | undefined): string | null {
+  const c = code?.trim();
+  return c && /^[A-Za-z0-9-]{1,64}$/.test(c) ? c : null;
+}
+
+/** A cookie reader over a request's `cookie` header, in the shape `site.readReferralCode` takes. */
+function cookieJar(header: string | null): { get(name: string): { value: string } | undefined } {
+  return {
+    get(name) {
+      for (const part of (header ?? "").split(";")) {
+        const at = part.indexOf("=");
+        if (at > 0 && part.slice(0, at).trim() === name) {
+          try {
+            return { value: decodeURIComponent(part.slice(at + 1).trim()) };
+          } catch {
+            return undefined;
+          }
+        }
+      }
+      return undefined;
+    },
+  };
+}
+
+/**
+ * Rule A1 (R3, cross-module D18): the referral code of a public request, read with site's
+ * `readReferralCode(cookies, searchParams)` from the `beam_ref` cookie (and site's `?ref=` rule
+ * on the request URL). The submit and save routes pass it as `referralCode`.
+ */
+export function referralCodeOf(req: Request): string | null {
+  let params: URLSearchParams | undefined;
+  try {
+    params = new URL(req.url).searchParams;
+  } catch {
+    params = undefined;
+  }
+  return cleanReferralCode(readReferralCode(cookieJar(req.headers.get("cookie")), params));
+}
+
+/**
+ * The referral code of the request being served, when the caller did not pass one: the
+ * `beam_ref` cookie through `next/headers` (route handlers and Server Actions). Outside a request
+ * (jobs, imports, tests without a request) there is no cookie and no code.
+ */
+async function ambientReferralCode(): Promise<string | null> {
+  try {
+    const { cookies } = await import("next/headers");
+    const jar = await cookies();
+    return cleanReferralCode(readReferralCode(jar));
+  } catch {
+    return null;
+  }
+}
+
+const referralFor = async (code: string | null | undefined): Promise<ReferralInput> => ({
+  referralCode: code === undefined ? await ambientReferralCode() : cleanReferralCode(code),
+});
 
 // ---------------------------------------------------------------------------
 // Person linking, profile and consent (ID3, ID4, ID9, A3, C1 to C5)
@@ -360,18 +433,21 @@ const patchOf = (p: ProfilePatch): ProfilePatch => {
   return out;
 };
 
-/** ID3 and A3: finds or creates the person by email; fills the acquisition once. */
-async function linkByEmail(tx: Tx, ctx: Ctx, l: Loaded, email: string, profile: ProfilePatch): Promise<{ personId: string; created: boolean }> {
-  const acquisition = await acquisitionOf(tx, l);
+/**
+ * ID3 and A3: finds or creates the person by email; fills the acquisition once. The referral
+ * (link referrer and `beam_ref` code) reaches crm only in the creating call; an existing person
+ * whose acquisition is still empty gets the acquisition without it.
+ */
+async function linkByEmail(tx: Tx, ctx: Ctx, l: Loaded, email: string, profile: ProfilePatch, referral: ReferralInput): Promise<{ personId: string; created: boolean }> {
   const r = await findOrCreatePersonByEmail(tx, ctx, {
     email,
     locale: l.sub.locale as Locale,
-    acquisition,
+    acquisition: await acquisitionOf(tx, l, referral),
     ...(profile.firstName ? { firstName: profile.firstName } : {}),
     ...(profile.lastName ? { lastName: profile.lastName } : {}),
     ...(profile.phone ? { phone: profile.phone } : {}),
   });
-  if (!r.created) await fillAcquisitionIfEmpty(tx, ctx, r.personId, acquisition);
+  if (!r.created) await fillAcquisitionIfEmpty(tx, ctx, r.personId, await acquisitionOf(tx, l));
   return r;
 }
 
@@ -454,7 +530,7 @@ async function writeConsents(
 export async function saveSection(
   tx: Tx,
   ctx: PublicCtx,
-  i: { submissionId: string; proof: SubmissionProof; sectionKey: string; answers: Answers },
+  i: { submissionId: string; proof: SubmissionProof; sectionKey: string; answers: Answers; referralCode?: string | null },
 ): Promise<{ next: { sectionKey: string } | { end: true } }> {
   const l = await loadSubmission(tx, i.submissionId, true);
   if (!hasProof(ctx, l.sub, l.form.slug, i.proof)) throw new NotFoundError("submission_not_found");
@@ -510,7 +586,7 @@ export async function saveSection(
   // ID9: a saved valid email links an anonymous submission to a person when `capturePartialLeads` is on.
   const profile = profileOf(l.definition, answers);
   if (!l.sub.personId && l.definition.settings.capturePartialLeads && profile.email) {
-    const { personId } = await linkByEmail(tx, ctx, l, profile.email, profile);
+    const { personId } = await linkByEmail(tx, ctx, l, profile.email, profile, await referralFor(i.referralCode));
     set.personId = personId;
     set.identifiedBy = "email";
     await linkSensitive(tx, l.sub.id, personId);
@@ -653,11 +729,14 @@ function resultEmailData(l: Loaded, ending: Ending, o: { firstName: string | nul
  * profile, consent, sensitive answers, score and outcome, applies outcome tags, creates the
  * result token, queues the result email and records the events, all in the caller's transaction.
  * A bot (honeypot or under 3 seconds, R3) gets a normal-looking thank-you and nothing is written.
+ * `referralCode` (R3, rule A1) is the submit request's `beam_ref` code (`referralCodeOf(req)`);
+ * left out, the code is read from the request being served (`next/headers`). It reaches crm only
+ * when this submit creates the person.
  */
 export async function completeSubmission(
   tx: Tx,
   ctx: PublicCtx,
-  i: { submissionId: string; proof: SubmissionProof; answers: Answers; ip: string; userAgent: string; honeypot?: string | null },
+  i: { submissionId: string; proof: SubmissionProof; answers: Answers; ip: string; userAgent: string; honeypot?: string | null; referralCode?: string | null },
 ): Promise<CompleteResult> {
   const l = await loadSubmission(tx, i.submissionId, true);
   if (!hasProof(ctx, l.sub, l.form.slug, i.proof)) throw new NotFoundError("submission_not_found");
@@ -724,7 +803,7 @@ export async function completeSubmission(
     conflicts = await updateProfile(tx, ctx, personId, patchOf(profile), identifiedBy === "email", await getPersonPrefill(tx, personId));
   } else if (profile.email) {
     // ID3: find or create without profile values, so the conflicts of ID4 compare with the stored ones.
-    const r = await linkByEmail(tx, ctx, l, profile.email, {});
+    const r = await linkByEmail(tx, ctx, l, profile.email, {}, await referralFor(i.referralCode));
     personId = r.personId;
     identifiedBy = "email";
     conflicts = await updateProfile(tx, ctx, personId, patchOf(profile), !r.created, await getPersonPrefill(tx, personId));

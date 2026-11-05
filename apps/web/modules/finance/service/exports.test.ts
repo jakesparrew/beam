@@ -234,14 +234,15 @@ describe("finance.build_export", () => {
     expect(out.text).toBe(`\uFEFF${ex.EXPORT_COLUMNS.payments.join(";")}\r\n`);
   });
 
-  it("a file above the size limit fails with export_too_large; a Release 3 kind fails as unavailable", async () => {
+  it("a file above the size limit fails with export_too_large; a Release 3 kind builds once its source exists", async () => {
     expect(await ex.buildExportCsv(h.db, "invoice_lines", OCT, { maxBytes: 200 })).toEqual({ ok: false, error: "finance.errors.export_too_large" });
     const user = await signInStaff(jar, h.db, "finance");
     const [row] = await h.db.insert(financeExports).values({ kind: "breakage", periodFrom: OCT.from, periodTo: OCT.to, requestedByUserId: user.id }).returning();
-    const { first } = await runJobTwice(h.db, "finance.build_export", { exportId: row!.id });
-    expect(first).toEqual({ status: "failed", error: "finance.errors.export_kind_unavailable" });
+    await runJobTwice(h.db, "finance.build_export", { exportId: row!.id });
     const [after] = await h.db.select().from(financeExports).where(eq(financeExports.id, row!.id));
-    expect(after).toMatchObject({ status: "failed", error: "finance.errors.export_kind_unavailable", fileId: null });
+    // finance-P9 added the R3 sources; the kind must now build like the V1 kinds.
+    expect(after!.status).toBe("done");
+    expect(after!.fileId).not.toBeNull();
   });
 
   it("after the last attempt the export is failed with the error", async () => {

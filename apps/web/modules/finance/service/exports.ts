@@ -18,8 +18,16 @@
  * - `payments`: what the R3 cash-inflow view counts: `payments` in `paid`, `refunded` or
  *   `partially_refunded` by Brussels day of `paid_at` (inflow), plus paid credit notes by Brussels
  *   day of `paid_at` with their negative total (money returned) and the refund's provider id.
- * The three Release 3 kinds get their sources from finance-P9 (`EXPORT_SOURCES`); until then a
- * request for them fails with `finance.errors.export_kind_unavailable`.
+ * Release 3 kinds (finance-P9, rule 43; the figures of `service/deferred.ts`, so the rows equal the
+ * `/admin/finance/deferred` screen):
+ * - `deferred_revenue`: the unused paid credits at the end of the period's last day (`to`; a day of
+ *   today or later reads today's `v_credit_liability`), one row per credit kind, VAT treatment and
+ *   rate, `as_of` the day the figures are for.
+ * - `breakage`: per Brussels month overlapping the period, credit kind and rate: recognised,
+ *   breakage (net and VAT) and revoked value.
+ * - `voucher_redemptions`: every euro credit spend on an order in the period with the invoice
+ *   number of that order (no person column).
+ * A kind without a source fails with `finance.errors.export_kind_unavailable`.
  */
 import type { DbOrTx } from "@beam/db";
 import { financeExports } from "@beam/db/schema";
@@ -29,6 +37,7 @@ import { MAX_FILE_BYTES } from "@/lib/files";
 import type { JobCtx } from "@/lib/job-runner";
 import { rowsOf } from "@/lib/sensitive";
 import { readFile, storeFile } from "@/modules/platform/api";
+import { getBreakage, getDeferredRevenue, voucherRedemptionPage } from "./deferred";
 // Imported by path until `@beam/core/finance` re-exports `./csv` (request to the owner of its index.ts).
 import { boolCell, centsToEuros, csvLine, CSV_BOM, EXPORT_COLUMNS, exportFileName, vatRateCell, type CsvCell } from "../../../../../packages/core/src/finance/csv";
 
@@ -251,12 +260,52 @@ async function* paymentRows(db: DbOrTx, p: ExportQuery): AsyncIterable<CsvCell[]
   }
 }
 
-/** The row source of each kind; finance-P9 adds `deferred_revenue`, `breakage` and `voucher_redemptions`. */
+/** Deferred revenue at the end of `to`: one row per credit kind, VAT treatment and rate. */
+async function* deferredRevenueRows(db: DbOrTx, p: ExportQuery): AsyncIterable<CsvCell[][]> {
+  const d = await getDeferredRevenue(db, { asOf: p.to });
+  if (d.byRate.length) {
+    yield d.byRate.map((r) => [d.asOf, r.creditKind, r.vatTreatment, r.vatRatePct === null ? null : vatRateCell(r.vatRatePct), r.units, cents(r.grossCents), cents(r.netCents), cents(r.vatCents)]);
+  }
+}
+
+/** Recognised, breakage and revoked value per month, credit kind and rate; a few dozen rows, one page. */
+async function* breakageRows(db: DbOrTx, p: ExportQuery): AsyncIterable<CsvCell[][]> {
+  const rows = await getBreakage(db, { from: p.from, to: p.to });
+  if (rows.length) {
+    yield rows.map((r) => [
+      r.month,
+      r.creditKind,
+      r.vatRatePct === null ? null : vatRateCell(r.vatRatePct),
+      cents(r.recognised.grossCents),
+      cents(r.breakage.grossCents),
+      cents(r.breakage.netCents),
+      cents(r.breakage.vatCents),
+      cents(r.revoked.grossCents),
+    ]);
+  }
+}
+
+async function* voucherRedemptionRows(db: DbOrTx, p: ExportQuery): AsyncIterable<CsvCell[][]> {
+  const size = p.pageSize ?? EXPORT_PAGE_SIZE;
+  let after: { at: string; entryId: string } | null = null;
+  for (;;) {
+    const page = await voucherRedemptionPage(db, { from: p.from, to: p.to, after, limit: size });
+    if (!page.rows.length) return;
+    yield page.rows.map((r) => [r.redeemedOn, r.orderId, r.invoiceNumber, cents(r.amountCents), boolCell(r.isReversed)]);
+    if (page.rows.length < size) return;
+    after = page.last;
+  }
+}
+
+/** The row source of each kind. */
 export const EXPORT_SOURCES: Partial<Record<FinanceExportKind, ExportRowSource>> = {
   invoices: invoiceRows,
   invoice_lines: invoiceLineRows,
   vat_summary: vatSummaryRows,
   payments: paymentRows,
+  deferred_revenue: deferredRevenueRows,
+  breakage: breakageRows,
+  voucher_redemptions: voucherRedemptionRows,
 };
 
 // ---------------------------------------------------------------------------

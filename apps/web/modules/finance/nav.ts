@@ -3,8 +3,8 @@
  * by `pnpm gen:indexes`. finance-P5 adds the V1 back-office screens (finance spec section 5):
  * Overview, Invoices, Billit sync, Requests and Settings; finance-P7 adds Exports
  * (`reports.finance`) and the portal entry "Invoices" (`/account/invoices`, finance-P6's screen);
- * finance-P8 adds Dashboard (`reports.finance`, R3). Deferred revenue (R3) comes with its screen
- * (finance-P9), so no entry links to a page that does not exist. "Requests" shows the number of pending company invoice requests.
+ * finance-P8 adds Dashboard (`reports.finance`, R3); finance-P9 adds Deferred revenue
+ * (`reports.finance`, R3: deferred revenue, breakage and voucher redemptions). "Requests" shows the number of pending company invoice requests.
  */
 import { sql, type DbOrTx } from "@/lib/ctx";
 import { rowsOf } from "@/lib/sensitive";
@@ -75,6 +75,16 @@ export const nav = [
     permission: "reports.finance",
     icon: "chart-line",
     order: 550,
+  },
+  {
+    key: "finance.deferred",
+    area: "admin",
+    section: "finance",
+    labelKey: "finance.nav.deferred",
+    href: "/admin/finance/deferred",
+    permission: "reports.finance",
+    icon: "hourglass",
+    order: 560,
   },
   {
     key: "finance.settings",

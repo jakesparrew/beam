@@ -39,7 +39,8 @@ const nextConfig: NextConfig = {
   typedRoutes: true,
   poweredByHeader: false,
   experimental: {
-    serverActions: { allowedOrigins: host ? [host] : [] },
+    // 3 MB: forms' `uploadImportCsv` takes a CSV of 1 to 2 MB; the 1 MB default rejects it.
+    serverActions: { allowedOrigins: host ? [host] : [], bodySizeLimit: "3mb" },
   },
   headers: () => Promise.resolve([{ source: "/:path*", headers: securityHeaders }]),
 };

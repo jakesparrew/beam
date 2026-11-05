@@ -29,7 +29,7 @@
  * them).
  */
 import type { Filter, Step } from "../definition";
-import { DAY, definition, fromEnrolment, type SeedAutomation, type SeedRelease } from "./groups";
+import { DAY, definition, fromEnrolment, type SeedAutomation } from "./groups";
 
 /** The opportunity stages (`opportunities_stage`) that have a B2B follow-up journey. */
 export const B2B_JOURNEY_STAGES = ["qualified", "proposal", "won"] as const;
@@ -40,12 +40,6 @@ export const b2bJourneySlug = (stage: B2bJourneyStage): string => `b2b-${stage}`
 
 /** The event crm records when an opportunity changes stage. */
 export const OPPORTUNITY_STAGE_EVENT = "opportunity.stage_changed";
-
-/**
- * R3. `SeedRelease` of `./groups` lists `V1` and `R2` only (requested: add `R3`); the activation
- * filter compares the release as a string, so the cast changes no behaviour.
- */
-const R3 = "R3" as SeedRelease;
 
 const stageTrigger = (stage: B2bJourneyStage): { event: string; where: Filter } => ({ event: OPPORTUNITY_STAGE_EVENT, where: { "data.to_stage": stage } });
 const leftStage = (stage: B2bJourneyStage) => ({ event: OPPORTUNITY_STAGE_EVENT, where: { "data.from_stage": stage }, same_subject: true });
@@ -64,7 +58,7 @@ function journey(j: Journey): SeedAutomation {
     status: "draft",
     requiresDpia: null,
     requiresFlag: null,
-    release: R3,
+    release: "R3",
     definition: definition({
       trigger: stageTrigger(j.stage),
       anchor: "enrolment",

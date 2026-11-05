@@ -7,7 +7,7 @@
  * `BlockCard` do the same without a pointer. State lives in the canvas and arrives as props.
  */
 import type { DragEvent } from "react";
-import type { BranchLane, BuilderBlock, BuilderNode, LanePath } from "../../../../../../packages/core/src/automation/builder";
+import type { BranchLane, BuilderBlock, BuilderNode, LanePath } from "@beam/core/automation";
 import { fill, type Labels } from "../outcome-badge";
 import { BlockCard, blockOf, blockSummary } from "./block";
 

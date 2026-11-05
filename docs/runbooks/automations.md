@@ -86,3 +86,25 @@ engine. To give a person the journey again:
    now are logged as `skipped_late_entry` unless the step sends on late entry; to send a specific
    message now, enrol into a manual automation built for it.
 3. Marketing consent is still checked per step: an unreachable person gets `skipped_unreachable`.
+
+## Switching on a release's journeys (go-live of R2 and R3)
+
+The seed (`pnpm seed`, profile `defaults`) writes the R2 and R3 journeys as drafts with a
+published version 1. At the go-live of a release, run the activation once on the production
+database (decision 30, A-5a). It switches on every seeded journey of that release that is still a
+draft and was never activated; a journey BEAM paused, archived or edited back to draft after an
+activation keeps its status, and a DPIA-gated journey (`requires_dpia`) stays draft until its DPIA
+is approved on `/admin/privacy/dpia`. Every activation is audited (`automation.activate`, system
+actor). Running it again is safe: it activates nothing new.
+
+1. Set `DATABASE_URL_UNPOOLED` (direct connection) and, where TCP 5432 is blocked,
+   `DATABASE_DRIVER=neon-ws`, as for `pnpm db:migrate`.
+2. From the repository root (replace `R2` by `R3` for release 3):
+
+   ```bash
+   pnpm --filter @beam/db exec tsx --eval 'import("./src/seed/automation.ts").then((m) => m.releaseActivationCli(["R2"])).then((code) => process.exit(code))'
+   ```
+
+3. Read the output: `R2: <n> journey(s) activated: <slugs>`, then one line per journey that
+   waits for a DPIA. After the DPIA is approved, run step 2 again.
+4. Check `/admin/automations` (filter status `active`): the release's journeys are active.

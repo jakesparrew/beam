@@ -22,7 +22,7 @@ export type SeedGroup = {
   priority: number;
 };
 
-export type SeedRelease = "V1" | "R2";
+export type SeedRelease = "V1" | "R2" | "R3";
 
 export type SeedAutomation = {
   slug: string;

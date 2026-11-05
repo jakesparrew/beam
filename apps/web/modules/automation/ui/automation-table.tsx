@@ -131,7 +131,7 @@ export function AutomationTable({ rows, l, locale, emptyAction, filtered }: { ro
   );
 }
 
-export type AutomationTab = "overview" | "edit" | "versions" | "enrolments" | "runs";
+export type AutomationTab = "overview" | "edit" | "builder" | "versions" | "enrolments" | "runs";
 
 /** Title, status badge and the section tabs of one automation (links; the current one is marked). */
 export function AutomationHeader({
@@ -154,6 +154,7 @@ export function AutomationHeader({
   const tabs: { key: AutomationTab; href: string }[] = [
     { key: "overview", href: `/admin/automations/${id}` },
     { key: "edit", href: `/admin/automations/${id}/edit` },
+    { key: "builder", href: `/admin/automations/${id}/builder` },
     { key: "versions", href: `/admin/automations/${id}/versions` },
     { key: "enrolments", href: `/admin/automations/${id}/enrolments` },
     { key: "runs", href: `/admin/automations/${id}/runs` },

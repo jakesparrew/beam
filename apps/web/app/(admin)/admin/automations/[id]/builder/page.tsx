@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ROLE_KEYS } from "@beam/db/schema";
 import { Alert, AlertDescription } from "@beam/ui";
-import type { Definition } from "@beam/core/automation";
+import { definitionToGraph, type Definition } from "@beam/core/automation";
 import { hasPermission, requireStaff } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
 import { adminLocale } from "@/lib/i18n";
@@ -18,7 +18,6 @@ import {
 } from "@/modules/automation/queries";
 import { AutomationHeader } from "@/modules/automation/ui/automation-table";
 import { BuilderCanvas } from "@/modules/automation/ui/builder/canvas";
-import { definitionToGraph } from "../../../../../../../../packages/core/src/automation/builder";
 
 const LABEL_PREFIXES = ["builder", "editor", "publish", "issue", "errors", "purpose", "status", "detail", "list", "common"] as const;
 
@@ -56,7 +55,7 @@ export default async function AutomationBuilderPage({ params }: { params: Promis
   const draft: unknown = a.draftDefinition ?? detail.currentVersion?.definition ?? null;
   return (
     <div className="grid gap-6">
-      <AutomationHeader id={a.id} name={a.name} slug={a.slug} status={a.status} current="edit" l={l} />
+      <AutomationHeader id={a.id} name={a.name} slug={a.slug} status={a.status} current="builder" l={l} />
       <div className="grid gap-1">
         <h2 className="text-lg font-semibold">{l["builder.title"]}</h2>
         <p className="text-sm text-muted-foreground">{l["builder.intro"]}</p>

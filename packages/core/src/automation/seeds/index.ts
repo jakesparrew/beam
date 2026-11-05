@@ -73,7 +73,7 @@ export type ActivationRelease = "R2" | "R3";
 
 /** The seeds of one release (R3 is automation-P9's B2B task journeys). */
 export const seedsOfRelease = (release: ActivationRelease, seeds: readonly SeedAutomation[] = SEED_AUTOMATIONS): SeedAutomation[] =>
-  seeds.filter((s) => (s.release as string) === release);
+  seeds.filter((s) => s.release === release);
 
 /**
  * Templates other modules seed that R2 drafts reference (webinar's registry templates and

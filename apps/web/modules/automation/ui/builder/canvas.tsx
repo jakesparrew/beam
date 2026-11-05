@@ -14,7 +14,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState } from "react";
 import { Alert, AlertDescription, Button } from "@beam/ui";
-import { parseDefinition, type DefinitionIssue, type StepType } from "@beam/core/automation";
 import {
   BLOCK_STEP_TYPES,
   findNode,
@@ -23,6 +22,7 @@ import {
   issueNodeId,
   laneAt,
   moveInLane,
+  parseDefinition,
   replaceNode,
   stepNodeIds,
   updateLane,
@@ -30,8 +30,10 @@ import {
   type BuilderGraph,
   type BuilderNode,
   type BuilderTrigger,
+  type DefinitionIssue,
   type LanePath,
-} from "../../../../../../packages/core/src/automation/builder";
+  type StepType,
+} from "@beam/core/automation";
 import { saveBuilderGraph } from "../../actions";
 import type { EditorOptions, Json } from "../condition-builder";
 import { errorText, fill, issueText, type IssueLike, type Labels } from "../outcome-badge";

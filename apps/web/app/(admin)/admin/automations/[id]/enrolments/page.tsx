@@ -11,8 +11,8 @@ const STATUSES: readonly string[] = ["active", "completed", "exited"];
 /**
  * `/admin/automations/[id]/enrolments` (as the list + `persons.read`), automation spec 5: person
  * (link to the person page), status, source, version, entered, next step and due, end reason;
- * filter by status; keyset paging. The per-row Exit comes with the person controls
- * (automation-P6, `exitEnrolment`).
+ * filter by status; keyset paging. With `automations.move_person` an active row has Exit
+ * (`exitEnrolment`, A-38: the dialog asks for an optional note).
  */
 export default async function AutomationEnrolmentsPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ status?: string; cursor?: string }> }) {
   const actor = await requireStaff({ permission: "persons.read" });
@@ -23,7 +23,8 @@ export default async function AutomationEnrolmentsPage({ params, searchParams }:
   if (!detail) notFound();
   const a = detail.automation;
   const locale = await adminLocale();
-  const l = automationLabels(locale, ["enrolments", "enrolment_status", "source", "end_reason", "detail", "status", "common"]);
+  const canExit = hasPermission(actor, "automations.move_person");
+  const l = automationLabels(locale, ["enrolments", "enrolment_status", "source", "end_reason", "detail", "status", "common", ...(canExit ? (["panel", "errors"] as const) : [])]);
   const status = sp.status && STATUSES.includes(sp.status) ? (sp.status as EnrolmentStatus) : undefined;
   const page = await listEnrolments(db, { automationId: a.id, ...(status ? { status } : {}), ...(sp.cursor ? { cursor: sp.cursor } : {}), limit: 50 });
   const base = `/admin/automations/${a.id}/enrolments`;
@@ -32,7 +33,7 @@ export default async function AutomationEnrolmentsPage({ params, searchParams }:
     <div className="grid gap-6">
       <AutomationHeader id={a.id} name={a.name} slug={a.slug} status={a.status} current="enrolments" l={l} />
       <EnrolmentFilters action={base} l={l} status={status} />
-      <EnrolmentTable rows={page.rows} l={l} locale={locale} moreHref={moreHref} />
+      <EnrolmentTable rows={page.rows} l={l} locale={locale} moreHref={moreHref} {...(canExit ? { exit: { automationName: a.name } } : {})} />
     </div>
   );
 }

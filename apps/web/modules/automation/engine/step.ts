@@ -49,12 +49,16 @@ import type { Tx } from "@beam/db";
 import { persons, type RoleKey, type RunDataJson } from "@beam/db/schema";
 import {
   addMinutes,
+  applyFrequencyRules,
   evaluateCondition,
+  FREQUENCY_WEEK_MS,
+  frequencyCapReason,
   overdueOutcome,
   replanForAnchor,
   startPlan,
   utcMinuteBucket,
   webhookIdempotencyKey,
+  type AutomationRules,
   type AutomationRunOutcome,
   type ConditionScope,
   type Definition,
@@ -81,8 +85,6 @@ import { enrol, loadAutomations } from "./enrol";
 import { activeEnrolmentsOf, endEnrolmentWith } from "./exits";
 import { loadFacts, needsOf } from "./facts";
 import { writeRun } from "./runs";
-// Until `@beam/core/automation` re-exports it (requested from the owner of its index.ts).
-import { applyFrequencyRules, FREQUENCY_WEEK_MS, frequencyCapReason, type AutomationRules } from "../../../../../packages/core/src/automation/frequency";
 
 export type RunStepInput = { enrolmentId: string; stepKey: string; now: Date };
 

@@ -12,9 +12,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import { createTestDb, makeUser } from "@beam/db/testing";
 import type { DbHandle } from "@beam/db";
 import { auditLog, automations, roles } from "@beam/db/schema";
-import type { Definition } from "@beam/core/automation";
+import { definitionToGraph, type BuilderGraph, type BuilderNode, type Definition } from "@beam/core/automation";
 import type * as EmailApi from "@/modules/email/api";
-import { definitionToGraph, type BuilderGraph, type BuilderNode } from "../../../../packages/core/src/automation/builder";
 
 const jar = new Map<string, string>();
 vi.mock("next/headers", () => ({

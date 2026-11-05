@@ -87,7 +87,12 @@ function Field({ label, hint, children, issues }: { label: string; hint?: React.
 
 export { Field };
 
-function StepForm({
+/**
+ * The form of one step (no move, remove or add controls). `steps` is the whole flow: its keys
+ * feed the condition builders and the goto targets after `index`; issue paths are
+ * `steps.<index>.<field>`. The builder's side panel renders it for the selected block.
+ */
+export function StepForm({
   step,
   index,
   steps,

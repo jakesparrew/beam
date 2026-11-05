@@ -10,6 +10,7 @@ import { Button, EmptyState, Input, Label, Table, TableBody, TableCell, TableHea
 import { formatDateTime, type Locale } from "@beam/core/i18n";
 import type { AutomationRunOutcome } from "@beam/core/automation";
 import { AUTOMATION_RUN_OUTCOMES } from "@beam/db/schema";
+import { ExitEnrolmentButton } from "./move-dialog";
 import { fill, OutcomeBadge, type Labels } from "./outcome-badge";
 
 const selectClass = "h-9 rounded-md border border-input bg-background px-3 text-sm";
@@ -160,7 +161,24 @@ export function EnrolmentFilters({ action, l, status }: { action: string; l: Lab
   );
 }
 
-export function EnrolmentTable({ rows, l, locale, moreHref }: { rows: EnrolmentView[]; l: Labels; locale: Locale; moreHref?: string | null }) {
+/**
+ * The enrolments of one automation. With `exit` (the viewer holds `automations.move_person`) an
+ * active row carries the Exit dialog (`exitEnrolment`, A-38); `l` then needs the `panel` and
+ * `errors` labels the dialog uses.
+ */
+export function EnrolmentTable({
+  rows,
+  l,
+  locale,
+  moreHref,
+  exit,
+}: {
+  rows: EnrolmentView[];
+  l: Labels;
+  locale: Locale;
+  moreHref?: string | null;
+  exit?: { automationName: string };
+}) {
   if (rows.length === 0) return <EmptyState title={l["enrolments.empty"]} />;
   return (
     <div className="grid gap-3">
@@ -175,6 +193,7 @@ export function EnrolmentTable({ rows, l, locale, moreHref }: { rows: EnrolmentV
             <TableHead>{l["enrolments.col_entered"]}</TableHead>
             <TableHead>{l["enrolments.col_next"]}</TableHead>
             <TableHead>{l["enrolments.col_end_reason"]}</TableHead>
+            {exit ? <TableHead>{l["enrolments.col_actions"]}</TableHead> : null}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -191,6 +210,9 @@ export function EnrolmentTable({ rows, l, locale, moreHref }: { rows: EnrolmentV
               <TableCell>{formatDateTime(r.enteredAt, locale)}</TableCell>
               <TableCell>{r.nextStepKey && r.nextStepAt ? fill(l["enrolments.next_at"], { step: r.nextStepKey, date: formatDateTime(r.nextStepAt, locale) }) : ""}</TableCell>
               <TableCell>{endReasonText(r.endReason, l)}</TableCell>
+              {exit ? (
+                <TableCell>{r.status === "active" ? <ExitEnrolmentButton enrolmentId={r.id} automationName={exit.automationName} labels={l} /> : null}</TableCell>
+              ) : null}
             </TableRow>
           ))}
         </TableBody>

@@ -12,7 +12,8 @@ const STATUSES: readonly string[] = ["draft", "active", "paused", "archived"];
 /**
  * `/admin/automations` (automation spec 5; `automations.write` or `reports.read`, New needs
  * `automations.write`): every automation with group, status, version and the last 7 days from
- * `v_automation_stats`; filters status, group and search.
+ * `v_automation_stats`; filters status, group and search. Links to the groups, and with
+ * `automations.publish` to the frequency rules and the conflict report.
  */
 export default async function AutomationsPage({ searchParams }: { searchParams: Promise<{ status?: string; group?: string; q?: string }> }) {
   const actor = await requireStaff();
@@ -24,6 +25,8 @@ export default async function AutomationsPage({ searchParams }: { searchParams: 
   const status = sp.status && STATUSES.includes(sp.status) ? (sp.status as AutomationStatus) : undefined;
   const [rows, groups] = await Promise.all([listAutomations(db, { status, groupKey: sp.group || undefined, q: sp.q || undefined }), listGroupOptions(db)]);
   const canWrite = hasPermission(actor, "automations.write");
+  // The rules (A-32) and conflict report (A-37) screens need `automations.publish`.
+  const canPublish = hasPermission(actor, "automations.publish");
   const newButton = canWrite ? (
     <Button asChild>
       <Link href="/admin/automations/new">{l["list.new"]}</Link>
@@ -40,6 +43,16 @@ export default async function AutomationsPage({ searchParams }: { searchParams: 
           <Button variant="outline" asChild>
             <Link href="/admin/automations/groups">{l["list.groups"]}</Link>
           </Button>
+          {canPublish ? (
+            <>
+              <Button variant="outline" asChild>
+                <Link href="/admin/automations/rules">{l["list.rules"]}</Link>
+              </Button>
+              <Button variant="outline" asChild>
+                <Link href="/admin/automations/conflicts">{l["list.conflicts"]}</Link>
+              </Button>
+            </>
+          ) : null}
           {newButton}
         </div>
       </div>

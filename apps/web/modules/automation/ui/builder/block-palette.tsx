@@ -4,7 +4,7 @@
  * (blueprint 51). Each one is dragged onto the canvas (native drag and drop) or pressed to add it
  * at the end of the selected lane, which the palette names.
  */
-import { BUILDER_BLOCKS, type BuilderBlock } from "../../../../../../packages/core/src/automation/builder";
+import { BUILDER_BLOCKS, type BuilderBlock } from "@beam/core/automation";
 import { fill, type Labels } from "../outcome-badge";
 import { BLOCK_MIME } from "./branch-lane";
 

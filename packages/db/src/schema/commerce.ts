@@ -581,7 +581,8 @@ export const checkouts = pgTable(
     abandonedAt: tstz(),
     abandonedReason: checkoutsAbandonedReason(),
     resumeTokenHash: text().unique("checkouts_resume_token_hash_unique"),
-    recoveryMessageId: uuid().references(() => emailMessages.id),
+    /** `set null`: email nulls it before purging a message; the FK action keeps a direct delete valid too. */
+    recoveryMessageId: uuid().references(() => emailMessages.id, { onDelete: "set null" }),
     recoveredOrderId: uuid().references((): AnyPgColumn => orders.id),
     recoveredAt: tstz(),
     completedAt: tstz(),
@@ -739,7 +740,8 @@ export const vouchers = pgTable(
     recipientEmail: text(),
     message: text(),
     deliverOn: date(),
-    emailMessageId: uuid().references(() => emailMessages.id),
+    /** `set null`, like `checkouts.recovery_message_id`. */
+    emailMessageId: uuid().references(() => emailMessages.id, { onDelete: "set null" }),
     status: vouchersStatus().notNull().default("pending"),
     expiresAt: tstz(),
     activatedAt: tstz(),

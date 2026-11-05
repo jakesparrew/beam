@@ -12,7 +12,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { createTestDb, makePerson, makeProduct, makeUser } from "@beam/db/testing";
 import { makePaidOrder } from "@beam/db/testing/commerce-factories";
 import type { DbHandle, Tx } from "@beam/db";
-import { activityEvents, payments, refunds } from "@beam/db/schema";
+import { activityEvents, emailMessages, payments, refunds, vouchers } from "@beam/db/schema";
 import type { RefundPlan } from "@beam/core/commerce";
 
 vi.mock("next/headers", () => ({ cookies: () => Promise.resolve({ get: () => undefined }), headers: () => Promise.resolve(new Headers()) }));
@@ -169,6 +169,17 @@ describe("payment_provider_by_channel settings", () => {
     vi.stubEnv("INTEGRATIONS", "fake");
     const { PaymentProviderByChannelSetting } = await import("../config");
     expect(PaymentProviderByChannelSetting.safeParse({ ...value, site: "stripe", pos: "viva" }).success).toBe(true);
+  });
+});
+
+describe("email message references", () => {
+  it("a deleted email message leaves the voucher with a null email_message_id (set null)", async () => {
+    const person = await makePerson(h.db);
+    const { lines } = await paidOrder(person.id, [{ productKind: "voucher", unitAmountCents: 5000 }], []);
+    const [message] = await h.db.insert(emailMessages).values({ kind: "transactional", locale: "nl-BE", idempotencyKey: `test:${randomUUID()}` }).returning();
+    const [voucher] = await h.db.insert(vouchers).values({ orderLineId: lines[0]!.id, amountCents: 5000, status: "active", expiresAt: new Date("2028-11-01"), emailMessageId: message!.id }).returning();
+    await h.db.delete(emailMessages).where(eq(emailMessages.id, message!.id));
+    expect((await h.db.select().from(vouchers).where(eq(vouchers.id, voucher!.id)))[0]!.emailMessageId).toBeNull();
   });
 });
 

@@ -10,7 +10,10 @@
  * cancellation) and cancels registrations (`webinar.registration_cancelled`). webinar-P4 adds the
  * watch facts of rules 27-29: `webinar.started` (first view of a mode), `webinar.attended`,
  * `webinar.watched` (`data.threshold`) and `webinar.no_show` (mode `live`, written by finalise);
- * webinar-P5 adds the interaction facts.
+ * webinar-P5 adds the interaction facts of rules 35-37: `webinar.poll_answered` (with `option_key`
+ * for crm's segment rules), `webinar.cta_clicked` (first per registration, CTA and mode),
+ * `webinar.question_asked` (every question, without its text) and `webinar.chat_posted` (first
+ * chat message per registration and mode).
  */
 import { z } from "zod";
 import { WATCH_MODES, WEBINAR_MODES } from "@beam/core/webinar";
@@ -82,6 +85,28 @@ export const WebinarNoShowData = z.object({
 });
 export type WebinarNoShowData = z.input<typeof WebinarNoShowData>;
 
+/** `webinar.poll_answered` (rule 35): `option_key` is the single chosen key, null for several. */
+export const WebinarPollAnsweredData = z.object({
+  webinar_id: z.uuid(),
+  registration_id: z.uuid(),
+  poll_key: z.string().min(1),
+  option_keys: z.array(z.string().min(1)).min(1),
+  option_key: z.string().min(1).nullable(),
+});
+export type WebinarPollAnsweredData = z.input<typeof WebinarPollAnsweredData>;
+
+/** `webinar.cta_clicked` (rule 36): the CTA's own URL (without the added UTM parameters). */
+export const WebinarCtaClickedData = z.object({ webinar_id: z.uuid(), registration_id: z.uuid(), cta_key: z.string().min(1), url: z.url() });
+export type WebinarCtaClickedData = z.input<typeof WebinarCtaClickedData>;
+
+/** `webinar.question_asked` (rule 37): never the question text. */
+export const WebinarQuestionAskedData = z.object({ webinar_id: z.uuid(), registration_id: z.uuid(), interaction_id: z.uuid() });
+export type WebinarQuestionAskedData = z.input<typeof WebinarQuestionAskedData>;
+
+/** `webinar.chat_posted` (rule 37): the first chat message of a registration in a mode; never the text. */
+export const WebinarChatPostedData = z.object({ webinar_id: z.uuid(), registration_id: z.uuid() });
+export type WebinarChatPostedData = z.input<typeof WebinarChatPostedData>;
+
 /** The mode values an event row may carry (`activity_events.mode`). */
 export const EVENT_MODES = WATCH_MODES;
 
@@ -94,4 +119,8 @@ export const events = [
   defineEvent({ kind: "webinar.attended", subject: "person", data: WebinarAttendedData }),
   defineEvent({ kind: "webinar.watched", subject: "person", data: WebinarWatchedData }),
   defineEvent({ kind: "webinar.no_show", subject: "person", data: WebinarNoShowData }),
+  defineEvent({ kind: "webinar.poll_answered", subject: "person", data: WebinarPollAnsweredData }),
+  defineEvent({ kind: "webinar.cta_clicked", subject: "person", data: WebinarCtaClickedData }),
+  defineEvent({ kind: "webinar.question_asked", subject: "person", data: WebinarQuestionAskedData }),
+  defineEvent({ kind: "webinar.chat_posted", subject: "person", data: WebinarChatPostedData }),
 ] as const;

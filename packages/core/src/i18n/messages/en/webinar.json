@@ -252,7 +252,17 @@
         "presenter_exists": "This presenter is already on the webinar.",
         "occurrence_count": "Choose between 1 and 26 dates.",
         "webinar_cancelled": "The webinar is cancelled.",
-        "webinar_archived": "The webinar is archived."
+        "webinar_archived": "The webinar is archived.",
+        "not_live": "This works only while the webinar is live.",
+        "inactive": "This item is deactivated.",
+        "not_launched": "This poll was not launched.",
+        "not_shown": "This CTA was not shown.",
+        "not_registered": "Only a registered viewer can be muted.",
+        "cancelled": "This registration is cancelled.",
+        "not_blocked": "This viewer is not blocked.",
+        "not_a_question": "Only a question can be marked answered.",
+        "message_not_found": "This message no longer exists.",
+        "registration_not_found": "This registration no longer exists."
       },
       "fields": {
         "title": "Title",
@@ -321,6 +331,59 @@
           "blocked": "This person is blocked for this webinar.",
           "internal": "Something went wrong. Try again."
         }
+      },
+      "host": {
+        "title": "Host console",
+        "back": "Back to the webinar",
+        "meet_link": "Open Google Meet (host link)",
+        "meet_missing": "No Meet link yet. Add one on the webinar page.",
+        "studio_link": "Open YouTube Studio",
+        "status": "Status",
+        "lifecycle": "YouTube stream",
+        "lifecycle_unknown": "unknown",
+        "viewers": "Watching now",
+        "elapsed": "Elapsed",
+        "not_started": "not started",
+        "waiting": "Waiting for the stream. Start streaming from Meet: Activities > Live streaming.",
+        "preflight": "The stream is not connected and the webinar starts within 15 minutes. Start streaming from Meet now.",
+        "broadcast_error": "YouTube problem: {error}",
+        "force_live": "Force live",
+        "force_ended": "Force ended",
+        "force_hint": "Use these only when YouTube does not report the status.",
+        "polls": "Polls",
+        "ctas": "Calls to action",
+        "no_items": "No polls or CTAs. Add one on the interactive page.",
+        "interactive_link": "Edit polls and CTAs",
+        "launch": "Launch",
+        "close": "Close",
+        "show": "Show",
+        "hide": "Hide",
+        "on_screen": "On screen",
+        "inactive": "Inactive",
+        "live_only": "Launch and show work while the webinar is live.",
+        "respondents": "{count} answers (live)",
+        "replay_answers": "Replay and on demand: {count} answers",
+        "cta_counts": "Shown {shown}, clicked {clicked} (live)",
+        "chat": "Chat",
+        "questions": "Questions",
+        "no_chat": "No chat messages yet.",
+        "no_questions": "No questions yet.",
+        "hide_message": "Hide",
+        "unhide_message": "Show again",
+        "mark_answered": "Mark answered",
+        "answered": "Answered",
+        "hidden": "Hidden",
+        "mute": "Mute",
+        "unmute": "Unmute",
+        "block": "Block",
+        "unblock": "Unblock",
+        "muted": "Muted",
+        "blocked": "Blocked",
+        "confirm_block": "Block this viewer? Their player stops and their chat messages are hidden.",
+        "saved": "Done.",
+        "refreshing": "Updates every few seconds.",
+        "anonymous": "Viewer",
+        "at": "at {time}"
       }
     },
     "email": {
@@ -508,7 +571,50 @@
       "page_title": "Watch the webinar",
       "back": "My webinars",
       "register_title": "Register to watch",
-      "register_body": "You are not registered for this webinar yet."
+      "register_body": "You are not registered for this webinar yet.",
+      "poll": {
+        "title": "Poll",
+        "single": "Choose one answer.",
+        "multiple": "Choose one or more answers.",
+        "submit": "Send my answer",
+        "answered": "Thanks, your answer is saved.",
+        "already_answered": "You already answered this poll.",
+        "closed": "This poll is closed.",
+        "error": "Your answer could not be sent. Try again.",
+        "announce": "New poll: {question}",
+        "your_answer": "Your answer: {answer}"
+      },
+      "cta": {
+        "announce": "New link: {label}",
+        "new_tab": "(opens in a new tab)"
+      },
+      "chat": {
+        "title": "Chat",
+        "label": "Your message",
+        "send": "Send",
+        "hint": "Everyone in the live chat sees your first name. Please do not share health details.",
+        "empty": "No messages yet.",
+        "muted": "The host has paused your chat.",
+        "too_fast": "Wait a moment before you send another message.",
+        "error": "Your message could not be sent. Try again.",
+        "you": "You",
+        "anonymous": "Viewer",
+        "count": "{count} of 500 characters"
+      },
+      "question": {
+        "title": "Ask a question",
+        "label": "Your question",
+        "send": "Send question",
+        "hint": "Only the hosts see your question. Please do not share health details.",
+        "sent_live": "Thanks, the hosts received your question.",
+        "sent_later": "Thanks, we received your question and will get back to you.",
+        "muted": "The host has paused your questions.",
+        "too_fast": "Wait a moment before you send another question.",
+        "error": "Your question could not be sent. Try again."
+      }
+    },
+    "chat": {
+      "muted": "The host has paused your chat."
     }
   }
 }

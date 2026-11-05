@@ -252,7 +252,17 @@
         "presenter_exists": "Cet intervenant figure déjà sur le webinaire.",
         "occurrence_count": "Choisissez entre 1 et 26 dates.",
         "webinar_cancelled": "Le webinaire est annulé.",
-        "webinar_archived": "Le webinaire est archivé."
+        "webinar_archived": "Le webinaire est archivé.",
+        "not_live": "Possible uniquement pendant que le webinaire est en direct.",
+        "inactive": "Cet élément est désactivé.",
+        "not_launched": "Ce sondage n'a pas été lancé.",
+        "not_shown": "Ce CTA n'a pas été affiché.",
+        "not_registered": "Seul un spectateur inscrit peut être rendu muet.",
+        "cancelled": "Cette inscription est annulée.",
+        "not_blocked": "Ce spectateur n'est pas bloqué.",
+        "not_a_question": "Seule une question peut être marquée comme répondue.",
+        "message_not_found": "Ce message n'existe plus.",
+        "registration_not_found": "Cette inscription n'existe plus."
       },
       "fields": {
         "title": "Titre",
@@ -321,6 +331,59 @@
           "blocked": "Cette personne est bloquée pour ce webinaire.",
           "internal": "Une erreur s’est produite. Réessayez."
         }
+      },
+      "host": {
+        "title": "Console de l'animateur",
+        "back": "Retour au webinaire",
+        "meet_link": "Ouvrir Google Meet (lien animateur)",
+        "meet_missing": "Pas encore de lien Meet. Ajoutez-en un sur la page du webinaire.",
+        "studio_link": "Ouvrir YouTube Studio",
+        "status": "Statut",
+        "lifecycle": "Flux YouTube",
+        "lifecycle_unknown": "inconnu",
+        "viewers": "Regardent maintenant",
+        "elapsed": "Écoulé",
+        "not_started": "pas commencé",
+        "waiting": "En attente du flux. Lancez la diffusion depuis Meet : Activités > Diffusion en direct.",
+        "preflight": "Le flux n'est pas connecté et le webinaire commence dans moins de 15 minutes. Lancez la diffusion depuis Meet maintenant.",
+        "broadcast_error": "Problème YouTube : {error}",
+        "force_live": "Passer en direct",
+        "force_ended": "Marquer comme terminé",
+        "force_hint": "À utiliser uniquement lorsque YouTube ne transmet pas le statut.",
+        "polls": "Sondages",
+        "ctas": "Appels à l'action",
+        "no_items": "Aucun sondage ni CTA. Ajoutez-en un sur la page interactive.",
+        "interactive_link": "Modifier les sondages et CTA",
+        "launch": "Lancer",
+        "close": "Clôturer",
+        "show": "Afficher",
+        "hide": "Masquer",
+        "on_screen": "À l'écran",
+        "inactive": "Désactivé",
+        "live_only": "Lancer et afficher fonctionnent pendant que le webinaire est en direct.",
+        "respondents": "{count} réponses (direct)",
+        "replay_answers": "Rediffusion et à la demande : {count} réponses",
+        "cta_counts": "Affiché {shown}, cliqué {clicked} (direct)",
+        "chat": "Chat",
+        "questions": "Questions",
+        "no_chat": "Pas encore de messages.",
+        "no_questions": "Pas encore de questions.",
+        "hide_message": "Masquer",
+        "unhide_message": "Afficher à nouveau",
+        "mark_answered": "Marquer comme répondue",
+        "answered": "Répondue",
+        "hidden": "Masqué",
+        "mute": "Rendre muet",
+        "unmute": "Rétablir la parole",
+        "block": "Bloquer",
+        "unblock": "Débloquer",
+        "muted": "Muet",
+        "blocked": "Bloqué",
+        "confirm_block": "Bloquer ce spectateur ? Son lecteur s'arrête et ses messages sont masqués.",
+        "saved": "C'est fait.",
+        "refreshing": "Mis à jour toutes les quelques secondes.",
+        "anonymous": "Spectateur",
+        "at": "à {time}"
       }
     },
     "email": {
@@ -508,7 +571,50 @@
       "page_title": "Regarder le webinaire",
       "back": "Mes webinaires",
       "register_title": "Inscrivez-vous pour regarder",
-      "register_body": "Vous n'êtes pas encore inscrit à ce webinaire."
+      "register_body": "Vous n'êtes pas encore inscrit à ce webinaire.",
+      "poll": {
+        "title": "Sondage",
+        "single": "Choisissez une réponse.",
+        "multiple": "Choisissez une ou plusieurs réponses.",
+        "submit": "Envoyer ma réponse",
+        "answered": "Merci, votre réponse est enregistrée.",
+        "already_answered": "Vous avez déjà répondu à ce sondage.",
+        "closed": "Ce sondage est clôturé.",
+        "error": "Votre réponse n'a pas pu être envoyée. Réessayez.",
+        "announce": "Nouveau sondage : {question}",
+        "your_answer": "Votre réponse : {answer}"
+      },
+      "cta": {
+        "announce": "Nouveau lien : {label}",
+        "new_tab": "(s'ouvre dans un nouvel onglet)"
+      },
+      "chat": {
+        "title": "Chat",
+        "label": "Votre message",
+        "send": "Envoyer",
+        "hint": "Tous les participants au chat en direct voient votre prénom. Ne partagez pas de données de santé.",
+        "empty": "Pas encore de messages.",
+        "muted": "L'animateur a mis votre chat en pause.",
+        "too_fast": "Patientez un instant avant d'envoyer un autre message.",
+        "error": "Votre message n'a pas pu être envoyé. Réessayez.",
+        "you": "Vous",
+        "anonymous": "Spectateur",
+        "count": "{count} sur 500 caractères"
+      },
+      "question": {
+        "title": "Poser une question",
+        "label": "Votre question",
+        "send": "Envoyer la question",
+        "hint": "Seuls les animateurs voient votre question. Ne partagez pas de données de santé.",
+        "sent_live": "Merci, les animateurs ont reçu votre question.",
+        "sent_later": "Merci, nous avons reçu votre question et reviendrons vers vous.",
+        "muted": "L'animateur a mis vos questions en pause.",
+        "too_fast": "Patientez un instant avant d'envoyer une autre question.",
+        "error": "Votre question n'a pas pu être envoyée. Réessayez."
+      }
+    },
+    "chat": {
+      "muted": "L'animateur a mis votre chat en pause."
     }
   }
 }

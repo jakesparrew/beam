@@ -252,7 +252,17 @@
         "presenter_exists": "Deze spreker staat al op de webinar.",
         "occurrence_count": "Kies tussen 1 en 26 data.",
         "webinar_cancelled": "De webinar is geannuleerd.",
-        "webinar_archived": "De webinar is gearchiveerd."
+        "webinar_archived": "De webinar is gearchiveerd.",
+        "not_live": "Dit kan alleen terwijl de webinar live is.",
+        "inactive": "Dit item is gedeactiveerd.",
+        "not_launched": "Deze peiling is niet gestart.",
+        "not_shown": "Deze CTA is niet getoond.",
+        "not_registered": "Alleen een ingeschreven kijker kan worden gedempt.",
+        "cancelled": "Deze inschrijving is geannuleerd.",
+        "not_blocked": "Deze kijker is niet geblokkeerd.",
+        "not_a_question": "Alleen een vraag kan als beantwoord worden gemarkeerd.",
+        "message_not_found": "Dit bericht bestaat niet meer.",
+        "registration_not_found": "Deze inschrijving bestaat niet meer."
       },
       "fields": {
         "title": "Titel",
@@ -321,6 +331,59 @@
           "blocked": "Deze persoon is geblokkeerd voor deze webinar.",
           "internal": "Er ging iets mis. Probeer het opnieuw."
         }
+      },
+      "host": {
+        "title": "Hostconsole",
+        "back": "Terug naar de webinar",
+        "meet_link": "Google Meet openen (hostlink)",
+        "meet_missing": "Nog geen Meet-link. Voeg er een toe op de webinarpagina.",
+        "studio_link": "YouTube Studio openen",
+        "status": "Status",
+        "lifecycle": "YouTube-stream",
+        "lifecycle_unknown": "onbekend",
+        "viewers": "Kijkt nu",
+        "elapsed": "Verstreken",
+        "not_started": "niet gestart",
+        "waiting": "Wachten op de stream. Start de stream vanuit Meet: Activiteiten > Livestreamen.",
+        "preflight": "De stream is niet verbonden en de webinar start binnen 15 minuten. Start nu de stream vanuit Meet.",
+        "broadcast_error": "Probleem bij YouTube: {error}",
+        "force_live": "Live zetten",
+        "force_ended": "Als beëindigd markeren",
+        "force_hint": "Gebruik dit alleen als YouTube de status niet doorgeeft.",
+        "polls": "Peilingen",
+        "ctas": "Oproepen tot actie",
+        "no_items": "Geen peilingen of CTA's. Voeg er een toe op de interactieve pagina.",
+        "interactive_link": "Peilingen en CTA's bewerken",
+        "launch": "Starten",
+        "close": "Sluiten",
+        "show": "Tonen",
+        "hide": "Verbergen",
+        "on_screen": "Op het scherm",
+        "inactive": "Gedeactiveerd",
+        "live_only": "Starten en tonen werkt terwijl de webinar live is.",
+        "respondents": "{count} antwoorden (live)",
+        "replay_answers": "Herbekijken en on demand: {count} antwoorden",
+        "cta_counts": "Getoond {shown}, aangeklikt {clicked} (live)",
+        "chat": "Chat",
+        "questions": "Vragen",
+        "no_chat": "Nog geen chatberichten.",
+        "no_questions": "Nog geen vragen.",
+        "hide_message": "Verbergen",
+        "unhide_message": "Weer tonen",
+        "mark_answered": "Als beantwoord markeren",
+        "answered": "Beantwoord",
+        "hidden": "Verborgen",
+        "mute": "Dempen",
+        "unmute": "Dempen opheffen",
+        "block": "Blokkeren",
+        "unblock": "Deblokkeren",
+        "muted": "Gedempt",
+        "blocked": "Geblokkeerd",
+        "confirm_block": "Deze kijker blokkeren? De speler stopt en de chatberichten worden verborgen.",
+        "saved": "Gedaan.",
+        "refreshing": "Wordt om de paar seconden bijgewerkt.",
+        "anonymous": "Kijker",
+        "at": "om {time}"
       }
     },
     "email": {
@@ -508,7 +571,50 @@
       "page_title": "Bekijk het webinar",
       "back": "Mijn webinars",
       "register_title": "Schrijf je in om te kijken",
-      "register_body": "Je bent nog niet ingeschreven voor dit webinar."
+      "register_body": "Je bent nog niet ingeschreven voor dit webinar.",
+      "poll": {
+        "title": "Peiling",
+        "single": "Kies één antwoord.",
+        "multiple": "Kies een of meer antwoorden.",
+        "submit": "Verstuur mijn antwoord",
+        "answered": "Bedankt, je antwoord is bewaard.",
+        "already_answered": "Je hebt deze peiling al beantwoord.",
+        "closed": "Deze peiling is gesloten.",
+        "error": "Je antwoord kon niet worden verstuurd. Probeer opnieuw.",
+        "announce": "Nieuwe peiling: {question}",
+        "your_answer": "Jouw antwoord: {answer}"
+      },
+      "cta": {
+        "announce": "Nieuwe link: {label}",
+        "new_tab": "(opent in een nieuw tabblad)"
+      },
+      "chat": {
+        "title": "Chat",
+        "label": "Je bericht",
+        "send": "Versturen",
+        "hint": "Iedereen in de livechat ziet je voornaam. Deel geen gezondheidsgegevens.",
+        "empty": "Nog geen berichten.",
+        "muted": "De host heeft je chat gepauzeerd.",
+        "too_fast": "Wacht even voor je nog een bericht stuurt.",
+        "error": "Je bericht kon niet worden verstuurd. Probeer opnieuw.",
+        "you": "Jij",
+        "anonymous": "Kijker",
+        "count": "{count} van 500 tekens"
+      },
+      "question": {
+        "title": "Stel een vraag",
+        "label": "Je vraag",
+        "send": "Vraag versturen",
+        "hint": "Alleen de hosts zien je vraag. Deel geen gezondheidsgegevens.",
+        "sent_live": "Bedankt, de hosts hebben je vraag ontvangen.",
+        "sent_later": "Bedankt, we hebben je vraag ontvangen en nemen contact met je op.",
+        "muted": "De host heeft je vragen gepauzeerd.",
+        "too_fast": "Wacht even voor je nog een vraag stuurt.",
+        "error": "Je vraag kon niet worden verstuurd. Probeer opnieuw."
+      }
+    },
+    "chat": {
+      "muted": "De host heeft je chat gepauzeerd."
     }
   }
 }

@@ -8,7 +8,9 @@
  * webinar-P2: create, update, publish, cancel, archive, duplicate, set video, polls, CTAs,
  * presenters and force live state. webinar-P3: registration by the customer and by staff,
  * cancellation, the resend and revoke of access links (`server/registration.ts`, rules 14-20)
- * and the public lost-link request. Later packages add host console and export actions.
+ * and the public lost-link request. webinar-P5: the host console's live controls (`launchPoll`,
+ * `closePoll`, `showCta`, `hideCta`) and `moderate` (hide, unhide, mark answered, mute, unmute,
+ * block, unblock; `server/interactions.ts`, rules 21, 34, 37). Later packages add the export.
  */
 import {
   ArchiveWebinarInput,
@@ -19,7 +21,12 @@ import {
   DeleteCtaInput,
   DeletePollInput,
   DuplicateWebinarInput,
+  ClosePollInput,
   ForceLiveStateInput,
+  HideCtaInput,
+  LaunchPollInput,
+  ModerateInput,
+  ShowCtaInput,
   JoinLinkInput,
   PublishWebinarInput,
   RegisterForWebinarInput,
@@ -37,6 +44,7 @@ import { z } from "zod";
 import { URL_SEGMENT } from "@beam/core/i18n";
 import { action } from "@/lib/action";
 import { ValidationError } from "@/lib/ctx";
+import * as interactions from "./server/interactions";
 import * as lifecycle from "./server/lifecycle";
 import * as registration from "./server/registration";
 
@@ -73,6 +81,21 @@ export const removePresenter = action({ name: "webinar.remove_presenter", ...sta
 );
 
 export const forceLiveState = action({ name: "webinar.force_live_state", ...staff, input: ForceLiveStateInput }, (ctx, input) => lifecycle.forceLiveState(ctx, input));
+
+// ---------------------------------------------------------------------------------------------
+// Host console (webinar-P5, rules 21, 34, 37)
+// ---------------------------------------------------------------------------------------------
+
+export const launchPoll = action({ name: "webinar.launch_poll", ...staff, input: LaunchPollInput }, (ctx, input) => interactions.launchPoll(ctx, input));
+
+export const closePoll = action({ name: "webinar.close_poll", ...staff, input: ClosePollInput }, (ctx, input) => interactions.closePoll(ctx, input));
+
+export const showCta = action({ name: "webinar.show_cta", ...staff, input: ShowCtaInput }, (ctx, input) => interactions.showCta(ctx, input));
+
+export const hideCta = action({ name: "webinar.hide_cta", ...staff, input: HideCtaInput }, (ctx, input) => interactions.hideCta(ctx, input));
+
+/** Hide, unhide or mark a message, mute or block a viewer (audited as `webinar.moderated`). */
+export const moderate = action({ name: "webinar.moderate", ...staff, input: ModerateInput }, (ctx, input) => interactions.moderate(ctx, input));
 
 // ---------------------------------------------------------------------------------------------
 // Registration (webinar-P3, rules 14-20)

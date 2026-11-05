@@ -5,7 +5,9 @@
  * export and erase, and the sweep handlers of the retention keys ops seeds (section 9.2); the
  * later webinar packages complete the export topics (webinar-P3 to webinar-P6). webinar-P4 adds
  * the raw segments as a CSV next to the merged watch per mode (section 9.1: "merged watch seconds
- * and thresholds plus the raw segments CSV").
+ * and thresholds plus the raw segments CSV"). webinar-P5 completes the interaction rows: the CTA
+ * target of a click and the viewer's chat and questions with their text (section 9.1: "every row
+ * with webinar title, mode, kind, poll question and chosen option labels, CTA label, text, time").
  *
  * - `export` and `erase` cover every id of `crm.resolvePersonIds` (the subject and the persons
  *   merged into it).
@@ -160,6 +162,7 @@ async function exportPerson(tx: Tx, personId: string): Promise<PrivacyExport> {
       poll_question: inLocale(question, locale),
       poll_answer: chosen && options ? chosen.map((k) => inLocale(options.find((o) => o.key === k)?.label, locale) ?? k) : null,
       cta_label: inLocale(ctaLabel, locale),
+      cta_url: typeof i.payload.url === "string" ? i.payload.url : null,
       text: typeof i.payload.text === "string" ? i.payload.text : null,
       at_sec: i.atSec,
       occurred_at: iso(i.occurredAt),

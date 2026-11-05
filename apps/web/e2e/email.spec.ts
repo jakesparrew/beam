@@ -1,15 +1,23 @@
 import { expect, test, type Page } from "@playwright/test";
 import { sql } from "drizzle-orm";
+import { emailHash } from "@beam/core/crm";
 import { signInStaff } from "./support/auth";
 import { closeE2eDb, e2eRows } from "./support/db";
+import { uniqueEmail } from "./support/ids";
+import { latestEmail } from "./support/sink";
 
 /**
  * email end to end, part 1 (email-P5; runs at the wave checkpoint against beam_dev with the demo
  * seed): marketing staff create a newsletter template, build it in the block editor with a
  * heading and a dynamic block (a member variant and a fallback for everyone else) in Dutch, copy
  * the blocks to French and English, preview it as a lead and as a member, and publish it.
- * email-P6 adds part 2 (campaigns). Selectors use test ids, data attributes and ids, never copy.
- * Templates this spec creates (slug `e2e-newsletter-*`) are removed before and after.
+ * Part 2 (email-P6): a campaign on that newsletter to a 3-person static segment; one recipient is
+ * removed on the recipients screen, a test send is made, the campaign is scheduled and then made
+ * due at once ("send now" through the minute dispatch, so the removal happens while it is still
+ * `scheduled`); exactly the two remaining persons get the message in the sink.
+ * Selectors use test ids, data attributes and ids, never copy. Templates this spec creates (slug
+ * `e2e-newsletter-*`), their campaigns and the spec's segments (`E2E campaign segment *`) are
+ * removed before and after.
  */
 test.describe.configure({ mode: "serial" });
 
@@ -21,6 +29,11 @@ let templateId = "";
 
 async function resetTemplates(): Promise<void> {
   const owned = sql`select id from email_templates where slug like 'e2e-newsletter-%'`;
+  const ownedCampaigns = sql`select id from campaigns where template_id in (${owned})`;
+  await e2eRows(sql`update campaign_recipients set email_message_id = null where campaign_id in (${ownedCampaigns})`);
+  await e2eRows(sql`delete from email_messages where campaign_id in (${ownedCampaigns})`);
+  await e2eRows(sql`delete from campaigns where id in (${ownedCampaigns})`);
+  await e2eRows(sql`delete from segments where name like 'E2E campaign segment %'`);
   await e2eRows(sql`update email_templates set current_version_id = null where id in (${owned})`);
   await e2eRows(sql`delete from email_messages where template_version_id in (select id from email_template_versions where template_id in (${owned}))`);
   await e2eRows(sql`delete from email_template_versions where template_id in (${owned})`);
@@ -103,4 +116,87 @@ test("marketing builds a newsletter with a dynamic block, previews it as lead an
     sql`select count(*)::int as variants from email_templates t join email_template_versions v on v.id = t.current_version_id, jsonb_object_keys(v.html_by_locale -> 'nl-BE') where t.id = ${templateId}`,
   );
   expect(compiled!.variants).toBe(2);
+});
+
+/** A person with a newsletter grant (the campaign's audience). */
+async function subscribed(tag: string): Promise<{ id: string; email: string }> {
+  const email = uniqueEmail(tag);
+  const [p] = await e2eRows<{ id: string }>(sql`
+    insert into persons (email, email_hash, first_name, last_name, locale, is_tester, acquisition)
+    values (${email}, ${emailHash(email)}, ${tag}, 'Campaign', 'nl-BE', true, '{"source":"manual"}'::jsonb) returning id`);
+  await e2eRows(sql`
+    insert into consent_records (person_id, purpose, status, lawful_basis, source, method, wording_version, recorded_at, actor)
+    values (${p!.id}, 'newsletter', 'granted', 'consent', 'e2e:email-campaign', 'form', 'newsletter@1', now() - interval '1 day', '{"kind":"system","id":null}'::jsonb)`);
+  return { id: p!.id, email };
+}
+
+/** `YYYY-MM-DDTHH:mm` of tomorrow 10:00 in Brussels (the datetime-local value). */
+function tomorrowTen(): string {
+  const d = new Date(Date.now() + 86_400_000);
+  const day = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Brussels", year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
+  return `${day}T10:00`;
+}
+
+async function campaignStatus(id: string): Promise<string> {
+  const [row] = await e2eRows<{ status: string }>(sql`select status from campaigns where id = ${id}`);
+  return row?.status ?? "";
+}
+
+test("a campaign to a 3-person segment: remove one recipient, test send, send, two messages in the sink", async ({ page }) => {
+  test.setTimeout(180_000);
+  expect(templateId, "part 1 publishes the template this campaign uses").not.toBe("");
+  const people = [await subscribed(`camp-a-${RUN}`), await subscribed(`camp-b-${RUN}`), await subscribed(`camp-c-${RUN}`)];
+  const [segment] = await e2eRows<{ id: string }>(sql`insert into segments (name, kind) values (${`E2E campaign segment ${RUN}`}, 'static') returning id`);
+  for (const p of people) await e2eRows(sql`insert into segment_members (segment_id, person_id, source) values (${segment!.id}, ${p.id}, 'manual')`);
+
+  await signInStaff(page, "marketing", { returnTo: "/admin/campaigns/new" });
+  await page.goto("/admin/campaigns/new");
+  await page.locator("#campaign-name").fill(`E2E campaign ${RUN}`);
+  await page.locator("#campaign-purpose").selectOption("newsletter");
+  await page.locator("#campaign-template").selectOption(templateId);
+  await page.getByTestId("campaign-create").click();
+  await page.waitForURL(/\/admin\/campaigns\/[0-9a-f-]{36}\?step=content$/);
+  const campaignId = new URL(page.url()).pathname.split("/").pop()!;
+
+  // Audience: the segment; the estimate counts three reachable persons.
+  await page.goto(`/admin/campaigns/${campaignId}?step=audience`);
+  await page.locator("#campaign-segment").selectOption(segment!.id);
+  await expect(page.getByTestId("estimate-reachable")).toHaveText("3");
+  await clickAndWait(page, () => page.getByTestId("audience-save").click());
+  await expect.poll(async () => (await e2eRows<{ segment_id: string | null }>(sql`select segment_id from campaigns where id = ${campaignId}`))[0]?.segment_id).toBe(segment!.id);
+
+  // Review: a test send to the staff user's own address.
+  await page.goto(`/admin/campaigns/${campaignId}?step=review`);
+  await page.locator("#test-send button").first().click();
+  await clickAndWait(page, () => page.locator('[data-slot="dialog-footer"] button').last().click());
+  await expect.poll(async () => (await e2eRows<{ t: string | null }>(sql`select test_sent_at as t from campaigns where id = ${campaignId}`))[0]?.t).not.toBeNull();
+  await page.reload();
+  await expect(page.locator('[data-check="test_send"]')).toHaveAttribute("data-ok", "true");
+
+  // Schedule for tomorrow 10:00 (confirming the send window when that day needs it).
+  await page.goto(`/admin/campaigns/${campaignId}?step=schedule`);
+  await page.locator("#campaign-scheduled-at").fill(tomorrowTen());
+  const confirm = page.getByTestId("schedule-confirm-outside");
+  if (await confirm.isVisible()) await confirm.click();
+  await clickAndWait(page, () => page.getByTestId("schedule-submit").click());
+  await expect.poll(() => campaignStatus(campaignId), { timeout: 60_000 }).toBe("scheduled");
+
+  // Remove one recipient while the campaign is scheduled.
+  await page.goto(`/admin/campaigns/${campaignId}/recipients`);
+  const removed = people[2]!;
+  await clickAndWait(page, () => page.locator(`tr[data-person-id="${removed.id}"]`).getByTestId("recipient-remove").click());
+  await expect(page.locator(`tr[data-person-id="${removed.id}"]`)).toHaveAttribute("data-status", "removed");
+
+  // Send now: the minute dispatch picks the campaign up once it is due.
+  const sentAfter = new Date(Date.now() - 1000);
+  await e2eRows(sql`update campaigns set scheduled_at = now() where id = ${campaignId}`);
+  await expect.poll(() => campaignStatus(campaignId), { timeout: 120_000, intervals: [2000] }).toBe("sent");
+  for (const p of people.slice(0, 2)) {
+    const mail = await latestEmail(p.email, { after: sentAfter, subjectIncludes: RUN, timeoutMs: 30_000 });
+    expect(mail.subject).toContain(RUN);
+  }
+  const [count] = await e2eRows<{ n: number }>(sql`select count(*)::int as n from email_messages where campaign_id = ${campaignId} and kind = 'campaign'`);
+  expect(count!.n).toBe(2);
+  const [none] = await e2eRows<{ n: number }>(sql`select count(*)::int as n from email_messages where campaign_id = ${campaignId} and person_id = ${removed.id}`);
+  expect(none!.n).toBe(0);
 });

@@ -7,7 +7,8 @@ import { z } from "zod";
 import { LOCALES } from "../i18n/locales";
 import { LocalizedTextSchema } from "../i18n/localized-text";
 import { BlockDocumentSchema } from "./blocks";
-import { MARKETING_PURPOSES, MARKETING_SLUG_PATTERN, TEMPLATE_KINDS, TEMPLATE_STATUSES } from "./types";
+import { CAMPAIGN_STATUSES } from "./campaign-state";
+import { RECIPIENT_STATUSES, MARKETING_PURPOSES, MARKETING_SLUG_PATTERN, TEMPLATE_KINDS, TEMPLATE_STATUSES } from "./types";
 
 export const LocaleSchema = z.enum(LOCALES);
 export const MarketingPurposeSchema = z.enum(MARKETING_PURPOSES);
@@ -103,6 +104,39 @@ export const StopCampaignInput = campaignVersioned;
 export const CancelCampaignInput = campaignVersioned;
 export const DuplicateCampaignInput = z.object({ campaignId: uuid });
 
+/** `listCampaigns` (email-P6): status filter, search by name, page (50 per page). */
+export const ListCampaignsInput = z.object({
+  status: z.enum(CAMPAIGN_STATUSES).optional(),
+  q: z.string().trim().max(100).optional(),
+  page: z.coerce.number().int().min(1).max(1000).default(1),
+});
+
+/** `getAudienceEstimate` (email-P6): the live estimate of the Audience step. */
+export const GetAudienceEstimateInput = z.object({
+  segmentId: uuid,
+  excludeSegmentIds: z.array(uuid).max(20).default([]),
+  purpose: MarketingPurposeSchema,
+});
+
+/** `listCampaignRecipients` (email-P6): 50 per page, status filter, search by name or email. */
+export const ListCampaignRecipientsInput = z.object({
+  campaignId: uuid,
+  status: z.enum(RECIPIENT_STATUSES).optional(),
+  q: z.string().trim().max(100).optional(),
+  page: z.coerce.number().int().min(1).max(10_000).default(1),
+  pageSize: z.literal(50).default(50),
+});
+
+/** Payloads of the campaign jobs (email-P6). */
+export const CampaignPlanJobInput = z.object({ campaignId: uuid, version: version });
+export const CampaignChunkJobInput = z.object({
+  campaignId: uuid,
+  chunkNo: z.number().int().min(0),
+  runNo: z.number().int().min(1),
+  /** The warm-up continuation day (`YYYY-MM-DD`), part of the job key. */
+  day: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+});
+
 export const RemoveRecipientInput = z.object({ campaignId: uuid, personId: uuid });
 export const RestoreRecipientInput = RemoveRecipientInput;
 
@@ -149,3 +183,16 @@ export type CreateCampaignInput = z.infer<typeof CreateCampaignInput>;
 export type UpdateCampaignInput = z.infer<typeof UpdateCampaignInput>;
 export type ScheduleCampaignInput = z.infer<typeof ScheduleCampaignInput>;
 export type RequestAiDraftInput = z.infer<typeof RequestAiDraftInput>;
+export type UnscheduleCampaignInput = z.infer<typeof UnscheduleCampaignInput>;
+export type RefreshAudienceInput = z.infer<typeof RefreshAudienceInput>;
+export type PauseCampaignInput = z.infer<typeof PauseCampaignInput>;
+export type ResumeCampaignInput = z.infer<typeof ResumeCampaignInput>;
+export type StopCampaignInput = z.infer<typeof StopCampaignInput>;
+export type CancelCampaignInput = z.infer<typeof CancelCampaignInput>;
+export type DuplicateCampaignInput = z.infer<typeof DuplicateCampaignInput>;
+export type RemoveRecipientInput = z.infer<typeof RemoveRecipientInput>;
+export type ListCampaignsInput = z.input<typeof ListCampaignsInput>;
+export type GetAudienceEstimateInput = z.input<typeof GetAudienceEstimateInput>;
+export type ListCampaignRecipientsInput = z.input<typeof ListCampaignRecipientsInput>;
+export type CampaignPlanJobInput = z.infer<typeof CampaignPlanJobInput>;
+export type CampaignChunkJobInput = z.infer<typeof CampaignChunkJobInput>;

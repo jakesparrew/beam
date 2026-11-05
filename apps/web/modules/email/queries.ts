@@ -9,18 +9,36 @@
  *   HTML, text, size and warnings of one locale for a sample persona or a real contact
  *   (`persons.read`; otherwise `forbidden`).
  *
+ * email-P6, campaigns: `listCampaigns(db, { status?, q?, page })` (open and click rate per
+ * campaign), `getCampaign(db, campaignId)` (campaign, template, draft and current version, segment
+ * refs, review checklist, recipient counts by status), `getAudienceEstimate(db, { segmentId,
+ * excludeSegmentIds, purpose })` → `{ total, reachable, byLocale, blockedByReason }` and
+ * `listCampaignRecipients(db, { campaignId, status?, q?, page, pageSize: 50 }, { unmasked })`
+ * (addresses masked unless `persons.read`).
+ *
  * The pages call these after `requireStaff({ permission: 'email.write' })` (spec: staff queries
  * need `email.write`); the functions take the database so tests and pages share them.
  */
 import type { DbOrTx } from "@beam/db";
 import { ForbiddenError } from "@beam/core/errors";
-import { GetPreviewInput, ListTemplatesInput, type GetPreviewInput as GetPreviewArgs, type ListTemplatesInput as ListTemplatesArgs } from "@beam/core/email";
+import {
+  GetPreviewInput,
+  ListTemplatesInput,
+  type GetPreviewInput as GetPreviewArgs,
+  type ListCampaignRecipientsInput as ListCampaignRecipientsArgs,
+  type ListCampaignsInput as ListCampaignsArgs,
+  type ListTemplatesInput as ListTemplatesArgs,
+} from "@beam/core/email";
 import { emailTemplates, users } from "@beam/db/schema";
 import { MESSAGES, type Locale } from "@beam/core/i18n";
 import { eq } from "@/lib/ctx";
+import { listCampaignRows, listRecipientRows, loadCampaignDetail, type CampaignDetail } from "./server/campaigns";
 import { buildPreview, personRecipient, samplePersona, type PreviewResult } from "./server/preview";
 import { draftVersionOf, listTemplateRows, loadTemplateDetail, loadTemplateVersion, transactionalModules, versionById, type TemplateDetail } from "./server/templates";
 
+export type { CampaignDetail, CampaignListRow, RecipientListRow, ReviewChecklist } from "./server/campaigns";
+export type { AudienceEstimate } from "./server/plan";
+export { getAudienceEstimate } from "./server/plan";
 export type { PreviewResult, PreviewWarning, RecipientContext } from "./server/preview";
 export type { TemplateDetail, TemplateListRow } from "./server/templates";
 export { samplePersona } from "./server/preview";
@@ -86,4 +104,16 @@ export async function getPreview(db: DbOrTx, input: GetPreviewArgs, opts: { canR
     recipient = samplePersona(args.as.sample, args.as.assessmentOutcome);
   }
   return buildPreview(db, { template, version, locale: args.locale, recipient, ...(opts.now ? { now: opts.now } : {}) });
+}
+
+export function listCampaigns(db: DbOrTx, input: ListCampaignsArgs = {}) {
+  return listCampaignRows(db, input);
+}
+
+export function getCampaign(db: DbOrTx, campaignId: string): Promise<CampaignDetail | null> {
+  return loadCampaignDetail(db, campaignId);
+}
+
+export function listCampaignRecipients(db: DbOrTx, input: ListCampaignRecipientsArgs, opts: { unmasked: boolean } = { unmasked: false }) {
+  return listRecipientRows(db, input, opts);
 }

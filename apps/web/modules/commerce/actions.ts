@@ -15,6 +15,7 @@
  * commerce-P7 adds the front desk: `posSell`, `posPayOrder`, `posCancelTerminal`, the terminal
  * dialog's `pollPosPayment`, the walk-in `posCreateWalkIn`, and `closePosDay` / `reopenPosDay`
  * (`./server/{pos,pos-day}`).
+ * commerce-P9 (R3) adds `uploadLightspeedCsv` (`./server/lightspeed`, rule 53).
  */
 import { z } from "zod";
 import { action } from "@/lib/action";
@@ -66,6 +67,7 @@ import { redeemVoucher as redeemVoucherRecord, resendVoucher as resendVoucherRec
 import { withdrawOrder as withdrawOrderRecord } from "./server/withdrawals";
 import { getPosPaymentState, posCancelTerminal as posCancelTerminalRecord, posPayOrder as posPayOrderRecord, posSell as posSellRecord } from "./server/pos";
 import { closePosDay as closePosDayRecord, reopenPosDay as reopenPosDayRecord } from "./server/pos-day";
+import { uploadLightspeedCsvRecord } from "./server/lightspeed";
 
 export const createProduct = action(
   { name: "commerce.create_product", audience: "staff", permission: "pricing.write", input: CreateProductInput, audit: false },
@@ -429,4 +431,13 @@ export const closePosDay = action(
 export const reopenPosDay = action(
   { name: "commerce.reopen_pos_day", audience: "staff", permission: "commerce.refund", input: z.object({ businessDayOn: BusinessDay, reason: Reason }), audit: false },
   (ctx, input) => reopenPosDayRecord(ctx.tx, ctx, input),
+);
+
+/**
+ * Rule 53 (R3): stores the Lightspeed CSV (`file`, at most 5 MB), creates the import and enqueues
+ * `commerce.import_lightspeed`, which runs right after the response; audit `lightspeed.uploaded`.
+ */
+export const uploadLightspeedCsv = action(
+  { name: "commerce.upload_lightspeed_csv", audience: "staff", permission: "commerce.sell", input: z.instanceof(FormData), audit: false },
+  (ctx, form) => uploadLightspeedCsvRecord(ctx, form),
 );

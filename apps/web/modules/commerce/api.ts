@@ -11,9 +11,11 @@
  * commerce-P6: `refundOrderLine` (`./server/refunds`), `listPaymentAttention`
  * (`./server/attention`) and the `redeemVoucher` server action re-exported from `./actions` (DM-13).
  * commerce-P8 (R2): `markCheckoutRecoveryMessage` and `getCheckoutRecoveryProps` (`./server/recovery`).
+ * commerce-P9 (R3): `countOrdersByLanding` for site's insights (here, it reads two tables).
  */
+import { and, gte, inArray, isNotNull, lt, sql } from "@/lib/ctx";
 import type { DbOrTx, Tx } from "@beam/db";
-import { NotImplementedError } from "@beam/core/errors";
+import { checkouts, orders } from "@beam/db/schema";
 import type { Locale, LocalizedText } from "@beam/core/i18n";
 import type {
   Audience,
@@ -62,8 +64,6 @@ export type {
   QuoteLine,
   QuoteWarning,
 } from "@beam/core/commerce";
-
-const notYet = <T>(fn: string): Promise<T> => Promise.reject(new NotImplementedError(`commerce.${fn}`));
 
 export type { CreateOrderInput, CreateOrderResult } from "./server/orders";
 export type { DeliveredLine } from "./server/paid";
@@ -235,9 +235,35 @@ export function getProductCards(tx: DbOrTx, productIds: string[], locale: Locale
   return catalogueService().then((m) => m.getProductCards(tx, productIds, locale));
 }
 
-export function countOrdersByLanding(
-  _db: DbOrTx,
-  _input: { from: Date; to: Date },
+/**
+ * Site insights (R3, cross-module D56): orders paid in `[from, to)` that came through a checkout,
+ * grouped by `checkouts.landing_path` and `checkouts.utm->>'campaign'`. Only paid orders count
+ * (`paid`, `partially_refunded`, `refunded`); revenue is `orders.total_cents` with refunds not
+ * netted, so a later refund does not rewrite a landing page's history. Largest revenue first.
+ */
+export async function countOrdersByLanding(
+  db: DbOrTx,
+  input: { from: Date; to: Date },
 ): Promise<Array<{ landingPath: string | null; utmCampaign: string | null; orders: number; revenueCents: number }>> {
-  return notYet("countOrdersByLanding");
+  const campaign = sql<string | null>`nullif(${checkouts.utm}->>'campaign', '')`;
+  const rows = await db
+    .select({
+      landingPath: checkouts.landingPath,
+      utmCampaign: campaign,
+      orders: sql<number>`count(distinct ${orders.id})::int`,
+      revenueCents: sql<number>`coalesce(sum(${orders.totalCents}), 0)::int`,
+    })
+    .from(orders)
+    .innerJoin(checkouts, sql`${checkouts.id} = ${orders.checkoutId}`)
+    .where(
+      and(
+        isNotNull(orders.paidAt),
+        inArray(orders.status, ["paid", "partially_refunded", "refunded"]),
+        gte(orders.paidAt, input.from),
+        lt(orders.paidAt, input.to),
+      ),
+    )
+    .groupBy(checkouts.landingPath, campaign)
+    .orderBy(sql`4 desc`, sql`2 asc nulls last`, sql`1 asc nulls last`);
+  return rows.map((r) => ({ landingPath: r.landingPath, utmCampaign: r.utmCampaign, orders: Number(r.orders), revenueCents: Number(r.revenueCents) }));
 }

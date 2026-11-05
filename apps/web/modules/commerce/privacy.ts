@@ -56,6 +56,13 @@ export const retention: readonly RetentionPolicySeed[] = [
     description: "Orders lose their person 10 years after 1 January following the fiscal year of payment (accounting law).",
   },
   { key: "commerce.person_prices", tableName: "person_prices", days: 730, action: "delete", description: "Person prices two years after they ended or were revoked." },
+  {
+    key: "commerce.lightspeed_sales",
+    tableName: "lightspeed_sales",
+    days: 3653,
+    action: "delete",
+    description: "Lightspeed till lines 10 years after 1 January following their fiscal year (accounting law).",
+  },
 ];
 
 export const sweep: Record<string, (tx: Tx, cutoff: Date) => Promise<number>> = {
@@ -88,6 +95,16 @@ export const sweep: Record<string, (tx: Tx, cutoff: Date) => Promise<number>> = 
       sql`delete from person_prices where id in (select id from person_prices
           where coalesce(revoked_at, valid_to_at) is not null and coalesce(revoked_at, valid_to_at) < ${cutoff} limit ${BATCH}) returning id`,
     ),
+  // R3 (commerce-P9): an APPEND table, so the sweep lifts the append-only guard for its transaction.
+  "commerce.lightspeed_sales": async (tx, cutoff) => {
+    await allowRewrite(tx);
+    return count(
+      tx,
+      sql`delete from lightspeed_sales where id in (select id from lightspeed_sales
+          where date_trunc('year', business_day_on::timestamp) + interval '1 year' < (${cutoff}::timestamptz at time zone 'Europe/Brussels')
+          limit ${BATCH}) returning id`,
+    );
+  },
 };
 
 const iso = (d: Date | null | undefined) => (d ? d.toISOString() : null);
@@ -323,4 +340,4 @@ export const privacy: PrivacyRegistration<Tx> = {
 export const commercePrivacy = privacy;
 
 /** Commerce tables without person data (listed in platform's `NO_PII_TABLES`). */
-export const noPiiTables = ["pos_day_closes"];
+export const noPiiTables = ["pos_day_closes", "lightspeed_imports", "lightspeed_sales"];

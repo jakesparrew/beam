@@ -36,6 +36,8 @@ export function newBlock(type: BlockType): Block {
       return { id, type, productId: "00000000-0000-4000-8000-000000000000", showPrice: true, ctaLabel: "" };
     case "event":
       return { id, type, sessionId: "00000000-0000-4000-8000-000000000000", ctaLabel: "" };
+    case "webinar":
+      return { id, type, webinarId: "00000000-0000-4000-8000-000000000000", ctaLabel: "" };
     case "dynamic":
       return { id, type, variants: [{ when: { status: "member" }, blocks: [] }], fallback: [] };
   }
@@ -114,6 +116,8 @@ function summary(block: Block, labels: EditorLabels): string {
       return block.ctaLabel || block.productId;
     case "event":
       return block.ctaLabel || block.sessionId;
+    case "webinar":
+      return block.ctaLabel || block.webinarId;
     case "dynamic":
       return lab(labels, "dynamic_summary", { count: block.variants.length });
     default:

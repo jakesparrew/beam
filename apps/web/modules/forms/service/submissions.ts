@@ -40,10 +40,10 @@ import {
   type Utm,
 } from "@beam/core/forms";
 import { ACQUISITION_SOURCES, type Acquisition, type AcquisitionSource } from "@beam/core/crm";
-import type { Locale, LocalizedText } from "@beam/core/i18n";
+import { t, type Locale, type LocalizedText } from "@beam/core/i18n";
 import { AppError, and, ConflictError, desc, eq, inArray, NotFoundError, sql, ValidationError, type Ctx } from "@/lib/ctx";
 import { rowsOf } from "@/lib/sensitive";
-import { applyTag, fillAcquisitionIfEmpty, findOrCreatePersonByEmail, getPerson, getPersonPrefill, recordConsent, updatePersonFields } from "@/modules/crm/api";
+import { applyTag, createInboxThreadFromForm, fillAcquisitionIfEmpty, findOrCreatePersonByEmail, getPerson, getPersonPrefill, recordConsent, updatePersonFields } from "@/modules/crm/api";
 import { sendTransactional } from "@/modules/email/api";
 import { buildPrefill, isActiveStaff, mappedKeys, resolveIdentity, tokenFor, type Prefill } from "./identity";
 import { isBotSubmission, limitResultLink, limitStart, limitSubmit, logBotDropped } from "./rate-limit";
@@ -845,6 +845,11 @@ export async function completeSubmission(
         },
       });
     }
+    // crm's unified inbox (cross-module D62): one thread per submission when the version asks for it.
+    if (def.settings.createInboxThread) {
+      const locale = l.sub.locale as Locale;
+      await createInboxThreadFromForm(tx, ctx, { personId, submissionId: l.sub.id, subject: text(def.title, locale) ?? l.form.slug, body: inboxBody(def, plain, path, locale) });
+    }
   }
   return {
     resultUrl: ending.kind === "result" ? resultPageUrl(l.form.slug, l.sub.locale as Locale, token) : null,
@@ -852,6 +857,29 @@ export async function completeSubmission(
     endingKey: ending.key,
     pendingConfirmation: consents.pendingConfirmation,
   };
+}
+
+/** Field types whose answers are not message content (consents are recorded on their own, C1). */
+const NOT_IN_INBOX = new Set(["consent", "acknowledgement", "hidden", "utm"]);
+
+/**
+ * The inbox message of a submission: `Label: value` per answered non-sensitive field on the path,
+ * in section order and the submission locale (choice keys as their option labels). Sensitive
+ * answers never reach the inbox (SE4): only `plain` is read.
+ */
+export function inboxBody(def: FormDefinition, plain: Answers, path: readonly string[], locale: Locale): string {
+  const lines: string[] = [];
+  for (const sectionKey of path) {
+    for (const key of def.sections.find((s) => s.key === sectionKey)?.fieldKeys ?? []) {
+      const f = def.fields[key];
+      const v = plain[key];
+      if (!f || NOT_IN_INBOX.has(f.type) || v === undefined || v === null || v === "" || (Array.isArray(v) && !v.length)) continue;
+      const optionLabel = (k: unknown) => ("options" in f ? (f.options.find((o) => o.key === k)?.label[locale] ?? String(k)) : String(k));
+      const value = typeof v === "boolean" ? t(locale, v ? "forms.inbox.yes" : "forms.inbox.no") : Array.isArray(v) ? v.map(optionLabel).join(", ") : optionLabel(v);
+      lines.push(`${text(f.label, locale) ?? key}: ${value}`);
+    }
+  }
+  return lines.join("\n");
 }
 
 // ---------------------------------------------------------------------------

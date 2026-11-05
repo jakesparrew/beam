@@ -390,7 +390,8 @@
     "nav": {
       "forms": "Forms",
       "enter": "Fill in a form",
-      "my_results": "My results"
+      "my_results": "My results",
+      "imports": "Form imports"
     },
     "locale": {
       "nl-BE": "Nederlands",
@@ -976,6 +977,10 @@
         "empty_cta": "Start {form}",
         "error": "This result cannot be opened right now. Please try again."
       }
+    },
+    "inbox": {
+      "yes": "Yes",
+      "no": "No"
     }
   }
 }

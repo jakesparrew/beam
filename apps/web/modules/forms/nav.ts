@@ -3,7 +3,9 @@
  * permission, the same permission that guards the page). Facade read by `pnpm gen:indexes`.
  * forms-P5 adds "Forms" under Marketing (`forms.write`) and "Fill in a form" under Customers
  * (`persons.write`, the staff-assisted entry page `/admin/forms/enter` of forms-P6). forms-P8 adds
- * the portal entry "My results" (`/account/results`) behind `ff_forms_portal_results` (R2).
+ * the portal entry "My results" (`/account/results`) behind `ff_forms_portal_results` (R2) and,
+ * for forms-P7's request, "Form imports" under Marketing (`/admin/forms/imports`, `forms.publish`,
+ * the permission of the import pages).
  */
 export const nav = [
   {
@@ -15,6 +17,16 @@ export const nav = [
     permission: "forms.write",
     icon: "clipboard-list",
     order: 500,
+  },
+  {
+    key: "forms.imports",
+    area: "admin",
+    section: "marketing",
+    labelKey: "forms.nav.imports",
+    href: "/admin/forms/imports",
+    permission: "forms.publish",
+    icon: "file-input",
+    order: 510,
   },
   {
     key: "forms.enter",

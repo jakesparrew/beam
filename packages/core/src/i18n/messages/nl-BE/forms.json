@@ -390,7 +390,8 @@
     "nav": {
       "forms": "Formulieren",
       "enter": "Formulier invullen",
-      "my_results": "Mijn resultaten"
+      "my_results": "Mijn resultaten",
+      "imports": "Formulierimports"
     },
     "locale": {
       "nl-BE": "Nederlands",
@@ -976,6 +977,10 @@
         "empty_cta": "Start {form}",
         "error": "Dit resultaat kan nu niet geopend worden. Probeer het opnieuw."
       }
+    },
+    "inbox": {
+      "yes": "Ja",
+      "no": "Nee"
     }
   }
 }

@@ -339,3 +339,25 @@ describe("translation helpers (site-P10)", () => {
     expect(translationErrors({ title: {}, blocks: { "nl-BE": src } }, "nl-BE", ["en"])).toHaveLength(2);
   });
 });
+
+describe("site.propose_page with the fake's default answer (e2e, INTEGRATIONS=fake)", () => {
+  it("an edit keeps the base blocks and appends an FAQ block per locale", async () => {
+    const f = await pageWithRequest(h.db);
+    expect(await run(f.requestId, createFakeIntegrations())).toMatchObject({ outcome: "proposed", repaired: false });
+    const [live, proposal] = await versionsOf(f.pageId);
+    for (const l of f.base.locales) {
+      expect(proposal!.blocks[l]!.slice(0, -1)).toEqual(live!.blocks[l]);
+      expect(proposal!.blocks[l]!.at(-1)).toMatchObject({ type: "faq", items: [{ question: expect.any(String) }] });
+    }
+    expect(proposal!.title).toEqual(live!.title);
+  });
+
+  it("a translation fills the target locales with the source blocks' structure", async () => {
+    const f = await translateFixture();
+    expect(await run(f.requestId, createFakeIntegrations())).toMatchObject({ outcome: "proposed", repaired: false });
+    const [live, proposal] = await versionsOf(f.pageId);
+    expect(proposal!.locales).toEqual(["nl-BE", "fr-BE", "en"]);
+    expect(proposal!.blocks["nl-BE"]).toEqual(live!.blocks["nl-BE"]);
+    for (const l of TARGETS) expect(proposal!.blocks[l]!.map((b) => b.id)).toEqual(live!.blocks["nl-BE"]!.map((b) => b.id));
+  });
+});

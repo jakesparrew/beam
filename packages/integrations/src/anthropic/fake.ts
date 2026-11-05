@@ -3,6 +3,7 @@
  * real-looking token counts, every call reported through `onCall` like the real client.
  * Tests can script answers and inject a refusal or a 529 overload; it never touches the network.
  */
+import { randomUUID } from "node:crypto";
 import { digestRequest } from "../_shared/digest";
 import { IntegrationError } from "../_shared/errors";
 import { trackCall } from "../_shared/timeout";
@@ -45,22 +46,99 @@ function answerQuestionScript(request: ClaudeRequest): Record<string, unknown> {
   return { ...(perCustomer ? FAKE_CUSTOMER_REVENUE_ANSWER : FAKE_DAILY_REVENUE_ANSWER) };
 }
 
+type FakeLocale = "nl-BE" | "fr-BE" | "en";
+type FakeBase = {
+  title: Partial<Record<FakeLocale, string>>;
+  paths: Partial<Record<FakeLocale, string>>;
+  blocks: Partial<Record<FakeLocale, Record<string, unknown>[]>>;
+  seo: Partial<Record<FakeLocale, Record<string, unknown>>>;
+  excerpt?: Partial<Record<FakeLocale, string>> | null;
+  locales: FakeLocale[];
+};
+type FakeProposalPayload = { task?: string; sourceLocale?: FakeLocale; targetLocales?: FakeLocale[]; base?: FakeBase | null };
+
+const FAKE_LOCALES: readonly FakeLocale[] = ["nl-BE", "fr-BE", "en"];
+const fakeDoc = (text: string) => ({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text }] }] });
+const FAQ_TEXT: Record<FakeLocale, { heading: string; question: string; answer: string }> = {
+  "nl-BE": { heading: "Veelgestelde vragen", question: "Wanneer is BEAM open?", answer: "BEAM is elke dag open van 9 tot 22 uur." },
+  "fr-BE": { heading: "Questions fréquentes", question: "Quand BEAM est-il ouvert ?", answer: "BEAM est ouvert tous les jours de 9 h à 22 h." },
+  en: { heading: "Frequently asked questions", question: "When is BEAM open?", answer: "BEAM is open every day from 9 am to 10 pm." },
+};
+const NEW_PAGE: { title: Record<FakeLocale, string>; path: Record<FakeLocale, string>; body: Record<FakeLocale, string> } = {
+  title: { "nl-BE": "Over BEAM", "fr-BE": "À propos de BEAM", en: "About BEAM" },
+  path: { "nl-BE": "over-beam", "fr-BE": "a-propos-de-beam", en: "about-beam" },
+  body: {
+    "nl-BE": "BEAM Vitality Center helpt je sterker en fitter te worden.",
+    "fr-BE": "BEAM Vitality Center vous aide à devenir plus fort et en meilleure forme.",
+    en: "BEAM Vitality Center helps you become stronger and fitter.",
+  },
+};
+
+/** The JSON payload of a `site.propose_page` user message (`Page and references (JSON):\n{...}\n\n...`), or null. */
+function proposalPayload(request: ClaudeRequest): FakeProposalPayload | null {
+  const text = request.messages.find((m) => m.role === "user")?.content ?? "";
+  const match = /^Page and references \(JSON\):\n(.*?)\n\n/s.exec(text);
+  if (!match) return null;
+  try {
+    return JSON.parse(match[1]!) as FakeProposalPayload;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * `site.propose_page`: a valid proposal for the request it answers. An edit keeps the base content
+ * and appends an FAQ block to every target locale; a translation copies the source locale's blocks
+ * (same ids, order and references) into the target locales; a new page (or a request without a
+ * readable payload) gets a short "About BEAM" page in the three locales.
+ */
+function proposePageScript(request: ClaudeRequest): Record<string, unknown> {
+  const payload = proposalPayload(request);
+  const base = payload?.base ?? null;
+  const targets = (payload?.targetLocales?.length ? payload.targetLocales : FAKE_LOCALES).filter((l) => FAKE_LOCALES.includes(l));
+  if (!base) {
+    const pick = <T>(f: (l: FakeLocale) => T) => Object.fromEntries(targets.map((l) => [l, f(l)]));
+    return {
+      title: pick((l) => NEW_PAGE.title[l]),
+      paths: pick((l) => NEW_PAGE.path[l]),
+      blocks: pick((l) => [{ id: randomUUID(), type: "rich_text", doc: fakeDoc(NEW_PAGE.body[l]) }]),
+      seo: pick((l) => ({ title: `${NEW_PAGE.title[l]} | BEAM`, description: `${NEW_PAGE.body[l]} Sauna, pools and quiet rooms in Belgium.` })),
+      changeSummary: "Wrote a short introduction page.",
+    };
+  }
+  if (payload?.task === "translate_page") {
+    const source = payload.sourceLocale ?? base.locales[0] ?? "nl-BE";
+    const pick = <T>(f: (l: FakeLocale) => T) => Object.fromEntries(targets.map((l) => [l, f(l)]));
+    return {
+      title: pick((l) => `${base.title[source] ?? NEW_PAGE.title[l]} (${l})`),
+      paths: pick((l) => `${base.paths[source] || NEW_PAGE.path[l]}-${l.slice(0, 2)}`),
+      blocks: pick(() => base.blocks[source] ?? []),
+      seo: pick(() => base.seo[source] ?? {}),
+      changeSummary: `Added ${targets.join(", ")}.`,
+    };
+  }
+  const locales = FAKE_LOCALES.filter((l) => base.locales.includes(l) || targets.includes(l));
+  const blocks = Object.fromEntries(
+    locales.map((l) => {
+      const kept = base.blocks[l] ?? [];
+      if (!targets.includes(l)) return [l, kept];
+      const faq = FAQ_TEXT[l];
+      return [l, [...kept, { id: randomUUID(), type: "faq", heading: faq.heading, items: [{ question: faq.question, answer: fakeDoc(faq.answer) }] }]];
+    }),
+  );
+  return {
+    title: Object.fromEntries(locales.map((l) => [l, base.title[l] ?? NEW_PAGE.title[l]])),
+    paths: Object.fromEntries(locales.map((l) => [l, base.paths[l] ?? NEW_PAGE.path[l]])),
+    blocks,
+    seo: Object.fromEntries(locales.flatMap((l) => (base.seo[l] ? [[l, base.seo[l]]] : []))),
+    ...(base.excerpt ? { excerpt: base.excerpt } : {}),
+    changeSummary: "Added an FAQ about the opening hours at the end of the page.",
+  };
+}
+
 /** Default answers, one per feature, shaped like each feature's output. */
 export const DEFAULT_CLAUDE_SCRIPTS: Readonly<Record<string, ClaudeScript>> = {
-  "site.propose_page": {
-    title: { "nl-BE": "Over BEAM", "fr-BE": "À propos de BEAM", en: "About BEAM" },
-    summary: "Shorter introduction, clearer call to action.",
-    blocks: [
-      {
-        type: "text",
-        body: {
-          "nl-BE": "BEAM Vitality Center helpt je sterker en fitter te worden.",
-          "fr-BE": "BEAM Vitality Center vous aide à devenir plus fort et en meilleure forme.",
-          en: "BEAM Vitality Center helps you become stronger and fitter.",
-        },
-      },
-    ],
-  },
+  "site.propose_page": (request) => proposePageScript(request),
   "ai.classify": { topic: "booking", urgency: "normal", confidence: 0.82 },
   "ai.draft_email": {
     subject: { "nl-BE": "Nieuw dit najaar", "fr-BE": "Nouveau cet automne", en: "New this autumn" },

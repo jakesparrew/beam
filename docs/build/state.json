@@ -1178,12 +1178,31 @@
       "mergedAt": "2026-11-05T06:04:24Z"
     },
     "webinar-P6": {
-      "status": "pending",
-      "attempts": 0
+      "status": "done",
+      "attempts": 1,
+      "baseSha": "20a96b3",
+      "runId": null,
+      "startedAt": "2026-11-05T06:04:50Z",
+      "extraOwns": [
+        "packages/core/src/i18n/messages/en/webinar.json",
+        "packages/core/src/i18n/messages/nl-BE/webinar.json",
+        "packages/core/src/i18n/messages/fr-BE/webinar.json",
+        "apps/web/app/(admin)/admin/webinars/[id]/page.tsx",
+        "apps/web/modules/ops/dashboard/cards.test.ts"
+      ],
+      "branchSha": "66fda77",
+      "endedAt": "2026-11-05T07:03:35Z",
+      "minutes": 50
     },
     "automation-P8": {
-      "status": "pending",
-      "attempts": 0
+      "status": "done",
+      "attempts": 1,
+      "baseSha": "20a96b3",
+      "runId": null,
+      "startedAt": "2026-11-05T06:04:50Z",
+      "branchSha": "b0dec38",
+      "endedAt": "2026-11-05T06:34:35Z",
+      "minutes": 30
     },
     "platform-P13": {
       "status": "pending",
@@ -1229,8 +1248,18 @@
       "mergedAt": "2026-11-05T02:51:42Z"
     },
     "commerce-P9": {
-      "status": "pending",
-      "attempts": 0
+      "status": "done",
+      "attempts": 1,
+      "baseSha": "20a96b3",
+      "runId": null,
+      "startedAt": "2026-11-05T06:04:51Z",
+      "extraOwns": [
+        "apps/web/modules/commerce/privacy.test.ts",
+        "packages/db/src/schema/commerce.test.ts"
+      ],
+      "branchSha": "93d7667",
+      "endedAt": "2026-11-05T07:03:35Z",
+      "minutes": 51
     },
     "credits-P9": {
       "status": "merged",
@@ -1303,21 +1332,26 @@
       "attempts": 0
     },
     "email-P9": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "4de095e",
       "runId": null,
       "startedAt": "2026-11-05T04:57:04Z",
       "branchSha": "cecbec9",
-      "endedAt": "2026-11-05T05:40:23Z",
-      "minutes": 33
+      "endedAt": "2026-11-05T06:55:03Z",
+      "minutes": 33,
+      "mergeSha": "55298f5",
+      "mergedAt": "2026-11-05T07:19:02Z"
     },
     "forms-P9": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "baseSha": "103826d",
       "runId": null,
-      "startedAt": "2026-11-05T05:29:29Z"
+      "startedAt": "2026-11-05T05:29:29Z",
+      "branchSha": "0d39eaa",
+      "endedAt": "2026-11-05T06:05:29Z",
+      "minutes": 36
     },
     "webinar-P7": {
       "status": "pending",
@@ -1397,7 +1431,7 @@
       "runId": null,
       "startedAt": "2026-11-05T04:58:59Z",
       "branchSha": "71a8dbb",
-      "endedAt": "2026-11-05T06:02:19Z",
+      "endedAt": "2026-11-05T06:04:42Z",
       "minutes": 53
     },
     "ops-P10": {
@@ -1409,8 +1443,14 @@
       "attempts": 0
     },
     "platform-P14": {
-      "status": "pending",
-      "attempts": 0
+      "status": "done",
+      "attempts": 1,
+      "baseSha": "20a96b3",
+      "runId": null,
+      "startedAt": "2026-11-05T06:04:51Z",
+      "branchSha": "315d012",
+      "endedAt": "2026-11-05T06:24:56Z",
+      "minutes": 16
     },
     "fix-w03-platform-1": {
       "status": "merged",
@@ -2163,8 +2203,8 @@
       "mergedAt": "2026-11-04T20:52:34Z"
     },
     "fix-w20-crm-wiring": {
-      "status": "pending",
-      "attempts": 0,
+      "status": "done",
+      "attempts": 1,
       "fixer": true,
       "module": "crm",
       "goal": "Wiring fixer for module crm: serve every open row of docs/build/requests.md whose For column names crm (or one of its packages or files). For each row, first check whether it is already done at BASE; if so, list it as already-served. Otherwise implement it inside crm's files, with a test where behaviour changes. Rows that need another module's files stay open: list them. Do not edit docs/build/requests.md; report served rows in your report.",
@@ -2404,11 +2444,17 @@
         "crm-P8",
         "crm-P9",
         "crm-P10"
-      ]
+      ],
+      "baseSha": "20a96b3",
+      "runId": null,
+      "startedAt": "2026-11-05T06:04:50Z",
+      "branchSha": "dbb0a1e",
+      "endedAt": "2026-11-05T06:54:04Z",
+      "minutes": 45
     },
     "fix-w20-booking-wiring": {
-      "status": "pending",
-      "attempts": 0,
+      "status": "done",
+      "attempts": 1,
       "fixer": true,
       "module": "booking",
       "goal": "Wiring fixer for module booking: serve every open row of docs/build/requests.md whose For column names booking (or one of its packages or files). For each row, first check whether it is already done at BASE; if so, list it as already-served. Otherwise implement it inside booking's files, with a test where behaviour changes. Rows that need another module's files stay open: list them. Do not edit docs/build/requests.md; report served rows in your report.",
@@ -2617,7 +2663,13 @@
         "booking-P7",
         "booking-P8",
         "booking-P9"
-      ]
+      ],
+      "baseSha": "20a96b3",
+      "runId": null,
+      "startedAt": "2026-11-05T06:04:50Z",
+      "branchSha": "4eacf1d",
+      "endedAt": "2026-11-05T07:13:40Z",
+      "minutes": 58
     },
     "fix-w20-finance-wiring": {
       "status": "done",
@@ -2786,7 +2838,7 @@
       "runId": null,
       "startedAt": "2026-11-05T05:30:09Z",
       "branchSha": "893b774",
-      "endedAt": "2026-11-05T06:02:19Z",
+      "endedAt": "2026-11-05T06:04:43Z",
       "minutes": 25
     },
     "fix-w20-credits-wiring": {
@@ -2945,7 +2997,7 @@
         "packages/core/src/credits/types.ts"
       ],
       "branchSha": "74bf3b9",
-      "endedAt": "2026-11-05T05:52:40Z",
+      "endedAt": "2026-11-05T06:04:42Z",
       "minutes": 15
     }
   }

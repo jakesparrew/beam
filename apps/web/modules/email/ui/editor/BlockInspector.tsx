@@ -3,7 +3,8 @@
  * The inspector of the selected block (email spec rules 16 to 22): every field of the block type,
  * the token picker on text fields, image upload through platform's `uploadImage` (files above
  * 2 MB are refused before upload; `image/png|jpeg|gif|webp` only), and the block's accessibility
- * and card warnings (rule 15b) next to the fields they concern.
+ * and card warnings (rule 15b) next to the fields they concern. R2 (email-P8): the `webinar`
+ * block (webinar id and button text) and the event block's "Show the lead window" switch.
  */
 import { useState, type ReactNode } from "react";
 import { Alert, AlertDescription, Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Switch, Textarea } from "@beam/ui";
@@ -229,6 +230,28 @@ export function BlockInspector({ block, onChange, labels, mergeFields, warnings,
         <>
           <Field label={lab(labels, "field_session_id")}>
             <Input value={block.sessionId} disabled={disabled} onChange={(e) => onChange({ ...block, sessionId: e.target.value.trim() })} />
+          </Field>
+          {text(lab(labels, "field_cta"), block.ctaLabel, (v) => onChange({ ...block, ctaLabel: v }))}
+          <label className="flex items-center gap-2 text-sm">
+            <Switch
+              checked={block.showLeadWindow === true}
+              disabled={disabled}
+              aria-describedby={`lead-window-help-${block.id}`}
+              onCheckedChange={(v) => onChange({ ...block, showLeadWindow: v })}
+            />
+            {lab(labels, "show_lead_window")}
+          </label>
+          <p id={`lead-window-help-${block.id}`} className="text-xs text-muted-foreground">
+            {lab(labels, "show_lead_window_help")}
+          </p>
+        </>
+      );
+      break;
+    case "webinar":
+      body = (
+        <>
+          <Field label={lab(labels, "field_webinar_id")}>
+            <Input value={block.webinarId} disabled={disabled} onChange={(e) => onChange({ ...block, webinarId: e.target.value.trim() })} />
           </Field>
           {text(lab(labels, "field_cta"), block.ctaLabel, (v) => onChange({ ...block, ctaLabel: v }))}
         </>

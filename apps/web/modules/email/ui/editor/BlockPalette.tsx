@@ -2,14 +2,24 @@
 /**
  * The block palette (email spec rule 16): one button per block type. The top level offers every
  * type; a `columns` column offers leaf blocks only and a `dynamic` branch leaf blocks and
- * `columns` (rule 17: no columns in columns, no dynamic in anything).
+ * `columns` (rule 17: no columns in columns, no dynamic in anything). The R2 `webinar` block
+ * (email-P8) is a leaf block and sits next to `event` in the palette.
  */
 import { Button } from "@beam/ui";
 import { BLOCK_TYPES, type BlockType } from "@beam/core/email";
 import { lab, type EditorLabels } from "./BlockCanvas";
 
-export const LEAF_TYPES: readonly BlockType[] = BLOCK_TYPES.filter((t) => t !== "columns" && t !== "dynamic");
-export const IN_DYNAMIC_TYPES: readonly BlockType[] = BLOCK_TYPES.filter((t) => t !== "dynamic");
+/** Every block type in palette order: the card blocks together, layout and dynamic content last. */
+export const PALETTE_TYPES: readonly BlockType[] = [
+  ...BLOCK_TYPES.filter((t) => t !== "columns" && t !== "dynamic" && t !== "webinar" && t !== "event" && t !== "product"),
+  "product",
+  "event",
+  "webinar",
+  "columns",
+  "dynamic",
+];
+export const LEAF_TYPES: readonly BlockType[] = PALETTE_TYPES.filter((t) => t !== "columns" && t !== "dynamic");
+export const IN_DYNAMIC_TYPES: readonly BlockType[] = PALETTE_TYPES.filter((t) => t !== "dynamic");
 
 export type BlockPaletteProps = {
   onAdd: (type: BlockType) => void;
@@ -20,7 +30,7 @@ export type BlockPaletteProps = {
   compact?: boolean;
 };
 
-export function BlockPalette({ onAdd, types = BLOCK_TYPES, labels, disabled, compact }: BlockPaletteProps) {
+export function BlockPalette({ onAdd, types = PALETTE_TYPES, labels, disabled, compact }: BlockPaletteProps) {
   return (
     <div className={compact ? "flex flex-wrap gap-1" : "grid gap-2"} role="group" aria-label={lab(labels, "palette")} data-testid={compact ? "block-palette-inline" : "block-palette"}>
       {compact ? null : <h2 className="text-sm font-semibold">{lab(labels, "palette")}</h2>}

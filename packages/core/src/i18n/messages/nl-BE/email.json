@@ -218,7 +218,11 @@
       "warning_footer_incomplete": "De wettelijke voettekst kan niet worden opgebouwd: de bedrijfsgegevens zijn onvolledig.",
       "warning_missing_translation": "Deze taal heeft nog geen inhoud.",
       "warning_image_too_large": "Een gebruikte afbeelding is groter dan 1 MB.",
-      "warning_compile_error": "De e-mail kon niet worden opgebouwd uit deze blokken."
+      "warning_compile_error": "De e-mail kon niet worden opgebouwd uit deze blokken.",
+      "type_webinar": "Webinar",
+      "field_webinar_id": "Webinar-id",
+      "show_lead_window": "Toon het leadvenster",
+      "show_lead_window_help": "Tijdens het venster van een Lead Magnet zien contacten die geen lead zijn \"Opent voor jou op ...\" in plaats van de boekknop."
     },
     "preview": {
       "title": "Voorbeeld van sjabloon",
@@ -622,6 +626,10 @@
       "blocked_suppressed": "onderdrukt",
       "blocked_withdrawn": "toestemming ingetrokken",
       "blocked_no_consent": "geen toestemming"
+    },
+    "blocks": {
+      "event_opens_for_you": "Opent voor jou op {date}",
+      "event_view": "Bekijk het evenement"
     }
   }
 }

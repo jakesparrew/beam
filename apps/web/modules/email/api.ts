@@ -14,8 +14,9 @@
  * email-P7 implements `getCampaignStats` (snapshot or `v_campaign_stats`), `getEmailHealth`
  * (rule 38a) and the `PersonEmailHistory` server component for crm's person page.
  *
- * Still stubs (later email packages): `findLatestMessage` (email-P8), `getCampaignAttribution`
- * (email-P9).
+ * email-P8 implements `findLatestMessage` (commerce's checkout recovery attribution, R2).
+ *
+ * Still a stub (later email package): `getCampaignAttribution` (email-P9).
  */
 import type { ReactElement } from "react";
 import type { DbOrTx, Tx } from "@beam/db";
@@ -37,6 +38,7 @@ import type {
 import { and, desc, eq, gte, inArray, sql, type Ctx } from "@/lib/ctx";
 import type { PersonEmailHistoryProps } from "./ui/PersonEmailHistory";
 import * as context from "./server/context";
+import * as latestMessage from "./server/latest-message";
 import * as linkToken from "./server/link-token";
 import * as queue from "./server/queue-automation";
 import * as segments from "./server/segments";
@@ -114,12 +116,15 @@ export function getReachability(
   return context.getReachability(tx, personId, purpose);
 }
 
-/** R2, commerce. */
+/**
+ * R2, commerce (checkout recovery attribution): the newest message the person got from any
+ * version of `templateSlug` created after `after` (strict), test sends excluded; null when none.
+ */
 export function findLatestMessage(
-  _db: DbOrTx,
-  _input: { personId: string; templateSlug: string; after: Date },
+  db: DbOrTx,
+  input: { personId: string; templateSlug: string; after: Date },
 ): Promise<{ emailMessageId: string; status: MessageStatus; sentAt: Date | null; clickedAt: Date | null } | null> {
-  return notYet("findLatestMessage");
+  return latestMessage.findLatestMessage(db, input);
 }
 
 /** Rule 59: a still-queued message becomes `failed` with `cancelled`; `email.send` then skips it. */

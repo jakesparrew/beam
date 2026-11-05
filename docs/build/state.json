@@ -1137,8 +1137,11 @@
       "startedAt": "2026-11-05T04:24:11Z"
     },
     "commerce-P8": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "4de095e",
+      "runId": null,
+      "startedAt": "2026-11-05T04:57:04Z"
     },
     "webinar-P6": {
       "status": "pending",
@@ -1266,8 +1269,11 @@
       "attempts": 0
     },
     "email-P9": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "4de095e",
+      "runId": null,
+      "startedAt": "2026-11-05T04:57:04Z"
     },
     "forms-P9": {
       "status": "pending",

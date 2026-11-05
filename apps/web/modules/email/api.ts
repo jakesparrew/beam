@@ -37,10 +37,8 @@ import type {
 import { and, desc, eq, gte, inArray, sql, type Ctx } from "@/lib/ctx";
 import type { PersonEmailHistoryProps } from "./ui/PersonEmailHistory";
 import * as context from "./server/context";
-import * as deliveryWatch from "./server/delivery-watch";
 import * as linkToken from "./server/link-token";
 import * as queue from "./server/queue-automation";
-import * as reports from "./server/reports";
 import * as segments from "./server/segments";
 import * as send from "./server/send";
 import * as templates from "./server/templates-info";
@@ -174,7 +172,8 @@ export async function listPersonEmails(db: DbOrTx, personId: string, page = 1): 
 }
 
 /** Per campaign: the frozen snapshot when present, else `v_campaign_stats` (rule 62). Unknown ids are left out. */
-export function getCampaignStats(db: DbOrTx, campaignIds: string[]): Promise<CampaignStats[]> {
+export async function getCampaignStats(db: DbOrTx, campaignIds: string[]): Promise<CampaignStats[]> {
+  const reports = await import("./server/reports");
   return reports.getCampaignStats(db, campaignIds);
 }
 
@@ -188,10 +187,12 @@ export async function countBlockedMessages(db: DbOrTx, since: Date): Promise<num
 }
 
 /** Rule 38a values (a) to (d) for the daily digest and the System page. */
-export function getEmailHealth(
+export async function getEmailHealth(
   db: DbOrTx,
   now: Date = new Date(),
 ): Promise<{ oldestQueuedMinutes: number | null; deadSends15m: number; sent60m: number; failed5m: number; blockedTranslation5m: number }> {
+  // Loaded on use: the watch module pulls in platform's alerting, which imports other modules' apis.
+  const deliveryWatch = await import("./server/delivery-watch");
   return deliveryWatch.getEmailHealth(db, now);
 }
 

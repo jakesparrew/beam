@@ -37,8 +37,8 @@ import { brusselsDayBounds, warmupCap, warmupWeek } from "@beam/core/email";
 import { readFile } from "@/lib/files";
 import { rowsOf } from "@/lib/sensitive";
 import { getSetting } from "@/lib/settings";
-import { complaintState, type ComplaintState } from "./server/complaints";
-import { deliveryProblems, type DeliveryCheck, type EmailHealth } from "./server/delivery-watch";
+import type { ComplaintState } from "./server/complaints";
+import type { DeliveryCheck, EmailHealth } from "./server/delivery-watch";
 import { listCampaignRows, listRecipientRows, loadCampaignDetail, maskEmail, type CampaignDetail } from "./server/campaigns";
 import { buildPreview, personRecipient, samplePersona, type PreviewResult } from "./server/preview";
 import { draftVersionOf, listTemplateRows, loadTemplateDetail, loadTemplateVersion, transactionalModules, versionById, type TemplateDetail } from "./server/templates";
@@ -384,6 +384,9 @@ const ratio = (a: number, b: number): number | null => (b > 0 ? a / b : null);
  * delivery (rule 38a) states, blocked-translation messages and the last 20 suppressions (masked).
  */
 export async function getDeliverability(db: DbOrTx, now: Date = new Date()): Promise<Deliverability> {
+  // Loaded here: the watches pull in platform's alerting (and through it other modules' apis),
+  // which the template editor's queries above do not need.
+  const [{ complaintState }, { deliveryProblems }] = await Promise.all([import("./server/complaints"), import("./server/delivery-watch")]);
   const since = (days: number) => new Date(now.getTime() - days * 86_400_000).toISOString();
   const d30 = since(30);
   const d7 = since(7);

@@ -120,7 +120,9 @@
       "reissue_after_credit": "Deze factuur heeft al een creditnota; maak de correctie manueel.",
       "request_not_found": "Deze aanvraag bestaat niet.",
       "request_pending": "Er loopt al een aanvraag voor deze factuur.",
-      "retry_failed": "De nieuwe poging kon niet ingepland worden. Probeer opnieuw."
+      "retry_failed": "De nieuwe poging kon niet ingepland worden. Probeer opnieuw.",
+      "export_too_large": "Het bestand zou groter zijn dan 10 MB. Kies een kortere periode.",
+      "export_kind_unavailable": "Deze export is nog niet beschikbaar."
     },
     "email": {
       "invoice": {
@@ -170,7 +172,8 @@
       "invoices": "Facturen",
       "sync": "Billit-synchronisatie",
       "requests": "Bedrijfsaanvragen",
-      "settings": "Facturatie-instellingen"
+      "settings": "Facturatie-instellingen",
+      "exports": "Exports"
     },
     "digest": {
       "title": "Financiën",
@@ -525,6 +528,45 @@
         "note_complete": "Volledig",
         "note_incomplete": "Ontbreekt: {locales}",
         "no_notes": "Geen btw-vermeldingen ingesteld."
+      },
+      "exports": {
+        "title": "Exports voor de boekhouder",
+        "intro": "CSV-bestanden voor de boekhouder: gescheiden door puntkomma’s, UTF-8, bedragen in euro met een punt, ISO-datums. Bestanden vervallen na 7 dagen.",
+        "form_title": "Export aanvragen",
+        "kind": "Export",
+        "from": "Van",
+        "to": "Tot",
+        "presets": "Periode",
+        "preset_last_month": "Vorige maand",
+        "preset_last_quarter": "Vorig kwartaal",
+        "preset_last_year": "Vorig jaar",
+        "max_period": "Maximaal 366 dagen per export.",
+        "submit": "Export aanvragen",
+        "requested": "Export ingepland. Vernieuw de pagina straks om hem te downloaden.",
+        "caption": "De laatste 50 exports",
+        "col_kind": "Export",
+        "col_period": "Periode",
+        "col_status": "Status",
+        "col_rows": "Rijen",
+        "col_requested": "Aangevraagd",
+        "col_by": "Door",
+        "col_expires": "Vervalt",
+        "col_download": "Bestand",
+        "period": "{from} tot {to}",
+        "download": "Downloaden",
+        "expired": "Vervallen",
+        "empty": "Nog geen exports.",
+        "kind_invoices": "Facturen en creditnota’s",
+        "kind_invoice_lines": "Factuurlijnen",
+        "kind_vat_summary": "Btw-overzicht",
+        "kind_payments": "Betalingen",
+        "kind_deferred_revenue": "Uitgestelde omzet",
+        "kind_breakage": "Vervallen tegoed",
+        "kind_voucher_redemptions": "Ingewisselde cadeaubonnen",
+        "status_queued": "In wachtrij",
+        "status_running": "Bezig",
+        "status_done": "Klaar",
+        "status_failed": "Mislukt"
       }
     },
     "portal": {

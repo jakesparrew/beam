@@ -10,7 +10,7 @@
  */
 import { z } from "zod";
 import type { Tx } from "@beam/db";
-import { financeExports, invoiceRequests, invoices, jobs } from "@beam/db/schema";
+import { invoiceRequests, invoices, jobs } from "@beam/db/schema";
 import {
   BillingDetailsInput,
   buildSellerSnapshot,
@@ -27,7 +27,8 @@ import { cancelOrder, recordBankTransferPaid } from "@/modules/commerce/api";
 import { sendTransactional } from "@/modules/email/api";
 import { invoiceEmailData, invoiceEmailKey, invoiceEmailLocale } from "./jobs";
 import { brusselsDay, brusselsNoon } from "./service/billit-sync";
-import { enqueueFinanceJob, findInvoice, loadInvoice, updateInvoiceState } from "./service/invoice-state";
+import { createFinanceExport, periodError } from "./service/exports";
+import { findInvoice, loadInvoice, updateInvoiceState } from "./service/invoice-state";
 import { issueCreditNote } from "./service/issue-credit-note";
 import { addDays, financeLabel, issuerSettings } from "./service/issue-invoice";
 import { reissueToCompany } from "./service/reissue";
@@ -445,26 +446,22 @@ export const cancelCompanyInvoiceRequest = action({ name: "finance.request.cance
 });
 
 // ---------------------------------------------------------------------------
-// Accountant exports (rule 42; the CSV job lands with finance-P7)
+// Accountant exports (rule 42, finance-P7; the CSV is built by `finance.build_export`)
 // ---------------------------------------------------------------------------
 
 const V1_EXPORT_KINDS = ["invoices", "invoice_lines", "vat_summary", "payments"] as const;
 const RequestFinanceExportInput = z
   .object({ kind: z.enum(V1_EXPORT_KINDS), from: day, to: day })
-  .refine((v) => v.to >= v.from, { path: ["to"], message: "finance.errors.period_invalid" })
-  .refine((v) => v.to <= addDays(v.from, 365), { path: ["to"], message: "finance.errors.period_too_long" });
+  .refine((v) => periodError(v.from, v.to) !== "finance.errors.period_invalid", { path: ["to"], message: "finance.errors.period_invalid" })
+  .refine((v) => periodError(v.from, v.to) !== "finance.errors.period_too_long", { path: ["to"], message: "finance.errors.period_too_long" });
 
+/** Rule 42: queues the accountant CSV of `kind` for a period of at most 366 days; audited as `finance.export_requested`. */
 export const requestFinanceExport = action(
   { name: "finance.export.request", audience: "staff", permission: "reports.finance", input: RequestFinanceExportInput, audit: false },
   async (ctx, input) => {
     const userId = staffUserId(ctx);
     if (!userId) throw new NotFoundError("finance.errors.not_found");
-    const [row] = await ctx.tx
-      .insert(financeExports)
-      .values({ kind: input.kind, periodFrom: input.from, periodTo: input.to, requestedByUserId: userId })
-      .returning({ id: financeExports.id });
-    const exportId = row!.id;
-    await enqueueFinanceJob(ctx, { kind: "finance.build_export", payload: { exportId }, key: `finance_export:${exportId}` });
+    const { exportId } = await createFinanceExport(ctx, { kind: input.kind, from: input.from, to: input.to, userId });
     await ctx.audit({ action: "finance.export_requested", entityType: "finance_export", entityId: exportId, newValue: input });
     return { exportId };
   },

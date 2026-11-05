@@ -120,7 +120,9 @@
       "reissue_after_credit": "This invoice already has a credit note; issue the correction by hand.",
       "request_not_found": "This request does not exist.",
       "request_pending": "A request for this invoice is already pending.",
-      "retry_failed": "The retry could not be queued. Try again."
+      "retry_failed": "The retry could not be queued. Try again.",
+      "export_too_large": "The file would be larger than 10 MB. Choose a shorter period.",
+      "export_kind_unavailable": "This export is not available yet."
     },
     "email": {
       "invoice": {
@@ -170,7 +172,8 @@
       "invoices": "Invoices",
       "sync": "Billit sync",
       "requests": "Company requests",
-      "settings": "Invoicing settings"
+      "settings": "Invoicing settings",
+      "exports": "Exports"
     },
     "digest": {
       "title": "Finance",
@@ -525,6 +528,45 @@
         "note_complete": "Complete",
         "note_incomplete": "Missing: {locales}",
         "no_notes": "No VAT notes configured."
+      },
+      "exports": {
+        "title": "Accountant exports",
+        "intro": "CSV files for the accountant: separated by semicolons, UTF-8, amounts in euros with a dot, ISO dates. Files expire after 7 days.",
+        "form_title": "Request an export",
+        "kind": "Export",
+        "from": "From",
+        "to": "To",
+        "presets": "Period",
+        "preset_last_month": "Last month",
+        "preset_last_quarter": "Last quarter",
+        "preset_last_year": "Last year",
+        "max_period": "At most 366 days per export.",
+        "submit": "Request export",
+        "requested": "Export queued. Refresh the page in a moment to download it.",
+        "caption": "The last 50 exports",
+        "col_kind": "Export",
+        "col_period": "Period",
+        "col_status": "Status",
+        "col_rows": "Rows",
+        "col_requested": "Requested",
+        "col_by": "By",
+        "col_expires": "Expires",
+        "col_download": "File",
+        "period": "{from} to {to}",
+        "download": "Download",
+        "expired": "Expired",
+        "empty": "No exports yet.",
+        "kind_invoices": "Invoices and credit notes",
+        "kind_invoice_lines": "Invoice lines",
+        "kind_vat_summary": "VAT summary",
+        "kind_payments": "Payments",
+        "kind_deferred_revenue": "Deferred revenue",
+        "kind_breakage": "Breakage",
+        "kind_voucher_redemptions": "Voucher redemptions",
+        "status_queued": "Queued",
+        "status_running": "Running",
+        "status_done": "Ready",
+        "status_failed": "Failed"
       }
     },
     "portal": {

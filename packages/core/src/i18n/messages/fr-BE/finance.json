@@ -120,7 +120,9 @@
       "reissue_after_credit": "Cette facture a déjà une note de crédit ; faites la correction manuellement.",
       "request_not_found": "Cette demande n'existe pas.",
       "request_pending": "Une demande est déjà en cours pour cette facture.",
-      "retry_failed": "La nouvelle tentative n'a pas pu être planifiée. Réessayez."
+      "retry_failed": "La nouvelle tentative n'a pas pu être planifiée. Réessayez.",
+      "export_too_large": "Le fichier dépasserait 10 Mo. Choisissez une période plus courte.",
+      "export_kind_unavailable": "Cet export n’est pas encore disponible."
     },
     "email": {
       "invoice": {
@@ -170,7 +172,8 @@
       "invoices": "Factures",
       "sync": "Synchronisation Billit",
       "requests": "Demandes d'entreprise",
-      "settings": "Paramètres de facturation"
+      "settings": "Paramètres de facturation",
+      "exports": "Exports"
     },
     "digest": {
       "title": "Finances",
@@ -525,6 +528,45 @@
         "note_complete": "Complet",
         "note_incomplete": "Manquant : {locales}",
         "no_notes": "Aucune mention TVA configurée."
+      },
+      "exports": {
+        "title": "Exports pour le comptable",
+        "intro": "Fichiers CSV pour le comptable : séparés par des points-virgules, UTF-8, montants en euros avec un point, dates ISO. Les fichiers expirent après 7 jours.",
+        "form_title": "Demander un export",
+        "kind": "Export",
+        "from": "Du",
+        "to": "Au",
+        "presets": "Période",
+        "preset_last_month": "Mois dernier",
+        "preset_last_quarter": "Trimestre dernier",
+        "preset_last_year": "Année dernière",
+        "max_period": "366 jours maximum par export.",
+        "submit": "Demander l’export",
+        "requested": "Export programmé. Actualisez la page dans un instant pour le télécharger.",
+        "caption": "Les 50 derniers exports",
+        "col_kind": "Export",
+        "col_period": "Période",
+        "col_status": "Statut",
+        "col_rows": "Lignes",
+        "col_requested": "Demandé",
+        "col_by": "Par",
+        "col_expires": "Expire",
+        "col_download": "Fichier",
+        "period": "du {from} au {to}",
+        "download": "Télécharger",
+        "expired": "Expiré",
+        "empty": "Aucun export pour l’instant.",
+        "kind_invoices": "Factures et notes de crédit",
+        "kind_invoice_lines": "Lignes de facture",
+        "kind_vat_summary": "Récapitulatif TVA",
+        "kind_payments": "Paiements",
+        "kind_deferred_revenue": "Produits différés",
+        "kind_breakage": "Crédits expirés",
+        "kind_voucher_redemptions": "Chèques-cadeaux utilisés",
+        "status_queued": "En attente",
+        "status_running": "En cours",
+        "status_done": "Prêt",
+        "status_failed": "Échec"
       }
     },
     "portal": {

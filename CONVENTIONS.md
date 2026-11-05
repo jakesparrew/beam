@@ -57,15 +57,23 @@ Every coding agent reads this page first. The long reference with examples is
     function with `vi.mock` to the shape its contract promises, so the test stays
     true when the real implementation lands. Never assert that a registry has
     exactly the entries of today (later packages implement stubs and add jobs,
-    schedules and templates): assert behaviour that stays true.
+    schedules and templates): assert behaviour that stays true. The same holds for
+    a view's columns, seeded retention policies or system tags: compare with the
+    exported constant (`PERSON_PROFILE_COLUMNS.map((c) => c.name)`), not a literal.
+    Clock: build dates in Brussels days, never `toISOString().slice(0, 10)`, and
+    pin "now" (or use fractional day offsets) so a test passes at 23:30 and across
+    a DST change.
     In Playwright, never wait on a bare `getByRole("alert")`: Next.js renders a
     hidden route announcer with `role="alert"`, so the wait passes before your
     server action finishes. Wait for the action's POST response
     (`page.waitForResponse`) or for the specific message text, and reset the
     shared demo rows you touch both before and after the test.
-12. **Before you commit**, run the command list of section 4 of
+12. **Runtime rules the tests cannot see** (OD-18): a `"use server"` file exports
+    only async functions (no constants or objects); code that server components,
+    route handlers or jobs import never uses React `createContext`/`useContext`.
+13. **Before you commit**, run the command list of section 4 of
     `docs/plan/04-build-session.md` (install offline, `gen:indexes`, typecheck,
     eslint on your files, `i18n:check`, your Vitest suites, the ownership check).
-13. **Commit** on branch `build/<package-id>` with the message `<module>: <summary>`
+14. **Commit** on branch `build/<package-id>` with the message `<module>: <summary>`
     and the trailers of section 4 (`Package`, `Wave`, `Tests`, `Decisions`,
     `Requests`, `Dependency-requests`, `Missing-catalogue-keys`). Never push.

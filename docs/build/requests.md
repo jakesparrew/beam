@@ -119,6 +119,7 @@ to "Served" with the package id.
 | automation-P7 | automation (owner of `ui/person-automations-panel.tsx`) | Drop `PANEL_FALLBACK`: the panel keys are now in all three catalogues. |
 | credits-P9 | credits (owner of `packages/core/src/credits/index.ts`) | `export * from "./referrals"`, then switch `config.ts` and `server/referrals.ts` to `@beam/core/credits`. |
 | credits-P9 | commerce (owner of the refund transaction) | Call `credits.onOrderRefundedForReferrals(tx, ctx, { orderId, refundId })` when a refund is recorded; until then refunds write no negative commission rows. |
+| email-P7 | email (owner of `app/(admin)/admin/campaigns/[id]/page.tsx`) | Add a Report button on the progress step linking to `/admin/campaigns/[id]/report`. |
 
 ## Served
 

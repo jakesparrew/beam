@@ -1467,28 +1467,36 @@
       "mergedAt": "2026-11-05T04:56:26Z"
     },
     "site-P10": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "baseSha": "a6d21c3",
       "runId": null,
-      "startedAt": "2026-11-05T10:41:08Z"
+      "startedAt": "2026-11-05T10:41:08Z",
+      "branchSha": "2eeb5a4",
+      "endedAt": "2026-11-05T11:23:40Z",
+      "minutes": 40
     },
     "automation-P10": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "b3f6124",
       "runId": null,
       "startedAt": "2026-11-05T10:10:41Z",
       "branchSha": "d623880",
-      "endedAt": "2026-11-05T10:44:20Z",
-      "minutes": 33
+      "endedAt": "2026-11-05T10:44:22Z",
+      "minutes": 33,
+      "mergeSha": "974da85",
+      "mergedAt": "2026-11-05T11:37:53Z"
     },
     "webinar-P8": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "baseSha": "a6d21c3",
       "runId": null,
-      "startedAt": "2026-11-05T10:41:08Z"
+      "startedAt": "2026-11-05T10:41:08Z",
+      "branchSha": "8dd02dc",
+      "endedAt": "2026-11-05T11:14:02Z",
+      "minutes": 25
     },
     "ops-P9": {
       "status": "merged",
@@ -3090,7 +3098,7 @@
       "mergedAt": "2026-11-05T08:10:31Z"
     },
     "fix-w21-commerce-wiring": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "fixer": true,
       "module": "commerce",
@@ -3278,10 +3286,13 @@
       ],
       "baseSha": "a6d21c3",
       "runId": null,
-      "startedAt": "2026-11-05T10:41:08Z"
+      "startedAt": "2026-11-05T10:41:08Z",
+      "branchSha": "b850c8e",
+      "endedAt": "2026-11-05T11:33:06Z",
+      "minutes": 45
     },
     "fix-w21-email-wiring": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "fixer": true,
       "module": "email",
@@ -3476,10 +3487,16 @@
       ],
       "baseSha": "a6d21c3",
       "runId": null,
-      "startedAt": "2026-11-05T10:41:08Z"
+      "startedAt": "2026-11-05T10:41:08Z",
+      "extraOwns": [
+        "apps/web/test/seams-v1.test.ts"
+      ],
+      "branchSha": "b7f32f2",
+      "endedAt": "2026-11-05T11:33:06Z",
+      "minutes": 45
     },
     "fix-w21-forms-wiring": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "fixer": true,
       "module": "forms",
@@ -3660,7 +3677,10 @@
       ],
       "baseSha": "a6d21c3",
       "runId": null,
-      "startedAt": "2026-11-05T10:41:08Z"
+      "startedAt": "2026-11-05T10:41:08Z",
+      "branchSha": "27febae",
+      "endedAt": "2026-11-05T11:23:40Z",
+      "minutes": 50
     },
     "fix-w21-platform-wiring": {
       "status": "pending",
@@ -4289,7 +4309,7 @@
       ]
     },
     "fix-w21-crm-wiring": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "fixer": true,
       "module": "crm",
@@ -4533,7 +4553,10 @@
       ],
       "baseSha": "a6d21c3",
       "runId": null,
-      "startedAt": "2026-11-05T10:41:08Z"
+      "startedAt": "2026-11-05T10:41:08Z",
+      "branchSha": "86a8328",
+      "endedAt": "2026-11-05T11:23:40Z",
+      "minutes": 39
     }
   }
 }

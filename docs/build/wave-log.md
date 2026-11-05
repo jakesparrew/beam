@@ -242,3 +242,5 @@ One entry per merge batch and gate (runbook section 5.7, adapted by OD-3).
 - platform-P13: merged as `21dc698` in batch `g118-batch`.
 - site-P9: merged as `b8ec75a` in batch `g118-batch`.
 - Batch `g118-batch` (webinar-P7 forms-P10 email-P10 platform-P13 site-P9): migrations 0051_w23.sql 0052_w23_views.sql; merge gate green, peak 6216 MB.
+- automation-P10: merged as `974da85` in batch `g119-batch`.
+- Batch `g119-batch` (automation-P10): merge gate green, peak 14824 MB.

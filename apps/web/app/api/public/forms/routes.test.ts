@@ -3,7 +3,7 @@
  * section 4 "Route handlers", rules U1 to U7, R1 to R4, A1, ID7, E1, edge case 17).
  */
 import { randomUUID } from "node:crypto";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { DbHandle } from "@beam/db";
 import { activityEvents, formSubmissions, formViewsDaily, persons } from "@beam/db/schema";
 import { createTestDb, makeProduct } from "@beam/db/testing";
@@ -157,12 +157,19 @@ describe("refusals", () => {
   it("429 rate_limited with retry-after once the per-IP forms bucket is full", async () => {
     const f = await createForm(h.db, lead());
     const ip = "192.0.2.77";
-    const statuses: number[] = [];
-    for (let i = 0; i < 21; i++) statuses.push((await viewRoute(req(`/api/public/forms/${f.slug}/view`, "POST", { locale: "nl-BE" }, { ip }), slugParams(f.slug))).status);
-    expect(statuses.slice(0, 20).every((s) => s === 204)).toBe(true);
-    const last = await viewRoute(req(`/api/public/forms/${f.slug}/view`, "POST", { locale: "nl-BE" }, { ip }), slugParams(f.slug));
-    expect(last.status).toBe(429);
-    expect(Number(last.headers.get("retry-after"))).toBeGreaterThan(0);
+    // The bucket is a fixed one-minute window on the wall clock: freeze Date so the 22 requests
+    // cannot straddle a minute boundary when the machine is slow (g111).
+    vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-11-05T10:00:05Z") });
+    try {
+      const statuses: number[] = [];
+      for (let i = 0; i < 21; i++) statuses.push((await viewRoute(req(`/api/public/forms/${f.slug}/view`, "POST", { locale: "nl-BE" }, { ip }), slugParams(f.slug))).status);
+      expect(statuses.slice(0, 20).every((s) => s === 204)).toBe(true);
+      const last = await viewRoute(req(`/api/public/forms/${f.slug}/view`, "POST", { locale: "nl-BE" }, { ip }), slugParams(f.slug));
+      expect(last.status).toBe(429);
+      expect(Number(last.headers.get("retry-after"))).toBeGreaterThan(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("R3: a honeypot answers 200 and writes nothing", async () => {

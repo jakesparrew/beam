@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect } from "react";
-import * as Sentry from "@sentry/nextjs";
 
 /**
  * Last-resort error page (replaces the root layout). It cannot read the catalogues on the
@@ -21,7 +20,8 @@ function localeOfLocation(): keyof typeof TEXT {
 
 export default function GlobalError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
-    Sentry.captureException(error);
+    // The SDK loads only when an error happens (it stays out of the first-load JavaScript).
+    void import("@sentry/nextjs").then((Sentry) => Sentry.captureException(error));
   }, [error]);
   const locale = localeOfLocation();
   const text = TEXT[locale];

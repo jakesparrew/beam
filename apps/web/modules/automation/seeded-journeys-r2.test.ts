@@ -285,3 +285,244 @@ describe("activateReleaseSequences (A-5a, decision 30)", () => {
     await h.db.update(automations).set({ status: "active", pausedAt: null }).where(eq(automations.slug, b2cPlaybookSlug("lost")));
   });
 });
+
+// ---------------------------------------------------------------------------
+// Webinar journeys (spec 3.6, cross-module D52)
+// ---------------------------------------------------------------------------
+
+describe("webinar-registration (scenario 1 in R2)", () => {
+  it("A-18 a Friday 10:00 registrant of a Sunday 10:00 live webinar gets only the h3 reminder, with no confirmation step", async () => {
+    const p = await makePerson(h.db);
+    const w = webinarOf(p.id);
+    const startsAt = new Date("2026-11-08T09:00:00Z"); // Sunday 10:00 Brussels
+    await w.registered(T0, startsAt);
+    await tick(T0);
+    const e = await enrolmentOf(p.id, "webinar-registration");
+    expect(e).toMatchObject({ status: "active", subjectKey: `webinar_registration:${w.registrationId}`, nextStepKey: "h3", nextStepAt: new Date("2026-11-08T06:00:00Z") });
+    expect(await outcomes(e!.id)).toEqual([
+      ["d3", "skipped_late_entry"],
+      ["d7", "skipped_late_entry"],
+    ]);
+    const done = await drive(p.id, "webinar-registration", new Date("2026-11-09T00:00:00Z"));
+    expect(done).toMatchObject({ status: "completed" });
+    expect(await outcomes(e!.id)).toEqual([
+      [null, "completed"],
+      ["d3", "skipped_late_entry"],
+      ["d7", "skipped_late_entry"],
+      ["h3", "sent"],
+    ]);
+    expect(sentTo(p.id).map((s) => [s.templateSlug, s.stepKey, s.kind])).toEqual([["webinar.reminder", "h3", "transactional"]]);
+    expect(sentTo(p.id)[0]!.context).toMatchObject({ ref_type: "webinar_registration", ref_id: w.registrationId, registration_id: w.registrationId });
+  });
+
+  it("an early registrant gets webinar.reminder with stepKey d7, d3 and h3", async () => {
+    const p = await makePerson(h.db);
+    const w = webinarOf(p.id);
+    await w.registered(T0, at(20 * DAYS));
+    await tick(T0);
+    await drive(p.id, "webinar-registration", at(21 * DAYS));
+    expect(sentTo(p.id).map((s) => [s.templateSlug, s.stepKey])).toEqual([
+      ["webinar.reminder", "d7"],
+      ["webinar.reminder", "d3"],
+      ["webinar.reminder", "h3"],
+    ]);
+  });
+
+  it("webinar.rescheduled exits it and the fresh webinar.registered re-enrols on the new anchor (A-22)", async () => {
+    const p = await makePerson(h.db);
+    const w = webinarOf(p.id);
+    const first = at(20 * DAYS);
+    const moved = at(27 * DAYS);
+    await w.registered(T0, first);
+    await tick(T0);
+    const later = at(HOURS);
+    await w.happened("webinar.rescheduled", later, { starts_at: moved.toISOString(), previous_starts_at: first.toISOString() });
+    await w.registered(later, moved, { rescheduled: true });
+    await tick(later);
+    const rows = await enrolmentsOf(p.id, "webinar-registration");
+    expect(rows.map((r) => [r.status, r.endReason, r.anchorAt?.toISOString()])).toEqual([
+      ["exited", "exit_event:webinar.rescheduled", first.toISOString()],
+      ["active", null, moved.toISOString()],
+    ]);
+    expect(rows[1]).toMatchObject({ subjectKey: `webinar_registration:${w.registrationId}`, nextStepKey: "d7", nextStepAt: new Date(moved.getTime() - 7 * DAYS) });
+  });
+
+  it("webinar.registration_cancelled and webinar.cancelled exit it", async () => {
+    const a = await makePerson(h.db);
+    const b = await makePerson(h.db);
+    const wa = webinarOf(a.id);
+    const wb = webinarOf(b.id);
+    await wa.registered(T0, at(20 * DAYS));
+    await wb.registered(T0, at(20 * DAYS));
+    await tick(T0);
+    await wa.happened("webinar.registration_cancelled", at(HOURS), { by: "customer" });
+    await wb.happened("webinar.cancelled", at(HOURS), { reason: "speaker_ill" });
+    await tick(at(HOURS));
+    expect(await enrolmentOf(a.id, "webinar-registration")).toMatchObject({ status: "exited", endReason: "exit_event:webinar.registration_cancelled" });
+    expect(await enrolmentOf(b.id, "webinar-registration")).toMatchObject({ status: "exited", endReason: "exit_event:webinar.cancelled" });
+  });
+
+  it("a registration alone triggers no follow-up journey (webinar rule 17)", async () => {
+    const p = await makePerson(h.db);
+    state.reachable.add(p.id);
+    await webinarOf(p.id).registered(T0, at(20 * DAYS));
+    await tick(T0);
+    expect(await slugsOf(p.id)).toEqual(["webinar-registration"]);
+  });
+
+  it("an on-demand registration does not enter the live reminders", async () => {
+    const p = await makePerson(h.db);
+    await webinarOf(p.id, "on_demand").registered(T0, at(20 * DAYS), { webinar_mode: "on_demand", starts_at: null, ends_at: null });
+    await tick(T0);
+    expect(await slugsOf(p.id)).toEqual([]);
+  });
+});
+
+describe("webinar behaviour journeys (exclusive webinar group, A-15)", () => {
+  it("webinar.attended (live) then webinar.watched end: webinar-watched-end supersedes webinar-attended before its first step", async () => {
+    const p = await makePerson(h.db);
+    state.reachable.add(p.id);
+    const w = webinarOf(p.id);
+    await w.happened("webinar.attended", T0, { watched_sec: 900 });
+    await tick(T0);
+    const attended = await enrolmentOf(p.id, "webinar-attended");
+    expect(attended).toMatchObject({ status: "active", nextStepKey: "follow_up", nextStepAt: at(HOURS) });
+    await w.happened("webinar.watched", at(40 * MIN), { threshold: "end", watched_sec: 3_600 });
+    await tick(at(40 * MIN));
+    expect(await enrolmentOf(p.id, "webinar-attended")).toMatchObject({ status: "exited", endReason: "superseded" });
+    expect(await outcomes(attended!.id)).not.toContainEqual(["follow_up", "sent"]);
+    const end = await drive(p.id, "webinar-watched-end", at(3 * DAYS));
+    expect(end).toMatchObject({ status: "completed" });
+    expect(await outcomes(end.id)).toEqual([
+      [null, "completed"],
+      ["follow_up", "sent"],
+      ["sales_task", "task_created"],
+    ]);
+    expect(sentTo(p.id).map((s) => [s.templateSlug, s.kind])).toEqual([["webinar-follow-up", "marketing"]]);
+  });
+
+  it("scenario 5: replay events never trigger live journeys and do trigger webinar-replay", async () => {
+    const p = await makePerson(h.db);
+    state.reachable.add(p.id);
+    const w = webinarOf(p.id, "replay");
+    await w.happened("webinar.watched", T0, { threshold: "end", watched_sec: 3_600 });
+    await w.happened("webinar.watched", T0, { threshold: "30m", watched_sec: 1_800 });
+    await w.happened("webinar.watched", T0, { threshold: "15m", watched_sec: 900 });
+    await w.happened("webinar.cta_clicked", T0, { cta_key: "book_now", url: "https://beam.be/nl-BE/booking" });
+    await w.happened("webinar.attended", T0, { watched_sec: 900 });
+    await tick(T0);
+    const slugs = await slugsOf(p.id);
+    for (const live of ["webinar-attended", "webinar-watched-end", "webinar-watched-30", "webinar-watched-15", "webinar-cta-click"]) expect(slugs).not.toContain(live);
+    expect(slugs).toContain("webinar-replay");
+    // The CTA sales task acts in any mode (cross-module D52).
+    expect(slugs).toContain("webinar-cta-sales-task");
+    await drive(p.id, "webinar-replay", at(DAYS));
+    expect(sentTo(p.id).map((s) => s.templateSlug)).toEqual(["webinar-follow-up"]);
+  });
+
+  it("webinar-watched-15 tags the person engaged and sends its follow-up", async () => {
+    const p = await makePerson(h.db);
+    state.reachable.add(p.id);
+    await webinarOf(p.id).happened("webinar.watched", T0, { threshold: "15m", watched_sec: 900 });
+    await tick(T0);
+    expect(await hasTag(p.id, "engaged")).toBe(true);
+    const e = await drive(p.id, "webinar-watched-15", at(DAYS));
+    expect(await outcomes(e.id)).toEqual([
+      [null, "completed"],
+      ["follow_up", "sent"],
+      ["tag_engaged", "tag_applied"],
+    ]);
+  });
+
+  it("webinar-no-show enrols only with replay_available = true, sends webinar.replay_available, and exits on webinar.attended", async () => {
+    const none = await makePerson(h.db);
+    const sends = await makePerson(h.db);
+    const watches = await makePerson(h.db);
+    for (const p of [none, sends, watches]) state.reachable.add(p.id);
+    await webinarOf(none.id).happened("webinar.no_show", T0, { replay_available: false, replay_until_at: null });
+    await webinarOf(sends.id).happened("webinar.no_show", T0, { replay_available: true, replay_until_at: at(7 * DAYS).toISOString() });
+    const w = webinarOf(watches.id);
+    await w.happened("webinar.no_show", T0, { replay_available: true, replay_until_at: at(7 * DAYS).toISOString() });
+    await tick(T0);
+    expect(await slugsOf(none.id)).toEqual([]);
+    expect(await enrolmentOf(watches.id, "webinar-no-show")).toMatchObject({ status: "active", nextStepKey: "replay" });
+
+    await w.happened("webinar.attended", at(30 * MIN), { watched_sec: 900 }, "replay");
+    await tick(at(30 * MIN));
+    expect(await enrolmentOf(watches.id, "webinar-no-show")).toMatchObject({ status: "exited", endReason: "exit_event:webinar.attended" });
+    expect(await enrolmentOf(watches.id, "webinar-replay")).toMatchObject({ status: "active" });
+
+    const e = await drive(sends.id, "webinar-no-show", at(DAYS));
+    expect(e).toMatchObject({ status: "completed" });
+    expect(sentTo(sends.id).map((s) => [s.templateSlug, s.stepKey, s.kind])).toEqual([["webinar.replay_available", "replay", "transactional"]]);
+  });
+
+  it("webinar.poll_answered enrols webinar-poll-answer, which adds the engaged tag", async () => {
+    const p = await makePerson(h.db);
+    await webinarOf(p.id).happened("webinar.poll_answered", T0, { poll_key: "sleep", option_keys: ["bad"], option_key: "bad" });
+    await tick(T0);
+    const e = await enrolmentOf(p.id, "webinar-poll-answer");
+    expect(e).toMatchObject({ status: "completed" });
+    expect(await outcomes(e!.id)).toEqual([
+      [null, "completed"],
+      ["tag_engaged", "tag_applied"],
+    ]);
+    expect(await hasTag(p.id, "engaged")).toBe(true);
+  });
+});
+
+describe("webinar CTA clicks (cross-module D52)", () => {
+  const click = (w: ReturnType<typeof webinarOf>, when: Date, mode: "live" | "replay" = "live") =>
+    w.happened("webinar.cta_clicked", when, { cta_key: "book_now", url: "https://beam.be/nl-BE/booking" }, mode);
+
+  it("creates one sales task through webinar-cta-sales-task even while a sales_journey enrolment blocks the webinar group", async () => {
+    const p = await makePerson(h.db);
+    state.reachable.add(p.id);
+    // A first visit puts the person in after-first-visit (customer_journey, ahead of webinar in the lane).
+    const visit = await f.makeBooking(h.db, { personId: p.id, startsAt: at(-2 * HOURS), status: "attended", kind: "day" });
+    await event(p.id, "booking.attended", at(-HOURS), { is_first_visit: true, session_kind: "day", booking_id: visit.booking.id }, { ref: { type: "booking", id: visit.booking.id } });
+    await tick(T0);
+    expect(await enrolmentOf(p.id, "after-first-visit")).toMatchObject({ status: "active" });
+    const w = webinarOf(p.id);
+    await click(w, at(MIN));
+    await click(w, at(2 * MIN));
+    await tick(at(2 * MIN));
+    expect(await enrolmentOf(p.id, "webinar-cta-click")).toBeNull();
+    const skipped = await h.db
+      .select({ outcome: automationRuns.outcome })
+      .from(automationRuns)
+      .innerJoin(automations, eq(automations.id, automationRuns.automationId))
+      .where(and(eq(automationRuns.personId, p.id), eq(automations.slug, "webinar-cta-click")));
+    expect(skipped.map((r) => r.outcome)).toContain("skipped_exclusive");
+    const salesTasks = (await tasksOf(p.id)).filter((t) => t.title.startsWith("Webinar CTA clicked"));
+    expect(salesTasks).toEqual([{ id: expect.any(String), title: "Webinar CTA clicked: book_now", status: "open", source: "automation" }]);
+    expect(await enrolmentsOf(p.id, "webinar-cta-sales-task")).toHaveLength(1);
+  });
+
+  it("creates no task when the person has a future booking", async () => {
+    const p = await makePerson(h.db);
+    await f.makeBooking(h.db, { personId: p.id, startsAt: at(5 * DAYS), status: "confirmed", kind: "day" });
+    await click(webinarOf(p.id), T0, "replay");
+    await tick(T0);
+    const e = await enrolmentOf(p.id, "webinar-cta-sales-task");
+    expect(await outcomes(e!.id)).toEqual([
+      [null, "completed"],
+      ["sales_task", "skipped_condition"],
+    ]);
+    expect(await tasksOf(p.id)).toEqual([]);
+  });
+
+  it("webinar-cta-click sends only its follow_up email (the task is the sales journey's)", async () => {
+    const p = await makePerson(h.db);
+    state.reachable.add(p.id);
+    await click(webinarOf(p.id), T0);
+    await tick(T0);
+    const e = await drive(p.id, "webinar-cta-click", at(2 * DAYS));
+    expect(await outcomes(e.id)).toEqual([
+      [null, "completed"],
+      ["follow_up", "sent"],
+    ]);
+    expect(sentTo(p.id).map((s) => s.templateSlug)).toEqual(["webinar-follow-up"]);
+    expect((await tasksOf(p.id)).map((t) => t.title)).toEqual(["Webinar CTA clicked: book_now"]);
+  });
+});

@@ -164,6 +164,11 @@ to "Served" with the package id.
 | automation-P10 | automation (owner of `packages/core/src/automation/index.ts`) | `export * from "./builder"` (with `./frequency`), then switch `actions.ts`, `ui/builder/*`, the builder page and its test to `@beam/core/automation`. |
 | automation-P10 | automation (owner of `ui/automation-table.tsx`) | Add a builder tab to `AutomationHeader` (`automation.detail.tab_builder` exists). |
 | automation-P10 | automation (owner of `ui/step-forms.tsx`) | Export the single-step `StepForm` for the builder side panel. |
+| ops-P10 | platform (owner of `packages/integrations/src/anthropic/fake.ts`) | `DEFAULT_CLAUDE_SCRIPTS['ai.answer_question']` returns a person-level query over `ai.orders` for revenue-per-customer questions (`e2e/ops-ai.spec.ts` needs person links). |
+| ops-P10 | platform | A helper that logs Message Batch requests in `ai_requests` and pre-checks budget and daily cap for a batch (ops' `ai/summary.ts` writes these rows itself for now). |
+| ops-P10 | ops (owner of `packages/core/src/ops/index.ts`) | Export `./validate-ai-sql`, `./ai-schema-doc` (and `./predict`, `./kpis`) from `@beam/core/ops`. |
+| ops-P10 | crm, commerce, credits demo seeds | Add non-tester demo customers with orders, packages and an opportunity so the ai schema and ops reports show data on beam_dev. |
+| fix-w22-automation-wiring | platform (owner of `apps/web/scripts`, root `package.json`) | Add `release:activate <R>` calling `releaseActivationCli` from `packages/db/src/seed/automation.ts`, and a go-live runbook step pointing to `docs/runbooks/automations.md`. |
 
 ## Served
 

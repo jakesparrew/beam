@@ -683,7 +683,7 @@ function collectMessages(root: string): { locale: string; module: string }[] {
 function messagesFile(entries: { locale: string; module: string }[]): string {
   const locales = sortStrings(entries.map((e) => e.locale));
   const modules = sortStrings(entries.map((e) => e.module));
-  const imports = entries.map((e) => `import ${ident(e.locale, e.module)} from ${q(`./${e.locale}/${e.module}.json`)};`);
+  const imports = entries.map((e) => `import ${ident(e.locale, e.module)} from ${q(`./${e.locale}/${e.module}.json`)} with { type: "json" };`);
   const body = [
     "/** A catalogue: nested objects whose leaves are ICU message strings. */",
     "export type MessageTree = { readonly [key: string]: string | MessageTree };",

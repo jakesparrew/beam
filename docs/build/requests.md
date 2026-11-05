@@ -91,7 +91,12 @@ to "Served" with the package id.
 | fix-w09-credits-review | commerce (schema) | `orders_renewal_chk` becomes `renewal_membership_id is null or renewal_period_end_on is not null` (drop and re-add); then credits removes the renewal-order guard in its `credits.memberships` sweep and its test asserts deletion. |
 | fix-w09-automation-review | plan (`docs/plan/modules/automation.md`) | A-7(a): `credits.grant_exhausted` and `credits.grant_expired` with `data.source='import'` still trigger; A-26a and the jobs table: the `:replan:<YYYY-MM-DDTHH:mm>` step key qualifier. |
 | email-P5 | email (send.ts owner or fixer) | Render `kind = test` messages for the persona `sendTestEmail` stores in `context` (`test_as_person_id`, or `test_sample` and `test_outcome`): that person's or sample's status, outcomes and tokens, with the template's marketing footer (rule 60). Today they render as transactional with person_id null, so tokens come out empty. |
-| orchestrator | platform (gen-indexes owner or fixer) | `packages/core/src/i18n/messages/index.generated.ts` imports JSON without `with { type: "json" }`, so every Playwright spec fails to load under Node 22 (`playwright test --list` lists 0 tests). |
+| finance-P7 | finance (owner of `packages/core/src/finance/index.ts`) | Add `export * from "./csv"`, then switch `apps/web/modules/finance/service/exports.ts` from its relative import to `@beam/core/finance`. |
+| finance-P7 | finance (owner of `app/(admin)/admin/finance/invoices/page.tsx`) | The "Export CSV of this filter" button can link to `/admin/finance/exports?kind=invoices&from=<from>&to=<to>` (prefilled form) for users with `reports.finance`. |
+| credits-P8 | credits (owner of `app/(admin)/admin/credits/grants/[grantId]/page.tsx`) | Render `SharingPanel variant="staff"` on the staff grant screen. |
+| credits-P8 | credits (owner of `nav.ts`) | Admin nav entry for `/admin/credits/sharing-review` (labelKey `credits.nav.sharing_review`, permission `credits.read`). |
+| credits-P8 | credits (owner of `packages/core/src/credits/types.ts`) | Remove the Wave 0 `SharingReviewRow` guess; the real type is exported from `apps/web/modules/credits/api.ts`. |
+| credits-P8 | credits (owner of `ui/adjust-dialog.tsx`) | Optionally add `already_shared`, `share_with_owner`, `grant_not_active`, `review_item_not_found` to `SPECIFIC` in `errorMessage`. |
 
 ## Served
 

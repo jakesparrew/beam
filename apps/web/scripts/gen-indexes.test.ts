@@ -66,7 +66,7 @@ describe("gen-indexes", () => {
     expect(dbSeeds).not.toContain('"./run"');
 
     const messages = first[OUTPUTS.messages]!;
-    expect(messages).toContain('import en_crm from "./en/crm.json";');
+    expect(messages).toContain('import en_crm from "./en/crm.json" with { type: "json" };');
     expect(messages).toContain('export const MESSAGE_LOCALES = ["en", "nl-BE"] as const;');
 
     // Writing twice gives the same bytes, and the second run rewrites nothing.

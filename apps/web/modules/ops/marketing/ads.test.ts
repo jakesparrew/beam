@@ -79,21 +79,21 @@ describe("ads pull (rule 74)", () => {
     expect(microsToCents(0)).toBe(0);
     const google = createGoogleAdsClient({
       accessToken: "test-token",
-      fetch: async () =>
-        new Response(JSON.stringify({ results: [{ campaign: { id: "42", name: "Brand" }, metrics: { costMicros: "2500000", impressions: "100", clicks: "7", conversions: 2.4 }, customer: { currencyCode: "EUR" } }] }), { status: 200 }),
+      fetch: () =>
+        Promise.resolve(new Response(JSON.stringify({ results: [{ campaign: { id: "42", name: "Brand" }, metrics: { costMicros: "2500000", impressions: "100", clicks: "7", conversions: 2.4 }, customer: { currencyCode: "EUR" } }] }), { status: 200 })),
     });
     expect(await google.getCampaignStats({ customerId: "123-456-7890", day: "2026-10-14" })).toEqual([
       { campaignId: "42", campaignName: "Brand", spendCents: 250, impressions: 100, clicks: 7, leads: 2, currency: "EUR" },
     ]);
     const meta = createMetaAdsClient({
       accessToken: "test-token",
-      fetch: async () =>
-        new Response(JSON.stringify({ data: [{ campaign_id: "9", campaign_name: "Intro", spend: "12.34", impressions: "50", clicks: "3", account_currency: "eur", actions: [{ action_type: "lead", value: "2" }] }] }), { status: 200 }),
+      fetch: () =>
+        Promise.resolve(new Response(JSON.stringify({ data: [{ campaign_id: "9", campaign_name: "Intro", spend: "12.34", impressions: "50", clicks: "3", account_currency: "eur", actions: [{ action_type: "lead", value: "2" }] }] }), { status: 200 })),
     });
     expect(await meta.getCampaignInsights({ accountId: "1", day: "2026-10-14" })).toEqual([
       { campaignId: "9", campaignName: "Intro", spendCents: 1234, impressions: 50, clicks: 3, leads: 2, currency: "EUR" },
     ]);
-    const denied = createMetaAdsClient({ accessToken: "test-token", fetch: async () => new Response("expired", { status: 401 }) });
+    const denied = createMetaAdsClient({ accessToken: "test-token", fetch: () => Promise.resolve(new Response("expired", { status: 401 })) });
     const err = await denied.getCampaignInsights({ accountId: "1", day: "2026-10-14" }).catch((e: unknown) => e);
     expect((err as IntegrationError).retryable).toBe(false);
   });

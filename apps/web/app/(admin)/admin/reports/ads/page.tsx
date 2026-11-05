@@ -25,7 +25,7 @@ export const dynamic = "force-dynamic";
 const BASE = "/admin/reports/ads";
 
 const ids = (value: FormDataEntryValue | null): string[] =>
-  [...new Set(String(value ?? "").split(/[\s,;]+/).map((s) => s.trim()).filter(Boolean))];
+  [...new Set((typeof value === "string" ? value : "").split(/[\s,;]+/).map((s) => s.trim()).filter(Boolean))];
 
 const back = (params: Record<string, string>): Route => `${BASE}?${new URLSearchParams(params).toString()}` as Route;
 

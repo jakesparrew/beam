@@ -28,7 +28,7 @@ const q = await import("./queries");
 const { getActionDashboard } = await import("../dashboard/queries");
 const { GET } = await import("@/app/(admin)/admin/reports/[report]/csv/route");
 const { createAuthSession, SESSION_COOKIE } = await import("@/lib/auth");
-const { eq, setAppDb, sql } = await import("@/lib/ctx");
+const { eq, setAppDb } = await import("@/lib/ctx");
 const { resetRuntime, staffActor } = await import("@/lib/testing");
 
 let h: DbHandle;
@@ -140,7 +140,7 @@ describe("marketing report CSVs (reports.read, data.exported)", () => {
     const res = await csv(report);
     expect(res.status).toBe(200);
     expect((await res.text()).split("\n")[0]).toContain(",");
-    const [row] = await h.db.execute(sql`select count(*)::int as n from audit_log where action = 'data.exported' and new_value->>'report' = ${report}`).then((r) => (r as unknown as { rows: { n: number }[] }).rows ?? (r as unknown as { n: number }[]));
-    expect(Number(row?.n)).toBeGreaterThan(0);
+    const audits = await h.db.select({ v: auditLog.newValue }).from(auditLog).where(eq(auditLog.action, "data.exported"));
+    expect(audits.some((a) => (a.v as { report?: string } | null)?.report === report)).toBe(true);
   });
 });

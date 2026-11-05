@@ -77,7 +77,8 @@ describe("marketing jobs, double run", () => {
   it("ops.compute_attribution without input rebuilds the oldest slice and enqueues the next one", async () => {
     const ctx = makeJobCtx(h.db, "ops.compute_attribution");
     const res = await runComputeAttribution(ctx, {});
-    expect(res).toMatchObject({ next: expect.any(String) });
+    expect(res).toHaveProperty("next");
+    expect(typeof (res as { next: unknown }).next).toBe("string");
     const [next] = await h.db.select({ key: jobs.idempotencyKey }).from(jobs).where(eq(jobs.kind, "ops.compute_attribution"));
     expect(next?.key).toMatch(/^attribution:\d{4}-\d{2}-\d{2}:run:\d{4}-\d{2}-\d{2}$/);
   });

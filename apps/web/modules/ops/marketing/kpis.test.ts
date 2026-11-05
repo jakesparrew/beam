@@ -15,7 +15,7 @@ import { makeBooking, makeCustomer, makeHistory } from "../stats/ops-p2.fixtures
 
 type DbHandle = Awaited<ReturnType<typeof createTestDb>>;
 
-vi.mock("@/modules/webinar/api", async (orig) => ({ ...(await orig<typeof import("@/modules/webinar/api")>()), getWebinarKpis: vi.fn() }));
+vi.mock("@/modules/webinar/api", async (orig) => ({ ...(await orig<Record<string, unknown>>()), getWebinarKpis: vi.fn() }));
 const { getWebinarKpis } = await import("@/modules/webinar/api");
 const { computeMarketingKpis, kpiRowsOf, previousRange } = await import("./kpis-marketing");
 

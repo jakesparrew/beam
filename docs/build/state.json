@@ -849,18 +849,26 @@
       "attempts": 0
     },
     "email-P6": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "baseSha": "9711c76",
       "runId": null,
-      "startedAt": "2026-11-05T00:01:54Z"
+      "startedAt": "2026-11-05T00:01:54Z",
+      "branchSha": "3a11c4b",
+      "endedAt": "2026-11-05T01:03:11Z",
+      "minutes": 52
     },
     "automation-P6": {
-      "status": "running",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "9711c76",
       "runId": null,
-      "startedAt": "2026-11-05T00:01:54Z"
+      "startedAt": "2026-11-05T00:01:54Z",
+      "branchSha": "4c3ee56",
+      "endedAt": "2026-11-05T00:43:31Z",
+      "minutes": 35,
+      "mergeSha": "9fcdaf4",
+      "mergedAt": "2026-11-05T01:06:49Z"
     },
     "commerce-P7": {
       "status": "merged",
@@ -939,11 +947,14 @@
       "mergedAt": "2026-11-04T18:09:17Z"
     },
     "booking-P7": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "baseSha": "9711c76",
       "runId": null,
-      "startedAt": "2026-11-05T00:01:54Z"
+      "startedAt": "2026-11-05T00:01:54Z",
+      "branchSha": "ca8b924",
+      "endedAt": "2026-11-05T01:03:11Z",
+      "minutes": 45
     },
     "automation-P7": {
       "status": "pending",
@@ -1044,11 +1055,14 @@
       "mergedAt": "2026-11-04T18:09:09Z"
     },
     "crm-P8": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "baseSha": "9711c76",
       "runId": null,
-      "startedAt": "2026-11-05T00:01:54Z"
+      "startedAt": "2026-11-05T00:01:54Z",
+      "branchSha": "6d978bc",
+      "endedAt": "2026-11-05T01:03:11Z",
+      "minutes": 42
     },
     "finance-P8": {
       "status": "pending",

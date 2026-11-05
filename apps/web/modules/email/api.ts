@@ -12,13 +12,13 @@
  * (`ctx.tx`); they never call Resend and never throw for content problems (rule 39).
  *
  * email-P7 implements `getCampaignStats` (snapshot or `v_campaign_stats`), `getEmailHealth`
- * (rule 38a) and the `PersonEmailHistory` server component for crm's person page.
+ * (rule 38a) and the `PersonEmailHistory` server component for crm's person page (in
+ * `ui/PersonEmailHistory.tsx`, see below).
  *
  * email-P8 implements `findLatestMessage` (commerce's checkout recovery attribution, R2).
  *
  * email-P9 implements `getCampaignAttribution` (R3, `v_email_attribution`).
  */
-import type { ReactElement } from "react";
 import type { DbOrTx, Tx } from "@beam/db";
 import { emailMessages, emailTemplates, emailTemplateVersions } from "@beam/db/schema";
 import type { Locale } from "@beam/core/i18n";
@@ -35,7 +35,6 @@ import type {
   TemplateKind,
 } from "@beam/core/email";
 import { and, desc, eq, gte, inArray, sql, type Ctx } from "@/lib/ctx";
-import type { PersonEmailHistoryProps } from "./ui/PersonEmailHistory";
 import * as context from "./server/context";
 import * as latestMessage from "./server/latest-message";
 import * as linkToken from "./server/link-token";
@@ -211,15 +210,11 @@ export async function getCampaignAttribution(
   return attribution.getCampaignAttribution(db, input);
 }
 
-export type { PersonEmailHistoryProps } from "./ui/PersonEmailHistory";
-
-/**
- * Server component rendered by crm as the "Emails" tab of `/admin/persons/[id]` (spec section 5,
- * rule 63): every message to the person, newest first, 50 per page, with reachability per
- * purpose and Resend for transactional messages (`persons.write`). The UI module loads when the
- * panel renders, so importing this api from jobs and other modules does not pull the UI in.
+/*
+ * The "Emails" tab of `/admin/persons/[id]` (spec section 5, rule 63) is `PersonEmailHistory` of
+ * `./ui/PersonEmailHistory`, imported by that page directly. It is not re-exported here, not even
+ * through a dynamic import: Next.js collects every client component reachable from a page's
+ * server modules (dynamic imports included) into that page's browser bundle, and this api is
+ * reached from public pages (auth, forms), so the panel's client buttons ended up in the public
+ * site's first-load JavaScript (site rule 51).
  */
-export async function PersonEmailHistory(props: PersonEmailHistoryProps): Promise<ReactElement> {
-  const ui = await import("./ui/PersonEmailHistory");
-  return ui.PersonEmailHistory(props);
-}

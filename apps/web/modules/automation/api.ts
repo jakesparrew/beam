@@ -3,7 +3,6 @@
  * implements every function; automation-P6 gives `PersonAutomationsPanel` its full panel (staff
  * controls, preview drawer, timeline with outcome filters), replacing automation-P4's interim one.
  */
-import type { ReactElement } from "react";
 import type { DbOrTx, Tx } from "@beam/db";
 import {
   automationEnrolments,
@@ -17,7 +16,6 @@ import { and, desc, enqueueJob, eq, gt, inArray, lt, sql, type Actor, type Ctx }
 import { evaluatorLagSeconds } from "./engine/cursor";
 import { enrol, IN_USE_STATUSES, loadAutomations } from "./engine/enrol";
 import { exitPersonEnrolments as exitAll } from "./engine/exits";
-import type { PersonAutomationsPanelProps } from "./ui/person-automations-panel";
 
 export type { AutomationRunOutcome, AutomationTimelineItem, EnrolResult, PersonEnrolmentSummary } from "@beam/core/automation";
 export { endEnrolment } from "./engine/exits";
@@ -193,16 +191,11 @@ export async function countAutomationIssues(
   };
 }
 
-export type { PersonAutomationsPanelProps } from "./ui/person-automations-panel";
-
-/**
- * Server component rendered by crm in the person page "Automations" tab (spec 4.7 and 5,
- * A-36 to A-41): the panel of `./ui/person-automations-panel` with its props (`{ personId }`,
- * plus `db`, `locale`, `canMove` and `now` for tests). The panel module (client dialogs and
- * their server actions) loads when the panel renders, so importing this api from jobs and other
- * modules does not pull the UI in.
+/*
+ * The person page's "Automations" panel (spec 4.7 and 5, A-36 to A-41) is
+ * `PersonAutomationsPanel` of `./ui/person-automations-panel`, imported by that page directly.
+ * It is not re-exported here, not even through a dynamic import: Next.js collects every client
+ * component reachable from a page's server modules (dynamic imports included) into that page's
+ * browser bundle, and this api is reached from public pages (email, crm, ops), so the panel's
+ * client dialogs ended up in the public site's first-load JavaScript (site rule 51).
  */
-export async function PersonAutomationsPanel(props: PersonAutomationsPanelProps): Promise<ReactElement> {
-  const ui = await import("./ui/person-automations-panel");
-  return ui.PersonAutomationsPanel(props);
-}

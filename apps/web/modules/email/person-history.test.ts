@@ -12,7 +12,7 @@ import type { DbHandle } from "@beam/db";
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: () => undefined, push: () => undefined }) }));
 
 const { resetRuntime } = await import("@/lib/testing");
-const { PersonEmailHistory } = await import("./api");
+const { PersonEmailHistory } = await import("./ui/PersonEmailHistory");
 const { listPersonEmailHistory, PERSON_HISTORY_PAGE_SIZE } = await import("./queries");
 const { consent, personWith } = await import("./email-p3.fixtures");
 const { insertMessages, templateVersion } = await import("./email-p7.fixtures");

@@ -142,7 +142,10 @@
         "force_live": "Force live",
         "force_ended": "Force ended",
         "forced": "Status changed.",
-        "cancelled_reason": "Cancelled: {reason}"
+        "cancelled_reason": "Cancelled: {reason}",
+        "host_link": "Host console",
+        "registrations_link": "Registrations",
+        "report_link": "Report"
       },
       "broadcast": {
         "title": "YouTube and Meet",
@@ -384,6 +387,93 @@
         "refreshing": "Updates every few seconds.",
         "anonymous": "Viewer",
         "at": "at {time}"
+      },
+      "report": {
+        "title": "Report: {title}",
+        "links": "Webinar pages",
+        "back": "Back to the webinar",
+        "host_link": "Host console",
+        "period": "Period",
+        "period_option": "{days} days",
+        "period_default": "{days} days (webinar default)",
+        "period_note": "Conversion within {days} days",
+        "period_hint": "Bookings and purchases count from the webinar start (from the registration for replay and on-demand registrations) until the end of the period. Each person counts once.",
+        "apply": "Show",
+        "download_report": "Download report CSV",
+        "download_registrants": "Download registrants CSV",
+        "export_ready": "The registrant export is ready (valid for 7 days).",
+        "export_download": "Download",
+        "export_failed": "The export could not be created ({error}).",
+        "empty": "No registrations yet.",
+        "detail_removed": "Watch detail removed after 2 years (retention period).",
+        "inactive": "Inactive",
+        "summary": {
+          "label": "Summary",
+          "registrations": "Registrations",
+          "live_attended": "Attended live",
+          "replay_viewers": "Watched the replay",
+          "on_demand_viewers": "Watched on demand",
+          "converted": "Converted",
+          "conversion_rate": "Conversion rate {rate}",
+          "revenue": "Revenue in the period"
+        },
+        "segments": {
+          "title": "By segment",
+          "metric": "Metric",
+          "lead": "Leads",
+          "customer": "Customers",
+          "member": "Members",
+          "total": "Total",
+          "mode_caption": "Viewing: {mode}",
+          "conversion_caption": "Conversion within {days} days"
+        },
+        "metrics": {
+          "registered": "Registered for this mode",
+          "started": "Started",
+          "attended": "Attended",
+          "watched_15m": "Watched 15 minutes",
+          "watched_30m": "Watched 30 minutes",
+          "watched_half": "Watched half",
+          "watched_end": "Watched to the end",
+          "avg_watch_minutes": "Average watch minutes",
+          "poll_responses": "Poll responses",
+          "cta_shown": "CTA shown",
+          "cta_clicked": "CTA clicked"
+        },
+        "conversion": {
+          "registrations": "Registrations",
+          "booked": "Booked",
+          "purchased": "Purchased",
+          "converted": "Booked or purchased",
+          "conversion_rate": "Conversion rate",
+          "revenue": "Revenue"
+        },
+        "polls": {
+          "title": "Poll results",
+          "empty": "This webinar has no polls.",
+          "option": "Answer",
+          "respondents": "Respondents"
+        },
+        "ctas": {
+          "title": "Calls to action",
+          "empty": "This webinar has no calls to action.",
+          "cta": "Call to action",
+          "shown": "Shown ({mode})",
+          "clicked": "Clicked ({mode})",
+          "ctr": "Click rate",
+          "booked_after": "Booked within {days} days of the click",
+          "purchased_after": "Purchased within {days} days of the click"
+        },
+        "utm": {
+          "title": "Sources (UTM)",
+          "empty": "No registrations with a source yet.",
+          "source": "Source",
+          "campaign": "Campaign",
+          "none": "(none)",
+          "registrations": "Registrations",
+          "attended": "Attended",
+          "converted": "Converted"
+        }
       }
     },
     "email": {

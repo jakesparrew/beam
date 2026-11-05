@@ -142,7 +142,10 @@
         "force_live": "Live zetten",
         "force_ended": "Als afgelopen markeren",
         "forced": "Status gewijzigd.",
-        "cancelled_reason": "Geannuleerd: {reason}"
+        "cancelled_reason": "Geannuleerd: {reason}",
+        "host_link": "Hostconsole",
+        "registrations_link": "Inschrijvingen",
+        "report_link": "Rapport"
       },
       "broadcast": {
         "title": "YouTube en Meet",
@@ -384,6 +387,93 @@
         "refreshing": "Wordt om de paar seconden bijgewerkt.",
         "anonymous": "Kijker",
         "at": "om {time}"
+      },
+      "report": {
+        "title": "Rapport: {title}",
+        "links": "Webinarpagina's",
+        "back": "Terug naar het webinar",
+        "host_link": "Hostconsole",
+        "period": "Periode",
+        "period_option": "{days} dagen",
+        "period_default": "{days} dagen (standaard van het webinar)",
+        "period_note": "Conversie binnen {days} dagen",
+        "period_hint": "Boekingen en aankopen tellen vanaf de start van het webinar (vanaf de inschrijving voor herbekijken en on demand) tot het einde van de periode. Elke persoon telt één keer.",
+        "apply": "Tonen",
+        "download_report": "Rapport downloaden (CSV)",
+        "download_registrants": "Inschrijvingen downloaden (CSV)",
+        "export_ready": "De export van de inschrijvingen is klaar (7 dagen geldig).",
+        "export_download": "Downloaden",
+        "export_failed": "De export kon niet worden gemaakt ({error}).",
+        "empty": "Nog geen inschrijvingen.",
+        "detail_removed": "Kijkdetails verwijderd na 2 jaar (bewaartermijn).",
+        "inactive": "Inactief",
+        "summary": {
+          "label": "Samenvatting",
+          "registrations": "Inschrijvingen",
+          "live_attended": "Live bijgewoond",
+          "replay_viewers": "Herbekeken",
+          "on_demand_viewers": "On demand bekeken",
+          "converted": "Geconverteerd",
+          "conversion_rate": "Conversieratio {rate}",
+          "revenue": "Omzet in de periode"
+        },
+        "segments": {
+          "title": "Per segment",
+          "metric": "Meetwaarde",
+          "lead": "Leads",
+          "customer": "Klanten",
+          "member": "Leden",
+          "total": "Totaal",
+          "mode_caption": "Bekeken: {mode}",
+          "conversion_caption": "Conversie binnen {days} dagen"
+        },
+        "metrics": {
+          "registered": "Ingeschreven voor deze modus",
+          "started": "Gestart",
+          "attended": "Bijgewoond",
+          "watched_15m": "15 minuten bekeken",
+          "watched_30m": "30 minuten bekeken",
+          "watched_half": "De helft bekeken",
+          "watched_end": "Tot het einde bekeken",
+          "avg_watch_minutes": "Gemiddelde kijkminuten",
+          "poll_responses": "Antwoorden op polls",
+          "cta_shown": "CTA getoond",
+          "cta_clicked": "CTA aangeklikt"
+        },
+        "conversion": {
+          "registrations": "Inschrijvingen",
+          "booked": "Geboekt",
+          "purchased": "Gekocht",
+          "converted": "Geboekt of gekocht",
+          "conversion_rate": "Conversieratio",
+          "revenue": "Omzet"
+        },
+        "polls": {
+          "title": "Pollresultaten",
+          "empty": "Dit webinar heeft geen polls.",
+          "option": "Antwoord",
+          "respondents": "Deelnemers"
+        },
+        "ctas": {
+          "title": "Calls to action",
+          "empty": "Dit webinar heeft geen calls to action.",
+          "cta": "Call to action",
+          "shown": "Getoond ({mode})",
+          "clicked": "Aangeklikt ({mode})",
+          "ctr": "Klikratio",
+          "booked_after": "Geboekt binnen {days} dagen na de klik",
+          "purchased_after": "Gekocht binnen {days} dagen na de klik"
+        },
+        "utm": {
+          "title": "Bronnen (UTM)",
+          "empty": "Nog geen inschrijvingen met een bron.",
+          "source": "Bron",
+          "campaign": "Campagne",
+          "none": "(geen)",
+          "registrations": "Inschrijvingen",
+          "attended": "Bijgewoond",
+          "converted": "Geconverteerd"
+        }
       }
     },
     "email": {

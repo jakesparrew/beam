@@ -31,6 +31,10 @@ export type ActionCardLabels = {
   taskExists: string;
   openList: string;
   openPerson: string;
+  /** Rule 29: the second figure shown apart from `count` (`ops.dashboard.card.<key>.secondary`), when the card has one. */
+  secondary?: string;
+  /** Rule 31: the label of the link to the screen that owns the card's list (`ops.dashboard.card.<key>.review`). */
+  link?: string;
   /** Fallback message, and the per-code messages of `platform.errors.*`. */
   error: string;
   errors: Partial<Record<string, string>>;
@@ -44,6 +48,7 @@ export function ActionCard({
   rows,
   canCreateTask,
   listHref,
+  linkHref,
   labels,
 }: {
   cardKey: ActionCardKey;
@@ -51,6 +56,8 @@ export function ActionCard({
   rows: ActionCardRowView[];
   canCreateTask: boolean;
   listHref: Route | { pathname: Route; query: Record<string, string> } | null;
+  /** The screen of another module where the card's list is worked on (rule 31), shown with `labels.link`. */
+  linkHref?: Route | null;
   labels: ActionCardLabels;
 }) {
   const [state, setState] = useState<Record<string, RowState>>({});
@@ -75,6 +82,11 @@ export function ActionCard({
         </CardAction>
       </CardHeader>
       <CardContent className="grid gap-2">
+        {labels.secondary ? (
+          <p className="text-sm text-muted-foreground" data-testid="action-card-secondary">
+            {labels.secondary}
+          </p>
+        ) : null}
         {rows.length === 0 ? (
           <p className="text-sm text-muted-foreground">{labels.empty}</p>
         ) : (
@@ -127,6 +139,11 @@ export function ActionCard({
         {listHref && count > rows.length ? (
           <Link href={listHref} className="text-sm font-medium underline-offset-4 hover:underline focus-visible:underline">
             {labels.openList}
+          </Link>
+        ) : null}
+        {linkHref && labels.link ? (
+          <Link href={linkHref} className="text-sm font-medium underline-offset-4 hover:underline focus-visible:underline" data-testid="action-card-link">
+            {labels.link}
           </Link>
         ) : null}
       </CardContent>

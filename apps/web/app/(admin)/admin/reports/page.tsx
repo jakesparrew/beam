@@ -1,17 +1,18 @@
 import Link from "next/link";
-import { listReportPages, staffReadCtx } from "@/modules/ops/reports/queries";
+import { listReportPages, reportFlagsOn, staffReadCtx } from "@/modules/ops/reports/queries";
 import { translator } from "@/lib/i18n";
 
 /**
  * `/admin/reports` (ops spec 5, `reports.read`): the reports the user may open. V1 has the
- * revenue report; the R2 and R3 report packages add their pages to `REPORT_PAGES`.
+ * revenue report; the R2 retention reports (`ff_ops_retention`) and the R3 marketing reports
+ * (`ff_ops_marketing`) are listed while their flag is on.
  */
 export const dynamic = "force-dynamic";
 
 export default async function ReportsPage() {
   const ctx = await staffReadCtx({ permission: "reports.read" });
   const tr = translator(ctx.locale);
-  const pages = listReportPages(ctx);
+  const pages = listReportPages(ctx, await reportFlagsOn(ctx));
   return (
     <div className="grid gap-6">
       <div className="grid gap-1">

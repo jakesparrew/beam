@@ -110,6 +110,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                     ? null
                     : { pathname: "/admin/dashboard", query: view === "week" ? { view, card: card.key } : { card: card.key } }
               }
+              linkHref={card.linkHref ? (card.linkHref as Route) : null}
               labels={{
                 title: tr(`ops.dashboard.card.${card.key}.title`),
                 count: tr("ops.dashboard.count", { count: card.count }),
@@ -119,6 +120,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                 taskExists: tr("ops.dashboard.task_exists"),
                 openList: tr("ops.dashboard.open_list"),
                 openPerson: tr("ops.common.open_person"),
+                secondary: card.secondary ? tr(`ops.dashboard.card.${card.key}.secondary`, { count: card.secondary.count }) : undefined,
+                link: card.linkHref ? tr(`ops.dashboard.card.${card.key}.review`) : undefined,
                 error: tr("platform.errors.internal", { requestId: "-" }),
                 errors,
               }}

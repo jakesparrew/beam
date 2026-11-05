@@ -8,9 +8,10 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import type { Db, DbHandle } from "@beam/db";
 import { featureFlags, managementSummaries } from "@beam/db/schema";
 import { createTestDb, makeUser } from "@beam/db/testing";
+import type * as AiLib from "@/lib/ai";
 
 vi.mock("@/lib/ai", async (orig) => {
-  const real = await orig<typeof import("@/lib/ai")>();
+  const real = await orig<typeof AiLib>();
   return { ...real, checkAiBatchBudget: vi.fn(real.checkAiBatchBudget), logAiBatchRequests: vi.fn(real.logAiBatchRequests) };
 });
 

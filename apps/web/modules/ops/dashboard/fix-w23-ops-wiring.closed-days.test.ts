@@ -11,9 +11,10 @@ import { sessionExceptions } from "@beam/db/schema";
 import { createTestDb } from "@beam/db/testing";
 import { DEFAULT_BUSINESS_HOURS } from "@beam/core/booking";
 import { nextBusinessDay } from "@beam/core/ops";
+import type * as BookingApi from "@/modules/booking/api";
 
 vi.mock("@/modules/booking/api", async (orig) => {
-  const real = await orig<typeof import("@/modules/booking/api")>();
+  const real = await orig<typeof BookingApi>();
   return { ...real, listClosedDays: vi.fn(real.listClosedDays) };
 });
 

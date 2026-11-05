@@ -100,7 +100,7 @@ async function adsLines(db: DbOrTx, now: Date): Promise<string[] | null> {
 /** Rule 74: one Normal alert when an ads account has had no successful pull for `ADS_STALE_DAYS` days. */
 async function alertStaleAds(ctx: Ctx): Promise<void> {
   let stale: StaleAdsAccount[] | null;
-  let asOf: string | null = null;
+  let asOf: string | null;
   try {
     [stale, asOf] = await ctx.tx.transaction(async (sp) => [await staleAds(sp, ctx.now), await adsDataAsOf(sp)] as const);
   } catch (error) {

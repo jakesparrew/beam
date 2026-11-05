@@ -13,6 +13,7 @@ import { featureFlags, roles } from "@beam/db/schema";
 import { createTestDb, makeUser } from "@beam/db/testing";
 import { LOCALES } from "@beam/core/i18n";
 import type { ActionCard as ActionCardData } from "./cards";
+import type * as DashboardQueries from "./queries";
 
 const jar = new Map<string, string>();
 vi.mock("next/headers", () => ({
@@ -37,8 +38,8 @@ vi.mock("next/navigation", () => ({
 
 const dashboardCards: { value: ActionCardData[] } = { value: [] };
 vi.mock("./queries", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("./queries")>()),
-  getActionDashboard: vi.fn(async () => dashboardCards.value),
+  ...(await importOriginal<typeof DashboardQueries>()),
+  getActionDashboard: vi.fn(() => Promise.resolve(dashboardCards.value)),
 }));
 
 const { createAuthSession, SESSION_COOKIE } = await import("@/lib/auth");

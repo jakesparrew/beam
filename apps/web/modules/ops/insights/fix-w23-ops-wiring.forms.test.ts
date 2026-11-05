@@ -10,11 +10,12 @@ import type { DbHandle } from "@beam/db";
 import { checkDashboardDefinition, FORMS_KPI_KEYS, KPI_GROUPS, KPI_REGISTRY } from "@beam/core/ops";
 import { LOCALES } from "@beam/core/i18n";
 import { createTestDb } from "@beam/db/testing";
+import type * as FormsApi from "@/modules/forms/api";
 
 vi.mock("@/modules/forms/api", async (orig) => ({ ...(await orig<Record<string, unknown>>()), loadFormsDashboardSource: vi.fn() }));
 
 const forms = await import("@/modules/forms/api");
-const actual = await vi.importActual<typeof import("@/modules/forms/api")>("@/modules/forms/api");
+const actual = await vi.importActual<typeof FormsApi>("@/modules/forms/api");
 const { translator } = await import("@/lib/i18n");
 const { resetRuntime, staffActor } = await import("@/lib/testing");
 const { evaluateKpi } = await import("./evaluate-kpi");
@@ -54,7 +55,7 @@ afterAll(async () => {
   await h.close();
 });
 beforeEach(() => {
-  load.mockReset().mockImplementation(async (_db, key) => (key === "forms.funnel" ? FUNNEL : key === "forms.outcomes" ? OUTCOMES : CONVERSION) as never);
+  load.mockReset().mockImplementation((_db, key) => Promise.resolve((key === "forms.funnel" ? FUNNEL : key === "forms.outcomes" ? OUTCOMES : CONVERSION) as never));
 });
 
 describe("KPI_REGISTRY offers forms' widget sources", () => {
@@ -135,7 +136,7 @@ describe("evaluateKpi loads forms' sources through @/modules/forms/api", () => {
   });
 
   it("evaluates on an empty database with forms' real sources", async () => {
-    load.mockImplementation(actual.loadFormsDashboardSource as never);
+    load.mockImplementation(actual.loadFormsDashboardSource);
     const results = await evaluateDashboard(
       ctxWith(),
       {

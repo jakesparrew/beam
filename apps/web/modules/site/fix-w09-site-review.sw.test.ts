@@ -10,7 +10,7 @@ type Matcher = (o: { request: { mode: string; destination: string }; url: URL; s
 type Route = { matcher: Matcher; handler: { kind: string; cacheName?: string } };
 type ActivateListener = (event: { waitUntil(p: Promise<unknown>): void }) => void;
 
-const state = vi.hoisted(() => ({ runtimeCaching: [] as unknown[], listeners: new Map<string, unknown>() }));
+const state = vi.hoisted(() => ({ runtimeCaching: [] as unknown[], navigationPreload: undefined as boolean | undefined, listeners: new Map<string, unknown>() }));
 
 vi.mock("serwist", () => {
   const strategy = (kind: string) =>
@@ -28,8 +28,9 @@ vi.mock("serwist", () => {
     StaleWhileRevalidate: strategy("StaleWhileRevalidate"),
     ExpirationPlugin: class {},
     Serwist: class {
-      constructor(config: { runtimeCaching: unknown[] }) {
+      constructor(config: { runtimeCaching: unknown[]; navigationPreload?: boolean }) {
         state.runtimeCaching = config.runtimeCaching;
+        state.navigationPreload = config.navigationPreload;
       }
       addEventListeners() {}
     },
@@ -56,6 +57,12 @@ function handlerFor(path: string): string | null {
 }
 
 describe("service worker navigations", () => {
+  it("keeps navigation preload off, so a GET with a side effect (a magic link) is sent once", () => {
+    // With preload on, the browser preloads every navigation, /api/* included, and fetches it again
+    // when no route answers: the magic-link callback consumed its token twice (final e2e gate).
+    expect(state.navigationPreload).not.toBe(true);
+  });
+
   it("never caches personal pages (network-only)", () => {
     for (const path of [
       "/nl/account",

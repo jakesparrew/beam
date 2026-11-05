@@ -40,7 +40,11 @@ const serwist = new Serwist({
   precacheEntries: [...(self.__SW_MANIFEST ?? []), ...PREFIXES.map((p) => ({ url: `/${p}/offline`, revision: OFFLINE_REVISION }))],
   skipWaiting: true,
   clientsClaim: true,
-  navigationPreload: true,
+  // Off on purpose: with preload on, the browser sends a preload request for every navigation the
+  // worker controls, including /api/* that no route here answers, and then fetches the URL again.
+  // Every GET with a side effect ran twice: a magic link was consumed by the first request and the
+  // second ended on error=Verification (final e2e gate). Pages lose only the preload head start.
+  navigationPreload: false,
   runtimeCaching: [
     {
       matcher: ({ url, sameOrigin }: RouteMatchCallbackOptions) => sameOrigin && url.pathname.startsWith("/_next/static/"),

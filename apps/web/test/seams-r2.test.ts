@@ -556,7 +556,7 @@ describe("one home for the step executor (PL-96)", () => {
       for (const name of names) {
         if (SKIP.has(name)) continue;
         const full = path.join(dir, name);
-        let isDir = false;
+        let isDir: boolean;
         try {
           isDir = statSync(full).isDirectory();
         } catch {

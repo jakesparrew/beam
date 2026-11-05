@@ -635,6 +635,43 @@
     "blocks": {
       "event_opens_for_you": "Ouvert pour vous le {date}",
       "event_view": "Voir l'événement"
+    },
+    "ai": {
+      "tab_manual": "Commencer manuellement",
+      "tab_ai": "Rédiger avec l'IA",
+      "intro": "Décrivez la campagne. Claude rédige l'objet, le pré-en-tête et le contenu en néerlandais, français et anglais à partir du ton de BEAM, des campagnes précédentes et des événements choisis. Vous relisez et modifiez tout ; rien n'est planifié automatiquement.",
+      "brief": "Brief",
+      "brief_hint": "De quoi parle la campagne, à qui s'adresse-t-elle et que doivent faire les lecteurs ? De 10 à 4 000 caractères. N'indiquez aucune donnée personnelle.",
+      "purpose": "Objectif",
+      "sessions": "Événements (3 au maximum)",
+      "sessions_none": "Aucun événement à venir",
+      "segment": "Suggestion de segment",
+      "segment_none": "Aucune préférence",
+      "request": "Demander un brouillon IA",
+      "requested": "Brouillon demandé. Il est généralement prêt en moins d'une minute.",
+      "drafts_title": "Vos brouillons IA",
+      "drafts_empty": "Aucun brouillon IA pour l'instant",
+      "status_queued": "Rédaction en cours…",
+      "status_ready": "Prêt à relire",
+      "status_failed": "Échec",
+      "status_accepted": "Accepté",
+      "status_discarded": "Rejeté",
+      "unavailable": "IA indisponible, rédigez manuellement",
+      "error_budget": "Le budget IA mensuel est épuisé. Rédigez cette campagne manuellement.",
+      "subject": "Objet",
+      "preheader": "Pré-en-tête",
+      "suggested_segment": "Public suggéré",
+      "suggested_send_at": "Moment d'envoi suggéré",
+      "notes": "Points à vérifier",
+      "blocks": "Blocs de contenu",
+      "campaign_name": "Nom de la campagne",
+      "accept": "Créer une campagne brouillon",
+      "accept_note": "Crée une campagne brouillon modifiable. La planification reste une étape distincte.",
+      "discard": "Rejeter",
+      "open_campaign": "Ouvrir la campagne",
+      "refresh": "Actualiser",
+      "no_permission": "La rédaction avec l'IA nécessite l'autorisation IA (ai.use).",
+      "error_generic": "Une erreur s'est produite. Réessayez."
     }
   }
 }

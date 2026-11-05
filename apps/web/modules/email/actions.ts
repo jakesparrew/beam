@@ -35,6 +35,12 @@
  * - `cancelScheduledMessage` (`email.send`): rule 59 for a `queued` message with a future
  *   `send_at`. Audited `email.message_cancel`.
  * - `exportCampaignReport` (`reports.read` or `email.write`, read-only): the report's CSV.
+ *
+ * email-P10, R4 AI drafts (`server/ai-draft.ts`; each handler audits itself):
+ * - `requestAiDraft` (`email.write` + `ai.use`): queues an `ai.draft_email` job for a brief.
+ * - `acceptAiDraft` (`email.write` + `ai.use`): a ready draft becomes a `draft` campaign with the
+ *   AI content in its template's draft version; never scheduled.
+ * - `discardAiDraft` (`email.write`).
  */
 import { z } from "zod";
 import {
@@ -83,6 +89,7 @@ import {
   unscheduleCampaignRecord,
   updateCampaignRecord,
 } from "./server/campaigns";
+import { AcceptAiDraftInput, acceptAiDraftRecord, DiscardAiDraftInput, discardAiDraftRecord, RequestAiDraftInput, requestAiDraftRecord } from "./server/ai-draft";
 import { getAudienceEstimate } from "./server/plan";
 import {
   archiveTemplateRecord,
@@ -327,4 +334,23 @@ export const exportCampaignReport = action(
     filename: `campaign-${input.campaignId}.csv`,
     csv: await campaignReportCsv(ctx.tx, input.campaignId),
   }),
+);
+
+// ---------------------------------------------------------------------------
+// AI drafts (email-P10, R4). The wrapper checks `email.write`; the handlers require `ai.use`.
+// ---------------------------------------------------------------------------
+
+export const requestAiDraft = action(
+  { name: "email.ai_draft_request", audience: "staff", permission: "email.write", input: RequestAiDraftInput, audit: false },
+  async (ctx, input): Promise<{ draftId: string }> => ({ draftId: (await requestAiDraftRecord(ctx, input)).draftId }),
+);
+
+export const acceptAiDraft = action(
+  { name: "email.ai_draft_accept", audience: "staff", permission: "email.write", input: AcceptAiDraftInput, audit: false },
+  (ctx, input) => acceptAiDraftRecord(ctx, input),
+);
+
+export const discardAiDraft = action(
+  { name: "email.ai_draft_discard", audience: "staff", permission: "email.write", input: DiscardAiDraftInput, audit: false },
+  (ctx, input) => discardAiDraftRecord(ctx, input),
 );

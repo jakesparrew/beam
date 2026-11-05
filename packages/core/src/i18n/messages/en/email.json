@@ -635,6 +635,43 @@
     "blocks": {
       "event_opens_for_you": "Opens for you on {date}",
       "event_view": "View the event"
+    },
+    "ai": {
+      "tab_manual": "Start manually",
+      "tab_ai": "Draft with AI",
+      "intro": "Describe the campaign. Claude drafts the subject, preheader and content in Dutch, French and English from BEAM's tone of voice, earlier campaigns and the events you pick. You review and edit everything; nothing is scheduled automatically.",
+      "brief": "Brief",
+      "brief_hint": "What is the campaign about, who is it for and what should readers do? 10 to 4,000 characters. Do not include personal data.",
+      "purpose": "Purpose",
+      "sessions": "Events (up to 3)",
+      "sessions_none": "No upcoming events",
+      "segment": "Segment hint",
+      "segment_none": "No preference",
+      "request": "Request AI draft",
+      "requested": "Draft requested. It is usually ready within a minute.",
+      "drafts_title": "Your AI drafts",
+      "drafts_empty": "No AI drafts yet",
+      "status_queued": "Drafting…",
+      "status_ready": "Ready for review",
+      "status_failed": "Failed",
+      "status_accepted": "Accepted",
+      "status_discarded": "Discarded",
+      "unavailable": "AI unavailable, write manually",
+      "error_budget": "The monthly AI budget is used up. Write this campaign manually.",
+      "subject": "Subject",
+      "preheader": "Preheader",
+      "suggested_segment": "Suggested audience",
+      "suggested_send_at": "Suggested send time",
+      "notes": "Notes for review",
+      "blocks": "Content blocks",
+      "campaign_name": "Campaign name",
+      "accept": "Create draft campaign",
+      "accept_note": "Creates a draft campaign you can edit. Scheduling stays a separate step.",
+      "discard": "Discard",
+      "open_campaign": "Open campaign",
+      "refresh": "Refresh",
+      "no_permission": "Drafting with AI needs the AI permission (ai.use).",
+      "error_generic": "Something went wrong. Try again."
     }
   }
 }

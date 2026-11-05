@@ -24,7 +24,6 @@
 import { z } from "zod";
 import type { DbOrTx } from "@beam/db";
 import { campaigns, emailAiDrafts, emailTemplates, emailTemplateVersions, type EmailAiDraftInputs } from "@beam/db/schema";
-import { MARKETING_PURPOSES, type MarketingPurpose } from "@beam/core/email";
 import { PermanentError, RetryableError } from "@beam/core/errors";
 import { LOCALES } from "@beam/core/i18n";
 import { callClaude } from "@/lib/ai";
@@ -45,7 +44,9 @@ import {
   type DraftPreviousCampaign,
   type DraftSegmentAggregate,
   type DraftSession,
-} from "../../../../../packages/core/src/email/ai";
+  MARKETING_PURPOSES,
+  type MarketingPurpose,
+} from "@beam/core/email";
 import { campaignVersionPatch, createCampaignRecord, lockCampaign } from "./campaigns";
 import { getCampaignStats } from "./reports";
 import { draftVersionOf, saveTemplateDraftRecord, versionById } from "./templates";

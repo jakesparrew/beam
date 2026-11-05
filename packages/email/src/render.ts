@@ -21,7 +21,7 @@ import { PermanentError } from "@beam/core/errors";
 import { MissingMessageError, MissingTranslationError, t, type Locale, type LocalizedText } from "@beam/core/i18n";
 import { compileMarketing, DEFAULT_VARIANT, selectVariant, type VariantPath, type VariantRecipient } from "./blocks/compile";
 import { personalise, type TokenValues } from "./blocks/personalise";
-import type { ResolveCards } from "./blocks/to-mjml";
+import type { ResolveCards, ResolveWebinars } from "./blocks/to-mjml";
 import { EmailFooterContext } from "./layout";
 import type { Brand } from "./layout/brand";
 import type { FooterParts } from "./layout/footer";
@@ -64,6 +64,8 @@ export type BlocksRenderInput = {
   footer?: FooterParts | null;
   brand?: Brand;
   resolveCards?: ResolveCards;
+  /** R2: webinar cards when compiling on the fly (`webinar.getWebinarCards` bound to the transaction). */
+  webinars?: ResolveWebinars;
   values?: TokenValues;
 };
 
@@ -187,6 +189,7 @@ async function renderBlocks(input: BlocksRenderInput): Promise<RenderedEmail> {
     ...(preheader ? { preheader } : {}),
     ...(input.brand ? { brand: input.brand } : {}),
     ...(input.resolveCards ? { resolveCards: input.resolveCards } : {}),
+    ...(input.webinars ? { webinars: input.webinars } : {}),
   });
   const path = pickVariant(Object.keys(compiled.variants));
   const variant = compiled.variants[path];

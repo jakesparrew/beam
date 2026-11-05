@@ -48,7 +48,7 @@ import { actorHasPermission, and, ConflictError, desc, eq, inArray, NotFoundErro
 import { isTemplateInUse } from "@/modules/automation/api";
 import { loadSendSettings } from "./context";
 import { mergeFieldNames, mergeFieldProblems } from "./merge-fields";
-import { resolveCardsFor, templateFooter, type PreviewWarning } from "./preview";
+import { resolveCardsFor, templateFooter, webinarCardsFor, type PreviewWarning } from "./preview";
 import { queueMessage, SEND_PRIORITY } from "./send";
 import { registryTemplate, type TemplateRow, type VersionRow } from "./templates-info";
 
@@ -319,6 +319,7 @@ async function compileForPublish(
       const result = await compileMarketing(draft.document!, locale, {
         footer,
         resolveCards: resolveCardsFor(tx, locale, now),
+        webinars: webinarCardsFor(tx),
         ...(subject ? { subject } : {}),
         ...(preheader ? { preheader } : {}),
       });

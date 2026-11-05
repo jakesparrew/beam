@@ -10,6 +10,8 @@ import { buildFooter, DEFAULT_FOOTER_SETTINGS } from "../layout/footer";
 import { compileDocument, compileMarketing } from "./compile";
 import { blocksToMjml, cardRefs, type ResolvedCards, type WebinarCard } from "./to-mjml";
 import { blocksToText } from "./to-text";
+import { checkAccessibility } from "./a11y";
+import * as blocksIndex from "./index";
 
 const WEBINAR = "44444444-4444-4444-8444-444444444444";
 const MISSING = "55555555-5555-4555-8555-555555555555";
@@ -73,7 +75,7 @@ describe("webinar block: render", () => {
     expect(html).toContain("Save my seat");
     expect(text).toContain("Sleep better in winter");
     expect(text).toContain("Save my seat (https://beam.be/en/webinars/sleep-better)");
-    expect(result.warnings.map((w) => w.code)).not.toContain("event_unavailable");
+    expect(result.warnings.map((w) => w.code)).not.toContain("webinar_unavailable");
   });
 
   it("formats the date in the recipient's locale", async () => {
@@ -114,7 +116,7 @@ describe("webinar block: missing webinar", () => {
     expect(html).toContain("Our next online session.");
     expect(html).not.toContain("Save my seat");
     expect(text).not.toContain("Save my seat");
-    expect(result.warnings).toContainEqual(expect.objectContaining({ code: "event_unavailable", blockId: "wb00000001", detail: MISSING }));
+    expect(result.warnings).toContainEqual(expect.objectContaining({ code: "webinar_unavailable", blockId: "wb00000001", detail: MISSING }));
   });
 
   it("renders nothing without any webinar cards (no loader given)", () => {
@@ -128,5 +130,22 @@ describe("webinar block: missing webinar", () => {
     ];
     const result = await compileMarketing(doc(blocks), "en", { footer: footerFor("en"), webinars: () => Promise.resolve([]) });
     expect(result.variants.default!.html).toContain("Right.");
+  });
+});
+
+describe("webinar block: checks and exports (request email-P8)", () => {
+  it("a vague webinar CTA is a vague_link_text warning; a clear one is not", () => {
+    const vague = checkAccessibility(doc([{ ...webinarBlock(), ctaLabel: "Klik hier" }]), "en");
+    expect(vague).toContainEqual(expect.objectContaining({ code: "vague_link_text", blockId: "wb00000001", detail: "Klik hier" }));
+    expect(checkAccessibility(doc([webinarBlock()]), "en").map((w) => w.code)).not.toContain("vague_link_text");
+  });
+
+  it("@beam/email/blocks re-exports the lead-window helpers", () => {
+    expect(blocksIndex.LEAD_WINDOW_KEY).toBe("lead_window");
+    expect(blocksIndex.hasLeadWindowEvent([{ id: "ev00000001", type: "event", sessionId: WEBINAR, ctaLabel: "Book", showLeadWindow: true }])).toBe(true);
+    expect(blocksIndex.hasLeadWindowEvent([webinarBlock()])).toBe(false);
+    const typed: blocksIndex.WebinarCard = card();
+    const resolve: blocksIndex.ResolveWebinars = () => [typed];
+    expect(resolve([WEBINAR], "en")).toEqual([typed]);
   });
 });

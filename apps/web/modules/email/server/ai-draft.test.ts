@@ -30,7 +30,7 @@ vi.mock("next/headers", () => ({
 vi.mock("next/server", () => ({ after: () => undefined }));
 
 const draftApi = await import("./ai-draft");
-const { buildDraftPrompt, AiCampaignDraftSchema, draftDocumentIssues } = await import("../../../../../packages/core/src/email/ai");
+const { buildDraftPrompt, AiCampaignDraftSchema, draftDocumentIssues } = await import("@beam/core/email");
 const actions = await import("../actions");
 const { listAiDrafts } = await import("../queries");
 const { EMAIL_BRAND_DEFAULTS, insertEmailBrandDefaults } = await import("@beam/db/seed/email");

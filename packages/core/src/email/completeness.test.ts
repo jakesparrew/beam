@@ -26,6 +26,12 @@ const doc = (enHeading: string): BlockDocument => ({
 });
 
 describe("templateCompleteness", () => {
+  it("requires the webinar block's CTA label (request email-P8)", () => {
+    const webinar = (ctaLabel: string) => ({ id: "web0000001", type: "webinar" as const, webinarId: "44444444-4444-4444-8444-444444444444", ctaLabel });
+    const d: BlockDocument = { schemaVersion: 1, locales: { "nl-BE": [webinar("Inschrijven")], "fr-BE": [webinar("  ")], en: [webinar("Save my seat")] } };
+    expect(completenessIssues(templateCompleteness({ subject: full, preheader: full, document: d }))).toEqual(["fr-BE:blocks.web0000001.ctaLabel"]);
+  });
+
   it("lists a missing subject and preheader per locale", () => {
     const result = templateCompleteness({ subject: { "nl-BE": "Hallo", en: "  " }, preheader: full, copy: null, document: null });
     expect(result).toEqual([

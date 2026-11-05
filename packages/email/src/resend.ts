@@ -4,7 +4,10 @@
  *
  * - Marketing messages carry `List-Unsubscribe: <oneClickPostUrl>` and
  *   `List-Unsubscribe-Post: List-Unsubscribe=One-Click` (RFC 8058, https only, no mailto);
- *   transactional messages carry neither, whatever the caller passes.
+ *   transactional messages carry neither, whatever the caller passes. Outside production
+ *   (`allowLocalhost`) or with the sink rewrite, an `http://localhost` (or loopback) one-click
+ *   URL is accepted too, so local and e2e runs (`APP_URL=http://localhost:3100`) can send
+ *   marketing mail; production always requires https.
  * - Every message has an HTML and a text part, else `PermanentError('missing_text_part')`.
  * - Tags: `message_id`, `kind` and `campaign_id` when present.
  * - Outside production the sink rewrite sends to `EMAIL_SINK` and prefixes the subject with
@@ -53,7 +56,21 @@ export type BuildOutgoingOptions = {
   listUnsubscribe?: { oneClickPostUrl: string } | null;
   /** Outside production: every recipient goes to the sink and the subject names the real address. */
   sinkRewrite?: { sink: string; env: string } | null;
+  /** Outside production: accept an `http://localhost` (loopback) one-click URL (also implied by `sinkRewrite`). */
+  allowLocalhost?: boolean;
 };
+
+/** An `http://` URL on a loopback host: `localhost`, `*.localhost`, `127.x.x.x` or `[::1]`. */
+export function isLoopbackHttpUrl(url: string): boolean {
+  if (!/^http:\/\/[^\s<>]+$/.test(url)) return false;
+  let host: string;
+  try {
+    host = new URL(url).hostname.toLowerCase();
+  } catch {
+    return false;
+  }
+  return host === "localhost" || host.endsWith(".localhost") || /^127(\.\d{1,3}){3}$/.test(host) || host === "[::1]";
+}
 
 export const LIST_UNSUBSCRIBE_POST = "List-Unsubscribe=One-Click";
 
@@ -79,7 +96,8 @@ export function buildOutgoingEmail(msg: OutgoingMessage, options: BuildOutgoingO
   if (options.kind === "marketing") {
     const url = options.listUnsubscribe?.oneClickPostUrl?.trim();
     if (!url) throw new PermanentError("list_unsubscribe_missing");
-    if (!/^https:\/\/[^\s<>]+$/.test(url)) throw new PermanentError("list_unsubscribe_not_https");
+    const local = (options.allowLocalhost === true || !!options.sinkRewrite?.sink?.trim()) && isLoopbackHttpUrl(url);
+    if (!/^https:\/\/[^\s<>]+$/.test(url) && !local) throw new PermanentError("list_unsubscribe_not_https");
     headers["List-Unsubscribe"] = `<${url}>`;
     headers["List-Unsubscribe-Post"] = LIST_UNSUBSCRIBE_POST;
   }

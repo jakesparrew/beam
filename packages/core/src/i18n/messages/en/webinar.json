@@ -408,6 +408,14 @@
         "rate_limited": "Too many attempts. Try again in a minute.",
         "invalid": "Enter a valid email address.",
         "back": "Back to the webinar"
+      },
+      "token": {
+        "greeting": "Welcome, {name}.",
+        "not_you": "Not you?",
+        "invalid_title": "This link is no longer valid",
+        "invalid_body": "Your personal link was replaced or no longer works. Request a new link with your email address.",
+        "request_link": "Get a new link",
+        "all_webinars": "All webinars"
       }
     },
     "register": {
@@ -457,6 +465,50 @@
         "register": "Register",
         "error": "This did not work. Try again."
       }
+    },
+    "player": {
+      "notice": {
+        "title": "Before the video loads",
+        "body": "The video is played by YouTube (Google). When you load it, Google receives your IP address and device data and may store data on your device. BEAM never sends Google your name, email address, answers or messages.",
+        "accept": "Load the video",
+        "privacy_link": "Read our privacy notice"
+      },
+      "loading": "Loading the video…",
+      "countdown": "The webinar starts in {time}.",
+      "waiting": "Waiting for the host. The webinar starts any moment now.",
+      "mode": {
+        "live": "Live",
+        "replay": "Replay",
+        "on_demand": "On demand"
+      },
+      "now_watching": "The video is ready. Press play to start.",
+      "refusal": {
+        "ended": "This webinar has ended. There is no replay.",
+        "expired": "Your access to this video has ended.",
+        "limit_reached": "You have used all your views of this replay.",
+        "blocked": "You can no longer watch this webinar.",
+        "cancelled": "Your registration for this webinar is cancelled.",
+        "unauthorized": "Sign in to watch this webinar.",
+        "invalid_token": "This link is no longer valid.",
+        "not_registered": "You are not registered for this webinar.",
+        "error": "Something went wrong. Reload the page to try again."
+      },
+      "contact": "Questions? Contact us.",
+      "captions_on": "Turn captions on",
+      "captions_off": "Turn captions off",
+      "play": "Play",
+      "pause": "Pause",
+      "error": "The video could not be played here.",
+      "fallback_link": "Watch on youtube.com",
+      "fallback_note": "This link leaves BEAM.",
+      "reloading": "The webinar changed. Loading the new view…",
+      "simulated": "Test player (no YouTube)",
+      "position": "Position {time}",
+      "views_left": "Views left: {count}",
+      "page_title": "Watch the webinar",
+      "back": "My webinars",
+      "register_title": "Register to watch",
+      "register_body": "You are not registered for this webinar yet."
     }
   }
 }

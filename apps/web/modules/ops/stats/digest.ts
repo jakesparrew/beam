@@ -3,6 +3,12 @@
  * about the previous Brussels day. Each source runs in its own savepoint and `try`; a failing
  * source prints "unavailable" for its section, is reported to Sentry, and the rest still posts.
  * Ids, slugs, keys and counts only: never a name, an email address or a phone number.
+ *
+ * R2 (ops-P7): the webinars of the next 48 hours from webinar's `listUpcomingWebinarHealth`, one
+ * line per webinar in start order with its id and states only (mode, YouTube lifecycle,
+ * broadcast error yes or no), never its title or the error text. While webinar's function is
+ * not implemented the section is left out.
+ *
  * `ops_state.digest_last_sent_on` stops a second post on the same day (edge case 26).
  */
 import type { DbOrTx } from "@beam/db";
@@ -17,6 +23,8 @@ import { countSegmentRefreshErrors } from "@/modules/crm/api";
 import { getFinanceDigest } from "@/modules/finance/api";
 import { getFormsHealth } from "@/modules/forms/api";
 import { getPlatformDigest, type DigestSection } from "@/modules/platform/api";
+import { listUpcomingWebinarHealth } from "@/modules/webinar/api";
+import { NotImplementedError } from "@beam/core/errors";
 
 export type DigestBlock = { title: string; lines: string[] };
 
@@ -40,7 +48,29 @@ const n = (v: unknown) => Number(v ?? 0);
 const dayStart = (day: string) => sql`(${day}::date::timestamp at time zone 'Europe/Brussels')`;
 const dayEnd = (day: string) => sql`((${day}::date + 1)::timestamp at time zone 'Europe/Brussels')`;
 
-type Source = { title: string; build: (db: DbOrTx) => Promise<string[]> };
+/** A source's lines, or `null` to leave the section out (a release source whose owner has not landed yet). */
+type Source = { title: string; build: (db: DbOrTx) => Promise<string[] | null> };
+
+const isStub = (e: unknown) => e instanceof NotImplementedError || (e as { name?: string } | null)?.name === "NotImplementedError";
+
+/** Rule 71 (R2): the webinars of the next 48 hours with ids and states only. */
+async function webinarLines(db: DbOrTx): Promise<string[] | null> {
+  let rows: Awaited<ReturnType<typeof listUpcomingWebinarHealth>>;
+  try {
+    rows = await listUpcomingWebinarHealth(db, { hours: 48 });
+  } catch (error) {
+    if (isStub(error)) return null;
+    throw error;
+  }
+  const sorted = [...rows].sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime() || a.webinarId.localeCompare(b.webinarId));
+  return [
+    `next 48 h ${sorted.length}`,
+    ...sorted.map(
+      (w) =>
+        `${w.broadcastError ? "(!) " : ""}${w.webinarId}: ${w.mode}, broadcast ${w.youtubeLifecycle ?? "none"}${w.broadcastError ? ", broadcast error" : ""}`,
+    ),
+  ];
+}
 
 function fromSection(section: DigestSection): string[] {
   return section.lines.map((l) => `${l.level === "ok" ? "" : l.level === "warn" ? "(!) " : "(!!) "}${l.label}: ${l.value}`);
@@ -147,6 +177,7 @@ export function digestSources(input: { day: string; today: string; now: Date }):
         ];
       },
     },
+    { title: "Webinars", build: webinarLines },
     { title: "Platform", build: async (db) => fromSection(await getPlatformDigest(db, day)) },
     { title: "Finance", build: async (db) => fromSection(await getFinanceDigest(db, day)) },
   ];
@@ -158,7 +189,7 @@ export async function buildDigestBlocks(db: DbOrTx, input: { day: string; today:
   for (const source of digestSources(input)) {
     try {
       const lines = await db.transaction((sp) => source.build(sp));
-      blocks.push({ title: source.title, lines });
+      if (lines) blocks.push({ title: source.title, lines });
     } catch (error) {
       reportError(error, { tags: { job: "ops.daily_digest", section: source.title } });
       blocks.push({ title: source.title, lines: ["unavailable"] });

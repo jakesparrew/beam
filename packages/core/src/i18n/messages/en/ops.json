@@ -37,7 +37,24 @@
       "open_person": "Open person",
       "download_csv": "Download CSV",
       "no_data": "No data",
-      "data_as_of": "Data as of {date}"
+      "data_as_of": "Data as of {date}",
+      "from": "From",
+      "to": "To",
+      "apply": "Apply",
+      "clear": "Clear filters",
+      "previous_page": "Previous page",
+      "next_page": "Next page",
+      "page": "Page {page}",
+      "flag_off": "This screen is not switched on yet.",
+      "weekday": {
+        "1": "Monday",
+        "2": "Tuesday",
+        "3": "Wednesday",
+        "4": "Thursday",
+        "5": "Friday",
+        "6": "Saturday",
+        "7": "Sunday"
+      }
     },
     "dashboard": {
       "title": "Today",
@@ -84,7 +101,8 @@
         "webinar_leads_not_booked": {
           "title": "Webinar leads without a booking",
           "empty": "Nothing needs attention today",
-          "row": "Registered on {date}"
+          "row": "Registered on {date}",
+          "secondary": "{count} imported from the old webinar tool"
         },
         "unused_packages_expiring": {
           "title": "Unused packages expiring",
@@ -94,7 +112,8 @@
         "shared_package_abuse": {
           "title": "Shared packages to review",
           "empty": "Nothing needs attention today",
-          "row": "{guests} guests in 30 days"
+          "row": "{guests} guests in 30 days",
+          "review": "Review on the sharing screen"
         },
         "overdue_tasks": {
           "title": "Overdue tasks",
@@ -134,7 +153,17 @@
     "pipeline": {
       "title": "B2C pipeline",
       "high_value": "High value",
-      "empty": "No people in this stage"
+      "empty": "No people in this stage",
+      "intro": "Every person in their current stage, most recent change first. The stage is derived; it cannot be set by hand.",
+      "filter": {
+        "source": "Source",
+        "campaign": "Campaign",
+        "high_value": "High value only"
+      },
+      "changed": "In this stage since {date}",
+      "show_all": "Show all in this stage",
+      "back": "Back to the board",
+      "high_value_count": "{count} high value"
     },
     "retention": {
       "title": "This week’s retention list",
@@ -167,7 +196,46 @@
         "already_contacted": "Already contacted",
         "do_not_contact": "Do not contact",
         "other": "Other"
-      }
+      },
+      "week_of": "Week of {date}",
+      "generated_at": "Built on {date}",
+      "not_built": "This week’s list is not built yet. It is built every Monday at 06:10.",
+      "tab": {
+        "list": "This week",
+        "candidates": "All candidates"
+      },
+      "column": {
+        "rank": "#",
+        "person": "Person",
+        "primary_reason": "Main reason",
+        "reasons": "All reasons",
+        "score": "Score",
+        "revenue": "Revenue",
+        "last_visit": "Last visit",
+        "task": "Task",
+        "actions": "Actions"
+      },
+      "task_status": {
+        "none": "No task",
+        "open": "Task open",
+        "done": "Task done",
+        "cancelled": "Task cancelled",
+        "dismissed": "Dismissed: {reason}"
+      },
+      "dismiss_reason": "Reason",
+      "dismiss_note": "Note (optional)",
+      "filter": {
+        "reason": "Reason",
+        "all": "All reasons"
+      },
+      "candidates_empty": "No candidates for this reason",
+      "result": {
+        "task_created": "Task created",
+        "tasks_created": "{count, plural, one {# task created} other {# tasks created}}",
+        "dismissed": "Dismissed",
+        "rebuilt": "The list was rebuilt"
+      },
+      "open_task": "Open task"
     },
     "reports": {
       "title": "Reports",
@@ -226,7 +294,100 @@
         "value": "Value",
         "vat_treatment": "VAT treatment",
         "as_of": "As of {date}",
-        "empty": "No credits outstanding"
+        "empty": "No credits outstanding",
+        "kind": {
+          "day": "Day sessions",
+          "night": "Nights",
+          "euro": "Euro credit"
+        },
+        "vat": {
+          "single_purpose": "Single-purpose voucher (VAT at sale)",
+          "multi_purpose": "Multi-purpose voucher (VAT at use)",
+          "not_applicable": "No VAT"
+        }
+      },
+      "no_shows": {
+        "title": "No-shows and cancellations",
+        "empty": "No cancellations or no-shows in this period",
+        "intro": "Sessions BEAM cancelled are shown apart and never count against a customer.",
+        "status": {
+          "cancelled": "Cancelled in time",
+          "late_cancelled": "Cancelled late",
+          "no_show": "No-show"
+        },
+        "rate": "No-show rate",
+        "value_forfeited": "Value forfeited",
+        "credits_forfeited": "Credits forfeited",
+        "session_cancelled": "Cancelled by BEAM: {bookings} bookings on {sessions} sessions",
+        "by_customer": "By customer",
+        "by_template": "By session type",
+        "by_weekday_hour": "By weekday and hour",
+        "pattern": "Pattern",
+        "pattern_help": "Flagged at {count} or more no-shows in {days} days",
+        "column": {
+          "person": "Customer",
+          "attended": "Attended",
+          "recent": "No-shows in {days} days",
+          "template": "Session type",
+          "weekday": "Weekday",
+          "hour": "Hour"
+        },
+        "no_template": "Single session"
+      },
+      "abandoned": {
+        "title": "Abandoned checkouts",
+        "empty": "No abandoned checkouts",
+        "abandoned": "Abandoned",
+        "recovered": "Recovered",
+        "rate": "Recovery rate",
+        "revenue": "Recovery revenue",
+        "failure_share": "Payment failures",
+        "abandoned_value": "Abandoned value",
+        "column": {
+          "abandoned_at": "Abandoned on",
+          "person": "Customer",
+          "reason": "Reason",
+          "items": "Items",
+          "value": "Value",
+          "recovery": "Reminder",
+          "outcome": "Outcome"
+        },
+        "reason": {
+          "left": "Left the checkout",
+          "payment_failed": "Payment failed",
+          "payment_expired": "Payment expired"
+        },
+        "outcome": {
+          "recovered": "Recovered ({amount})",
+          "open": "Not recovered"
+        },
+        "guest": "Guest",
+        "no_reminder": "None sent"
+      },
+      "capacity": {
+        "title": "Capacity",
+        "empty": "No sessions in this range",
+        "intro": "Past sessions count attended and no-show places, upcoming sessions count booked places.",
+        "group_by": "Group by",
+        "group": {
+          "template": "Session type",
+          "weekday": "Weekday",
+          "hour": "Start hour",
+          "month": "Month"
+        },
+        "column": {
+          "sessions": "Sessions",
+          "capacity": "Places",
+          "booked": "Booked",
+          "attended": "Attended",
+          "no_shows": "No-shows",
+          "cancellations": "Cancellations",
+          "waitlist_peak": "Waitlist peak",
+          "utilisation": "Utilisation"
+        },
+        "total": "Total",
+        "no_template": "Single sessions",
+        "hour": "{hour}:00"
       }
     },
     "imports": {
@@ -329,7 +490,9 @@
         "webinar_title": "Webinar title",
         "webinar_starts_at": "Webinar start",
         "outcome_key": "Outcome",
-        "unmapped": "Do not import"
+        "unmapped": "Do not import",
+        "mode": "Watch mode (live, replay, on demand)",
+        "watched_minutes": "Minutes watched"
       },
       "option": {
         "delimiter": "Delimiter",
@@ -342,7 +505,8 @@
         "credit_kind": "Credit kind",
         "tag_key": "Tag for the whole file",
         "preset": "Mapping preset",
-        "confirm_no_suppression_source": "No suppression source exists"
+        "confirm_no_suppression_source": "No suppression source exists",
+        "confirm_different_file": "This file differs from the one of the dry run. Run anyway with this file?"
       },
       "report": {
         "title": "Report",
@@ -378,7 +542,30 @@
         "go_live_gate": "Complete the go-live gate first",
         "dry_run_first": "Run a dry run with this mapping first",
         "suppressions_first": "Import the suppressions first, or confirm that no suppression source exists",
-        "another_running": "Another import is running"
+        "another_running": "Another import is running",
+        "past_booking": "Session is in the past: booking not imported",
+        "invalid_status": "Invalid status",
+        "missing_purpose": "Consent purpose missing",
+        "invalid_purpose": "Invalid consent purpose",
+        "unknown_tag": "Unknown tag",
+        "missing_tag": "Tag missing",
+        "missing_name": "Name missing",
+        "invalid_scope": "Invalid scope",
+        "invalid_session_kind": "Invalid session kind",
+        "invalid_paid_with": "Invalid payment method",
+        "zero_units": "No units left: package not imported",
+        "invalid_history_kind": "Invalid history kind",
+        "missing_history_kind": "History kind missing",
+        "missing_external_id": "External id missing",
+        "minor": "Person is under 16: row skipped",
+        "unchanged": "Nothing to change",
+        "duplicate_in_file": "Same email earlier in the file",
+        "chunk_failed": "This part of the import failed; it can be resumed",
+        "not_utf8": "The file is not UTF-8 text",
+        "file_missing": "The file is missing",
+        "same_file": "This file was already uploaded for this import",
+        "not_manual": "Only manual imports can be changed here",
+        "import_not_runnable": "This import cannot run in its current state"
       }
     },
     "cutover": {
@@ -441,6 +628,11 @@
         "campaigns": "Campaigns",
         "tasks": "Tasks",
         "activity_events": "Timeline events"
+      },
+      "column": {
+        "rows": "Rows",
+        "created_by": "Requested by",
+        "expires": "Expires"
       }
     },
     "privacy": {
@@ -606,7 +798,14 @@
           "customer_service": "Customer service",
           "legal_obligations": "Legal obligations"
         }
-      }
+      },
+      "col_person": "Person",
+      "col_due": "Due",
+      "col_requested_by": "Requested by",
+      "progress_title": "Progress",
+      "report_title": "Report",
+      "cancel_reason": "Reason for cancelling",
+      "lift_reason": "Reason for lifting the restriction"
     },
     "retention_policy": {
       "ops_marketing_contact": "Marketing contacts without purchase",
@@ -639,7 +838,10 @@
       "ops_retention_lists": "Weekly retention lists",
       "ops_privacy_requests": "Privacy requests",
       "crm_suppressions": "Opt-out fingerprints",
-      "crm_consent_records": "Consent history"
+      "crm_consent_records": "Consent history",
+      "status": {
+        "no_handler": "No handler"
+      }
     },
     "dpia": {
       "sensitive_assessment_processing": {
@@ -675,7 +877,13 @@
         "approved": "Approved",
         "rejected": "Rejected",
         "not_required": "Not required"
-      }
+      },
+      "purpose": "Purpose",
+      "risks": "Risks",
+      "measures": "Measures",
+      "decision_note": "Decision note",
+      "document": "Document",
+      "ai_features_title": "AI features and the DPIA they need"
     },
     "digest": {
       "title": "BEAM daily digest for {date}",

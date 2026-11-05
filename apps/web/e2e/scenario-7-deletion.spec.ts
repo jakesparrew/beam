@@ -9,10 +9,12 @@ import { uniqueEmail } from "./support/ids";
  * Scenario 7: end-to-end deletion (proposal section 11; ops-P5, ops rules 59-64). Replaces Wave 0's
  * `test.fixme` shell. On beam_dev with the demo seed and the provider fakes: a fresh person (never a
  * shared demo row) gets a booking, a waitlist entry, a form submission, a campaign email, an
- * imported webinar registration and attendance, a terms acceptance, a paid order with its invoice,
- * a valid mandate and an AI request (all seeded by SQL). The owner creates, verifies and runs the
+ * imported webinar registration and attendance, a native webinar registration with watch segments
+ * and a live and a replay poll answer (ops-P7, R2), a terms acceptance, a paid order with its
+ * invoice, a valid mandate and an AI request (all seeded by SQL). The owner creates, verifies and runs the
  * erasure on `/admin/privacy`; the jobs run on the local tick. Afterwards the CRM, email, webinar
- * history, assessment, waitlist and AI rows are gone or anonymised, the mandate is revoked, the
+ * history, native webinar registration, watch segments and poll answers, assessment, waitlist and
+ * AI rows are gone or anonymised, the mandate is revoked, the
  * invoice stays with `person_id` null, the suppression hash remains, the Billit and Resend fakes
  * were called from `privacy.erase_external`, a re-import of the address is skipped with `erased`,
  * and neither the report nor the audit row holds personal data. The person cannot be restored, so
@@ -30,6 +32,8 @@ let personId = "";
 let requestId = "";
 let invoiceId = "";
 let mandateId = "";
+let registrationId = "";
+const WEBINAR_SLUG = `e2e-s7-webinar-${Date.now().toString(36)}`;
 
 const one = async <T>(q: Parameters<typeof e2eRows>[0]) => (await e2eRows<T>(q))[0];
 
@@ -56,6 +60,31 @@ async function seed(): Promise<void> {
     await e2eRows(sql`insert into imported_history (person_id, import_id, source, kind, occurred_at, external_id, data)
       values (${personId}::uuid, ${imp!.id}::uuid, 'webinar_tool', ${kind}, now() - interval '30 days', ${`e2e-s7-${kind}-${personId}`}, '{"mode":"live"}'::jsonb)`);
   }
+  // R2: a native webinar registration with watch segments and a live and a replay poll answer.
+  const title = JSON.stringify({ "nl-BE": "Scenario 7 webinar", "fr-BE": "Webinaire scénario 7", en: "Scenario 7 webinar" });
+  const webinar = await one<{ id: string }>(
+    sql`insert into webinars (slug, title, mode, starts_at, owner_user_id, created_by_user_id, attended_min_sec)
+        values (${WEBINAR_SLUG}, ${title}::jsonb, 'live', now() - interval '2 days', ${owner!.id}::uuid, ${owner!.id}::uuid, 60) returning id::text as id`,
+  );
+  const registration = await one<{ id: string }>(
+    sql`insert into webinar_registrations (webinar_id, person_id, access_token_hash, registered_mode, source, locale, person_status)
+        values (${webinar!.id}::uuid, ${personId}::uuid, ${createHash("sha256").update(`s7:${personId}`).digest("hex")}, 'live', 'site', 'nl-BE', 'lead') returning id::text as id`,
+  );
+  registrationId = registration!.id;
+  const viewId = randomUUID();
+  for (const [from, mode] of [[0, "live"], [30, "live"], [0, "replay"]] as const) {
+    await e2eRows(sql`insert into watch_segments (registration_id, webinar_id, mode, view_id, from_sec, to_sec)
+      values (${registrationId}::uuid, ${webinar!.id}::uuid, ${mode}, ${mode === "live" ? viewId : randomUUID()}::uuid, ${from}, ${from + 30})`);
+  }
+  const option = JSON.stringify({ "nl-BE": "Ja", "fr-BE": "Oui", en: "Yes" });
+  const poll = await one<{ id: string }>(
+    sql`insert into webinar_polls (webinar_id, key, question, options)
+        values (${webinar!.id}::uuid, 'sleep', ${title}::jsonb, ${`[{"key":"a","label":${option}},{"key":"b","label":${option}}]`}::jsonb) returning id::text as id`,
+  );
+  for (const mode of ["live", "replay"]) {
+    await e2eRows(sql`insert into webinar_interactions (registration_id, webinar_id, mode, kind, poll_id, payload, at_sec)
+      values (${registrationId}::uuid, ${webinar!.id}::uuid, ${mode}, 'poll_answer', ${poll!.id}::uuid, '{"option":"a"}'::jsonb, 15)`);
+  }
   await e2eRows(sql`insert into terms_acceptances (person_id, page_version_id, legal_key, context, idempotency_key)
     select ${personId}::uuid, pv.id, 'terms', 'checkout', ${`e2e:s7:terms:${personId}`} from page_versions pv order by pv.created_at desc limit 1`);
   const order = await one<{ id: string }>(
@@ -81,6 +110,9 @@ async function seed(): Promise<void> {
 
 async function cleanup(): Promise<void> {
   await e2eRows(sql`delete from email_messages where idempotency_key like 'e2e:scenario7:%'`);
+  await e2eRows(sql`delete from webinar_polls where webinar_id in (select id from webinars w where w.slug like 'e2e-s7-webinar-%'
+    and not exists (select 1 from webinar_registrations r where r.webinar_id = w.id))`);
+  await e2eRows(sql`delete from webinars w where w.slug like 'e2e-s7-webinar-%' and not exists (select 1 from webinar_registrations r where r.webinar_id = w.id)`);
   await e2eRows(sql`delete from imports where name = 'Scenario 7 webinar history' and status = 'done' and not exists (select 1 from imported_history h where h.import_id = imports.id)`);
   await e2eRows(sql`delete from imports where name like 'Scenario 7 re-import%'`);
 }
@@ -135,6 +167,19 @@ test("one request erases the person everywhere, propagates externally and leaves
     const left = await one<{ n: number }>(sql`select count(*)::int as n from ${sql.raw(table)} where person_id = ${personId}::uuid`);
     expect(left!.n, table).toBe(0);
   }
+
+  // R2: the native webinar registration, its watch segments and both poll answers are gone.
+  const webinarLeft = await one<{ registrations: number; segments: number; answers: number }>(
+    sql`select (select count(*)::int from webinar_registrations where person_id = ${personId}::uuid or id = ${registrationId}::uuid) as registrations,
+               (select count(*)::int from watch_segments where registration_id = ${registrationId}::uuid) as segments,
+               (select count(*)::int from webinar_interactions where registration_id = ${registrationId}::uuid) as answers`,
+  );
+  expect(webinarLeft).toEqual({ registrations: 0, segments: 0, answers: 0 });
+  const webinarStep = await one<{ report: { steps: { module: string; table: string; rows: number }[] } }>(sql`select report from privacy_requests where id = ${requestId}::uuid`);
+  const steps = webinarStep!.report.steps.filter((st) => st.module === "webinar");
+  expect(steps.find((st) => st.table === "webinar_registrations")?.rows).toBeGreaterThanOrEqual(1);
+  expect(steps.find((st) => st.table === "watch_segments")?.rows).toBeGreaterThanOrEqual(3);
+  expect(steps.find((st) => st.table === "webinar_interactions")?.rows).toBeGreaterThanOrEqual(2);
 
   // Finance keeps the invoice (Belgian accounting law), unlinked from the person.
   const invoice = await one<{ person_id: string | null }>(sql`select person_id::text as person_id from invoices where id = ${invoiceId}::uuid`);

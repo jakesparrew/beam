@@ -1,7 +1,9 @@
 /**
  * ops views (ops spec 2.4, V1). Each view is `pgView(name, columns).existing()` with its SQL
  * exported beside it as `<name>Sql`; `pnpm db:views` writes the migration and `createTestDb()`
- * applies the same SQL (DM-1). Owned by ops-P2 until ops-P7 adds the R2 webinar columns.
+ * applies the same SQL (DM-1). ops-P2 wrote the V1 views; ops-P7 added the R2 webinar columns of
+ * `v_person_profile` from webinar's `v_person_webinar_stats` (imported counts included, so the V1
+ * `imported_webinars_*` columns keep their place and now follow merges like webinar's view).
  *
  * Thresholds come from `settings.retention_defaults`: each view reads it once through the
  * `c` cross join below, merged over the seeded defaults so a missing row or a partial value
@@ -70,8 +72,19 @@ export const vPersonProfileSql = `select p.id as person_id, p.locale, p.created_
        exists (select 1 from waitlist_entries w where w.person_id = p.id and w.state in ('waiting', 'offered')) as has_waitlist_waiting,
        la.slug as last_assessment_form_slug,
        la.outcome_key as last_assessment_outcome_key,
-       coalesce(ih.webinars_registered, 0) as imported_webinars_registered,
-       coalesce(ih.webinars_attended, 0) as imported_webinars_attended
+       coalesce(ws.imported_webinars_registered, 0) as imported_webinars_registered,
+       coalesce(ws.imported_webinars_attended, 0) as imported_webinars_attended,
+       coalesce(ws.webinars_registered, 0) as webinars_registered,
+       coalesce(ws.webinars_attended_live, 0) as webinars_attended_live,
+       ws.last_webinar_attended_at,
+       coalesce(ws.replays_watched, 0) as webinars_watched_replay,
+       coalesce(ws.on_demand_watched, 0) as webinars_watched_on_demand,
+       coalesce(ws.poll_answers, 0) as webinar_poll_answers,
+       coalesce(ws.cta_clicks, 0) as webinar_cta_clicks,
+       (coalesce(ws.webinars_registered, 0) + coalesce(ws.imported_webinars_registered, 0))::int as webinars_registered_total,
+       (coalesce(ws.webinars_attended_live, 0) + coalesce(ws.imported_webinars_attended, 0))::int as webinars_attended_total,
+       case when exists (select 1 from dpia_records d where d.key = 'watch_time_profiling' and d.status in ('approved', 'not_required'))
+            then coalesce(ws.watch_sec_total, 0) end as watch_sec_total
 from persons p
 ${CFG}
 left join v_person_status st on st.person_id = p.id
@@ -95,9 +108,7 @@ left join lateral (select bool_or(cc.status = 'granted') filter (where cc.purpos
 left join lateral (select f.slug, fs.outcome_key from form_submissions fs join forms f on f.id = fs.form_id
                    where fs.person_id = p.id and fs.status = 'completed' and f.kind = 'assessment'
                    order by fs.completed_at desc nulls last, fs.id desc limit 1) la on true
-left join lateral (select count(*) filter (where h.kind = 'webinar_registration')::int as webinars_registered,
-                          count(*) filter (where h.kind = 'webinar_attendance')::int as webinars_attended
-                   from imported_history h where h.person_id = p.id) ih on true
+left join v_person_webinar_stats ws on ws.person_id = p.id
 where p.erased_at is null and p.merged_into_person_id is null and p.processing_restricted_at is null`;
 
 export const vPersonProfile = pgView("v_person_profile", {
@@ -150,6 +161,18 @@ export const vPersonProfile = pgView("v_person_profile", {
   lastAssessmentOutcomeKey: text("last_assessment_outcome_key"),
   importedWebinarsRegistered: integer("imported_webinars_registered").notNull(),
   importedWebinarsAttended: integer("imported_webinars_attended").notNull(),
+  // R2 (ops-P7): webinar's `v_person_webinar_stats`; native counts exclude imported history (decision 58).
+  webinarsRegistered: integer("webinars_registered").notNull(),
+  webinarsAttendedLive: integer("webinars_attended_live").notNull(),
+  lastWebinarAttendedAt: tz("last_webinar_attended_at"),
+  webinarsWatchedReplay: integer("webinars_watched_replay").notNull(),
+  webinarsWatchedOnDemand: integer("webinars_watched_on_demand").notNull(),
+  webinarPollAnswers: integer("webinar_poll_answers").notNull(),
+  webinarCtaClicks: integer("webinar_cta_clicks").notNull(),
+  webinarsRegisteredTotal: integer("webinars_registered_total").notNull(),
+  webinarsAttendedTotal: integer("webinars_attended_total").notNull(),
+  /** Null unless `dpia_records.watch_time_profiling` is `approved` or `not_required` (rule 70). */
+  watchSecTotal: integer("watch_sec_total"),
 }).existing();
 
 // ---------------------------------------------------------------------------

@@ -37,7 +37,24 @@
       "open_person": "Persoon openen",
       "download_csv": "CSV downloaden",
       "no_data": "Geen gegevens",
-      "data_as_of": "Gegevens van {date}"
+      "data_as_of": "Gegevens van {date}",
+      "from": "Van",
+      "to": "Tot",
+      "apply": "Toepassen",
+      "clear": "Filters wissen",
+      "previous_page": "Vorige pagina",
+      "next_page": "Volgende pagina",
+      "page": "Pagina {page}",
+      "flag_off": "Dit scherm is nog niet ingeschakeld.",
+      "weekday": {
+        "1": "Maandag",
+        "2": "Dinsdag",
+        "3": "Woensdag",
+        "4": "Donderdag",
+        "5": "Vrijdag",
+        "6": "Zaterdag",
+        "7": "Zondag"
+      }
     },
     "dashboard": {
       "title": "Vandaag",
@@ -84,7 +101,8 @@
         "webinar_leads_not_booked": {
           "title": "Webinarleads zonder boeking",
           "empty": "Vandaag vraagt niets aandacht",
-          "row": "Ingeschreven op {date}"
+          "row": "Ingeschreven op {date}",
+          "secondary": "{count} geïmporteerd uit de oude webinartool"
         },
         "unused_packages_expiring": {
           "title": "Ongebruikte pakketten die vervallen",
@@ -94,7 +112,8 @@
         "shared_package_abuse": {
           "title": "Gedeelde pakketten nakijken",
           "empty": "Vandaag vraagt niets aandacht",
-          "row": "{guests} gasten in 30 dagen"
+          "row": "{guests} gasten in 30 dagen",
+          "review": "Beoordelen op het deelscherm"
         },
         "overdue_tasks": {
           "title": "Achterstallige taken",
@@ -134,7 +153,17 @@
     "pipeline": {
       "title": "B2C-pipeline",
       "high_value": "Waardevol",
-      "empty": "Geen personen in deze fase"
+      "empty": "Geen personen in deze fase",
+      "intro": "Elke persoon in de huidige fase, laatste wijziging eerst. De fase wordt afgeleid en kan niet met de hand worden ingesteld.",
+      "filter": {
+        "source": "Bron",
+        "campaign": "Campagne",
+        "high_value": "Alleen hoge waarde"
+      },
+      "changed": "In deze fase sinds {date}",
+      "show_all": "Alles in deze fase tonen",
+      "back": "Terug naar het bord",
+      "high_value_count": "{count} met hoge waarde"
     },
     "retention": {
       "title": "Klantbehoudlijst van deze week",
@@ -167,7 +196,46 @@
         "already_contacted": "Al gecontacteerd",
         "do_not_contact": "Niet contacteren",
         "other": "Andere"
-      }
+      },
+      "week_of": "Week van {date}",
+      "generated_at": "Opgemaakt op {date}",
+      "not_built": "De lijst van deze week is nog niet opgemaakt. Ze wordt elke maandag om 06:10 opgemaakt.",
+      "tab": {
+        "list": "Deze week",
+        "candidates": "Alle kandidaten"
+      },
+      "column": {
+        "rank": "#",
+        "person": "Persoon",
+        "primary_reason": "Hoofdreden",
+        "reasons": "Alle redenen",
+        "score": "Score",
+        "revenue": "Omzet",
+        "last_visit": "Laatste bezoek",
+        "task": "Taak",
+        "actions": "Acties"
+      },
+      "task_status": {
+        "none": "Geen taak",
+        "open": "Taak open",
+        "done": "Taak afgerond",
+        "cancelled": "Taak geannuleerd",
+        "dismissed": "Afgewezen: {reason}"
+      },
+      "dismiss_reason": "Reden",
+      "dismiss_note": "Notitie (optioneel)",
+      "filter": {
+        "reason": "Reden",
+        "all": "Alle redenen"
+      },
+      "candidates_empty": "Geen kandidaten voor deze reden",
+      "result": {
+        "task_created": "Taak aangemaakt",
+        "tasks_created": "{count, plural, one {# taak aangemaakt} other {# taken aangemaakt}}",
+        "dismissed": "Afgewezen",
+        "rebuilt": "De lijst werd opnieuw opgemaakt"
+      },
+      "open_task": "Taak openen"
     },
     "reports": {
       "title": "Rapporten",
@@ -226,7 +294,100 @@
         "value": "Waarde",
         "vat_treatment": "Btw-behandeling",
         "as_of": "Op {date}",
-        "empty": "Geen openstaande tegoeden"
+        "empty": "Geen openstaande tegoeden",
+        "kind": {
+          "day": "Dagsessies",
+          "night": "Nachten",
+          "euro": "Eurotegoed"
+        },
+        "vat": {
+          "single_purpose": "Enkelvoudige waardebon (btw bij verkoop)",
+          "multi_purpose": "Meervoudige waardebon (btw bij gebruik)",
+          "not_applicable": "Geen btw"
+        }
+      },
+      "no_shows": {
+        "title": "No-shows en annuleringen",
+        "empty": "Geen annuleringen of no-shows in deze periode",
+        "intro": "Sessies die BEAM annuleerde staan apart en tellen nooit mee tegen een klant.",
+        "status": {
+          "cancelled": "Tijdig geannuleerd",
+          "late_cancelled": "Laat geannuleerd",
+          "no_show": "No-show"
+        },
+        "rate": "No-showpercentage",
+        "value_forfeited": "Verloren waarde",
+        "credits_forfeited": "Verloren tegoed",
+        "session_cancelled": "Geannuleerd door BEAM: {bookings} boekingen op {sessions} sessies",
+        "by_customer": "Per klant",
+        "by_template": "Per sessietype",
+        "by_weekday_hour": "Per weekdag en uur",
+        "pattern": "Patroon",
+        "pattern_help": "Gemarkeerd vanaf {count} no-shows in {days} dagen",
+        "column": {
+          "person": "Klant",
+          "attended": "Aanwezig",
+          "recent": "No-shows in {days} dagen",
+          "template": "Sessietype",
+          "weekday": "Weekdag",
+          "hour": "Uur"
+        },
+        "no_template": "Losse sessie"
+      },
+      "abandoned": {
+        "title": "Verlaten afrekeningen",
+        "empty": "Geen verlaten afrekeningen",
+        "abandoned": "Verlaten",
+        "recovered": "Teruggewonnen",
+        "rate": "Terugwinpercentage",
+        "revenue": "Teruggewonnen omzet",
+        "failure_share": "Mislukte betalingen",
+        "abandoned_value": "Verlaten waarde",
+        "column": {
+          "abandoned_at": "Verlaten op",
+          "person": "Klant",
+          "reason": "Reden",
+          "items": "Artikelen",
+          "value": "Waarde",
+          "recovery": "Herinnering",
+          "outcome": "Resultaat"
+        },
+        "reason": {
+          "left": "Afrekening verlaten",
+          "payment_failed": "Betaling mislukt",
+          "payment_expired": "Betaling verlopen"
+        },
+        "outcome": {
+          "recovered": "Teruggewonnen ({amount})",
+          "open": "Niet teruggewonnen"
+        },
+        "guest": "Gast",
+        "no_reminder": "Niet verstuurd"
+      },
+      "capacity": {
+        "title": "Bezetting",
+        "empty": "Geen sessies in deze periode",
+        "intro": "Voorbije sessies tellen aanwezige en no-showplaatsen, komende sessies tellen geboekte plaatsen.",
+        "group_by": "Groeperen per",
+        "group": {
+          "template": "Sessietype",
+          "weekday": "Weekdag",
+          "hour": "Beginuur",
+          "month": "Maand"
+        },
+        "column": {
+          "sessions": "Sessies",
+          "capacity": "Plaatsen",
+          "booked": "Geboekt",
+          "attended": "Aanwezig",
+          "no_shows": "No-shows",
+          "cancellations": "Annuleringen",
+          "waitlist_peak": "Wachtlijst (max)",
+          "utilisation": "Bezetting"
+        },
+        "total": "Totaal",
+        "no_template": "Losse sessies",
+        "hour": "{hour}:00"
       }
     },
     "imports": {
@@ -329,7 +490,9 @@
         "webinar_title": "Titel webinar",
         "webinar_starts_at": "Start webinar",
         "outcome_key": "Uitkomst",
-        "unmapped": "Niet importeren"
+        "unmapped": "Niet importeren",
+        "mode": "Kijkwijze (live, herhaling, op aanvraag)",
+        "watched_minutes": "Bekeken minuten"
       },
       "option": {
         "delimiter": "Scheidingsteken",
@@ -342,7 +505,8 @@
         "credit_kind": "Soort tegoed",
         "tag_key": "Tag voor het hele bestand",
         "preset": "Voorinstelling koppeling",
-        "confirm_no_suppression_source": "Er bestaat geen bron met uitschrijvingen"
+        "confirm_no_suppression_source": "Er bestaat geen bron met uitschrijvingen",
+        "confirm_different_file": "Dit bestand verschilt van dat van de proefrun. Toch uitvoeren met dit bestand?"
       },
       "report": {
         "title": "Rapport",
@@ -378,7 +542,30 @@
         "go_live_gate": "Rond eerst de go-live-controle af",
         "dry_run_first": "Voer eerst een proefimport met deze koppeling uit",
         "suppressions_first": "Importeer eerst de uitschrijvingen, of bevestig dat er geen bron bestaat",
-        "another_running": "Er loopt al een andere import"
+        "another_running": "Er loopt al een andere import",
+        "past_booking": "Sessie ligt in het verleden: boeking niet geïmporteerd",
+        "invalid_status": "Ongeldige status",
+        "missing_purpose": "Doel van de toestemming ontbreekt",
+        "invalid_purpose": "Ongeldig doel van de toestemming",
+        "unknown_tag": "Onbekende tag",
+        "missing_tag": "Tag ontbreekt",
+        "missing_name": "Naam ontbreekt",
+        "invalid_scope": "Ongeldig bereik",
+        "invalid_session_kind": "Ongeldig sessietype",
+        "invalid_paid_with": "Ongeldige betaalwijze",
+        "zero_units": "Geen eenheden meer: pakket niet geïmporteerd",
+        "invalid_history_kind": "Ongeldig soort historiek",
+        "missing_history_kind": "Soort historiek ontbreekt",
+        "missing_external_id": "Externe id ontbreekt",
+        "minor": "Persoon is jonger dan 16: rij overgeslagen",
+        "unchanged": "Niets te wijzigen",
+        "duplicate_in_file": "Zelfde e-mailadres eerder in het bestand",
+        "chunk_failed": "Dit deel van de import mislukte; het kan worden hervat",
+        "not_utf8": "Het bestand is geen UTF-8-tekst",
+        "file_missing": "Het bestand ontbreekt",
+        "same_file": "Dit bestand werd al opgeladen voor deze import",
+        "not_manual": "Alleen handmatige imports kunnen hier worden gewijzigd",
+        "import_not_runnable": "Deze import kan in de huidige toestand niet worden uitgevoerd"
       }
     },
     "cutover": {
@@ -441,6 +628,11 @@
         "campaigns": "Campagnes",
         "tasks": "Taken",
         "activity_events": "Tijdlijngebeurtenissen"
+      },
+      "column": {
+        "rows": "Rijen",
+        "created_by": "Aangevraagd door",
+        "expires": "Vervalt"
       }
     },
     "privacy": {
@@ -606,7 +798,14 @@
           "customer_service": "Klantendienst",
           "legal_obligations": "Wettelijke verplichtingen"
         }
-      }
+      },
+      "col_person": "Persoon",
+      "col_due": "Uiterlijk",
+      "col_requested_by": "Aangevraagd door",
+      "progress_title": "Voortgang",
+      "report_title": "Verslag",
+      "cancel_reason": "Reden van annulering",
+      "lift_reason": "Reden om de beperking op te heffen"
     },
     "retention_policy": {
       "ops_marketing_contact": "Marketingcontacten zonder aankoop",
@@ -639,7 +838,10 @@
       "ops_retention_lists": "Wekelijkse klantbehoudlijsten",
       "ops_privacy_requests": "Privacyverzoeken",
       "crm_suppressions": "Vingerafdrukken van uitschrijvingen",
-      "crm_consent_records": "Toestemmingshistoriek"
+      "crm_consent_records": "Toestemmingshistoriek",
+      "status": {
+        "no_handler": "Geen verwerker"
+      }
     },
     "dpia": {
       "sensitive_assessment_processing": {
@@ -675,7 +877,13 @@
         "approved": "Goedgekeurd",
         "rejected": "Afgewezen",
         "not_required": "Niet vereist"
-      }
+      },
+      "purpose": "Doel",
+      "risks": "Risico’s",
+      "measures": "Maatregelen",
+      "decision_note": "Toelichting bij de beslissing",
+      "document": "Document",
+      "ai_features_title": "AI-functies en de DPIA die ze nodig hebben"
     },
     "digest": {
       "title": "BEAM dagoverzicht voor {date}",

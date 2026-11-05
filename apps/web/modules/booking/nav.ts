@@ -56,6 +56,18 @@ export const nav = [
     order: 140,
   },
   {
+    // R3 (booking-P9 request): an external partner (only `partner.own`) reaches the seats held for
+    // their company; the page shows its partner view to anyone without `bookings.read`.
+    key: "booking.partner_holds",
+    area: "admin",
+    section: "insights",
+    labelKey: "booking.nav.partner_holds",
+    href: "/admin/sessions/holds",
+    permission: "partner.own",
+    icon: "users",
+    order: 982,
+  },
+  {
     key: "booking.templates",
     area: "admin",
     section: "booking",

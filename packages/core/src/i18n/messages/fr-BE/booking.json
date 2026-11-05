@@ -17,7 +17,8 @@
       "rules": "Règles de réservation",
       "book": "Réserver",
       "my_bookings": "Mes réservations",
-      "my_waitlist": "Mes listes d’attente"
+      "my_waitlist": "Mes listes d’attente",
+      "partner_holds": "Mes places partenaire"
     },
     "common": {
       "save": "Enregistrer",
@@ -187,7 +188,11 @@
       "invalid_transition": "Cette modification n’est pas possible dans l’état actuel.",
       "shared_bed_limit": "Un seul invité peut partager votre lit.",
       "generic": "Une erreur s’est produite. Veuillez réessayer.",
-      "validation": "Vérifiez les champs et réessayez."
+      "validation": "Vérifiez les champs et réessayez.",
+      "ticket_type_required": "Choisissez un type de billet.",
+      "too_many_tickets": "Ce type de billet autorise moins de billets par réservation. Retirez un invité ou choisissez un autre billet.",
+      "guest_details_required": "Indiquez le prénom et le nom de chaque invité.",
+      "too_many_guests": "Vous pouvez amener moins d'invités sur une réservation."
     },
     "calendar": {
       "title": "Séances",
@@ -443,7 +448,8 @@
       "reason": "Motif",
       "send_email": "Envoyer l’e-mail de confirmation",
       "emergency_contact": "Contact d’urgence pour la nuit",
-      "create": "Créer la réservation"
+      "create": "Créer la réservation",
+      "ticket_type": "Type de billet"
     },
     "checkin": {
       "title": "Accueil",
@@ -550,7 +556,8 @@
       "ticket_not_on_sale": "Pas en vente pour le moment",
       "ticket_sales_from": "En vente à partir du {date}",
       "ticket_members_only": "Pour les membres",
-      "guest_uses_none": "Votre forfait ne peut pas être utilisé pour des invités ce mois-ci. Vous pouvez payer pour votre invité."
+      "guest_uses_none": "Votre forfait ne peut pas être utilisé pour des invités ce mois-ci. Vous pouvez payer pour votre invité.",
+      "shared_hint": "Partagé par {owner} : {count, plural, one {encore # séance pour vous} other {encore # séances pour vous}}"
     },
     "portalBookings": {
       "title": "Mes réservations",

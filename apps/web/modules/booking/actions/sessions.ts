@@ -15,7 +15,7 @@ import { LocalizedTextSchema, missingLocales, type LocalizedText } from "@beam/c
 import { action } from "@/lib/action";
 import { NotFoundError, ValidationError, actorHasPermission, and, eq, gt, inArray, or, sql, type Ctx } from "@/lib/ctx";
 import { locationOverlaps } from "../queries/schedule";
-import { lockSession, readAvailabilityRow, type SessionRow } from "../server/book";
+import { assertTicketTypesPublishable, lockSession, readAvailabilityRow, type SessionRow } from "../server/book";
 
 const localDateTime = z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/);
 const EventCategory = z.enum(["lecture", "concert", "member_event", "experience", "webinar", "special_activity", "partner_event"]);
@@ -211,6 +211,8 @@ export const publishSession = action(
     if (current.publishedAt) return { publishedAt: current.publishedAt };
     assertPublishable(current.title, current.description);
     assertSessionShape(current);
+    // R50: every active ticket type name is complete in the three locales before publication.
+    await assertTicketTypesPublishable(ctx.tx, current.id);
     const [row] = await ctx.tx.update(sessions).set({ publishedAt: ctx.now, updatedAt: sql`now()` }).where(eq(sessions.id, current.id)).returning();
     return { publishedAt: row!.publishedAt! };
   },

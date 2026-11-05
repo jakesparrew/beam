@@ -14,15 +14,18 @@ import { getPersonCreditSummary } from "@/modules/credits/api";
 import { getCurrentLegalVersion, getLegalLinks, hasAcceptedCurrentTerms } from "@/modules/site/api";
 import { bookSession, joinWaitlist } from "@/modules/booking/actions";
 import { getBookableSession } from "@/modules/booking/queries";
-import { BookForm, type PayOption } from "@/modules/booking/ui/portal/book-form";
+import { BookForm, type PayOption, type TicketTypeOption } from "@/modules/booking/ui/portal/book-form";
 import { PolicyNote } from "@/modules/booking/ui/portal/policy-note";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const FIELD_OF: Record<string, "terms" | "emergency" | "payment"> = {
+const FIELD_OF: Record<string, "terms" | "emergency" | "payment" | "ticket"> = {
   terms_required: "terms",
   emergency_contact_required: "emergency",
   insufficient_credits: "payment",
   sharing_not_allowed: "payment",
+  ticket_type_required: "ticket",
+  not_on_sale: "ticket",
+  too_many_tickets: "ticket",
 };
 
 /** Reads a nullable string field. */
@@ -54,7 +57,10 @@ function guestsOf(fd: FormData) {
  * the session and its booking form, or the waiting-list button when it is full, the opening time
  * when it is not open yet, "Closed for booking", or "For members" with the membership link.
  * A confirmed booking lands on its booking page; an order-paid one on commerce's
- * `/account/checkout/<orderId>`. Errors come back as `?error=<reason>` and are announced.
+ * `/account/checkout/<orderId>`. Errors come back as `?error=<reason>` and are announced. Wired by
+ * fix-w20-booking-wiring: the ticket type picker with prices (R51), guest rows on ticketed events,
+ * "{n} guest uses left this month" (R55), "Use a package shared with me" (R2) and the lead seat
+ * notice (R22).
  */
 export default async function BookSessionPage({
   params,
@@ -83,10 +89,12 @@ export default async function BookSessionPage({
   const remaining = session.creditKind
     ? ((await getPersonCreditSummary(db, actor.personId).catch(() => null))?.byKind.find((k) => k.kind === session.creditKind)?.remainingUnits ?? null)
     : null;
-  const quote =
-    session.productId && view.payOptions.includes("order")
-      ? await getQuote(db, { personId: actor.personId, items: [{ productId: session.productId, quantity: 1, sessionId }], channel: "portal" }).catch(() => null)
-      : null;
+  const quoteOf = (productId: string) =>
+    getQuote(db, { personId: actor.personId, items: [{ productId, quantity: 1, sessionId }], channel: "portal" }).catch(() => null);
+  const ticketed = view.ticketTypes.length > 0;
+  const quote = session.productId && !ticketed && view.payOptions.includes("order") ? await quoteOf(session.productId) : null;
+  // R51: each ticket type at its own product's quoted price.
+  const ticketQuotes = await Promise.all(view.ticketTypes.map((t) => (t.state === "on_sale" ? quoteOf(t.productId) : Promise.resolve(null))));
   const termsLive = await getCurrentLegalVersion(db, "terms").catch(() => null);
   const termsRequired = termsLive ? !(await hasAcceptedCurrentTerms(db, actor.personId).catch(() => false)) : false;
   const termsHref = termsRequired ? ((await getLegalLinks(locale, db).catch(() => null))?.terms ?? null) : null;
@@ -98,8 +106,10 @@ export default async function BookSessionPage({
     const phone = str(formData, "emergency.phone");
     const relation = str(formData, "emergency.relation");
     const promo = str(formData, "promoCode");
+    const ticketTypeId = str(formData, "ticketTypeId");
     const res = await bookSession({
       sessionId,
+      ...(ticketTypeId && UUID.test(ticketTypeId) ? { ticketTypeId } : {}),
       payWith,
       guests: guestsOf(formData),
       clientKey: str(formData, "clientKey") ?? randomUUID(),
@@ -108,7 +118,8 @@ export default async function BookSessionPage({
       ...(name && phone ? { emergencyContact: { name, phone, ...(relation ? { relation } : {}) } } : {}),
     });
     if (!res.ok) {
-      const reason = res.error.code === "conflict" ? res.error.message : res.error.code;
+      // Conflicts and named validation refusals (`ticket_type_required`, `too_many_tickets`, ...) carry their reason.
+      const reason = res.error.code === "conflict" || res.error.code === "validation" ? res.error.message : res.error.code;
       redirect(`${here}?error=${encodeURIComponent(reason)}` as Route);
     }
     if (res.data.kind === "checkout") redirect(res.data.redirectTo as Route);
@@ -131,11 +142,23 @@ export default async function BookSessionPage({
 
   const payOptions: PayOption[] = [];
   if (view.payOptions.includes("credit")) {
-    payOptions.push({
-      value: "credit",
-      label: tr("booking.portalSession.pay_credit"),
-      hint: remaining != null ? tr("booking.portalSession.credits_left", { count: remaining }) : null,
-    });
+    // Credits take the person's own packages first, then the ones shared with them (credits rule 18,
+    // R2): when their own units do not cover the session, the credit choice is the shared package.
+    const ownCovers = remaining != null && remaining >= session.creditCost;
+    const shared = !ownCovers ? view.sharedPackages[0] : undefined;
+    payOptions.push(
+      shared
+        ? {
+            value: "credit",
+            label: tr("booking.portalSession.pay_shared"),
+            hint: tr("booking.portalSession.shared_hint", { owner: shared.ownerName, count: shared.unitsForMe }),
+          }
+        : {
+            value: "credit",
+            label: tr("booking.portalSession.pay_credit"),
+            hint: remaining != null ? tr("booking.portalSession.credits_left", { count: remaining }) : null,
+          },
+    );
   }
   if (view.payOptions.includes("order")) {
     payOptions.push({
@@ -146,10 +169,44 @@ export default async function BookSessionPage({
   }
   if (view.payOptions.includes("free")) payOptions.push({ value: "free", label: tr("booking.portalSession.pay_free"), hint: null });
 
+  // R51: the ticket type picker; a type that cannot be bought now is shown disabled with its reason.
+  const ticketTypes: TicketTypeOption[] = view.ticketTypes.map((t, i) => {
+    const q = ticketQuotes[i];
+    const price = q ? formatMoney(q.totalCents, locale) : null;
+    const hint =
+      t.state === "not_yet" && t.salesStartAt
+        ? tr("booking.portalSession.ticket_sales_from", { date: formatDateTime(t.salesStartAt, locale, "full") })
+        : t.state === "not_on_sale"
+          ? tr("booking.portalSession.ticket_not_on_sale")
+          : t.state === "sold_out"
+            ? tr("booking.portalSession.ticket_sold_out")
+            : t.state === "members_only"
+              ? tr("booking.portalSession.ticket_members_only")
+              : t.left !== null
+                ? tr("booking.portalSession.ticket_left", { count: t.left })
+                : null;
+    return { id: t.id, label: price ? `${pick(t.name, locale)} · ${price}` : pick(t.name, locale), hint, disabled: t.state !== "on_sale" };
+  });
+  const onSale = view.ticketTypes.filter((t) => t.state === "on_sale");
+
+  // Guests: by the owner's package (R55, while credits allow a guest use) and/or by order (also on
+  // a ticketed event, where every guest takes a ticket of the chosen type, R51, R52).
   const guestPay: Array<"guest" | "order"> = [];
-  if (view.payOptions.includes("credit")) guestPay.push("guest");
-  if (session.productId) guestPay.push("order");
+  const guestUsesLeft = view.guestUses?.usesLeft ?? null;
+  if (view.payOptions.includes("credit") && view.guestUses?.allowed) guestPay.push("guest");
+  if (session.productId || ticketed) guestPay.push("order");
+  const maxGuests = ticketed ? Math.min(view.maxGuests, Math.max(0, ...onSale.map((t) => t.maxPerBooking - 1))) : view.maxGuests;
+  const usesLeftText =
+    view.payOptions.includes("credit") && view.guestUses
+      ? view.guestUses.allowed && guestUsesLeft !== null
+        ? tr("booking.portalSession.guest_uses_left", { count: guestUsesLeft })
+        : !view.guestUses.allowed && guestPay.length > 0
+          ? tr("booking.portalSession.guest_uses_none")
+          : null
+      : null;
   const healthMissing = view.healthDeclaration ? !view.healthDeclaration.valid : false;
+  // R22: a lead booking a Lead Magnet seat reserved for leads.
+  const leadSeatNotice = availability.useLeadSeat ? tr("booking.portalSession.lead_seat_notice") : null;
 
   const title = pick(session.title, locale);
   const description = session.description ? pick(session.description, locale) : null;
@@ -190,7 +247,13 @@ export default async function BookSessionPage({
           clientKey={randomUUID()}
           payOptions={payOptions}
           showPromo={view.payOptions.includes("order")}
-          guests={view.maxGuests > 0 && session.kind !== "event" ? { max: view.maxGuests, isNight: session.kind === "night", payOptions: guestPay } : null}
+          ticketTypes={ticketed ? ticketTypes : null}
+          leadSeatNotice={leadSeatNotice}
+          guests={
+            maxGuests > 0 && (session.kind !== "event" || ticketed)
+              ? { max: maxGuests, isNight: session.kind === "night", payOptions: guestPay, usesLeft: usesLeftText }
+              : null
+          }
           terms={{ required: termsRequired, href: termsHref }}
           health={
             healthMissing
@@ -212,6 +275,7 @@ export default async function BookSessionPage({
             emergencyRelation: tr("booking.portalSession.emergency_relation"),
             submit: tr("booking.portalSession.book"),
             noPayOption: tr("booking.portalSession.no_pay_option"),
+            ticketType: tr("booking.portalSession.ticket_type"),
             guests: {
               legend: tr("booking.portalSession.guests"),
               guestNumber: tr("booking.portalSession.guest_number", { n: "{n}" }),

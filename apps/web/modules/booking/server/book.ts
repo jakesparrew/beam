@@ -30,7 +30,7 @@ import { URL_SEGMENT, formatDateTime, missingLocales, pick, type Locale } from "
 import { NotFoundError, ValidationError, actorHasPermission, and, createCtx, eq, gt, inArray, ne, or, sql, writeDurably, type Ctx } from "@/lib/ctx";
 import { getSetting } from "@/lib/settings";
 import { createOrder } from "@/modules/commerce/api";
-import { InsufficientCreditsError, SharingNotAllowedError, checkCredits, consumeCredits, getMembershipForPerson } from "@/modules/credits/api";
+import { InsufficientCreditsError, SharingNotAllowedError, checkCredits, consumeCredits, getGuestUsesLeft, getMembershipForPerson } from "@/modules/credits/api";
 import { createPersonWithoutEmail, findOrCreatePersonByEmail, getPersonStatus } from "@/modules/crm/api";
 import { sendTransactional } from "@/modules/email/api";
 import { ensureHealthAndContact, type EmergencyContactInput } from "./declarations";
@@ -688,7 +688,8 @@ export async function bookSeats(tx: Tx, ctx: Ctx, input: BookSeatsInput): Promis
     const order = await createOrder(tx, ctx, {
       personId: input.personId,
       channel: staff ? "admin" : "portal",
-      items: orderRows.map((b) => ({ productId: productId!, quantity: 1, sessionId: session.id, bookingIds: [b.id] })),
+      // R51: a ticket line carries its type, so commerce groups the order's tickets (`groupTicketTypes`).
+      items: orderRows.map((b) => ({ productId: productId!, quantity: 1, sessionId: session.id, bookingIds: [b.id], ...(ticket ? { ticketTypeId: ticket.id } : {}) })),
       promoCode: input.promoCode ?? null,
       clientKey: input.clientKey,
       locale,
@@ -740,18 +741,21 @@ export async function bookSeats(tx: Tx, ctx: Ctx, input: BookSeatsInput): Promis
 /**
  * R55 "{n} guest uses left this month" at booking time: whether the owner's package can pay for a
  * guest on this session now, through `credits.checkCredits` with a stand-in guest (no row is
- * written). `usesLeft` is the number when credits can tell it (null until credits exposes the
- * monthly count, see the booking-P8 request); `reason` is credits' refusal (`guest_limit`,
- * `not_shareable`, `insufficient`). Null when the session cannot be paid with credits.
+ * written). `usesLeft` is credits' `getGuestUsesLeft` for the Brussels month of `now` (the month
+ * `consumeCredits` counts in); `reason` is credits' refusal (`guest_limit`, `not_shareable`,
+ * `insufficient`). Null when the session cannot be paid with credits.
  */
 export async function guestUseState(
   db: DbOrTx,
   ownerPersonId: string,
   session: Pick<SessionRow, "creditKind" | "creditCost" | "startsAt">,
+  now: Date = new Date(),
 ): Promise<{ allowed: boolean; usesLeft: number | null; reason: string | null } | null> {
   if (!session.creditKind || session.creditCost <= 0) return null;
   const r = await checkCredits(db, { personId: ownerPersonId, beneficiaryPersonId: randomUUID(), kind: session.creditKind, units: session.creditCost, validAt: session.startsAt });
-  return r.ok ? { allowed: true, usesLeft: null, reason: null } : { allowed: false, usesLeft: 0, reason: r.reason };
+  if (!r.ok) return { allowed: false, usesLeft: 0, reason: r.reason };
+  // `checkCredits` decides (it mirrors the consume); the count is the line the form shows.
+  return { allowed: true, usesLeft: await getGuestUsesLeft(db, { personId: ownerPersonId, kind: session.creditKind, at: now }), reason: null };
 }
 
 /** The ticket types tab (booking spec 5.1, R2): every type of a session with its live sold count, in order. */
@@ -759,5 +763,59 @@ export async function listTicketTypesWithSold(db: DbOrTx, sessionId: string, now
   const rows = await db.select().from(ticketTypes).where(eq(ticketTypes.sessionId, sessionId)).orderBy(ticketTypes.sortOrder, ticketTypes.createdAt);
   const out: Array<TicketTypeRow & { sold: number }> = [];
   for (const r of rows) out.push({ ...r, sold: await ticketTypeSold(db, r.id, now) });
+  return out;
+}
+
+/** R51: why a ticket type can or cannot be picked now (`on_sale` is the only bookable state). */
+export type TicketTypeState = "on_sale" | "not_yet" | "not_on_sale" | "sold_out" | "members_only";
+
+export type TicketTypeOffer = {
+  id: string;
+  name: TicketTypeRow["name"];
+  productId: string;
+  capacity: number | null;
+  /** Tickets left of this type (null = only the session capacity limits it). */
+  left: number | null;
+  maxPerBooking: number;
+  requiresGuestDetails: boolean;
+  isMemberOnly: boolean;
+  salesStartAt: Date | null;
+  state: TicketTypeState;
+};
+
+/**
+ * R51 (booking-P8 request): the active ticket types of a session as a booking form offers them,
+ * in order, each with its live count and its state for `personId` (null = staff: `members_only`
+ * applies only to customers who are not members). Empty when the session has no ticket types.
+ */
+export async function ticketTypeOffers(
+  db: DbOrTx,
+  session: Pick<SessionRow, "id" | "startsAt">,
+  personId: string | null,
+  now: Date = new Date(),
+): Promise<TicketTypeOffer[]> {
+  const rows = await activeTicketTypes(db, session.id);
+  if (rows.length === 0) return [];
+  const isMember = personId && rows.some((t) => t.isMemberOnly) ? (await getMembershipForPerson(db, personId)).isMember : false;
+  const out: TicketTypeOffer[] = [];
+  for (const t of rows) {
+    const left = t.capacity === null ? null : Math.max(0, t.capacity - (await ticketTypeSold(db, t.id, now)));
+    let state: TicketTypeState = "on_sale";
+    if (!isTicketOnSale(t, session, now)) state = t.salesStartAt && now.getTime() < t.salesStartAt.getTime() ? "not_yet" : "not_on_sale";
+    else if (personId && t.isMemberOnly && !isMember) state = "members_only";
+    else if (left !== null && left <= 0) state = "sold_out";
+    out.push({
+      id: t.id,
+      name: t.name,
+      productId: t.productId,
+      capacity: t.capacity,
+      left,
+      maxPerBooking: t.maxPerBooking,
+      requiresGuestDetails: t.requiresGuestDetails,
+      isMemberOnly: t.isMemberOnly,
+      salesStartAt: t.salesStartAt,
+      state,
+    });
+  }
   return out;
 }

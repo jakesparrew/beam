@@ -17,7 +17,8 @@
       "rules": "Booking rules",
       "book": "Book",
       "my_bookings": "My bookings",
-      "my_waitlist": "My waiting lists"
+      "my_waitlist": "My waiting lists",
+      "partner_holds": "My partner seats"
     },
     "common": {
       "save": "Save",
@@ -187,7 +188,11 @@
       "invalid_transition": "This change is not possible in the current state.",
       "shared_bed_limit": "Only one guest can share your bed.",
       "generic": "Something went wrong. Please try again.",
-      "validation": "Please check the fields and try again."
+      "validation": "Please check the fields and try again.",
+      "ticket_type_required": "Choose a ticket type.",
+      "too_many_tickets": "This ticket type allows fewer tickets per booking. Remove a guest or choose another ticket.",
+      "guest_details_required": "Fill in the first and last name of every guest.",
+      "too_many_guests": "You can bring fewer guests on one booking."
     },
     "calendar": {
       "title": "Sessions",
@@ -443,7 +448,8 @@
       "reason": "Reason",
       "send_email": "Send the confirmation email",
       "emergency_contact": "Emergency contact for the night",
-      "create": "Create booking"
+      "create": "Create booking",
+      "ticket_type": "Ticket type"
     },
     "checkin": {
       "title": "Check-in desk",
@@ -550,7 +556,8 @@
       "ticket_not_on_sale": "Not on sale right now",
       "ticket_sales_from": "On sale from {date}",
       "ticket_members_only": "For members",
-      "guest_uses_none": "Your package cannot be used for guests this month. You can pay for your guest instead."
+      "guest_uses_none": "Your package cannot be used for guests this month. You can pay for your guest instead.",
+      "shared_hint": "Shared by {owner}: {count, plural, one {# session left for you} other {# sessions left for you}}"
     },
     "portalBookings": {
       "title": "My bookings",

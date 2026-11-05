@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Route } from "next";
 import { Badge, Button, EmptyState, Input, Label, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, buttonVariants } from "@beam/ui";
-import { BOOKING_STATUSES, addDays, brusselsTime, zonedTimeToUtc, type BookingStatus } from "@beam/core/booking";
+import { BOOKING_SOURCES, BOOKING_STATUSES, PAID_WITH, addDays, brusselsTime, zonedTimeToUtc, type BookingSource, type BookingStatus, type PaidWith } from "@beam/core/booking";
 import { formatDate, type Locale, type LocalizedText } from "@beam/core/i18n";
 import { hasPermission, requireStaff } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
@@ -15,7 +15,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const selectClass =
   "h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
-type Search = { q?: string; personId?: string; sessionId?: string; status?: string; from?: string; to?: string; cursor?: string };
+type Search = { q?: string; personId?: string; sessionId?: string; status?: string; paidWith?: string; source?: string; from?: string; to?: string; cursor?: string };
 
 /** `<createdAt ISO>_<id>` (keyset of `listBookings`). */
 function parseCursor(raw: string | undefined): { createdAt: Date; id: string } | null {
@@ -40,6 +40,8 @@ export default async function BookingsPage({ searchParams }: { searchParams: Pro
   const status = (BOOKING_STATUSES as readonly string[]).includes(sp.status ?? "") ? (sp.status as BookingStatus) : undefined;
   const personId = sp.personId && UUID.test(sp.personId) ? sp.personId : undefined;
   const sessionId = sp.sessionId && UUID.test(sp.sessionId) ? sp.sessionId : undefined;
+  const paidWith = (PAID_WITH as readonly string[]).includes(sp.paidWith ?? "") ? (sp.paidWith as PaidWith) : undefined;
+  const source = (BOOKING_SOURCES as readonly string[]).includes(sp.source ?? "") ? (sp.source as BookingSource) : undefined;
   const from = sp.from && DATE.test(sp.from) ? sp.from : undefined;
   const to = sp.to && DATE.test(sp.to) ? sp.to : undefined;
   const q = (sp.q ?? "").trim();
@@ -49,6 +51,8 @@ export default async function BookingsPage({ searchParams }: { searchParams: Pro
       ...(personId ? { personId } : {}),
       ...(sessionId ? { sessionId } : {}),
       ...(status ? { status } : {}),
+      ...(paidWith ? { paidWith } : {}),
+      ...(source ? { source } : {}),
       ...(from ? { from: zonedTimeToUtc(from, "00:00") } : {}),
       ...(to ? { to: zonedTimeToUtc(addDays(to, 1), "00:00") } : {}),
       cursor: parseCursor(sp.cursor),
@@ -58,7 +62,7 @@ export default async function BookingsPage({ searchParams }: { searchParams: Pro
 
   const keep = (extra: Record<string, string | undefined>) => {
     const p = new URLSearchParams();
-    for (const [k, v] of Object.entries({ personId, sessionId, status, from, to, ...extra })) if (v) p.set(k, v);
+    for (const [k, v] of Object.entries({ personId, sessionId, status, paidWith, source, from, to, ...extra })) if (v) p.set(k, v);
     const s = p.toString();
     return `/admin/bookings${s ? `?${s}` : ""}` as Route;
   };
@@ -86,6 +90,28 @@ export default async function BookingsPage({ searchParams }: { searchParams: Pro
             {BOOKING_STATUSES.map((s) => (
               <option key={s} value={s}>
                 {tr(`booking.status.${s}`)}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="grid gap-1">
+          <Label htmlFor="bookings-paid-with">{tr("booking.bookings.filter_paid_with")}</Label>
+          <select id="bookings-paid-with" name="paidWith" defaultValue={paidWith ?? ""} className={selectClass}>
+            <option value="">—</option>
+            {PAID_WITH.map((s) => (
+              <option key={s} value={s}>
+                {tr(`booking.paidWith.${s}`)}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="grid gap-1">
+          <Label htmlFor="bookings-source">{tr("booking.bookings.filter_source")}</Label>
+          <select id="bookings-source" name="source" defaultValue={source ?? ""} className={selectClass}>
+            <option value="">—</option>
+            {BOOKING_SOURCES.map((s) => (
+              <option key={s} value={s}>
+                {tr(`booking.source.${s}`)}
               </option>
             ))}
           </select>

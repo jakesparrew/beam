@@ -520,11 +520,12 @@
       "add_guest": "Add a guest",
       "remove_guest": "Remove this guest",
       "guest_number": "Guest {n}",
-      "opens_at": "Booking opens on {date}",
+      "opens_at": "Opens for you on {date}",
       "no_pay_option": "There is no way to pay for this session online. Please contact reception.",
       "waitlist_joined": "You are on the waiting list. We email you as soon as a place frees up.",
       "when": "When",
-      "where": "Where"
+      "where": "Where",
+      "lead_seat_notice": "You book one of the places reserved for leads."
     },
     "portalBookings": {
       "title": "My bookings",
@@ -691,11 +692,43 @@
         "heading": "The offer has expired",
         "intro": "The seat for {title} on {date} was not claimed in time and went to the next person.",
         "cta": "View the session"
+      },
+      "lead_window_open": {
+        "subject": "The lead window has closed: your seat for {title} is ready",
+        "heading": "Your seat is ready to claim",
+        "intro": "The lead window has closed: your seat for {title} on {date} is ready to claim. It is held for you until {expiresAt}.",
+        "cta": "Claim my seat"
       }
     },
     "new": {
       "starts_at": "Starts at",
       "create_draft": "Create as draft"
+    },
+    "lead": {
+      "title": "Lead Magnet",
+      "intro": "Reserve places for leads (people who have not bought anything yet) during a lead window. Times are Brussels time.",
+      "is_lead_magnet": "This event is a Lead Magnet",
+      "seats_mode": "Places reserved for leads",
+      "seats_number": "A number of places",
+      "seats_pct": "A percentage of the capacity (rounded down)",
+      "seats": "Number of places",
+      "pct": "Percentage",
+      "window_start": "Lead window opens",
+      "window_end": "Lead window closes",
+      "release_rule": "After the lead window",
+      "public_release": "Open to everyone at (optional)",
+      "public_release_hint": "Empty: the end of the lead window plus the claim window.",
+      "claim_window": "Claim window (minutes)",
+      "position_visible": "Show people on the waiting list their position in their queue",
+      "flag_off": "Lead Magnet access is not switched on yet (feature flag ff_booking_lead_priority).",
+      "not_event": "Only events can be a Lead Magnet.",
+      "phase": "Current phase: {phase}",
+      "reserved_remaining": "Lead places left: {count}",
+      "opens_for_customers": "Opens for customers: {date}",
+      "opens_for_public": "Opens for everyone: {date}",
+      "error_window": "Check the lead window: it must end after it opens, in the future and before the event starts.",
+      "error_seats": "Give a number of places or a percentage, at most the capacity.",
+      "error_public_release": "The public opening must lie between the end of the lead window and the start of the event."
     }
   }
 }

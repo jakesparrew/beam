@@ -160,7 +160,12 @@ export async function listPublicEvents(
   }>
 > {
   const rows = await db
-    .select({ s: sessions, general: vSessionAvailability.availableGeneral })
+    .select({
+      s: sessions,
+      general: vSessionAvailability.availableGeneral,
+      phase: vSessionAvailability.leadPhase,
+      opensForCustomersAt: vSessionAvailability.opensForCustomersAt,
+    })
     .from(sessions)
     .innerJoin(vSessionAvailability, eq(vSessionAvailability.sessionId, sessions.id))
     .where(and(eq(sessions.kind, "event"), ne(sessions.status, "cancelled"), lte(sessions.publishedAt, sql`now()`), gte(sessions.startsAt, input.from)))
@@ -183,11 +188,21 @@ export async function listPublicEvents(
   }));
 }
 
-/** Email `event` block, in the order of `sessionIds`; `opensForCustomersAt` stays null until booking-P7. */
+/**
+ * Email `event` block, in the order of `sessionIds` (booking spec 4.9). booking-P7:
+ * `opensForCustomersAt` is the view's `opens_for_customers_at` (the session's `lead_window_end_at`)
+ * when the session is a Lead Magnet in phase `lead` with no general seat left, otherwise null. The
+ * card carries no person data; email decides per recipient whether to show it.
+ */
 export async function getSessionCards(tx: DbOrTx, sessionIds: string[], locale: Locale): Promise<SessionCard[]> {
   if (!sessionIds.length) return [];
   const rows = await tx
-    .select({ s: sessions, general: vSessionAvailability.availableGeneral })
+    .select({
+      s: sessions,
+      general: vSessionAvailability.availableGeneral,
+      phase: vSessionAvailability.leadPhase,
+      opensForCustomersAt: vSessionAvailability.opensForCustomersAt,
+    })
     .from(sessions)
     .innerJoin(vSessionAvailability, eq(vSessionAvailability.sessionId, sessions.id))
     .where(inArray(sessions.id, sessionIds));
@@ -209,7 +224,7 @@ export async function getSessionCards(tx: DbOrTx, sessionIds: string[], locale: 
         isLeadMagnet: s.isLeadMagnet,
         availabilityBand: publicBand(s.status, r.general),
         bookUrl: `/${URL_SEGMENT[locale]}/account/book/${s.id}`,
-        opensForCustomersAt: null,
+        opensForCustomersAt: s.isLeadMagnet && r.phase === "lead" && Number(r.general) <= 0 ? (r.opensForCustomersAt ?? s.leadWindowEndAt) : null,
       },
     ];
   });

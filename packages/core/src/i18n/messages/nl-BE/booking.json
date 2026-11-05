@@ -520,11 +520,12 @@
       "add_guest": "Gast toevoegen",
       "remove_guest": "Deze gast verwijderen",
       "guest_number": "Gast {n}",
-      "opens_at": "Boeken kan vanaf {date}",
+      "opens_at": "Opent voor jou op {date}",
       "no_pay_option": "Deze sessie kan je niet online betalen. Neem contact op met het onthaal.",
       "waitlist_joined": "Je staat op de wachtlijst. We mailen je zodra er een plaats vrijkomt.",
       "when": "Wanneer",
-      "where": "Waar"
+      "where": "Waar",
+      "lead_seat_notice": "Je boekt een van de plaatsen die voor leads gereserveerd zijn."
     },
     "portalBookings": {
       "title": "Mijn boekingen",
@@ -691,11 +692,43 @@
         "heading": "Het aanbod is verlopen",
         "intro": "De plaats voor {title} op {date} werd niet op tijd opgeëist en ging naar de volgende persoon.",
         "cta": "De sessie bekijken"
+      },
+      "lead_window_open": {
+        "subject": "Het leadvenster is gesloten: je plaats voor {title} staat klaar",
+        "heading": "Je plaats staat klaar",
+        "intro": "Het leadvenster is gesloten: je plaats voor {title} op {date} staat klaar. We houden ze voor je vast tot {expiresAt}.",
+        "cta": "Mijn plaats opeisen"
       }
     },
     "new": {
       "starts_at": "Begint om",
       "create_draft": "Aanmaken als concept"
+    },
+    "lead": {
+      "title": "Lead Magnet",
+      "intro": "Reserveer plaatsen voor leads (mensen die nog niets gekocht hebben) tijdens een leadvenster. Tijden zijn Brusselse tijd.",
+      "is_lead_magnet": "Dit evenement is een Lead Magnet",
+      "seats_mode": "Plaatsen voor leads",
+      "seats_number": "Een aantal plaatsen",
+      "seats_pct": "Een percentage van de capaciteit (naar beneden afgerond)",
+      "seats": "Aantal plaatsen",
+      "pct": "Percentage",
+      "window_start": "Leadvenster opent",
+      "window_end": "Leadvenster sluit",
+      "release_rule": "Na het leadvenster",
+      "public_release": "Open voor iedereen op (optioneel)",
+      "public_release_hint": "Leeg: het einde van het leadvenster plus de claimtermijn.",
+      "claim_window": "Claimtermijn (minuten)",
+      "position_visible": "Toon mensen op de wachtlijst hun plaats in hun wachtrij",
+      "flag_off": "Lead Magnet-toegang is nog niet ingeschakeld (feature flag ff_booking_lead_priority).",
+      "not_event": "Alleen evenementen kunnen een Lead Magnet zijn.",
+      "phase": "Huidige fase: {phase}",
+      "reserved_remaining": "Leadplaatsen over: {count}",
+      "opens_for_customers": "Opent voor klanten: {date}",
+      "opens_for_public": "Opent voor iedereen: {date}",
+      "error_window": "Controleer het leadvenster: het moet sluiten na het openen, in de toekomst en voor de start van het evenement.",
+      "error_seats": "Geef een aantal plaatsen of een percentage, hoogstens de capaciteit.",
+      "error_public_release": "De opening voor iedereen moet tussen het einde van het leadvenster en de start van het evenement liggen."
     }
   }
 }

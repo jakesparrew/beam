@@ -4,7 +4,7 @@
  * booking-P3a: `booking.booking_confirmed`, `booking.guest_invited`; booking-P3b:
  * `booking.booking_rescheduled`, `booking.booking_cancelled`, `booking.booking_late_cancelled`,
  * `booking.session_cancelled`, `booking.booking_reminder`; booking-P5: `booking.waitlist_joined`, `booking.seat_offered`, `booking.seat_claimed`,
- * `booking.offer_expired`. The check-in QR is an inline attachment (`cid:checkin-qr.png`) passed by the
+ * `booking.offer_expired`; booking-P7 (R2): `booking.lead_window_open`. The check-in QR is an inline attachment (`cid:checkin-qr.png`) passed by the
  * sender, so no template builds attachments itself.
  */
 import { defineTemplate } from "../define";
@@ -14,6 +14,7 @@ import { BookingLateCancelled, BookingLateCancelledProps } from "./booking-late-
 import { BookingReminder, BookingReminderProps } from "./booking-reminder";
 import { BookingRescheduled, BookingRescheduledProps } from "./booking-rescheduled";
 import { GuestInvited, GuestInvitedProps } from "./guest-invited";
+import { LeadWindowOpen, LeadWindowOpenProps } from "./lead-window-open";
 import { OfferExpired, OfferExpiredProps } from "./offer-expired";
 import { SeatClaimed, SeatClaimedProps } from "./seat-claimed";
 import { SeatOffered, SeatOfferedProps } from "./seat-offered";
@@ -181,6 +182,23 @@ export const templates = [
       heading: "booking.email.offer_expired.heading",
       intro: "booking.email.offer_expired.intro",
       cta: "booking.email.offer_expired.cta",
+    },
+  }),
+  defineTemplate({
+    name: "lead_window_open",
+    component: LeadWindowOpen,
+    props: LeadWindowOpenProps,
+    sample: {
+      title: "Lezing: slapen als medicijn",
+      date: "do 12 nov. 2026, 19:30",
+      expiresAt: "di 10 nov. 2026, 12:30",
+      url: "https://beam.example.com/api/public/claim/sample-claim-token-0000000000000000000000",
+    },
+    slots: {
+      subject: "booking.email.lead_window_open.subject",
+      heading: "booking.email.lead_window_open.heading",
+      intro: "booking.email.lead_window_open.intro",
+      cta: "booking.email.lead_window_open.cta",
     },
   }),
 ];

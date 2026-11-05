@@ -13,9 +13,11 @@ export function extractLinks(html: string): string[] {
 /**
  * The newest email sent to `to` (the real address; the sink rewrites the recipient), read from
  * `files` (kind `rendered_email`) joined to `email_messages.to_email`. Polls every 500 ms for up
- * to 15 s (runbook 3.6). `after` ignores older messages; `subjectIncludes` filters the subject.
+ * to 15 s (runbook 3.6). `after` ignores older messages; `subjectIncludes` filters the subject;
+ * `linkIncludes` keeps only messages with a link containing it (another email to the same person,
+ * an invoice or a credit note, may arrive in the same seconds).
  */
-export async function latestEmail(to: string, opts: { after?: Date; subjectIncludes?: string; timeoutMs?: number } = {}): Promise<SinkEmail> {
+export async function latestEmail(to: string, opts: { after?: Date; subjectIncludes?: string; linkIncludes?: string; timeoutMs?: number } = {}): Promise<SinkEmail> {
   const deadline = Date.now() + (opts.timeoutMs ?? 15_000);
   const after = (opts.after ?? new Date(0)).toISOString();
   for (;;) {
@@ -26,11 +28,12 @@ export async function latestEmail(to: string, opts: { after?: Date; subjectInclu
       where lower(m.to_email) = ${to.toLowerCase()} and f.created_at > ${after}::timestamptz
         and (${opts.subjectIncludes ?? null}::text is null or m.subject ilike '%' || ${opts.subjectIncludes ?? ""} || '%')
       order by f.created_at desc
-      limit 1`);
-    const row = rows[0];
-    if (row) {
+      limit 10`);
+    for (const row of rows) {
       const html = typeof row.bytes === "string" ? Buffer.from(row.bytes.replace(/^\\x/, ""), "hex").toString("utf8") : Buffer.from(row.bytes).toString("utf8");
-      return { subject: row.subject ?? "", html, links: extractLinks(html), createdAt: new Date(row.created_at) };
+      const links = extractLinks(html);
+      if (opts.linkIncludes && !links.some((l) => l.includes(opts.linkIncludes!))) continue;
+      return { subject: row.subject ?? "", html, links, createdAt: new Date(row.created_at) };
     }
     if (Date.now() > deadline) throw new Error(`No email to ${to} arrived in the sink within ${opts.timeoutMs ?? 15_000} ms`);
     await sleep(500);

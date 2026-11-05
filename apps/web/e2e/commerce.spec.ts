@@ -12,8 +12,10 @@
  *   POS screen, rule 56);
  * - finance refunds that unused package from `/admin/orders/[id]/refund`;
  * - a customer withdraws an unused online package within 14 days (rule 54).
- * Demo customers `customer1..5@example.com` have portal users; the member is the person with an
- * active membership in the demo seed. Rows this spec creates are its own orders and checkouts.
+ * The buyer is a fresh customer per run, registered by the magic link of the first sign-in: a
+ * shared demo customer runs into the magic-link limit (5 an hour, PL-68) across runs and
+ * parallel servers. The member is the person with an active membership in the demo seed. Rows
+ * this spec creates are its own person, orders and checkouts.
  */
 import { randomUUID } from "node:crypto";
 import { expect, test, type Page } from "@playwright/test";
@@ -24,7 +26,7 @@ import { closeE2eDb, e2eRows } from "./support/db";
 import { uniqueEmail } from "./support/ids";
 
 const PACKAGE_SKU = "PKG-5-DAYS";
-const BUYER = "customer2@example.com";
+const BUYER = uniqueEmail("commerce-buyer");
 
 test.afterAll(async () => {
   await closeE2eDb();
@@ -109,6 +111,8 @@ test.describe("customer shop and checkout", () => {
 
   test("a booking-created order is paid on /account/checkout/[orderId]", async ({ page }) => {
     // The order booking would create: a pending portal order with the current terms version.
+    // Signing in first registers the fresh buyer.
+    await signInCustomer(page, BUYER, "nl");
     const [person] = await e2eRows<{ id: string }>(sql`select id from persons where email = ${BUYER}`);
     const [terms] = await e2eRows<{ id: string }>(sql`
       select v.version_id as id from v_legal_versions v where v.legal_key = 'terms' order by v.ordinal desc limit 1`);
@@ -121,7 +125,6 @@ test.describe("customer shop and checkout", () => {
     await e2eRows(sql`
       insert into order_lines (order_id, line_no, product_id, product_kind, sku, description, quantity, unit_amount_cents, discount_cents, line_total_cents, vat_rate_pct, vat_cents, pricing_trace, data)
       values (${orderId}, 1, ${product!.id}, 'item', ${product!.sku}, '{"nl-BE":"Drinkfles","fr-BE":"Gourde","en":"Water bottle"}'::jsonb, 1, 2500, 0, 2500, 21, 434, '{}'::jsonb, '{}'::jsonb)`);
-    await signInCustomer(page, BUYER, "nl");
     await page.goto(`/nl/account/checkout/${orderId}`);
     await expect(page.getByText(/vastgehouden tot/)).toBeVisible();
     await expect(page.locator("#accept-terms")).toHaveCount(0);

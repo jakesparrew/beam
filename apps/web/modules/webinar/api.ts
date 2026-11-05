@@ -7,12 +7,13 @@
  * `listPersonWebinars`, `listUpcomingRegistrationsForPerson`, `getWebinarCards`, `getAccessUrl`,
  * `WebinarSignup`); webinar-P6 the ops-facing stats (`getPersonWebinarStats`,
  * `countWebinarLeadsWithoutBooking`, `listWebinarLeadsWithoutBooking`, `listUpcomingWebinarHealth`,
- * built in `server/report.ts`).
+ * built in `server/report.ts`); webinar-P7 the marketing figures (`getWebinarKpis`,
+ * `funnelByCampaign`, built in `server/kpis.ts`).
  *
  * Implementing packages: webinar-P3 (`getWebinarForSession`, `listPublicWebinars`,
  * `listPersonWebinars`, `listUpcomingRegistrationsForPerson`, `getWebinarCards`, `getAccessUrl`,
  * `WebinarSignup`), webinar-P6 (`getPersonWebinarStats`, `countWebinarLeadsWithoutBooking`,
- * `listWebinarLeadsWithoutBooking`, `listUpcomingWebinarHealth`), webinar-P7 (`getWebinarKpis`)
+ * `listWebinarLeadsWithoutBooking`, `listUpcomingWebinarHealth`), webinar-P7 (`getWebinarKpis`, `funnelByCampaign`)
  * and webinar-P8 (`getWebinarWeeklyFacts`).
  */
 import type { DbOrTx, Tx } from "@beam/db";
@@ -25,9 +26,11 @@ import type { WatchMode, WebinarMode, WebinarStatus } from "@beam/core/webinar";
 import { PUBLIC_STATUSES, isUpcoming, listPersonRegistrations, listPublicWebinarRows, type PersonRegistrationRow } from "./queries";
 import { accessUrlOf } from "./server/registration";
 import { countLeadsWithoutBooking, listLeadsWithoutBooking, personWebinarStats, upcomingWebinarHealth } from "./server/report";
+import { funnelByCampaign as campaignFunnel, webinarKpis, type CampaignFunnelRow } from "./server/kpis";
 import type { WebinarRow } from "./server/lifecycle";
 
 export type { WatchMode, WebinarMode, WebinarStatus } from "@beam/core/webinar";
+export type { CampaignFunnelRow } from "./server/kpis";
 
 const notYet = <T>(fn: string): Promise<T> => Promise.reject(new NotImplementedError(`webinar.${fn}`));
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -177,9 +180,24 @@ export async function mergePersons(tx: Tx, winnerPersonId: string, loserPersonId
   return { moved: moved.length, collapsed: Number(left?.n ?? 0) };
 }
 
-/** R3. */
-export function getWebinarKpis(_db: DbOrTx, _input: { from: Date; to: Date; periodDays: number }): Promise<WebinarKpis> {
-  return notYet("getWebinarKpis");
+/**
+ * R3, the ops marketing dashboard: native registrations made in `[from, to)` (not cancelled, no
+ * testers, one per resolved person and webinar). `liveAttendanceRate` = live `attended` ÷
+ * `registered_mode = 'live'`; conversion within `periodDays` of the anchor (rule 40); the
+ * segments split on the `person_status` snapshot; campaigns are `lower(trim(utm.campaign))`.
+ */
+export function getWebinarKpis(db: DbOrTx, input: { from: Date; to: Date; periodDays: number }): Promise<WebinarKpis> {
+  return webinarKpis(db, input);
+}
+
+/**
+ * R3 campaign funnel (blueprint 33): per UTM campaign of the registrations made in `[from, to)`:
+ * registrations -> attended -> first visit -> first purchase (within `periodDays` of the anchor),
+ * with `ad_spend_daily` spend of the same campaign and days, cost per registration and
+ * click-to-registration rate (registrations ÷ ad clicks); all three null without ad rows.
+ */
+export function funnelByCampaign(db: DbOrTx, input: { from: Date; to: Date; periodDays: number }): Promise<CampaignFunnelRow[]> {
+  return campaignFunnel(db, input);
 }
 
 /** R4. */

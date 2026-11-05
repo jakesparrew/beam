@@ -472,7 +472,12 @@
           "none": "(none)",
           "registrations": "Registrations",
           "attended": "Attended",
-          "converted": "Converted"
+          "converted": "Converted",
+          "spend": "Ad spend",
+          "cost_per_registration": "Cost per registration",
+          "click_to_registration": "Click-to-registration rate",
+          "no_spend": "No ad spend",
+          "spend_hint": "Ad spend of the campaign from the first to the last registration day; a campaign seen under several sources shows its figures on each row."
         }
       }
     },

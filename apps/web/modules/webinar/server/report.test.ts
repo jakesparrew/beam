@@ -166,9 +166,9 @@ describe("polls, CTAs and UTM", () => {
 
   it("the UTM table groups registrations by source and campaign", async () => {
     const r = await report(30);
-    expect(r.utm).toContainEqual({ source: "newsletter", campaign: "spring", registrations: 2, attended: 1, converted: 1 });
-    expect(r.utm).toContainEqual({ source: "instagram", campaign: null, registrations: 1, attended: 1, converted: 1 });
-    expect(r.utm).toContainEqual({ source: null, campaign: null, registrations: 1, attended: 0, converted: 0 });
+    expect(r.utm).toContainEqual({ source: "newsletter", campaign: "spring", registrations: 2, attended: 1, converted: 1, spendCents: null, costPerRegistrationCents: null, clickToRegistrationRate: null });
+    expect(r.utm).toContainEqual({ source: "instagram", campaign: null, registrations: 1, attended: 1, converted: 1, spendCents: null, costPerRegistrationCents: null, clickToRegistrationRate: null });
+    expect(r.utm).toContainEqual({ source: null, campaign: null, registrations: 1, attended: 0, converted: 0, spendCents: null, costPerRegistrationCents: null, clickToRegistrationRate: null });
   });
 });
 

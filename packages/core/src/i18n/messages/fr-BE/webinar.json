@@ -472,7 +472,12 @@
           "none": "(aucune)",
           "registrations": "Inscriptions",
           "attended": "Présents",
-          "converted": "Convertis"
+          "converted": "Convertis",
+          "spend": "Dépenses publicitaires",
+          "cost_per_registration": "Coût par inscription",
+          "click_to_registration": "Taux de clic à inscription",
+          "no_spend": "Aucune dépense publicitaire",
+          "spend_hint": "Dépenses publicitaires de la campagne du premier au dernier jour d'inscription ; une campagne présente sous plusieurs sources affiche ses chiffres sur chaque ligne."
         }
       }
     },

@@ -8,10 +8,12 @@
  * V1 journeys are `active`; R2 journeys (webinar, `abandoned-checkout`, `waitlist-follow-up`,
  * `event-follow-up` and the B2C pipeline playbook of 3.7, automation-P8) are `draft` with a
  * published version 1 (decision 30), switched on by `activateReleaseSequences(tx, 'R2')` of
- * `@beam/db/seed/automation`.
+ * `@beam/db/seed/automation`. R3 journeys (the B2B follow-up tasks of automation-P9) are drafts the
+ * same way, switched on by `activateReleaseSequences(tx, 'R3')`.
  */
 import type { SeedTemplateInput } from "../../email/types";
 import { ASSESSMENT_SEEDS } from "./assessment";
+import { B2B_SEEDS } from "./b2b";
 import { B2C_SEEDS, B2C_TAGS } from "./b2c";
 import { BOOKING_SEEDS } from "./booking";
 import { CHECKOUT_SEEDS } from "./checkout";
@@ -36,13 +38,14 @@ export {
   type TemplateCopy,
 } from "./groups";
 export type { SeedTemplateInput } from "../../email/types";
+export { B2B_JOURNEY_STAGES, b2bJourneySlug, OPPORTUNITY_STAGE_EVENT, type B2bJourneyStage } from "./b2b";
 export { B2C_PLAYBOOK_STAGES, B2C_TAGS, b2cPlaybookSlug, type B2cPlaybookStage } from "./b2c";
 export { HEALTH_DECLARATION_SLUG } from "./booking";
 export { CHECKOUT_RECOVERY_TEMPLATE, HIGH_VALUE_CENTS } from "./checkout";
 export { NEW_LEAD_FILTER } from "./lead";
 export { WEBINAR_FOLLOW_UP_TEMPLATE, WEBINAR_REMINDER_TEMPLATE, WEBINAR_REPLAY_TEMPLATE } from "./webinar";
 
-/** Every seeded journey, V1 first, in the order of spec 3.6. */
+/** Every seeded journey, V1 first, in the order of spec 3.6, then R2 and the R3 B2B journeys. */
 export const SEED_AUTOMATIONS: SeedAutomation[] = [
   ...LEAD_SEEDS,
   ...ASSESSMENT_SEEDS,
@@ -59,6 +62,7 @@ export const SEED_AUTOMATIONS: SeedAutomation[] = [
   ...EVENT_SEEDS.filter((s) => s.release === "R2"),
   ...WEBINAR_SEEDS,
   ...B2C_SEEDS,
+  ...B2B_SEEDS,
 ];
 
 /** Every tag a seeded journey applies or tests: the journey tags and the playbook's `repeat` and `lost`. */
@@ -67,7 +71,7 @@ export const SEED_TAGS: SeedTag[] = [...JOURNEY_TAGS, ...B2C_TAGS.filter((t) => 
 /** A release whose seeded drafts `activateReleaseSequences` switches on. */
 export type ActivationRelease = "R2" | "R3";
 
-/** The seeds of one release (R3 is automation-P9's B2B task journeys; none until it lands). */
+/** The seeds of one release (R3 is automation-P9's B2B task journeys). */
 export const seedsOfRelease = (release: ActivationRelease, seeds: readonly SeedAutomation[] = SEED_AUTOMATIONS): SeedAutomation[] =>
   seeds.filter((s) => (s.release as string) === release);
 

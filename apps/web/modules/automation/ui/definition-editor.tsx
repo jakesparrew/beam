@@ -6,11 +6,15 @@
  * returned issues show beside their fields), Validate parses the draft in the browser with the
  * same Zod schema, Publish opens the publish dialog. Also the new-automation form
  * (`/admin/automations/new`). Every string arrives as a prop.
+ *
+ * Purpose `b2b` (R3, automation-P9): B2B journeys create tasks and Slack messages only, because
+ * automated B2B outbound email is "Later" (spec 1, decision 35). Both forms say so when `b2b` is
+ * chosen, and the editor warns while the draft still has email steps.
  */
 import { useRouter } from "next/navigation";
 import { useMemo, useState, type FormEvent } from "react";
 import { Alert, AlertDescription, Button, Card, CardContent, CardHeader, CardTitle, FormField, Input, Tabs, TabsContent, TabsList, TabsTrigger, Textarea } from "@beam/ui";
-import { parseDefinition, type DefinitionIssue } from "@beam/core/automation";
+import { AUTOMATION_PURPOSES, parseDefinition, type AutomationPurpose, type DefinitionIssue } from "@beam/core/automation";
 import { createAutomation, saveDraft } from "../actions";
 import { selectClass, type EditorOptions, type Json } from "./condition-builder";
 import { errorText, issueText, type IssueLike, type Labels, formStr } from "./outcome-badge";
@@ -19,7 +23,7 @@ import { Field, StepForms, type IssueView, type StepJson } from "./step-forms";
 import { AudienceCard, IssueList, ReEntryExitCard, TimingCard, TriggerCard } from "./trigger-card";
 
 type Obj = { [k: string]: Json };
-const PURPOSES = ["newsletter", "events", "member_comms", "b2b"] as const;
+const PURPOSES = AUTOMATION_PURPOSES;
 
 export type EditorAutomation = {
   id: string;
@@ -29,11 +33,17 @@ export type EditorAutomation = {
   groupKey: string;
   priority: number;
   isMarketing: boolean;
-  purpose: (typeof PURPOSES)[number] | null;
+  purpose: AutomationPurpose | null;
 };
 
 const toViews = (issues: readonly IssueLike[], l: Labels): IssueView[] => issues.map((i) => ({ path: i.path, code: i.code, severity: i.severity, text: issueText(i, l) }));
 const isFormShaped = (d: unknown): d is Obj => !!d && typeof d === "object" && !Array.isArray(d) && Array.isArray((d as Obj).steps);
+
+/** The keys of the draft's `email` steps (a B2B journey must have none, decision 35). */
+export function emailStepKeys(def: unknown): string[] {
+  const steps = isFormShaped(def) ? (def.steps as Json[]) : [];
+  return steps.flatMap((st) => (st && typeof st === "object" && !Array.isArray(st) && st.type === "email" ? [typeof st.key === "string" ? st.key : ""] : []));
+}
 
 export function DefinitionEditor({
   automation,
@@ -133,6 +143,7 @@ export function DefinitionEditor({
   const steps = Array.isArray(def.steps) ? (def.steps as StepJson[]) : [];
   const cardProps = { def, set, l, options, issues: views, disabled };
   const errorsCount = issues.filter((i) => i.severity === "error").length;
+  const b2bEmailSteps = settings.purpose === "b2b" ? emailStepKeys(def) : [];
 
   return (
     <div className="grid gap-6" data-testid="definition-editor">
@@ -212,9 +223,9 @@ export function DefinitionEditor({
                 <input type="checkbox" disabled={disabled} checked={settings.isMarketing} onChange={(e) => setSetting({ isMarketing: e.target.checked, purpose: e.target.checked ? (settings.purpose ?? "newsletter") : settings.purpose })} />
                 {l["editor.marketing"]}
               </label>
-              <Field label={l["editor.purpose"] ?? ""}>
-                {(id) => (
-                  <select id={id} className={selectClass} disabled={disabled} value={settings.purpose ?? ""} onChange={(e) => setSetting({ purpose: (e.target.value || null) as EditorAutomation["purpose"] })}>
+              <Field label={l["editor.purpose"] ?? ""} {...(settings.purpose === "b2b" ? { hint: l["editor.purpose_b2b_hint"] } : {})}>
+                {(id, describedBy) => (
+                  <select id={id} aria-describedby={describedBy} className={selectClass} disabled={disabled} value={settings.purpose ?? ""} onChange={(e) => setSetting({ purpose: (e.target.value || null) as EditorAutomation["purpose"] })}>
                     {settings.isMarketing ? null : <option value="">{l["editor.purpose_none"]}</option>}
                     {PURPOSES.map((p) => (
                       <option key={p} value={p}>
@@ -224,6 +235,11 @@ export function DefinitionEditor({
                   </select>
                 )}
               </Field>
+              {b2bEmailSteps.length ? (
+                <Alert className="sm:col-span-2" data-testid="editor-b2b-email">
+                  <AlertDescription>{`${l["editor.b2b_email_steps"] ?? ""} ${b2bEmailSteps.filter(Boolean).join(", ")}`.trim()}</AlertDescription>
+                </Alert>
+              ) : null}
             </CardContent>
           </Card>
           {isFormShaped(def) ? (
@@ -285,6 +301,7 @@ export function NewAutomationForm({
   const [slug, setSlug] = useState("");
   const [slugEdited, setSlugEdited] = useState(false);
   const [isMarketing, setIsMarketing] = useState(true);
+  const [purpose, setPurpose] = useState<string>("newsletter");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fields, setFields] = useState<Record<string, string>>({});
@@ -293,7 +310,7 @@ export function NewAutomationForm({
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
-    const purpose = formStr(f, "purpose");
+    const purposeValue = formStr(f, "purpose");
     const duplicateOfId = formStr(f, "duplicateOfId");
     const description = formStr(f, "description").trim();
     setBusy(true);
@@ -307,7 +324,7 @@ export function NewAutomationForm({
         isMarketing,
         priority: Number(f.get("priority") ?? 100),
         ...(description ? { description } : {}),
-        ...(purpose ? { purpose } : {}),
+        ...(purposeValue ? { purpose: purposeValue } : {}),
         ...(duplicateOfId ? { duplicateOfId } : {}),
       });
       if (r.ok) router.push(`/admin/automations/${r.data.id}/edit`);
@@ -359,14 +376,23 @@ export function NewAutomationForm({
         </select>
       </FormField>
       <label className="flex items-start gap-2 text-sm">
-        <input type="checkbox" name="isMarketing" className="mt-1" checked={isMarketing} onChange={(e) => setIsMarketing(e.target.checked)} />
+        <input
+          type="checkbox"
+          name="isMarketing"
+          className="mt-1"
+          checked={isMarketing}
+          onChange={(e) => {
+            setIsMarketing(e.target.checked);
+            setPurpose(e.target.checked ? "newsletter" : "");
+          }}
+        />
         <span>
           {l["new.marketing"]}
           <span className="block text-xs text-muted-foreground">{l["new.marketing_hint"]}</span>
         </span>
       </label>
-      <FormField label={l["new.purpose"]} required={isMarketing} error={fieldError("purpose")}>
-        <select name="purpose" className={selectClass} defaultValue={isMarketing ? "newsletter" : ""} key={String(isMarketing)}>
+      <FormField label={l["new.purpose"]} required={isMarketing} error={fieldError("purpose")} {...(purpose === "b2b" ? { hint: l["new.purpose_b2b_hint"] } : {})}>
+        <select name="purpose" className={selectClass} value={purpose} onChange={(e) => setPurpose(e.target.value)}>
           {isMarketing ? null : <option value="">{l["new.purpose_none"]}</option>}
           {PURPOSES.map((p) => (
             <option key={p} value={p}>

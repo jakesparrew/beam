@@ -49,7 +49,10 @@ export async function getReceptionCard(tx: DbOrTx, personId: string, now?: Date)
 }
 
 // consent and suppression
-export { addSuppression, buildPreferenceUrls, getCurrentConsents, isSuppressed, recordConsent, unsubscribe } from "./consent/api";
+export { addSuppression, buildPreferenceUrls, currentWordingVersion, getCurrentConsents, isSuppressed, recordConsent, unsubscribe } from "./consent/api";
+// The published consent wording (text and version) of each marketing purpose, for forms that
+// show crm's wording outside crm (webinar registration; webinar-P3 request).
+export { getCurrentMarketingWordings } from "./consent/queries";
 
 // timeline, tags, segments, tasks
 export { listTimeline } from "./timeline/api";

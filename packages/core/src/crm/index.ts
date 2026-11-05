@@ -13,3 +13,4 @@ export * from "./declarations";
 export * from "./segments/fields";
 export * from "./segments/schema";
 export * from "./segments/compile";
+export * from "./sensitive-screen";

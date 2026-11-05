@@ -24,6 +24,7 @@ import { z } from "zod";
 import type { DbOrTx } from "@beam/db";
 import { inboxMessages, inboxThreads, jobs, persons, supportKnowledgeArticles, type InboxAiDraftStatus } from "@beam/db/schema";
 import { AI_FEATURES, aiContextFields, aiContextJson, toAiContext, type AiContext, type AiProfileInput } from "@beam/core/ai";
+import { screenSensitiveAll } from "@beam/core/crm";
 import { PermanentError } from "@beam/core/errors";
 import { LOCALES, missingLocales, type Locale, type LocalizedText } from "@beam/core/i18n";
 import { callClaude } from "@/lib/ai";
@@ -31,7 +32,6 @@ import { and, asc, ConflictError, desc, eq, lte, ne, NotFoundError, sql, Validat
 import type { JobCtx } from "@/lib/job-runner";
 import { rowsOf } from "@/lib/sensitive";
 import { getSetting } from "@/lib/settings";
-import { screenSensitiveAll } from "../../../../../packages/core/src/crm/sensitive-screen";
 import { replyStaffThread } from "./api";
 import type { ThreadMessage } from "./queries";
 

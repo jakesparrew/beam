@@ -120,6 +120,8 @@ export function ConsentProvider({ children, locale, bannerVersion, latestMateria
           credentials: "same-origin",
           body: JSON.stringify({ ...(previous?.k ? { consentKey: previous.k } : {}), action, choices, bannerVersion, locale }),
         });
+        // Read the body (`{ consentKey }`): an unread response stays open, so the request never ends.
+        await res.json().catch(() => null);
         const fromBrowser = res.ok ? readConsentCookie() : null;
         // The response sets the cookie; without it (offline, blocked) the choice holds for this page only.
         setCookie(fromBrowser ?? { k: previous?.k ?? "", v: bannerVersion, a: choices.analytics, m: choices.marketing, t: Math.floor(Date.now() / 1000) });

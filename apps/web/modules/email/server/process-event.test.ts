@@ -17,6 +17,7 @@ import { emailHash } from "@beam/core/crm";
 import { eq, setAppDb } from "@/lib/ctx";
 import { createFakeIntegrations, makeCtx, makeJobCtx, resetRuntime, type FakeIntegrations } from "@/lib/testing";
 import { getCurrentConsents, ingestInboundEmail } from "@/modules/crm/api";
+import type * as CrmApi from "@/modules/crm/api";
 import { POST } from "@/app/api/webhooks/resend/route";
 import { queueMarketingEmail, sendTransactional } from "../api";
 import { sendEmailMessage } from "../jobs";
@@ -26,7 +27,7 @@ import { templateVersion } from "../email-p7.fixtures";
 import { htmlToPlainText, parseAddress, processResendEvent, retrySoftBounce } from "./process-event";
 
 vi.mock("@/modules/crm/api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/modules/crm/api")>();
+  const actual = await importOriginal<typeof CrmApi>();
   return { ...actual, ingestInboundEmail: vi.fn(actual.ingestInboundEmail) };
 });
 const ingest = vi.mocked(ingestInboundEmail);

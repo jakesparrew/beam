@@ -66,7 +66,7 @@ describe("0100_ai_readonly.sql", () => {
     // there (forms-P10's `ai.form_funnel_daily` and `ai.form_outcomes`, created by createTestDb).
     const file = readFileSync(path.join(customSqlFolder, "0100_ai_readonly.sql"), "utf8").replace(/--.*$/gm, "");
     expect(file).not.toMatch(/\bcreate\s+(or\s+replace\s+)?(materialized\s+)?view\b/i);
-    const declaredAi = Object.values(dbSchema)
+    const declaredAi = (Object.values(dbSchema) as unknown[])
       .filter((v): v is PgView => is(v, PgView))
       .map((v) => getViewConfig(v))
       .filter((c) => c.schema === "ai")

@@ -17,7 +17,10 @@ import { webinarRegistrations, webinars } from "@beam/db/schema";
 import { hashAccessToken, isCurrentToken, verifyAccessToken } from "@beam/core/webinar";
 import { webinarAccessKey } from "@beam/email/templates/webinar";
 import { SESSION_COOKIE, actorFromSession, loadSession } from "@/lib/auth";
+import type { Locale } from "@beam/core/i18n";
 import { and, eq, getAppDb, type DbOrTx } from "@/lib/ctx";
+import { messageTemplate } from "@/lib/i18n";
+import type { WebinarPlayerLabels } from "../ui/webinar-player";
 import type { WebinarRow } from "./lifecycle";
 import type { RegistrationRow } from "./registration";
 
@@ -127,4 +130,45 @@ export async function resolveViewer(req: Request, webinarId: string): Promise<Vi
   const found = await viewerFromPerson(db, actor.personId, webinarId);
   if ("error" in found) return found;
   return registrationRefusal(found.registration) ?? { ...found, via: "session" };
+}
+
+// ---------------------------------------------------------------------------------------------
+// The player's texts (catalogue keys `webinar.player.*`), built on the server for the client player
+// ---------------------------------------------------------------------------------------------
+
+/** `WebinarPlayer` labels in `locale`; placeholders (`{time}`, `{count}`) are left for the client to fill. */
+export function playerLabels(locale: Locale): WebinarPlayerLabels {
+  const t = (key: string) => messageTemplate(locale, `webinar.player.${key}`);
+  return {
+    notice: { title: t("notice.title"), body: t("notice.body"), accept: t("notice.accept"), privacyLink: t("notice.privacy_link") },
+    loading: t("loading"),
+    countdown: t("countdown"),
+    waiting: t("waiting"),
+    modes: { live: t("mode.live"), replay: t("mode.replay"), on_demand: t("mode.on_demand") },
+    nowWatching: t("now_watching"),
+    refusals: {
+      not_started: t("waiting"),
+      ended: t("refusal.ended"),
+      expired: t("refusal.expired"),
+      limit_reached: t("refusal.limit_reached"),
+      blocked: t("refusal.blocked"),
+      cancelled: t("refusal.cancelled"),
+      unauthorized: t("refusal.unauthorized"),
+      invalid_token: t("refusal.invalid_token"),
+      not_registered: t("refusal.not_registered"),
+      error: t("refusal.error"),
+    },
+    contact: t("contact"),
+    captionsOn: t("captions_on"),
+    captionsOff: t("captions_off"),
+    play: t("play"),
+    pause: t("pause"),
+    error: t("error"),
+    fallbackLink: t("fallback_link"),
+    fallbackNote: t("fallback_note"),
+    reloading: t("reloading"),
+    simulated: t("simulated"),
+    position: t("position"),
+    viewsLeft: t("views_left"),
+  };
 }

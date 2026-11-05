@@ -178,6 +178,10 @@ export type ViewStart = {
   durationSec: number | null;
   /** Seek controls: off for live and simulive (rule 23). */
   controls: boolean;
+  /** Simulive showing: the player resyncs to `now - starts_at` when it drifts more than 10 s (rule 23). */
+  resync: boolean;
+  /** The showing's start (simulive), so the player computes the expected position. */
+  showingStartedAt: Date | null;
   /** Polls and CTAs at a video position (simulive, replay, on-demand; rule 34). Live ones come from the state route. */
   polls: TimedPoll[];
   ctas: TimedCta[];
@@ -313,6 +317,8 @@ export async function startView(tx: Tx, viewer: Viewer, now: Date): Promise<View
     startSec,
     durationSec: w.durationSec,
     controls: mode !== "live",
+    resync: w.mode === "simulive" && mode === "live",
+    showingStartedAt: w.mode === "simulive" && mode === "live" ? w.startsAt : null,
     polls,
     ctas,
     chatEnabled: w.isChatEnabled && mode === "live",

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect } from "react";
-import * as Sentry from "@sentry/nextjs";
 import { ErrorState } from "@beam/ui";
 
 /**
@@ -17,7 +16,8 @@ const TEXT = {
 
 export default function GiftError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
-    Sentry.captureException(error);
+    // The SDK loads only when an error happens (it stays out of the first-load JavaScript).
+    void import("@sentry/nextjs").then((Sentry) => Sentry.captureException(error));
   }, [error]);
   const seg = typeof window === "undefined" ? "nl" : (window.location.pathname.split("/")[1] ?? "nl");
   const text = TEXT[(seg in TEXT ? seg : "nl") as keyof typeof TEXT];

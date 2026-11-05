@@ -84,7 +84,9 @@ test("marketing creates, publishes and renames an offer page", async ({ page }) 
 
   // A new page is incomplete: the issue list names what is missing before publishing.
   await expect(page.getByRole("heading", { name: label("editor.issues") })).toBeVisible();
-  await expect(page.getByText(label("issue.blocks_empty")).first()).toBeVisible();
+  // Each issue line names its locale first ("nl-BE: Add at least one block.").
+  const blocksEmpty = new RegExp(`^nl-BE: ${label("issue.blocks_empty").source.slice(1)}`);
+  await expect(page.getByText(blocksEmpty).first()).toBeVisible();
 
   // Fill every locale: a hero, an image with the uploaded media, and the SEO texts.
   for (const l of ["nl-BE", "fr-BE", "en"] as const) {
@@ -123,8 +125,17 @@ test("marketing creates, publishes and renames an offer page", async ({ page }) 
   await page.getByLabel(label("editor.path")).fill(newPath);
   await clickAction(page, label("editor.publishNow"));
   await expect.poll(async () => (await e2eRows<{ path: string }>(sql`select r.path from page_routes r join pages p on p.id = r.page_id where p.slug = ${slug} and r.locale = 'nl-BE'`))[0]?.path).toBe(newPath);
-  const moved = await page.goto(oldPath);
-  expect(moved?.status()).toBe(200);
-  expect(new URL(page.url()).pathname).toBe(`/nl/${newPath}`);
+  // Publish revalidates with `revalidateTag(tag, "max")` (site rule 19): the old path was rendered
+  // above, so the first request after the rename may still get that stale copy while the page
+  // regenerates in the background; the next ones redirect.
+  await expect
+    .poll(
+      async () => {
+        const moved = await page.goto(oldPath);
+        return moved?.status() === 200 ? new URL(page.url()).pathname : `status ${moved?.status()}`;
+      },
+      { timeout: 30_000 },
+    )
+    .toBe(`/nl/${newPath}`);
   await expect(page.locator("h1")).toHaveText(titles["nl-BE"]);
 });

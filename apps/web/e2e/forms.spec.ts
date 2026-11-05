@@ -15,6 +15,7 @@
 import { randomUUID } from "node:crypto";
 import { expect, test, type Page } from "@playwright/test";
 import { deriveVersionColumns, recoveryCheckSeed, seedDefinitions, type FormDefinition } from "@beam/core/forms";
+import { t } from "@beam/core/i18n";
 import { formSubmissions, forms, formVersions, persons } from "@beam/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { closeE2eDb, e2eDb, e2eRows } from "./support/db";
@@ -27,6 +28,9 @@ const optLabel = (def: FormDefinition, key: string, option: string) => {
   const f = def.fields[key] as { options?: { key: string; label: Record<string, string> }[] };
   return f.options!.find((o) => o.key === option)!.label[FR]!;
 };
+/** A rating option's accessible name: `forms.public.rating_value` ("2 sur 5"), the visible text being "2". */
+const ratingLabel = (def: FormDefinition, key: string, value: number) =>
+  t(FR, "forms.public.rating_value", { value: String(value), scale: (def.fields[key] as { scale: number }).scale });
 
 const NL_ONLY_SLUG = `e2e-nl-only-${RUN}`;
 let nlOnlyFormId: string | null = null;
@@ -83,16 +87,18 @@ test.describe("forms (forms-P4)", () => {
     await page.goto("/fr/f/recovery-check?utm_source=facebook&utm_medium=paid_social");
     await expect(page.locator("h1")).toHaveText(demo.title[FR]!);
 
-    await page.getByLabel(lbl(demo, "email")).fill(email);
-    await page.getByLabel(lbl(demo, "first_name")).fill("Lotte");
-    await page.getByLabel((demo.fields.sensitive_consent as { wording: Record<string, string> }).wording[FR]!).check();
+    // The footer's newsletter form has its own e-mail field: the hosted form is the one in `main`.
+    const main = page.locator("main");
+    await main.getByLabel(lbl(demo, "email")).fill(email);
+    await main.getByLabel(lbl(demo, "first_name")).fill("Lotte");
+    await main.getByLabel((demo.fields.sensitive_consent as { wording: Record<string, string> }).wording[FR]!).check();
     let saved = routeDone(page, "save");
     await page.getByRole("button", { name: "Suivant" }).click();
     expect((await saved).status()).toBe(200);
 
     await choose(page, lbl(demo, "sleep_hours"), optLabel(demo, "sleep_hours", "5_6"));
-    await choose(page, lbl(demo, "sleep_quality"), "2");
-    await choose(page, lbl(demo, "stress_level"), "8");
+    await choose(page, lbl(demo, "sleep_quality"), ratingLabel(demo, "sleep_quality", 2));
+    await choose(page, lbl(demo, "stress_level"), ratingLabel(demo, "stress_level", 8));
     // Show/hide: the physical stress question appears only for a stress level of 6 or more.
     await expect(page.getByRole("group", { name: new RegExp(lbl(demo, "stress_physical").slice(0, 20)) })).toBeVisible();
     await choose(page, lbl(demo, "stress_physical"), "Oui");
@@ -129,9 +135,10 @@ test.describe("forms (forms-P4)", () => {
   test("a second run with an existing customer's email fills their empty phone", async ({ page }) => {
     for (const phone of ["", "+32 470 12 34 56"]) {
       await page.goto(`/nl/f/${NL_ONLY_SLUG}`);
-      await page.getByLabel(lbl(nlOnlyDefinition(), "email", "nl-BE")).fill(customerEmail);
-      await page.getByLabel(lbl(nlOnlyDefinition(), "first_name", "nl-BE")).fill("Bram");
-      if (phone) await page.getByLabel("Telefoon").fill(phone);
+      const main = page.locator("main");
+      await main.getByLabel(lbl(nlOnlyDefinition(), "email", "nl-BE")).fill(customerEmail);
+      await main.getByLabel(lbl(nlOnlyDefinition(), "first_name", "nl-BE")).fill("Bram");
+      if (phone) await main.getByLabel("Telefoon").fill(phone);
       // R3: a real visitor needs more than 3 seconds.
       await page.waitForTimeout(3500);
       const submitted = routeDone(page, "submit");
@@ -145,8 +152,10 @@ test.describe("forms (forms-P4)", () => {
 
   test("a nl-BE-only form shows the unavailable-locale page in fr-BE with a link to nl", async ({ page }) => {
     await page.goto(`/fr/f/${NL_ONLY_SLUG}`);
-    await expect(page.locator("[data-form-state='unavailable-locale']")).toBeVisible();
-    await expect(page.getByRole("link", { name: "Nederlands" })).toHaveAttribute("href", `/nl/f/${NL_ONLY_SLUG}`);
+    const unavailable = page.locator("[data-form-state='unavailable-locale']");
+    await expect(unavailable).toBeVisible();
+    // The header's locale switch also has a link named "Nederlands" (to /nl).
+    await expect(unavailable.getByRole("link", { name: "Nederlands" })).toHaveAttribute("href", `/nl/f/${NL_ONLY_SLUG}`);
     await expect(page.locator("main [data-beam-form-root]")).toHaveCount(0);
   });
 

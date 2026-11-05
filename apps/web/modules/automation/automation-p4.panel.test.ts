@@ -7,7 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { DbHandle, Tx } from "@beam/db";
 import { createTestDb, makePerson } from "@beam/db/testing";
 import { resetRuntime } from "@/lib/testing";
-import { PersonAutomationsPanel } from "./api";
+import { PersonAutomationsPanel } from "./ui/person-automations-panel";
 import { endEnrolment } from "./engine/exits";
 import { def, enrolInto, makeAutomation, SYSTEM } from "./engine/automation-p3.fixtures";
 

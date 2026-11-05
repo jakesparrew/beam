@@ -1,6 +1,6 @@
 /**
  * The portal home and the portal chrome (site-P6, rules 35, 47-49) on beam_dev. A seeded customer
- * signs in by magic link (email sink), sees account home with an upcoming booking and a balance,
+ * (or, when the demo seed has none with a booking and credits, one the spec creates) signs in by magic link (email sink), sees account home with an upcoming booking and a balance,
  * follows "Book a day session" and opens "My details" (crm's profile page). After a material
  * terms version is published, the terms banner shows on another portal page and "Accept" makes it
  * go away. Axe finds no serious or critical violation on account home.
@@ -9,11 +9,16 @@
  * and the terms page points back at its previous version, before and after the test, so other
  * specs never see the banner.
  */
+import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 import { sql } from "drizzle-orm";
+import { newCheckinCode } from "@beam/core/booking";
+import { makeSession, makeUser } from "@beam/db/testing";
+import { makeCreditGrant } from "@beam/db/testing/credits-factories";
 import { expectAccessible } from "./support/a11y";
 import { signInCustomer } from "./support/auth";
 import { closeE2eDb, e2eDb, e2eRows } from "./support/db";
+import { uniqueEmail } from "./support/ids";
 
 const E2E_TERMS_MARK = "e2e-site-portal-material-terms";
 
@@ -32,6 +37,39 @@ async function seededCustomer(): Promise<Candidate | null> {
     order by (u.email = 'customer1@example.com') desc, u.email, s.starts_at
     limit 1`);
   return row ?? null;
+}
+
+const MARK = "E2E site-portal";
+let created: Candidate | null = null;
+
+/**
+ * The demo seed's customer when it has one; otherwise one this spec creates once per run (the demo
+ * seed of beam_dev has portal users but no upcoming bookings or credits for them): a tester
+ * customer with a portal user, a confirmed booking on a published day session in three days and
+ * five day credits. `cleanupCreated` cancels the session and the booking again.
+ */
+async function portalCustomer(): Promise<Candidate> {
+  const seeded = await seededCustomer();
+  if (seeded) return seeded;
+  if (created) return created;
+  const db = await e2eDb();
+  const user = await makeUser(db, { audience: "customer", email: uniqueEmail("site-portal"), name: "E2E Portal" });
+  const tag = randomUUID().slice(0, 8);
+  const title = { "nl-BE": `${MARK} dagsessie ${tag}`, "fr-BE": `${MARK} session ${tag}`, en: `${MARK} day session ${tag}` };
+  const startsAt = new Date(Date.now() + 3 * 86_400_000);
+  startsAt.setUTCHours(10, 0, 0, 0);
+  const session = await makeSession(db, { title, startsAt, publishedAt: new Date(Date.now() - 3_600_000), capacitySeats: 8, creditKind: "day", creditCost: 1 });
+  await e2eRows(sql`insert into bookings (session_id, person_id, status, paid_with, source, checkin_code)
+    values (${session.id}, ${user.personId!}, 'confirmed', 'free', 'admin', ${newCheckinCode()})`);
+  await makeCreditGrant(db, { personId: user.personId!, creditKind: "day", units: 5 });
+  created = { email: user.email, person_id: user.personId!, session_title: title["nl-BE"] };
+  return created;
+}
+
+async function cleanupCreated(): Promise<void> {
+  await e2eRows(sql`update bookings set status = 'cancelled', cancelled_at = now(), cancel_reason_code = 'staff', reserved_until = null, version = version + 1
+    where status in ('reserved', 'confirmed') and session_id in (select id from sessions where title->>'en' like ${`${MARK}%`})`);
+  await e2eRows(sql`update sessions set status = 'cancelled', cancelled_at = now(), cancel_reason = 'e2e reset' where status <> 'cancelled' and title->>'en' like ${`${MARK}%`}`);
 }
 
 /** Removes the spec's material terms version (and acceptances of it) and restores the live terms version. */
@@ -81,20 +119,20 @@ test.beforeAll(async () => {
 
 test.afterAll(async () => {
   await removeE2eTerms();
+  await cleanupCreated();
   await closeE2eDb();
 });
 
 test.describe("portal home and chrome", () => {
   test("customer signs in, sees the home cards and follows the quick actions", async ({ page }) => {
-    const customer = await seededCustomer();
-    test.skip(!customer, "the demo seed has no customer with a portal user, an upcoming booking and credits");
-    await signInCustomer(page, customer!.email, "nl");
+    const customer = await portalCustomer();
+    await signInCustomer(page, customer.email, "nl");
     await page.goto("/nl/account");
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 
     const bookingsCard = page.locator('[data-home-card="bookings"]');
     await expect(bookingsCard.locator("[data-booking-id]").first()).toBeVisible();
-    if (customer!.session_title) await expect(bookingsCard).toContainText(customer!.session_title);
+    if (customer.session_title) await expect(bookingsCard).toContainText(customer.session_title);
     await expect(page.locator('[data-home-card="balance"] [data-credit-kind]').first()).toBeVisible();
     await expect(page.locator("[data-card-unavailable]")).toHaveCount(0);
     await expect(page.locator("[data-cookie-settings]")).toBeVisible();
@@ -110,9 +148,8 @@ test.describe("portal home and chrome", () => {
   });
 
   test("the terms banner shows on another portal page after a material terms publish and goes away on Accept", async ({ page }) => {
-    const customer = await seededCustomer();
-    test.skip(!customer, "the demo seed has no customer with a portal user, an upcoming booking and credits");
-    await signInCustomer(page, customer!.email, "nl");
+    const customer = await portalCustomer();
+    await signInCustomer(page, customer.email, "nl");
     try {
       const versionId = await publishMaterialTerms();
       test.skip(!versionId, "no live terms page in the demo seed");
@@ -125,7 +162,7 @@ test.describe("portal home and chrome", () => {
       await accepted;
       await expect(banner).toHaveCount(0);
       const [row] = await e2eRows<{ n: number | string }>(sql`
-        select count(*) as n from terms_acceptances where person_id = ${customer!.person_id} and page_version_id = ${versionId!} and context = 'portal_prompt'`);
+        select count(*) as n from terms_acceptances where person_id = ${customer.person_id} and page_version_id = ${versionId!} and context = 'portal_prompt'`);
       expect(Number(row?.n ?? 0)).toBe(1);
       await page.reload();
       await expect(page.locator("[data-terms-banner]")).toHaveCount(0);

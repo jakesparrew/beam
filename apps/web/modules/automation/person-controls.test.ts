@@ -56,7 +56,7 @@ const email = await import("@/modules/email/api");
 const { createAuthSession, SESSION_COOKIE } = await import("@/lib/auth");
 const { and, eq, setAppDb } = await import("@/lib/ctx");
 const { makeCtx, resetRuntime } = await import("@/lib/testing");
-const { PersonAutomationsPanel } = await import("./api");
+const { PersonAutomationsPanel } = await import("./ui/person-automations-panel");
 
 let h: DbHandle;
 let mover: { id: string };

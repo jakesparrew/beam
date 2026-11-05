@@ -8,6 +8,7 @@
 import { z } from "zod";
 import { sha256Hex } from "../crm/normalise";
 import { LocalizedTextSchema } from "../i18n/localized-text";
+import { FORM_LIMITS } from "./limits";
 import {
   CONDITION_OPS,
   CTA_KINDS,
@@ -39,23 +40,8 @@ export const OPTION_KEY_RE = /^[a-z0-9][a-z0-9_-]{0,39}$/;
 /** Rule F1: `FormSettings.funnel`. */
 export const FUNNEL_RE = /^[a-z0-9_-]{1,64}$/;
 
-/** Rule F7 and F4. */
-export const FORM_LIMITS = {
-  sections: 30,
-  fields: 200,
-  outcomes: 50,
-  dimensions: 20,
-  logicRules: 100,
-  bytes: 256 * 1024,
-  conditionDepth: 6,
-  conditionLeaves: 50,
-  optionsMin: 2,
-  optionsMax: 50,
-  ctas: 4,
-  shortText: 255,
-  longText: 5000,
-  acknowledgementText: 5000,
-} as const;
+/** Rule F7 and F4 (in `limits.ts`, a zod-free module the browser form engine imports). */
+export { FORM_LIMITS } from "./limits";
 
 const Key = z.string().regex(KEY_RE, "invalid_key");
 const Text = LocalizedTextSchema;

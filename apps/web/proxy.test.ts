@@ -110,6 +110,18 @@ describe("legacy WordPress paths answer 410 Gone (site-P2 request)", () => {
     }
   });
 
+  it("renders the localised gone page: the URL's locale, one h1, a link back to home", async () => {
+    const res = proxy(request("/fr/wp-admin"));
+    expect(res.headers.get("content-type")).toContain("text/html");
+    const html = await res.text();
+    expect(html).toContain('<html lang="fr-BE">');
+    expect(html).toContain('data-status="410"');
+    expect(html.match(/<h1>/g)).toHaveLength(1);
+    expect(html).toContain('<a href="/fr">');
+    expect(html).not.toContain("<script");
+    expect(await proxy(request("/wp-login.php", { headers: { "accept-language": "en" } })).text()).toContain('<html lang="en">');
+  });
+
   it("leaves look-alikes and normal pages alone", () => {
     expect(proxy(request("/nl/wp-adminx")).status).not.toBe(410);
     expect(proxy(request("/nl/over-ons")).status).toBe(200);

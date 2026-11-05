@@ -98,6 +98,8 @@ describe("cookie banner (rules 36-39)", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, init] = fetchMock.mock.calls[0] as [string, { body: string }];
     expect(url).toBe("/api/public/cookie-consent");
+    // The response body is read: an unread one keeps the request open in the browser.
+    expect(((await fetchMock.mock.results[0]!.value) as Response).bodyUsed).toBe(true);
     expect(JSON.parse(init.body)).toEqual({ action: "accept_all", choices: { analytics: true, marketing: true }, bannerVersion: 2, locale: "nl-BE" });
     expect(screen.queryByRole("region", { name: "Cookies on this website" })).toBeNull();
     expect(screen.getByTestId("state").textContent).toBe("true/true");

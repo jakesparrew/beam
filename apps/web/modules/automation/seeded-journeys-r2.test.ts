@@ -27,7 +27,7 @@ import { seedDefaults } from "@beam/db/seed";
 import { activateReleaseSequences } from "@beam/db/seed/automation";
 import { createTestDb, makePerson, makeUser } from "@beam/db/testing";
 import { b2cPlaybookSlug, SEED_AUTOMATIONS } from "@beam/core/automation/seeds";
-import { and, asc, eq, sql } from "@/lib/ctx";
+import { and, asc, eq, NotFoundError, sql } from "@/lib/ctx";
 import { clearFlagCache } from "@/lib/flags";
 import { makeJobCtx, resetRuntime } from "@/lib/testing";
 import type * as CommerceApi from "@/modules/commerce/api";
@@ -524,5 +524,274 @@ describe("webinar CTA clicks (cross-module D52)", () => {
     ]);
     expect(sentTo(p.id).map((s) => s.templateSlug)).toEqual(["webinar-follow-up"]);
     expect((await tasksOf(p.id)).map((t) => t.title)).toEqual(["Webinar CTA clicked: book_now"]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Other R2 seeds: event-follow-up, waitlist-follow-up, abandoned-checkout
+// ---------------------------------------------------------------------------
+
+/** Booking fact data of booking 4.7 for a session of `kind`. */
+const fact = (personId: string, kind: "day" | "night" | "event", startsAt: Date) => ({
+  session_id: randomUUID(),
+  session_kind: kind,
+  event_category: kind === "event" ? "experience" : null,
+  starts_at: startsAt.toISOString(),
+  paid_with: null,
+  is_guest: false,
+  guest_of_person_id: null,
+  owner_person_id: personId,
+});
+
+describe("event-follow-up (booking.event_ended)", () => {
+  it("enrols only when data.attended = true and sends thanks, feedback and the events offer", async () => {
+    const went = await makePerson(h.db);
+    const missed = await makePerson(h.db);
+    for (const p of [went, missed]) state.reachable.add(p.id);
+    const ended = at(-HOURS);
+    await event(went.id, "booking.event_ended", T0, { ...fact(went.id, "event", ended), attended: true }, { ref: { type: "booking", id: randomUUID() } });
+    await event(missed.id, "booking.event_ended", T0, { ...fact(missed.id, "event", ended), attended: false }, { ref: { type: "booking", id: randomUUID() } });
+    await tick(T0);
+    expect(await slugsOf(missed.id)).toEqual([]);
+    const e = await drive(went.id, "event-follow-up", at(5 * DAYS));
+    expect(e).toMatchObject({ status: "completed" });
+    expect(sentTo(went.id).map((s) => [s.stepKey, s.templateSlug, s.kind])).toEqual([
+      ["thanks", "automation.event_follow_up_thanks", "transactional"],
+      ["feedback", "automation.event_follow_up_feedback", "transactional"],
+      ["offer", "event-follow-up-offer", "marketing"],
+    ]);
+  });
+
+  it("skips the offer for a person with a future booking", async () => {
+    const p = await makePerson(h.db);
+    state.reachable.add(p.id);
+    await f.makeBooking(h.db, { personId: p.id, startsAt: at(10 * DAYS), status: "confirmed", kind: "day" });
+    await event(p.id, "booking.event_ended", T0, { ...fact(p.id, "event", at(-HOURS)), attended: true }, { ref: { type: "booking", id: randomUUID() } });
+    await tick(T0);
+    const e = await drive(p.id, "event-follow-up", at(5 * DAYS));
+    expect(await outcomes(e.id)).toContainEqual(["offer", "skipped_condition"]);
+    expect(sentTo(p.id).map((s) => s.stepKey)).toEqual(["thanks", "feedback"]);
+  });
+});
+
+describe("waitlist journeys", () => {
+  it("waitlist-follow-up sends the other-dates email one hour after waitlist.expired", async () => {
+    const p = await makePerson(h.db);
+    state.reachable.add(p.id);
+    const ref = { type: "waitlist_entry", id: randomUUID() };
+    await event(p.id, "waitlist.offered", T0, { ...fact(p.id, "day", at(2 * DAYS)), offer_expires_at: at(2 * HOURS).toISOString(), offers_count: 1 }, { ref });
+    await tick(T0);
+    await event(p.id, "waitlist.expired", at(2 * HOURS), { ...fact(p.id, "day", at(2 * DAYS)), ended_reason: "offer_expired" }, { ref });
+    await tick(at(2 * HOURS));
+    expect(await enrolmentOf(p.id, "waitlist-offer")).toMatchObject({ status: "exited", endReason: "exit_event:waitlist.expired" });
+    const e = await drive(p.id, "waitlist-follow-up", at(DAYS));
+    expect(e).toMatchObject({ status: "completed" });
+    expect(sentTo(p.id).filter((s) => s.kind === "marketing").map((s) => [s.stepKey, s.templateSlug])).toEqual([["other_dates", "waitlist-follow-up-other-dates"]]);
+  });
+
+  it("a waiting lead who pays an order exits the lead journeys; waitlist-offer and the confirmed seat are untouched", async () => {
+    const p = await makePerson(h.db);
+    state.reachable.add(p.id);
+    const seat = await f.makeBooking(h.db, { personId: p.id, startsAt: at(3 * DAYS), status: "confirmed", kind: "day" });
+    await event(p.id, "person.created", T0, { acquisition_source: "website" });
+    const ref = { type: "waitlist_entry", id: randomUUID() };
+    await event(p.id, "waitlist.offered", T0, { ...fact(p.id, "day", at(3 * DAYS)), offer_expires_at: at(6 * HOURS).toISOString(), offers_count: 1 }, { ref });
+    await tick(T0);
+    expect(await enrolmentOf(p.id, "welcome-lead")).toMatchObject({ status: "active" });
+    expect(await enrolmentOf(p.id, "waitlist-offer")).toMatchObject({ status: "active" });
+    await event(p.id, "order.paid", at(HOURS), { order_id: randomUUID(), lines: [{ kind: "package" }] });
+    await tick(at(HOURS));
+    expect(await enrolmentOf(p.id, "welcome-lead")).toMatchObject({ status: "exited", endReason: "exit_event:order.paid" });
+    expect(await enrolmentOf(p.id, "lead-sales-follow-up")).toMatchObject({ status: "exited", endReason: "exit_event:order.paid" });
+    expect(await enrolmentOf(p.id, "waitlist-offer")).toMatchObject({ status: "active", nextStepKey: "expiring" });
+    const [booking] = await h.db.select({ status: bookings.status }).from(bookings).where(eq(bookings.id, seat.booking.id));
+    expect(booking).toEqual({ status: "confirmed" });
+  });
+});
+
+describe("abandoned-checkout (A-11a, A-31a, commerce rules 51 and 52)", () => {
+  const abandoned = (personId: string, when: Date, totalCents = 5_000) => {
+    const checkoutId = randomUUID();
+    return {
+      checkoutId,
+      emit: () => event(personId, "checkout.abandoned", when, { checkout_id: checkoutId, total_cents: totalCents }, { ref: { type: "checkout", id: checkoutId } }),
+    };
+  };
+
+  it("enrols nobody while ff_commerce_checkout_recovery is off", async () => {
+    await setCheckoutFlag("off");
+    const p = await makePerson(h.db);
+    state.reachable.add(p.id);
+    await abandoned(p.id, T0).emit();
+    await tick(T0);
+    expect(await slugsOf(p.id)).toEqual([]);
+  });
+
+  it("with the flag on, sends commerce.checkout_recovery as marketing with the resume url and marks the checkout", async () => {
+    await setCheckoutFlag("on");
+    const p = await makePerson(h.db);
+    const unreachable = await makePerson(h.db);
+    state.reachable.add(p.id);
+    const c = abandoned(p.id, T0);
+    await c.emit();
+    await abandoned(unreachable.id, T0).emit();
+    await tick(T0);
+    // A marketing journey: no newsletter reachability, no entry and no send.
+    expect(await slugsOf(unreachable.id)).toEqual([]);
+    const e = await enrolmentOf(p.id, "abandoned-checkout");
+    expect(e).toMatchObject({ status: "active", subjectKey: `checkout:${c.checkoutId}`, nextStepKey: "remind_1h", nextStepAt: at(HOURS) });
+    await tick(at(HOURS));
+    expect(sentTo(p.id).map((s) => [s.stepKey, s.templateSlug, s.kind])).toEqual([["remind_1h", "commerce.checkout_recovery", "marketing"]]);
+    expect(sentTo(p.id)[0]!.context).toMatchObject({ checkout_id: c.checkoutId, resume_url: `https://beam.example.com/nl-BE/checkout/resume/${c.checkoutId.slice(0, 8)}` });
+    expect(commerce.getCheckoutRecoveryProps).toHaveBeenCalledWith(expect.anything(), c.checkoutId);
+    const [run] = await h.db
+      .select({ emailMessageId: automationRuns.emailMessageId, data: automationRuns.data })
+      .from(automationRuns)
+      .where(and(eq(automationRuns.enrolmentId, e!.id), eq(automationRuns.stepKey, "remind_1h"), eq(automationRuns.outcome, "sent")));
+    expect(commerce.markCheckoutRecoveryMessage).toHaveBeenCalledWith(expect.anything(), { checkoutId: c.checkoutId, emailMessageId: run!.emailMessageId });
+    expect(run!.data).toMatchObject({ checkout_id: c.checkoutId });
+    await setCheckoutFlag("off");
+  });
+
+  it("stops on checkout.completed of the same checkout and on order.paid", async () => {
+    await setCheckoutFlag("on");
+    const a = await makePerson(h.db);
+    const b = await makePerson(h.db);
+    state.reachable.add(a.id).add(b.id);
+    const ca = abandoned(a.id, T0);
+    const other = abandoned(a.id, T0);
+    await ca.emit();
+    await abandoned(b.id, T0).emit();
+    await tick(T0);
+    await event(a.id, "checkout.completed", at(30 * MIN), { checkout_id: other.checkoutId, order_id: randomUUID() }, { ref: { type: "checkout", id: other.checkoutId } });
+    await tick(at(30 * MIN));
+    expect(await enrolmentOf(a.id, "abandoned-checkout")).toMatchObject({ status: "active" });
+    await event(a.id, "checkout.completed", at(40 * MIN), { checkout_id: ca.checkoutId, order_id: randomUUID() }, { ref: { type: "checkout", id: ca.checkoutId } });
+    await event(b.id, "order.paid", at(40 * MIN), { order_id: randomUUID(), lines: [{ kind: "package" }] });
+    await tick(at(40 * MIN));
+    expect(await enrolmentOf(a.id, "abandoned-checkout")).toMatchObject({ status: "exited", endReason: "exit_event:checkout.completed" });
+    expect(await enrolmentOf(b.id, "abandoned-checkout")).toMatchObject({ status: "exited", endReason: "exit_event:order.paid" });
+    expect(state.sent).toEqual([]);
+    await setCheckoutFlag("off");
+  });
+
+  it("a checkout commerce no longer knows fails the reminder (checkout_not_found) and the journey moves on", async () => {
+    await setCheckoutFlag("on");
+    const p = await makePerson(h.db);
+    state.reachable.add(p.id);
+    await abandoned(p.id, T0).emit();
+    await tick(T0);
+    vi.mocked(commerce.getCheckoutRecoveryProps).mockRejectedValueOnce(new NotFoundError("checkout_not_found"));
+    await tick(at(HOURS));
+    const e = await enrolmentOf(p.id, "abandoned-checkout");
+    expect(e).toMatchObject({ status: "active", nextStepKey: "remind_24h" });
+    const [run] = await h.db.select({ outcome: automationRuns.outcome, reason: automationRuns.reason }).from(automationRuns).where(and(eq(automationRuns.enrolmentId, e!.id), eq(automationRuns.stepKey, "remind_1h")));
+    expect(run).toEqual({ outcome: "failed", reason: "checkout_not_found" });
+    expect(sentTo(p.id)).toEqual([]);
+    expect(commerce.markCheckoutRecoveryMessage).not.toHaveBeenCalled();
+    await setCheckoutFlag("off");
+  });
+
+  it("a high-value cart gets a sales task after both reminders", async () => {
+    await setCheckoutFlag("on");
+    const p = await makePerson(h.db);
+    state.reachable.add(p.id);
+    await abandoned(p.id, T0, 35_000).emit();
+    await tick(T0);
+    const e = await drive(p.id, "abandoned-checkout", at(4 * DAYS));
+    expect(e).toMatchObject({ status: "completed" });
+    expect(await outcomes(e.id)).toEqual([
+      [null, "completed"],
+      ["high_value", "branched"],
+      ["high_value_task", "task_created"],
+      ["remind_1h", "sent"],
+      ["remind_24h", "sent"],
+    ]);
+    expect((await tasksOf(p.id)).map((t) => t.title)).toEqual(["Verlaten winkelmand met hoge waarde: bel klant"]);
+    await setCheckoutFlag("off");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// B2C pipeline playbook (spec 3.7, A-42, A-43)
+// ---------------------------------------------------------------------------
+
+describe("B2C playbook on ops.stage_changed", () => {
+  const stage = (personId: string, from: string, to: string, when: Date) => event(personId, "ops.stage_changed", when, { from, to });
+  const slug = b2cPlaybookSlug;
+
+  it("engaged_lead creates the playbook task and escalates to Slack after 4 days when the task is still open", async () => {
+    const open = await makePerson(h.db);
+    const closed = await makePerson(h.db);
+    await stage(open.id, "lead", "engaged_lead", T0);
+    await stage(closed.id, "lead", "engaged_lead", T0);
+    await tick(T0);
+    for (const p of [open, closed]) expect((await tasksOf(p.id)).map((t) => [t.title, t.status, t.source])).toEqual([["Nodig uit voor BEAM Experience", "open", "automation"]]);
+    await h.db.update(tasks).set({ status: "done", doneAt: at(DAYS) }).where(eq(tasks.personId, closed.id));
+    const escalated = await drive(open.id, slug("engaged_lead"), at(5 * DAYS));
+    const quiet = await drive(closed.id, slug("engaged_lead"), at(5 * DAYS));
+    expect(await outcomes(escalated.id)).toEqual([
+      [null, "completed"],
+      ["escalate", "notified"],
+      ["task", "task_created"],
+    ]);
+    expect(await outcomes(quiet.id)).toEqual([
+      [null, "completed"],
+      ["escalate", "skipped_condition"],
+      ["task", "task_created"],
+    ]);
+  });
+
+  it("leaving the stage ends the playbook before its escalation", async () => {
+    const p = await makePerson(h.db);
+    await stage(p.id, "lead", "engaged_lead", T0);
+    await tick(T0);
+    await stage(p.id, "engaged_lead", "experienced", at(DAYS));
+    await tick(at(DAYS));
+    expect(await enrolmentOf(p.id, slug("engaged_lead"))).toMatchObject({ status: "exited", endReason: "exit_event:ops.stage_changed" });
+    expect(await enrolmentOf(p.id, slug("experienced"))).toMatchObject({ status: "completed" });
+    expect((await tasksOf(p.id)).map((t) => t.title)).toEqual(["Nodig uit voor BEAM Experience", "Plan eerste bezoek"]);
+  });
+
+  it("first_purchase and retention give customer service their task; a stage without a playbook enrols nothing", async () => {
+    const buyer = await makePerson(h.db);
+    const slipping = await makePerson(h.db);
+    const active = await makePerson(h.db);
+    await stage(buyer.id, "first_visit", "first_purchase", T0);
+    await stage(slipping.id, "repeat", "retention", T0);
+    await stage(active.id, "first_purchase", "active", T0);
+    await tick(T0);
+    expect((await tasksOf(buyer.id)).map((t) => t.title)).toEqual(["Welkomstgesprek"]);
+    expect((await tasksOf(slipping.id)).map((t) => t.title)).toEqual(["Reactiveringscall"]);
+    expect(await slugsOf(active.id)).toEqual([]);
+    const e = await drive(slipping.id, slug("retention"), at(6 * DAYS));
+    expect(await outcomes(e.id)).toContainEqual(["escalate", "notified"]);
+  });
+
+  it("repeat and lost tag the person", async () => {
+    const r = await makePerson(h.db);
+    const l = await makePerson(h.db);
+    await stage(r.id, "active", "repeat", T0);
+    await stage(l.id, "retention", "lost", T0);
+    await tick(T0);
+    expect(await hasTag(r.id, "repeat")).toBe(true);
+    expect(await hasTag(l.id, "lost")).toBe(true);
+  });
+
+  it("member ends welcome-lead and after-first-visit", async () => {
+    const p = await makePerson(h.db);
+    state.reachable.add(p.id);
+    await event(p.id, "person.created", T0, { acquisition_source: "website" });
+    await tick(T0);
+    expect(await enrolmentOf(p.id, "welcome-lead")).toMatchObject({ status: "active" });
+    await stage(p.id, "first_purchase", "member", at(HOURS));
+    await tick(at(HOURS));
+    expect(await enrolmentOf(p.id, "welcome-lead")).toMatchObject({ status: "exited", endReason: "exit_step" });
+    const e = await drive(p.id, slug("member"), at(DAYS));
+    expect(await outcomes(e.id)).toEqual([
+      [null, "completed"],
+      ["exit_after_first_visit", "skipped_condition"],
+      ["exit_welcome_lead", "exited"],
+    ]);
   });
 });

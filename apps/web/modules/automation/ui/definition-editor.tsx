@@ -7,10 +7,14 @@
  * same Zod schema, Publish opens the publish dialog. Also the new-automation form
  * (`/admin/automations/new`). Every string arrives as a prop.
  *
+ * "Open the visual builder" links to `/admin/automations/[id]/builder` (R4, automation-P10), the
+ * same draft as a flow of blocks; unsaved form changes stay here until saved.
+ *
  * Purpose `b2b` (R3, automation-P9): B2B journeys create tasks and Slack messages only, because
  * automated B2B outbound email is "Later" (spec 1, decision 35). Both forms say so when `b2b` is
  * chosen, and the editor warns while the draft still has email steps.
  */
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, type FormEvent } from "react";
 import { Alert, AlertDescription, Button, Card, CardContent, CardHeader, CardTitle, FormField, Input, Tabs, TabsContent, TabsList, TabsTrigger, Textarea } from "@beam/ui";
@@ -158,6 +162,13 @@ export function DefinitionEditor({
           {l["editor.validate"]}
         </Button>
         {canPublish ? <PublishDialog automationId={automation.id} migratableCount={migratableCount} issues={savedIssues} dirty={dirty} labels={l} /> : null}
+        {isFormShaped(def) ? (
+          <Button asChild variant="outline">
+            <Link href={`/admin/automations/${automation.id}/builder`} data-testid="editor-open-builder">
+              {l["editor.open_builder"]}
+            </Link>
+          </Button>
+        ) : null}
         {dirty ? <span className="text-sm text-muted-foreground">{l["editor.unsaved"]}</span> : null}
       </div>
       {message ? (

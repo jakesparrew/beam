@@ -193,7 +193,8 @@
       "dpia_approved": "goedgekeurd",
       "dpia_pending": "niet goedgekeurd",
       "flag_badge": "Loopt alleen als vlag {flag} aan staat",
-      "gates": "Poorten"
+      "gates": "Poorten",
+      "tab_builder": "Bouwer"
     },
     "controls": {
       "activate": "Activeren",
@@ -446,7 +447,9 @@
       "placeholder_not_allowed": "Deze plaatshouder is hier niet toegelaten.",
       "interpolation_not_allowed": "Triggerplaatshouders zijn niet toegelaten in een triggerfilter.",
       "unknown_event_kind": "Dit gebeurtenistype staat niet in het register.",
-      "unknown_event_path": "Deze gebeurtenis heeft geen dergelijk gegevensveld."
+      "unknown_event_path": "Deze gebeurtenis heeft geen dergelijk gegevensveld.",
+      "builder_empty": "Voeg minstens één blok toe na de trigger.",
+      "builder_invalid_node": "Dit blok is niet volledig."
     },
     "preview": {
       "will_send": "Wordt uitgevoerd",
@@ -735,7 +738,8 @@
         "nl-BE": "Nederlands",
         "fr-BE": "Frans",
         "en": "Engels"
-      }
+      },
+      "open_builder": "Visuele bouwer openen"
     },
     "rules": {
       "title": "Automatiseringsregels",
@@ -776,6 +780,82 @@
       "persons_hidden": "Verborgen zonder toegang tot personen",
       "unnamed": "Naamloze persoon",
       "group": "Groep {key}"
+    },
+    "builder": {
+      "title": "Visuele bouwer",
+      "intro": "Bouw de journey als een stroom van blokken. De stroom wordt bewaard als hetzelfde concept als in de formuliereditor.",
+      "open_form": "Naar de formuliereditor",
+      "open_builder": "Visuele bouwer openen",
+      "save": "Concept bewaren",
+      "saved": "Concept bewaard.",
+      "not_saved": "De stroom is niet bewaard: los eerst de problemen op die bij de blokken staan.",
+      "unsaved": "Niet-bewaarde wijzigingen",
+      "readonly": "Deze automatisering is gearchiveerd: de stroom is alleen-lezen.",
+      "unreadable": "Dit concept kan niet als stroom getoond worden. Herstel het eerst in de formuliereditor of op het JSON-tabblad.",
+      "canvas_label": "Werkstroom",
+      "palette_title": "Blokken",
+      "palette_hint": "Sleep een blok naar de stroom, of druk erop om het toe te voegen aan het einde van de gekozen baan.",
+      "adding_to": "Nieuwe blokken komen in: {lane}",
+      "lane_main": "Hoofdstroom",
+      "lane_then": "Ja",
+      "lane_else": "Nee",
+      "lane_of": "{branch}: {lane}",
+      "add_here": "Hier een blok toevoegen",
+      "drop_here": "Zet hier een blok neer",
+      "lane_continue": "Gaat verder na de splitsing",
+      "lane_end": "Beëindigt de journey",
+      "lane_goto": "Gaat naar {key}",
+      "lane_falls_through": "Gaat daarna verder met de Nee-baan",
+      "lane_when_empty": "Als deze baan geen blokken heeft",
+      "lane_option_continue": "Verdergaan na de splitsing",
+      "lane_option_end": "De journey beëindigen",
+      "lane_option_goto": "Naar {key} gaan",
+      "move_up": "Omhoog",
+      "move_down": "Omlaag",
+      "remove": "Blok verwijderen",
+      "select": "Blok bewerken",
+      "keyboard_hint": "Alt+pijl omhoog en Alt+pijl omlaag verplaatsen het blok met de focus binnen zijn baan.",
+      "issues_badge": "Problemen: {count}",
+      "no_issues_badge": "Geen problemen",
+      "skip_when": "Overgeslagen als een voorwaarde klopt",
+      "panel_title": "Instellingen van het blok",
+      "panel_empty": "Kies een blok om de instellingen ervan te bewerken.",
+      "trigger_issues": "Problemen bij de trigger",
+      "condition_if": "Alleen verdergaan als",
+      "branch_if": "De Ja-baan nemen als",
+      "unless_toggle": "Dit blok overslaan als",
+      "issues_title": "Validatie",
+      "no_issues": "Geen problemen in de stroom.",
+      "step_count": "Blokken: {count}",
+      "blocks_label": "Blok {name}",
+      "block": {
+        "trigger": "Trigger",
+        "condition": "Voorwaarde",
+        "delay": "Wachttijd",
+        "branch": "Splitsing",
+        "email": "E-mail versturen",
+        "task": "Taak aanmaken",
+        "tag": "Tag toepassen",
+        "status": "Status wijzigen",
+        "sequence": "Sequentie toevoegen/verwijderen",
+        "notify": "Teamlid verwittigen",
+        "field": "Veld bijwerken",
+        "webhook": "Webhook aanroepen"
+      },
+      "block_help": {
+        "trigger": "Wanneer de journey start, wie erin komt, wanneer iemand opnieuw mag instappen en wat iemand eruit haalt.",
+        "condition": "Ga alleen verder als de voorwaarde klopt; anders eindigt de journey hier.",
+        "delay": "Wacht een aantal minuten voor het volgende blok.",
+        "branch": "Voer de Ja-baan uit als de voorwaarde klopt en anders de Nee-baan.",
+        "email": "Verstuur een gepubliceerde e-mailtemplate.",
+        "task": "Maak een taak aan voor een teamrol of de eigenaar van de trigger.",
+        "tag": "Voeg een tag toe aan de persoon of verwijder er een.",
+        "status": "Stel de statusoverschrijving van de persoon in of wis ze.",
+        "sequence": "Schrijf de persoon in een andere automatisering in, of beëindig een inschrijving.",
+        "notify": "Plaats een bericht in het Slack-kanaal van het team.",
+        "field": "Werk het voorkeurskanaal van de persoon bij.",
+        "webhook": "Roep een toegelaten https-webhook aan."
+      }
     }
   }
 }

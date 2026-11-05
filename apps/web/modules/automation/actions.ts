@@ -28,6 +28,9 @@
  * `conflict`; platform writes `settings.update`, this action `automation.rules_update`). A change
  * of the webhook host allow-list also needs `settings.write` (a data-export decision).
  *
+ * The visual builder (automation-P10, R4; `automations.write`): `saveBuilderGraph` converts the
+ * builder's flow with `graphToDefinition` and then takes the path of `saveDraft`.
+ *
  * Decisions (automation-P7):
  * - A group key is fixed once created (seeds and `createAutomation` refer to groups by key): an
  *   edit with another key is `conflict` `group_key_immutable`; a new group with a taken key is
@@ -42,7 +45,7 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { automationEnrolments, automationGroups, automations, automationVersions, persons, segments } from "@beam/db/schema";
-import { AUTOMATION_PURPOSES, isPublishable, SLUG_RE, type Definition, type EnrolResult } from "@beam/core/automation";
+import { AUTOMATION_PURPOSES, isPublishable, SLUG_RE, type Definition, type DefinitionIssue, type EnrolResult } from "@beam/core/automation";
 import type { DpiaKey } from "@beam/core/ops";
 import { action } from "@/lib/action";
 import { and, ConflictError, eq, ne, NotFoundError, sql, ValidationError, type Ctx, type Tx } from "@/lib/ctx";
@@ -54,6 +57,8 @@ import { endEnrolmentWith } from "./engine/exits";
 import { stepJobKey, stepJobPriority } from "./engine/step";
 import type { AutomationRulesValue } from "./config";
 import { definitionHash, draftIssues } from "./queries";
+// `@beam/core/automation` does not re-export the builder yet (request to the owner of its index.ts).
+import { BuilderGraphSchema, graphToDefinition, type BuilderGraph } from "../../../../packages/core/src/automation/builder";
 
 const Purpose = z.enum(AUTOMATION_PURPOSES);
 const Slug = z.string().trim().min(2).max(80).regex(SLUG_RE, "slug");
@@ -188,40 +193,68 @@ const SaveDraftInput = z.object({
   purpose: Purpose.nullable().optional(),
 });
 
+type DraftWrite = Omit<z.infer<typeof SaveDraftInput>, "definition"> & { definition: unknown };
+
+/** The shared path of `saveDraft` and `saveBuilderGraph`: lock, write the working copy, collect its issues, audit. */
+async function writeDraft(ctx: Ctx, input: DraftWrite): Promise<{ issues: DefinitionIssue[] }> {
+  const tx = ctx.tx;
+  const a = await lockAutomation(tx, input.automationId);
+  if (a.status === "archived") throw new ConflictError("automation_archived");
+  const group = input.groupKey ? await groupByKey(tx, input.groupKey) : null;
+  const isMarketing = input.isMarketing ?? a.isMarketing;
+  const purpose = input.purpose === undefined ? a.purpose : input.purpose;
+  if (isMarketing && purpose === null) throw new ValidationError("purpose_required", { purpose: "purpose_required" });
+  const definition = input.definition === undefined ? a.draftDefinition : input.definition;
+  const patch = {
+    name: input.name ?? a.name,
+    description: input.description === undefined ? a.description : input.description,
+    groupId: group?.id ?? a.groupId,
+    priority: input.priority ?? a.priority,
+    isMarketing,
+    purpose,
+    draftDefinition: definition ?? null,
+    draftUpdatedAt: ctx.now,
+    draftUpdatedByUserId: ctx.actor.kind === "staff" ? ctx.actor.userId : null,
+    updatedAt: ctx.now,
+  };
+  await tx.update(automations).set(patch).where(eq(automations.id, a.id));
+  const { issues } = await draftIssues(tx, { id: a.id, slug: a.slug, isMarketing, purpose, groupId: patch.groupId }, definition);
+  await auditAutomation(
+    ctx,
+    "automation.update_draft",
+    a.id,
+    { name: a.name, groupId: a.groupId, priority: a.priority, isMarketing: a.isMarketing, purpose: a.purpose, draftHash: hashOrNull(a.draftDefinition) },
+    { name: patch.name, groupId: patch.groupId, priority: patch.priority, isMarketing, purpose, draftHash: hashOrNull(definition), issues: issues.length },
+  );
+  return { issues };
+}
+
 /** Saves the working copy (even with issues) and returns every issue of it (A-1, A-3, A-4). */
 export const saveDraft = action(
   { name: "automation.save_draft", audience: "staff", permission: "automations.write", input: SaveDraftInput, audit: false },
-  async (ctx, input) => {
-    const tx = ctx.tx;
-    const a = await lockAutomation(tx, input.automationId);
-    if (a.status === "archived") throw new ConflictError("automation_archived");
-    const group = input.groupKey ? await groupByKey(tx, input.groupKey) : null;
-    const isMarketing = input.isMarketing ?? a.isMarketing;
-    const purpose = input.purpose === undefined ? a.purpose : input.purpose;
-    if (isMarketing && purpose === null) throw new ValidationError("purpose_required", { purpose: "purpose_required" });
-    const definition = input.definition === undefined ? a.draftDefinition : input.definition;
-    const patch = {
-      name: input.name ?? a.name,
-      description: input.description === undefined ? a.description : input.description,
-      groupId: group?.id ?? a.groupId,
-      priority: input.priority ?? a.priority,
-      isMarketing,
-      purpose,
-      draftDefinition: definition ?? null,
-      draftUpdatedAt: ctx.now,
-      draftUpdatedByUserId: ctx.actor.kind === "staff" ? ctx.actor.userId : null,
-      updatedAt: ctx.now,
-    };
-    await tx.update(automations).set(patch).where(eq(automations.id, a.id));
-    const { issues } = await draftIssues(tx, { id: a.id, slug: a.slug, isMarketing, purpose, groupId: patch.groupId }, definition);
-    await auditAutomation(
-      ctx,
-      "automation.update_draft",
-      a.id,
-      { name: a.name, groupId: a.groupId, priority: a.priority, isMarketing: a.isMarketing, purpose: a.purpose, draftHash: hashOrNull(a.draftDefinition) },
-      { name: patch.name, groupId: patch.groupId, priority: patch.priority, isMarketing, purpose, draftHash: hashOrNull(definition), issues: issues.length },
-    );
-    return { issues };
+  async (ctx, input) => writeDraft(ctx, input),
+);
+
+const SaveBuilderGraphInput = z.object({ automationId: z.uuid(), graph: BuilderGraphSchema });
+
+/**
+ * Saves the visual builder's flow (R4, automation-P10): `graphToDefinition`, then the path of
+ * `saveDraft` (saved even with field issues, audit `automation.update_draft`). A flow with
+ * structural issues (no blocks, a malformed block, a step key used twice, a jump to an unknown or
+ * earlier step) has no step list to save: the draft stays as it was and the issues come back with
+ * `saved: false`.
+ */
+export const saveBuilderGraph = action(
+  { name: "automation.save_builder", audience: "staff", permission: "automations.write", input: SaveBuilderGraphInput, audit: false },
+  async (ctx, input): Promise<{ issues: DefinitionIssue[]; saved: boolean }> => {
+    const converted = graphToDefinition(input.graph as unknown as BuilderGraph);
+    if (!converted.ok) {
+      const a = await lockAutomation(ctx.tx, input.automationId);
+      if (a.status === "archived") throw new ConflictError("automation_archived");
+      return { issues: converted.issues, saved: false };
+    }
+    const { issues } = await writeDraft(ctx, { automationId: input.automationId, definition: converted.value });
+    return { issues, saved: true };
   },
 );
 

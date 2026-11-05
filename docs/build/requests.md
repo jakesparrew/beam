@@ -149,6 +149,18 @@ to "Served" with the package id.
 | platform-P11b | orchestrator | At the checkpoint: `pnpm test:load --target beam_dev` and the real training screenshot capture (`pnpm exec tsx apps/web/scripts/training-screenshots.ts`) against beam_dev. |
 | webinar-P5 | webinar (webinar-P6, owner of `app/(admin)/admin/webinars/[id]/page.tsx`) | Link the host console `/admin/webinars/[id]/host` from the webinar detail page. |
 | commerce-P8 | booking (ticket checkout) | Use `groupTicketTypes` / `ticketCartSession` from `@beam/core/commerce` for carts with several ticket types of one event. |
+| automation-P9 | crm (owner of `pipeline/api.ts`, `crm/events.ts`) | Record `opportunity.stage_changed` with `personId = opportunities.primary_contact_person_id` when set and add `owner_user_id` to `opportunityData`; today the event has only `companyId`, so the B2B journeys never enrol anyone. |
+| automation-P9 | automation (owner of `packages/core/src/automation/seeds/groups.ts`) | Widen `SeedRelease` to `'V1' \| 'R2' \| 'R3'`, then drop the cast in `seeds/b2b.ts`. |
+| forms-P10 | ops (ops-P10, `0101_ai_views_ops.sql`) or platform | Grant select on `ai.form_funnel_daily` and `ai.form_outcomes` to `beam_ai_ro` (e.g. on all tables in schema ai) and describe both views in the ai schema doc; any custom migration that creates schema `ai` must use `if not exists` (forms' migration creates it first). |
+| forms-P10 | forms (owner of `api.ts`) | Re-export `FORMS_DASHBOARD_SOURCES`, `loadFormsDashboardSource` and their types. |
+| forms-P10 | ops (custom dashboards) | Offer `forms.funnel`, `forms.outcomes`, `forms.conversion` as widget sources. |
+| email-P10 | email (owner of `packages/core/src/email/index.ts`) | `export * from "./ai"`, then import `AiCampaignDraftSchema` and `buildDraftPrompt` from `@beam/core/email`. |
+| email-P10 | crm | Optional: `getSegmentAggregates(tx, segmentId)` so email stops reading `v_person_status` and `person_stats` for AI drafts. |
+| platform-P13 | platform (`apps/web/scripts`) or automation | Nothing outside tests calls `activateReleaseSequences(tx, 'R2', { isDpiaApproved })`: add a `release:activate <R>` script and a go-live runbook step (N-1 in `docs/build/seam-issues-r2.md`). |
+| site-P9 | site (owner of `server/render-data.ts`) | Add `partnerCompanyId` and `pageKind` to `RenderData` so form-embed can skip its lookup. |
+| site-P9 | site (owner of `ui/admin/pages-table.tsx`) | Add `["/admin/site/insights", "nav.insights"]` to `SECTIONS`. |
+| site-P9 | commerce | On the paid return page call `trackMarketingConversion("purchase", { valueCents })` when marketing consent is given. |
+| site-P9 | platform (`playwright.config.ts`) | `BEAM_ANALYTICS_PRODUCTION=1` in the webServer env (site-P5 row) for the marketing e2e cases. |
 
 ## Served
 

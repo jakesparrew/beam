@@ -28,7 +28,7 @@ import { sql } from "drizzle-orm";
 import { deriveAccessKey, signAccessToken } from "@beam/core/webinar";
 import { signInCustomer, signInStaff } from "./support/auth";
 import { closeE2eDb, e2eDb, e2eRows, pgArray } from "./support/db";
-import { uniqueEmail } from "./support/ids";
+import { distinctEmail, uniqueEmail } from "./support/ids";
 import { latestEmail } from "./support/sink";
 import { buyPackage, copy, eventually, one, payCheckout, personIdOf } from "./support/acceptance-fixtures";
 import { newCheckinCode } from "@beam/core/booking";
@@ -205,7 +205,7 @@ async function makeCustomer(personId: string): Promise<void> {
   expect(product, "the demo data has a package product").toBeTruthy();
   const order = await one<{ id: string }>(sql`
     insert into orders (person_id, channel, status, subtotal_cents, vat_cents, total_cents, locale, client_key, paid_at, terms_version_id)
-    values (${personId}::uuid, 'admin', 'paid', 9000, 1562, 9000, 'nl-BE', gen_random_uuid()::text, now(), null) returning id::text as id`);
+    values (${personId}::uuid, 'admin', 'paid', 9000, 1562, 9000, 'nl-BE', gen_random_uuid(), now(), null) returning id::text as id`);
   await e2eRows(sql`
     insert into order_lines (order_id, line_no, product_id, product_kind, sku, description, quantity, unit_amount_cents, line_total_cents, vat_rate_pct, vat_cents, pricing_trace)
     values (${order!.id}::uuid, 1, ${product!.id}::uuid, 'package', ${product!.sku}, '{"nl-BE":"Pakket","fr-BE":"Forfait","en":"Package"}'::jsonb, 1, 9000, 9000, 21.00, 1562, '{"e2e":true}'::jsonb)`);
@@ -213,7 +213,8 @@ async function makeCustomer(personId: string): Promise<void> {
 
 /** A free Lead Magnet event in its lead window: 2 seats, 1 reserved for leads, the general seat taken. */
 async function createLeadMagnet(): Promise<void> {
-  const emails = { seated: uniqueEmail("accr2-lead-seated"), waiting: uniqueEmail("accr2-lead-waiting"), customer: uniqueEmail("accr2-customer"), other: uniqueEmail("accr2-other") };
+  // Distinct normalised addresses, so booking's duplicate signals (R48) see four people.
+  const emails = { seated: distinctEmail("accr2-lead-seated"), waiting: distinctEmail("accr2-lead-waiting"), customer: distinctEmail("accr2-customer"), other: distinctEmail("accr2-other") };
   const session = await one<{ id: string }>(sql`
     insert into sessions (kind, event_category, title, starts_at, ends_at, capacity_seats, credit_kind, credit_cost, published_at,
                           is_lead_magnet, lead_reserved_seats, lead_window_start_at, lead_window_end_at, lead_release_rule, public_release_at, claim_window_minutes)
@@ -234,7 +235,6 @@ async function createLeadMagnet(): Promise<void> {
 }
 
 async function cleanupLeadMagnet(): Promise<void> {
-  await e2eRows(sql`update waitlist_entries set booking_id = null where session_id in (select id from sessions where title->>'en' = ${LEAD_TITLE.en})`);
   await e2eRows(sql`delete from waitlist_entries where session_id in (select id from sessions where title->>'en' = ${LEAD_TITLE.en})`);
   await e2eRows(sql`update bookings set status = 'cancelled', cancelled_at = now(), cancel_reason_code = 'staff', reserved_until = null, version = version + 1
     where status in ('reserved', 'confirmed') and session_id in (select id from sessions where title->>'en' = ${LEAD_TITLE.en})`);

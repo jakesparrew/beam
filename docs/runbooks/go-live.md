@@ -60,7 +60,7 @@ release's flags are switched on and its deploy is healthy:
    5432 is blocked), replacing `R2` by `R3` for release 3:
 
    ```bash
-   pnpm --filter @beam/db exec tsx --eval 'import("./src/seed/automation.ts").then((m) => m.releaseActivationCli(["R2"])).then((code) => process.exit(code))'
+   pnpm release:activate R2
    ```
 
    The command prints `R2: <n> journey(s) activated: <slugs>` and one line per journey that waits

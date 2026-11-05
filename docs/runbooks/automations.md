@@ -102,7 +102,7 @@ actor). Running it again is safe: it activates nothing new.
 2. From the repository root (replace `R2` by `R3` for release 3):
 
    ```bash
-   pnpm --filter @beam/db exec tsx --eval 'import("./src/seed/automation.ts").then((m) => m.releaseActivationCli(["R2"])).then((code) => process.exit(code))'
+   pnpm release:activate R2
    ```
 
 3. Read the output: `R2: <n> journey(s) activated: <slugs>`, then one line per journey that

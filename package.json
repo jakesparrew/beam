@@ -28,7 +28,8 @@
     "docs:schema": "pnpm --filter @beam/db docs-schema",
     "admin:reset-mfa": "pnpm --filter @beam/web exec tsx scripts/admin-reset-mfa.ts",
     "exit:export": "pnpm --filter @beam/web exec tsx scripts/exit-export.ts",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "release:activate": "pnpm --filter @beam/db exec tsx scripts/release-activate.ts"
   },
   "dependencies": {
     "@neon/config": "catalog:",

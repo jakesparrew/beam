@@ -9,7 +9,7 @@
  */
 import type { Locale } from "@beam/core/i18n";
 import type { UtmParams } from "@beam/core/forms";
-import { buildJsonLd, localePath, richDocToPlainText, type Block, type BreadcrumbFacts, type JsonLdFacts } from "@beam/core/site";
+import { buildJsonLd, localePath, richDocToPlainText, type Block, type BreadcrumbFacts, type JsonLdFacts, type PageKind } from "@beam/core/site";
 import { NotImplementedError } from "@beam/core/errors";
 import { reportError } from "@/lib/logger";
 import {
@@ -61,6 +61,13 @@ export type RenderData = {
   /** `?page=n` of paginated lists. */
   listPage: number;
   jsonLd: object[];
+  /**
+   * The kind of the rendered page, null when the render data was not built from a page (tests,
+   * hand-built data): the `form_embed` block then looks the page up by path itself.
+   */
+  pageKind: PageKind | null;
+  /** R3 (site-P9): the partner company of a `landing` page, passed to forms' embed; else null. */
+  partnerCompanyId: string | null;
 };
 
 type SearchParams = Record<string, string | string[] | undefined> | undefined;
@@ -122,7 +129,7 @@ export function blockPageIds(blocks: readonly Block[]): string[] {
 
 /** An empty `RenderData` (tests and pages without dynamic blocks). */
 export function emptyRenderData(locale: Locale, pagePath: string): RenderData {
-  return { locale, pagePath, media: {}, hrefs: {}, skus: {}, pricing: {}, events: {}, posts: {}, availability: {}, openingHours: null, company: null, legalMeta: null, event: null, utm: {}, listPage: 1, jsonLd: [] };
+  return { locale, pagePath, media: {}, hrefs: {}, skus: {}, pricing: {}, events: {}, posts: {}, availability: {}, openingHours: null, company: null, legalMeta: null, event: null, utm: {}, listPage: 1, jsonLd: [], pageKind: null, partnerCompanyId: null };
 }
 
 /** Loads the data of every block of `page` in its locale. */
@@ -134,6 +141,8 @@ export async function loadRenderData(page: ResolvedPage, searchParams?: SearchPa
   const data = emptyRenderData(locale, pagePath);
   data.utm = utmFrom(searchParams);
   data.listPage = pageNo;
+  data.pageKind = page.kind;
+  data.partnerCompanyId = page.kind === "landing" ? (page.partnerCompanyId ?? null) : null;
 
   const db = await getAppDb();
   const buyIds = blocks.flatMap((b) => (b.type === "booking_cta" && b.target.kind === "buy_product" ? [b.target.productId] : []));

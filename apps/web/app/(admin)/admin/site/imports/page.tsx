@@ -15,7 +15,7 @@ export default async function SiteImportsPage() {
   return (
     <div className="grid gap-6">
       <h1 className="text-2xl font-semibold">{L["import.title"]}</h1>
-      <SiteSectionNav L={L} current={"/admin/site/imports" as never} />
+      <SiteSectionNav L={L} current="/admin/site/imports" />
       <ImportsTable rows={rows} L={L} locale={locale} />
     </div>
   );

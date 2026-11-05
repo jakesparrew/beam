@@ -3,7 +3,8 @@
  * component in `blocks/`; the data they need was loaded beforehand by `loadRenderData`, so the
  * renderer is synchronous and pure. Exactly one `h1` per page (rule 18): the hero heading when
  * the first block is a hero, else the page title rendered by `PageView`; blocks use `h2`-`h4`.
- * `webinar_signup` renders nothing until site-P8 (R2).
+ * `webinar_signup` (R2) renders webinar's `WebinarSignup` server component through
+ * `WebinarSignupBlockView` of `./event-facts`.
  */
 import type { ReactNode } from "react";
 import type { Locale, MessageParams } from "@beam/core/i18n";
@@ -27,6 +28,7 @@ import { PricingTableBlockView } from "./blocks/pricing-table";
 import { RichTextBlockView } from "./blocks/rich-text";
 import { TestimonialBlockView } from "./blocks/testimonial";
 import { VideoBlockView } from "./blocks/video";
+import { WebinarSignupBlockView } from "./event-facts";
 
 export type Tr = (key: string, params?: MessageParams) => string;
 
@@ -92,7 +94,7 @@ function renderBlock(block: Block, ctx: BlockContext, index: number): ReactNode 
     case "legal_meta":
       return <LegalMetaBlockView ctx={ctx} />;
     case "webinar_signup":
-      return null;
+      return <WebinarSignupBlockView block={block} ctx={ctx} />;
     default:
       return null;
   }

@@ -42,7 +42,7 @@ export default async function SiteImportPage({ params, searchParams }: { params:
         </NextLink>
         <h1 className="text-2xl font-semibold">{detail.siteOrigin}</h1>
       </div>
-      <SiteSectionNav L={L} current={"/admin/site/imports" as never} />
+      <SiteSectionNav L={L} current="/admin/site/imports" />
       <form className="flex flex-wrap items-end gap-2" action={`/admin/site/imports/${importId}`}>
         <select name="type" defaultValue={filter.type ?? ""} aria-label={L["import.col.type"]} className={selectClass}>
           <option value="">{L["pages.all"]}</option>

@@ -5,6 +5,7 @@ import { hasPermission, requireStaff } from "@/lib/auth";
 import { adminLocale } from "@/lib/i18n";
 import { notFound } from "next/navigation";
 import { siteAdminLabels } from "@/modules/site/queries/admin";
+import { SiteSectionNav } from "@/modules/site/ui/admin/pages-table";
 import { getLandingInsightsFor, insightsCsv } from "@/modules/site/queries/insights";
 
 const inputClass = "h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs";
@@ -42,6 +43,7 @@ export default async function SiteInsightsPage({ searchParams }: { searchParams:
         <h1 className="text-2xl font-semibold">{L["insights.title"]}</h1>
         <p className="text-sm text-muted-foreground">{L["insights.intro"]}</p>
       </div>
+      <SiteSectionNav L={L} current="/admin/site/insights" />
       <form className="flex flex-wrap items-end gap-3" action="/admin/site/insights">
         <label className="grid gap-1 text-sm">
           {L["insights.from"]}

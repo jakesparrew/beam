@@ -268,6 +268,14 @@ async function main(argv: string[]): Promise<number> {
     console.log(`training-screenshots: ${written.length} placeholders written`);
     return 0;
   }
+  // The `@/` imports resolve through apps/web's tsconfig, which tsx reads from the working
+  // directory: started from the repository root, run again from apps/web.
+  const webDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+  if (path.resolve(process.cwd()) !== webDir) {
+    const { spawnSync } = await import("node:child_process");
+    const child = spawnSync("pnpm", ["exec", "tsx", "scripts/training-screenshots.ts", ...argv], { cwd: webDir, stdio: "inherit" });
+    return child.status ?? 1;
+  }
   const { config } = await import("dotenv");
   config({ path: [path.resolve(TRAINING_DIR, "../../../.env.local"), ".env.local"], quiet: true });
   if (process.env.APP_ENV === "production") {

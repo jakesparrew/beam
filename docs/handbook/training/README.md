@@ -62,8 +62,9 @@ the files are plain grey placeholders. To capture or refresh them, with the app 
 `http://localhost:3000` against `beam_dev`:
 
 ```bash
-pnpm --filter @beam/web exec tsx scripts/training-screenshots.ts            # every guide
-pnpm --filter @beam/web exec tsx scripts/training-screenshots.ts --only booking
+pnpm exec tsx apps/web/scripts/training-screenshots.ts                  # every guide
+pnpm exec tsx apps/web/scripts/training-screenshots.ts --only booking   # one guide
+pnpm exec tsx apps/web/scripts/training-screenshots.ts --placeholders   # grey images for missing shots
 ```
 
 The script signs in as a demo user of each shot's role, so no password or authenticator is needed;

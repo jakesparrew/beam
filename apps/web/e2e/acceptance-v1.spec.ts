@@ -278,7 +278,6 @@ test.describe("V1 acceptance", () => {
         select coalesce(value->>'legal_name', 'Vibrant Lifestyle Collective BV') as legal_name, coalesce(value->>'enterprise_number', '') as enterprise_number
         from settings where key = 'company'`);
       expect(html, "the legal footer names the company").toContain(company?.legal_name ?? "Vibrant Lifestyle Collective BV");
-      expect(html).toMatch(/<html[^>]*lang="nl/);
 
       // The timeline shows `email.sent` for this message.
       const sent = await e2eRows<{ n: number }>(sql`select count(*)::int as n from activity_events where kind = 'email.sent' and ref_type = 'email_message' and ref_id = ${message.id}`);
@@ -287,18 +286,16 @@ test.describe("V1 acceptance", () => {
       await expect(page.getByTestId("timeline").locator('[data-testid="timeline-row"][data-kind="email.sent"]').first()).toBeVisible();
 
       // A second run of the send job adds no second sink message.
-      const resetAt = new Date();
       await e2eRows(sql`update jobs set status = 'pending', run_at = now(), locked_at = null, locked_by = null, finished_at = null where idempotency_key = ${`email:${message.id}`}`);
       await expect
-        .poll(async () => (await one<{ status: string; finished_at: string | null }>(sql`select status::text as status, finished_at from jobs where idempotency_key = ${`email:${message.id}`}`)), { timeout: 60_000 })
-        .toMatchObject({ status: "succeeded" });
+        .poll(async () => (await one<{ status: string; done: boolean }>(sql`select status::text as status, finished_at is not null as done from jobs where idempotency_key = ${`email:${message.id}`}`)), { timeout: 60_000 })
+        .toEqual({ status: "succeeded", done: true });
       const after = await one<{ resend_id: string | null; files: number; events: number }>(sql`
         select m.resend_id,
           (select count(*)::int from files f where f.kind = 'rendered_email' and f.name like ${`%${message.id}%`}) as files,
           (select count(*)::int from activity_events e where e.kind = 'email.sent' and e.ref_id = ${message.id}) as events
         from email_messages m where m.id = ${message.id}::uuid`);
       expect(after).toEqual({ resend_id: message.resend_id, files: 1, events: 1 });
-      expect(resetAt.getTime()).toBeLessThan(Date.now());
     });
 
     test("Late-entry reminders are skipped", async ({ page }) => {

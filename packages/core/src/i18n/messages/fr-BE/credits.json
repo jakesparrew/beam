@@ -71,12 +71,26 @@
         "what_day": "{name} a partagé un forfait de séances avec vous.",
         "what_night": "{name} a partagé un forfait de nuits avec vous.",
         "limit": "{count, plural, one {Vous pouvez en utiliser # unité.} other {Vous pouvez en utiliser jusqu’à # unités.}}"
+      },
+      "referral_reward": {
+        "subject": "Un merci de BEAM vous attend",
+        "preheader": "Il est déjà dans votre compte.",
+        "heading": "Merci d'avoir recommandé BEAM",
+        "body": "Vous pouvez l'utiliser tout de suite depuis votre compte BEAM.",
+        "cta": "Voir mes forfaits",
+        "why_referrer": "Un ami que vous avez invité a effectué son premier achat chez BEAM.",
+        "why_referee": "Bienvenue chez BEAM : vous nous avez rejoints grâce à une invitation.",
+        "what_day": "{count, plural, one {Vous avez reçu # séance.} other {Vous avez reçu # séances.}}",
+        "what_night": "{count, plural, one {Vous avez reçu # nuit.} other {Vous avez reçu # nuits.}}",
+        "valid_until": "Valable jusqu'au {date}."
       }
     },
     "nav": {
       "packages": "Forfaits",
       "memberships": "Abonnements",
-      "sharing_review": "Contrôle du partage"
+      "sharing_review": "Contrôle du partage",
+      "referrals": "Parrainages",
+      "my_referrals": "Invitez un ami"
     },
     "enum": {
       "kind": {
@@ -212,6 +226,24 @@
         "cancelled": "Résilié",
         "expired": "Expiré",
         "period_extended": "Période prolongée"
+      },
+      "attribution_status": {
+        "pending": "En attente",
+        "qualified": "Qualifié",
+        "rewarded": "Récompensé",
+        "rejected": "Refusé"
+      },
+      "attribution_source": {
+        "code": "Code",
+        "link": "Lien",
+        "staff": "Équipe",
+        "import": "Import"
+      },
+      "commission_status": {
+        "accrued": "Acquise",
+        "approved": "Approuvée",
+        "paid": "Payée",
+        "void": "Annulée"
       }
     },
     "errors": {
@@ -232,7 +264,13 @@
       "already_shared": "Ce forfait est déjà partagé avec cette personne.",
       "share_with_owner": "Vous ne pouvez pas partager un forfait avec son propriétaire.",
       "grant_not_active": "Ce forfait ne peut plus être partagé.",
-      "review_item_not_found": "Cet élément ne doit plus être examiné. Rechargez la page."
+      "review_item_not_found": "Cet élément ne doit plus être examiné. Rechargez la page.",
+      "code_taken": "Ce code est déjà utilisé. Choisissez-en un autre.",
+      "code_exists": "Cette personne a déjà un code actif.",
+      "not_a_partner": "Cette entreprise n'est pas indiquée comme partenaire.",
+      "already_attributed": "Cette personne a déjà été parrainée (le premier parrainage compte).",
+      "attribution_not_pending": "Seul un parrainage en attente peut être refusé.",
+      "referrer_required": "Choisissez qui a parrainé cette personne."
     },
     "admin": {
       "common": {
@@ -626,6 +664,109 @@
         "read_only": "Vous pouvez consulter cette liste mais pas décider.",
         "open_grant": "Ouvrir le forfait",
         "open_person": "Ouvrir la personne"
+      },
+      "referrals": {
+        "title": "Parrainages et partenaires",
+        "intro": "Codes de parrainage, qui a parrainé qui, les récompenses et les commissions des partenaires. Une récompense est accordée 14 jours après la première commande payée de l'ami, si elle n'a pas été remboursée.",
+        "read_only": "Vous pouvez consulter ces chiffres ; les modifications demandent le droit parrainages.",
+        "empty": "Pas encore de parrainages.",
+        "tab_codes": "Codes",
+        "tab_attributions": "Attributions",
+        "tab_commissions": "Commissions",
+        "tab_partners": "Partenaires",
+        "new_code": "Nouveau code partenaire",
+        "new_code_title": "Nouveau code partenaire",
+        "create": "Créer le code",
+        "partner": "Entreprise partenaire",
+        "partner_pick": "Choisissez un partenaire",
+        "code_optional": "Code (facultatif)",
+        "code_hint": "6 à 12 lettres ou chiffres. Laissez vide pour en générer un.",
+        "max_uses": "Utilisations maximales (facultatif)",
+        "referrer_reward": "Récompense du parrain",
+        "referee_reward": "Récompense du nouveau client",
+        "reward_units": "Unités",
+        "reward_default": "Vide : la valeur par défaut des paramètres, ou aucune.",
+        "reward_kind": "Type",
+        "reward_validity_days": "Valable pendant (jours)",
+        "codes_caption": "Codes de parrainage",
+        "col_code": "Code",
+        "col_owner": "Titulaire",
+        "col_uses": "Utilisations",
+        "col_rewards": "Récompenses",
+        "col_status": "Statut",
+        "col_actions": "Actions",
+        "active": "Actif",
+        "inactive": "Inactif",
+        "activate": "Activer",
+        "deactivate": "Désactiver",
+        "uses_of": "{uses} sur {max}",
+        "referrer_short": "Parrain",
+        "referee_short": "Nouveau client",
+        "reward_value": "{units} × {kind}, {days} jours",
+        "reward_settings": "par défaut",
+        "attribute": "Attribuer un parrainage",
+        "attribute_title": "Qui a parrainé cette personne ?",
+        "attribute_submit": "Attribuer",
+        "referred_person": "Personne parrainée",
+        "referrer_person": "Parrainée par",
+        "search": "Rechercher",
+        "search_hint": "Nom ou e-mail",
+        "no_results": "Aucune personne trouvée.",
+        "change": "Modifier",
+        "attributions_caption": "Attributions de parrainage",
+        "col_referred": "Personne parrainée",
+        "col_referrer": "Parrain ou partenaire",
+        "col_source": "Source",
+        "col_attributed": "Attribué le",
+        "col_first_paid": "Premier paiement",
+        "col_reward": "Récompense",
+        "reject": "Refuser",
+        "reject_title": "Refuser ce parrainage",
+        "reject_submit": "Refuser",
+        "reward_granted": "Accordée",
+        "reward_none": "Aucune récompense prévue",
+        "reward_due": "Le {date}",
+        "rejected_self_referral": "Auto-parrainage",
+        "rejected_already_customer": "Déjà client",
+        "rejected_cap_reached": "Limite annuelle atteinte",
+        "rejected_staff": "Refusé par l'équipe",
+        "commissions_caption": "Commissions des partenaires",
+        "select": "Sélectionner",
+        "selected_count": "{count} sélectionnée(s)",
+        "approve": "Approuver",
+        "mark_paid": "Marquer comme payée",
+        "void": "Annuler",
+        "col_month": "Mois",
+        "col_partner": "Partenaire",
+        "col_order": "Commande",
+        "col_base": "Base HTVA",
+        "col_pct": "Taux",
+        "col_amount": "Commission",
+        "refund": "remboursement",
+        "partners_caption": "Résultats par partenaire",
+        "col_referred_count": "Parrainés",
+        "col_customers": "Clients",
+        "col_revenue": "Chiffre d'affaires",
+        "col_accrued": "Commission ouverte",
+        "col_paid": "Commission payée",
+        "total": "Total"
+      },
+      "partner": {
+        "title": "Mes chiffres de partenaire",
+        "intro": "Les clients que vous avez envoyés chez BEAM, par mois. Uniquement des totaux, jamais de noms.",
+        "caption": "Chiffres par mois",
+        "col_month": "Mois",
+        "col_referred": "Parrainés",
+        "col_customers": "Clients",
+        "col_revenue": "Chiffre d'affaires",
+        "col_accrued": "Commission ouverte",
+        "col_paid": "Commission payée",
+        "total": "Total",
+        "empty": "Pas encore de clients parrainés.",
+        "codes_title": "Vos codes",
+        "code_uses": "{count, plural, one {utilisé # fois} other {utilisé # fois}}",
+        "code_inactive": "inactif",
+        "codes_empty": "Pas encore de code. Demandez-en un à BEAM."
       }
     },
     "units": {
@@ -813,6 +954,23 @@
         "done": "Le forfait est partagé. Nous avons envoyé un e-mail à cette personne.",
         "limit_reached": "Vous partagez ce forfait avec le maximum de {count} personnes.",
         "not_named": "Ce forfait ne peut pas être partagé nominativement. Contactez BEAM si vous souhaitez le partager."
+      },
+      "referrals": {
+        "title": "Invitez un ami",
+        "intro": "Partagez votre lien personnel. Quand un ami fait son premier achat, vous recevez une séance de remerciement 14 jours plus tard.",
+        "empty": "Invitez un ami et recevez une séance lors de son premier achat.",
+        "code_label": "Votre code",
+        "link_label": "Votre lien de partage",
+        "get_link": "Obtenir mon lien",
+        "copy": "Copier le lien",
+        "copied": "Lien copié.",
+        "error": "Une erreur s'est produite, réessayez.",
+        "referred_count": "{count, plural, =0 {Aucun ami ne vous a encore rejoint par votre lien.} one {# ami vous a rejoint par votre lien.} other {# amis vous ont rejoint par votre lien.}}",
+        "rewards_title": "Récompenses reçues",
+        "rewards_empty": "Pas encore de récompenses.",
+        "reward_line": "{date} : {what}",
+        "reward_sessions": "{count, plural, one {# séance} other {# séances}}",
+        "reward_nights": "{count, plural, one {# nuit} other {# nuits}}"
       }
     }
   }

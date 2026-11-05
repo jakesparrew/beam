@@ -71,12 +71,26 @@
         "what_day": "{name} shared a package of sessions with you.",
         "what_night": "{name} shared a package of nights with you.",
         "limit": "{count, plural, one {You can use # unit of it.} other {You can use up to # units of it.}}"
+      },
+      "referral_reward": {
+        "subject": "A thank-you from BEAM is waiting for you",
+        "preheader": "It is already in your account.",
+        "heading": "Thank you for spreading the word",
+        "body": "You can book with it right away from your BEAM account.",
+        "cta": "View my packages",
+        "why_referrer": "A friend you invited made their first purchase at BEAM.",
+        "why_referee": "Welcome to BEAM: you joined through an invitation.",
+        "what_day": "{count, plural, one {You received # session.} other {You received # sessions.}}",
+        "what_night": "{count, plural, one {You received # night.} other {You received # nights.}}",
+        "valid_until": "Valid until {date}."
       }
     },
     "nav": {
       "packages": "Packages",
       "memberships": "Memberships",
-      "sharing_review": "Sharing review"
+      "sharing_review": "Sharing review",
+      "referrals": "Referrals",
+      "my_referrals": "Invite a friend"
     },
     "enum": {
       "kind": {
@@ -212,6 +226,24 @@
         "cancelled": "Cancelled",
         "expired": "Expired",
         "period_extended": "Period extended"
+      },
+      "attribution_status": {
+        "pending": "Pending",
+        "qualified": "Qualified",
+        "rewarded": "Rewarded",
+        "rejected": "Rejected"
+      },
+      "attribution_source": {
+        "code": "Code",
+        "link": "Link",
+        "staff": "Staff",
+        "import": "Import"
+      },
+      "commission_status": {
+        "accrued": "Accrued",
+        "approved": "Approved",
+        "paid": "Paid",
+        "void": "Void"
       }
     },
     "errors": {
@@ -232,7 +264,13 @@
       "already_shared": "This package is already shared with this person.",
       "share_with_owner": "You cannot share a package with its owner.",
       "grant_not_active": "This package can no longer be shared.",
-      "review_item_not_found": "This item no longer needs a review. Reload the page."
+      "review_item_not_found": "This item no longer needs a review. Reload the page.",
+      "code_taken": "This code is already in use. Choose another one.",
+      "code_exists": "This person already has an active code.",
+      "not_a_partner": "This company is not marked as a partner.",
+      "already_attributed": "This person was already referred (first referral counts).",
+      "attribution_not_pending": "Only a pending referral can be rejected.",
+      "referrer_required": "Choose who referred this person."
     },
     "admin": {
       "common": {
@@ -626,6 +664,109 @@
         "read_only": "You can view this list but not decide.",
         "open_grant": "Open package",
         "open_person": "Open person"
+      },
+      "referrals": {
+        "title": "Referrals and partners",
+        "intro": "Referral codes, who referred whom, the thank-you rewards and partner commissions. A reward is granted 14 days after the friend's first paid order, if it was not refunded.",
+        "read_only": "You can view these figures; changes need the referrals permission.",
+        "empty": "No referrals yet.",
+        "tab_codes": "Codes",
+        "tab_attributions": "Attributions",
+        "tab_commissions": "Commissions",
+        "tab_partners": "Partners",
+        "new_code": "New partner code",
+        "new_code_title": "New partner code",
+        "create": "Create code",
+        "partner": "Partner company",
+        "partner_pick": "Choose a partner",
+        "code_optional": "Code (optional)",
+        "code_hint": "6 to 12 letters or digits. Leave empty to generate one.",
+        "max_uses": "Maximum uses (optional)",
+        "referrer_reward": "Reward for the referrer",
+        "referee_reward": "Reward for the new customer",
+        "reward_units": "Units",
+        "reward_default": "Empty: the default from the settings, or none.",
+        "reward_kind": "Kind",
+        "reward_validity_days": "Valid for (days)",
+        "codes_caption": "Referral codes",
+        "col_code": "Code",
+        "col_owner": "Owner",
+        "col_uses": "Uses",
+        "col_rewards": "Rewards",
+        "col_status": "Status",
+        "col_actions": "Actions",
+        "active": "Active",
+        "inactive": "Inactive",
+        "activate": "Activate",
+        "deactivate": "Deactivate",
+        "uses_of": "{uses} of {max}",
+        "referrer_short": "Referrer",
+        "referee_short": "New customer",
+        "reward_value": "{units} × {kind}, {days} days",
+        "reward_settings": "default",
+        "attribute": "Attribute a referral",
+        "attribute_title": "Who referred this person?",
+        "attribute_submit": "Attribute",
+        "referred_person": "Referred person",
+        "referrer_person": "Referred by",
+        "search": "Search",
+        "search_hint": "Name or email",
+        "no_results": "No person found.",
+        "change": "Change",
+        "attributions_caption": "Referral attributions",
+        "col_referred": "Referred person",
+        "col_referrer": "Referrer or partner",
+        "col_source": "Source",
+        "col_attributed": "Attributed",
+        "col_first_paid": "First paid",
+        "col_reward": "Reward",
+        "reject": "Reject",
+        "reject_title": "Reject this referral",
+        "reject_submit": "Reject",
+        "reward_granted": "Granted",
+        "reward_none": "No reward set",
+        "reward_due": "Due on {date}",
+        "rejected_self_referral": "Self-referral",
+        "rejected_already_customer": "Already a customer",
+        "rejected_cap_reached": "Yearly limit reached",
+        "rejected_staff": "Rejected by staff",
+        "commissions_caption": "Partner commissions",
+        "select": "Select",
+        "selected_count": "{count} selected",
+        "approve": "Approve",
+        "mark_paid": "Mark as paid",
+        "void": "Void",
+        "col_month": "Month",
+        "col_partner": "Partner",
+        "col_order": "Order",
+        "col_base": "Base excl. VAT",
+        "col_pct": "Rate",
+        "col_amount": "Commission",
+        "refund": "refund",
+        "partners_caption": "Partner performance",
+        "col_referred_count": "Referred",
+        "col_customers": "Customers",
+        "col_revenue": "Revenue",
+        "col_accrued": "Commission open",
+        "col_paid": "Commission paid",
+        "total": "Total"
+      },
+      "partner": {
+        "title": "My partner figures",
+        "intro": "The customers you referred to BEAM, per month. Only totals are shown, never names.",
+        "caption": "Figures per month",
+        "col_month": "Month",
+        "col_referred": "Referred",
+        "col_customers": "Customers",
+        "col_revenue": "Revenue",
+        "col_accrued": "Commission open",
+        "col_paid": "Commission paid",
+        "total": "Total",
+        "empty": "No referred customers yet.",
+        "codes_title": "Your codes",
+        "code_uses": "{count, plural, one {used # time} other {used # times}}",
+        "code_inactive": "inactive",
+        "codes_empty": "No code yet. Ask BEAM for one."
       }
     },
     "units": {
@@ -813,6 +954,23 @@
         "done": "The package is shared. We sent them an email.",
         "limit_reached": "You share this package with the maximum of {count} people.",
         "not_named": "This package cannot be shared by name. Contact BEAM if you would like to share it."
+      },
+      "referrals": {
+        "title": "Invite a friend",
+        "intro": "Share your personal link. When a friend makes their first purchase, you receive a thank-you session 14 days later.",
+        "empty": "Invite a friend and get a session when they make their first purchase.",
+        "code_label": "Your code",
+        "link_label": "Your share link",
+        "get_link": "Get my link",
+        "copy": "Copy link",
+        "copied": "Link copied.",
+        "error": "Something went wrong, try again.",
+        "referred_count": "{count, plural, =0 {No friend has joined through your link yet.} one {# friend joined through your link.} other {# friends joined through your link.}}",
+        "rewards_title": "Rewards received",
+        "rewards_empty": "No rewards yet.",
+        "reward_line": "{date}: {what}",
+        "reward_sessions": "{count, plural, one {# session} other {# sessions}}",
+        "reward_nights": "{count, plural, one {# night} other {# nights}}"
       }
     }
   }

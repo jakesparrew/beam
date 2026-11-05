@@ -6,8 +6,12 @@
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { sql, type SQL } from "drizzle-orm";
-import { PgDialect } from "drizzle-orm/pg-core";
-import { applyCustomSql, createTestDb, makePerson } from "@beam/db/testing";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { is } from "drizzle-orm";
+import { getViewConfig, PgDialect, PgView } from "drizzle-orm/pg-core";
+import * as dbSchema from "@beam/db/schema";
+import { applyCustomSql, createTestDb, customSqlFolder, makePerson } from "@beam/db/testing";
 import type { Db, DbHandle, Tx } from "@beam/db";
 import { AI_SQL_FUNCTIONS, AiSqlRejectedError } from "@beam/core/ai";
 import * as coreOps from "@beam/core/ops";
@@ -58,7 +62,21 @@ describe("0100_ai_readonly.sql", () => {
       { usage: true, create: false },
     ]);
     expect(await q("select pg_has_role(current_user, 'beam_ai_ro', 'member') as member")).toEqual([{ member: true }]);
-    expect(await q<{ n: number }>("select count(*)::int as n from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'ai'")).toEqual([{ n: 0 }]);
+    // 0100 defines no view; the only relations in `ai` are the views the TypeScript schema declares
+    // there (forms-P10's `ai.form_funnel_daily` and `ai.form_outcomes`, created by createTestDb).
+    const file = readFileSync(path.join(customSqlFolder, "0100_ai_readonly.sql"), "utf8").replace(/--.*$/gm, "");
+    expect(file).not.toMatch(/\bcreate\s+(or\s+replace\s+)?(materialized\s+)?view\b/i);
+    const declaredAi = Object.values(dbSchema)
+      .filter((v): v is PgView => is(v, PgView))
+      .map((v) => getViewConfig(v))
+      .filter((c) => c.schema === "ai")
+      .map((c) => ({ name: c.name, kind: "v" }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    expect(
+      await q<{ name: string; kind: string }>(
+        "select c.relname::text as name, c.relkind::text as kind from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'ai' order by 1",
+      ),
+    ).toEqual(declaredAi);
     expect(await q("select has_table_privilege('beam_ai_ro', 'public.persons', 'select') as can")).toEqual([{ can: false }]);
   });
 

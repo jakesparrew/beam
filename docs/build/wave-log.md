@@ -189,3 +189,11 @@ One entry per merge batch and gate (runbook section 5.7, adapted by OD-3).
 - Batch `g97-batch` (automation-P6): merge gate green, peak 13570 MB.
 - email-P6: 52 min, merged as `7629f07`; gate `g99-email-P6` (merge) green, peak 8082 MB.
 - booking-P7: 45 min, merged as `db8ee7c`; gate `g100-booking-P7` (merge) green, peak 5610 MB.
+- crm-P8: merged as `7889e56` in batch `g104-batch`.
+- webinar-P3: merged as `e9f5e8f` in batch `g104-batch`.
+- forms-P6: merged as `321bb57` in batch `g104-batch`.
+- ops-P7: merged as `ba41048` in batch `g104-batch`.
+- finance-P8: merged as `b9efc2b` in batch `g104-batch`.
+- automation-P7: merged as `61d4337` in batch `g104-batch`.
+- credits-P9: merged as `43c3abb` in batch `g104-batch`.
+- Batch `g104-batch` (crm-P8 webinar-P3 forms-P6 ops-P7 finance-P8 automation-P7 credits-P9): migrations 0038_w19.sql 0039_w19_views.sql; merge gate green, peak 6130 MB.

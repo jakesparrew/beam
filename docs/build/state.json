@@ -755,14 +755,16 @@
       "mergedAt": "2026-11-04T08:26:09Z"
     },
     "forms-P6": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "2c17bb6",
       "runId": null,
       "startedAt": "2026-11-05T00:25:52Z",
       "branchSha": "697ac27",
-      "endedAt": "2026-11-05T01:07:44Z",
-      "minutes": 41
+      "endedAt": "2026-11-05T02:30:25Z",
+      "minutes": 41,
+      "mergeSha": "321bb57",
+      "mergedAt": "2026-11-05T02:51:36Z"
     },
     "email-P5": {
       "status": "merged",
@@ -912,11 +914,14 @@
       "mergedAt": "2026-11-05T00:24:55Z"
     },
     "email-P7": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "baseSha": "ebbfa4d",
       "runId": null,
-      "startedAt": "2026-11-05T01:57:36Z"
+      "startedAt": "2026-11-05T01:57:36Z",
+      "branchSha": "894701e",
+      "endedAt": "2026-11-05T02:50:16Z",
+      "minutes": 44
     },
     "ops-P5": {
       "status": "merged",
@@ -967,14 +972,16 @@
       "mergedAt": "2026-11-05T02:01:06Z"
     },
     "automation-P7": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "5032b45",
       "runId": null,
       "startedAt": "2026-11-05T01:07:48Z",
       "branchSha": "2621d75",
-      "endedAt": "2026-11-05T01:47:48Z",
-      "minutes": 31
+      "endedAt": "2026-11-05T02:30:25Z",
+      "minutes": 31,
+      "mergeSha": "61d4337",
+      "mergedAt": "2026-11-05T02:51:45Z"
     },
     "credits-P8": {
       "status": "merged",
@@ -1009,7 +1016,7 @@
       "attempts": 0
     },
     "ops-P7": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "2c17bb6",
       "runId": null,
@@ -1018,11 +1025,13 @@
         "packages/db/src/schema/ops.views.test.ts"
       ],
       "branchSha": "ae4f445",
-      "endedAt": "2026-11-05T01:28:07Z",
-      "minutes": 54
+      "endedAt": "2026-11-05T02:30:25Z",
+      "minutes": 54,
+      "mergeSha": "ba41048",
+      "mergedAt": "2026-11-05T02:51:38Z"
     },
     "webinar-P3": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "9711c76",
       "runId": null,
@@ -1033,8 +1042,10 @@
         "packages/core/src/i18n/messages/fr-BE/webinar.json"
       ],
       "branchSha": "52638e4",
-      "endedAt": "2026-11-05T01:17:43Z",
-      "minutes": 65
+      "endedAt": "2026-11-05T02:30:25Z",
+      "minutes": 65,
+      "mergeSha": "e9f5e8f",
+      "mergedAt": "2026-11-05T02:51:32Z"
     },
     "webinar-P4": {
       "status": "pending",
@@ -1085,34 +1096,38 @@
       "mergedAt": "2026-11-04T18:09:09Z"
     },
     "crm-P8": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "9711c76",
       "runId": null,
       "startedAt": "2026-11-05T00:01:54Z",
       "branchSha": "fe32126",
-      "endedAt": "2026-11-05T02:01:11Z",
+      "endedAt": "2026-11-05T02:30:25Z",
       "minutes": 42,
       "extraOwns": [
         "apps/web/modules/ops/privacy/restrict.test.ts"
-      ]
+      ],
+      "mergeSha": "7889e56",
+      "mergedAt": "2026-11-05T02:51:29Z"
     },
     "finance-P8": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "5032b45",
       "runId": null,
       "startedAt": "2026-11-05T01:07:48Z",
       "branchSha": "d501350",
-      "endedAt": "2026-11-05T01:47:48Z",
-      "minutes": 30
+      "endedAt": "2026-11-05T02:30:25Z",
+      "minutes": 30,
+      "mergeSha": "b9efc2b",
+      "mergedAt": "2026-11-05T02:51:42Z"
     },
     "commerce-P9": {
       "status": "pending",
       "attempts": 0
     },
     "credits-P9": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "5032b45",
       "runId": null,
@@ -1121,8 +1136,10 @@
         "packages/db/src/schema/credits.test.ts"
       ],
       "branchSha": "b246369",
-      "endedAt": "2026-11-05T01:57:26Z",
-      "minutes": 48
+      "endedAt": "2026-11-05T02:30:25Z",
+      "minutes": 48,
+      "mergeSha": "43c3abb",
+      "mergedAt": "2026-11-05T02:51:47Z"
     },
     "crm-P9": {
       "status": "pending",

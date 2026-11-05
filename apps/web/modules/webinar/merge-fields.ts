@@ -58,7 +58,7 @@ const accessUrl: Resolver = async ({ tx, personId, context, locale }) => {
 
 const title: Resolver = async ({ tx, context, locale }) => {
   const w = await webinarOf(tx, context);
-  return w ? titleIn(w.title as Record<string, string>, locale) || null : null;
+  return w ? titleIn(w.title, locale) || null : null;
 };
 
 const startsAtLocal: Resolver = async ({ tx, context, locale }) => {

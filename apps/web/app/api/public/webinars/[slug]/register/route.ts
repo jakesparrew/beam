@@ -92,7 +92,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
       });
       return "ok" as const;
     });
-    const done = ctx as Ctx | undefined;
+    const done = ctx;
     if (done) {
       await flushIntegrationLog(db, done);
       await flushDurableWrites(db, done);
@@ -101,7 +101,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
     if (outcome === "not_found") return error(404, "not_found", "webinar_not_found");
     return json(202, { ok: true });
   } catch (e) {
-    const failed = ctx as Ctx | undefined;
+    const failed = ctx;
     if (failed) {
       await flushIntegrationLog(db, failed).catch((x: unknown) => reportError(x));
       await flushDurableWrites(db, failed).catch((x: unknown) => reportError(x));

@@ -12,6 +12,12 @@ import { getWebinarBySlug } from "@/modules/webinar/queries";
 
 export const dynamic = "force-dynamic";
 
+/** A text field of a posted form ("" when absent or a file). */
+const textField = (f: FormData, k: string): string => {
+  const v = f.get(k);
+  return typeof v === "string" ? v : "";
+};
+
 type Props = { params: Promise<{ locale: string; slug: string }>; searchParams: Promise<{ sent?: string; error?: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -38,8 +44,8 @@ export default async function JoinPage({ params, searchParams }: Props) {
 
   async function send(formData: FormData) {
     "use server";
-    const email = String(formData.get("email") ?? "").trim();
-    const website = String(formData.get("website") ?? "");
+    const email = textField(formData, "email").trim();
+    const website = textField(formData, "website");
     const res = await requestAccessLink({ slug, email, locale, ...(website ? { website } : {}) });
     if (!res.ok) redirect(`${here}?error=${res.error.code === "validation" ? "invalid" : "internal"}` as Route);
     if (res.data.limited) redirect(`${here}?error=rate_limited` as Route);
@@ -51,7 +57,7 @@ export default async function JoinPage({ params, searchParams }: Props) {
     <div className="mx-auto max-w-xl space-y-6 px-4 py-10">
       <header className="space-y-2">
         <h1 className="text-2xl font-semibold">{tr("webinar.public.join.title")}</h1>
-        <p className="text-muted-foreground">{titleIn(found.webinar.title as Record<string, string>, locale)}</p>
+        <p className="text-muted-foreground">{titleIn(found.webinar.title, locale)}</p>
         <p>{tr("webinar.public.join.intro")}</p>
       </header>
       <div aria-live="polite">

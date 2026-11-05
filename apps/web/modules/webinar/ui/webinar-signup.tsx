@@ -25,7 +25,7 @@ export async function WebinarSignup({ webinarId, locale }: { webinarId: string; 
   const { webinar: w, state } = found;
   const tr = translator(locale);
   const seg = URL_SEGMENT[locale];
-  const title = titleIn(w.title as Record<string, string>, locale);
+  const title = titleIn(w.title, locale);
   const when = w.startsAt ? tr("webinar.public.landing.date", { date: webinarDate(w.startsAt, locale) }) : tr("webinar.public.card.on_demand");
   const open = state === "register" || state === "replay";
   return (

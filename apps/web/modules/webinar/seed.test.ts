@@ -67,15 +67,16 @@ describe("templates/webinar/index.ts (section 8)", () => {
   it("access attaches the .ics with the landing URL and never the personal link; on-demand attaches nothing", async () => {
     const t = byName("access");
     const sample = t.sample as Record<string, string | null>;
-    const files = await t.attachments!(t.sample, "nl-BE");
+    const attach = t.attachments!.bind(t) as (props: unknown, locale: "nl-BE") => Promise<Array<{ filename: string; content: Uint8Array; contentType: string }>>;
+    const files = await attach(t.sample, "nl-BE");
     expect(files).toHaveLength(1);
-    expect(files[0]).toMatchObject({ filename: "webinar.ics", contentType: expect.stringContaining("text/calendar") });
+    expect(files[0]).toMatchObject({ filename: "webinar.ics", contentType: "text/calendar; charset=utf-8; method=PUBLISH" });
     const ics = new TextDecoder().decode(files[0]!.content);
     expect(ics).toContain("BEGIN:VEVENT");
     expect(ics).toContain("DTSTART:20270112T180000Z");
     expect(ics).toContain(sample.landingUrl!);
     expect(ics).not.toContain("/w/");
-    expect(await t.attachments!({ ...t.sample, startsAt: null, endsAt: null, icsUrl: null, date: "" }, "nl-BE")).toEqual([]);
+    expect(await attach({ ...sample, startsAt: null, endsAt: null, icsUrl: null, date: "" }, "nl-BE")).toEqual([]);
   });
 
   it("reminder and replay_available build props through loadProps from context.registration_id and stepKey", async () => {

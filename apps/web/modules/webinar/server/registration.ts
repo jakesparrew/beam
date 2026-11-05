@@ -111,7 +111,7 @@ function cleanUtm(utm: Utm | undefined): Utm {
     const v = utm?.[k]?.trim();
     if (v) out[k] = v.slice(0, 200);
   }
-  return out as Utm;
+  return out;
 }
 
 /** The `webinar.registered` data of section 4.1. */
@@ -141,7 +141,7 @@ const ref = (r: Pick<RegistrationRow, "id">) => ({ type: "webinar_registration",
 export function accessEmailData(w: WebinarRow, r: Pick<RegistrationRow, "id" | "tokenVersion">, locale: Locale) {
   const endsAt = endsAtOf(w);
   return {
-    title: titleIn(w.title as Record<string, string>, locale),
+    title: titleIn(w.title, locale),
     date: webinarDate(w.startsAt, locale),
     language: spokenLanguageName(w.spokenLocale, locale),
     accessUrl: webinarAccessUrl(r.id, r.tokenVersion, locale),
@@ -428,7 +428,7 @@ export async function registerPersonByStaff(ctx: Ctx, input: { webinarId: string
     webinarId: input.webinarId,
     personId: input.personId,
     source: "admin",
-    locale: p.locale as Locale,
+    locale: p.locale,
     utm: {},
     sendAccessEmail: input.sendAccessEmail,
   });
@@ -444,5 +444,5 @@ export async function accessUrlOf(db: DbOrTx, registrationId: string, locale: Lo
 }
 
 /** The title of a webinar in `locale` (LocalizedText fallback to any filled locale). */
-export const webinarTitle = (title: LocalizedText, locale: Locale): string => titleIn(title as Record<string, string>, locale);
+export const webinarTitle = (title: LocalizedText, locale: Locale): string => titleIn(title, locale);
 

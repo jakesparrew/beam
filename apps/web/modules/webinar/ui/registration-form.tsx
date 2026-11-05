@@ -119,7 +119,7 @@ export function RegistrationForm({ variant, webinarId, slug, locale, wordingVers
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4" noValidate={false} aria-describedby={`${ids}-privacy`}>
+    <form onSubmit={(e) => void onSubmit(e)} className="space-y-4" noValidate={false} aria-describedby={`${ids}-privacy`}>
       {variant === "site" ? (
         <>
           <FormField label={labels.email} required>

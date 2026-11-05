@@ -25,7 +25,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ slug: st
   const locale: Locale = isLocale(requested) && w.locales.includes(requested) ? requested : w.spokenLocale;
   const body = buildWebinarIcs({
     webinarId: w.id,
-    title: titleIn(w.title as Record<string, string>, locale),
+    title: titleIn(w.title, locale),
     startsAt: w.startsAt,
     endsAt,
     url: webinarLandingUrl(w.slug, locale),

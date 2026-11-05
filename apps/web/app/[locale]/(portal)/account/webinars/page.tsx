@@ -16,6 +16,12 @@ import { WebinarCard } from "@/modules/webinar/ui/webinar-card";
 
 export const dynamic = "force-dynamic";
 
+/** A text field of a posted form ("" when absent or a file). */
+const textField = (f: FormData, k: string): string => {
+  const v = f.get(k);
+  return typeof v === "string" ? v : "";
+};
+
 type Props = { params: Promise<{ locale: string }>; searchParams: Promise<{ done?: string; error?: string }> };
 
 /**
@@ -46,12 +52,12 @@ export default async function MyWebinarsPage({ params, searchParams }: Props) {
 
   async function cancel(formData: FormData) {
     "use server";
-    const res = await cancelMyRegistration({ registrationId: String(formData.get("registrationId") ?? "") });
+    const res = await cancelMyRegistration({ registrationId: textField(formData, "registrationId") });
     redirect((res.ok ? `${here}?done=cancelled` : `${here}?error=1`) as Route);
   }
 
   const language = (x: MyWebinarItem) => tr("webinar.public.card.language", { language: spokenLanguageName(x.webinar.spokenLocale, locale) });
-  const title = (x: MyWebinarItem) => titleIn(x.webinar.title as Record<string, string>, locale);
+  const title = (x: MyWebinarItem) => titleIn(x.webinar.title, locale);
   const watchHref = (id: string) => `/${URL_SEGMENT[locale]}/account/webinars/${id}`;
   const cancelForm = (registrationId: string) => (
     <form action={cancel}>

@@ -78,10 +78,10 @@ beforeEach(async () => {
 
 /** One evaluator run at `now`, then every pending `automation.step` job at `now`. */
 async function tick(now: Date): Promise<void> {
-  await evaluateJob.run(makeJobCtx(h.db, "automation.evaluate" as never, { now }), {});
+  await evaluateJob.run(makeJobCtx(h.db, "automation.evaluate", { now }), {});
   const pending = await h.db.select().from(jobsTable).where(and(eq(jobsTable.kind, "automation.step"), eq(jobsTable.status, "pending"))).orderBy(asc(jobsTable.createdAt));
   for (const job of pending) {
-    await stepJob.run(makeJobCtx(h.db, "automation.step" as never, { now, jobId: job.id }), stepJob.input.parse(job.payload));
+    await stepJob.run(makeJobCtx(h.db, "automation.step", { now, jobId: job.id }), stepJob.input.parse(job.payload));
     await h.db.delete(jobsTable).where(eq(jobsTable.id, job.id));
   }
 }

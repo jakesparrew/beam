@@ -80,7 +80,7 @@ function summaryOf(w: WebinarRow, locale: Locale): WebinarSummary {
   return {
     id: w.id,
     slug: w.slug,
-    title: w.title as LocalizedText,
+    title: w.title,
     mode: w.mode,
     status: w.status,
     startsAt: w.startsAt,
@@ -94,7 +94,7 @@ function personRowOf(x: PersonRegistrationRow): PersonWebinarRow {
   return {
     registrationId: x.registration.id,
     webinarId: x.webinar.id,
-    title: x.webinar.title as LocalizedText,
+    title: x.webinar.title,
     mode: x.webinar.mode,
     registeredMode: x.registration.registeredMode,
     status: x.registration.status,
@@ -207,7 +207,7 @@ export async function getWebinarCards(tx: DbOrTx, ids: string[], locale: Locale)
       {
         id: w.id,
         slug: w.slug,
-        title: titleIn(w.title as Record<string, string>, locale),
+        title: titleIn(w.title, locale),
         mode: w.mode,
         startsAt: w.startsAt,
         spokenLocale: w.spokenLocale,

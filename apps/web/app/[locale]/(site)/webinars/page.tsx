@@ -36,7 +36,7 @@ export default async function WebinarsPage({ params }: { params: Promise<{ local
   const card = (w: (typeof rows)[number]) => (
     <li key={w.id}>
       <WebinarCard
-        title={titleIn(w.title as Record<string, string>, locale)}
+        title={titleIn(w.title, locale)}
         href={`/${seg}/webinars/${w.slug}`}
         when={w.startsAt ? tr("webinar.public.landing.date", { date: webinarDate(w.startsAt, locale) }) : tr("webinar.public.card.on_demand")}
         language={tr("webinar.public.card.language", { language: spokenLanguageName(w.spokenLocale, locale) })}

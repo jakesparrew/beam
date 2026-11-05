@@ -21,7 +21,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!locale) return {};
   const found = await getWebinarBySlug(await getAppDb(), slug, locale);
   if (!found) return {};
-  return { title: titleIn(found.webinar.title as Record<string, string>, locale) };
+  return { title: titleIn(found.webinar.title, locale) };
 }
 
 /**
@@ -46,7 +46,7 @@ export default async function WebinarLandingPage({ params }: Props) {
   }
   const { webinar: w, presenters, state } = found;
   const tr = translator(locale);
-  const title = titleIn(w.title as Record<string, string>, locale);
+  const title = titleIn(w.title, locale);
   const back = (
     <p>
       <Link href={`/${seg}/webinars` as Route} className="underline underline-offset-2">

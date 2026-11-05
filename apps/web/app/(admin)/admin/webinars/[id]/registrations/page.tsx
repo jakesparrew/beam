@@ -16,6 +16,12 @@ import { RegistrationsTable, type RegistrationsTableRow } from "@/modules/webina
 
 export const dynamic = "force-dynamic";
 
+/** A text field of a posted form ("" when absent or a file). */
+const textField = (f: FormData, k: string): string => {
+  const v = f.get(k);
+  return typeof v === "string" ? v : "";
+};
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const STATUSES = ["registered", "cancelled", "blocked"] as const;
 const SEGMENTS = ["lead", "customer", "member"] as const;
@@ -51,8 +57,8 @@ export default async function WebinarRegistrationsPage({ params, searchParams }:
 
   async function act(formData: FormData) {
     "use server";
-    const op = String(formData.get("op") ?? "");
-    const registrationId = String(formData.get("registrationId") ?? "");
+    const op = textField(formData, "op");
+    const registrationId = textField(formData, "registrationId");
     const res =
       op === "cancel"
         ? await cancelRegistrationByStaff({ registrationId })
@@ -64,7 +70,7 @@ export default async function WebinarRegistrationsPage({ params, searchParams }:
 
   async function register(formData: FormData) {
     "use server";
-    const email = normaliseEmail(String(formData.get("email") ?? ""));
+    const email = normaliseEmail(textField(formData, "email"));
     const ids = email ? await findPersonIdsByEmailHash(await getAppDb(), emailHash(email)) : [];
     if (!ids[0]) redirect(`${here}?error=person_not_found` as Route);
     const res = await registerPersonByStaff({ webinarId: w.id, personId: ids[0], sendAccessEmail: formData.get("sendAccessEmail") === "on" });

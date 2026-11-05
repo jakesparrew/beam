@@ -148,9 +148,9 @@ export async function loadWebinarRegistration(tx: unknown, args: Pick<LoadPropsA
     webinarId: String(row.webinar_id),
     slug: String(row.slug),
     title: (typeof row.title === "string" ? JSON.parse(row.title) : row.title) as Record<string, string>,
-    startsAt: row.starts_at ? String(row.starts_at) : null,
+    startsAt: typeof row.starts_at === "string" ? row.starts_at : null,
     spokenLocale: isLocale(spoken) ? spoken : "nl-BE",
-    replayUntilAt: row.replay_until_at ? String(row.replay_until_at) : null,
+    replayUntilAt: typeof row.replay_until_at === "string" ? row.replay_until_at : null,
   };
 }
 

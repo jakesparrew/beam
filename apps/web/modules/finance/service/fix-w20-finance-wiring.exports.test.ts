@@ -75,7 +75,7 @@ describe("requestFinanceExport accepts the Release 3 kinds", () => {
     expect(done).toMatchObject({ status: "done" });
     const stored = await h.db.select().from(files).where(eq(files.id, done!.fileId!));
     expect(stored).toHaveLength(1);
-    const header = decoder.decode(stored[0]!.bytes).replace(/^﻿/, "").split("\r\n")[0]!.split(";");
+    const header = decoder.decode(stored[0]!.bytes).replace(/^\uFEFF/, "").split("\r\n")[0]!.split(";");
     expect(header).toEqual(EXPORT_COLUMNS[kind]);
   });
 

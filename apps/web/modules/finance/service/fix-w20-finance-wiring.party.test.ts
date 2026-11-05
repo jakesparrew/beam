@@ -78,6 +78,6 @@ describe("chk_invoices_party: POS company invoices", () => {
         billitId: null,
       });
     expect(await pgError(insert(snapshot, 900_001))).toMatch(/chk_invoices_party/);
-    expect(await pgError(insert({ ...snapshot, vat_number: " " } as FullCustomerSnapshot, 900_002))).toMatch(/chk_invoices_party/);
+    expect(await pgError(insert({ ...snapshot, vat_number: " " }, 900_002))).toMatch(/chk_invoices_party/);
   });
 });

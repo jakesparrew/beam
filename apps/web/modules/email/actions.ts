@@ -24,6 +24,17 @@
  *   `pauseCampaign`, `resumeCampaign` (the campaign name after a bounce-rate pause),
  *   `stopCampaign`, `cancelCampaign` (`campaigns.send`).
  * - `estimateAudience` (`email.write`, read-only): the Audience step's live estimate.
+ *
+ * email-P7, messages and reports:
+ * - `resendMessage` (`persons.write`; reception and customer service resend a booking
+ *   confirmation or receipt at the desk): a transactional message in `sent`, `delivered`,
+ *   `bounced` or `failed` is queued again as a new message with key `<original>:manual:<n>`, the
+ *   same template version, data, context and attachments, to the person's current address.
+ *   Refused for campaign, automation and test messages and while the address is suppressed
+ *   (`hard_bounce`, `complaint` or `erased`, scope `all`). Audited `email.message_resend`.
+ * - `cancelScheduledMessage` (`email.send`): rule 59 for a `queued` message with a future
+ *   `send_at`. Audited `email.message_cancel`.
+ * - `exportCampaignReport` (`reports.read` or `email.write`, read-only): the report's CSV.
  */
 import { z } from "zod";
 import {
@@ -48,10 +59,16 @@ import {
   SaveTemplateDraftInput,
   SendTestEmailInput,
 } from "@beam/core/email";
+import { emailHash } from "@beam/core/crm";
+import { CancelScheduledMessageInput, ResendMessageInput } from "@beam/core/email";
+import { emailMessages, jobs, persons, suppressions } from "@beam/db/schema";
 import { action } from "@/lib/action";
-import { actorHasPermission, ValidationError } from "@/lib/ctx";
+import { actorHasPermission, and, eq, inArray, NotFoundError, sql, ValidationError, type Ctx } from "@/lib/ctx";
+import { rowsOf } from "@/lib/sensitive";
 import { storeFile } from "@/modules/platform/api";
-import { getPreview } from "./queries";
+import { cancelScheduledMessage as cancelMessage } from "./api";
+import { campaignReportCsv, getPreview, RESENDABLE_STATUSES } from "./queries";
+import { COMPLAINT_EXEMPT_TEMPLATES, queueMessage, SEND_PRIORITY } from "./server/send";
 import {
   cancelCampaignRecord,
   createCampaignRecord,
@@ -205,4 +222,109 @@ export const cancelCampaign = action(
 export const estimateAudience = action(
   { name: "email.audience_estimate", audience: "staff", permission: "email.write", input: GetAudienceEstimateInput, audit: false },
   (ctx, input) => getAudienceEstimate(ctx.tx, input),
+);
+
+// ---------------------------------------------------------------------------
+// Messages and reports (email-P7)
+// ---------------------------------------------------------------------------
+
+/** The root idempotency key of a message: a resend of a resend counts from the original. */
+const rootKey = (key: string) => key.replace(/(:manual:\d+)+$/, "");
+
+async function resendMessageRecord(ctx: Ctx, input: { messageId: string }): Promise<{ messageId: string }> {
+  const tx = ctx.tx;
+  const [m] = await tx.select().from(emailMessages).where(eq(emailMessages.id, input.messageId)).for("update");
+  if (!m) throw new NotFoundError("email_message_not_found");
+  if (m.kind !== "transactional") throw new ValidationError("not_transactional", { messageId: "not_transactional" });
+  if (!(RESENDABLE_STATUSES as readonly string[]).includes(m.status)) throw new ValidationError("not_resendable", { messageId: "not_resendable" });
+  // `props` are purged 30 days after sending (`email.purge_props`): the data to render is gone.
+  if (m.props === null) throw new ValidationError("data_expired", { messageId: "data_expired" });
+
+  let to = m.toEmail;
+  if (m.personId) {
+    const [p] = await tx.select({ email: persons.email, erasedAt: persons.erasedAt }).from(persons).where(eq(persons.id, m.personId));
+    if (p?.erasedAt) throw new ValidationError("person_erased", { messageId: "person_erased" });
+    to = p?.email ?? m.toEmail;
+  }
+  to = to?.trim() || null;
+  if (!to) throw new ValidationError("no_recipient", { messageId: "no_recipient" });
+
+  const [job] = await tx.select({ payload: jobs.payload }).from(jobs).where(eq(jobs.idempotencyKey, `email:${m.id}`));
+  const [tpl] = m.templateVersionId
+    ? rowsOf<{ slug: string }>(
+        await tx.execute(sql`select t.slug from email_template_versions v join email_templates t on t.id = v.template_id where v.id = ${m.templateVersionId}::uuid`),
+      )
+    : [];
+  const template = (job?.payload as { template?: string } | undefined)?.template ?? tpl?.slug ?? "(none)";
+
+  const reasons = (COMPLAINT_EXEMPT_TEMPLATES as readonly string[]).includes(template) ? (["hard_bounce", "erased"] as const) : (["hard_bounce", "complaint", "erased"] as const);
+  const [suppressed] = await tx
+    .select({ id: suppressions.id })
+    .from(suppressions)
+    .where(and(eq(suppressions.emailHash, emailHash(to)), eq(suppressions.scope, "all"), inArray(suppressions.reason, [...reasons])))
+    .limit(1);
+  if (suppressed) throw new ValidationError("address_suppressed", { messageId: "address_suppressed" });
+
+  const root = rootKey(m.idempotencyKey);
+  const [prior] = await tx
+    .select({ n: sql<number>`count(*)::int` })
+    .from(emailMessages)
+    .where(sql`${emailMessages.idempotencyKey} like ${`${root.replace(/[\\%_]/g, (x) => `\\${x}`)}:manual:%`}`);
+  const key = `${root}:manual:${Number(prior?.n ?? 0) + 1}`;
+
+  const queued = await queueMessage(
+    ctx,
+    {
+      personId: m.personId,
+      toEmail: to,
+      kind: "transactional",
+      fromDomain: "mail.beam.be",
+      templateVersionId: m.templateVersionId,
+      locale: m.locale,
+      props: m.props ?? {},
+      context: m.context,
+      attachments: m.attachments,
+      replyTo: m.replyTo,
+      extraHeaders: m.extraHeaders,
+      sendAt: null,
+      idempotencyKey: key,
+      status: "queued",
+    },
+    { template, priority: SEND_PRIORITY.transactional, always: true },
+  );
+  await ctx.audit({
+    action: "email.message_resend",
+    entityType: "email_message",
+    entityId: queued.emailMessageId,
+    oldValue: { email_message_id: m.id },
+    newValue: { email_message_id: queued.emailMessageId, idempotency_key: key, template },
+  });
+  return { messageId: queued.emailMessageId };
+}
+
+export const resendMessage = action(
+  { name: "email.message_resend", audience: "staff", permission: "persons.write", input: ResendMessageInput, audit: false },
+  (ctx, input) => resendMessageRecord(ctx, input),
+);
+
+export const cancelScheduledMessage = action(
+  { name: "email.message_cancel", audience: "staff", permission: "email.send", input: CancelScheduledMessageInput, audit: false },
+  async (ctx, input) => {
+    const [m] = await ctx.tx.select({ id: emailMessages.id, status: emailMessages.status, sendAt: emailMessages.sendAt }).from(emailMessages).where(eq(emailMessages.id, input.messageId));
+    if (!m) throw new NotFoundError("email_message_not_found");
+    if (m.status !== "queued" || !m.sendAt || m.sendAt <= ctx.now) throw new ValidationError("not_scheduled", { messageId: "not_scheduled" });
+    const result = await cancelMessage(ctx, { messageId: m.id });
+    if (result.cancelled) {
+      await ctx.audit({ action: "email.message_cancel", entityType: "email_message", entityId: m.id, oldValue: { status: "queued" }, newValue: { status: "failed", error: "cancelled" } });
+    }
+    return { ok: result.cancelled };
+  },
+);
+
+export const exportCampaignReport = action(
+  { name: "email.report_export", audience: "staff", permission: "reports.read", input: z.object({ campaignId: z.uuid() }), audit: false },
+  async (ctx, input): Promise<{ filename: string; csv: string }> => ({
+    filename: `campaign-${input.campaignId}.csv`,
+    csv: await campaignReportCsv(ctx.tx, input.campaignId),
+  }),
 );

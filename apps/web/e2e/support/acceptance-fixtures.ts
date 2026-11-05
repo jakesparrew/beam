@@ -68,10 +68,10 @@ export async function payCheckout(page: Page): Promise<void> {
   await payWithFake(page);
 }
 
-/** Buys the 5-day package in the portal with the fake provider; returns the paid order id. */
-export async function buyPackage(page: Page, locale: Locale): Promise<string> {
+/** Buys the 5-day package (or `sku`) in the portal with the fake provider; returns the paid order id. */
+export async function buyPackage(page: Page, locale: Locale, sku: string = PACKAGE_SKU): Promise<string> {
   const seg = SEGMENT[locale];
-  await page.goto(`/${seg}/account/shop/${PACKAGE_SKU}`);
+  await page.goto(`/${seg}/account/shop/${sku}`);
   await page.getByRole("button", { name: copy(locale, "commerce.shop.buy_now") }).click();
   await page.waitForURL(new RegExp(`/${seg}/account/checkout\\?checkout=`));
   await payCheckout(page);

@@ -173,14 +173,18 @@ test.describe("V1 acceptance", () => {
     });
 
     test("The member discount applies automatically", async ({ page }) => {
-      const [member] = await e2eRows<{ email: string }>(sql`
-        select p.email from memberships m join persons p on p.id = m.person_id join users u on u.person_id = p.id
-        where m.status = 'active' and p.email is not null order by p.email limit 1`);
-      test.skip(!member, "no demo member with a portal user");
+      // The demo seed has no member: a fresh customer becomes one by buying the monthly membership.
+      const member = uniqueEmail("acceptance-member");
       const [price] = await e2eRows<{ base: number }>(sql`
         select v.amount_cents as base from price_versions v join products pr on pr.id = v.product_id
         where pr.sku = 'PKG-5-DAYS' and v.audience = 'public' order by v.version desc limit 1`);
-      await signInCustomer(page, member!.email, "en");
+      expect(price, "a public price for PKG-5-DAYS").toBeTruthy();
+      await signInCustomer(page, member, "en");
+      await buyPackage(page, "en", "MEMBER-MONTHLY");
+      await eventually(
+        () => one<{ id: string }>(sql`select m.id from memberships m join persons p on p.id = m.person_id where lower(p.email) = ${member} and m.status = 'active'`),
+        30_000,
+      );
       await page.goto("/en/account/shop");
       const tile = page.locator("li", { has: page.getByRole("link", { name: /5 day sessions package/i }) });
       await expect(tile.getByText("Member price")).toBeVisible();

@@ -29,6 +29,14 @@
  * - `campaign.send_chunk` (bulk, 9; 6 attempts; key `campaign:<id>:chunk:<n>:r<run_no>`, plus
  *   `:d<YYYY-MM-DD>` for a warm-up continuation): rules 32 to 34 and 37 (`server/send-chunk.ts`).
  * - `email.dispatch_due_campaigns` (fast, 5; schedule `* * * * *`): rule 31.
+ *
+ * email-P7, reporting and deliverability:
+ * - `email.freeze_campaign_stats` (bulk, 9; 3 attempts; key `campaign:<id>:freeze`): rule 62
+ *   (`server/freeze.ts`); `email.freeze_due_stats` (schedule `40 4 * * *`) enqueues it for
+ *   campaigns finished 30 days ago without a snapshot.
+ * - `email.watch_complaints` (fast, 5; schedule every 15 minutes): rule 38, and rule 37
+ *   re-evaluated for campaigns `sending` (`server/complaints.ts`).
+ * - `email.watch_delivery` (fast, 3; schedule every 5 minutes): rule 38a (`server/delivery-watch.ts`).
  */
 import { z } from "zod";
 import type { AiFeatureKey } from "@beam/core/ai";
@@ -38,6 +46,9 @@ import { defineJob, type JobCtx } from "@/lib/job-runner";
 import { rowsOf } from "@/lib/sensitive";
 import { defineWebhookHandler } from "@/lib/webhooks";
 import { CampaignChunkJobInput, CampaignPlanJobInput } from "@beam/core/email";
+import { watchComplaints } from "./server/complaints";
+import { watchDelivery } from "./server/delivery-watch";
+import { freezeCampaignStats, freezeDueStats } from "./server/freeze";
 import { dispatchDueCampaigns, PLAN_MAX_ATTEMPTS, planCampaign } from "./server/plan";
 import { processResendEvent, retrySoftBounce } from "./server/process-event";
 import { sendChunk } from "./server/send-chunk";
@@ -102,6 +113,10 @@ export const jobs = [
   defineJob({ kind: "campaign.plan", lane: "bulk", priority: 9, maxAttempts: PLAN_MAX_ATTEMPTS, timeoutMs: 120_000, input: CampaignPlanJobInput, run: planCampaign }),
   defineJob({ kind: "campaign.send_chunk", lane: "bulk", priority: 9, maxAttempts: 6, timeoutMs: 120_000, input: CampaignChunkJobInput, run: sendChunk }),
   defineJob({ kind: "email.dispatch_due_campaigns", lane: "fast", priority: 5, maxAttempts: 3, input: z.object({}).passthrough(), run: dispatchDueCampaigns }),
+  defineJob({ kind: "email.freeze_campaign_stats", lane: "bulk", priority: 9, maxAttempts: 3, input: z.object({ campaignId: z.string().uuid() }), run: freezeCampaignStats }),
+  defineJob({ kind: "email.freeze_due_stats", lane: "bulk", priority: 9, maxAttempts: 3, input: z.object({}).passthrough(), run: freezeDueStats }),
+  defineJob({ kind: "email.watch_complaints", lane: "fast", priority: 5, maxAttempts: 3, input: z.object({}).passthrough(), run: watchComplaints }),
+  defineJob({ kind: "email.watch_delivery", lane: "fast", priority: 3, maxAttempts: 3, input: z.object({}).passthrough(), run: watchDelivery }),
 ];
 
 export const webhookHandlers = [

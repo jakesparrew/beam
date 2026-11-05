@@ -11,9 +11,13 @@
  * The queueing functions only write rows and enqueue inside the caller's transaction
  * (`ctx.tx`); they never call Resend and never throw for content problems (rule 39).
  *
- * Still stubs (later email packages): `findLatestMessage` (email-P8), `getCampaignStats`,
- * `getEmailHealth` and `PersonEmailHistory` (email-P7), `getCampaignAttribution` (email-P9).
+ * email-P7 implements `getCampaignStats` (snapshot or `v_campaign_stats`), `getEmailHealth`
+ * (rule 38a) and the `PersonEmailHistory` server component for crm's person page.
+ *
+ * Still stubs (later email packages): `findLatestMessage` (email-P8), `getCampaignAttribution`
+ * (email-P9).
  */
+import type { ReactElement } from "react";
 import type { DbOrTx, Tx } from "@beam/db";
 import { emailMessages, emailTemplates, emailTemplateVersions } from "@beam/db/schema";
 import { NotImplementedError } from "@beam/core/errors";
@@ -31,6 +35,7 @@ import type {
   TemplateKind,
 } from "@beam/core/email";
 import { and, desc, eq, gte, inArray, sql, type Ctx } from "@/lib/ctx";
+import type { PersonEmailHistoryProps } from "./ui/PersonEmailHistory";
 import * as context from "./server/context";
 import * as linkToken from "./server/link-token";
 import * as queue from "./server/queue-automation";
@@ -166,8 +171,10 @@ export async function listPersonEmails(db: DbOrTx, personId: string, page = 1): 
   return { items, nextPage: rows.length > PERSON_EMAILS_PAGE_SIZE ? p + 1 : null };
 }
 
-export function getCampaignStats(_db: DbOrTx, _campaignIds: string[]): Promise<CampaignStats[]> {
-  return notYet("getCampaignStats");
+/** Per campaign: the frozen snapshot when present, else `v_campaign_stats` (rule 62). Unknown ids are left out. */
+export async function getCampaignStats(db: DbOrTx, campaignIds: string[]): Promise<CampaignStats[]> {
+  const reports = await import("./server/reports");
+  return reports.getCampaignStats(db, campaignIds);
 }
 
 /** ops daily digest: messages blocked for a missing translation since `since`. */
@@ -179,10 +186,14 @@ export async function countBlockedMessages(db: DbOrTx, since: Date): Promise<num
   return Number(row?.n ?? 0);
 }
 
-export function getEmailHealth(
-  _db: DbOrTx,
+/** Rule 38a values (a) to (d) for the daily digest and the System page. */
+export async function getEmailHealth(
+  db: DbOrTx,
+  now: Date = new Date(),
 ): Promise<{ oldestQueuedMinutes: number | null; deadSends15m: number; sent60m: number; failed5m: number; blockedTranslation5m: number }> {
-  return notYet("getEmailHealth");
+  // Loaded on use: the watch module pulls in platform's alerting, which imports other modules' apis.
+  const deliveryWatch = await import("./server/delivery-watch");
+  return deliveryWatch.getEmailHealth(db, now);
 }
 
 /** R3, ops dashboards. */
@@ -193,7 +204,15 @@ export function getCampaignAttribution(
   return notYet("getCampaignAttribution");
 }
 
-/** Server component rendered by crm as the "Emails" tab of `/admin/persons/[id]` (stand-in until email-P7). */
-export function PersonEmailHistory(_props: { personId: string }): never {
-  throw new NotImplementedError("email.PersonEmailHistory");
+export type { PersonEmailHistoryProps } from "./ui/PersonEmailHistory";
+
+/**
+ * Server component rendered by crm as the "Emails" tab of `/admin/persons/[id]` (spec section 5,
+ * rule 63): every message to the person, newest first, 50 per page, with reachability per
+ * purpose and Resend for transactional messages (`persons.write`). The UI module loads when the
+ * panel renders, so importing this api from jobs and other modules does not pull the UI in.
+ */
+export async function PersonEmailHistory(props: PersonEmailHistoryProps): Promise<ReactElement> {
+  const ui = await import("./ui/PersonEmailHistory");
+  return ui.PersonEmailHistory(props);
 }

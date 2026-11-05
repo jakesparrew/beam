@@ -36,12 +36,13 @@ import { endEnrolmentWith, versionDefinition } from "./exits";
 import { runDedupeKey, writeRun, type NewRun } from "./runs";
 
 /**
- * Locks the person of an enrolment `FOR UPDATE` (the first lock of the person-then-enrolment
- * order, see the header). False when the enrolment does not exist.
+ * Locks the person of an enrolment (the first lock of the person-then-enrolment order, see the
+ * header), with the engine's `PERSON_LOCK` mode `for no key update` (enrol.ts): foreign-key
+ * inserts that reference the person do not wait for it. False when the enrolment does not exist.
  */
 export async function lockEnrolmentPerson(tx: Tx, enrolmentId: string): Promise<boolean> {
   const r = await tx.execute(
-    sql`select p.id from persons p join automation_enrolments e on e.person_id = p.id where e.id = ${enrolmentId}::uuid for update of p`,
+    sql`select p.id from persons p join automation_enrolments e on e.person_id = p.id where e.id = ${enrolmentId}::uuid for no key update of p`,
   );
   return rowsOf(r).length > 0;
 }

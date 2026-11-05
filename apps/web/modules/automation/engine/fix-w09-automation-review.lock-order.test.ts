@@ -70,8 +70,8 @@ const tag = (key: string, minutes = 0) => ({ key, type: "tag" as const, tag: "en
 
 /** Index of the first person lock and of the first enrolment lock in the statement log. */
 function lockOrder(): { person: number; enrolment: number } {
-  const isLock = (s: string) => /for update/i.test(s);
-  const person = log.findIndex((s) => isLock(s) && /for update of "?p"?\b/i.test(s) && /from "?persons"?/i.test(s));
+  const isLock = (s: string) => /for (no key )?update/i.test(s);
+  const person = log.findIndex((s) => isLock(s) && /for no key update of "?p"?\b/i.test(s) && /from "?persons"?/i.test(s));
   const enrolment = log.findIndex((s) => isLock(s) && /from "automation_enrolments"/i.test(s) && !/from "?persons"?/i.test(s));
   return { person, enrolment };
 }
@@ -82,6 +82,30 @@ async function enrolled(list = [tag("s1"), tag("s2", 60)]) {
   const id = await f.enrolInto(h.db, a.id, p.id, { now });
   return { a, p, id };
 }
+
+describe("person lock mode", () => {
+  // `for update` also conflicts with the `for key share` lock of every insert that references the
+  // person (activity_events, person_stats, ...): the evaluator, holding several person locks in one
+  // transaction, deadlocked on beam_dev with ops.refresh_recent_stats upserting person_stats.
+  const personLocks = () => log.filter((s) => /from "?persons"?/i.test(s) && /for (no key )?update/i.test(s));
+
+  it("enrol() locks the person for no key update", async () => {
+    const a = await f.makeAutomation(h.db, { isMarketing: false, definition: f.steps([tag("s1", 60)]) });
+    const p = await makePerson(h.db);
+    log = [];
+    await f.enrolInto(h.db, a.id, p.id, { now });
+    expect(personLocks().length).toBeGreaterThan(0);
+    for (const s of personLocks()) expect(s).toMatch(/for no key update/i);
+  });
+
+  it("a step job takes its own person lock (lockEnrolmentPerson) for no key update", async () => {
+    const { id } = await enrolled();
+    log = [];
+    await runStep(tx(), { enrolmentId: id, stepKey: "s1", now }, { ctx: makeCtx(h.db, { now }) });
+    // The engine's lock is the first person lock; crm's own writes for the tag step come after it.
+    expect(personLocks()[0]).toMatch(/for no key update of "?p"?\b/i);
+  });
+});
 
 describe("lock order: person, then enrolment", () => {
   it("lockEnrolmentPerson locks the person of an existing enrolment and is false for a missing one", async () => {

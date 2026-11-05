@@ -62,7 +62,7 @@ import { and, ConflictError, eq, ne, NotFoundError, sql, ValidationError, type C
 import { getSettingWithVersion, setSetting } from "@/lib/settings";
 import { isDpiaApproved } from "@/modules/ops/api";
 import { endJobKey, enrolSegmentJobKey, migrateJobKey, resumeJobKey } from "./engine/bulk";
-import { enrol, loadAutomations, type EngineAutomation } from "./engine/enrol";
+import { enrol, loadAutomations, PERSON_LOCK, type EngineAutomation } from "./engine/enrol";
 import { endEnrolmentWith } from "./engine/exits";
 import { stepJobKey, stepJobPriority } from "./engine/step";
 import type { AutomationRulesValue } from "./config";
@@ -437,7 +437,7 @@ async function enrolmentOf(tx: Tx, enrolmentId: string) {
 
 /** The person row lock first (the engine's lock order: person, then enrolment). */
 async function lockPerson(tx: Tx, personId: string): Promise<void> {
-  const [p] = await tx.select({ id: persons.id }).from(persons).where(eq(persons.id, personId)).for("update");
+  const [p] = await tx.select({ id: persons.id }).from(persons).where(eq(persons.id, personId)).for(PERSON_LOCK);
   if (!p) throw new NotFoundError("person_not_found");
 }
 

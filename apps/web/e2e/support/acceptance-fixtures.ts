@@ -166,13 +166,26 @@ export async function resendWebhook(request: APIRequestContext, input: { resendI
 }
 
 /**
- * A preference token for a person: a sent transactional message row carrying the link token's
- * hash (the token every email footer links to, as `crm.spec.ts` builds it). Returns the token.
+ * A preference token for a person: a sent message row carrying the link token's hash (the token
+ * every email footer links to, as `crm.spec.ts` builds it). Returns the token. Without `purpose`
+ * it is a transactional message; with one it is a sent campaign message of that marketing
+ * purpose (on a seeded marketing template version), whose one-click URL withdraws the purpose:
+ * a transactional message has no purpose, so its one-click POST withdraws nothing.
  */
-export async function preferenceToken(personId: string, email: string, tag: string): Promise<string> {
+export async function preferenceToken(personId: string, email: string, tag: string, purpose?: "newsletter" | "events" | "member_comms" | "b2b"): Promise<string> {
   const link = newLinkToken();
-  await e2eRows(sql`insert into email_messages (kind, locale, to_email, person_id, idempotency_key, status, sent_at, link_token_hash)
-    values ('transactional', 'nl-BE', ${email}, ${personId}::uuid, ${`e2e:acceptance-v1:${tag}:${Date.now()}`}, 'sent', now(), ${link.hash})`);
+  const key = `e2e:acceptance-v1:${tag}:${Date.now()}`;
+  if (!purpose) {
+    await e2eRows(sql`insert into email_messages (kind, locale, to_email, person_id, idempotency_key, status, sent_at, link_token_hash)
+      values ('transactional', 'nl-BE', ${email}, ${personId}::uuid, ${key}, 'sent', now(), ${link.hash})`);
+    return link.token;
+  }
+  const version = await one<{ id: string }>(sql`
+    select v.id::text as id from email_template_versions v join email_templates t on t.id = v.template_id
+    where t.kind = 'marketing' order by v.created_at, v.id limit 1`);
+  expect(version, "a seeded marketing template version").toBeTruthy();
+  await e2eRows(sql`insert into email_messages (kind, purpose, template_version_id, locale, to_email, person_id, idempotency_key, status, sent_at, link_token_hash)
+    values ('campaign', ${purpose}, ${version!.id}::uuid, 'nl-BE', ${email}, ${personId}::uuid, ${key}, 'sent', now(), ${link.hash})`);
   return link.token;
 }
 

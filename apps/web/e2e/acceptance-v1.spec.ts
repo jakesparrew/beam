@@ -55,7 +55,6 @@ import {
   preferenceToken,
   resendWebhook,
   resetAcceptanceRows,
-  sentMessageOf,
   statusOfBooking,
   submitBooking,
 } from "./support/acceptance-fixtures";
@@ -342,7 +341,7 @@ test.describe("V1 acceptance", () => {
       await e2eRows(sql`insert into consent_records (person_id, purpose, status, method, source, wording_version, recorded_at, actor)
         values (${person.id}::uuid, 'newsletter', 'granted', 'form', 'e2e:acceptance-v1', 'newsletter@1', now() - interval '1 day', '{"kind":"system","id":null}'::jsonb)`);
       expect(await newsletterReachable(person.id)).toBe(true);
-      const token = await preferenceToken(person.id, email, "unsubscribe");
+      const token = await preferenceToken(person.id, email, "unsubscribe", "newsletter");
       const postedAt = Date.now();
       const res = await request.post(`/api/public/unsubscribe/${token}`, { form: { "List-Unsubscribe": "One-Click" } });
       expect(res.status()).toBe(200);
@@ -357,7 +356,11 @@ test.describe("V1 acceptance", () => {
       const email = uniqueEmail("acceptance-bounce");
       await signInCustomer(page, email, "nl");
       const personId = (await personIdOf(email))!;
-      const message = await eventually(() => sentMessageOf(personId));
+      // The magic link went out before the sign-in created the person, so that message carries no
+      // person_id: it is found by its address.
+      const message = await eventually(() =>
+        one<{ id: string; resend_id: string }>(sql`select id, resend_id from email_messages where lower(to_email) = ${email.toLowerCase()} and resend_id is not null order by queued_at desc limit 1`),
+      );
       expect(await resendWebhook(request, { resendId: message.resend_id, to: email })).toBe(200);
       await expect.poll(async () => (await one<{ status: string }>(sql`select status::text as status from email_messages where id = ${message.id}::uuid`))?.status, { timeout: 60_000 }).toBe("bounced");
       const suppression = await eventually(() => one<{ reason: string }>(sql`select reason::text as reason from suppressions where email_hash = ${emailHashOf(email)} and reason = 'hard_bounce' limit 1`));
@@ -612,7 +615,7 @@ test.describe("V1 acceptance", () => {
       const person = await makePerson(db, { firstName: "E2E", lastName: "Survivor", email });
       await e2eRows(sql`update persons set email_hash = ${emailHashOf(email)} where id = ${person.id}::uuid`);
       // Unsubscribed through the one-click URL of an email footer.
-      const token = await preferenceToken(person.id, email, "survivor");
+      const token = await preferenceToken(person.id, email, "survivor", "newsletter");
       expect((await request.post(`/api/public/unsubscribe/${token}`, { form: { "List-Unsubscribe": "One-Click" } })).status()).toBe(200);
       await eventually(() => one<{ id: string }>(sql`select id from suppressions where email_hash = ${emailHashOf(email)}`));
 

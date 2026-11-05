@@ -137,6 +137,8 @@ test.describe.serial("invoices from purchase to report", () => {
 
   test("reporting reflects the transaction: issued today on /admin/finance, the admin list and the invoices CSV", async ({ page }) => {
     test.skip(!invoice, "needs the purchase of the first test");
+    // A staff sign-in may wait up to 30 s for a fresh TOTP step, then three screens and an export.
+    test.setTimeout(2 * 60_000);
     await signInStaff(page, "finance");
     await page.goto("/admin/finance");
     // The innermost box holding both the tile's label and its count (the label sits in its own div).
@@ -159,11 +161,12 @@ test.describe.serial("invoices from purchase to report", () => {
     const exportsPage = await page.goto("/admin/finance/exports");
     test.skip(exportsPage?.status() === 404, "the exports screen lands with finance-P7");
     const day = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Brussels" });
-    await page.getByLabel(/Soort|Kind/).first().selectOption("invoices").catch(() => undefined);
-    await page.getByLabel(/Van|From/).first().fill(day);
-    await page.getByLabel(/Tot|To/).first().fill(day);
+    // The form's own ids: the kind is labelled "Export", and /Van|From/ or /Tot|To/ match other text.
+    await page.locator("#export-kind").selectOption("invoices");
+    await page.locator("#export-from").fill(day);
+    await page.locator("#export-to").fill(day);
     const posted = page.waitForResponse((r) => r.request().method() === "POST");
-    await page.getByRole("button", { name: /Export/ }).first().click();
+    await page.locator('form:has(#export-kind) button[type="submit"]').click();
     await posted;
     const [exp] = await e2eRows<{ id: string }>(sql`select id from finance_exports where kind = 'invoices' order by created_at desc limit 1`);
     await expect.poll(async () => (await e2eRows<{ status: string }>(sql`select status from finance_exports where id = ${exp!.id}::uuid`))[0]?.status, { timeout: 60_000 }).toBe("done");

@@ -54,8 +54,14 @@ async function resetSharedRows(): Promise<void> {
 async function createFixture(): Promise<Fixture> {
   const db = await e2eDb();
   const title = { "nl-BE": `${MARK} sessie`, "fr-BE": `${MARK} séance`, en: `${MARK} session` };
-  // A day session running now: started 20 minutes ago, inside the default check-in window.
-  const session = await makeSession(db, { title, startsAt: new Date(Date.now() - 20 * MIN), publishedAt: new Date(Date.now() - 60 * MIN), capacitySeats: 10 });
+  // A day session running now: started 20 minutes ago, inside the default check-in window, but
+  // never before Brussels midnight, since the desk lists the sessions starting on today's date.
+  const now = Date.now();
+  const brusselsTime = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Brussels", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" }).format(now);
+  const [h, m, s] = brusselsTime.split(":").map(Number);
+  const sinceMidnight = ((h! * 60 + m!) * 60 + s!) * 1000;
+  const startsAt = new Date(now - Math.min(20 * MIN, sinceMidnight));
+  const session = await makeSession(db, { title, startsAt, publishedAt: new Date(now - 60 * MIN), capacitySeats: 10 });
   const person = (tag: string) => makePerson(db, { firstName: "E2E", lastName: `Checkin ${tag}`, email: uniqueEmail(`booking-checkin-${tag}`) });
   const confirmed = (await db.insert(bookings).values({ sessionId: session.id, personId: (await person("qr")).id, status: "confirmed", paidWith: "free", source: "admin" }).returning())[0]!;
   const scanned = (await db.insert(bookings).values({ sessionId: session.id, personId: (await person("scan")).id, status: "confirmed", paidWith: "free", source: "admin" }).returning())[0]!;
@@ -367,6 +373,8 @@ test.describe("customer portal", () => {
   });
 
   test("a booking is rescheduled to another session inside the free window", async ({ page }) => {
+    // Sign-in, a credit booking, an axe scan and the reschedule: about 60 s on a loaded machine.
+    test.setTimeout(2 * 60_000);
     await signInCustomer(page, email, "en");
     await page.goto(`/en/account/book/${pf.creditDayId}`);
     await page.getByTestId("pay-credit").check();

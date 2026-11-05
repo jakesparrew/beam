@@ -1111,11 +1111,14 @@
       "mergedAt": "2026-11-05T04:56:33Z"
     },
     "forms-P8": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "baseSha": "c31f14a",
       "runId": null,
-      "startedAt": "2026-11-05T04:24:11Z"
+      "startedAt": "2026-11-05T04:24:11Z",
+      "branchSha": "8ad0f69",
+      "endedAt": "2026-11-05T04:58:59Z",
+      "minutes": 34
     },
     "site-P8": {
       "status": "merged",
@@ -1346,8 +1349,11 @@
       "attempts": 0
     },
     "ops-P9": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "861f081",
+      "runId": null,
+      "startedAt": "2026-11-05T04:58:59Z"
     },
     "ops-P10": {
       "status": "pending",

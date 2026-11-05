@@ -123,11 +123,9 @@ to "Served" with the package id.
 | booking-P8 | booking (owner of `actions/sessions.ts`) | `publishSession` calls `assertTicketTypesPublishable(ctx.tx, id)` from `server/book.ts` (R50). |
 | booking-P8 | booking (owner of `app/[locale]/(portal)/account/book/[sessionId]/page.tsx`) | Pass `BookForm` the `ticketTypes` prop and `labels.ticketType`, send `ticketTypeId` to `bookSession`, show guest fields on ticketed events, pass `guests.usesLeft` from `guestUseState`. |
 | booking-P8 | booking (owner of `queries/bookings.ts`, `ui/manual-booking-wizard.tsx`) | Offer the event's ticket types in `getBookableSession` and in the staff manual booking. |
-| forms-P7 | forms (owner of `apps/web/modules/forms/nav.ts`) | Add an Imports nav entry to `/admin/forms/imports` (permission `forms.publish`). |
 | forms-P7 | platform (owner of `apps/web/next.config.ts`) | Set `experimental.serverActions.bodySizeLimit` to about `'3mb'`; the 1 MB default rejects a 1-2 MB CSV in `uploadImportCsv`. |
 | credits-P10 | ops | Expose `v_package_cycles` in the ai schema as non-sensitive (for example `ai.package_cycles`). |
 | crm-P9 | email (owner of `server/process-event.ts`) | The Resend `email.received` dispatch calls `crm.ingestInboundEmail`. |
-| crm-P9 | forms | Call `crm.createInboxThreadFromForm` for form versions with `FormSettings.createInboxThread`. |
 | crm-P9 | platform | Document `META_APP_SECRET`, `META_PAGE_ACCESS_TOKEN` and `META_VERIFY_TOKEN` in the environment list. |
 | crm-P9 | crm (crm-P10: `actions.ts`, `queries.ts`, `nav.ts`) | Re-export `./inbox/actions` and `./inbox/queries`; inbox nav badge from `countOpenUnassignedThreads`. |
 | crm-P9 | crm (owner of `modules/crm/jobs.ts`, `schedules.ts`) | Register `crm.send_meta_reply` (fast, 1), `crm.close_stale_threads` (bulk, 9), `crm.escalate_threads` (fast, 5) and the Meta `webhookHandlers` from `modules/crm/inbox/jobs.ts`; then schedules `crm.escalate_threads '25 * * * *'` and `crm.close_stale_threads '10 5 * * *'`. Until then Meta replies cannot be enqueued. |
@@ -142,6 +140,9 @@ to "Served" with the package id.
 | email-P8 | email (owner of `server/preview.ts`, `server/templates.ts`) | `resolveCardsFor` copies `opensForCustomersAt` into `EventCard` and passes `webinars: (ids, locale) => getWebinarCards(tx, ids, locale)` to `compileMarketing`. |
 | email-P8 | email (owner of `server/send.ts`, `send-chunk.ts`) | Re-resolve cards at send time for documents with a `showLeadWindow` event (booking spec 4.9). |
 | email-P8 | email (owner of `completeness.ts`, `a11y.ts`, `blocks/index.ts`) | Require and check the webinar block's `ctaLabel`; add `webinar_unavailable`; re-export `WebinarCard`, `ResolveWebinars`, `LEAD_WINDOW_KEY`, `hasLeadWindowEvent`. |
+| forms-P8 | forms (owner of `app/api/public/forms/[slug]/start/route.ts`, `ui/public/form-renderer.tsx`) | Pass `resumed` from `startSubmission` through the start route and restore its answers and `currentSectionKey` in the renderer (today the second device's first section renders empty). |
+| forms-P8 | forms (owner of `actions.ts`) | Move the page-local `forms.open_my_result` action into `actions.ts`. |
+| forms-P8 | webinar | Publish a webinar row factory under `@beam/db/testing` so other modules' tests stop raw-inserting webinars. |
 
 ## Served
 

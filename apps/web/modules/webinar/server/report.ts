@@ -13,6 +13,8 @@
  * - Conversion is counted from `anchor_at` (the start for live registrants, the registration
  *   otherwise) up to `anchor_at + period`; "booked after" and "purchased after" a CTA from the
  *   person's first click of that CTA (rule 40). A purchase before the anchor never counts.
+ * - The UTM table carries the campaign's ad spend, cost per registration and click-to-registration
+ *   rate from ops' `ad_spend_daily` (webinar-P7, `server/kpis.ts`).
  * - `buildReportCsv` holds aggregates only (rule 41); `buildRegistrantsCsv` is the personal
  *   export behind `persons.export` (`exportWebinarRegistrants`).
  */
@@ -20,6 +22,7 @@ import type { LocalizedText } from "@beam/core/i18n";
 import { PERSON_STATUS_SNAPSHOTS, WATCH_MODES, type PersonStatusSnapshot, type WatchMode } from "@beam/core/webinar";
 import { sql, type DbOrTx } from "@/lib/ctx";
 import { rowsOf } from "@/lib/sensitive";
+import { campaignKey, campaignSpend, dayBounds, spendFigures, type CampaignSpend } from "./kpis";
 
 /** The periods the report offers (rule 40). */
 export const REPORT_PERIODS = [7, 14, 30, 60, 90, 180] as const;
@@ -90,7 +93,23 @@ export type CtaResult = {
   purchasedAfter: number;
 };
 
-export type UtmRow = { source: string | null; campaign: string | null; registrations: number; attended: number; converted: number };
+export type UtmRow = {
+  source: string | null;
+  campaign: string | null;
+  registrations: number;
+  attended: number;
+  converted: number;
+  /**
+   * webinar-P7: ops' `ad_spend_daily` of the row's campaign (matched on `lower(trim(utm.campaign))`
+   * = the ad campaign's name or id, `server/kpis.ts`) on the Brussels days from this webinar's
+   * first to its last registration; null when the campaign has no ad rows on those days.
+   */
+  spendCents: number | null;
+  /** Spend ÷ the webinar's registrations of that campaign over every source; null without spend. */
+  costPerRegistrationCents: number | null;
+  /** The campaign's registrations (every source) ÷ its ad clicks; null without spend rows or clicks. */
+  clickToRegistrationRate: number | null;
+};
 
 export type WebinarReport = {
   totals: SegmentRow;
@@ -357,11 +376,16 @@ export async function getCtaResults(db: DbOrTx, webinarId: string, opts: { perio
   });
 }
 
-/** Registrations per UTM source and campaign, with attended (any mode) and converted in the period. */
+/**
+ * Registrations per UTM source and campaign, with attended (any mode) and converted in the
+ * period; plus the campaign's ad spend, cost per registration and click-to-registration rate
+ * (webinar-P7). A campaign seen under two sources shows the campaign's figures on both rows.
+ */
 async function utmRows(db: DbOrTx, webinarId: string, days: number): Promise<UtmRow[]> {
   const end = until(sql`f.anchor_at`, days);
-  const rows = rowsOf<{ source: string | null; campaign: string | null; registrations: number; attended: number; converted: number }>(
+  const rows = rowsOf<{ source: string | null; campaign: string | null; campaign_key: string | null; registrations: number; attended: number; converted: number }>(
     await db.execute(sql`select nullif(r.utm->>'source', '') as source, nullif(r.utm->>'campaign', '') as campaign,
+        ${campaignKey(sql`r.utm->>'campaign'`)} as campaign_key,
         count(*)::int as registrations,
         count(*) filter (where f.live_attended or f.replay_attended or f.od_attended)::int as attended,
         count(*) filter (where c.first_booking_at <= ${end} or c.first_paid_order_at <= ${end})::int as converted
@@ -369,10 +393,24 @@ async function utmRows(db: DbOrTx, webinarId: string, days: number): Promise<Utm
       join webinar_registrations r on r.id = f.registration_id
       join v_webinar_conversions c on c.registration_id = f.registration_id
       where f.webinar_id = ${webinarId}::uuid and f.status <> 'cancelled'
-      group by 1, 2
-      order by 3 desc, 1 nulls last, 2 nulls last`),
+      group by 1, 2, 3
+      order by 4 desc, 1 nulls last, 2 nulls last`),
   );
-  return rows.map((r) => ({ source: r.source, campaign: r.campaign, registrations: num(r.registrations), attended: num(r.attended), converted: num(r.converted) }));
+  const keys = [...new Set(rows.flatMap((r) => (r.campaign_key ? [r.campaign_key] : [])))];
+  const window = sql`(select min(f.registered_at) as first_at, max(f.registered_at) as last_at
+    from v_webinar_registration_facts f where f.webinar_id = ${webinarId}::uuid and f.status <> 'cancelled')`;
+  const { first, last } = dayBounds(sql`(select first_at from ${window} wnd)`, sql`(select last_at + interval '1 microsecond' from ${window} wnd)`);
+  const spend = keys.length ? await campaignSpend(db, keys, first, last) : new Map<string, CampaignSpend>();
+  const perCampaign = new Map<string, number>();
+  for (const r of rows) if (r.campaign_key) perCampaign.set(r.campaign_key, (perCampaign.get(r.campaign_key) ?? 0) + num(r.registrations));
+  return rows.map((r) => ({
+    source: r.source,
+    campaign: r.campaign,
+    registrations: num(r.registrations),
+    attended: num(r.attended),
+    converted: num(r.converted),
+    ...spendFigures(r.campaign_key ? spend.get(r.campaign_key) : undefined, r.campaign_key ? (perCampaign.get(r.campaign_key) ?? 0) : 0),
+  }));
 }
 
 /** True when the webinar has registrations but no watch segments left after the two-year sweep. */
@@ -473,8 +511,10 @@ export function buildReportCsv(report: WebinarReport, locale: string = "en"): st
   }
 
   lines.push("");
-  lines.push(csvLine(["utm_source", "utm_campaign", "registrations", "attended", "converted"]));
-  for (const u of report.utm) lines.push(csvLine([u.source, u.campaign, u.registrations, u.attended, u.converted]));
+  lines.push(csvLine(["utm_source", "utm_campaign", "registrations", "attended", "converted", "spend_cents", "cost_per_registration_cents", "click_to_registration_rate_pct"]));
+  for (const u of report.utm) {
+    lines.push(csvLine([u.source, u.campaign, u.registrations, u.attended, u.converted, u.spendCents, u.costPerRegistrationCents, pct(u.clickToRegistrationRate)]));
+  }
   return lines.join("\r\n") + "\r\n";
 }
 

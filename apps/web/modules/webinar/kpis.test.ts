@@ -11,15 +11,20 @@
  * Every date is a fractional day offset from the test's start, and ad days are Brussels days, so
  * the test passes at any hour and across a DST change.
  */
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { DbHandle, DbOrTx } from "@beam/db";
 import { adSpendDaily, bookings } from "@beam/db/schema";
 import { createTestDb, makePerson, makeSession, makeUser } from "@beam/db/testing";
 import { makePaidOrder } from "@beam/db/testing/commerce-factories";
 import { funnelByCampaign, getWebinarKpis } from "./api";
-import { heartbeatSpans, makeRegistration, makeSegments, makeWebinar } from "./test/factories";
+import { heartbeatSpans, makeRegistration, makeSegments, makeWebinar, type WebinarRow } from "./test/factories";
+import { buildReportCsv, getWebinarReport, type UtmRow } from "./server/report";
+import { UtmTable, type UtmTableLabels } from "./ui/report/utm-table";
 
 let h: DbHandle;
+let w: WebinarRow;
 const DAY = 86_400_000;
 const NOW = Date.now() - 0.3 * DAY;
 const at = (daysFromNow: number) => new Date(NOW + daysFromNow * DAY);
@@ -55,7 +60,7 @@ async function adSpend(campaignName: string, day: Date, spendCents: number, clic
 beforeAll(async () => {
   h = await createTestDb();
   const owner = await makeUser(h.db);
-  const w = await makeWebinar(h.db, { ownerUserId: owner.id, startsAt: START, conversionWindowDays: 30 }, { published: true });
+  w = await makeWebinar(h.db, { ownerUserId: owner.id, startsAt: START, conversionWindowDays: 30 }, { published: true });
   const other = await makeWebinar(h.db, { ownerUserId: owner.id, startsAt: at(-10), slug: "other-webinar" }, { published: true });
   const created = new Date(START.getTime() - 5 * DAY);
 
@@ -188,5 +193,57 @@ describe("funnelByCampaign", () => {
     expect(spring).toMatchObject({ registrations: 3, spendCents: 4000 + 99_999 });
     expect(spring?.clickToRegistrationRate).toBeCloseTo(3 / (50 + 999));
     expect(spring?.costPerRegistrationCents).toBe(Math.round((4000 + 99_999) / 3));
+  });
+});
+
+describe("the report's UTM table (webinar-P7)", () => {
+  it("adds the campaign's spend of the webinar's registration days, cost per registration and click-to-registration rate", async () => {
+    const r = await getWebinarReport(h.db, w.id, { periodDays: 30 });
+    // Registrations ran from 45 to 39 days ago: only the ad day 45 days ago (1000 cents, 10 clicks)
+    // falls inside. The report counts every registration of the campaign (three, the tester's
+    // included, like every report count) across its sources and spellings.
+    const spring = r.utm.filter((u) => u.campaign?.trim().toLowerCase() === "spring-sale");
+    expect(spring.reduce((a, u) => a + u.registrations, 0)).toBe(3);
+    for (const u of spring) expect(u).toMatchObject({ spendCents: 1000, costPerRegistrationCents: 333, clickToRegistrationRate: 3 / 10 });
+    expect(r.utm.find((u) => u.campaign === "autumn")).toMatchObject({ registrations: 1, spendCents: null, costPerRegistrationCents: null, clickToRegistrationRate: null });
+    expect(r.utm.find((u) => u.campaign === null)).toMatchObject({ spendCents: null, costPerRegistrationCents: null, clickToRegistrationRate: null });
+  });
+
+  it("the aggregate CSV carries the spend columns", async () => {
+    const csv = buildReportCsv(await getWebinarReport(h.db, w.id, { periodDays: 30 }));
+    expect(csv).toContain("utm_source,utm_campaign,registrations,attended,converted,spend_cents,cost_per_registration_cents,click_to_registration_rate_pct");
+    expect(csv).toMatch(/,1000,333,30\.0\r\n/);
+  });
+});
+
+describe("UtmTable (webinar-P7)", () => {
+  const labels: UtmTableLabels = { title: "UTM", empty: "none yet", source: "Source", campaign: "Campaign", none: "(none)", registrations: "Reg", attended: "Att", converted: "Conv" };
+  const row = (over: Partial<UtmRow>): UtmRow => ({
+    source: "meta",
+    campaign: "spring-sale",
+    registrations: 2,
+    attended: 1,
+    converted: 1,
+    spendCents: null,
+    costPerRegistrationCents: null,
+    clickToRegistrationRate: null,
+    ...over,
+  });
+  const html = (rows: UtmRow[]) => renderToStaticMarkup(createElement(UtmTable, { rows, labels, locale: "en" }));
+
+  it("shows the spend columns from the catalogue when a campaign has ad rows, and 'No ad spend' for one without", () => {
+    const out = html([row({ spendCents: 4000, costPerRegistrationCents: 2000, clickToRegistrationRate: 0.04 }), row({ campaign: "autumn" })]);
+    expect(out).toContain("Ad spend");
+    expect(out).toContain("Cost per registration");
+    expect(out).toContain("Click-to-registration rate");
+    expect(out).toContain("€");
+    expect(out).toContain("4%");
+    expect(out).toContain("No ad spend");
+  });
+
+  it("leaves the spend columns out when no campaign has ad rows", () => {
+    const out = html([row({})]);
+    expect(out).not.toContain("Ad spend");
+    expect(out).not.toContain("No ad spend");
   });
 });

@@ -3,24 +3,39 @@
  * `addSuppression`, which calls automation's real `requestSuppressionExit`; the exit is asserted as
  * the queued `automation.exit_for_suppression` job (key `supp:<suppressionId>`). Acceptance:
  * "hard bounces are suppressed".
+ *
+ * email-P9: `email.received` is mapped to crm's `ingestInboundEmail(tx, ctx, { messageId,
+ * inReplyTo?, from, fromName?, subject, text, attachmentCount, receivedAt })` (the real crm
+ * function, wrapped in a spy) once per svix id, never with the raw payload, and writes no
+ * `email_events` row; a hard bounce of a campaign message re-evaluates the bounce-rate pause.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTestDb } from "@beam/db/testing";
 import type { DbHandle } from "@beam/db";
-import { emailMessages, suppressions, webhookEvents } from "@beam/db/schema";
+import { emailEvents, emailMessages, inboxMessages, inboxThreads, jobs, suppressions, webhookEvents } from "@beam/db/schema";
 import { emailHash } from "@beam/core/crm";
-import { eq } from "@/lib/ctx";
+import { eq, setAppDb } from "@/lib/ctx";
 import { createFakeIntegrations, makeCtx, makeJobCtx, resetRuntime, type FakeIntegrations } from "@/lib/testing";
-import { getCurrentConsents } from "@/modules/crm/api";
+import { getCurrentConsents, ingestInboundEmail } from "@/modules/crm/api";
+import { POST } from "@/app/api/webhooks/resend/route";
 import { queueMarketingEmail, sendTransactional } from "../api";
 import { sendEmailMessage } from "../jobs";
 import { blockTemplate, completeCompany, consent, eventsOf, jobsOf, messageOf, personWith, resetEmailTables, timeline } from "../email-p3.fixtures";
-import { processResendEvent, retrySoftBounce } from "./process-event";
+import { campaignOf, campaignRow, staff } from "../email-p6.fixtures";
+import { templateVersion } from "../email-p7.fixtures";
+import { htmlToPlainText, parseAddress, processResendEvent, retrySoftBounce } from "./process-event";
+
+vi.mock("@/modules/crm/api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/modules/crm/api")>();
+  return { ...actual, ingestInboundEmail: vi.fn(actual.ingestInboundEmail) };
+});
+const ingest = vi.mocked(ingestInboundEmail);
 
 let h: DbHandle;
 let fakes: FakeIntegrations;
 beforeAll(async () => {
   h = await createTestDb();
+  setAppDb(h.db);
   await completeCompany(h.db);
   await blockTemplate(h.db, { slug: "p3e-news", kind: "marketing", purpose: "newsletter" });
 });
@@ -165,5 +180,175 @@ describe("processResendEvent", () => {
     expect(await processResendEvent(ctx, { id: row!.id, payload: emitted.payload })).toMatchObject({ outcome: "processed" });
     expect(await processResendEvent(ctx, { id: row!.id, payload: emitted.payload })).toEqual({ outcome: "ignored", reason: "duplicate" });
     expect(await eventsOf(h.db, message.id)).toHaveLength(1);
+  });
+});
+
+/** A Resend Inbound `email.received` payload (the fake signs it like any other event). */
+function inbound(data: Record<string, unknown>) {
+  return fakes.resend.emitWebhook("email.received", `re_in_${crypto.randomUUID().slice(0, 8)}`, data);
+}
+
+async function store(emitted: { id: string; payload: unknown }) {
+  const [row] = await h.db
+    .insert(webhookEvents)
+    .values({ provider: "resend", externalEventId: `${emitted.id}:${crypto.randomUUID()}`, payload: emitted.payload, jobId: crypto.randomUUID() })
+    .returning({ id: webhookEvents.id });
+  return row!.id;
+}
+
+describe("processResendEvent: email.received (R3 inbound, rule 46)", () => {
+  beforeEach(() => {
+    ingest.mockClear();
+  });
+
+  it("maps the payload to crm.ingestInboundEmail with the Message-ID header, never the raw payload, and stores no email event", async () => {
+    const emitted = inbound({
+      from: "Lotte Peeters <Lotte.Peeters@Example.com>",
+      to: ["inbox@in.beam.be"],
+      subject: "  Vraag over mijn abonnement ",
+      text: "Hallo, kan ik mijn abonnement pauzeren?",
+      message_id: "<data-field@mail.example.com>",
+      headers: { "Message-ID": "<CAB123@mail.example.com>", "In-Reply-To": "<out-1@mail.beam.be>" },
+      attachments: [{ id: "att_1", filename: "foto.jpg" }, { id: "att_2", filename: "scan.pdf" }],
+      created_at: "2026-11-02T09:15:00.000Z",
+    });
+    const id = await store(emitted);
+    const ctx = makeJobCtx(h.db, "webhook.process");
+    const out = await processResendEvent(ctx, { id, payload: emitted.payload });
+
+    expect(ingest).toHaveBeenCalledTimes(1);
+    const [tx, passedCtx, input] = ingest.mock.calls[0]!;
+    expect(tx).toBe(ctx.tx);
+    expect(passedCtx).toBe(ctx);
+    expect(input).toEqual({
+      messageId: "<CAB123@mail.example.com>",
+      inReplyTo: "<out-1@mail.beam.be>",
+      from: "lotte.peeters@example.com",
+      fromName: "Lotte Peeters",
+      subject: "Vraag over mijn abonnement",
+      text: "Hallo, kan ik mijn abonnement pauzeren?",
+      attachmentCount: 2,
+      receivedAt: new Date("2026-11-02T09:15:00.000Z"),
+    });
+    expect(input).not.toHaveProperty("payload");
+
+    expect(out).toMatchObject({ outcome: "inbound" });
+    const threadId = (out as { threadId: string }).threadId;
+    const [thread] = await h.db.select().from(inboxThreads).where(eq(inboxThreads.id, threadId));
+    expect(thread).toMatchObject({ channel: "email", fromAddress: "lotte.peeters@example.com" });
+    const [msg] = await h.db.select().from(inboxMessages).where(eq(inboxMessages.externalMessageId, "<CAB123@mail.example.com>"));
+    expect(msg).toMatchObject({ threadId, attachmentCount: 2 });
+    expect(await h.db.select().from(emailEvents)).toHaveLength(0);
+  });
+
+  it("reads headers given as a list, falls back to the HTML part and to message_id, and leaves out absent optional fields", async () => {
+    const emitted = inbound({
+      from: "info@example.com",
+      subject: "Factuur",
+      html: "<html><head><style>p{}</style></head><body><p>Goedendag &amp; dank</p><p>Tot&nbsp;snel<br>Jan</p></body></html>",
+      headers: [{ name: "x-mailer", value: "x" }, { name: "message-id", value: "<list-form@example.com>" }],
+    });
+    await processResendEvent(makeJobCtx(h.db, "webhook.process"), { id: await store(emitted), payload: emitted.payload });
+    expect(ingest.mock.calls[0]![2]).toEqual({
+      messageId: "<list-form@example.com>",
+      from: "info@example.com",
+      subject: "Factuur",
+      text: "Goedendag & dank\nTot snel\nJan",
+      attachmentCount: 0,
+      receivedAt: expect.any(Date) as Date,
+    });
+
+    ingest.mockClear();
+    const plain = inbound({ from: "a@example.com", subject: "Hi", text: "Body", message_id: "<only-field@example.com>" });
+    await processResendEvent(makeJobCtx(h.db, "webhook.process"), { id: await store(plain), payload: plain.payload });
+    expect(ingest.mock.calls[0]![2]).toMatchObject({ messageId: "<only-field@example.com>" });
+  });
+
+  it("without a Message-ID the delivery is ignored and crm is not called", async () => {
+    const emitted = inbound({ from: "a@example.com", subject: "No id", text: "x" });
+    expect(await processResendEvent(makeJobCtx(h.db, "webhook.process"), { id: await store(emitted), payload: emitted.payload })).toEqual({
+      outcome: "ignored",
+      reason: "no_message_id",
+    });
+    expect(ingest).not.toHaveBeenCalled();
+  });
+
+  it("calls crm once per svix id: a duplicate delivery is stored once, and processing it again keeps one inbox message", async () => {
+    vi.stubEnv("RESEND_WEBHOOK_SECRET", fakes.resend.webhookSecret);
+    const emitted = inbound({ from: "b@example.com", subject: "Twice", text: "x", headers: { "message-id": "<twice@example.com>" } });
+    const post = () =>
+      POST(new Request("https://beam.be/api/webhooks/resend", { method: "POST", body: emitted.body, headers: { "content-type": "application/json", ...emitted.headers } }));
+    expect((await post()).status).toBe(200);
+    expect((await post()).status).toBe(200);
+    const stored = await h.db.select().from(webhookEvents).where(eq(webhookEvents.externalEventId, emitted.id));
+    expect(stored).toHaveLength(1);
+    const queued = await h.db.select().from(jobs).where(eq(jobs.kind, "webhook.process"));
+    expect(queued).toHaveLength(1);
+
+    const ctx = makeJobCtx(h.db, "webhook.process");
+    const first = await processResendEvent(ctx, { id: stored[0]!.id, payload: stored[0]!.payload });
+    expect(ingest).toHaveBeenCalledTimes(1);
+    // A retried job (at-least-once) lands on crm's Message-ID idempotency: same thread, one message.
+    const again = await processResendEvent(ctx, { id: stored[0]!.id, payload: stored[0]!.payload });
+    expect(again).toEqual(first);
+    expect(await h.db.select().from(inboxMessages).where(eq(inboxMessages.externalMessageId, "<twice@example.com>"))).toHaveLength(1);
+    expect(await h.db.select().from(emailEvents)).toHaveLength(0);
+  });
+});
+
+describe("inbound helpers", () => {
+  it("parseAddress splits a display name and lower-cases the address", () => {
+    expect(parseAddress('"De Smet, An" <AN@example.com>')).toEqual({ address: "an@example.com", name: "De Smet, An" });
+    expect(parseAddress("<x@example.com>")).toEqual({ address: "x@example.com", name: null });
+    expect(parseAddress("y@example.com")).toEqual({ address: "y@example.com", name: null });
+    expect(parseAddress(null)).toEqual({ address: "", name: null });
+  });
+
+  it("htmlToPlainText drops scripts and tags and decodes entities", () => {
+    expect(htmlToPlainText("<script>alert(1)</script><div>&lt;b&gt; &#233;t&#xE9;</div><p></p><p>x</p>")).toBe("<b> été\n\nx");
+  });
+});
+
+describe("processResendEvent: bounce-rate pause (rule 37)", () => {
+  async function sendingCampaign(sent: number, hard: number) {
+    const userId = (await staff(h.db)).id;
+    const tv = await templateVersion(h.db);
+    const c = await campaignRow(h.db, { templateId: tv.templateId, templateVersionId: tv.versionId, createdByUserId: userId, status: "sending", startedAt: new Date() });
+    const at = new Date();
+    const rows = await h.db
+      .insert(emailMessages)
+      .values(
+        Array.from({ length: sent }, (_, i) => ({
+          kind: "campaign" as const,
+          purpose: "newsletter" as const,
+          campaignId: c.id,
+          templateVersionId: tv.versionId,
+          locale: "nl-BE",
+          fromDomain: "news.beam.be" as const,
+          toEmail: `p9-bounce-${i}-${c.id.slice(0, 8)}@example.com`,
+          resendId: `re_p9_${c.id.slice(0, 8)}_${i}`,
+          idempotencyKey: `p9-bounce:${c.id}:${i}`,
+          status: i < hard ? ("bounced" as const) : ("delivered" as const),
+          bounceType: i < hard ? ("hard" as const) : null,
+          sentAt: at,
+          bouncedAt: i < hard ? at : null,
+        })),
+      )
+      .returning({ id: emailMessages.id, resendId: emailMessages.resendId });
+    return { campaignId: c.id, messages: rows };
+  }
+
+  it("a hard bounce that takes a sending campaign over 2 % pauses it with reason bounce_rate", async () => {
+    const { campaignId, messages } = await sendingCampaign(100, 2);
+    await deliver("email.bounced", messages[50]!.resendId!, { bounce: { type: "Transient" } });
+    expect((await campaignOf(h.db, campaignId)).status).toBe("sending");
+    await deliver("email.bounced", messages[60]!.resendId!, { bounce: { type: "Permanent", subType: "General" } });
+    expect(await campaignOf(h.db, campaignId)).toMatchObject({ status: "paused", pausedReason: "bounce_rate" });
+  });
+
+  it("a hard bounce below the threshold leaves the campaign sending", async () => {
+    const { campaignId, messages } = await sendingCampaign(100, 1);
+    await deliver("email.bounced", messages[70]!.resendId!, { bounce: { type: "Permanent" } });
+    expect((await campaignOf(h.db, campaignId)).status).toBe("sending");
   });
 });

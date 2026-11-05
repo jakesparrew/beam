@@ -57,7 +57,7 @@ export { getCurrentMarketingWordings } from "./consent/queries";
 // timeline, tags, segments, tasks
 export { listTimeline } from "./timeline/api";
 export { applyTag, removeTag } from "./tags/api";
-export { countSegmentRefreshErrors, getSegmentRef, getSegmentSummaries, isInSegment, refreshSegment, segmentAudienceSql } from "./segments/api";
+export { countSegmentRefreshErrors, getSegmentAggregates, getSegmentRef, getSegmentSummaries, isInSegment, refreshSegment, segmentAudienceSql, type SegmentAggregates } from "./segments/api";
 export { countOpenTasks, createTask } from "./tasks/api";
 
 // companies

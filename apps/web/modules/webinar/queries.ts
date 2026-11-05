@@ -2,8 +2,8 @@
  * webinar queries (webinar spec 4.3; webinar-P2): the staff list with its tabs, one webinar with
  * its polls, CTAs, presenters, series and broadcast job state, and the staff owner options.
  * Every function takes the caller's database or transaction first. webinar-P3 adds the public
- * landing data, the public and portal lists and the registrant list; later packages add the host
- * console state and the reports.
+ * landing data, the public and portal lists and the registrant list; webinar-P5 the host console
+ * state (`getHostConsoleState`, built in `server/interactions.ts`); later packages the reports.
  */
 import { jobs, persons, users, vWebinarWatch, watchSegments, webinarCtas, webinarInteractions, webinarPolls, webinarPresenters, webinarRegistrations, webinars } from "@beam/db/schema";
 import type { Locale } from "@beam/core/i18n";
@@ -11,6 +11,7 @@ import { canRegister, registeredModeFor, replayAccess, resolveMode, type WatchMo
 import { and, asc, desc, eq, inArray, ne, or, sql, type DbOrTx, type SQL } from "@/lib/ctx";
 import { rowsOf } from "@/lib/sensitive";
 import { resolvePersonIds } from "@/modules/crm/api";
+export { getHostConsoleState, type HostConsoleState, type HostCta, type HostPoll, type MessageRow } from "./server/interactions";
 import { jobKeys, type CtaRow, type PollRow, type PresenterRow, type WebinarRow } from "./server/lifecycle";
 
 /** The tabs of `/admin/webinars` (section 5.1). */

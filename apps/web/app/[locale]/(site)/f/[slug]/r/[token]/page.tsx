@@ -1,19 +1,20 @@
 /**
  * The personalised result page `/[locale]/f/[slug]/r/[token]` (forms spec section 5, rules ID6 to
  * ID8, SE3). Unknown or revoked token -> 404; expired (180 days) -> "This link has expired" with
- * the explanation (the `requestResultLink` email box is forms-P6's); otherwise the result in the
- * submission locale. Sensitive dimension values the ending shows are decrypted for the subject
+ * the `requestResultLink` email box (forms-P6), which always answers "If we know this address, we
+ * sent you a new link" (no address enumeration); otherwise the result in the submission locale. Sensitive dimension values the ending shows are decrypted for the subject
  * through `readSensitive(ctx, personId, 'subject_result', { submissionIds })` (system actor,
  * audited with keys only). CTAs go through the `go` route, which adds a fresh identity token (ID7).
  */
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { findRange } from "@beam/core/forms";
 import { localeFromSegment, type Locale, type LocalizedText } from "@beam/core/i18n";
 import { createCtx, getAppDb } from "@/lib/ctx";
 import { translator } from "@/lib/i18n";
 import { reportError } from "@/lib/logger";
 import { loadCurrentKeyVersion } from "@/lib/sensitive";
+import { requestResultLink } from "@/modules/forms/actions";
 import { getResultByToken, type PublicResult } from "@/modules/forms/service/public-queries";
 import { readSubmissionAnswers, scoreKey } from "@/modules/forms/service/sensitive";
 import { ctaRedirectUrl } from "@/modules/forms/service/tokens";
@@ -24,6 +25,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = { robots: { index: false, follow: false }, referrer: "no-referrer" };
 
 type Params = Promise<{ locale: string; slug: string; token: string }>;
+type Search = Promise<Record<string, string | string[] | undefined>>;
 
 const text = (t: LocalizedText | undefined, locale: Locale): string | null => (t ? (t[locale] ?? null) : null);
 
@@ -46,17 +48,43 @@ async function sensitiveDimensions(r: PublicResult): Promise<Map<string, number 
   return out;
 }
 
-export default async function ResultPage({ params }: { params: Params }) {
+export default async function ResultPage({ params, searchParams }: { params: Params; searchParams: Search }) {
   const { locale: seg, slug, token } = await params;
   if (!localeFromSegment(seg)) notFound();
   const r = await getResultByToken(await getAppDb(), token);
   if (!r || r.formSlug !== slug) notFound();
   if ("expired" in r) {
-    const tr = translator(r.locale);
+    const expiredLocale = r.locale;
+    const tr = translator(expiredLocale);
+    const sent = (await searchParams).sent;
+    const self = `/${seg}/f/${slug}/r/${token}`;
+    // ID8: the same answer for a known and an unknown address; only the rate limit is told apart.
+    async function sendLink(formData: FormData) {
+      "use server";
+      const raw = formData.get("email");
+      const email = (typeof raw === "string" ? raw : "").slice(0, 254);
+      const res = await requestResultLink({ slug, email, locale: expiredLocale });
+      redirect(`${self}?sent=${!res.ok && res.error.code === "rate_limited" ? "limited" : "1"}` as never);
+    }
     return (
-      <div lang={r.locale} className="mx-auto max-w-xl space-y-3 px-4 py-16" data-result-state="expired">
+      <div lang={expiredLocale} className="mx-auto max-w-xl space-y-4 px-4 py-16" data-result-state="expired">
         <h1 className="text-3xl font-bold">{tr("forms.public.expired_title")}</h1>
         <p className="text-muted-foreground">{tr("forms.public.expired_body")}</p>
+        {sent === "1" || sent === "limited" ? (
+          <p role="status" className="rounded-md border p-3" data-link-request={sent}>
+            {tr(sent === "limited" ? "forms.public.rate_limited" : "forms.public.link_sent")}
+          </p>
+        ) : (
+          <form action={sendLink} className="grid gap-3">
+            <label htmlFor="result-link-email" className="font-medium">
+              {tr("forms.public.email_label")}
+            </label>
+            <input id="result-link-email" name="email" type="email" required autoComplete="email" maxLength={254} className="min-h-11 rounded-md border bg-background px-3 text-base" />
+            <button type="submit" className="min-h-11 rounded-md bg-primary px-4 font-medium text-primary-foreground">
+              {tr("forms.public.send_link")}
+            </button>
+          </form>
+        )}
       </div>
     );
   }

@@ -1,20 +1,24 @@
 "use server";
 /**
- * forms Server Actions (forms spec section 4 "Server actions", all `audience: 'staff'`; forms-P5):
+ * forms Server Actions (forms spec section 4 "Server actions", `audience: 'staff'` unless stated):
  * create, edit, save drafts, publish, archive, unarchive, delete and duplicate forms, and manage
- * tracked links. The status machine is rule P12 and the system slugs rule P13. Every handler
+ * tracked links (forms-P5); reveal sensitive answers, resend the result email, revoke the result
+ * link, delete a submission, start a staff-assisted entry and the public `requestResultLink`
+ * (forms-P6). The status machine is rule P12 and the system slugs rule P13. Every handler
  * writes its own audit row with the spec's audit name (`forms.created`, `forms.draft_saved`, ...),
  * so the wrapper's automatic row is off: one audit row per staff action. Draft and publish audits
  * carry definition hashes and version numbers only, never the definition JSON. Version writes go
  * through `service/versions.ts`, which never updates a published row.
  */
 import { z } from "zod";
-import { formLinks, forms, formVersions, formViewsDaily } from "@beam/db/schema";
+import { formLinks, forms, formSubmissions, formVersions, formViewsDaily } from "@beam/db/schema";
 import {
   defaultSettings,
   FORM_KINDS,
+  findRange,
   FORM_LINK_CHANNELS,
   FormDefinition as FormDefinitionSchema,
+  FormResultProps,
   FormScoring as FormScoringSchema,
   SYSTEM_FORM_SLUGS,
   validateForPublish,
@@ -23,12 +27,18 @@ import {
   type FormScoring,
   type PublishIssue,
 } from "@beam/core/forms";
-import { LOCALES, LocalizedTextSchema, type Locale, type LocalizedText } from "@beam/core/i18n";
+import { formatNumber, LOCALES, LocalizedTextSchema, type Locale, type LocalizedText } from "@beam/core/i18n";
 import { action } from "@/lib/action";
-import { and, ConflictError, eq, isNotNull, isNull, NotFoundError, ValidationError, type Ctx, type DbOrTx } from "@/lib/ctx";
+import { and, ConflictError, eq, isNotNull, isNull, NotFoundError, sql, ValidationError, type Ctx, type DbOrTx } from "@/lib/ctx";
 import { translator } from "@/lib/i18n";
-import { linkLocale } from "./queries";
+import { getPersonPrefill } from "@/modules/crm/api";
+import { sendTransactional } from "@/modules/email/api";
+import { countResends, linkLocale, resendKeyPrefix } from "./queries";
+import { answerText } from "./service/export-csv";
 import { newLinkKey, trackedLinkUrl } from "./service/qr";
+import { readSubmissionAnswers } from "./service/sensitive";
+import { createStaffEntryUrl, requestResultLink as requestResultLinkService } from "./service/submissions";
+import { createResultToken, ctaRedirectUrl, hashToken, RESULT_TOKEN_DAYS, resultPageUrl } from "./service/tokens";
 import { copyToDraft, insertDraftVersion, parseVersion, publishVersion as publishService, updateDraftVersion } from "./service/versions";
 
 const SLUG_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
@@ -408,5 +418,202 @@ export const updateLink = action(
       await ctx.audit({ action: "forms.link_updated", entityType: "form_link", entityId: link.id, oldValue: old, newValue: patch });
     }
     return { linkId: link.id, key: link.key, url: await linkUrl(ctx.tx, link.formId, form!.slug, link.key) };
+  },
+);
+
+// ---------------------------------------------------------------------------
+// Submissions (forms-P6): reveal, resend, revoke, delete, result link, staff entry
+// ---------------------------------------------------------------------------
+
+const SubmissionInput = z.object({ submissionId: Uuid }).strict();
+
+async function loadSubmission(tx: DbOrTx, submissionId: string, lock = false) {
+  const q = tx
+    .select({ s: formSubmissions, v: formVersions, slug: forms.slug })
+    .from(formSubmissions)
+    .innerJoin(formVersions, eq(formVersions.id, formSubmissions.formVersionId))
+    .innerJoin(forms, eq(forms.id, formSubmissions.formId))
+    .where(eq(formSubmissions.id, submissionId));
+  const [row] = lock ? await q.for("update", { of: formSubmissions }) : await q;
+  if (!row) throw new NotFoundError("submission_not_found");
+  return { sub: row.s, slug: row.slug, version: row.v, content: parseVersion(row.v) };
+}
+
+const localized = (t: LocalizedText | undefined, locale: Locale): string | null => (t ? (t[locale] ?? null) : null);
+
+/**
+ * SE3: the sensitive answers of one submission, decrypted through `readSensitive(ctx, personId,
+ * 'staff_view', { submissionIds: [id] })`, which checks `persons.sensitive_read` and writes the
+ * `sensitive.read` audit row with keys only; labels come from the pinned version. The action
+ * writes no audit row of its own (the read is the audited fact).
+ */
+export const revealSensitiveAnswers = action(
+  { name: "forms.reveal_sensitive", audience: "staff", permission: "persons.sensitive_read", input: SubmissionInput, audit: false },
+  async (ctx, i): Promise<{ answers: { fieldKey: string; label: string; value: string }[] }> => {
+    const { sub, content } = await loadSubmission(ctx.tx, i.submissionId);
+    if (!sub.personId) throw new ConflictError("anonymous_submission");
+    const rows = await readSubmissionAnswers(ctx, sub.personId, "staff_view", [sub.id]);
+    const def = content.definition;
+    const order = Object.keys(def.fields);
+    const answers = rows
+      .filter((r) => r.submissionId === sub.id)
+      .map((r) => {
+        if (r.fieldKey.startsWith("score:")) {
+          const key = r.fieldKey.slice("score:".length);
+          const d = content.scoring.dimensions.find((x) => x.key === key);
+          const raw = r.value as { value?: unknown } | number | null;
+          const n = typeof raw === "number" ? raw : typeof raw?.value === "number" ? raw.value : null;
+          const range = d && n !== null ? findRange(d.ranges, n) : null;
+          const value = n === null ? "" : `${formatNumber(n, ctx.locale)}${range ? ` (${localized(range.label, ctx.locale) ?? range.key})` : ""}`;
+          return { fieldKey: r.fieldKey, label: (d ? localized(d.label, ctx.locale) : null) ?? key, value, at: order.length + 1 };
+        }
+        const f = def.fields[r.fieldKey];
+        const value = f ? answerText(f, r.value, ctx.locale) : typeof r.value === "string" ? r.value : JSON.stringify(r.value);
+        return { fieldKey: r.fieldKey, label: (f ? localized(f.label, ctx.locale) : null) ?? r.fieldKey, value: value ?? "", at: order.indexOf(r.fieldKey) };
+      })
+      .sort((a, b) => a.at - b.at)
+      .map(({ at: _at, ...a }) => a);
+    return { answers };
+  },
+);
+
+/** A result token valid now: the current one, or a renewed one (version + 1, 180 more days) when it expired. */
+async function liveResultToken(ctx: Ctx, sub: typeof formSubmissions.$inferSelect): Promise<string> {
+  if (sub.resultTokenExpiresAt && sub.resultTokenExpiresAt.getTime() > ctx.now.getTime() && sub.resultTokenHash) return createResultToken(sub.id, sub.resultTokenVersion);
+  const version = sub.resultTokenVersion + 1;
+  const token = createResultToken(sub.id, version);
+  await ctx.tx
+    .update(formSubmissions)
+    .set({ resultTokenVersion: version, resultTokenHash: hashToken(token), resultTokenExpiresAt: new Date(ctx.now.getTime() + RESULT_TOKEN_DAYS * 86_400_000), updatedAt: ctx.now })
+    .where(eq(formSubmissions.id, sub.id));
+  return token;
+}
+
+const MAX_RESULT_RESENDS = 3;
+
+/**
+ * Resends `forms.result` for a completed submission (at most 3 times, keys
+ * `form_result:<submission_id>:resend:<n>`), with the stored outcome and non-sensitive total in
+ * the submission locale (SE4), and points `result_email_message_id` at the new message.
+ */
+export const resendResultEmail = action(
+  { name: "forms.resend_result", audience: "staff", permission: "forms.write", input: SubmissionInput, audit: false },
+  async (ctx, i): Promise<{ emailMessageId: string }> => {
+    const { sub, slug, content } = await loadSubmission(ctx.tx, i.submissionId, true);
+    if (sub.status !== "completed") throw new ConflictError("submission_not_completed");
+    if (!sub.personId) throw new ConflictError("anonymous_submission");
+    const n = (await countResends(ctx.tx, sub.id)) + 1;
+    if (n > MAX_RESULT_RESENDS) throw new ConflictError("resend_limit");
+    const locale = sub.locale as Locale;
+    const def = content.definition;
+    const ending = def.endings.find((e) => e.key === sub.endingKey) ?? def.endings[0]!;
+    const outcome = sub.outcomeKey ? (content.scoring.outcomes.find((o) => o.key === sub.outcomeKey) ?? null) : null;
+    const total = sub.score?.total ?? null;
+    const range = total !== null && content.scoring.total ? findRange(content.scoring.total.ranges, total) : null;
+    const token = await liveResultToken(ctx, sub);
+    const prefill = await getPersonPrefill(ctx.tx, sub.personId);
+    const data = FormResultProps.parse({
+      firstName: prefill.firstName,
+      formTitle: localized(def.title, locale) ?? slug,
+      outcomeLabel: outcome ? localized(outcome.label, locale) : null,
+      scoreLine: ending.showScore && total !== null ? String(Math.round(total * 100) / 100) : null,
+      explanation: (outcome ? localized(outcome.explanation, locale) : null) ?? (range ? localized(range.explanation, locale) : null),
+      recommendation: (outcome ? localized(outcome.recommendation, locale) : null) ?? (range ? localized(range.recommendation, locale) : null),
+      intro: localized(ending.email?.intro, locale),
+      resultUrl: resultPageUrl(slug, locale, token),
+      ctas: ending.ctas.slice(0, 4).map((c) => ({ label: localized(c.label, locale) ?? c.key, url: ctaRedirectUrl(token, c.key) })),
+      pendingConfirmation: (sub.consentSnapshot ?? []).some((c) => (c as { pendingConfirmation?: boolean }).pendingConfirmation === true),
+    });
+    const key = `${resendKeyPrefix(sub.id)}${n}`;
+    const r = await sendTransactional(ctx, { template: "forms.result", personId: sub.personId, locale, data, key });
+    await ctx.tx.update(formSubmissions).set({ resultEmailMessageId: r.emailMessageId, updatedAt: ctx.now }).where(eq(formSubmissions.id, sub.id));
+    await ctx.audit({ action: "forms.result_resent", entityType: "form_submission", entityId: sub.id, personId: sub.personId, newValue: { n, key, emailMessageId: r.emailMessageId } });
+    return { emailMessageId: r.emailMessageId };
+  },
+);
+
+/** ID6, edge case 18: bumps `result_token_version`, so the old result link answers 404. */
+export const revokeResultLink = action(
+  { name: "forms.revoke_result_link", audience: "staff", permission: "forms.write", input: SubmissionInput, audit: false },
+  async (ctx, i): Promise<{ ok: true }> => {
+    const { sub } = await loadSubmission(ctx.tx, i.submissionId, true);
+    if (sub.status !== "completed" || !sub.resultTokenHash) throw new ConflictError("no_result_link");
+    const version = sub.resultTokenVersion + 1;
+    await ctx.tx
+      .update(formSubmissions)
+      .set({ resultTokenVersion: version, resultTokenHash: hashToken(createResultToken(sub.id, version)), updatedAt: ctx.now })
+      .where(eq(formSubmissions.id, sub.id));
+    await ctx.audit({
+      action: "forms.result_link_revoked",
+      entityType: "form_submission",
+      entityId: sub.id,
+      personId: sub.personId,
+      oldValue: { resultTokenVersion: sub.resultTokenVersion },
+      newValue: { resultTokenVersion: version },
+    });
+    return { ok: true };
+  },
+);
+
+/**
+ * Deletes one submission (`spam`, `test`, or `subject_request`: one result removed without full
+ * erasure); its sensitive rows go by the cascade. The audit row carries the reason and ids, never
+ * answers. Timeline events stay with crm (append-only).
+ */
+export const deleteSubmission = action(
+  {
+    name: "forms.delete_submission",
+    audience: "staff",
+    permission: "forms.publish",
+    input: z.object({ submissionId: Uuid, reason: z.enum(["spam", "test", "subject_request"]) }).strict(),
+    audit: false,
+  },
+  async (ctx, i): Promise<{ ok: true }> => {
+    const { sub, slug, version } = await loadSubmission(ctx.tx, i.submissionId, true);
+    await ctx.tx.execute(sql`set local beam.allow_rewrite = 'on'`);
+    await ctx.tx.delete(formSubmissions).where(eq(formSubmissions.id, sub.id));
+    await ctx.audit({
+      action: "forms.submission_deleted",
+      entityType: "form_submission",
+      entityId: sub.id,
+      personId: sub.personId,
+      oldValue: { formId: sub.formId, formSlug: slug, version: version.version, status: sub.status },
+      newValue: { reason: i.reason },
+    });
+    return { ok: true };
+  },
+);
+
+/**
+ * ID8 (public): always `{ ok: true }`, whether or not the address is known; when a completed
+ * submission of that form exists for it, a new result link is emailed (at most 3 per email per
+ * form per day).
+ */
+export const requestResultLink = action(
+  {
+    name: "forms.request_result_link",
+    audience: "public",
+    input: z.object({ slug: z.string().trim().max(64), email: z.string().trim().max(254).email(), locale: z.enum(LOCALES) }).strict(),
+    audit: false,
+  },
+  async (ctx, i): Promise<{ ok: true }> => requestResultLinkService(ctx.tx, ctx, i),
+);
+
+/**
+ * ID10: the hosted URL with a 2-hour staff identity token (permission `persons.write`, only forms
+ * with `settings.staffEntryAllowed`); audited `forms.staff_entry_started` with person and form.
+ */
+export const startStaffEntry = action(
+  {
+    name: "forms.start_staff_entry",
+    audience: "staff",
+    permission: "persons.write",
+    input: z.object({ formId: Uuid, personId: Uuid, locale: z.enum(LOCALES).optional() }).strict(),
+    audit: false,
+  },
+  async (ctx, i): Promise<{ url: string }> => {
+    const r = await createStaffEntryUrl(ctx.tx, ctx, i);
+    await ctx.audit({ action: "forms.staff_entry_started", entityType: "form", entityId: i.formId, personId: i.personId, newValue: { formId: i.formId, personId: i.personId, locale: i.locale ?? null } });
+    return r;
   },
 );

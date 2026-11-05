@@ -41,7 +41,7 @@ When something does fail, follow [docs/runbooks/failed-sync.md](../runbooks/fail
 | [WordPress](#wordpress-one-time-import) | One-time import of the old website | V1 | none (public site) |
 | [Automation webhooks](#automation-webhooks) | A journey step that calls another system | V1 | `AUTOMATION_WEBHOOK_SECRET` |
 | [YouTube and Google Meet](#youtube-and-google-meet-release-2) | Webinar streams | R2 | `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `GOOGLE_OAUTH_REFRESH_TOKEN` |
-| [Meta and Google Ads](#meta-and-google-ads-release-3) | Ad spend for reporting (read-only), Messenger and Instagram inbox | R3 | `META_ADS_TOKEN`, `GOOGLE_ADS_TOKEN`, `META_APP_SECRET`, `META_VERIFY_TOKEN` |
+| [Meta and Google Ads](#meta-and-google-ads-release-3) | Ad spend for reporting (read-only), Messenger and Instagram inbox | R3 | `META_ADS_TOKEN`, `GOOGLE_ADS_TOKEN`, `META_APP_SECRET`, `META_PAGE_ACCESS_TOKEN`, `META_VERIFY_TOKEN` |
 | [Scaleway](#scaleway-backup-storage) | Storage of the encrypted daily backup | V1 | Scaleway keys in GitHub secrets, `BACKUP_AGE_PUBLIC_KEY` |
 
 ## Mollie (payments)
@@ -129,6 +129,11 @@ When something does fail, follow [docs/runbooks/failed-sync.md](../runbooks/fail
 - **Code:** `packages/integrations/src/webhook/`; job `automation.call_webhook`. A journey step of
   type `webhook` posts a signed JSON message (signed with `AUTOMATION_WEBHOOK_SECRET`) to an address
   marketing configures. No sensitive field is ever included.
+- **Environment:** `AUTOMATION_WEBHOOK_SECRET`, one random secret per environment (for example
+  `openssl rand -hex 32`); the receiving system checks the `X-Beam-Signature` header (HMAC-SHA256 of
+  the body) with it. Outside staging and production a missing secret uses the fake; in staging and
+  production the call fails as `webhook_not_configured`. Rotate it like the other
+  secrets in [rotate-keys.md](../runbooks/rotate-keys.md#other-secrets) and give the new value to every receiving system.
 
 ## YouTube and Google Meet (Release 2)
 
@@ -145,6 +150,17 @@ When something does fail, follow [docs/runbooks/failed-sync.md](../runbooks/fail
 - **Code:** `packages/integrations/src/ads/` (daily `ads.pull_yesterday` at 05:30, read-only,
   into `ad_spend_daily`) and `packages/integrations/src/meta-messaging/` (Messenger and Instagram
   inbox, webhook `/api/webhooks/meta`).
+- **Environment** (staging and production always use the real clients; elsewhere a provider is
+  real only when its key is set, else the fake runs):
+  - `META_ADS_TOKEN`: Meta Marketing API token (read-only) for the daily Meta ad spend.
+  - `GOOGLE_ADS_TOKEN`: Google Ads API token (read-only) for the daily Google ad spend.
+  - `META_APP_SECRET`: the Meta app secret; it verifies the `X-Hub-Signature-256` of every
+    Messenger and Instagram webhook.
+  - `META_PAGE_ACCESS_TOKEN`: the long-lived page access token the inbox sends replies with (the
+    key that switches the inbox from its fake to the real client outside staging and production).
+  - `META_VERIFY_TOKEN`: a random string of your choice, entered in the Meta app's webhook
+    settings; `/api/webhooks/meta` answers Meta's subscription check only with this token.
+  - `/admin/system/integrations` shows for each of these whether it is set (never its value).
 - **When it fails:** the dashboard shows "data as of" the last good day; 3 failed days raise a Normal
   alert.
 

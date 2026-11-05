@@ -84,14 +84,7 @@ async function logRequest(ctx: JobCtx, req: CallClaudeRequest<z.ZodTypeAny | und
     jobId: ctx.job.id || null,
     durationMs: row.durationMs ?? null,
   };
-  // A deferred row is only written after the job's transaction: count it in the job's tally so
-  // the next call of the same job sees it (PL-56 checks before each call).
-  if (ctxState(ctx).durableMode === "deferred") {
-    const tally = pendingUsage.get(ctx) ?? { cents: 0, calls: 0 };
-    tally.cents += row.costCents ?? 0;
-    if (row.status !== "budget_exceeded") tally.calls += 1;
-    pendingUsage.set(ctx, tally);
-  }
+  tallyDeferred(ctx, [row]);
   await writeDurably(ctx, async (db) => {
     await db.insert(aiRequests).values(values);
   });
@@ -99,6 +92,20 @@ async function logRequest(ctx: JobCtx, req: CallClaudeRequest<z.ZodTypeAny | und
 
 /** Spend and calls of this job's `ai_requests` rows that are still queued (not yet in the table). */
 const pendingUsage = new WeakMap<JobCtx, { cents: number; calls: number }>();
+
+/**
+ * A deferred row is only written after the job's transaction: count it in the job's tally so the
+ * next call of the same job sees it (PL-56 checks before each call).
+ */
+function tallyDeferred(ctx: JobCtx, rows: readonly { status: string; costCents?: number | undefined }[]): void {
+  if (ctxState(ctx).durableMode !== "deferred") return;
+  const tally = pendingUsage.get(ctx) ?? { cents: 0, calls: 0 };
+  for (const row of rows) {
+    tally.cents += row.costCents ?? 0;
+    if (row.status !== "budget_exceeded") tally.calls += 1;
+  }
+  pendingUsage.set(ctx, tally);
+}
 
 /** Brussels-month spend (cents) and today's call count, from `ai_requests`. */
 export async function aiUsage(tx: DbOrTx): Promise<{ monthCents: number; todayCalls: number }> {
@@ -223,4 +230,81 @@ function safeJson(text: string): unknown {
   } catch {
     return null;
   }
+}
+
+/** The `prompt` text an `ai_requests` row stores for a system prompt and messages. */
+export function aiPromptText(system: string, messages: readonly ClaudeMessage[]): string {
+  return promptText(system, messages);
+}
+
+/** The outcome of `checkAiBatchBudget`: room for every request of the batch, or why not. */
+export type AiBatchBudget =
+  | { ok: true; monthCents: number; todayCalls: number; cap: number }
+  | { ok: false; reason: "budget" | "daily_cap"; monthCents: number; todayCalls: number; cap: number };
+
+/**
+ * PL-56 for a Message Batch (R4): the monthly budget must not be spent and the daily cap must
+ * leave room for all `requests` calls at once (production uses the setting's cap, every other
+ * environment at most `NON_PRODUCTION_DAILY_CAP`). Counts this job's queued rows like
+ * `callClaude`. Writes nothing: on `ok: false` the caller logs the rows as `budget_exceeded`
+ * with `logAiBatchRequests` and creates no batch.
+ */
+export async function checkAiBatchBudget(ctx: JobCtx, requests: number): Promise<AiBatchBudget> {
+  const ai = (await getSetting(ctx.tx, "ai")) as AiSettingValue;
+  const stored = await aiUsage(ctx.tx);
+  const queued = pendingUsage.get(ctx) ?? { cents: 0, calls: 0 };
+  const monthCents = stored.monthCents + queued.cents;
+  const todayCalls = stored.todayCalls + queued.calls;
+  const cap = appEnv() === "production" ? ai.daily_cap_calls : Math.min(ai.daily_cap_calls, NON_PRODUCTION_DAILY_CAP);
+  if (monthCents >= ai.monthly_budget_cents) return { ok: false, reason: "budget", monthCents, todayCalls, cap };
+  if (todayCalls + Math.max(0, requests) > cap) return { ok: false, reason: "daily_cap", monthCents, todayCalls, cap };
+  return { ok: true, monthCents, todayCalls, cap };
+}
+
+/** One batch request's `ai_requests` row. */
+export type AiBatchRow = {
+  id?: string;
+  status: "ok" | "error" | "budget_exceeded";
+  prompt: string;
+  output?: string | null;
+  error?: string | null;
+  usage?: { inputTokens: number; outputTokens: number; cacheReadTokens: number };
+  costCents?: number;
+};
+
+/**
+ * Logs the requests of a Message Batch in `ai_requests`, one row per request, durable like
+ * `callClaude`'s rows (they survive a rollback of the job) and counted in this job's usage tally.
+ * The feature must be an `AI_FEATURES` key; `model` is the alias or the full model id.
+ */
+export async function logAiBatchRequests(
+  ctx: JobCtx,
+  req: { feature: AiFeatureKey; model: "opus" | "haiku" | AiModelId; personId?: string | null; fieldsSent?: readonly string[] },
+  rows: readonly AiBatchRow[],
+): Promise<void> {
+  if (!isAiFeatureKey(req.feature)) throw new PermanentError(`unknown_ai_feature: ${String(req.feature)}`);
+  if (!rows.length) return;
+  const model = req.model === "opus" || req.model === "haiku" ? modelIdFor(req.model) : req.model;
+  tallyDeferred(ctx, rows);
+  await writeDurably(ctx, async (db) => {
+    await db.insert(aiRequests).values(
+      rows.map((r) => ({
+        ...(r.id ? { id: r.id } : {}),
+        feature: req.feature,
+        model,
+        actor: actorJson(ctx.actor),
+        personId: req.personId ?? null,
+        fieldsSent: [...(req.fieldsSent ?? [])],
+        prompt: r.prompt,
+        output: r.output ?? null,
+        inputTokens: r.usage?.inputTokens ?? 0,
+        outputTokens: r.usage?.outputTokens ?? 0,
+        cacheReadTokens: r.usage?.cacheReadTokens ?? 0,
+        costCents: String(r.costCents ?? 0),
+        status: r.status,
+        error: r.error ?? null,
+        jobId: ctx.job.id || null,
+      })),
+    );
+  });
 }

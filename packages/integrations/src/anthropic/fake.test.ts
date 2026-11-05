@@ -98,3 +98,35 @@ describe("createClaudeFake", () => {
     expect(result!.response?.json).toMatchObject({ headline: expect.any(String) });
   });
 });
+
+describe("ai.answer_question default script (ops-P10 request)", () => {
+  const ask = (content: string) => request("ai.answer_question", { outputSchema: { type: "object" }, messages: [{ role: "user", content }] });
+
+  it.each([
+    "Which customers generated the most revenue this year?",
+    "Welke klanten brachten dit jaar de meeste omzet op?",
+    "Quels clients ont généré le plus de chiffre d'affaires cette année ?",
+  ])("answers a revenue-per-customer question with a person-level query over ai.orders: %s", async (question) => {
+    const fake = createClaudeFake();
+    const res = await fake.complete(ask(question));
+    const answer = res.json as { sql: string; explanation: string };
+    expect(answer.sql).toMatch(/^select o\.person_id, sum\(o\.total_cents\) as revenue_cents from ai\.orders o /);
+    expect(answer.sql).toMatch(/group by o\.person_id/);
+    expect(answer.explanation).toEqual(expect.any(String));
+  });
+
+  it("answers the explanation call of the same question (its payload repeats the question)", async () => {
+    const fake = createClaudeFake();
+    const payload = JSON.stringify({ question: "Which customers generated the most revenue this year?", columns: ["person_id", "revenue_cents"], rows: [] });
+    const res = await fake.complete(ask(payload));
+    expect(res.json).toMatchObject({ explanation: expect.any(String) });
+  });
+
+  it("answers any other question with the daily revenue", async () => {
+    const fake = createClaudeFake();
+    const res = await fake.complete(ask("How did revenue develop last week?"));
+    expect((res.json as { sql: string }).sql).toMatch(/from ai\.revenue group by day_on/);
+    const other = await fake.complete(ask("How many customers booked a class?"));
+    expect((other.json as { sql: string }).sql).toMatch(/from ai\.revenue/);
+  });
+});

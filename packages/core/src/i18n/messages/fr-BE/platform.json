@@ -166,7 +166,8 @@
       "section_email": "E-mail",
       "section_automation": "Automatisation",
       "section_webinars": "Webinaires",
-      "section_credits": "Crédits"
+      "section_credits": "Crédits",
+      "partner": "Espace partenaire"
     },
     "report": {
       "title": "Signaler un problème",
@@ -631,7 +632,10 @@
       "failed": "Échec",
       "col_duration": "Durée",
       "ms": "{n} ms",
-      "col_error": "Erreur"
+      "col_error": "Erreur",
+      "token_ok": "Configuré",
+      "token_missing": "Non configuré",
+      "data_as_of": "Données au {date}"
     },
     "audit": {
       "title": "Journal d’audit",

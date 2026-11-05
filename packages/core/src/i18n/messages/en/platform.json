@@ -166,7 +166,8 @@
       "section_email": "Email",
       "section_automation": "Automation",
       "section_webinars": "Webinars",
-      "section_credits": "Credits"
+      "section_credits": "Credits",
+      "partner": "Partner area"
     },
     "report": {
       "title": "Report a problem",
@@ -631,7 +632,10 @@
       "failed": "Failed",
       "col_duration": "Duration",
       "ms": "{n} ms",
-      "col_error": "Error"
+      "col_error": "Error",
+      "token_ok": "Set",
+      "token_missing": "Not set",
+      "data_as_of": "Data as of {date}"
     },
     "audit": {
       "title": "Audit log",

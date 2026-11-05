@@ -166,7 +166,8 @@
       "section_email": "E-mail",
       "section_automation": "Automatisering",
       "section_webinars": "Webinars",
-      "section_credits": "Tegoeden"
+      "section_credits": "Tegoeden",
+      "partner": "Partnerzone"
     },
     "report": {
       "title": "Een probleem melden",
@@ -631,7 +632,10 @@
       "failed": "Mislukt",
       "col_duration": "Duur",
       "ms": "{n} ms",
-      "col_error": "Fout"
+      "col_error": "Fout",
+      "token_ok": "Ingesteld",
+      "token_missing": "Niet ingesteld",
+      "data_as_of": "Gegevens van {date}"
     },
     "audit": {
       "title": "Auditlog",

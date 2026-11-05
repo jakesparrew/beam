@@ -17,9 +17,9 @@
  */
 import { files, lightspeedImports, lightspeedSales, users } from "@beam/db/schema";
 import { seedCommerceCatalogue } from "@beam/db/seed/commerce";
+import { businessDayRange, parseLightspeedCsv } from "@beam/core/commerce";
 import { and, asc, eq } from "@/lib/ctx";
 import { storeFile } from "@/lib/files";
-import { businessDayRange, parseLightspeedCsv } from "../../../../packages/core/src/commerce/lightspeed";
 import type { SeedCtx } from "@/scripts/seed-demo";
 
 async function staffAuthor(s: SeedCtx): Promise<string | null> {

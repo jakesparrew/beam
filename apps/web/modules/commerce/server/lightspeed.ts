@@ -16,10 +16,10 @@
  */
 import { z } from "zod";
 import { files, lightspeedImports, lightspeedSales, vLightspeedDaily, type LightspeedImportErrorJson } from "@beam/db/schema";
+import { businessDayRange, parseLightspeedCsv, type RowError } from "@beam/core/commerce";
 import { readFile, storeFile } from "@/lib/files";
 import { and, asc, desc, eq, gte, lte, sql, NotFoundError, ValidationError, type Ctx, type DbOrTx } from "@/lib/ctx";
 import type { JobCtx } from "@/lib/job-runner";
-import { businessDayRange, parseLightspeedCsv, type RowError } from "../../../../../packages/core/src/commerce/lightspeed";
 
 /** Upload limit of the spec (section 4.2). */
 export const LIGHTSPEED_MAX_BYTES = 5 * 1024 * 1024;

@@ -11,7 +11,8 @@
       "orders": "Commandes",
       "attention": "Paiements à suivre",
       "pos": "Accueil",
-      "pos_day": "Clôture de caisse"
+      "pos_day": "Clôture de caisse",
+      "lightspeed": "Import Lightspeed"
     },
     "common": {
       "yes": "Oui",

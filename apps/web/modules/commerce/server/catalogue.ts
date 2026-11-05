@@ -300,7 +300,7 @@ export async function addPriceVersionRecord(ctx: Ctx, input: z.output<typeof Add
   return { priceVersionId: row!.id, version };
 }
 
-/** `setPersonPrice`: a customer-specific price; the latest `valid_from_at` wins (rule 6). */
+/** `setPersonPrice`: a customer-specific price; the latest `valid_from_at` wins (rule 6). Audited and on the person's timeline (`person_price.set`). */
 export async function setPersonPriceRecord(ctx: Ctx, input: z.output<typeof SetPersonPriceInput>): Promise<{ personPriceId: string }> {
   const userId = requireStaffUserId(ctx);
   await lockProduct(ctx.tx, input.productId);
@@ -317,6 +317,13 @@ export async function setPersonPriceRecord(ctx: Ctx, input: z.output<typeof SetP
     })
     .returning();
   await ctx.audit({ action: "person_price.set", entityType: "person_price", entityId: row!.id, personId: input.personId, newValue: row });
+  await ctx.recordEvent({
+    kind: "person_price.set",
+    personId: input.personId,
+    ref: { type: "person_price", id: row!.id },
+    dedupeKey: `person_price:${row!.id}:set`,
+    data: { product_id: input.productId },
+  });
   return { personPriceId: row!.id };
 }
 

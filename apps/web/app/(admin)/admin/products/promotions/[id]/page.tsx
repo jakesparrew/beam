@@ -5,7 +5,7 @@ import { formatDateTime, formatMoney, type LocalizedText } from "@beam/core/i18n
 import { requireStaff } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
 import { adminLocale, translator } from "@/lib/i18n";
-import { brusselsInputValue, commerceLabels, getPromotion, listProductOptions, promotionFormOptions } from "@/modules/commerce/queries";
+import { brusselsInputValue, commerceLabels, getPromotion, listProductOptions, listPromotionPartnerOptions, promotionFormOptions } from "@/modules/commerce/queries";
 import { PromotionForm } from "@/modules/commerce/ui/promotion-form";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -23,6 +23,7 @@ export default async function PromotionPage({ params }: { params: Promise<{ id: 
   const c = (k: string, p?: Record<string, string | number>) => tr(`commerce.admin_promotions.${k}`, p);
   const { promotion: p, counts, redemptions, overrun } = detail;
   const e = p.eligibility ?? {};
+  const [productOptions, partners] = await Promise.all([listProductOptions(db), listPromotionPartnerOptions(db, p.partnerCompanyId)]);
   const labels = {
     ...commerceLabels(locale, ["common", "admin_promotions"]),
     invalid: tr("commerce.admin_products.invalid"),
@@ -62,9 +63,10 @@ export default async function PromotionPage({ params }: { params: Promise<{ id: 
           maxUses: p.maxUses === null ? "" : String(p.maxUses),
           maxUsesPerPerson: p.maxUsesPerPerson === null ? "" : String(p.maxUsesPerPerson),
           isActive: p.isActive,
+          partnerCompanyId: p.partnerCompanyId ?? "",
         }}
         usesCount={p.usesCount}
-        options={promotionFormOptions(tr, locale, await listProductOptions(db))}
+        options={{ ...promotionFormOptions(tr, locale, productOptions), partners }}
         labels={labels}
       />
 

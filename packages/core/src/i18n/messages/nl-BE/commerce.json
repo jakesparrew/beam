@@ -11,7 +11,8 @@
       "orders": "Bestellingen",
       "attention": "Betalingen opvolgen",
       "pos": "Onthaal",
-      "pos_day": "Dagafsluiting onthaal"
+      "pos_day": "Dagafsluiting onthaal",
+      "lightspeed": "Lightspeed-import"
     },
     "common": {
       "yes": "Ja",

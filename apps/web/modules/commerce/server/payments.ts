@@ -367,8 +367,9 @@ async function upsertMandate(tx: Tx, payment: PaymentRow, providerMandateId: str
 }
 
 /**
- * Rule 33: `payment.failed` on the timeline, `credits.applyRenewalFailure` for a renewal order,
- * the checkout's `abandoned_reason`, and `commerce.payment_failed` with a retry link (not for
+ * Rule 33: `payment.failed` on the timeline, `credits.applyRenewalFailure` for a failed recurring
+ * renewal charge (a `recurring` payment; a one-off payment on a renewal link order is not a dunning
+ * attempt), the checkout's `abandoned_reason`, and `commerce.payment_failed` with a retry link (not for
  * renewal orders, whose reminder credits sends, not for POS, and only while the order can still
  * be paid).
  */
@@ -385,7 +386,7 @@ async function onPaymentEnded(tx: Tx, ctx: Ctx, payment: PaymentRow, status: Pay
       data: { order_id: order.id, reason },
     });
   }
-  if (order.renewalMembershipId) {
+  if (order.renewalMembershipId && payment.sequenceType === "recurring") {
     await applyRenewalFailure(tx, ctx, { membershipId: order.renewalMembershipId, paymentId: payment.id, reason });
   }
   if (order.checkoutId) {

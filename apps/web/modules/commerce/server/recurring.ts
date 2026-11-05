@@ -16,7 +16,7 @@
  * - `getActiveMandate` is the person's latest `valid` mandate.
  */
 import { randomUUID } from "node:crypto";
-import { mandates, orderLines, orders, payments, persons, products } from "@beam/db/schema";
+import { mandates, orderLines, orders, payments, persons, products, refunds } from "@beam/db/schema";
 import { newOrderReference, nextPaymentStatus, vatOf, type OnlinePaymentProvider, type PricingTrace } from "@beam/core/commerce";
 import { t } from "@beam/core/i18n";
 import { IntegrationError } from "@beam/integrations/_shared";
@@ -309,8 +309,9 @@ export type LateRefundResult = { refunded: false; failed?: true } | { refunded: 
  * order could not be cancelled) is refunded in full at once with reason `order_cancelled`. The
  * order stays `cancelled` and no credits function is called, so the ended membership is not
  * revived. No invoice was issued (the paid transaction never ran), so no credit note is due; the
- * refund is recorded on the payment (`refunded_cents`, status `refunded`) and on the timeline
- * (`order.refunded`). A provider refusal opens a finance task instead. The same applies, with
+ * refund is recorded on the payment (`refunded_cents`, status `refunded`), as a system `refunds`
+ * row (`created_by_user_id` null, `refunded`, or `sent` until the provider settles it) and on the
+ * timeline (`order.refunded`). A provider refusal opens a finance task instead. The same applies, with
  * reason `order_expired`, to a `paid` on an `expired` order that it could not finalise (edge
  * case 4: the euro credit the expiry released no longer covers the rest).
  */
@@ -362,6 +363,17 @@ export async function refundLatePaidOnCancelledOrder(ctx: Ctx & { integrations?:
       updatedAt: ctx.now,
     })
     .where(eq(payments.id, payment.id));
+  await tx.insert(refunds).values({
+    paymentId: payment.id,
+    orderId: order.id,
+    amountCents,
+    reason,
+    lines: [],
+    creditAction: "none",
+    providerRefundId: result.providerRefundId || null,
+    status: result.status === "refunded" ? "refunded" : "sent",
+    createdByUserId: null,
+  });
   const subject = orderSubject(order);
   if (subject) {
     await ctx.recordEvent({

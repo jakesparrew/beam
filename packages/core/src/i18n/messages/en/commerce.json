@@ -11,7 +11,8 @@
       "orders": "Orders",
       "attention": "Payment attention",
       "pos": "Front desk",
-      "pos_day": "Front-desk day close"
+      "pos_day": "Front-desk day close",
+      "lightspeed": "Lightspeed import"
     },
     "common": {
       "yes": "Yes",

@@ -20,6 +20,8 @@ import { closeE2eDb, e2eRows } from "./support/db";
 test.describe.configure({ mode: "serial" });
 
 const SLUG = "e2e-builder";
+/** Per run, so the flow differs from the version an earlier run published (publish refuses an unchanged draft). */
+const RUN = Date.now().toString(36);
 const TEMPLATE = "automation.voucher_expiry";
 const STARTER = {
   schema_version: 1,
@@ -100,7 +102,7 @@ test("marketing builds trigger -> delay -> branch -> email and task, publishes, 
   // Create task in the No lane.
   await page.getByTestId(`builder-add-${await laneId(page, branchKey, "else")}`).click();
   await page.getByTestId("builder-palette-task").click();
-  await page.getByTestId("builder-panel").getByLabel(anyLocale("editor", "task_title")).fill("E2E: call the person");
+  await page.getByTestId("builder-panel").getByLabel(anyLocale("editor", "task_title")).fill(`E2E: call the person (${RUN})`);
 
   await expect(page.getByTestId(`builder-lane-${branchKey}-then`).locator('[data-block="email"]')).toHaveCount(1);
   await expect(page.getByTestId(`builder-lane-${branchKey}-else`).locator('[data-block="task"]')).toHaveCount(1);

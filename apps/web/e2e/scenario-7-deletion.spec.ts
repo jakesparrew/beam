@@ -132,6 +132,12 @@ async function cleanup(): Promise<void> {
   await e2eRows(sql`delete from webinars w where w.slug like 'e2e-s7-webinar-%' and not exists (select 1 from webinar_registrations r where r.webinar_id = w.id)`);
   await e2eRows(sql`delete from imports where name = 'Scenario 7 webinar history' and status = 'done' and not exists (select 1 from imported_history h where h.import_id = imports.id)`);
   await e2eRows(sql`delete from imports where name like 'Scenario 7 re-import%'`);
+  // A run that stopped before the erasure leaves its person holding a seat and a waitlist place
+  // on demo sessions: release them.
+  const leftovers = sql`select id from persons where email like 'e2e+scenario7-%@example.com' and erased_at is null`;
+  await e2eRows(sql`update bookings set status = 'cancelled', cancelled_at = now(), cancel_reason_code = 'staff', version = version + 1
+    where status in ('reserved', 'confirmed') and person_id in (${leftovers})`);
+  await e2eRows(sql`delete from waitlist_entries where person_id in (${leftovers})`);
 }
 
 test.beforeAll(async () => {

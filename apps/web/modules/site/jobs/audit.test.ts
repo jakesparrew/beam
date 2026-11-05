@@ -11,7 +11,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { DbHandle } from "@beam/db";
 import { aiRequests, pages, pageVersions, siteAuditReports } from "@beam/db/schema";
 import { createTestDb, makePerson, makeProduct } from "@beam/db/testing";
-import type { Block, SiteAuditFinding } from "@beam/core/site";
+import type { Block } from "@beam/core/site";
 import { paragraphDoc } from "@beam/core/site";
 import type { ClaudeRequest } from "@beam/integrations/anthropic";
 
@@ -139,7 +139,7 @@ describe("site.audit_content", () => {
     expect(await run(now, scripted([]))).toMatchObject({ outcome: "reported" });
     const mine = (await reportOf(auditWeekOn(now)))!.findings.filter((x) => x.pageId === f.pageId);
     expect(mine).toEqual(
-      expect.arrayContaining<SiteAuditFinding>([
+      expect.arrayContaining([
         expect.objectContaining({ code: "product_inactive", severity: "warn", locale: "nl-BE" }),
         expect.objectContaining({ code: AUDIT_LOCALE_MISSING, severity: "info", locale: "fr-BE" }),
         expect.objectContaining({ code: AUDIT_LOCALE_MISSING, severity: "info", locale: "en" }),

@@ -77,7 +77,6 @@ export async function AuditReport({ L, locale }: { L: SiteAdminLabels; locale?: 
     report = await getLatestAuditReport(reportLocale);
   } catch {
     // The issues panel still renders when the report cannot be read.
-    report = null;
   }
   return <AuditReportPanel report={report} L={L} locale={reportLocale} />;
 }

@@ -156,7 +156,6 @@
         "instruction": "What should change?",
         "kindEdit": "Edit this page",
         "kindNewPage": "Write a new page",
-        "kindTranslate": "Translate missing languages",
         "locales": "Languages",
         "ready": "Proposal ready: review",
         "running": "Claude is writing a proposal…",

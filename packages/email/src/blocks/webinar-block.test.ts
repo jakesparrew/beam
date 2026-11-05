@@ -90,7 +90,7 @@ describe("webinar block: render", () => {
   });
 
   it("loads the cards through the webinars loader (getWebinarCards) once per compile, with the locale", async () => {
-    const loader = vi.fn(async (ids: string[], locale: string) => ids.filter((id) => id === WEBINAR).map(() => card({ title: `Webinar (${locale})` })));
+    const loader = vi.fn((ids: string[], locale: string) => Promise.resolve(ids.filter((id) => id === WEBINAR).map(() => card({ title: `Webinar (${locale})` }))));
     const out = await compileDocument(
       { schemaVersion: 1, locales: { en: [webinarBlock()], "fr-BE": [{ ...webinarBlock(), ctaLabel: "Réserver ma place" }] } },
       ["en", "fr-BE"],
@@ -126,7 +126,7 @@ describe("webinar block: missing webinar", () => {
     const blocks: Block[] = [
       { id: "co00000001", type: "columns", stackOnMobile: true, columns: [{ width: 50, blocks: [webinarBlock(MISSING)] }, { width: 50, blocks: [{ id: "tx00000001", type: "text", markdown: "Right." }] }] },
     ];
-    const result = await compileMarketing(doc(blocks), "en", { footer: footerFor("en"), webinars: async () => [] });
+    const result = await compileMarketing(doc(blocks), "en", { footer: footerFor("en"), webinars: () => Promise.resolve([]) });
     expect(result.variants.default!.html).toContain("Right.");
   });
 });

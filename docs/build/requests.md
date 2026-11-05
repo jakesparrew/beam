@@ -97,6 +97,8 @@ to "Served" with the package id.
 | credits-P8 | credits (owner of `nav.ts`) | Admin nav entry for `/admin/credits/sharing-review` (labelKey `credits.nav.sharing_review`, permission `credits.read`). |
 | credits-P8 | credits (owner of `packages/core/src/credits/types.ts`) | Remove the Wave 0 `SharingReviewRow` guess; the real type is exported from `apps/web/modules/credits/api.ts`. |
 | credits-P8 | credits (owner of `ui/adjust-dialog.tsx`) | Optionally add `already_shared`, `share_with_owner`, `grant_not_active`, `review_item_not_found` to `SPECIFIC` in `errorMessage`. |
+| automation-P6 | automation (owner of `packages/core/src/i18n/messages/*/automation.json`) | Add the `automation.panel.*`, `automation.panel.warning.*`, `automation.panel.refused.*`, `automation.panel.filter.*`, `automation.preview.failed` and `automation.errors.{enrolment_not_active,enrolment_not_found,person_not_found,anchor_required,move_same_automation,move_refused}` keys to all three catalogues; the text is in `PANEL_FALLBACK` in `apps/web/modules/automation/ui/person-automations-panel.tsx` (then drop the fallback). |
+| automation-P6 | automation (owner of `app/(admin)/admin/automations/[id]/enrolments/page.tsx`, `ui/run-log.tsx`) | Per-row Exit through `exitEnrolment`. |
 
 ## Served
 

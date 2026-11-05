@@ -42,6 +42,13 @@ import { getReachability } from "@/modules/email/api";
 import { endEnrolmentWith, versionDefinition } from "./exits";
 import { entryDedupeKey, runDedupeKey, writeRun } from "./runs";
 
+/**
+ * The row lock the engine takes on `persons` (A-11). It conflicts with every other person lock
+ * and with any `update persons`, so enrolments, merges and erasure of one person stay serial,
+ * but not with the `for key share` lock of a foreign key (see `enrol`).
+ */
+export const PERSON_LOCK = "no key update" as const;
+
 export type EnrolSource = "trigger" | "segment" | "staff" | "staff_move" | "enrol_step" | "migration" | "api";
 
 /** An automation with what the engine needs (current version parsed, group rank). */
@@ -212,11 +219,15 @@ export async function enrol(tx: Tx, input: EnrolInput): Promise<EnrolResult> {
   }
 
   // A-11: the person lock, erased and merged persons, restriction for marketing.
+  // `no key update`, not `update`: it still serialises enrolments and person writes, but not the
+  // `for key share` locks that every insert referencing the person takes (activity_events,
+  // person_stats, ...). With `for update`, the evaluator (one transaction holding several person
+  // locks) deadlocked with ops.refresh_recent_stats upserting person_stats for the same persons.
   const [person] = await tx
     .select({ id: persons.id, erasedAt: persons.erasedAt, mergedInto: persons.mergedIntoPersonId, restrictedAt: persons.processingRestrictedAt, locale: persons.locale })
     .from(persons)
     .where(eq(persons.id, input.personId))
-    .for("update");
+    .for(PERSON_LOCK);
   if (!person || person.erasedAt || person.mergedInto) return skipped("audience");
   if (a.isMarketing && person.restrictedAt) {
     await writeRun(tx, { ...base, enrolmentId: null, outcome: "skipped_unreachable", reason: "restricted", dedupeKey: entryKey });

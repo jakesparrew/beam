@@ -90,7 +90,9 @@ test("the owner invites a reception user, changes its role, sets a flag to teste
 });
 
 test("the reception user reports a problem from the user menu and the owner sees it in the support register", async ({ browser }) => {
-  const reception = await browser.newPage();
+  // AxeBuilder needs a page of a context made with browser.newContext(), not browser.newPage().
+  const receptionContext = await browser.newContext();
+  const reception = await receptionContext.newPage();
   await signInStaff(reception, "reception", { returnTo: "/admin/support" });
   await expectAccessible(reception);
   await reception.locator("header button[aria-haspopup]").last().click();
@@ -109,12 +111,13 @@ test("the reception user reports a problem from the user menu and the owner sees
   await reception.goto("/admin/support");
   await expect(reception.getByText(row!.reference)).toBeVisible();
   await expectAccessible(reception);
-  await reception.close();
+  await receptionContext.close();
 
-  const owner = await browser.newPage();
+  const ownerContext = await browser.newContext();
+  const owner = await ownerContext.newPage();
   await signInStaff(owner, "owner", { returnTo: "/admin/system/support" });
   await expect(owner.getByText(row!.reference)).toBeVisible();
   await expect(owner.getByText(PROBLEM_TITLE)).toBeVisible();
   await expectAccessible(owner);
-  await owner.close();
+  await ownerContext.close();
 });

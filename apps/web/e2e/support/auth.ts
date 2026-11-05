@@ -1,10 +1,12 @@
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, type Locator, type Page, type Response } from "@playwright/test";
 import { TOTP, Secret } from "otpauth";
 import { sql } from "drizzle-orm";
-import { e2eRows } from "./db";
+import type { Db } from "@beam/db";
+import { e2eDb, e2eRows } from "./db";
 import { latestEmail } from "./sink";
 
 export type DemoRole =
@@ -23,11 +25,15 @@ export const demoStaffEmail = (role: DemoRole) => `${role}@demo.beam.be`;
 const here = path.dirname(fileURLToPath(import.meta.url));
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-type LoginCatalogue = { invalid_credentials: string; locked: string };
-const loginCatalogues: LoginCatalogue[] = (["nl-BE", "fr-BE", "en"] as const).map((locale) => {
+type LoginCatalogue = { invalid_credentials: string; locked: string; rate_limited: string };
+type MfaCatalogue = { invalid_code: string };
+const platformCatalogues = (["nl-BE", "fr-BE", "en"] as const).map((locale) => {
   const file = path.join(here, `../../../../packages/core/src/i18n/messages/${locale}/platform.json`);
-  return (JSON.parse(readFileSync(file, "utf8")) as { platform: { login: LoginCatalogue } }).platform.login;
+  return (JSON.parse(readFileSync(file, "utf8")) as { platform: { login: LoginCatalogue; mfa: MfaCatalogue } }).platform;
 });
+const loginCatalogues: LoginCatalogue[] = platformCatalogues.map((c) => c.login);
+/** The text before the first ICU argument (`rate_limited` ends in a plural of minutes). */
+const leadingText = (message: string) => message.split("{")[0]!.trim();
 
 /**
  * The staff login's catalogue messages, in any of the three locales: wrong credentials, and
@@ -36,6 +42,10 @@ const loginCatalogues: LoginCatalogue[] = (["nl-BE", "fr-BE", "en"] as const).ma
 export const staffLoginMessages = {
   invalidCredentials: new RegExp(loginCatalogues.map((c) => escapeRe(c.invalid_credentials)).join("|")),
   locked: new RegExp(loginCatalogues.map((c) => escapeRe(c.locked).replace(escapeRe("{time}"), "\\d{2}[:.]\\d{2}")).join("|")),
+  /** PL-68: 10 password sign-ins per IP per minute, 20 per account per hour. */
+  rateLimited: new RegExp(loginCatalogues.map((c) => escapeRe(leadingText(c.rate_limited))).join("|")),
+  /** A wrong or replayed TOTP code. */
+  invalidCode: new RegExp(platformCatalogues.map((c) => escapeRe(c.mfa.invalid_code)).join("|")),
 };
 
 /**
@@ -61,8 +71,8 @@ export async function submitAndWait(page: Page, button: Locator = page.locator('
   return response;
 }
 
-/** Waits for `url`, failing at once with the form's error text when the form shows one instead. */
-async function waitForUrlOrFormError(page: Page, url: RegExp | ((u: URL) => boolean), what: string): Promise<void> {
+/** Waits for `url`, or returns the form's error text when the form shows one instead. */
+async function urlOrFormError(page: Page, url: RegExp | ((u: URL) => boolean)): Promise<string | null> {
   const error = formError(page);
   const reached = page.waitForURL(url).then(() => "url" as const);
   const failed = error.waitFor({ state: "visible" }).then(() => "error" as const);
@@ -70,50 +80,104 @@ async function waitForUrlOrFormError(page: Page, url: RegExp | ((u: URL) => bool
   reached.catch(() => undefined);
   failed.catch(() => undefined);
   const outcome = await Promise.race([reached, failed]);
-  if (outcome === "error") throw new Error(`${what} failed: ${(await error.textContent())?.trim() ?? ""}`);
+  return outcome === "error" ? ((await error.textContent())?.trim() ?? "") : null;
+}
+
+/** Waits for `url`, failing at once with the form's error text when the form shows one instead. */
+async function waitForUrlOrFormError(page: Page, url: RegExp | ((u: URL) => boolean), what: string): Promise<void> {
+  const error = await urlOrFormError(page, url);
+  if (error !== null) throw new Error(`${what} failed: ${error}`);
+}
+
+/** The code of `DEMO_TOTP_SECRET` at `ms` (epoch milliseconds). */
+function demoTotpAt(ms: number): string {
+  const secret = process.env.DEMO_TOTP_SECRET;
+  if (!secret) throw new Error("DEMO_TOTP_SECRET is not set");
+  return TOTP.generate({ secret: Secret.fromBase32(secret.replace(/\s/g, "").toUpperCase()), algorithm: "SHA1", digits: 6, period: 30, timestamp: ms });
 }
 
 /** The current code of `DEMO_TOTP_SECRET`, waiting for a fresh step when the current one was used. */
 export async function demoTotp(previous?: string): Promise<string> {
-  const secret = process.env.DEMO_TOTP_SECRET;
-  if (!secret) throw new Error("DEMO_TOTP_SECRET is not set");
-  const make = () => TOTP.generate({ secret: Secret.fromBase32(secret.replace(/\s/g, "").toUpperCase()), algorithm: "SHA1", digits: 6, period: 30 });
-  let code = make();
+  let code = demoTotpAt(Date.now());
   while (previous && code === previous) {
     await new Promise((r) => setTimeout(r, 1000));
-    code = make();
+    code = demoTotpAt(Date.now());
   }
   return code;
 }
 
-/**
- * Waits until the current TOTP step is later than the last step the server accepted for the
- * user (`rate_limits` row `totp_used:<user id>`), so a code is never a replay. The server's
- * counter is the truth: a Playwright retry runs in a new worker without any in-memory state.
- */
-async function waitForFreshTotpStep(email: string): Promise<void> {
-  const [row] = await e2eRows<{ c: string | number | null }>(
+const totpStep = (ms: number = Date.now()) => Math.floor(ms / 30_000);
+
+/** The last TOTP step the server accepted for the user: `rate_limits` row `totp_used:<user id>`, as `storeTotpCounter` (lib/auth.ts) writes it. */
+async function usedTotpStep(db: Pick<Db, "execute">, email: string): Promise<number> {
+  const result: unknown = await db.execute(
     sql`select floor(extract(epoch from r.window_start) / 30)::bigint as c from rate_limits r
       join users u on r.key = 'totp_used:' || u.id::text where lower(u.email) = ${email.toLowerCase()}`,
   );
-  const used = row?.c == null ? -1 : Number(row.c);
-  while (Math.floor(Date.now() / 30_000) <= used) await new Promise((r) => setTimeout(r, 1000));
+  const rows = ((result as { rows?: { c: string | number | null }[] }).rows ?? []) as { c: string | number | null }[];
+  return rows[0]?.c == null ? -1 : Number(rows[0].c);
+}
+
+/**
+ * Enters a TOTP code on `/admin/mfa/verify` and waits for the redirect. A code is accepted once
+ * per 30-second step (replay protection, PL-4), and every worker of every run on beam_dev signs
+ * in as the same demo users, so:
+ * - the step is taken under a Postgres advisory lock per user, held until the server has
+ *   answered, so two sign-ins through this helper never present the same step;
+ * - it waits until the current step is later than the last step the server accepted (the
+ *   server's counter is the truth: a Playwright retry runs in a new worker without memory);
+ * - when the code is refused and the server's counter shows that a sign-in outside this helper
+ *   took that very step in between, it tries the next step; any other refusal fails.
+ */
+async function enterFreshTotp(page: Page, email: string): Promise<void> {
+  const verifyUrl = page.url();
+  const db = await e2eDb();
+  await db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`e2e:totp:${email.toLowerCase()}`}))`);
+    for (let attempt = 0; ; attempt++) {
+      const used = await usedTotpStep(tx, email);
+      while (totpStep() <= used) await new Promise((r) => setTimeout(r, 500));
+      const now = Date.now();
+      const step = totpStep(now);
+      if (attempt > 0) await page.goto(verifyUrl);
+      await page.locator('input[name="code"]').fill(demoTotpAt(now));
+      await submitAndWait(page);
+      const error = await urlOrFormError(page, (url) => !url.pathname.startsWith("/admin/mfa"));
+      if (error === null) return;
+      const takenElsewhere = staffLoginMessages.invalidCode.test(error) && (await usedTotpStep(tx, email)) >= step;
+      if (!takenElsewhere || attempt >= 3) throw new Error(`TOTP step of ${email} failed: ${error}`);
+    }
+  });
+}
+
+/**
+ * PL-68 allows 10 password sign-ins per IP per minute and 20 per account per hour. The suite
+ * signs in as the demo owner more than 20 times, and parallel runs on beam_dev share the demo
+ * accounts and the loopback IP, so a refused attempt clears this account's bucket and the
+ * loopback IP buckets once and tries again (platform.spec.ts covers the limits themselves).
+ */
+async function clearLoginBuckets(email: string): Promise<void> {
+  const digest = createHash("sha256").update(email.trim().toLowerCase()).digest("hex");
+  await e2eRows(sql`delete from rate_limits where key = ${`login:acct:${digest}`}
+    or key in ('login:ip:127.0.0.1', 'login:ip:::1', 'login:ip:::ffff:127.0.0.1')`);
 }
 
 /** Signs a demo staff user in: password from `DEMO_STAFF_PASSWORD`, then a TOTP from `DEMO_TOTP_SECRET`. Callers close the e2e database in `afterAll` (`closeE2eDb()`). */
 export async function signInStaff(page: Page, role: DemoRole, opts: { returnTo?: string } = {}): Promise<void> {
   const password = process.env.DEMO_STAFF_PASSWORD;
   if (!password) throw new Error("DEMO_STAFF_PASSWORD is not set");
-  await page.goto(opts.returnTo ? `/admin/login?returnTo=${encodeURIComponent(opts.returnTo)}` : "/admin/login");
-  await page.getByLabel(/e-?mail/i).fill(demoStaffEmail(role));
-  await page.locator('input[name="password"]').fill(password);
-  await submitAndWait(page);
-  await waitForUrlOrFormError(page, /\/admin\/mfa\/verify/, `Password sign-in of ${demoStaffEmail(role)}`);
-  // A code is accepted once per 30-second step (replay protection), so wait for a fresh one.
-  await waitForFreshTotpStep(demoStaffEmail(role));
-  await page.locator('input[name="code"]').fill(await demoTotp());
-  await submitAndWait(page);
-  await waitForUrlOrFormError(page, (url) => !url.pathname.startsWith("/admin/mfa"), `TOTP step of ${demoStaffEmail(role)}`);
+  const email = demoStaffEmail(role);
+  for (let attempt = 0; ; attempt++) {
+    await page.goto(opts.returnTo ? `/admin/login?returnTo=${encodeURIComponent(opts.returnTo)}` : "/admin/login");
+    await page.getByLabel(/e-?mail/i).fill(email);
+    await page.locator('input[name="password"]').fill(password);
+    await submitAndWait(page);
+    const error = await urlOrFormError(page, /\/admin\/mfa\/verify/);
+    if (error === null) break;
+    if (attempt > 0 || !staffLoginMessages.rateLimited.test(error)) throw new Error(`Password sign-in of ${email} failed: ${error}`);
+    await clearLoginBuckets(email);
+  }
+  await enterFreshTotp(page, email);
 }
 
 /** Requests a magic link on `/<seg>/account/login`, reads it from the sink, opens it and clicks "Sign in". */

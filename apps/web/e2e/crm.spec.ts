@@ -128,8 +128,13 @@ test("customer edits the profile and changes a preference; pages pass axe", asyn
   await signInCustomer(page, CUSTOMER, "nl");
   await page.goto("/nl/account/profile");
   await expectAccessible(page);
-  await page.locator('input[name="firstName"]').fill(`E2E${RUN}`);
-  await clickAndWait(page, () => page.locator('form button[type="submit"]').first().click());
+  // A fresh browser has no consent cookie: the fixed cookie banner covers the form's save button.
+  await page.locator('[data-cookie-banner] [data-consent="reject_all"]').click();
+  await expect(page.locator("[data-cookie-banner]")).toBeHidden();
+  // The profile form posts snake_case field names (app/[locale]/(portal)/account/profile/page.tsx).
+  const profileForm = page.locator('form:has(input[name="first_name"])');
+  await profileForm.locator('input[name="first_name"]').fill(`E2E${RUN}`);
+  await clickAndWait(page, () => profileForm.locator('button[type="submit"]').click());
   const [after] = await e2eRows<{ first_name: string }>(sql`select first_name from persons where email = ${CUSTOMER} and erased_at is null`);
   expect(after!.first_name).toBe(`E2E${RUN}`);
 

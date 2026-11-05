@@ -41,8 +41,10 @@ vi.mock("@/modules/automation/api", async (importOriginal) => {
 const { createCtx, eq, setAppDb, sql } = await import("@/lib/ctx");
 const { rowsOf } = await import("@/lib/sensitive");
 const { makeCtx, resetRuntime, staffActor } = await import("@/lib/testing");
-const { recordConsent, getCurrentConsents } = await import("@/modules/crm/api");
+// The orchestrator loads first so its automation import binds to the mock above; crm's api barrel
+// reaches automation through a cycle, and loaded first it would hand the orchestrator the real module.
 const o = await import("./orchestrator");
+const { recordConsent, getCurrentConsents } = await import("@/modules/crm/api");
 const { requestOf, useTestKey } = await import("./ops-p5.fixtures");
 
 let h: DbHandle;

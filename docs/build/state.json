@@ -2674,7 +2674,7 @@
       "minutes": 58
     },
     "fix-w20-finance-wiring": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "fixer": true,
       "module": "finance",
@@ -2840,8 +2840,10 @@
       "runId": null,
       "startedAt": "2026-11-05T05:30:09Z",
       "branchSha": "893b774",
-      "endedAt": "2026-11-05T06:04:43Z",
-      "minutes": 25
+      "endedAt": "2026-11-05T08:10:37Z",
+      "minutes": 25,
+      "mergeSha": "64e512c",
+      "mergedAt": "2026-11-05T08:37:11Z"
     },
     "fix-w20-credits-wiring": {
       "status": "merged",

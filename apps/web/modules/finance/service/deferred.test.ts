@@ -209,7 +209,7 @@ const decoder = new TextDecoder("utf-8", { ignoreBOM: true });
 async function csvRows(kind: "deferred_revenue" | "breakage" | "voucher_redemptions", from: string, to: string, pageSize?: number) {
   const built = await buildExportCsv(h.db, kind, { from, to }, pageSize ? { pageSize } : {});
   if (!built.ok) throw new Error(built.error);
-  const lines = decoder.decode(built.bytes).replace(/^﻿/, "").trimEnd().split("\r\n");
+  const lines = decoder.decode(built.bytes).replace(/^\uFEFF/, "").trimEnd().split("\r\n");
   return { header: lines[0]!.split(";"), rows: lines.slice(1).map((l) => l.split(";")), rowCount: built.rowCount };
 }
 const euros = (s: string) => Math.round(Number(s) * 100);

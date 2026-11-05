@@ -5,13 +5,17 @@
  * without its permission (`forbidden` before anything is written; reception and marketing hold
  * none of the finance permissions), customer sessions are `unauthorized` on staff actions and
  * staff sessions on customer actions, and a customer reaches only their own invoices and requests.
+ * finance-P8: `/admin/finance/dashboard` is refused (404) without `reports.finance`.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { randomUUID } from "node:crypto";
+import type { ReactElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import type { DbHandle } from "@beam/db";
 import { billitParties, financeExports, invoiceRequests, invoices } from "@beam/db/schema";
 import { eq, setAppDb, type Actor } from "@/lib/ctx";
 import { PERMISSIONS } from "@/registry/permissions.generated";
+import DashboardPage from "@/app/(admin)/admin/finance/dashboard/page";
 import * as actions from "./actions";
 import { issueCreditNote, issueInvoice, markCreditNoteSettled, resyncCustomer, setOrderBillingDetails } from "./api";
 import { openInvoice, paidB2c } from "./finance-p4.helpers";
@@ -184,5 +188,38 @@ describe("finance actions and staff permissions (finance-P5)", () => {
     expect(await actions.cancelCompanyInvoiceRequest({ requestId })).toMatchObject({ ok: true });
     const [row] = await h.db.select().from(invoiceRequests).where(eq(invoiceRequests.id, requestId));
     expect(row!.status).toBe("cancelled");
+  });
+});
+
+describe("finance dashboard (finance-P8)", () => {
+  beforeEach(() => jar.clear());
+  const open = () => DashboardPage({ searchParams: Promise.resolve({ period: "month" }) });
+  const digestOf = async (p: Promise<unknown>) => {
+    const error = await p.then(
+      () => null,
+      (e: unknown) => e as { digest?: string },
+    );
+    return String(error?.digest ?? "");
+  };
+
+  it("is a 404 for staff without reports.finance, even with every other finance permission", async () => {
+    await signInStaff(jar, h.db, "customer_service", ["invoices.read", "invoices.issue"]);
+    expect(await digestOf(open())).toContain("404");
+    jar.clear();
+    await signInStaff(jar, h.db, "reception");
+    expect(await digestOf(open())).toContain("404");
+  });
+
+  it("sends a visitor without a staff session to the login page", async () => {
+    expect(await digestOf(open())).toContain("NEXT_REDIRECT");
+    await signInCustomer(jar, h.db);
+    expect(await digestOf(open())).toContain("NEXT_REDIRECT");
+  });
+
+  it("renders for the finance role, which holds reports.finance", async () => {
+    await signInStaff(jar, h.db, "finance");
+    const html = renderToStaticMarkup((await open()) as ReactElement);
+    expect(html).toContain('data-testid="finance-dashboard"');
+    expect(html).toContain('data-testid="tile-net-revenue"');
   });
 });

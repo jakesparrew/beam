@@ -66,6 +66,8 @@ test("marketing edits a seeded journey's step offset, publishes, pauses, resumes
   await signInStaff(page, "marketing", { returnTo: "/admin/automations" });
   await expect(page.getByTestId("automation-table")).toBeVisible();
   await page.locator(`tr[data-slug="${SLUG}"] a`).first().click();
+  // The list shows a status badge per row: assert on the overview only once it has loaded.
+  await page.waitForURL(new RegExp(`/admin/automations/${id}$`));
   await expect(page.getByTestId("automation-status")).toHaveAttribute("data-status", "active");
 
   // Form editor: move the first step by one hour and save the draft.

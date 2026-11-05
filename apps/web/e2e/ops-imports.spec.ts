@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { sql } from "drizzle-orm";
 import { signInStaff } from "./support/auth";
-import { closeE2eDb, e2eRows } from "./support/db";
+import { closeE2eDb, e2eRewrite, e2eRows } from "./support/db";
 
 /**
  * ops-P4 end to end (beam_dev with the demo seed): the owner uploads a companies CSV of a little
@@ -26,7 +26,12 @@ async function reset(): Promise<void> {
   await e2eRows(sql`delete from import_external_ids where import_id in (select id from imports where name = ${IMPORT_NAME})`);
   await e2eRows(sql`delete from imports where name = ${IMPORT_NAME}`);
   await e2eRows(sql`delete from company_contacts where company_id in (select id from companies where name like ${`${PREFIX}%`})`);
-  await e2eRows(sql`delete from companies where name like ${`${PREFIX}%`}`);
+  // The import records `company.created` on each company's timeline; `activity_events` is
+  // append-only, so its rows go under `beam.allow_rewrite`, before the companies they reference.
+  await e2eRewrite([
+    sql`delete from activity_events where company_id in (select id from companies where name like ${`${PREFIX}%`})`,
+    sql`delete from companies where name like ${`${PREFIX}%`}`,
+  ]);
 }
 
 async function clickAction(page: Page, click: () => Promise<void>): Promise<void> {

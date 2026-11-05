@@ -1,4 +1,3 @@
-import type { Route } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Alert, AlertDescription } from "@beam/ui";
@@ -86,7 +85,7 @@ export default async function CustomDashboardPage({ params }: { params: Promise<
   return (
     <div className="grid gap-6" data-testid="custom-dashboard">
       <div className="grid gap-2">
-        <Link href={"/admin/dashboard/custom" as Route} className="text-sm underline-offset-4 hover:underline">
+        <Link href="/admin/dashboard/custom" className="text-sm underline-offset-4 hover:underline">
           {tr("ops.custom.back")}
         </Link>
         <h1 className="text-2xl font-semibold">{dashboard.name}</h1>

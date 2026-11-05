@@ -47,7 +47,7 @@ const dateRange = (r: Range) => ({ from: brusselsDate(r.from), to: brusselsDate(
 const memos = new WeakMap<object, Map<string, Promise<unknown>>>();
 function memo<T>(ctx: OpsReadCtx, key: string, fn: () => Promise<T>): Promise<T> {
   let m = memos.get(ctx);
-  if (!m) memos.set(ctx, (m = new Map()));
+  if (!m) memos.set(ctx, (m = new Map<string, Promise<unknown>>()));
   if (!m.has(key)) m.set(key, fn());
   return m.get(key) as Promise<T>;
 }

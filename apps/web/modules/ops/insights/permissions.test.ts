@@ -9,7 +9,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import type { DbHandle } from "@beam/db";
 import { auditLog, dashboards, featureFlags, roles } from "@beam/db/schema";
 import { ForbiddenError } from "@beam/core/errors";
-import type { RoleKey } from "@beam/core/platform";
+import type { RoleKey } from "@beam/db/schema";
 import { createTestDb, makeUser } from "@beam/db/testing";
 
 const jar = new Map<string, string>();

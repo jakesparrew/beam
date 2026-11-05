@@ -121,7 +121,7 @@ export function WidgetPicker({
       setMessage(labels.errors[res.error.code as keyof WidgetPickerLabels["errors"]] ?? labels.errors.generic);
       return;
     }
-    router.push("/admin/dashboard/custom" as Route);
+    router.push("/admin/dashboard/custom");
   }
 
   if (!open) {
@@ -131,7 +131,7 @@ export function WidgetPicker({
           {mode === "create" ? labels.create : labels.edit}
         </Button>
         {canDelete && dashboardId ? (
-          <Button type="button" variant="destructive" onClick={remove} disabled={busy} data-testid="dashboard-delete">
+          <Button type="button" variant="destructive" onClick={() => void remove()} disabled={busy} data-testid="dashboard-delete">
             {labels.delete}
           </Button>
         ) : null}

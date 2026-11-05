@@ -312,3 +312,40 @@ export const vSharingReview = pgView("v_sharing_review", {
   distinctCount: integer("distinct_count").notNull(),
   lastAt: tz("last_at").notNull(),
 }).existing();
+
+/**
+ * R4 (credits-P10): one row per closed package, input for ops' churn and repurchase indicators
+ * and custom dashboards (credits spec section 2, R4). A closed package is a grant of source
+ * `purchase` in status `exhausted` or `expired`; `closed_at` is its `status_changed_at` (an
+ * `exhausted` grant whose `expires_at` passed stays `exhausted`, spec section 2). Open (`active`)
+ * and `revoked` grants are left out. `next_purchase_at` is the earliest `starts_at` of a later
+ * (`starts_at` strictly after this grant's) `purchase` grant of the same `credit_kind` and person
+ * that was not revoked, so a refunded repurchase does not count and two packages bought together
+ * are not each other's repurchase. `days_to_repurchase` counts Brussels calendar days from
+ * `closed_at` to `next_purchase_at` (0 when the next package was bought before this one closed).
+ * Ids, kinds and dates only: non-sensitive (ops exposes it in the `ai` schema).
+ */
+export const vPackageCyclesSql = `select g.id as grant_id, g.person_id, g.product_id, g.credit_kind,
+       g.status_changed_at as closed_at, n.next_purchase_at,
+       case when n.next_purchase_at is null then null
+            else greatest(0, (n.next_purchase_at at time zone 'Europe/Brussels')::date
+                             - (g.status_changed_at at time zone 'Europe/Brussels')::date) end::int as days_to_repurchase,
+       (n.next_purchase_at is not null) as repurchased
+from credit_grants g
+left join lateral (
+  select min(l.starts_at) as next_purchase_at
+  from credit_grants l
+  where l.person_id = g.person_id and l.credit_kind = g.credit_kind and l.source = 'purchase'
+    and l.status <> 'revoked' and l.starts_at > g.starts_at) n on true
+where g.source = 'purchase' and g.status in ('exhausted', 'expired')`;
+
+export const vPackageCycles = pgView("v_package_cycles", {
+  grantId: uuid("grant_id").notNull(),
+  personId: uuid("person_id").notNull(),
+  productId: uuid("product_id"),
+  creditKind: creditGrantsCreditKind("credit_kind").notNull(),
+  closedAt: tz("closed_at").notNull(),
+  nextPurchaseAt: tz("next_purchase_at"),
+  daysToRepurchase: integer("days_to_repurchase"),
+  repurchased: boolean("repurchased").notNull(),
+}).existing();

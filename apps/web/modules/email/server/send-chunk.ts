@@ -23,6 +23,7 @@
  * At its end the chunk locks the campaign row, adds its sends to `sent_count` and sets `sent`
  * when no recipient is `planned` any more (rule 34), then evaluates the bounce rate (rule 37).
  */
+import { createHash } from "node:crypto";
 import type { Tx } from "@beam/db";
 import { campaignRecipients, campaigns, emailMessages, emailTemplates, emailTemplateVersions, persons, vMarketingReachability, vPersonStatus } from "@beam/db/schema";
 import { MissingTranslationError, PermanentError } from "@beam/core/errors";
@@ -71,6 +72,17 @@ export type ChunkResult = {
 
 /** The message key of a campaign recipient (decision 17). */
 export const campaignMessageKey = (campaignId: string, personId: string): string => `campaign:${campaignId}:person:${personId}`;
+
+/**
+ * The message id derived from its key (a version-5-style UUID over sha256), so an attempt that
+ * reaches Resend and then rolls back re-inserts the same id, renders the same link token and
+ * sends a byte-identical batch under the same idempotency key (edge cases 5 and 6).
+ */
+export function campaignMessageId(key: string): string {
+  const h = createHash("sha256").update(`email-message:${key}`).digest("hex");
+  const variant = ((parseInt(h[16]!, 16) & 0x3) | 0x8).toString(16);
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-5${h.slice(13, 16)}-${variant}${h.slice(17, 20)}-${h.slice(20, 32)}`;
+}
 
 type Version = typeof emailTemplateVersions.$inferSelect;
 type Recipient = typeof campaignRecipients.$inferSelect;
@@ -171,6 +183,7 @@ async function messageFor(tx: Tx, env: ChunkEnv, r: Recipient, p: PersonRow & { 
   const [inserted] = await tx
     .insert(emailMessages)
     .values({
+      id: campaignMessageId(key),
       personId: r.personId,
       toEmail: p.email,
       kind: "campaign",

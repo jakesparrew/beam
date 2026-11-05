@@ -10,6 +10,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { sql } from "drizzle-orm";
 import { expectAccessible } from "./support/a11y";
 import { closeE2eDb, e2eRows } from "./support/db";
+import { createEventPage, removeEventPage, type E2eEventPage } from "./support/event-page";
 
 type Route = { kind: string; path: string };
 
@@ -22,7 +23,17 @@ async function nlPath(kind: string): Promise<string | null> {
   return row.path ? `/nl/${row.path}` : "/nl";
 }
 
+/** The demo seed of beam_dev has no event page; the event case then uses one of this spec's own. */
+let ownEvent: E2eEventPage | null = null;
+async function pathOf(kind: string): Promise<string | null> {
+  const seeded = await nlPath(kind);
+  if (seeded || kind !== "event") return seeded;
+  ownEvent ??= await createEventPage("e2e-a11y-event");
+  return ownEvent.nlPath;
+}
+
 test.afterAll(async () => {
+  await removeEventPage(ownEvent);
   await closeE2eDb();
 });
 
@@ -39,7 +50,7 @@ async function tabUntil(page: Page, predicate: string, max = 60): Promise<boolea
 test.describe("accessibility of the public site", () => {
   for (const kind of ["home", "offer", "pricing", "events_index", "event", "contact", "legal"]) {
     test(`${kind} has no serious or critical axe violation`, async ({ page }) => {
-      const path = await nlPath(kind);
+      const path = await pathOf(kind);
       test.skip(!path, `no seeded ${kind} page in nl-BE`);
       const res = await page.goto(path!);
       expect(res?.status()).toBe(200);

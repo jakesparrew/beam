@@ -9,6 +9,7 @@
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import { sql } from "drizzle-orm";
 import { closeE2eDb, e2eRows } from "./support/db";
+import { createEventPage, removeEventPage, type E2eEventPage } from "./support/event-page";
 
 const LCP_BUDGET_MS = 2500;
 const CLS_BUDGET = 0.1;
@@ -26,7 +27,17 @@ async function nlPath(kind: string): Promise<string | null> {
   return row.path ? `/nl/${row.path}` : "/nl";
 }
 
+/** The demo seed of beam_dev has no event page; the event case then uses one of this spec's own. */
+let ownEvent: E2eEventPage | null = null;
+async function pathOf(kind: string): Promise<string | null> {
+  const seeded = await nlPath(kind);
+  if (seeded || kind !== "event") return seeded;
+  ownEvent ??= await createEventPage("e2e-perf-event");
+  return ownEvent.nlPath;
+}
+
 test.afterAll(async () => {
+  await removeEventPage(ownEvent);
   await closeE2eDb();
 });
 
@@ -81,7 +92,7 @@ test.describe("performance budgets (lab)", () => {
   test.setTimeout(120_000);
   for (const kind of ["home", "offer", "event"]) {
     test(`${kind}: LCP <= 2.5 s, CLS <= 0.1, first-load JS <= 120 KB`, async ({ browser, baseURL }) => {
-      const path = await nlPath(kind);
+      const path = await pathOf(kind);
       test.skip(!path, `no seeded ${kind} page in nl-BE`);
       const origin = baseURL ?? "http://localhost:3100";
       // Warm the server caches (unstable_cache, ISR) so the measured load is a returning-server one.

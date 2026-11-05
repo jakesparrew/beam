@@ -252,6 +252,31 @@
         "live": "Live",
         "replay": "Replay",
         "on_demand": "On demand"
+      },
+      "opportunity_stage": {
+        "target": "Target",
+        "prospect_identified": "Prospect identified",
+        "contact_identified": "Contact identified",
+        "outreach": "Outreach",
+        "response": "Response",
+        "qualified": "Qualified",
+        "discovery": "Discovery",
+        "proposal": "Proposal",
+        "negotiation": "Negotiation",
+        "won": "Won",
+        "lost": "Lost",
+        "account_management": "Account management",
+        "renewal": "Renewal"
+      },
+      "playbook_pipeline": {
+        "b2b": "B2B",
+        "b2c": "B2C"
+      },
+      "kpi_unit": {
+        "count": "Count",
+        "pct": "Percentage",
+        "cents": "Amount",
+        "days": "Days"
       }
     },
     "persons": {
@@ -488,7 +513,13 @@
         "exited": "Left the automation",
         "completed": "Automation completed",
         "failed": "Step failed"
-      }
+      },
+      "opportunity_created": "Opportunity created",
+      "opportunity_updated": "Opportunity details changed",
+      "opportunity_stage_changed": "Opportunity moved to another stage",
+      "opportunity_won": "Opportunity won",
+      "opportunity_lost": "Opportunity lost",
+      "opportunity_reopened": "Opportunity reopened"
     },
     "duplicates": {
       "title": "Possible duplicates",
@@ -981,6 +1012,120 @@
       "col_date": "Date",
       "col_scope": "Scope",
       "col_reason": "Reason"
+    },
+    "pipeline": {
+      "title": "Pipeline",
+      "create": "New opportunity",
+      "empty": "No opportunities yet.",
+      "filter_owner": "Owner",
+      "all_owners": "All owners",
+      "filter_min_value": "Minimum value (EUR)",
+      "filter": "Filter",
+      "total": "Total",
+      "weighted": "Weighted",
+      "won_summary": "Won: {count} ({value})",
+      "lost_summary": "Lost: {count}",
+      "drop_won": "Drop here to mark as won",
+      "drop_lost": "Drop here to mark as lost",
+      "column_empty": "Nothing in this stage",
+      "playbook_link": "Sales playbook",
+      "no_companies": "Create a company first.",
+      "card": {
+        "expected_close": "Expected close",
+        "last_contact": "Last contact",
+        "never": "Never",
+        "next_action": "Next action",
+        "stalled": "Stalled",
+        "no_contact": "No contact",
+        "move": "Move"
+      },
+      "dialog": {
+        "title": "Move to another stage",
+        "description": "choose the new stage.",
+        "stage": "New stage",
+        "lost_reason": "Why was it lost?",
+        "submit": "Move",
+        "stale": "Someone else changed this opportunity. Reload and try again.",
+        "not_allowed": "This move is not allowed from the current stage.",
+        "reason_required": "Enter the reason it was lost."
+      },
+      "form": {
+        "title_new": "New opportunity",
+        "title_edit": "Edit opportunity",
+        "company": "Company",
+        "title": "Title",
+        "contact": "Primary contact",
+        "no_contact": "No contact",
+        "value": "Value (EUR)",
+        "probability": "Probability (%)",
+        "probability_hint": "Leave empty to use the playbook default of the stage.",
+        "expected_close": "Expected close",
+        "owner": "Owner",
+        "next_action": "Next action",
+        "next_action_at": "Next action on",
+        "source": "Source",
+        "notes": "Notes",
+        "error": "The opportunity could not be saved. Check the fields and try again.",
+        "forbidden": "You may not edit opportunities."
+      },
+      "detail": {
+        "back": "Back to the pipeline",
+        "company": "Company",
+        "contact": "Primary contact",
+        "stage": "Stage",
+        "stage_entered": "In this stage since",
+        "value": "Value",
+        "probability": "Probability",
+        "weighted": "Weighted value",
+        "lost_reason": "Lost reason",
+        "won_at": "Won on",
+        "playbook_title": "Playbook for this stage",
+        "no_playbook": "No active playbook stage for this stage.",
+        "required_action": "Required action",
+        "owner_role": "Responsible role",
+        "deadline": "Deadline",
+        "deadline_days": "{days} days after entering the stage",
+        "automated": "Automated communication",
+        "human": "Personal communication",
+        "escalation": "Escalation",
+        "escalation_value": "After {days} days to {role}",
+        "kpi": "KPI",
+        "activity_title": "Activity",
+        "tasks_title": "Tasks",
+        "no_tasks": "No tasks for this opportunity.",
+        "overdue": "Overdue",
+        "move": "Move stage",
+        "no_activity": "No activity yet."
+      }
+    },
+    "playbook": {
+      "title": "Sales playbook",
+      "description": "What happens in each stage: the required action, who does it, the deadline, communication, escalation and KPI.",
+      "read_only": "You can view the playbook; editing needs the settings permission.",
+      "inactive": "Inactive",
+      "none_defined": "No stages defined yet.",
+      "form": {
+        "name": "Name",
+        "required_action": "Required action",
+        "owner_role": "Responsible role",
+        "deadline_days": "Deadline (days)",
+        "default_probability": "Default probability (%)",
+        "automation_slug": "Automation (slug)",
+        "template_slug": "Email template (slug)",
+        "human_communication": "Personal communication",
+        "escalation_after_days": "Escalate after (days)",
+        "escalation_notify_role": "Escalate to role",
+        "escalation_create_task": "Create a task on escalation",
+        "kpi_name": "KPI name",
+        "kpi_target": "KPI target",
+        "kpi_unit": "KPI unit",
+        "sort_order": "Order",
+        "is_active": "Active",
+        "none": "None",
+        "saved": "Stage saved.",
+        "error": "The stage could not be saved.",
+        "missing_locales": "Fill in the texts in every language."
+      }
     }
   }
 }

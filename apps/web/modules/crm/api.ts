@@ -6,7 +6,9 @@
  * and reception card, P9 inbox). Until then each throws `NotImplementedError('crm.<fn>')`.
  * Every function takes the caller's open transaction first, so the caller stays one transaction.
  */
+import type { DbOrTx } from "@beam/db";
 import type { Ctx } from "@/lib/ctx";
+import type { ReceptionCardData } from "./person360/api";
 
 export type { Acquisition, AcquisitionSource, PersonFieldPatch, PersonStatus } from "@beam/core/crm";
 
@@ -34,7 +36,17 @@ export {
 } from "./persons/api";
 export { findLikelyDuplicates } from "./duplicates/api";
 export { hasValidDeclaration } from "./declarations/api";
-export { getReceptionCard, type ReceptionCardData } from "./person360/api";
+export type { ReceptionCardData } from "./person360/api";
+// booking-P4's check-in desk renders crm's card (crm-P7 request). Exported from the component
+// file itself: `./person360/api` imports forms' api, which reaches ops' api, which imports this
+// barrel; a static re-export would close that cycle (ops-P5 request).
+export { ReceptionCard, receptionCardLabels, type ReceptionCardLabels } from "./ui/person-360/reception-card";
+
+/** `getReceptionCard` (crm-P7), loaded lazily to keep forms' and ops' apis out of this barrel's import graph. */
+export async function getReceptionCard(tx: DbOrTx, personId: string, now?: Date): Promise<ReceptionCardData> {
+  const { getReceptionCard: load } = await import("./person360/api");
+  return load(tx, personId, now);
+}
 
 // consent and suppression
 export { addSuppression, buildPreferenceUrls, getCurrentConsents, isSuppressed, recordConsent, unsubscribe } from "./consent/api";

@@ -252,6 +252,31 @@
         "live": "Live",
         "replay": "Herbekijken",
         "on_demand": "Op aanvraag"
+      },
+      "opportunity_stage": {
+        "target": "Doelwit",
+        "prospect_identified": "Prospect bepaald",
+        "contact_identified": "Contact bepaald",
+        "outreach": "Benadering",
+        "response": "Reactie",
+        "qualified": "Gekwalificeerd",
+        "discovery": "Verkenning",
+        "proposal": "Voorstel",
+        "negotiation": "Onderhandeling",
+        "won": "Gewonnen",
+        "lost": "Verloren",
+        "account_management": "Accountbeheer",
+        "renewal": "Verlenging"
+      },
+      "playbook_pipeline": {
+        "b2b": "B2B",
+        "b2c": "B2C"
+      },
+      "kpi_unit": {
+        "count": "Aantal",
+        "pct": "Percentage",
+        "cents": "Bedrag",
+        "days": "Dagen"
       }
     },
     "persons": {
@@ -488,7 +513,13 @@
         "exited": "Automatisering verlaten",
         "completed": "Automatisering afgerond",
         "failed": "Stap mislukt"
-      }
+      },
+      "opportunity_created": "Opportuniteit aangemaakt",
+      "opportunity_updated": "Gegevens van de opportuniteit gewijzigd",
+      "opportunity_stage_changed": "Opportuniteit naar een andere fase verplaatst",
+      "opportunity_won": "Opportuniteit gewonnen",
+      "opportunity_lost": "Opportuniteit verloren",
+      "opportunity_reopened": "Opportuniteit heropend"
     },
     "duplicates": {
       "title": "Mogelijke dubbels",
@@ -981,6 +1012,120 @@
       "col_date": "Datum",
       "col_scope": "Bereik",
       "col_reason": "Reden"
+    },
+    "pipeline": {
+      "title": "Pipeline",
+      "create": "Nieuwe opportuniteit",
+      "empty": "Nog geen opportuniteiten.",
+      "filter_owner": "Eigenaar",
+      "all_owners": "Alle eigenaars",
+      "filter_min_value": "Minimale waarde (EUR)",
+      "filter": "Filteren",
+      "total": "Totaal",
+      "weighted": "Gewogen",
+      "won_summary": "Gewonnen: {count} ({value})",
+      "lost_summary": "Verloren: {count}",
+      "drop_won": "Sleep hierheen om als gewonnen te markeren",
+      "drop_lost": "Sleep hierheen om als verloren te markeren",
+      "column_empty": "Niets in deze fase",
+      "playbook_link": "Verkoopdraaiboek",
+      "no_companies": "Maak eerst een bedrijf aan.",
+      "card": {
+        "expected_close": "Verwachte afsluiting",
+        "last_contact": "Laatste contact",
+        "never": "Nooit",
+        "next_action": "Volgende actie",
+        "stalled": "Vastgelopen",
+        "no_contact": "Geen contact",
+        "move": "Verplaatsen"
+      },
+      "dialog": {
+        "title": "Naar een andere fase verplaatsen",
+        "description": "kies de nieuwe fase.",
+        "stage": "Nieuwe fase",
+        "lost_reason": "Waarom ging het verloren?",
+        "submit": "Verplaatsen",
+        "stale": "Iemand anders heeft deze opportuniteit gewijzigd. Laad opnieuw en probeer het nog eens.",
+        "not_allowed": "Deze verplaatsing is niet toegestaan vanuit de huidige fase.",
+        "reason_required": "Geef de reden waarom het verloren ging."
+      },
+      "form": {
+        "title_new": "Nieuwe opportuniteit",
+        "title_edit": "Opportuniteit bewerken",
+        "company": "Bedrijf",
+        "title": "Titel",
+        "contact": "Hoofdcontact",
+        "no_contact": "Geen contact",
+        "value": "Waarde (EUR)",
+        "probability": "Kans (%)",
+        "probability_hint": "Laat leeg om de standaard van de fase in het draaiboek te gebruiken.",
+        "expected_close": "Verwachte afsluiting",
+        "owner": "Eigenaar",
+        "next_action": "Volgende actie",
+        "next_action_at": "Volgende actie op",
+        "source": "Bron",
+        "notes": "Notities",
+        "error": "De opportuniteit kon niet worden opgeslagen. Controleer de velden en probeer opnieuw.",
+        "forbidden": "Je mag geen opportuniteiten bewerken."
+      },
+      "detail": {
+        "back": "Terug naar de pipeline",
+        "company": "Bedrijf",
+        "contact": "Hoofdcontact",
+        "stage": "Fase",
+        "stage_entered": "In deze fase sinds",
+        "value": "Waarde",
+        "probability": "Kans",
+        "weighted": "Gewogen waarde",
+        "lost_reason": "Reden van verlies",
+        "won_at": "Gewonnen op",
+        "playbook_title": "Draaiboek voor deze fase",
+        "no_playbook": "Geen actieve draaiboekfase voor deze fase.",
+        "required_action": "Vereiste actie",
+        "owner_role": "Verantwoordelijke rol",
+        "deadline": "Deadline",
+        "deadline_days": "{days} dagen na het betreden van de fase",
+        "automated": "Automatische communicatie",
+        "human": "Persoonlijke communicatie",
+        "escalation": "Escalatie",
+        "escalation_value": "Na {days} dagen naar {role}",
+        "kpi": "KPI",
+        "activity_title": "Activiteit",
+        "tasks_title": "Taken",
+        "no_tasks": "Geen taken voor deze opportuniteit.",
+        "overdue": "Te laat",
+        "move": "Fase wijzigen",
+        "no_activity": "Nog geen activiteit."
+      }
+    },
+    "playbook": {
+      "title": "Verkoopdraaiboek",
+      "description": "Wat er in elke fase gebeurt: de vereiste actie, wie ze uitvoert, de deadline, communicatie, escalatie en KPI.",
+      "read_only": "Je kan het draaiboek bekijken; bewerken vraagt de instellingenrechten.",
+      "inactive": "Inactief",
+      "none_defined": "Nog geen fases gedefinieerd.",
+      "form": {
+        "name": "Naam",
+        "required_action": "Vereiste actie",
+        "owner_role": "Verantwoordelijke rol",
+        "deadline_days": "Deadline (dagen)",
+        "default_probability": "Standaardkans (%)",
+        "automation_slug": "Automatisering (slug)",
+        "template_slug": "E-mailsjabloon (slug)",
+        "human_communication": "Persoonlijke communicatie",
+        "escalation_after_days": "Escaleren na (dagen)",
+        "escalation_notify_role": "Escaleren naar rol",
+        "escalation_create_task": "Taak aanmaken bij escalatie",
+        "kpi_name": "Naam van de KPI",
+        "kpi_target": "KPI-doel",
+        "kpi_unit": "KPI-eenheid",
+        "sort_order": "Volgorde",
+        "is_active": "Actief",
+        "none": "Geen",
+        "saved": "Fase opgeslagen.",
+        "error": "De fase kon niet worden opgeslagen.",
+        "missing_locales": "Vul de teksten in elke taal in."
+      }
     }
   }
 }

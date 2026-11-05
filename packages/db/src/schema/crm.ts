@@ -39,6 +39,7 @@ import {
   timestamps,
   tstz,
   type ActorJson,
+  type LocalizedText,
 } from "./_shared";
 import { users } from "./platform";
 
@@ -174,6 +175,28 @@ export const companyContactsDecisionRole = pgEnum(
   ["decision_maker", "influencer", "user", "gatekeeper"],
 );
 
+/** R3 (crm-P8): the B2B pipeline stages in board order (rule 3.47). */
+export const OPPORTUNITY_STAGES = [
+  "target",
+  "prospect_identified",
+  "contact_identified",
+  "outreach",
+  "response",
+  "qualified",
+  "discovery",
+  "proposal",
+  "negotiation",
+  "won",
+  "lost",
+  "account_management",
+  "renewal",
+] as const;
+export type OpportunityStage = (typeof OPPORTUNITY_STAGES)[number];
+export const opportunitiesStage = pgEnum("opportunities_stage", OPPORTUNITY_STAGES);
+export const PLAYBOOK_PIPELINES = ["b2b", "b2c"] as const;
+export type PlaybookPipeline = (typeof PLAYBOOK_PIPELINES)[number];
+export const playbookStagesPipeline = pgEnum("playbook_stages_pipeline", PLAYBOOK_PIPELINES);
+
 // ---------------------------------------------------------------------------
 // JSON shapes (Zod schemas live in `@beam/core/crm`)
 // ---------------------------------------------------------------------------
@@ -218,6 +241,13 @@ export type ExternalIdsJson = Partial<
 
 /** `segments.definition`: a `SegmentRule` of `@beam/core/crm` (validated by `SegmentRuleSchema`). */
 export type SegmentRuleJson = Record<string, unknown>;
+
+/** R3 `playbook_stages.automated_communication`. */
+export type PlaybookAutomatedCommunicationJson = { automation_slug?: string; template_slug?: string };
+/** R3 `playbook_stages.escalation` (rule 3.48). */
+export type PlaybookEscalationJson = { after_days?: number; notify_role?: string; create_task?: boolean };
+/** R3 `playbook_stages.kpi`. */
+export type PlaybookKpiJson = { name?: LocalizedText; target?: number; unit?: "count" | "pct" | "cents" | "days" };
 
 // ---------------------------------------------------------------------------
 // 2.1 persons
@@ -656,7 +686,7 @@ export const segmentMembers = pgTable(
 );
 
 // ---------------------------------------------------------------------------
-// 2.6 tasks (`opportunity_id` is added in R3 by crm-P8)
+// 2.6 tasks (`opportunity_id` added in R3 by crm-P8)
 // ---------------------------------------------------------------------------
 
 export const tasks = pgTable(
@@ -668,6 +698,8 @@ export const tasks = pgTable(
       .references(() => users.id),
     personId: uuid().references(() => persons.id),
     companyId: uuid().references((): AnyPgColumn => companies.id),
+    /** R3: the opportunity a playbook or escalation task belongs to. */
+    opportunityId: uuid().references((): AnyPgColumn => opportunities.id, { onDelete: "set null" }),
     title: text().notNull(),
     kind: tasksKind().notNull(),
     dueAt: tstz(),
@@ -687,6 +719,7 @@ export const tasks = pgTable(
     index("tasks_owner_status_due_idx").on(t.ownerUserId, t.status, t.dueAt),
     index("tasks_person_idx").on(t.personId),
     index("tasks_company_idx").on(t.companyId),
+    index("tasks_opportunity_idx").on(t.opportunityId),
     index("tasks_open_due_idx")
       .on(t.dueAt)
       .where(sql`${t.status} = 'open'`),
@@ -769,5 +802,89 @@ export const companyContacts = pgTable(
       .on(t.companyId)
       .where(sql`${t.isPrimary} and ${t.endedOn} is null`),
     index("company_contacts_person_idx").on(t.personId),
+  ],
+);
+
+// ---------------------------------------------------------------------------
+// 2.8 Release 3: B2B pipeline and sales playbook (crm-P8)
+// ---------------------------------------------------------------------------
+
+/**
+ * A B2B deal with a company (rules 3.46 to 3.48). `version` guards concurrent moves.
+ * `probability_set_manually_at` (ADD, crm-P8) records a hand-set probability: when it is at or
+ * after `stage_entered_at`, staff changed the probability on the current stage and the next
+ * stage change keeps it instead of applying the playbook default (rule 3.46).
+ */
+export const opportunities = pgTable(
+  "opportunities",
+  {
+    id: id(),
+    companyId: uuid()
+      .notNull()
+      .references(() => companies.id),
+    title: text().notNull(),
+    primaryContactPersonId: uuid().references(() => persons.id),
+    stage: opportunitiesStage().notNull().default("target"),
+    stageEnteredAt: tstz().notNull().defaultNow(),
+    valueCents: integer().notNull().default(0),
+    probabilityPct: smallint().notNull().default(10),
+    probabilitySetManuallyAt: tstz(),
+    expectedCloseOn: date(),
+    ownerUserId: uuid()
+      .notNull()
+      .references(() => users.id),
+    nextAction: text(),
+    nextActionAt: tstz(),
+    lostReason: text(),
+    wonAt: tstz(),
+    lostAt: tstz(),
+    source: text(),
+    notes: text(),
+    version: integer().notNull().default(1),
+    ...timestamps(),
+  },
+  (t) => [
+    index("opportunities_stage_idx").on(t.stage),
+    index("opportunities_owner_idx").on(t.ownerUserId),
+    index("opportunities_company_idx").on(t.companyId),
+    index("opportunities_contact_idx").on(t.primaryContactPersonId),
+    check("opportunities_value_ck", sql`${t.valueCents} >= 0`),
+    check("opportunities_probability_ck", sql`${t.probabilityPct} between 0 and 100`),
+    check("opportunities_lost_reason_ck", sql`${t.stage} <> 'lost' or ${t.lostReason} is not null`),
+    check("opportunities_title_ck", sql`char_length(${t.title}) between 1 and 200`),
+  ],
+);
+
+/**
+ * Sales playbook stage definitions for the B2B (`opportunities_stage`) and B2C (ops'
+ * `person_stats.b2c_stage`) pipelines. No person data (`NO_PII_TABLES`).
+ */
+export const playbookStages = pgTable(
+  "playbook_stages",
+  {
+    id: id(),
+    pipeline: playbookStagesPipeline().notNull(),
+    stageKey: text().notNull(),
+    sortOrder: smallint().notNull(),
+    name: localized().notNull(),
+    requiredAction: localized().notNull(),
+    ownerRole: text().notNull(),
+    deadlineDays: smallint().notNull().default(3),
+    defaultProbabilityPct: smallint(),
+    automatedCommunication: jsonb().$type<PlaybookAutomatedCommunicationJson>().notNull().default({}),
+    humanCommunication: localized(),
+    escalation: jsonb().$type<PlaybookEscalationJson>().notNull().default({}),
+    kpi: jsonb().$type<PlaybookKpiJson>().notNull().default({}),
+    isActive: boolean().notNull().default(true),
+    updatedByUserId: uuid().references(() => users.id),
+    ...timestamps(),
+  },
+  (t) => [
+    uniqueIndex("playbook_stages_pipeline_stage_uq").on(t.pipeline, t.stageKey),
+    check("playbook_stages_deadline_ck", sql`${t.deadlineDays} between 0 and 365`),
+    check(
+      "playbook_stages_probability_ck",
+      sql`${t.defaultProbabilityPct} is null or (${t.pipeline} = 'b2b' and ${t.defaultProbabilityPct} between 0 and 100)`,
+    ),
   ],
 );

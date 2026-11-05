@@ -12,8 +12,11 @@
  */
 import {
   boolean,
+  date,
+  integer,
   jsonb,
   pgView,
+  smallint,
   text,
   timestamp,
   uuid,
@@ -24,6 +27,7 @@ import {
   consentRecordsMethod,
   consentRecordsPurpose,
   consentRecordsStatus,
+  opportunitiesStage,
   personDeclarationsKind,
   personDeclarationsStatus,
   personsStatusOverride,
@@ -159,4 +163,53 @@ export const vOpenTasks = pgView("v_open_tasks", {
   updatedAt: tstz("updated_at").notNull(),
   isOverdue: boolean("is_overdue"),
   isDueToday: boolean("is_due_today"),
+}).existing();
+
+// ---------------------------------------------------------------------------
+// v_opportunity_board (R3, crm-P8): the pipeline board (crm spec 2.9, rules 3.46 to 3.48)
+// ---------------------------------------------------------------------------
+
+/** Kinds that count as contact with the company or its primary contact. */
+export const OPPORTUNITY_CONTACT_EVENT_KINDS = ["interaction.logged", "email.sent", "inbox.message_received", "inbox.reply_sent", "opportunity.stage_changed"] as const;
+
+export const vOpportunityBoardSql = `select o.id, o.company_id, c.name as company_name, o.title, o.primary_contact_person_id,
+       o.stage, o.stage_entered_at, o.value_cents, o.probability_pct, o.expected_close_on, o.owner_user_id,
+       coalesce(u.name, u.email) as owner_name, o.next_action, o.next_action_at, o.won_at, o.lost_at, o.version,
+       o.created_at, o.updated_at,
+       lc.last_contact_at,
+       o.stage_entered_at + make_interval(days => ps.deadline_days) as stage_deadline_at,
+       coalesce(o.stage not in ('won', 'lost') and now() > o.stage_entered_at + make_interval(days => ps.deadline_days), false) as is_stalled
+from opportunities o
+join companies c on c.id = o.company_id
+left join users u on u.id = o.owner_user_id
+left join playbook_stages ps on ps.pipeline = 'b2b' and ps.stage_key = o.stage::text and ps.is_active
+left join lateral (
+  select max(e.occurred_at) as last_contact_at from activity_events e
+  where (e.company_id = o.company_id or (o.primary_contact_person_id is not null and e.person_id = o.primary_contact_person_id))
+    and e.kind in (${OPPORTUNITY_CONTACT_EVENT_KINDS.map((k) => `'${k}'`).join(", ")})
+) lc on true`;
+
+export const vOpportunityBoard = pgView("v_opportunity_board", {
+  id: uuid("id").notNull(),
+  companyId: uuid("company_id").notNull(),
+  companyName: text("company_name").notNull(),
+  title: text("title").notNull(),
+  primaryContactPersonId: uuid("primary_contact_person_id"),
+  stage: opportunitiesStage("stage").notNull(),
+  stageEnteredAt: tstz("stage_entered_at").notNull(),
+  valueCents: integer("value_cents").notNull(),
+  probabilityPct: smallint("probability_pct").notNull(),
+  expectedCloseOn: date("expected_close_on"),
+  ownerUserId: uuid("owner_user_id").notNull(),
+  ownerName: text("owner_name"),
+  nextAction: text("next_action"),
+  nextActionAt: tstz("next_action_at"),
+  wonAt: tstz("won_at"),
+  lostAt: tstz("lost_at"),
+  version: integer("version").notNull(),
+  createdAt: tstz("created_at").notNull(),
+  updatedAt: tstz("updated_at").notNull(),
+  lastContactAt: tstz("last_contact_at"),
+  stageDeadlineAt: tstz("stage_deadline_at"),
+  isStalled: boolean("is_stalled").notNull(),
 }).existing();

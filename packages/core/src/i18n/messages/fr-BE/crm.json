@@ -252,6 +252,31 @@
         "live": "En direct",
         "replay": "Rediffusion",
         "on_demand": "À la demande"
+      },
+      "opportunity_stage": {
+        "target": "Cible",
+        "prospect_identified": "Prospect identifié",
+        "contact_identified": "Contact identifié",
+        "outreach": "Prise de contact",
+        "response": "Réponse",
+        "qualified": "Qualifié",
+        "discovery": "Découverte",
+        "proposal": "Proposition",
+        "negotiation": "Négociation",
+        "won": "Gagné",
+        "lost": "Perdu",
+        "account_management": "Gestion de compte",
+        "renewal": "Renouvellement"
+      },
+      "playbook_pipeline": {
+        "b2b": "B2B",
+        "b2c": "B2C"
+      },
+      "kpi_unit": {
+        "count": "Nombre",
+        "pct": "Pourcentage",
+        "cents": "Montant",
+        "days": "Jours"
       }
     },
     "persons": {
@@ -488,7 +513,13 @@
         "exited": "Sorti de l’automatisation",
         "completed": "Automatisation terminée",
         "failed": "Étape échouée"
-      }
+      },
+      "opportunity_created": "Opportunité créée",
+      "opportunity_updated": "Détails de l'opportunité modifiés",
+      "opportunity_stage_changed": "Opportunité déplacée vers une autre étape",
+      "opportunity_won": "Opportunité gagnée",
+      "opportunity_lost": "Opportunité perdue",
+      "opportunity_reopened": "Opportunité rouverte"
     },
     "duplicates": {
       "title": "Doublons possibles",
@@ -981,6 +1012,120 @@
       "col_date": "Date",
       "col_scope": "Portée",
       "col_reason": "Motif"
+    },
+    "pipeline": {
+      "title": "Pipeline",
+      "create": "Nouvelle opportunité",
+      "empty": "Pas encore d'opportunités.",
+      "filter_owner": "Responsable",
+      "all_owners": "Tous les responsables",
+      "filter_min_value": "Valeur minimale (EUR)",
+      "filter": "Filtrer",
+      "total": "Total",
+      "weighted": "Pondéré",
+      "won_summary": "Gagnées : {count} ({value})",
+      "lost_summary": "Perdues : {count}",
+      "drop_won": "Déposez ici pour marquer comme gagnée",
+      "drop_lost": "Déposez ici pour marquer comme perdue",
+      "column_empty": "Rien à cette étape",
+      "playbook_link": "Guide de vente",
+      "no_companies": "Créez d'abord une entreprise.",
+      "card": {
+        "expected_close": "Clôture prévue",
+        "last_contact": "Dernier contact",
+        "never": "Jamais",
+        "next_action": "Prochaine action",
+        "stalled": "Bloquée",
+        "no_contact": "Aucun contact",
+        "move": "Déplacer"
+      },
+      "dialog": {
+        "title": "Déplacer vers une autre étape",
+        "description": "choisissez la nouvelle étape.",
+        "stage": "Nouvelle étape",
+        "lost_reason": "Pourquoi a-t-elle été perdue ?",
+        "submit": "Déplacer",
+        "stale": "Quelqu'un d'autre a modifié cette opportunité. Rechargez et réessayez.",
+        "not_allowed": "Ce déplacement n'est pas autorisé depuis l'étape actuelle.",
+        "reason_required": "Indiquez la raison de la perte."
+      },
+      "form": {
+        "title_new": "Nouvelle opportunité",
+        "title_edit": "Modifier l'opportunité",
+        "company": "Entreprise",
+        "title": "Titre",
+        "contact": "Contact principal",
+        "no_contact": "Aucun contact",
+        "value": "Valeur (EUR)",
+        "probability": "Probabilité (%)",
+        "probability_hint": "Laissez vide pour utiliser la valeur par défaut de l'étape dans le guide.",
+        "expected_close": "Clôture prévue",
+        "owner": "Responsable",
+        "next_action": "Prochaine action",
+        "next_action_at": "Prochaine action le",
+        "source": "Source",
+        "notes": "Notes",
+        "error": "L'opportunité n'a pas pu être enregistrée. Vérifiez les champs et réessayez.",
+        "forbidden": "Vous ne pouvez pas modifier les opportunités."
+      },
+      "detail": {
+        "back": "Retour au pipeline",
+        "company": "Entreprise",
+        "contact": "Contact principal",
+        "stage": "Étape",
+        "stage_entered": "À cette étape depuis",
+        "value": "Valeur",
+        "probability": "Probabilité",
+        "weighted": "Valeur pondérée",
+        "lost_reason": "Raison de la perte",
+        "won_at": "Gagnée le",
+        "playbook_title": "Guide pour cette étape",
+        "no_playbook": "Aucune étape de guide active pour cette étape.",
+        "required_action": "Action requise",
+        "owner_role": "Rôle responsable",
+        "deadline": "Échéance",
+        "deadline_days": "{days} jours après l'entrée dans l'étape",
+        "automated": "Communication automatique",
+        "human": "Communication personnelle",
+        "escalation": "Escalade",
+        "escalation_value": "Après {days} jours vers {role}",
+        "kpi": "KPI",
+        "activity_title": "Activité",
+        "tasks_title": "Tâches",
+        "no_tasks": "Aucune tâche pour cette opportunité.",
+        "overdue": "En retard",
+        "move": "Changer d'étape",
+        "no_activity": "Pas encore d'activité."
+      }
+    },
+    "playbook": {
+      "title": "Guide de vente",
+      "description": "Ce qui se passe à chaque étape : l'action requise, qui la réalise, l'échéance, la communication, l'escalade et le KPI.",
+      "read_only": "Vous pouvez consulter le guide ; la modification nécessite le droit sur les paramètres.",
+      "inactive": "Inactif",
+      "none_defined": "Aucune étape définie pour l'instant.",
+      "form": {
+        "name": "Nom",
+        "required_action": "Action requise",
+        "owner_role": "Rôle responsable",
+        "deadline_days": "Échéance (jours)",
+        "default_probability": "Probabilité par défaut (%)",
+        "automation_slug": "Automatisation (slug)",
+        "template_slug": "Modèle d'e-mail (slug)",
+        "human_communication": "Communication personnelle",
+        "escalation_after_days": "Escalader après (jours)",
+        "escalation_notify_role": "Escalader vers le rôle",
+        "escalation_create_task": "Créer une tâche lors de l'escalade",
+        "kpi_name": "Nom du KPI",
+        "kpi_target": "Objectif du KPI",
+        "kpi_unit": "Unité du KPI",
+        "sort_order": "Ordre",
+        "is_active": "Actif",
+        "none": "Aucun",
+        "saved": "Étape enregistrée.",
+        "error": "L'étape n'a pas pu être enregistrée.",
+        "missing_locales": "Remplissez les textes dans chaque langue."
+      }
     }
   }
 }

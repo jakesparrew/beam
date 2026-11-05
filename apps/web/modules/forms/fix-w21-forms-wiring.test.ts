@@ -66,7 +66,7 @@ describe('"View result" through actions.ts (forms-P8 request)', () => {
     const address = email();
     const p = await makePerson(h.db, { email: address, firstName: "Lotte" });
     const user = await makeUser(h.db, { audience: "customer", email: address, personId: p.id });
-    const { token } = await createAuthSession(h.db, { userId: user.id, audience: "customer", now: new Date() });
+    const { token } = await createAuthSession(h.db, { userId: user.id, audience: "customer", roleKey: null, now: new Date() });
     jar.set(SESSION_COOKIE, token);
     return { personId: p.id, email: address };
   }
@@ -78,7 +78,7 @@ describe('"View result" through actions.ts (forms-P8 request)', () => {
     const sctx = publicCtx(h.db, T0, actor);
     const s = await startSubmission(sctx.tx, sctx, { slug: f.slug, locale: "nl-BE", url: `https://app.example.com/nl/f/${f.slug}`, ip: "203.0.113.9" });
     const cctx = publicCtx(h.db, later(T0, 30), actor);
-    await completeSubmission(cctx.tx, cctx, { submissionId: s.submissionId, proof: {}, answers: { ...ASSESSMENT_ANSWERS, email: me.email } as never, ip: "203.0.113.9", userAgent: "vitest" });
+    await completeSubmission(cctx.tx, cctx, { submissionId: s.submissionId, proof: {}, answers: { ...ASSESSMENT_ANSWERS, email: me.email }, ip: "203.0.113.9", userAgent: "vitest" });
 
     const r = await actions.openMyResult({ submissionId: s.submissionId });
     expect(r, JSON.stringify(r)).toMatchObject({ ok: true });
@@ -156,7 +156,7 @@ describe("the submission's own partner (forms-P3 request, rule A1)", () => {
 
     const address = email();
     const ctx = publicCtx(h.db, later(T0, 30));
-    await completeSubmission(ctx.tx, ctx, { submissionId: s.submissionId, proof: { resumeToken: s.resumeToken! }, answers: { email: address, first_name: "Lotte", message: "Hallo" } as never, ip: "203.0.113.11", userAgent: "vitest", referralCode: null });
+    await completeSubmission(ctx.tx, ctx, { submissionId: s.submissionId, proof: { resumeToken: s.resumeToken! }, answers: { email: address, first_name: "Lotte", message: "Hallo" }, ip: "203.0.113.11", userAgent: "vitest", referralCode: null });
     const [p] = await h.db.select().from(persons).where(eq(persons.email, address));
     expect(p?.acquisition).toMatchObject({ partner_company_id: partnerId, form_slug: f.slug });
   });

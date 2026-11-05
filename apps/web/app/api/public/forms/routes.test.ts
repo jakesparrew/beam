@@ -332,7 +332,7 @@ describe("fix-w21-forms-wiring: start resumes a session customer's submission (U
 });
 
 describe("fix-w21-forms-wiring: the beam_ref cookie of the save and submit requests (rule A1)", () => {
-  const acquisitionOf = async (addr: string) => (await h.db.select().from(persons).where(eq(persons.email, addr)))[0]?.acquisition as Record<string, unknown> | undefined;
+  const acquisitionOf = async (addr: string) => (await h.db.select().from(persons).where(eq(persons.email, addr)))[0]?.acquisition;
   /** crm keeps only a code that resolves, so each test issues a real one to a referrer. */
   async function issueCode(code: string): Promise<string> {
     const referrer = await makePerson(h.db, { email: email() });

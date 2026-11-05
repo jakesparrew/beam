@@ -97,7 +97,13 @@ test.describe.serial("invoices from purchase to report", () => {
   test("another customer gets 404 for this invoice and its PDF", async ({ page }) => {
     test.skip(!invoice, "needs the purchase of the first test");
     await signInCustomer(page, "customer4@example.com", "nl");
-    expect((await page.goto(`/nl/account/invoices/${invoice.id}`))?.status()).toBe(404);
+    // The portal pages stream behind `loading.tsx`, so Next.js has sent status 200 before the page
+    // calls notFound(): the page answers with the 404 page (noindex) instead of the status. The PDF
+    // route handler answers the 404 status itself (finance spec section 4, never 403).
+    await page.goto(`/nl/account/invoices/${invoice.id}`);
+    await expect(page.getByRole("heading", { level: 1, name: "Pagina niet gevonden" })).toBeVisible();
+    await expect(page.locator('meta[name="robots"][content*="noindex"]').first()).toBeAttached();
+    await expect(page.getByText(invoice.number)).toHaveCount(0);
     expect((await page.request.get(`/nl/account/invoices/${invoice.id}/pdf`)).status()).toBe(404);
   });
 
@@ -130,7 +136,12 @@ test.describe.serial("invoices from purchase to report", () => {
     test.skip(!invoice, "needs the purchase of the first test");
     await signInStaff(page, "finance");
     await page.goto("/admin/finance");
-    const tile = page.locator("section, article, div").filter({ has: page.getByText("Vandaag uitgegeven", { exact: true }) }).last();
+    // The innermost box holding both the tile's label and its count (the label sits in its own div).
+    const tile = page
+      .locator("section, article, div")
+      .filter({ has: page.getByText("Vandaag uitgegeven", { exact: true }) })
+      .filter({ hasText: /\d+ facturen/ })
+      .last();
     await expect(tile).toBeVisible();
     const [today] = await e2eRows<{ n: number }>(sql`
       select count(*)::int as n from invoices where kind = 'invoice' and issued_on = (now() at time zone 'Europe/Brussels')::date`);

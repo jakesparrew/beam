@@ -1,6 +1,28 @@
 {
   "site": {
     "admin": {
+      "audit": {
+        "code": {
+          "content_thin": "Little useful content",
+          "cta_missing": "No clear next step",
+          "excerpt_weak": "Weak or missing excerpt",
+          "locale_missing": "Language missing",
+          "other": "Suggestion",
+          "seo_description_weak": "Weak SEO description",
+          "seo_title_weak": "Weak SEO title",
+          "title_weak": "Unclear page title",
+          "translation_mismatch": "Languages do not match"
+        },
+        "empty": "No audit yet. Claude reviews the published pages every Monday morning.",
+        "more": "{count} more findings not shown.",
+        "none": "No findings this week.",
+        "severity": {
+          "info": "Tip",
+          "warn": "Fix"
+        },
+        "title": "Weekly content audit",
+        "week": "Week of {date}"
+      },
       "block": {
         "availability_preview": {
           "days": "Days ahead",
@@ -134,11 +156,16 @@
         "instruction": "What should change?",
         "kindEdit": "Edit this page",
         "kindNewPage": "Write a new page",
+        "kindTranslate": "Translate missing languages",
         "locales": "Languages",
         "ready": "Proposal ready: review",
         "running": "Claude is writing a proposal…",
         "timeout": "This takes longer than expected. Check again later.",
-        "title": "Ask Claude"
+        "title": "Ask Claude",
+        "translate": "Translate missing languages",
+        "translateHint": "Claude proposes {locales} from the existing text, with the same blocks. You review the proposal before publishing.",
+        "translateNoContent": "Write the page in one language first, then translate it.",
+        "translateNothingMissing": "This page already exists in every language."
       },
       "common": {
         "cancel": "Cancel",

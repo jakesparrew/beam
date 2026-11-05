@@ -5,6 +5,9 @@
  * a progress line polls `getClaudePanelState` every 2 s for up to 3 minutes; on success "Proposal
  * ready: review" links to the review screen; on failure the message for the request's
  * `error_code`. Hidden without `ai.use` (the server answers `allowed: false`).
+ *
+ * R4 (site-P10): "Translate missing locales" (shown while the page lacks a locale) asks for a
+ * `translate` request without an instruction; the server picks the locales the base lacks.
  */
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import NextLink from "next/link";
@@ -19,6 +22,12 @@ import { lbl } from "./pickers";
 export const POLL_MS = 2000;
 export const POLL_MAX_MS = 180_000;
 const MAX_INSTRUCTION = 4000;
+/** `conflict` messages of `requestProposal` with their own label. */
+const CONFLICT_LABELS: Record<string, string> = {
+  request_active: "claude.busy",
+  translate_nothing_missing: "claude.translateNothingMissing",
+  translate_no_content: "claude.translateNoContent",
+};
 
 type Phase = { kind: "idle" } | { kind: "active"; request: EditRequestView; since: number } | { kind: "done"; request: EditRequestView } | { kind: "timeout" };
 
@@ -65,14 +74,21 @@ export function ClaudePanel({ pageId, L, locales: pageLocales }: { pageId: strin
 
   if (!allowed) return null;
 
-  const ask = () =>
+  const missing = pageLocales.length ? LOCALES.filter((l) => !pageLocales.includes(l)) : [];
+
+  const submit = (input: { kind: "edit" | "new_page"; instruction: string; locales: Locale[] } | { kind: "translate"; locales: Locale[] }) =>
     start(async () => {
       setError(null);
-      const res = await requestProposal({ pageId, instruction, locales, kind });
-      if (!res.ok) return setError(res.error.code === "conflict" && res.error.message === "request_active" ? lbl(L, "claude.busy") : res.error.message);
-      const view: EditRequestView = { editRequestId: res.data.editRequestId, pageId, kind, status: "pending", locales, errorCode: null, resultVersionId: null, baseVersionId: null, createdAt: new Date().toISOString(), finishedAt: null };
+      const res = await requestProposal(input.kind === "translate" ? { pageId, kind: "translate" } : { pageId, ...input });
+      if (!res.ok) {
+        const known = res.error.code === "conflict" && CONFLICT_LABELS[res.error.message];
+        return setError(known ? lbl(L, known) : res.error.message);
+      }
+      const view: EditRequestView = { editRequestId: res.data.editRequestId, pageId, kind: input.kind, status: "pending", locales: input.locales, errorCode: null, resultVersionId: null, baseVersionId: null, createdAt: new Date().toISOString(), finishedAt: null };
       setPhase({ kind: "active", request: view, since: Date.now() });
     });
+  const ask = () => submit({ kind, instruction, locales });
+  const translate = () => submit({ kind: "translate", locales: missing });
 
   const cancel = (request: EditRequestView) =>
     start(async () => {
@@ -116,6 +132,14 @@ export function ClaudePanel({ pageId, L, locales: pageLocales }: { pageId: strin
       <Button type="button" disabled={pending || active || instruction.trim().length < 3 || !locales.length} onClick={ask}>
         {lbl(L, "claude.ask")}
       </Button>
+      {missing.length ? (
+        <div className="grid gap-1 border-t pt-2">
+          <Button type="button" variant="outline" disabled={pending || active} onClick={translate} data-testid="claude-translate">
+            {lbl(L, "claude.translate")}
+          </Button>
+          <p className="text-xs text-muted-foreground">{lbl(L, "claude.translateHint", { locales: missing.join(", ") })}</p>
+        </div>
+      ) : null}
       <div aria-live="polite" className="grid gap-1 text-sm">
         {phase.kind === "active" ? (
           <>

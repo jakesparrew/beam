@@ -3701,8 +3701,8 @@
       "mergedAt": "2026-11-05T14:08:13Z"
     },
     "fix-w21-platform-wiring": {
-      "status": "pending",
-      "attempts": 0,
+      "status": "running",
+      "attempts": 1,
       "fixer": true,
       "module": "platform",
       "goal": "Wiring fixer for module platform: serve every open row of docs/build/requests.md whose For column names platform (or one of its packages or files). Verify each row first; report already-served rows. Implement the rest inside platform's files, with tests. Rows needing another module's files stay open. Do not edit docs/build/requests.md.",
@@ -4324,7 +4324,10 @@
         "platform-P14",
         "platform-P9",
         "platform-P10"
-      ]
+      ],
+      "baseSha": "3033515",
+      "runId": null,
+      "startedAt": "2026-11-05T15:30:53Z"
     },
     "fix-w21-crm-wiring": {
       "status": "merged",

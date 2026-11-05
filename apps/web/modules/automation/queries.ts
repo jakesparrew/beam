@@ -9,6 +9,8 @@
  * `draftIssues` (A-1, A-3, A-4: parse plus `validateDefinition` against the database).
  * The person page reads (automation-P6): `getPersonAutomations`, `previewEnrolment` (A-39,
  * through `engine/preview.ts`) and `listEnrolOptions` (the enrol dialog's choices and warnings).
+ * The conflict rules (automation-P7, R2; `automations.publish`): `getConflictReport` (which
+ * journeys block or supersede which) and `getAutomationRules` (the rules page's values).
  */
 import { createHash } from "node:crypto";
 import type { DbOrTx, Tx } from "@beam/db";
@@ -49,7 +51,8 @@ import {
 } from "@beam/core/automation";
 import { messagesFor, type Locale } from "@beam/core/i18n";
 import { and, asc, desc, eq, gte, inArray, lt, lte, ne, or, sql, type Actor, type SQL } from "@/lib/ctx";
-import { getSetting } from "@/lib/settings";
+import { rowsOf } from "@/lib/sensitive";
+import { getSetting, getSettingWithVersion } from "@/lib/settings";
 import { EVENTS } from "@/registry/events.generated";
 import { getPublishedTemplateInfo, getReachability, listPublishedTemplates } from "@/modules/email/api";
 import { loadAutomations } from "./engine/enrol";
@@ -710,4 +713,153 @@ export async function listEnrolOptions(db: DbOrTx, input: { personId: string }):
     out.push({ id: a.id, slug: a.slug, name: names.get(a.id) ?? a.slug, isMarketing: a.isMarketing, needsAnchor: def.anchor !== "enrolment", warnings });
   }
   return out.sort((x, y) => x.name.localeCompare(y.name));
+}
+
+// ---------------------------------------------------------------------------
+// Conflict report (automation-P7, R2; `automations.publish`)
+// ---------------------------------------------------------------------------
+
+export type ConflictAutomation = { id: string; slug: string; name: string; groupKey: string };
+
+export type ConflictPair = {
+  /** The journey that lost: refused at entry (`skipped_exclusive`) or ended (`superseded`). */
+  blocked: ConflictAutomation;
+  /** The journey that held or took the exclusive domain. */
+  blocking: ConflictAutomation;
+  skippedExclusive: number;
+  superseded: number;
+  total: number;
+  lastAt: Date;
+  /** Up to five persons, most recent first; empty when the caller may not see person data. */
+  samplePersons: { id: string; name: string | null }[];
+};
+
+export type ConflictReport = { days: 7 | 30; since: Date; pairs: ConflictPair[]; totals: { skippedExclusive: number; superseded: number } };
+
+export const CONFLICT_SAMPLE_SIZE = 5;
+
+type ConflictSqlRow = {
+  blocked_id: string;
+  blocking_id: string;
+  skipped: number | string;
+  superseded: number | string;
+  last_at: string | Date;
+  person_ids: string[] | string | null;
+};
+
+/** Postgres text arrays arrive as arrays from node-postgres and as `{a,b}` text from some drivers. */
+function textArray(v: string[] | string | null): string[] {
+  if (Array.isArray(v)) return v;
+  if (!v) return [];
+  return v.replace(/^\{|\}$/g, "").split(",").filter(Boolean);
+}
+
+/**
+ * Which journeys block or supersede which in the last `days` days (spec 4.2, A-15): one row per
+ * (blocked, blocking) pair with the count of `skipped_exclusive` entry runs (the candidate was
+ * refused because the blocking journey held the domain; the holder is the enrolment in
+ * `data.blocking_enrolment_id`, else the slug in the reason `blocked_by:<slug>`) and of
+ * `superseded` exits (the blocked journey's enrolment ended because the blocking one entered;
+ * `data.superseded_by`). Staff moves (`moved`) are not conflicts. Most conflicts first.
+ */
+export async function getConflictReport(db: DbOrTx, input: { days: 7 | 30; includePersons?: boolean }, now: Date = new Date()): Promise<ConflictReport> {
+  const days = input.days === 30 ? 30 : 7;
+  const since = new Date(now.getTime() - days * 86_400_000);
+  const sinceIso = since.toISOString();
+  const rows = rowsOf<ConflictSqlRow>(
+    await db.execute(sql`
+      with x as (
+        select r.automation_id as blocked_id,
+               coalesce(h.automation_id, (select a.id from automations a where a.slug = substring(r.reason from '^blocked_by:(.+)$'))) as blocking_id,
+               'skipped_exclusive' as kind, r.person_id, r.occurred_at
+          from automation_runs r
+          left join automation_enrolments h on h.id::text = r.data ->> 'blocking_enrolment_id'
+         where r.outcome = 'skipped_exclusive' and r.occurred_at >= ${sinceIso}::timestamptz
+        union all
+        select r.automation_id, w.automation_id, 'superseded', r.person_id, r.occurred_at
+          from automation_runs r
+          join automation_enrolments w on w.id::text = r.data ->> 'superseded_by'
+         where r.outcome = 'exited' and r.reason = 'superseded' and r.occurred_at >= ${sinceIso}::timestamptz
+      )
+      select blocked_id::text as blocked_id, blocking_id::text as blocking_id,
+             count(*) filter (where kind = 'skipped_exclusive') as skipped,
+             count(*) filter (where kind = 'superseded') as superseded,
+             max(occurred_at) as last_at,
+             (array_agg(person_id::text order by occurred_at desc))[1:50] as person_ids
+        from x
+       where blocking_id is not null
+       group by blocked_id, blocking_id`),
+  );
+  if (!rows.length) return { days, since, pairs: [], totals: { skippedExclusive: 0, superseded: 0 } };
+
+  const ids = [...new Set(rows.flatMap((r) => [r.blocked_id, r.blocking_id]))];
+  const autos = await db
+    .select({ id: automations.id, slug: automations.slug, name: automations.name, groupKey: automationGroups.key })
+    .from(automations)
+    .innerJoin(automationGroups, eq(automationGroups.id, automations.groupId))
+    .where(inArray(automations.id, ids));
+  const byId = new Map(autos.map((a) => [a.id, a]));
+
+  const samples = new Map<string, string[]>();
+  for (const r of rows) samples.set(`${r.blocked_id}:${r.blocking_id}`, [...new Set(textArray(r.person_ids))].slice(0, CONFLICT_SAMPLE_SIZE));
+  const personIds = input.includePersons ? [...new Set([...samples.values()].flat())] : [];
+  const people = personIds.length
+    ? await db
+        .select({ id: persons.id, firstName: persons.firstName, lastName: persons.lastName, erasedAt: persons.erasedAt })
+        .from(persons)
+        .where(inArray(persons.id, personIds))
+    : [];
+  const nameOf = new Map(people.map((p) => [p.id, p.erasedAt ? null : [p.firstName, p.lastName].filter(Boolean).join(" ") || null]));
+
+  const pairs: ConflictPair[] = [];
+  for (const r of rows) {
+    const blocked = byId.get(r.blocked_id);
+    const blocking = byId.get(r.blocking_id);
+    if (!blocked || !blocking) continue;
+    const skippedExclusive = Number(r.skipped);
+    const superseded = Number(r.superseded);
+    pairs.push({
+      blocked,
+      blocking,
+      skippedExclusive,
+      superseded,
+      total: skippedExclusive + superseded,
+      lastAt: new Date(r.last_at),
+      samplePersons: input.includePersons ? (samples.get(`${r.blocked_id}:${r.blocking_id}`) ?? []).map((id) => ({ id, name: nameOf.get(id) ?? null })) : [],
+    });
+  }
+  pairs.sort((a, b) => b.total - a.total || b.lastAt.getTime() - a.lastAt.getTime() || a.blocked.slug.localeCompare(b.blocked.slug) || a.blocking.slug.localeCompare(b.blocking.slug));
+  return {
+    days,
+    since,
+    pairs,
+    totals: { skippedExclusive: pairs.reduce((n, p) => n + p.skippedExclusive, 0), superseded: pairs.reduce((n, p) => n + p.superseded, 0) },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Rules page (automation-P7, R2)
+// ---------------------------------------------------------------------------
+
+export type AutomationRulesView = {
+  version: number;
+  maxMarketingPerDay: number;
+  maxMarketingPerWeek: number;
+  quietStart: string;
+  quietEnd: string;
+  webhookHosts: string[];
+};
+
+/** `settings.automation_rules` with its version, in the shape of `updateAutomationRules`. */
+export async function getAutomationRules(db: DbOrTx): Promise<AutomationRulesView> {
+  const { value, version } = await getSettingWithVersion(db, "automation_rules");
+  const v = value as { max_marketing_per_day: number; max_marketing_per_week: number; quiet_start: string; quiet_end: string; webhook_hosts: string[] };
+  return {
+    version,
+    maxMarketingPerDay: v.max_marketing_per_day,
+    maxMarketingPerWeek: v.max_marketing_per_week,
+    quietStart: v.quiet_start,
+    quietEnd: v.quiet_end,
+    webhookHosts: [...v.webhook_hosts],
+  };
 }

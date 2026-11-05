@@ -4,12 +4,15 @@
  * of this package is refused with `forbidden` without its permission, before anything is written
  * (no automation row changes, no audit row, no job); a customer session and no session are
  * `unauthorized`. The person controls (`automations.move_person`) are tested with automation-P6.
+ * automation-P7 (R2): `upsertGroup` and `updateAutomationRules` need `automations.publish`; a
+ * webhook host change additionally needs `settings.write`, so `automations.publish` alone is
+ * `forbidden` for it and leaves the setting untouched.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTestDb, makeUser } from "@beam/db/testing";
 import { defaultRolesFor } from "@beam/db/seed/platform";
 import type { DbHandle } from "@beam/db";
-import { auditLog, automations, jobs, roles, segments } from "@beam/db/schema";
+import { auditLog, automationGroups, automations, jobs, roles, segments, settings } from "@beam/db/schema";
 import type { RoleKey } from "@beam/db/schema";
 import { permissions } from "./permissions";
 
@@ -87,6 +90,12 @@ const CASES: Case[] = [
   { name: "resumeAutomation", permission: "automations.publish", run: (i) => actions.resumeAutomation({ automationId: i.automationId }) },
   { name: "archiveAutomation", permission: "automations.publish", run: (i) => actions.archiveAutomation({ automationId: i.automationId, confirmSlug: i.slug }) },
   { name: "enrolSegment", permission: "automations.publish", run: (i) => actions.enrolSegment({ automationId: i.automationId, segmentId: i.segmentId }) },
+  { name: "upsertGroup", permission: "automations.publish", run: (i) => actions.upsertGroup({ key: `perm_${i.slug.replace(/-/g, "_")}`, name: "Perm", isExclusive: false, priority: 100 }) },
+  {
+    name: "updateAutomationRules",
+    permission: "automations.publish",
+    run: () => actions.updateAutomationRules({ expectedVersion: 0, maxMarketingPerDay: 2, maxMarketingPerWeek: 3, quietStart: "21:00", quietEnd: "08:00", webhookHosts: [] }),
+  },
 ];
 
 describe("every action is refused without its permission", () => {
@@ -121,4 +130,29 @@ describe("every action is refused without its permission", () => {
       expect(r.ok || !["forbidden", "unauthorized"].includes(r.error!.code), JSON.stringify(r)).toBe(true);
     });
   }
+});
+
+describe("automation-P7: rules and groups", () => {
+  it("a webhook host change with automations.publish but without settings.write is forbidden", async () => {
+    await handle.db.delete(settings).where(eq(settings.key, "automation_rules"));
+    const input = { expectedVersion: 0, maxMarketingPerDay: 1, maxMarketingPerWeek: 3, quietStart: "21:00", quietEnd: "08:00", webhookHosts: ["hooks.example.com"] };
+    await asStaff("marketing", ["automations.publish"]);
+    expect(await actions.updateAutomationRules(input)).toMatchObject({ ok: false, error: { code: "forbidden" } });
+    expect(await handle.db.select().from(settings).where(eq(settings.key, "automation_rules"))).toHaveLength(0);
+    await asStaff("marketing", ["automations.publish", "settings.write"]);
+    expect(await actions.updateAutomationRules(input)).toMatchObject({ ok: true });
+  });
+
+  it("settings.write alone does not open the rules action; automations.write alone cannot edit groups", async () => {
+    await asStaff("technical_admin", ["settings.write"]);
+    expect(await actions.updateAutomationRules({ expectedVersion: 0, maxMarketingPerDay: 1, maxMarketingPerWeek: 3, quietStart: "21:00", quietEnd: "08:00", webhookHosts: [] })).toMatchObject({
+      ok: false,
+      error: { code: "forbidden" },
+    });
+    const group = await makeGroup(handle.db);
+    await asStaff("marketing", ["automations.write", "reports.read"]);
+    expect(await actions.upsertGroup({ id: group.id, key: group.key, name: "Changed", isExclusive: true, priority: 1 })).toMatchObject({ ok: false, error: { code: "forbidden" } });
+    const [row] = await handle.db.select().from(automationGroups).where(eq(automationGroups.id, group.id));
+    expect(row).toMatchObject({ name: group.name, priority: group.priority });
+  });
 });

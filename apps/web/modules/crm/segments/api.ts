@@ -147,6 +147,53 @@ export async function isInSegment(tx: DbOrTx, segmentId: string, personId: strin
   return rows[0]?.hit === true;
 }
 
+/** Counts over a segment's audience: never a member, never a person field (email-P10 AI drafts). */
+export type SegmentAggregates = {
+  id: string;
+  name: string;
+  total: number;
+  byStatus: Record<"lead" | "customer" | "member", number>;
+  byLocale: Record<"nl-BE" | "fr-BE" | "en", number>;
+  /** The median of whole days since the last visit over the members who visited; null when none did. */
+  medianDaysSinceLastVisit: number | null;
+};
+
+/**
+ * The stored audience of a segment (members minus exclusions, `segmentAudienceSql`) counted per
+ * commercial status and language, with the median days since the last visit at `now`, read from
+ * `v_person_profile` (the read model segment rules use). `null` for an unknown segment.
+ */
+export async function getSegmentAggregates(tx: DbOrTx, segmentId: string, now: Date = new Date()): Promise<SegmentAggregates | null> {
+  const ref = await getSegmentRef(tx, segmentId);
+  if (!ref) return null;
+  const [row] = rowsOf<{ total: number; lead: number; customer: number; member: number; nl: number; fr: number; en: number; median_days: number | string | null }>(
+    await tx.execute(sql`
+      with a as (select distinct person_id from (${storedAudienceSql(segmentId)}) s)
+      select
+        count(*)::int as total,
+        count(*) filter (where coalesce(v.status, 'lead') = 'lead')::int as lead,
+        count(*) filter (where v.status = 'customer')::int as customer,
+        count(*) filter (where v.status = 'member')::int as member,
+        count(*) filter (where p.locale = 'nl-BE')::int as nl,
+        count(*) filter (where p.locale = 'fr-BE')::int as fr,
+        count(*) filter (where p.locale = 'en')::int as en,
+        percentile_cont(0.5) within group (order by extract(epoch from (${now.toISOString()}::timestamptz - v.last_visit_at)) / 86400.0)
+          filter (where v.last_visit_at is not null) as median_days
+      from a
+      join persons p on p.id = a.person_id
+      left join v_person_profile v on v.person_id = a.person_id`),
+  );
+  const n = (v: unknown) => Number(v ?? 0);
+  return {
+    id: ref.id,
+    name: ref.name,
+    total: n(row?.total),
+    byStatus: { lead: n(row?.lead), customer: n(row?.customer), member: n(row?.member) },
+    byLocale: { "nl-BE": n(row?.nl), "fr-BE": n(row?.fr), en: n(row?.en) },
+    medianDaysSinceLastVisit: row?.median_days === null || row?.median_days === undefined ? null : Math.round(Number(row.median_days)),
+  };
+}
+
 export async function getSegmentRef(tx: DbOrTx, segmentId: string): Promise<{ id: string; name: string; kind: "dynamic" | "static"; isArchived: boolean } | null> {
   const [row] = await tx
     .select({ id: segments.id, name: segments.name, kind: segments.kind, isArchived: segments.isArchived })

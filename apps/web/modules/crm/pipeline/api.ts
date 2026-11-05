@@ -165,6 +165,23 @@ async function canonicalOpportunityContact(tx: DbOrTx, personId: string): Promis
   return id;
 }
 
+/**
+ * The subject of every `opportunity.*` event: the company, the primary contact as the person when
+ * one is set (automation's B2B journeys enrol that person, one journey per opportunity through the
+ * ref), and the opportunity as the ref.
+ */
+export function opportunitySubject(opp: Pick<OpportunityRecord, "id" | "companyId" | "primaryContactPersonId">): {
+  companyId: string;
+  personId?: string;
+  ref: { type: string; id: string };
+} {
+  return {
+    companyId: opp.companyId,
+    ...(opp.primaryContactPersonId ? { personId: opp.primaryContactPersonId } : {}),
+    ref: { type: "opportunity", id: opp.id },
+  };
+}
+
 export async function saveStaffOpportunity(ctx: Ctx, input: SaveOpportunityInput): Promise<{ opportunityId: string; version: number }> {
   const tx = ctx.tx;
   const title = input.title.trim().slice(0, 200);
@@ -200,9 +217,8 @@ export async function saveStaffOpportunity(ctx: Ctx, input: SaveOpportunityInput
     const opp = row!;
     await ctx.recordEvent({
       kind: "opportunity.created",
-      companyId: opp.companyId,
-      ref: { type: "opportunity", id: opp.id },
-      data: { opportunity_id: opp.id, to_stage: opp.stage, value_cents: opp.valueCents },
+      ...opportunitySubject(opp),
+      data: { opportunity_id: opp.id, to_stage: opp.stage, value_cents: opp.valueCents, owner_user_id: opp.ownerUserId },
     });
     await ctx.audit({ action: "opportunity.save", entityType: "opportunities", entityId: opp.id, newValue: auditView(opp) });
     await enterStage(tx, ctx, opp);
@@ -229,9 +245,8 @@ export async function saveStaffOpportunity(ctx: Ctx, input: SaveOpportunityInput
   if (fields.length) {
     await ctx.recordEvent({
       kind: "opportunity.updated",
-      companyId: after!.companyId,
-      ref: { type: "opportunity", id: after!.id },
-      data: { opportunity_id: after!.id, value_cents: after!.valueCents, fields },
+      ...opportunitySubject(after!),
+      data: { opportunity_id: after!.id, value_cents: after!.valueCents, owner_user_id: after!.ownerUserId, fields },
     });
   }
   await ctx.audit({ action: "opportunity.save", entityType: "opportunities", entityId: after!.id, oldValue: oldView, newValue: newView });
@@ -274,8 +289,8 @@ export async function moveStaffOpportunity(ctx: Ctx, input: MoveStageInput): Pro
     .where(eq(opportunities.id, input.id))
     .returning();
   const opp = after!;
-  const data = { opportunity_id: opp.id, from_stage: before.stage, to_stage: opp.stage, value_cents: opp.valueCents };
-  const base = { companyId: opp.companyId, ref: { type: "opportunity", id: opp.id } };
+  const data = { opportunity_id: opp.id, from_stage: before.stage, to_stage: opp.stage, value_cents: opp.valueCents, owner_user_id: opp.ownerUserId };
+  const base = opportunitySubject(opp);
   await ctx.recordEvent({ kind: "opportunity.stage_changed", ...base, data });
   if (opp.stage === "won") await ctx.recordEvent({ kind: "opportunity.won", ...base, data });
   if (opp.stage === "lost") await ctx.recordEvent({ kind: "opportunity.lost", ...base, data: { ...data, reason: lostReason } });

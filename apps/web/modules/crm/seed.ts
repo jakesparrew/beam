@@ -8,13 +8,15 @@
  *   tags on some of them.
  * - 5 companies (one partner) with contacts.
  * - 10 tasks owned by the demo staff users (skipped when no staff user exists).
+ * - 3 support knowledge articles in three locales (R4 AI reply drafts; BEAM policy, no person
+ *   data), by key; an existing article is never overwritten (staff may have edited it).
  *
  * Inserted directly (crm's api lands with crm-P2); idempotent: persons by address, companies by
  * VAT number, tasks by `dedupe_key`, tags and contacts on their unique keys. Ids are recorded as
  * `crm.person.demo<n>`, `crm.company.<slug>`.
  */
 import type { DbOrTx } from "@beam/db";
-import { companies, companyContacts, persons, personTags, tags, tasks, users, type AcquisitionJson, type PostalAddressJson } from "@beam/db/schema";
+import { companies, companyContacts, persons, personTags, supportKnowledgeArticles, tags, tasks, users, type AcquisitionJson, type PostalAddressJson } from "@beam/db/schema";
 import { emailHash, normalisePhone, type AcquisitionSource } from "@beam/core/crm";
 import type { Locale } from "@beam/core/i18n";
 import { and, eq, isNull, sql } from "@/lib/ctx";
@@ -223,7 +225,58 @@ export async function runCrmDemoSeed(s: Pick<SeedCtx, "db" | "now" | "ids">): Pr
   return { created, skipped };
 }
 
+/** Demo BEAM policies for the inbox AI drafts (crm rule 3.58): plain text, complete in every locale. */
+export const DEMO_KNOWLEDGE_ARTICLES: readonly { key: string; title: Record<Locale, string>; body: Record<Locale, string> }[] = [
+  {
+    key: "booking-cancellation",
+    title: { "nl-BE": "Annuleren en verplaatsen", "fr-BE": "Annuler et déplacer", en: "Cancelling and rescheduling" },
+    body: {
+      "nl-BE":
+        "Een boeking annuleer of verplaats je zelf in je account tot de annuleringstermijn in je bevestiging. Binnen die termijn neem je contact op met de receptie; credits van een sessie die je niet annuleert, worden niet teruggezet.",
+      "fr-BE":
+        "Vous annulez ou déplacez une réservation vous-même dans votre compte jusqu'au délai d'annulation indiqué dans votre confirmation. Passé ce délai, contactez l'accueil ; les crédits d'une séance non annulée ne sont pas restitués.",
+      en: "You cancel or reschedule a booking yourself in your account until the cancellation deadline shown in your confirmation. After that deadline, contact reception; credits for a session you do not cancel are not returned.",
+    },
+  },
+  {
+    key: "what-to-bring",
+    title: { "nl-BE": "Wat breng je mee", "fr-BE": "Que faut-il apporter", en: "What to bring" },
+    body: {
+      "nl-BE": "Breng sportkledij, een handdoek en een drinkfles mee. Kom tien minuten voor de start, zodat je rustig kunt omkleden en inchecken aan de receptie.",
+      "fr-BE": "Apportez une tenue de sport, une serviette et une gourde. Arrivez dix minutes avant le début pour vous changer et vous enregistrer à l'accueil en toute tranquillité.",
+      en: "Bring sportswear, a towel and a water bottle. Arrive ten minutes before the start so you can change and check in at reception without hurrying.",
+    },
+  },
+  {
+    key: "credits-and-packages",
+    title: { "nl-BE": "Credits en pakketten", "fr-BE": "Crédits et forfaits", en: "Credits and packages" },
+    body: {
+      "nl-BE": "Je saldo en de vervaldatum van je pakketten zie je in je account. Bij een boeking worden eerst de credits gebruikt die het snelst vervallen.",
+      "fr-BE": "Votre solde et la date d'expiration de vos forfaits figurent dans votre compte. Lors d'une réservation, les crédits qui expirent en premier sont utilisés d'abord.",
+      en: "Your balance and the expiry date of your packages are shown in your account. A booking uses the credits that expire first.",
+    },
+  },
+];
+
+/** Inserts the demo knowledge articles that do not exist yet (by key). */
+export async function seedDemoKnowledgeArticles(db: DbOrTx): Promise<{ created: number; skipped: number }> {
+  let created = 0;
+  for (const a of DEMO_KNOWLEDGE_ARTICLES) {
+    const rows = await db
+      .insert(supportKnowledgeArticles)
+      .values({ key: a.key, title: a.title, body: a.body, isActive: true })
+      .onConflictDoNothing({ target: supportKnowledgeArticles.key })
+      .returning({ id: supportKnowledgeArticles.id });
+    created += rows.length;
+  }
+  return { created, skipped: DEMO_KNOWLEDGE_ARTICLES.length - created };
+}
+
 export const seed = {
   after: ["platform"],
-  run: (s: SeedCtx) => runCrmDemoSeed(s),
+  run: async (s: SeedCtx) => {
+    const main = await runCrmDemoSeed(s);
+    const articles = await seedDemoKnowledgeArticles(s.db);
+    return { created: main.created + articles.created, skipped: main.skipped + articles.skipped };
+  },
 };

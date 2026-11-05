@@ -18,7 +18,18 @@ const taskRef = z.object({ task_id: uuid });
 const segmentRef = z.object({ segment_id: uuid });
 const consentData = z.object({ purpose: z.enum(CONSENT_PURPOSES), method: z.enum(CONSENT_METHODS), lawful_basis: z.enum(["consent", "legitimate_interest"]).optional() });
 const stage = z.string().min(1).max(64);
-const opportunityData = z.object({ opportunity_id: uuid, from_stage: stage.optional(), to_stage: stage.optional(), value_cents: z.number().int().nonnegative().optional() });
+/**
+ * Opportunity events carry the company and, when the opportunity has a primary contact, that
+ * person (automation's B2B journeys enrol the contact; `owner_user_id` is the task owner of
+ * their `trigger_owner` steps).
+ */
+const opportunityData = z.object({
+  opportunity_id: uuid,
+  from_stage: stage.optional(),
+  to_stage: stage.optional(),
+  value_cents: z.number().int().nonnegative().optional(),
+  owner_user_id: uuid.optional(),
+});
 const inboxData = z.object({ thread_id: uuid, channel: z.enum(["email", "instagram", "messenger", "form"]) });
 
 export const events = [

@@ -20,6 +20,24 @@
  * into another in one transaction, refused as a whole when the target refuses the entry. Each
  * writes one audit row with `person_id` (entity type `automation_enrolment`), and a first step
  * already due is enqueued so it runs in the wrapper's after-commit kick.
+ *
+ * The conflict rules (automation-P7, R2; `automations.publish`): `upsertGroup` creates or edits
+ * an automation group (exclusive, lane, priority; audit `automation.group_update`, entity type
+ * `automation_group`), and `updateAutomationRules` writes `settings.automation_rules` (frequency
+ * caps, quiet hours, webhook hosts) through platform's versioned setter (a stale version is
+ * `conflict`; platform writes `settings.update`, this action `automation.rules_update`). A change
+ * of the webhook host allow-list also needs `settings.write` (a data-export decision).
+ *
+ * Decisions (automation-P7):
+ * - A group key is fixed once created (seeds and `createAutomation` refer to groups by key): an
+ *   edit with another key is `conflict` `group_key_immutable`; a new group with a taken key is
+ *   `conflict` `group_key_taken`.
+ * - Group changes apply to new enrolments: an active enrolment keeps the `exclusive_domain` it
+ *   copied at entry, so `uq_enrolment_domain` never fails on existing rows.
+ * - A group cannot become exclusive while one of its non-archived automations sets `subject`
+ *   in its draft or current version (A-1): `conflict` `exclusive_subject:<slug>`.
+ * - Webhook hosts are trimmed, lower-cased and de-duplicated before they are compared and stored;
+ *   a day cap above the week cap is `validation` (`day_cap_above_week_cap`).
  */
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
@@ -27,12 +45,14 @@ import { automationEnrolments, automationGroups, automations, automationVersions
 import { AUTOMATION_PURPOSES, isPublishable, SLUG_RE, type Definition, type EnrolResult } from "@beam/core/automation";
 import type { DpiaKey } from "@beam/core/ops";
 import { action } from "@/lib/action";
-import { and, ConflictError, eq, NotFoundError, sql, ValidationError, type Ctx, type Tx } from "@/lib/ctx";
+import { and, ConflictError, eq, ne, NotFoundError, sql, ValidationError, type Ctx, type Tx } from "@/lib/ctx";
+import { getSettingWithVersion, setSetting } from "@/lib/settings";
 import { isDpiaApproved } from "@/modules/ops/api";
 import { endJobKey, enrolSegmentJobKey, migrateJobKey, resumeJobKey } from "./engine/bulk";
 import { enrol, loadAutomations, type EngineAutomation } from "./engine/enrol";
 import { endEnrolmentWith } from "./engine/exits";
 import { stepJobKey, stepJobPriority } from "./engine/step";
+import type { AutomationRulesValue } from "./config";
 import { definitionHash, draftIssues } from "./queries";
 
 const Purpose = z.enum(AUTOMATION_PURPOSES);
@@ -506,5 +526,136 @@ export const movePerson = action(
       newValue: { enrolmentId: res.enrolmentId, automation: target.slug, anchorAt: input.anchorAt ?? null },
     });
     return { exitedEnrolmentId: from.id, enrolment: res };
+  },
+);
+
+// ---------------------------------------------------------------------------
+// Conflict rules (automation-P7, R2): groups and settings.automation_rules
+// ---------------------------------------------------------------------------
+
+const KeyRe = /^[a-z][a-z0-9_]*$/;
+const GroupKeyInput = z.string().trim().min(2).max(60).regex(KeyRe, "group_key");
+const LaneInput = z.string().trim().min(2).max(60).regex(KeyRe, "lane");
+
+const UpsertGroupInput = z.object({
+  id: z.uuid().optional(),
+  key: GroupKeyInput,
+  name: Name,
+  description: Description.optional(),
+  isExclusive: z.boolean(),
+  lane: LaneInput.nullable().optional(),
+  priority: Priority,
+});
+
+type GroupRow = typeof automationGroups.$inferSelect;
+const groupAudit = (g: Pick<GroupRow, "key" | "name" | "description" | "isExclusive" | "lane" | "priority">) => ({
+  key: g.key,
+  name: g.name,
+  description: g.description,
+  isExclusive: g.isExclusive,
+  lane: g.lane,
+  priority: g.priority,
+});
+
+/** A-1: the first non-archived automation of the group whose draft or current version sets `subject`. */
+async function subjectAutomationIn(tx: Tx, groupId: string): Promise<string | null> {
+  const [row] = await tx
+    .select({ slug: automations.slug })
+    .from(automations)
+    .leftJoin(automationVersions, eq(automationVersions.id, automations.currentVersionId))
+    .where(
+      and(
+        eq(automations.groupId, groupId),
+        ne(automations.status, "archived"),
+        sql`(${automations.draftDefinition} ->> 'subject' is not null or ${automationVersions.definition} ->> 'subject' is not null)`,
+      ),
+    )
+    .orderBy(automations.slug)
+    .limit(1);
+  return row?.slug ?? null;
+}
+
+/** Creates or edits an automation group (exclusive, lane, priority); one `automation.group_update` audit row. */
+export const upsertGroup = action(
+  { name: "automation.group_upsert", audience: "staff", permission: "automations.publish", input: UpsertGroupInput, audit: false },
+  async (ctx, input): Promise<{ id: string }> => {
+    const tx = ctx.tx;
+    const values = {
+      key: input.key,
+      name: input.name,
+      description: input.description || null,
+      isExclusive: input.isExclusive,
+      lane: input.lane || null,
+      priority: input.priority,
+    };
+    if (!input.id) {
+      const [row] = await tx.insert(automationGroups).values(values).onConflictDoNothing({ target: automationGroups.key }).returning();
+      if (!row) throw new ConflictError("group_key_taken");
+      await ctx.audit({ action: "automation.group_update", entityType: "automation_group", entityId: row.id, oldValue: null, newValue: groupAudit(row) });
+      return { id: row.id };
+    }
+    const [before] = await tx.select().from(automationGroups).where(eq(automationGroups.id, input.id)).for("update");
+    if (!before) throw new NotFoundError("group_not_found");
+    if (before.key !== input.key) throw new ConflictError("group_key_immutable");
+    if (input.isExclusive && !before.isExclusive) {
+      const slug = await subjectAutomationIn(tx, before.id);
+      if (slug) throw new ConflictError(`exclusive_subject:${slug}`);
+    }
+    const [after] = await tx
+      .update(automationGroups)
+      .set({ ...values, key: before.key, updatedAt: ctx.now })
+      .where(eq(automationGroups.id, before.id))
+      .returning();
+    await ctx.audit({ action: "automation.group_update", entityType: "automation_group", entityId: before.id, oldValue: groupAudit(before), newValue: groupAudit(after!) });
+    return { id: before.id };
+  },
+);
+
+const HHMM = z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/, "time");
+const HOST_RE = /^(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/;
+const WebhookHost = z.string().trim().toLowerCase().regex(HOST_RE, "webhook_host");
+
+const UpdateRulesInput = z
+  .object({
+    expectedVersion: z.number().int().min(0),
+    maxMarketingPerDay: z.number().int().min(0).max(10),
+    maxMarketingPerWeek: z.number().int().min(0).max(30),
+    quietStart: HHMM,
+    quietEnd: HHMM,
+    webhookHosts: z.array(WebhookHost).max(50),
+  })
+  .refine((i) => i.maxMarketingPerDay <= i.maxMarketingPerWeek, { path: ["maxMarketingPerDay"], message: "day_cap_above_week_cap" });
+
+const normalHosts = (hosts: readonly string[]): string[] => [...new Set(hosts.map((h) => h.trim().toLowerCase()).filter(Boolean))].sort();
+
+/**
+ * Writes `settings.automation_rules` (A-32 caps and quiet hours, the webhook host allow-list)
+ * through platform's versioned setter; a host change additionally requires `settings.write`.
+ */
+export const updateAutomationRules = action(
+  { name: "automation.rules_update", audience: "staff", permission: "automations.publish", input: UpdateRulesInput, audit: false },
+  async (ctx, input): Promise<{ ok: true; version: number }> => {
+    const current = await getSettingWithVersion(ctx.tx, "automation_rules");
+    const before: AutomationRulesValue = current.value;
+    const hosts = normalHosts(input.webhookHosts);
+    const hostsChanged = hosts.join(",") !== normalHosts(before.webhook_hosts).join(",");
+    if (hostsChanged) ctx.require("settings.write");
+    const next: AutomationRulesValue = {
+      max_marketing_per_day: input.maxMarketingPerDay,
+      max_marketing_per_week: input.maxMarketingPerWeek,
+      quiet_start: input.quietStart,
+      quiet_end: input.quietEnd,
+      // An unchanged list keeps its stored order.
+      webhook_hosts: hostsChanged ? hosts : [...before.webhook_hosts],
+    };
+    const { version } = await setSetting(ctx, "automation_rules", next as never, input.expectedVersion);
+    await ctx.audit({
+      action: "automation.rules_update",
+      entityType: "settings",
+      entityId: "automation_rules",
+      oldValue: { ...before, version: current.version },
+      newValue: { ...next, version, webhookHostsChanged: hostsChanged },
+    });
+    return { ok: true, version };
   },
 );

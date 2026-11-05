@@ -6,11 +6,16 @@
  * resume, archive, migrate and segment enrolment enqueue their bulk jobs; every action writes one
  * audit row. Email's `getPublishedTemplateInfo` and ops' `isDpiaApproved` are mocked to the
  * shapes their contracts promise (CONVENTIONS 11).
+ *
+ * automation-P7 (R2): `upsertGroup` creates and edits groups with one audit row each and refuses
+ * a taken or changed key; `updateAutomationRules` saves caps with `automations.publish`, a stale
+ * `expectedVersion` is `conflict` and a webhook host change without `settings.write` is
+ * `forbidden`.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTestDb, makePerson, makeUser } from "@beam/db/testing";
 import type { DbHandle } from "@beam/db";
-import { auditLog, automationEnrolments, automations, automationVersions, jobs, roles, segmentMembers, segments, tags } from "@beam/db/schema";
+import { auditLog, automationEnrolments, automationGroups, automations, automationVersions, jobs, roles, segmentMembers, segments, settings, tags } from "@beam/db/schema";
 import type { Definition } from "@beam/core/automation";
 import type * as EmailApi from "@/modules/email/api";
 import type * as OpsApi from "@/modules/ops/api";
@@ -301,5 +306,115 @@ describe("bulk jobs", () => {
     const paused = await makeAutomation(handle.db, { definition: emailDef("welcome-mail"), status: "paused" });
     err(await actions.enrolSegment({ automationId: paused.id, segmentId: segment!.id }), "conflict");
     err(await actions.enrolSegment({ automationId: a.id, segmentId: crypto.randomUUID() }), "not_found");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// automation-P7 (R2): groups and the rules page
+// ---------------------------------------------------------------------------
+
+const BASE_PERMS = ["automations.write", "automations.publish", "reports.read"];
+
+/** Re-grants the marketing role and signs in again with it. */
+async function grant(perms: readonly string[]) {
+  await handle.db.update(roles).set({ permissions: [...perms] }).where(eq(roles.key, "marketing"));
+  const { token } = await createAuthSession(handle.db, { userId, audience: "staff", roleKey: "marketing", now: new Date(), mfaAt: new Date() });
+  jar.set(SESSION_COOKIE, token);
+}
+
+async function groupRow(id: string) {
+  const [g] = await handle.db.select().from(automationGroups).where(eq(automationGroups.id, id));
+  return g!;
+}
+
+async function rulesRow() {
+  const [s] = await handle.db.select().from(settings).where(eq(settings.key, "automation_rules"));
+  return s;
+}
+
+const RULES = { maxMarketingPerDay: 1, maxMarketingPerWeek: 3, quietStart: "21:00", quietEnd: "08:00", webhookHosts: [] as string[] };
+
+describe("upsertGroup (automation-P7)", () => {
+  it("creates a group and edits its exclusivity, lane and priority, one automation.group_update row each", async () => {
+    const { id } = ok<{ id: string }>(await actions.upsertGroup({ key: "p7_journey", name: "P7 journey", isExclusive: false, priority: 100 }));
+    expect(await groupRow(id)).toMatchObject({ key: "p7_journey", name: "P7 journey", isExclusive: false, lane: null, priority: 100 });
+    const created = await audits("automation.group_update", id);
+    expect(created).toHaveLength(1);
+    expect(created[0]).toMatchObject({ entityType: "automation_group", oldValue: null });
+
+    ok(await actions.upsertGroup({ id, key: "p7_journey", name: "P7 journey", description: "Edited", isExclusive: true, lane: "sales_journey", priority: 15 }));
+    expect(await groupRow(id)).toMatchObject({ isExclusive: true, lane: "sales_journey", priority: 15, description: "Edited" });
+    const all = await audits("automation.group_update", id);
+    expect(all).toHaveLength(2);
+    expect(all.map((a) => a.newValue)).toContainEqual(expect.objectContaining({ isExclusive: true, lane: "sales_journey", priority: 15 }));
+    expect(all.map((a) => a.oldValue)).toContainEqual(expect.objectContaining({ isExclusive: false, lane: null, priority: 100 }));
+  });
+
+  it("a taken key is conflict, a key change is conflict, an unknown id is not_found, a bad lane is validation", async () => {
+    const { id } = ok<{ id: string }>(await actions.upsertGroup({ key: "p7_fixed", name: "Fixed", isExclusive: false, priority: 100 }));
+    expect(err(await actions.upsertGroup({ key: "p7_fixed", name: "Again", isExclusive: false, priority: 100 }), "conflict").message).toBe("group_key_taken");
+    expect(err(await actions.upsertGroup({ id, key: "p7_renamed", name: "Fixed", isExclusive: false, priority: 100 }), "conflict").message).toBe("group_key_immutable");
+    err(await actions.upsertGroup({ id: crypto.randomUUID(), key: "p7_ghost", name: "Ghost", isExclusive: false, priority: 100 }), "not_found");
+    err(await actions.upsertGroup({ key: "p7_lane", name: "Lane", isExclusive: true, lane: "Sales Journey", priority: 100 }), "validation");
+    err(await actions.upsertGroup({ key: "p7_prio", name: "Prio", isExclusive: true, priority: 1001 }), "validation");
+    expect((await groupRow(id)).key).toBe("p7_fixed");
+  });
+
+  it("A-1 a group cannot become exclusive while one of its automations sets subject", async () => {
+    const { id } = ok<{ id: string }>(await actions.upsertGroup({ key: "p7_subject", name: "Subject", isExclusive: false, priority: 100 }));
+    const g = await groupRow(id);
+    const a = await makeAutomation(handle.db, { group: g, definition: { ...emailDef("welcome-mail"), subject: "ref" } });
+    expect(err(await actions.upsertGroup({ id, key: "p7_subject", name: "Subject", isExclusive: true, priority: 100 }), "conflict").message).toBe(`exclusive_subject:${a.slug}`);
+    expect((await groupRow(id)).isExclusive).toBe(false);
+    // Once that automation is archived the group may become exclusive.
+    await handle.db.update(automations).set({ status: "archived", pausedAt: null }).where(eq(automations.id, a.id));
+    ok(await actions.upsertGroup({ id, key: "p7_subject", name: "Subject", isExclusive: true, priority: 100 }));
+  });
+});
+
+describe("updateAutomationRules (automation-P7)", () => {
+  it("automations.publish saves caps and quiet hours; platform's settings.update and automation.rules_update are audited", async () => {
+    await handle.db.delete(settings).where(eq(settings.key, "automation_rules"));
+    const r = ok<{ ok: true; version: number }>(await actions.updateAutomationRules({ ...RULES, expectedVersion: 0, maxMarketingPerDay: 2, maxMarketingPerWeek: 4, quietStart: "22:00", quietEnd: "07:30" }));
+    expect(r).toEqual({ ok: true, version: 1 });
+    expect((await rulesRow())!.value).toEqual({ max_marketing_per_day: 2, max_marketing_per_week: 4, quiet_start: "22:00", quiet_end: "07:30", webhook_hosts: [] });
+    const own = await audits("automation.rules_update", "automation_rules");
+    expect(own.length).toBeGreaterThanOrEqual(1);
+    expect(own.at(-1)!.newValue).toMatchObject({ max_marketing_per_day: 2, version: 1, webhookHostsChanged: false });
+    expect((await audits("settings.update", "automation_rules")).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("a stale expectedVersion is conflict and changes nothing", async () => {
+    await handle.db.delete(settings).where(eq(settings.key, "automation_rules"));
+    ok(await actions.updateAutomationRules({ ...RULES, expectedVersion: 0 }));
+    err(await actions.updateAutomationRules({ ...RULES, expectedVersion: 0, maxMarketingPerDay: 3 }), "conflict");
+    expect((await rulesRow())!).toMatchObject({ version: 1, value: expect.objectContaining({ max_marketing_per_day: 1 }) });
+  });
+
+  it("a webhook host change without settings.write is forbidden; with it the hosts are normalised and saved", async () => {
+    await handle.db.delete(settings).where(eq(settings.key, "automation_rules"));
+    const e = err(await actions.updateAutomationRules({ ...RULES, expectedVersion: 0, webhookHosts: ["hooks.example.com"] }), "forbidden");
+    expect(e.message).toContain("settings.write");
+    expect(await rulesRow()).toBeUndefined();
+
+    await grant([...BASE_PERMS, "settings.write"]);
+    try {
+      ok(await actions.updateAutomationRules({ ...RULES, expectedVersion: 0, webhookHosts: [" Hooks.Example.com ", "api.example.com", "hooks.example.com"] }));
+      expect(((await rulesRow())!.value as { webhook_hosts: string[] }).webhook_hosts).toEqual(["api.example.com", "hooks.example.com"]);
+      err(await actions.updateAutomationRules({ ...RULES, expectedVersion: 1, webhookHosts: ["https://hooks.example.com/x"] }), "validation");
+    } finally {
+      await grant(BASE_PERMS);
+    }
+    // Without settings.write the caps can still change while the hosts are sent unchanged.
+    ok(await actions.updateAutomationRules({ ...RULES, expectedVersion: 1, maxMarketingPerDay: 2, webhookHosts: ["hooks.example.com", "api.example.com"] }));
+    expect((await rulesRow())!.value).toMatchObject({ max_marketing_per_day: 2, webhook_hosts: ["api.example.com", "hooks.example.com"] });
+    err(await actions.updateAutomationRules({ ...RULES, expectedVersion: 2, webhookHosts: [] }), "forbidden");
+  });
+
+  it("refuses out-of-range caps, a bad time and a day cap above the week cap", async () => {
+    err(await actions.updateAutomationRules({ ...RULES, expectedVersion: 0, maxMarketingPerDay: 11, maxMarketingPerWeek: 30 }), "validation");
+    err(await actions.updateAutomationRules({ ...RULES, expectedVersion: 0, maxMarketingPerWeek: 31 }), "validation");
+    err(await actions.updateAutomationRules({ ...RULES, expectedVersion: 0, quietStart: "24:00" }), "validation");
+    err(await actions.updateAutomationRules({ ...RULES, expectedVersion: 0, maxMarketingPerDay: 4, maxMarketingPerWeek: 3 }), "validation");
   });
 });

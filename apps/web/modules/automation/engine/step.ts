@@ -13,9 +13,20 @@
  * orders or payments; every write to another module goes through its api (crm tasks, tags,
  * fields and status override; email messages; commerce's checkout recovery mark).
  *
+ * Frequency rules (A-32, automation-P7): an email step sent as marketing (a marketing template
+ * or `send_as: 'marketing'`) that passed reachability and translation is judged by
+ * `applyFrequencyRules` against `settings.automation_rules` and the person's automation
+ * marketing messages of the last 7 days. Inside the quiet hours the step is deferred: the plan
+ * entry and `next_step_at` move to the end of the quiet hours, a new `scheduled` run (reason
+ * `quiet_hours`) is written and the job enqueues itself with the `:defer:` key and `runAt`
+ * (A-26a); over a cap it writes `skipped_frequency_cap` (reason `cap_day:<n>` or `cap_week:<n>`)
+ * and the enrolment advances. Transactional templates are never capped or deferred.
+ *
  * Decisions:
- * - The A-32 frequency cap and quiet hours are R2 (automation-P7); `stepJobKey` already builds
- *   the `:defer:` key they use.
+ * - A recent automation marketing send is an `email_messages` row of the person with `kind =
+ *   automation`, a non-null `purpose` and a status other than `suppressed`, `blocked_translation`
+ *   or `failed` (those never reached the person), created in the trailing window; the message of
+ *   this very step (its idempotency key) is not counted, so a re-run never caps itself.
  * - A `webhook` step writes no run when it runs: it enqueues `automation.call_webhook` and the
  *   enrolment advances; that job writes `webhook_called` (or its `onDead` hook `failed`).
  * - An `enrol` step whose target refuses the entry for audience, re-entry or a missing anchor
@@ -52,6 +63,7 @@ import {
 } from "@beam/core/automation";
 import { createCtx, eq, sql, type Actor, type Ctx } from "@/lib/ctx";
 import { flag } from "@/lib/flags";
+import { getSetting } from "@/lib/settings";
 import { rowsOf } from "@/lib/sensitive";
 import { nextOpeningAt } from "@/modules/booking/api";
 import { getCheckoutRecoveryProps, markCheckoutRecoveryMessage } from "@/modules/commerce/api";
@@ -63,12 +75,15 @@ import { enrol, loadAutomations } from "./enrol";
 import { activeEnrolmentsOf, endEnrolmentWith } from "./exits";
 import { loadFacts, needsOf } from "./facts";
 import { writeRun } from "./runs";
+// Until `@beam/core/automation` re-exports it (requested from the owner of its index.ts).
+import { applyFrequencyRules, FREQUENCY_WEEK_MS, frequencyCapReason, type AutomationRules } from "../../../../../packages/core/src/automation/frequency";
 
 export type RunStepInput = { enrolmentId: string; stepKey: string; now: Date };
 
 export type RunStepResult =
   | { status: "noop"; reason: "missing" | "ended" | "not_next" | "automation_inactive" }
   | { status: "replanned"; reason: "anchor_moved"; nextStepKey: string | null }
+  | { status: "deferred"; reason: "quiet_hours"; nextStepKey: string; until: Date }
   | { status: "ran"; outcome: AutomationRunOutcome | null; nextStepKey: string | null; ended: boolean };
 
 export type RunStepOptions = { ctx?: Ctx };
@@ -236,6 +251,7 @@ export async function runStep(tx: Tx, input: RunStepInput, opts: RunStepOptions 
   const stepPerson: StepPerson = { id: person.id, locale: person.locale, firstName: person.firstName };
   const result = await executeStep(tx, ctx, e, step, stepPerson, now);
   if (result.ended) return ran(result.outcome, e);
+  if (result.deferUntil) return deferStep(tx, ctx, e, step.key, result.deferUntil, now);
   if (result.outcome) {
     await writeStepRun(tx, e, step.key, result.outcome, actor, {
       reason: result.reason ?? null,
@@ -264,6 +280,8 @@ export type StepOutcome = {
   taskId?: string | null;
   /** The step ended the enrolment itself (an `exit` of this enrolment). */
   ended?: boolean;
+  /** Quiet hours (A-32): the step runs again at this time; nothing is written for it now. */
+  deferUntil?: Date;
 };
 
 /** Runs the step itself once every check passed. */
@@ -271,7 +289,7 @@ export async function executeStep(tx: Tx, ctx: Ctx, e: LockedEnrolment, step: St
 
   switch (step.type) {
     case "email":
-      return runEmailStep(tx, ctx, e, step, person);
+      return runEmailStep(tx, ctx, e, step, person, now);
     case "wait":
     case "condition":
       return { outcome: null };
@@ -327,7 +345,7 @@ export function buildEmailContext(e: Pick<LockedEnrolment, "id" | "subjectKey" |
   return out;
 }
 
-async function runEmailStep(tx: Tx, ctx: Ctx, e: LockedEnrolment, step: EmailStep, person: StepPerson): Promise<StepOutcome> {
+async function runEmailStep(tx: Tx, ctx: Ctx, e: LockedEnrolment, step: EmailStep, person: StepPerson, now: Date): Promise<StepOutcome> {
   const slug = step.template;
   const info = (await getPublishedTemplateInfo(tx, [slug])).get(slug);
   if (!info) return { outcome: "failed", reason: "template_unavailable", data: { template_slug: slug } };
@@ -345,6 +363,14 @@ async function runEmailStep(tx: Tx, ctx: Ctx, e: LockedEnrolment, step: EmailSte
       data: { template_slug: slug, template_version_id: info.templateVersionId },
     };
   }
+  if (asMarketing) {
+    // A-32: quiet hours and frequency caps, marketing sends only.
+    const rules = (await getSetting(tx, "automation_rules")) as AutomationRules;
+    const input = { now, recentMarketingSends: await recentMarketingSends(tx, e.personId, now, stepEmailKey(e.id, step.key)), rules };
+    const decision = applyFrequencyRules(input);
+    if (decision.action === "defer") return { outcome: null, deferUntil: decision.until };
+    if (decision.action === "skip") return { outcome: "skipped_frequency_cap", reason: frequencyCapReason(input) ?? "frequency_cap", data: { template_slug: slug } };
+  }
   const context = buildEmailContext(e);
   const checkoutId = e.subjectKey.startsWith("checkout:") ? e.subjectKey.slice("checkout:".length) : null;
   if (checkoutId) {
@@ -358,6 +384,57 @@ async function runEmailStep(tx: Tx, ctx: Ctx, e: LockedEnrolment, step: EmailSte
   if (res.status !== "queued") return { outcome: res.status, reason: `email:${res.status}`, data };
   if (checkoutId) await markCheckoutRecoveryMessage(tx, { checkoutId, emailMessageId: res.messageId });
   return { outcome: "sent", data, emailMessageId: res.messageId };
+}
+
+/**
+ * The person's automation marketing messages of the last 7 days (A-32): `kind = automation` with
+ * a purpose, not suppressed, blocked or failed, other than the message of this step itself.
+ */
+export async function recentMarketingSends(tx: Tx, personId: string, now: Date, ownKey: string): Promise<Date[]> {
+  const since = new Date(now.getTime() - FREQUENCY_WEEK_MS);
+  const rows = rowsOf<{ at: string | Date }>(
+    await tx.execute(sql`select created_at as at from email_messages
+      where person_id = ${personId}::uuid and kind = 'automation' and purpose is not null
+        and status not in ('suppressed', 'blocked_translation', 'failed')
+        and idempotency_key <> ${ownKey}
+        and created_at > ${since.toISOString()}::timestamptz and created_at <= ${now.toISOString()}::timestamptz`),
+  );
+  return rows.map((r) => new Date(r.at));
+}
+
+/**
+ * A-32 deferral: the step stays the next step, its plan entry and `next_step_at` move to
+ * `until`, a new `scheduled` run (reason `quiet_hours`) is written and the step is enqueued again
+ * with the `:defer:<YYYY-MM-DDTHH:mm>` key and `runAt` (the plain key is taken by this job).
+ */
+async function deferStep(tx: Tx, ctx: Ctx, e: LockedEnrolment, stepKey: string, until: Date, now: Date): Promise<RunStepResult> {
+  const due = until.toISOString();
+  const plan = e.plan.map((p) => (p.key === stepKey ? { ...p, due_at: due } : p));
+  const next = plan.find((p) => p.key === stepKey) ?? { key: stepKey, type: "email" as const, due_at: due, state: "pending" as const };
+  await storePlan(tx, e.id, plan, next);
+  e.plan = plan;
+  e.nextStepAt = until;
+  await writeRun(tx, {
+    enrolmentId: e.id,
+    personId: e.personId,
+    automationId: e.automationId,
+    automationVersionId: e.versionId,
+    stepKey,
+    outcome: "scheduled",
+    reason: "quiet_hours",
+    data: { due_at: due, deferred_from: now.toISOString() },
+    actor: ctx.actor,
+    dedupeKey: replanDedupeKey(e.id, stepKey, "defer", until),
+  });
+  await ctx.enqueue({
+    kind: "automation.step",
+    payload: { enrolmentId: e.id, stepKey },
+    key: stepJobKey(e.id, stepKey, { kind: "defer", at: until }),
+    runAt: until,
+    lane: "fast",
+    priority: stepJobPriority(e.automation.isMarketing),
+  });
+  return { status: "deferred", reason: "quiet_hours", nextStepKey: stepKey, until };
 }
 
 /** `{{trigger.data.<key>}}` in a task title, for a string key of the trigger data. */

@@ -439,7 +439,7 @@ export async function getIntegrationHealth(tx: DbOrTx) {
 export const TOKEN_INTEGRATIONS = [
   { provider: "meta_ads", envNames: ["META_ADS_TOKEN"] },
   { provider: "google_ads", envNames: ["GOOGLE_ADS_TOKEN"] },
-  { provider: "meta", envNames: ["META_APP_SECRET", "META_VERIFY_TOKEN"] },
+  { provider: "meta", envNames: ["META_APP_SECRET", "META_PAGE_ACCESS_TOKEN", "META_VERIFY_TOKEN"] },
 ] as const satisfies readonly { provider: IntegrationProviderName; envNames: readonly string[] }[];
 
 export type TokenIntegrationStatus = {

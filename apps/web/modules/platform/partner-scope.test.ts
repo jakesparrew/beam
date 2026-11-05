@@ -229,6 +229,7 @@ describe("token integrations (System integrations screen)", () => {
     expect(by.meta!.configured).toBe(false);
     expect(by.meta!.tokens).toEqual([
       { name: "META_APP_SECRET", configured: true },
+      { name: "META_PAGE_ACCESS_TOKEN", configured: false },
       { name: "META_VERIFY_TOKEN", configured: false },
     ]);
     expect(by.meta!.dataAsOf).toEqual(recent);

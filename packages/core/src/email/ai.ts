@@ -15,7 +15,7 @@
 import { z } from "zod";
 import { LOCALES, type Locale } from "../i18n/locales";
 import { completeLocalizedText, type LocalizedText } from "../i18n/localized-text";
-import { BlockDocumentSchema, validateDocument, walkBlocks, type Block, type BlockDocument } from "./blocks";
+import { BlockDocumentSchema, validateDocument, walkBlocks, type BlockDocument } from "./blocks";
 import type { MarketingPurpose } from "./types";
 
 /** The locales every AI draft must fill (no fallback language). */
@@ -66,7 +66,7 @@ export function draftDocumentIssues(document: BlockDocument, sessionIds: readonl
   const issues: string[] = [];
   const allowed = new Set<string>(AI_DRAFT_BLOCK_TYPES);
   for (const l of AI_DRAFT_LOCALES) {
-    walkBlocks((document.locales[l] ?? []) as Block[], (block) => {
+    walkBlocks((document.locales[l] ?? []), (block) => {
       if (!allowed.has(block.type)) issues.push(`${l}: block type ${block.type} not allowed`);
       else if (block.type === "event" && !sessionIds.includes(block.sessionId)) issues.push(`${l}: event ${block.sessionId} was not chosen`);
     });

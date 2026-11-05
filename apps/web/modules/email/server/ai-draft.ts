@@ -26,7 +26,7 @@ import type { DbOrTx } from "@beam/db";
 import { campaigns, emailAiDrafts, emailTemplates, emailTemplateVersions, type EmailAiDraftInputs } from "@beam/db/schema";
 import { MARKETING_PURPOSES, type MarketingPurpose } from "@beam/core/email";
 import { PermanentError, RetryableError } from "@beam/core/errors";
-import { LOCALES, type Locale, type LocalizedText } from "@beam/core/i18n";
+import { LOCALES } from "@beam/core/i18n";
 import { callClaude } from "@/lib/ai";
 import { and, desc, eq, inArray, NotFoundError, sql, ValidationError, writeDurably, type Ctx } from "@/lib/ctx";
 import type { JobCtx } from "@/lib/job-runner";
@@ -171,7 +171,7 @@ export async function draftSessions(tx: DbOrTx, sessionIds: readonly string[]): 
       else
         byId.set(c.sessionId, {
           sessionId: c.sessionId,
-          title: { [locale]: c.title } as LocalizedText,
+          title: { [locale]: c.title },
           startsAt: c.startsAt,
           endsAt: c.endsAt,
           location: c.location,
@@ -210,7 +210,7 @@ export async function segmentAggregate(tx: DbOrTx, segment: { id: string; name: 
     name: segment.name,
     total: n(row?.total),
     byStatus: { lead: n(row?.lead), customer: n(row?.customer), member: n(row?.member) },
-    byLocale: { "nl-BE": n(row?.nl), "fr-BE": n(row?.fr), en: n(row?.en) } as Record<Locale, number>,
+    byLocale: { "nl-BE": n(row?.nl), "fr-BE": n(row?.fr), en: n(row?.en) },
     medianDaysSinceLastVisit: row?.median_days === null || row?.median_days === undefined ? null : Math.round(Number(row.median_days)),
   };
 }
@@ -289,7 +289,7 @@ export async function runDraftEmail(ctx: JobCtx, input: z.infer<typeof DraftEmai
 
   await ctx.tx
     .update(emailAiDrafts)
-    .set({ status: "ready", output: result.parsed as unknown as Record<string, unknown>, error: null, updatedAt: ctx.now })
+    .set({ status: "ready", output: result.parsed, error: null, updatedAt: ctx.now })
     .where(eq(emailAiDrafts.id, draft.id));
   // `ai_requests` is written durably after the job's transaction; the link follows it there.
   const aiRequestId = result.aiRequestId;

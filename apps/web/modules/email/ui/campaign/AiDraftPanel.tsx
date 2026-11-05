@@ -103,7 +103,7 @@ export function AiDraftPanel(props: AiDraftPanelProps) {
   return (
     <div className="grid gap-6" data-testid="ai-draft-panel">
       <p className="text-sm text-muted-foreground">{l("intro")}</p>
-      <form onSubmit={submit} className="grid gap-4 rounded-md border p-4" data-testid="ai-draft-form">
+      <form onSubmit={(e) => void submit(e)} className="grid gap-4 rounded-md border p-4" data-testid="ai-draft-form">
         <div className="grid gap-1">
           <Label htmlFor="ai-brief">{l("brief")}</Label>
           <Textarea id="ai-brief" value={brief} onChange={(e) => setBrief(e.target.value)} minLength={10} maxLength={4000} rows={5} required />
@@ -246,10 +246,10 @@ function DraftCard({ draft, labels, locale }: { draft: AiDraftPanelDraft; labels
             <p className="text-xs text-muted-foreground">{l("accept_note")}</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button type="button" onClick={accept} disabled={busy || !name.trim()} data-testid="ai-draft-accept">
+            <Button type="button" onClick={() => void accept()} disabled={busy || !name.trim()} data-testid="ai-draft-accept">
               {l("accept")}
             </Button>
-            <Button type="button" variant="ghost" onClick={discard} disabled={busy}>
+            <Button type="button" variant="ghost" onClick={() => void discard()} disabled={busy}>
               {l("discard")}
             </Button>
           </div>
@@ -257,7 +257,7 @@ function DraftCard({ draft, labels, locale }: { draft: AiDraftPanelDraft; labels
       ) : null}
       {draft.status === "queued" || draft.status === "failed" ? (
         <div>
-          <Button type="button" variant="ghost" size="sm" onClick={discard} disabled={busy}>
+          <Button type="button" variant="ghost" size="sm" onClick={() => void discard()} disabled={busy}>
             {l("discard")}
           </Button>
         </div>

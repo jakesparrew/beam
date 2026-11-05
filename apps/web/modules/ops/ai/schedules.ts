@@ -1,4 +1,9 @@
 /**
- * ops schedules, area `ai` (ops spec 4.5, Europe/Brussels). The crons of ai.weekly_summary (R4) are declared in `../schedules.ts` (`PLANNED_SCHEDULES`); ops-P10 keeps any schedule helper here.
+ * ops schedules, area `ai` (ops spec 4.5, Europe/Brussels). The cron of `ai.weekly_summary`
+ * (Monday 06:30, R4) is declared in `../schedules.ts`; its handler summarises the Brussels week
+ * before the run (`lastWeekStart`) and returns early while `ff_ops_ai` is off.
  */
-export {};
+export { lastWeekStart } from "./summary";
+
+/** The cron of `ai.weekly_summary` as declared in `../schedules.ts` (rule 78). */
+export const WEEKLY_SUMMARY_CRON = "30 6 * * 1";

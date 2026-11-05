@@ -1242,6 +1242,73 @@
         "not_found": "This dashboard no longer exists.",
         "generic": "Something went wrong. Try again."
       }
+    },
+    "ask": {
+      "title": "Ask a question",
+      "intro": "Ask a question about BEAM's data. Claude writes a read-only query over the non-sensitive reporting views; the answer shows the table, a short explanation and the query.",
+      "label": "Your question",
+      "placeholder": "Which customers generated the most revenue this year?",
+      "submit": "Ask",
+      "examples_title": "Examples",
+      "empty": "Ask a question about BEAM's data",
+      "history_title": "Your questions",
+      "history_empty": "You have not asked a question yet.",
+      "answer_title": "Answer",
+      "explanation": "Explanation",
+      "sql": "Generated query",
+      "rows": "{count, plural, one {# row} other {# rows}}",
+      "rows_expired": "The rows of this answer are no longer kept. Ask the question again to see them.",
+      "no_rows": "The query returned no rows.",
+      "unavailable": "AI unavailable, use the reports.",
+      "privacy_note": "Only staff see the names; they are never sent to Claude.",
+      "example": {
+        "top_revenue": "Which customers generated the most revenue this year?",
+        "best_campaign": "Which campaign brought in the highest-value customers?",
+        "no_repurchase": "Who bought a 10-session package and did not repurchase?",
+        "month_change": "How does revenue in September compare with August, and what changed most?",
+        "b2b_attention": "Which B2B opportunities need attention?",
+        "contact_week": "Which 50 customers should we contact this week?"
+      },
+      "status": {
+        "answered": "Answered",
+        "refused": "Refused",
+        "error": "Error",
+        "timeout": "Timed out",
+        "budget_exceeded": "AI budget reached"
+      },
+      "status_text": {
+        "refused": "This question cannot be answered from the reporting views, or it needs data the AI may not read.",
+        "error": "Something went wrong while answering. Try again or use the reports.",
+        "timeout": "The query took longer than 5 seconds. Ask a narrower question.",
+        "budget_exceeded": "The monthly AI budget is spent. Use the reports until next month."
+      },
+      "error": {
+        "validation": "Write a question of 3 to 500 characters.",
+        "generic": "The question could not be asked. Try again."
+      }
+    },
+    "summary": {
+      "title": "Weekly summary",
+      "intro": "Every Monday at 06:30 Claude summarises last week's figures (aggregates only, no personal data).",
+      "empty": "The first summary arrives Monday 06:30",
+      "week_of": "Week of {date}",
+      "regenerate": "Regenerate",
+      "regenerated": "A new summary is being generated. It appears here within a few minutes.",
+      "english_only": "English only",
+      "status": {
+        "pending": "Being generated",
+        "ready": "Ready",
+        "failed": "Failed",
+        "skipped_budget": "Skipped: AI budget reached"
+      },
+      "pending_text": "The summary is being generated.",
+      "failed_text": "No summary could be generated for this week.",
+      "skipped_text": "Skipped because the monthly AI budget is spent.",
+      "error": {
+        "conflict": "A summary of this week is still being generated.",
+        "generic": "The summary could not be regenerated. Try again."
+      },
+      "updated": "Updated {date}"
     }
   }
 }

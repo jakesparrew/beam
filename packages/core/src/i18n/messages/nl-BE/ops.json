@@ -1242,6 +1242,73 @@
         "not_found": "Dit dashboard bestaat niet meer.",
         "generic": "Er ging iets mis. Probeer opnieuw."
       }
+    },
+    "ask": {
+      "title": "Stel een vraag",
+      "intro": "Stel een vraag over de gegevens van BEAM. Claude schrijft een alleen-lezen query op de niet-gevoelige rapportageweergaven; het antwoord toont de tabel, een korte uitleg en de query.",
+      "label": "Je vraag",
+      "placeholder": "Welke klanten brachten dit jaar de meeste omzet op?",
+      "submit": "Vragen",
+      "examples_title": "Voorbeelden",
+      "empty": "Stel een vraag over de gegevens van BEAM",
+      "history_title": "Jouw vragen",
+      "history_empty": "Je hebt nog geen vraag gesteld.",
+      "answer_title": "Antwoord",
+      "explanation": "Uitleg",
+      "sql": "Gegenereerde query",
+      "rows": "{count, plural, one {# rij} other {# rijen}}",
+      "rows_expired": "De rijen van dit antwoord worden niet meer bewaard. Stel de vraag opnieuw om ze te zien.",
+      "no_rows": "De query gaf geen rijen terug.",
+      "unavailable": "AI niet beschikbaar, gebruik de rapporten.",
+      "privacy_note": "Alleen medewerkers zien de namen; ze worden nooit naar Claude gestuurd.",
+      "example": {
+        "top_revenue": "Welke klanten brachten dit jaar de meeste omzet op?",
+        "best_campaign": "Welke campagne bracht de klanten met de hoogste waarde binnen?",
+        "no_repurchase": "Wie kocht een beurtenkaart van 10 en kocht daarna niet opnieuw?",
+        "month_change": "Hoe verhoudt de omzet van september zich tot augustus, en wat veranderde het meest?",
+        "b2b_attention": "Welke B2B-opportuniteiten vragen aandacht?",
+        "contact_week": "Welke 50 klanten moeten we deze week contacteren?"
+      },
+      "status": {
+        "answered": "Beantwoord",
+        "refused": "Geweigerd",
+        "error": "Fout",
+        "timeout": "Time-out",
+        "budget_exceeded": "AI-budget bereikt"
+      },
+      "status_text": {
+        "refused": "Deze vraag kan niet beantwoord worden met de rapportageweergaven, of ze vraagt gegevens die de AI niet mag lezen.",
+        "error": "Er liep iets mis bij het beantwoorden. Probeer opnieuw of gebruik de rapporten.",
+        "timeout": "De query duurde langer dan 5 seconden. Stel een gerichtere vraag.",
+        "budget_exceeded": "Het maandelijkse AI-budget is op. Gebruik de rapporten tot volgende maand."
+      },
+      "error": {
+        "validation": "Schrijf een vraag van 3 tot 500 tekens.",
+        "generic": "De vraag kon niet gesteld worden. Probeer opnieuw."
+      }
+    },
+    "summary": {
+      "title": "Weekoverzicht",
+      "intro": "Elke maandag om 06:30 vat Claude de cijfers van vorige week samen (alleen totalen, geen persoonsgegevens).",
+      "empty": "Het eerste overzicht komt maandag om 06:30",
+      "week_of": "Week van {date}",
+      "regenerate": "Opnieuw genereren",
+      "regenerated": "Er wordt een nieuw overzicht gemaakt. Het verschijnt hier binnen enkele minuten.",
+      "english_only": "Alleen in het Engels",
+      "status": {
+        "pending": "Wordt gemaakt",
+        "ready": "Klaar",
+        "failed": "Mislukt",
+        "skipped_budget": "Overgeslagen: AI-budget bereikt"
+      },
+      "pending_text": "Het overzicht wordt gemaakt.",
+      "failed_text": "Voor deze week kon geen overzicht gemaakt worden.",
+      "skipped_text": "Overgeslagen omdat het maandelijkse AI-budget op is.",
+      "error": {
+        "conflict": "Er wordt nog een overzicht van deze week gemaakt.",
+        "generic": "Het overzicht kon niet opnieuw gemaakt worden. Probeer opnieuw."
+      },
+      "updated": "Bijgewerkt op {date}"
     }
   }
 }

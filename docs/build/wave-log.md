@@ -188,3 +188,4 @@ One entry per merge batch and gate (runbook section 5.7, adapted by OD-3).
 - automation-P6: merged as `9fcdaf4` in batch `g97-batch`.
 - Batch `g97-batch` (automation-P6): merge gate green, peak 13570 MB.
 - email-P6: 52 min, merged as `7629f07`; gate `g99-email-P6` (merge) green, peak 8082 MB.
+- booking-P7: 45 min, merged as `db8ee7c`; gate `g100-booking-P7` (merge) green, peak 5610 MB.

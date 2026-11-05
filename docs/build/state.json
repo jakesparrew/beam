@@ -912,8 +912,11 @@
       "mergedAt": "2026-11-05T00:24:55Z"
     },
     "email-P7": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "ebbfa4d",
+      "runId": null,
+      "startedAt": "2026-11-05T01:57:36Z"
     },
     "ops-P5": {
       "status": "merged",
@@ -952,21 +955,26 @@
       "mergedAt": "2026-11-04T18:09:17Z"
     },
     "booking-P7": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "9711c76",
       "runId": null,
       "startedAt": "2026-11-05T00:01:54Z",
       "branchSha": "ca8b924",
-      "endedAt": "2026-11-05T01:07:09Z",
-      "minutes": 45
+      "endedAt": "2026-11-05T01:45:27Z",
+      "minutes": 45,
+      "mergeSha": "db8ee7c",
+      "mergedAt": "2026-11-05T02:01:06Z"
     },
     "automation-P7": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "baseSha": "5032b45",
       "runId": null,
-      "startedAt": "2026-11-05T01:07:48Z"
+      "startedAt": "2026-11-05T01:07:48Z",
+      "branchSha": "2621d75",
+      "endedAt": "2026-11-05T01:47:48Z",
+      "minutes": 31
     },
     "credits-P8": {
       "status": "merged",
@@ -1087,22 +1095,31 @@
       "minutes": 42
     },
     "finance-P8": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "baseSha": "5032b45",
       "runId": null,
-      "startedAt": "2026-11-05T01:07:48Z"
+      "startedAt": "2026-11-05T01:07:48Z",
+      "branchSha": "d501350",
+      "endedAt": "2026-11-05T01:47:48Z",
+      "minutes": 30
     },
     "commerce-P9": {
       "status": "pending",
       "attempts": 0
     },
     "credits-P9": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "baseSha": "5032b45",
       "runId": null,
-      "startedAt": "2026-11-05T01:07:49Z"
+      "startedAt": "2026-11-05T01:07:49Z",
+      "extraOwns": [
+        "packages/db/src/schema/credits.test.ts"
+      ],
+      "branchSha": "b246369",
+      "endedAt": "2026-11-05T01:57:26Z",
+      "minutes": 48
     },
     "crm-P9": {
       "status": "pending",

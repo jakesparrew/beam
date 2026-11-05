@@ -7,7 +7,7 @@
  * (which records `used`), "Discard" drops it. Nothing is ever sent without that click.
  */
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { Alert, AlertDescription, Button, Textarea } from "@beam/ui";
 import { discardAiDraft, loadAiDraftPanel, replyToThread, requestAiDraft } from "../../inbox/actions";
 
@@ -23,34 +23,36 @@ export function AiDraftPanel({ threadId, canWrite }: { threadId: string; canWrit
   const [panel, setPanel] = useState<Panel | null>(null);
   const [text, setText] = useState("");
   const [message, setMessage] = useState<{ kind: "error" | "ok"; text: string } | null>(null);
-  const [pollSince, setPollSince] = useState<number | null>(null);
-  const [tick, setTick] = useState(0);
   const [busy, startTransition] = useTransition();
+  /** When the current wait for a pending draft began (polling stops after `POLL_MAX_MS`). */
+  const pollStarted = useRef<number | null>(null);
 
   const load = useCallback(async () => {
-    const result = await loadAiDraftPanel({ threadId });
-    if (!result.ok) return null;
-    setPanel(result.data);
-    if (result.data.state?.status === "ready") setText((current) => current || result.data.state?.draft || "");
-    return result.data;
+    try {
+      const result = await loadAiDraftPanel({ threadId });
+      if (!result.ok) return;
+      setPanel(result.data);
+      if (result.data.state?.status === "ready") setText((current) => current || result.data.state?.draft || "");
+    } catch {
+      // A failed load is retried on the next poll (or the next action).
+    }
   }, [threadId]);
 
+  // The first load, then one poll per `POLL_MS` while the draft is pending.
   useEffect(() => {
-    void load().then((p) => {
-      if (p?.state?.status === "pending") setPollSince(Date.now());
-    });
-  }, [load]);
-
-  useEffect(() => {
-    if (pollSince === null) return;
-    const timer = window.setTimeout(() => {
-      void load().then((p) => {
-        if (p?.state?.status === "pending" && Date.now() - pollSince < POLL_MAX_MS) setTick((n) => n + 1);
-        else setPollSince(null);
-      });
-    }, POLL_MS);
-    return () => window.clearTimeout(timer);
-  }, [pollSince, tick, load]);
+    if (panel && panel.state?.status !== "pending") {
+      pollStarted.current = null;
+      return;
+    }
+    if (panel) {
+      pollStarted.current ??= Date.now();
+      if (Date.now() - pollStarted.current > POLL_MAX_MS) return;
+    }
+    const id = window.setTimeout(() => {
+      void load();
+    }, panel ? POLL_MS : 0);
+    return () => window.clearTimeout(id);
+  }, [panel, load]);
 
   if (!panel || !panel.state) return null;
   const { state, labels } = panel;
@@ -60,17 +62,17 @@ export function AiDraftPanel({ threadId, canWrite }: { threadId: string; canWrit
     setMessage(null);
     setText("");
     startTransition(async () => {
-      const result = await requestAiDraft({ messageId: state!.messageId });
+      const result = await requestAiDraft({ messageId: state.messageId });
       if (!result.ok) setMessage({ kind: "error", text: result.error.code === "conflict" ? L.pending_conflict : result.error.code === "forbidden" ? L.no_permission : L.error });
-      const p = await load();
-      if (p?.state?.status === "pending") setPollSince(Date.now());
+      pollStarted.current = null;
+      await load();
     });
   }
 
   function discard() {
     setMessage(null);
     startTransition(async () => {
-      const result = await discardAiDraft({ messageId: state!.messageId });
+      const result = await discardAiDraft({ messageId: state.messageId });
       if (!result.ok) setMessage({ kind: "error", text: L.error });
       setText("");
       await load();
@@ -80,7 +82,7 @@ export function AiDraftPanel({ threadId, canWrite }: { threadId: string; canWrit
   function send() {
     setMessage(null);
     startTransition(async () => {
-      const result = await replyToThread({ threadId, body: text, usedAiDraftMessageId: state!.messageId });
+      const result = await replyToThread({ threadId, body: text, usedAiDraftMessageId: state.messageId });
       if (!result.ok) {
         setMessage({ kind: "error", text: L.error });
         return;

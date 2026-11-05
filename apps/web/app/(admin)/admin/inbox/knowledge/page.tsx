@@ -23,7 +23,7 @@ async function saveArticleForm(form: FormData) {
   const id = field(form, "id") || undefined;
   const localized = (prefix: string): LocalizedText => Object.fromEntries(LOCALES.map((l) => [l, field(form, `${prefix}_${l}`)]));
   const result = await saveKnowledgeArticle({ id, key: field(form, "key").trim(), title: localized("title"), body: localized("body"), isActive: form.get("isActive") === "on" });
-  if (result.ok) redirect("/admin/inbox/knowledge?saved=1" as never);
+  if (result.ok) redirect("/admin/inbox/knowledge?saved=1");
   const fields = result.error.fields ?? {};
   const code =
     result.error.code === "forbidden"
@@ -70,7 +70,7 @@ export default async function InboxKnowledgePage({ searchParams }: { searchParam
         </div>
         {canEdit && !showForm ? (
           <Button asChild>
-            <Link href={"/admin/inbox/knowledge?new=1" as never}>{k("new")}</Link>
+            <Link href="/admin/inbox/knowledge?new=1">{k("new")}</Link>
           </Button>
         ) : null}
       </header>

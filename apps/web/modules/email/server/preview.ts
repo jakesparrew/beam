@@ -45,7 +45,6 @@ import { getSessionCards } from "@/modules/booking/api";
 import { getProductCards } from "@/modules/commerce/api";
 import { listLatestOutcomes } from "@/modules/forms/api";
 import { getEventPageUrl } from "@/modules/site/api";
-import { getWebinarCards } from "@/modules/webinar/api";
 import { consentDateOf, legalLinksFor, loadSendSettings, type SendSettings } from "./context";
 import { appOrigin, buildTokenValues } from "./merge-fields";
 import { registryTemplate, type TemplateRow, type VersionRow } from "./templates-info";
@@ -194,6 +193,9 @@ export function resolveCardsFor(tx: DbOrTx, locale: Locale, now: Date = new Date
 export function webinarCardsFor(tx: DbOrTx): ResolveWebinars {
   return async (ids, locale) => {
     try {
+      // Loaded on call: webinar's api imports email's, and a static import closes the cycle
+      // booking -> email -> webinar -> booking, which hands mocked modules their real originals.
+      const { getWebinarCards } = await import("@/modules/webinar/api");
       return await getWebinarCards(tx, ids, locale);
     } catch (error) {
       if (!(error instanceof NotImplementedError)) throw error;

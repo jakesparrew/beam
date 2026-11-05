@@ -187,3 +187,4 @@ One entry per merge batch and gate (runbook section 5.7, adapted by OD-3).
 - Batch `g96-batch` (forms-P5 finance-P7 commerce-P7 credits-P8): migrations 0036_w12.sql 0037_w12_views.sql; merge gate green, peak 8894 MB.
 - automation-P6: merged as `9fcdaf4` in batch `g97-batch`.
 - Batch `g97-batch` (automation-P6): merge gate green, peak 13570 MB.
+- email-P6: 52 min, merged as `7629f07`; gate `g99-email-P6` (merge) green, peak 8082 MB.

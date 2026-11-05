@@ -755,11 +755,14 @@
       "mergedAt": "2026-11-04T08:26:09Z"
     },
     "forms-P6": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "baseSha": "2c17bb6",
       "runId": null,
-      "startedAt": "2026-11-05T00:25:52Z"
+      "startedAt": "2026-11-05T00:25:52Z",
+      "branchSha": "697ac27",
+      "endedAt": "2026-11-05T01:07:44Z",
+      "minutes": 41
     },
     "email-P5": {
       "status": "merged",
@@ -849,14 +852,16 @@
       "attempts": 0
     },
     "email-P6": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "9711c76",
       "runId": null,
       "startedAt": "2026-11-05T00:01:54Z",
       "branchSha": "3a11c4b",
-      "endedAt": "2026-11-05T01:03:11Z",
-      "minutes": 52
+      "endedAt": "2026-11-05T01:27:36Z",
+      "minutes": 52,
+      "mergeSha": "7629f07",
+      "mergedAt": "2026-11-05T01:45:22Z"
     },
     "automation-P6": {
       "status": "merged",
@@ -953,12 +958,15 @@
       "runId": null,
       "startedAt": "2026-11-05T00:01:54Z",
       "branchSha": "ca8b924",
-      "endedAt": "2026-11-05T01:03:11Z",
+      "endedAt": "2026-11-05T01:07:09Z",
       "minutes": 45
     },
     "automation-P7": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "5032b45",
+      "runId": null,
+      "startedAt": "2026-11-05T01:07:48Z"
     },
     "credits-P8": {
       "status": "merged",
@@ -993,18 +1001,32 @@
       "attempts": 0
     },
     "ops-P7": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "baseSha": "2c17bb6",
       "runId": null,
-      "startedAt": "2026-11-05T00:25:52Z"
+      "startedAt": "2026-11-05T00:25:52Z",
+      "extraOwns": [
+        "packages/db/src/schema/ops.views.test.ts"
+      ],
+      "branchSha": "ae4f445",
+      "endedAt": "2026-11-05T01:28:07Z",
+      "minutes": 54
     },
     "webinar-P3": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "baseSha": "9711c76",
       "runId": null,
-      "startedAt": "2026-11-05T00:01:54Z"
+      "startedAt": "2026-11-05T00:01:54Z",
+      "extraOwns": [
+        "packages/core/src/i18n/messages/en/webinar.json",
+        "packages/core/src/i18n/messages/nl-BE/webinar.json",
+        "packages/core/src/i18n/messages/fr-BE/webinar.json"
+      ],
+      "branchSha": "52638e4",
+      "endedAt": "2026-11-05T01:17:43Z",
+      "minutes": 65
     },
     "webinar-P4": {
       "status": "pending",
@@ -1061,20 +1083,26 @@
       "runId": null,
       "startedAt": "2026-11-05T00:01:54Z",
       "branchSha": "6d978bc",
-      "endedAt": "2026-11-05T01:03:11Z",
+      "endedAt": "2026-11-05T01:07:09Z",
       "minutes": 42
     },
     "finance-P8": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "5032b45",
+      "runId": null,
+      "startedAt": "2026-11-05T01:07:48Z"
     },
     "commerce-P9": {
       "status": "pending",
       "attempts": 0
     },
     "credits-P9": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "5032b45",
+      "runId": null,
+      "startedAt": "2026-11-05T01:07:49Z"
     },
     "crm-P9": {
       "status": "pending",

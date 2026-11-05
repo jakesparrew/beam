@@ -421,9 +421,11 @@ test.describe("V1 acceptance", () => {
     test("A weighted, branched assessment works", async ({ page }) => {
       await page.goto("/fr/f/recovery-check?utm_source=facebook&utm_medium=paid_social");
       await expect(page.locator("h1")).toHaveText(demo.title[FR]!);
-      await page.getByLabel(lbl("email")).fill(existing.email);
-      await page.getByLabel(lbl("first_name")).fill("Lotte");
-      await page.getByLabel((demo.fields.sensitive_consent as { wording: Record<string, string> }).wording[FR]!).check();
+      // The footer's newsletter form has its own e-mail field: the hosted form is the one in `main`.
+      const main = page.locator("main");
+      await main.getByLabel(lbl("email")).fill(existing.email);
+      await main.getByLabel(lbl("first_name")).fill("Lotte");
+      await main.getByLabel((demo.fields.sensitive_consent as { wording: Record<string, string> }).wording[FR]!).check();
       let saved = routeDone(page, "save");
       await page.getByRole("button", { name: copy(FR, "forms.public.next") }).click();
       expect((await saved).status()).toBe(200);

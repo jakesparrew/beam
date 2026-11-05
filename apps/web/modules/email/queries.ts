@@ -232,6 +232,8 @@ export type MessageDetail = {
   /** The stored rendered copy (non-production, `rendered_file_id`); null when none is kept. */
   html: string | null;
   canResend: boolean;
+  /** When the detail was read (the page compares `send_at` with it). */
+  loadedAt: Date;
 };
 
 /** `/admin/email/messages/[id]`: the message with its events and the stored rendered copy. */
@@ -276,6 +278,7 @@ export async function getMessage(db: DbOrTx, messageId: string, opts: { unmasked
     })),
     html,
     canResend: m.kind === "transactional" && (RESENDABLE_STATUSES as readonly string[]).includes(m.status),
+    loadedAt: new Date(),
   };
 }
 

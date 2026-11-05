@@ -238,7 +238,7 @@ const asArray = <T>(v: unknown): T[] | null => (Array.isArray(v) ? (v as T[]) : 
 export async function getCampaignReport(db: DbOrTx, campaignId: string, opts: { unmasked: boolean } = { unmasked: false }): Promise<CampaignReport | null> {
   const [c] = await db.select().from(campaigns).where(eq(campaigns.id, campaignId));
   if (!c) return null;
-  const snap = c.statsSnapshot as Record<string, unknown> | null;
+  const snap = c.statsSnapshot;
   const row = snap ?? (await liveStatsRows(db, [c.id])).get(c.id) ?? null;
   const stats = statsFromRow(row);
   const skipped = (snap?.skipped_by_reason as Record<string, number> | undefined) ?? (await skippedByReason(db, c.id));
@@ -266,7 +266,11 @@ export async function getCampaignReport(db: DbOrTx, campaignId: string, opts: { 
 }
 
 const csvCell = (v: unknown): string => {
-  const s = v === null || v === undefined ? "" : v instanceof Date ? v.toISOString() : String(v);
+  let s = "";
+  if (v instanceof Date) s = v.toISOString();
+  else if (typeof v === "string") s = v;
+  else if (typeof v === "number" || typeof v === "boolean") s = `${v}`;
+  else if (v !== null && v !== undefined) s = JSON.stringify(v);
   return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 };
 
@@ -299,7 +303,7 @@ export async function campaignReportCsv(db: DbOrTx, campaignId: string): Promise
     lines.push(
       REPORT_CSV_COLUMNS.map((k) => {
         const v = r[k];
-        return csvCell(v && (k.endsWith("_at") as boolean) ? new Date(v as string) : v);
+        return csvCell(v && k.endsWith("_at") ? new Date(v as string) : v);
       }).join(","),
     );
   }

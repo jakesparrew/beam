@@ -57,7 +57,7 @@ beforeEach(() => jar.clear());
 
 let n = 0;
 /** A sent transactional message to a person whose address then changed. */
-async function sentTransactional(overrides: Partial<typeof emailMessages.$inferInsert> = {}) {
+async function sentTransactional(overrides: Omit<Partial<typeof emailMessages.$inferInsert>, "templateVersionId"> = {}) {
   const person = await personWith(h.db, { email: `p7-resend-${++n}@example.com` });
   const key = `booking:p7-${n}:confirmed`;
   const [id] = await insertMessages(h.db, 1, {

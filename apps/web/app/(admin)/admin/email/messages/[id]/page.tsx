@@ -15,6 +15,11 @@ const fill = (text: string, params: Record<string, string | number> = {}) => tex
  * shown in a sandboxed frame). Resend for transactional messages (`persons.write`); cancel for a
  * scheduled single message (`email.send`, rule 59).
  */
+/** Whether a queued message waits for a future `send_at` (outside render: `Date.now` is impure). */
+function isScheduled(m: { status: string; sendAt: Date | null }, now: Date): boolean {
+  return m.status === "queued" && !!m.sendAt && m.sendAt.getTime() > now.getTime();
+}
+
 export default async function EmailMessagePage({ params }: { params: Promise<{ id: string }> }) {
   const actor = await requireStaff({ permission: "email.write" });
   const { id } = await params;
@@ -28,7 +33,7 @@ export default async function EmailMessagePage({ params }: { params: Promise<{ i
   const time = new Intl.DateTimeFormat(locale, { timeZone: "Europe/Brussels", dateStyle: "short", timeStyle: "medium" });
   const at = (d: Date | null | undefined) => (d ? time.format(d) : "–");
   const m = detail.message;
-  const scheduled = m.status === "queued" && !!m.sendAt && m.sendAt.getTime() > Date.now();
+  const scheduled = isScheduled(m, detail.loadedAt);
 
   const fields: [string, string | null][] = [
     ["field_to", m.email],

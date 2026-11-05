@@ -103,7 +103,8 @@ describe("email.watch_delivery", () => {
       expect(payload.text).not.toContain("@");
       expect(payload.text).toContain(slug);
     }
-    expect(failed.find((j) => (j.payload as { fingerprint: string }).fingerprint === "email:failed:resend_4xx:422")!.payload).toMatchObject({ text: expect.stringContaining("2 emails") });
+    const resend4xx = failed.find((j) => (j.payload as { fingerprint: string }).fingerprint === "email:failed:resend_4xx:422")!;
+    expect((resend4xx.payload as { text: string }).text).toContain("2 emails");
   });
 
   it("getEmailHealth reports every value and the api returns the same", async () => {

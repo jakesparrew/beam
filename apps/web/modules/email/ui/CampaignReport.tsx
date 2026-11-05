@@ -216,7 +216,7 @@ export function ExportCsvButton(props: { campaignId: string; labels: Labels }) {
   }
   return (
     <div className="grid gap-1">
-      <Button variant="outline" onClick={run} disabled={busy} data-testid="report-export">
+      <Button variant="outline" onClick={() => void run()} disabled={busy} data-testid="report-export">
         {lab(props.labels, busy ? "exporting" : "export_csv")}
       </Button>
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
@@ -243,7 +243,7 @@ export function ResendMessageButton(props: { messageId: string; labels: Labels; 
   }
   return (
     <span className="inline-grid gap-1">
-      <Button variant="outline" size={props.size ?? "default"} onClick={run} disabled={state !== "idle"} data-testid="message-resend">
+      <Button variant="outline" size={props.size ?? "default"} onClick={() => void run()} disabled={state !== "idle"} data-testid="message-resend">
         {lab(props.labels, state === "done" ? "resend_done" : "resend")}
       </Button>
       {error ? (
@@ -270,7 +270,7 @@ export function CancelScheduledButton(props: { messageId: string; labels: Labels
   }
   return (
     <span className="inline-grid gap-1">
-      <Button variant="outline" onClick={run} disabled={busy} data-testid="message-cancel">
+      <Button variant="outline" onClick={() => void run()} disabled={busy} data-testid="message-cancel">
         {lab(props.labels, "cancel_scheduled")}
       </Button>
       {error ? <p className="text-sm text-destructive">{error}</p> : null}

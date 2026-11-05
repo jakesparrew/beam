@@ -1,6 +1,7 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 import { sql } from "drizzle-orm";
 import { emailHash } from "@beam/core/crm";
+import { FAKE_RESEND_WEBHOOK_SECRET, signResendWebhook } from "@beam/integrations/resend";
 import { signInStaff } from "./support/auth";
 import { closeE2eDb, e2eRows } from "./support/db";
 import { uniqueEmail } from "./support/ids";
@@ -15,6 +16,9 @@ import { latestEmail } from "./support/sink";
  * removed on the recipients screen, a test send is made, the campaign is scheduled and then made
  * due at once ("send now" through the minute dispatch, so the removal happens while it is still
  * `scheduled`); exactly the two remaining persons get the message in the sink.
+ * Part 3 (email-P7): the report of that campaign shows its two sent messages; a signed fake Resend
+ * `email.bounced` (Permanent) webhook for one of them shows as bounced on the person page's email
+ * history, and the address becomes unreachable for the newsletter.
  * Selectors use test ids, data attributes and ids, never copy. Templates this spec creates (slug
  * `e2e-newsletter-*`), their campaigns and the spec's segments (`E2E campaign segment *`) are
  * removed before and after.
@@ -137,6 +141,9 @@ function tomorrowTen(): string {
   return `${day}T10:00`;
 }
 
+let sentCampaignId = "";
+let sentPeople: { id: string; email: string }[] = [];
+
 async function campaignStatus(id: string): Promise<string> {
   const [row] = await e2eRows<{ status: string }>(sql`select status from campaigns where id = ${id}`);
   return row?.status ?? "";
@@ -199,4 +206,51 @@ test("a campaign to a 3-person segment: remove one recipient, test send, send, t
   expect(count!.n).toBe(2);
   const [none] = await e2eRows<{ n: number }>(sql`select count(*)::int as n from email_messages where campaign_id = ${campaignId} and person_id = ${removed.id}`);
   expect(none!.n).toBe(0);
+  sentCampaignId = campaignId;
+  sentPeople = people.slice(0, 2);
+});
+
+/** A signed fake Resend `email.bounced` (Permanent) delivery for the message's `resend_id`. */
+async function hardBounce(request: APIRequestContext, resendId: string, to: string): Promise<number> {
+  const at = new Date();
+  const body = JSON.stringify({
+    type: "email.bounced",
+    created_at: at.toISOString(),
+    data: { email_id: resendId, created_at: at.toISOString(), to: [to], bounce: { type: "Permanent", subType: "General", message: "Mailbox does not exist" } },
+  });
+  const id = `msg_e2e_p7_${RUN}`;
+  const timestamp = String(Math.floor(at.getTime() / 1000));
+  const secret = process.env.RESEND_WEBHOOK_SECRET || FAKE_RESEND_WEBHOOK_SECRET;
+  const res = await request.post("/api/webhooks/resend", {
+    headers: { "content-type": "application/json", "svix-id": id, "svix-timestamp": timestamp, "svix-signature": signResendWebhook({ id, timestamp, body, secret }) },
+    data: body,
+  });
+  return res.status();
+}
+
+test("the report shows the sent campaign; a fake hard bounce shows on the person page and the address becomes unreachable", async ({ page, request }) => {
+  test.setTimeout(120_000);
+  expect(sentCampaignId, "part 2 sends the campaign this report shows").not.toBe("");
+
+  await signInStaff(page, "marketing", { returnTo: `/admin/campaigns/${sentCampaignId}/report` });
+  await page.goto(`/admin/campaigns/${sentCampaignId}/report`);
+  await expect(page.getByTestId("campaign-report")).toBeVisible();
+  await expect(page.locator('[data-kpi="sent"] [data-kpi-value]')).toHaveText("2");
+  await expect(page.locator('[data-kpi="recipients"] [data-kpi-value]')).toHaveText("3");
+
+  const target = sentPeople[0]!;
+  const [message] = await e2eRows<{ id: string; resend_id: string }>(sql`select id, resend_id from email_messages where campaign_id = ${sentCampaignId} and person_id = ${target.id}`);
+  expect(message?.resend_id, "the sent campaign message carries its Resend id").toBeTruthy();
+  expect(await hardBounce(request, message!.resend_id, target.email)).toBe(200);
+  await expect.poll(async () => (await e2eRows<{ status: string }>(sql`select status from email_messages where id = ${message!.id}`))[0]?.status, { timeout: 60_000, intervals: [2000] }).toBe("bounced");
+
+  await page.goto(`/admin/persons/${target.id}`);
+  await expect(page.locator(`[data-testid="person-email-rows"] tr[data-message-id="${message!.id}"]`)).toHaveAttribute("data-status", "bounced");
+  await expect(page.locator('[data-testid="person-email-reachability"] [data-purpose="newsletter"]')).toHaveAttribute("data-reachable", "false");
+  const [reach] = await e2eRows<{ is_reachable: boolean }>(sql`select is_reachable from v_marketing_reachability where person_id = ${target.id} and purpose = 'newsletter'`);
+  expect(reach?.is_reachable).toBe(false);
+
+  // The report counts the hard bounce.
+  await page.goto(`/admin/campaigns/${sentCampaignId}/report`);
+  await expect(page.locator('[data-kpi="hard_bounced"] [data-kpi-value]')).toHaveText("1");
 });

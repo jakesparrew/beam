@@ -15,6 +15,7 @@
 import { randomUUID } from "node:crypto";
 import { expect, test, type Page } from "@playwright/test";
 import { deriveVersionColumns, recoveryCheckSeed, seedDefinitions, type FormDefinition } from "@beam/core/forms";
+import { t } from "@beam/core/i18n";
 import { formSubmissions, forms, formVersions, persons } from "@beam/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { closeE2eDb, e2eDb, e2eRows } from "./support/db";
@@ -27,6 +28,9 @@ const optLabel = (def: FormDefinition, key: string, option: string) => {
   const f = def.fields[key] as { options?: { key: string; label: Record<string, string> }[] };
   return f.options!.find((o) => o.key === option)!.label[FR]!;
 };
+/** A rating option's accessible name: `forms.public.rating_value` ("2 sur 5"), the visible text being "2". */
+const ratingLabel = (def: FormDefinition, key: string, value: number) =>
+  t(FR, "forms.public.rating_value", { value: String(value), scale: (def.fields[key] as { scale: number }).scale });
 
 const NL_ONLY_SLUG = `e2e-nl-only-${RUN}`;
 let nlOnlyFormId: string | null = null;
@@ -93,8 +97,8 @@ test.describe("forms (forms-P4)", () => {
     expect((await saved).status()).toBe(200);
 
     await choose(page, lbl(demo, "sleep_hours"), optLabel(demo, "sleep_hours", "5_6"));
-    await choose(page, lbl(demo, "sleep_quality"), "2");
-    await choose(page, lbl(demo, "stress_level"), "8");
+    await choose(page, lbl(demo, "sleep_quality"), ratingLabel(demo, "sleep_quality", 2));
+    await choose(page, lbl(demo, "stress_level"), ratingLabel(demo, "stress_level", 8));
     // Show/hide: the physical stress question appears only for a stress level of 6 or more.
     await expect(page.getByRole("group", { name: new RegExp(lbl(demo, "stress_physical").slice(0, 20)) })).toBeVisible();
     await choose(page, lbl(demo, "stress_physical"), "Oui");

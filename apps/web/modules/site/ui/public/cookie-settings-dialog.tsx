@@ -6,9 +6,11 @@
  * button close it and focus returns to the element that opened it. `necessary` is always on and
  * not a choice; `analytics` and `marketing` start from the visitor's current choice (off for a
  * first visit, nothing pre-ticked; the provider mounts a fresh dialog per opening). "Accept all", "Reject all" and "Save my choice" share one style.
+ * Under each category the dialog names its cookies from `COOKIE_INVENTORY` (from R3 the
+ * `marketing` switch covers `beam_ref` and the Google Ads and Meta cookies, site-P9).
  */
 import { useEffect, useId, useRef, useState } from "react";
-import type { ConsentChoices } from "@beam/core/site";
+import { cookieNamesOf, type ConsentChoices } from "@beam/core/site";
 import { CONSENT_BUTTON_CLASS } from "./cookie-banner";
 
 export type CookieDialogLabels = {
@@ -77,6 +79,9 @@ export function CookieSettingsDialog({
           </label>
           <p id={`${ids[key]}-desc`} className="text-sm text-muted-foreground">
             {labels[key].body}
+            <span className="mt-1 block font-mono text-xs" data-cookie-names={key}>
+              {cookieNamesOf(key).join(", ")}
+            </span>
           </p>
         </div>
         <input

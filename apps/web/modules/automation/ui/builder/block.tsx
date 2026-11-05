@@ -3,7 +3,8 @@
  * One block of the visual builder's canvas (automation-P10, spec 5): the block's name, its step
  * key and a one-line summary, a validation badge, the "skipped when" badge of a step's `unless`,
  * and the accessible alternatives to dragging: "Move up" / "Move down" buttons and Alt+Arrow
- * keys on the focused block. Pressing the block selects it for the side panel. Every string
+ * keys on the focused block. Pressing the block's main button selects it for the side panel
+ * (the controls sit beside it, never inside it, so no button nests in another). Every string
  * arrives through `l`.
  */
 import type { DragEvent, KeyboardEvent } from "react";
@@ -107,63 +108,62 @@ export function BlockCard({
   l: Labels;
 }) {
   const movable = !readOnly && !!onMove;
-  function onKeyDown(e: KeyboardEvent<HTMLDivElement>) {
-    if (e.target !== e.currentTarget) return;
-    if (e.altKey && movable && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
-      e.preventDefault();
-      if (e.key === "ArrowUp" && canMoveUp) onMove(-1);
-      if (e.key === "ArrowDown" && canMoveDown) onMove(1);
-      return;
-    }
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      onSelect();
-    }
+  function onKeyDown(e: KeyboardEvent<HTMLButtonElement>) {
+    if (!e.altKey || !movable || (e.key !== "ArrowUp" && e.key !== "ArrowDown")) return;
+    e.preventDefault();
+    if (e.key === "ArrowUp" && canMoveUp) onMove(-1);
+    if (e.key === "ArrowDown" && canMoveDown) onMove(1);
   }
+  const keySuffix = stepKey ? ` ${stepKey}` : "";
   return (
     <div
-      role="button"
-      tabIndex={0}
-      aria-pressed={selected}
-      aria-label={`${fill(l["builder.blocks_label"], { name: title })}${stepKey ? ` ${stepKey}` : ""}`}
-      aria-keyshortcuts={movable ? "Alt+ArrowUp Alt+ArrowDown" : undefined}
       draggable={movable}
-      onClick={onSelect}
-      onKeyDown={onKeyDown}
       onDragStart={onDragStart}
       onDragOver={onDragOver}
       onDrop={onDrop}
       data-testid={`builder-block-${stepKey ?? block}`}
       data-block={block}
-      className={`grid w-full gap-1 rounded-md border border-l-4 bg-card p-3 text-left text-sm shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring ${ACCENT[block]} ${selected ? "ring-2 ring-primary" : ""} ${movable ? "cursor-grab" : "cursor-pointer"}`}
+      data-selected={selected ? "true" : undefined}
+      className={`grid w-full gap-2 rounded-md border border-l-4 bg-card p-3 text-sm shadow-sm ${ACCENT[block]} ${selected ? "ring-2 ring-primary" : ""} ${movable ? "cursor-grab" : ""}`}
     >
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="font-semibold">{title}</span>
-        <span className="flex flex-wrap items-center gap-1">
-          {skipWhen ? <Badge variant="outline">{l["builder.skip_when"]}</Badge> : null}
-          {issueCount > 0 ? (
-            <Badge variant="destructive" data-testid="builder-block-issues">
-              {fill(l["builder.issues_badge"], { count: issueCount })}
-            </Badge>
-          ) : null}
+      <button
+        type="button"
+        aria-pressed={selected}
+        aria-label={`${fill(l["builder.blocks_label"], { name: title })}${keySuffix}`}
+        aria-keyshortcuts={movable ? "Alt+ArrowUp Alt+ArrowDown" : undefined}
+        onClick={onSelect}
+        onKeyDown={onKeyDown}
+        data-testid={`builder-select-${stepKey ?? block}`}
+        className="grid gap-1 rounded-sm text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <span className="flex flex-wrap items-center justify-between gap-2">
+          <span className="font-semibold">{title}</span>
+          <span className="flex flex-wrap items-center gap-1">
+            {skipWhen ? <Badge variant="outline">{l["builder.skip_when"]}</Badge> : null}
+            {issueCount > 0 ? (
+              <Badge variant="destructive" data-testid="builder-block-issues">
+                {fill(l["builder.issues_badge"], { count: issueCount })}
+              </Badge>
+            ) : null}
+          </span>
         </span>
-      </div>
-      {stepKey ? <span className="font-mono text-xs text-muted-foreground">{stepKey}</span> : null}
-      {summary ? <span className="text-muted-foreground">{summary}</span> : null}
+        {stepKey ? <span className="font-mono text-xs text-muted-foreground">{stepKey}</span> : null}
+        {summary ? <span className="text-muted-foreground">{summary}</span> : null}
+      </button>
       {movable || (!readOnly && onRemove) ? (
-        <div className="flex flex-wrap gap-1" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+        <div className="flex flex-wrap gap-1">
           {movable ? (
             <>
-              <Button type="button" variant="ghost" size="sm" disabled={!canMoveUp} onClick={() => onMove(-1)} aria-label={`${l["builder.move_up"]} ${stepKey ?? ""}`.trim()}>
+              <Button type="button" variant="ghost" size="sm" disabled={!canMoveUp} onClick={() => onMove(-1)} aria-label={`${l["builder.move_up"]}${keySuffix}`} data-testid={`builder-up-${stepKey ?? block}`}>
                 {l["builder.move_up"]}
               </Button>
-              <Button type="button" variant="ghost" size="sm" disabled={!canMoveDown} onClick={() => onMove(1)} aria-label={`${l["builder.move_down"]} ${stepKey ?? ""}`.trim()}>
+              <Button type="button" variant="ghost" size="sm" disabled={!canMoveDown} onClick={() => onMove(1)} aria-label={`${l["builder.move_down"]}${keySuffix}`} data-testid={`builder-down-${stepKey ?? block}`}>
                 {l["builder.move_down"]}
               </Button>
             </>
           ) : null}
           {!readOnly && onRemove ? (
-            <Button type="button" variant="ghost" size="sm" onClick={onRemove} aria-label={`${l["builder.remove"]} ${stepKey ?? ""}`.trim()}>
+            <Button type="button" variant="ghost" size="sm" onClick={onRemove} aria-label={`${l["builder.remove"]}${keySuffix}`} data-testid={`builder-remove-${stepKey ?? block}`}>
               {l["builder.remove"]}
             </Button>
           ) : null}

@@ -152,6 +152,30 @@ export async function getRefundPreview(db: DbOrTx, orderId: string, at: Date = n
   return { order, context: c, lines: plans, refundableCents: plans[0]?.plan.refundableCents ?? 0 };
 }
 
+/**
+ * The refund dialog of the order screen (finance-P6): one amount in cents spread over the lines
+ * of `getRefundPreview` in order, each line up to what is still refundable on it, with the whole
+ * remaining quantity. Null when the amount is not a positive whole number of cents or above what
+ * the order can refund; the per-line screen covers every other case.
+ */
+export function quickRefundLines(
+  preview: { lines: Array<{ line: { id: string }; left: number; plan: RefundPlan }> },
+  amountCents: number,
+): RefundRequestLine[] | null {
+  if (!Number.isInteger(amountCents) || amountCents <= 0) return null;
+  let need = amountCents;
+  const out: RefundRequestLine[] = [];
+  for (const { line, left, plan } of preview.lines) {
+    const max = plan.lines[0]?.maxAmountCents ?? 0;
+    if (need <= 0) break;
+    if (max <= 0 || left <= 0) continue;
+    const take = Math.min(need, max);
+    out.push({ orderLineId: line.id, quantity: left, amountCents: take });
+    need -= take;
+  }
+  return need > 0 || out.length === 0 ? null : out;
+}
+
 // ---------------------------------------------------------------------------
 // Who a refund row names
 // ---------------------------------------------------------------------------

@@ -7,11 +7,13 @@ import { translator } from "@/lib/i18n";
 import { checkOrderStatus, retryPayment } from "@/modules/commerce/actions";
 import { getOrderForPayment, readViewer } from "@/modules/commerce/queries";
 import { OrderReturn } from "@/modules/commerce/ui/basket";
+import { trackMarketingConversion } from "@/modules/site/ui/public/analytics-loader";
 
 /**
  * `/[locale]/checkout/return/[orderId]` (section 5.3): the guest's return page, the same polling
  * page as the portal. The order is identified by its id plus the signed viewer cookie set at
- * `placeOrder`; anyone else gets a 404.
+ * `placeOrder`; anyone else gets a 404. Once the order is paid, the purchase is reported to the
+ * marketing tags (site's `trackMarketingConversion`, a no-op without marketing consent; site-P9).
  */
 export default async function SiteCheckoutReturnPage({ params, searchParams }: { params: Promise<{ locale: string; orderId: string }>; searchParams: Promise<{ payment?: string }> }) {
   const { locale: segment, orderId } = await params;
@@ -46,6 +48,7 @@ export default async function SiteCheckoutReturnPage({ params, searchParams }: {
         payment={payment ?? null}
         poll={poll}
         retryAction={order.status === "pending_payment" ? retry : null}
+        conversion={{ track: trackMarketingConversion, valueCents: order.totalCents, key: id }}
         links={[
           { href: `/${seg}/account/login`, label: tr("commerce.return.go_orders") },
           { href: `/${seg}`, label: tr("commerce.return.go_home") },

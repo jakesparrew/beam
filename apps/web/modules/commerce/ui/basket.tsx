@@ -6,7 +6,7 @@ import { translator } from "@/lib/i18n";
 import { getCurrentLegalVersion } from "@/modules/site/api";
 import type { CheckoutView } from "../server/checkouts";
 import { PromoField } from "./promo-field";
-import { ReturnPoller, type ReturnPollStatus } from "./return-poller";
+import { ReturnPoller, type PurchaseConversion, type ReturnPollStatus } from "./return-poller";
 import { QuoteLines } from "./quote-lines";
 
 /** The live terms URL in the page locale (rule 26a); null when unreadable. */
@@ -262,6 +262,7 @@ export function OrderReturn({
   poll,
   retryAction,
   links,
+  conversion,
 }: {
   locale: Locale;
   reference: string;
@@ -270,6 +271,8 @@ export function OrderReturn({
   poll: () => Promise<{ ok: true; data: ReturnPollStatus } | { ok: false; error: { code: string; message: string } }>;
   retryAction: ((fd: FormData) => Promise<void>) | null;
   links: { href: string; label: string }[];
+  /** site-P9: the purchase conversion reported once the order is paid (site's return page). */
+  conversion?: PurchaseConversion | null;
 }) {
   const tr = translator(locale);
   return (
@@ -283,6 +286,7 @@ export function OrderReturn({
         initial={initial}
         poll={poll}
         retryAction={retryAction}
+        conversion={conversion ?? null}
         labels={{
           checking: tr("commerce.return.checking"),
           paid: tr("commerce.return.paid"),

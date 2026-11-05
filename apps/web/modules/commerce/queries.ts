@@ -452,7 +452,7 @@ export async function getOrder(db: DbOrTx, id: string): Promise<OrderDetail | nu
   };
 }
 
-export { getRefundPreview } from "./server/refunds";
+export { getRefundPreview, quickRefundLines } from "./server/refunds";
 export { getWithdrawalPreview, withdrawalBlocker } from "./server/withdrawals";
 
 /** The withdrawal plan of an order by id (the customer's order page), or null without a right. */

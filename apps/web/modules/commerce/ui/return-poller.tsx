@@ -17,6 +17,41 @@ export type ReturnPollerLabels = {
 
 const FAILED = new Set(["failed", "expired", "cancelled"]);
 
+/**
+ * site-P9: the purchase conversion of the paid return page. `track` is site's
+ * `trackMarketingConversion` (passed in by the page, a client reference: commerce may not import
+ * site's ui); it reports only to the marketing tags loaded after marketing consent and does
+ * nothing otherwise. Reported once per order and browser tab session (`key`).
+ */
+export type PurchaseConversion = {
+  track: (kind: "purchase", input: { valueCents?: number }) => void;
+  valueCents: number;
+  key: string;
+};
+
+const CONVERSION_STORAGE_PREFIX = "beam_purchase_tracked:";
+
+/** Calls `conversion.track` unless this tab already reported `conversion.key`; true when reported. */
+export function reportPurchaseConversion(conversion: PurchaseConversion, storage: Pick<Storage, "getItem" | "setItem"> | null): boolean {
+  const storageKey = CONVERSION_STORAGE_PREFIX + conversion.key;
+  try {
+    if (storage?.getItem(storageKey)) return false;
+    storage?.setItem(storageKey, "1");
+  } catch {
+    // Storage blocked: report anyway (at worst once per page view).
+  }
+  conversion.track("purchase", { valueCents: conversion.valueCents });
+  return true;
+}
+
+function sessionStore(): Storage | null {
+  try {
+    return window.sessionStorage;
+  } catch {
+    return null;
+  }
+}
+
 function phaseOf(s: ReturnPollStatus | null, timedOut: boolean): "checking" | "paid" | "failed" | "expired" | "pending" {
   if (!s) return timedOut ? "pending" : "checking";
   if (s.status === "paid" || s.status === "partially_refunded" || s.status === "refunded") return "paid";
@@ -36,6 +71,7 @@ export function ReturnPoller({
   poll,
   retryAction,
   labels,
+  conversion,
   intervalMs = 2000,
   maxMs = 30_000,
 }: {
@@ -43,6 +79,7 @@ export function ReturnPoller({
   poll: () => Promise<PollResult>;
   retryAction: ((fd: FormData) => Promise<void>) | null;
   labels: ReturnPollerLabels;
+  conversion?: PurchaseConversion | null;
   intervalMs?: number;
   maxMs?: number;
 }) {
@@ -50,6 +87,18 @@ export function ReturnPoller({
   const [timedOut, setTimedOut] = useState(false);
   const started = useRef<number | null>(null);
   const phase = phaseOf(status, timedOut);
+  const reported = useRef(false);
+
+  // Deferred to a task after this commit's effects: the layout's marketing tags (rendered after
+  // the page) initialise in their own effect, which runs after this one.
+  useEffect(() => {
+    if (phase !== "paid" || !conversion || reported.current) return;
+    const id = window.setTimeout(() => {
+      reported.current = true;
+      reportPurchaseConversion(conversion, sessionStore());
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [phase, conversion]);
 
   useEffect(() => {
     if (phase === "paid" || phase === "expired" || phase === "failed" || timedOut) return;

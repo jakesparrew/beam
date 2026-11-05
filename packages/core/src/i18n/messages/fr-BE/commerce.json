@@ -556,7 +556,10 @@
       "method": "Méthode",
       "withdrawal_until": "Vous pouvez vous rétracter jusqu'au {date}.",
       "pay_now": "Payer maintenant",
-      "back": "Retour à mes achats"
+      "back": "Retour à mes achats",
+      "invoice_title": "Facture",
+      "invoice_link": "Facture {number}",
+      "invoice_pending": "La facture suit par e-mail dès qu’elle est émise."
     },
     "gift": {
       "title": "Offrez un bon cadeau BEAM",
@@ -745,7 +748,12 @@
       "refundable": "Remboursable sur cette commande : {amount}",
       "where": "Où va l’argent : d’abord le solde de crédit, puis les paiements par carte ou en espèces.",
       "second_permission": "Au-delà de {amount} ou sur une commande de plus de 365 jours, un remboursement requiert aussi le droit d’émettre des factures.",
-      "confirm": "Confirmer le remboursement"
+      "confirm": "Confirmer le remboursement",
+      "quick_amount": "Montant à rembourser (EUR)",
+      "quick_intro": "Le montant est réparti sur les lignes dans l’ordre, jusqu’à ce qui reste remboursable sur chaque ligne.",
+      "quick_default_reason": "Remboursement par l’équipe",
+      "per_line": "Rembourser ligne par ligne",
+      "close": "Fermer"
     },
     "admin_attention": {
       "title": "Paiements à suivre",

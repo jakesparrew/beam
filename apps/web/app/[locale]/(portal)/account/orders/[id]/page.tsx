@@ -6,12 +6,14 @@ import { translator } from "@/lib/i18n";
 import { withdrawOrder } from "@/modules/commerce/actions";
 import { getMyOrder, getWithdrawalPreviewFor, readViewer } from "@/modules/commerce/queries";
 import { OrderLinesTable } from "@/modules/commerce/ui/quote-lines";
+import { getInvoiceForOrder } from "@/modules/finance/api";
 
 /**
  * `/[locale]/account/orders/[id]` (section 5.2): lines, payments, refunds and the withdrawal
  * deadline when it applies (rule 54, `#withdrawal`); a pending order links to its payment page.
  * commerce-P6: the withdrawal form (the lines the plan can refund or hand to customer service,
- * dated services shown as exempt, a confirmation checkbox) submits `withdrawOrder`.
+ * dated services shown as exempt, a confirmation checkbox) submits `withdrawOrder`. A paid order
+ * links to its invoice in the portal (finance's `getInvoiceForOrder`, `/account/invoices/[id]`).
  */
 export default async function AccountOrderDetailPage({ params, searchParams }: { params: Promise<{ locale: string; id: string }>; searchParams: Promise<{ withdrawn?: string; error?: string }> }) {
   const { locale: segment, id } = await params;
@@ -26,6 +28,8 @@ export default async function AccountOrderDetailPage({ params, searchParams }: {
   const sp = await searchParams;
   const db = await getAppDb();
   const plan = withdrawalOpen ? await getWithdrawalPreviewFor(db, order.orderId) : null;
+  const wasPaid = order.status === "paid" || order.status === "partially_refunded" || order.status === "refunded";
+  const invoice = wasPaid ? await getInvoiceForOrder(db, order.orderId) : null;
   const choosable = plan ? plan.lines.filter((l) => l.outcome !== "refused").map((l) => l.orderLineId) : [];
   const here = `/${seg}/account/orders/${order.orderId}`;
   const errorText = (code: string) => (t.has(locale, `commerce.errors.${code}`) ? tr(`commerce.errors.${code}`) : tr("commerce.common.error"));
@@ -129,6 +133,20 @@ export default async function AccountOrderDetailPage({ params, searchParams }: {
           </ul>
         )}
       </section>
+      {wasPaid && order.totalCents > 0 ? (
+        <section aria-labelledby="order-invoice" className="grid gap-2">
+          <h2 id="order-invoice" className="text-lg font-semibold">
+            {tr("commerce.my_orders.invoice_title")}
+          </h2>
+          {invoice ? (
+            <a href={`/${seg}/account/invoices/${invoice.id}`} className="w-fit underline">
+              {tr("commerce.my_orders.invoice_link", { number: invoice.number })}
+            </a>
+          ) : (
+            <p className="text-sm">{tr("commerce.my_orders.invoice_pending")}</p>
+          )}
+        </section>
+      ) : null}
       {order.refunds.length ? (
         <section aria-labelledby="order-refunds" className="grid gap-2">
           <h2 id="order-refunds" className="text-lg font-semibold">

@@ -75,8 +75,18 @@ function oklchToLinearSrgb(value: string): [number, number, number] {
   ];
 }
 
+/**
+ * The browser paints (and axe measures) 8-bit sRGB, so each channel is encoded, rounded to
+ * 0..255 and decoded again; a pair at 4.501:1 unrounded can land at 4.496:1 on screen.
+ */
+function quantize(x: number): number {
+  const encoded = x <= 0.0031308 ? 12.92 * x : 1.055 * x ** (1 / 2.4) - 0.055;
+  const v = Math.round(encoded * 255) / 255;
+  return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+}
+
 function luminance(value: string): number {
-  const [r, g, b] = oklchToLinearSrgb(value);
+  const [r, g, b] = oklchToLinearSrgb(value).map(quantize) as [number, number, number];
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 

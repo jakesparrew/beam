@@ -13,7 +13,14 @@
 @custom-variant dark (&:is(.dark *));
 
 /* PL-90 contrast overrides (the shared theme is frozen; later declarations win). */
+:root {
+  /* The shared red paints as rgb(223 34 37): 4.496:1 under its near-white text, so a step darker. */
+  --destructive: oklch(0.56 0.22 27);
+}
+
 .dark {
+  /* Restated after the :root override above: `.dark` can sit on the root element itself. */
+  --destructive: oklch(0.65 0.2 27);
   /* White on the dark-theme red is 3.3:1; near-black text on it is above 4.5:1. */
   --destructive-foreground: oklch(0.18 0.03 27);
 }

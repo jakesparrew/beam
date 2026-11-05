@@ -58,7 +58,7 @@ export type CodeRow = typeof referralCodes.$inferSelect;
 /** The `referrals` setting (its declared default when no row exists or it fails its schema). */
 export async function referralsSettings(db: DbOrTx): Promise<ReferralsSettings> {
   try {
-    return (await getSetting(db, "referrals")) as ReferralsSettings;
+    return await getSetting(db, "referrals");
   } catch {
     return structuredClone(REFERRALS_SETTINGS_DEFAULTS);
   }
@@ -259,7 +259,7 @@ async function paidOrdersOf(db: DbOrTx, personId: string) {
 export async function attributeReferral(tx: Tx, ctx: Ctx, input: AttributeInput): Promise<AttributeResult> {
   await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`referral:person:${input.referredPersonId}`}))`);
   const [existing] = await tx.select().from(referralAttributions).where(eq(referralAttributions.referredPersonId, input.referredPersonId));
-  if (existing) return { attributionId: existing.id, status: existing.status === "rewarded" ? "qualified" : (existing.status as AttributeResult["status"]), created: false };
+  if (existing) return { attributionId: existing.id, status: existing.status === "rewarded" ? "qualified" : existing.status, created: false };
 
   const referred = await personContact(tx, input.referredPersonId);
   if (!referred || referred.erasedAt || referred.mergedInto) throw new NotFoundError("person_not_found");
@@ -851,7 +851,7 @@ export type AttributionListRow = {
   referrerRewardGrantId: string | null;
 };
 
-const dateOrNull = (v: unknown) => (v == null ? null : new Date(String(v)));
+const dateOrNull = (v: unknown) => (v == null ? null : v instanceof Date ? v : new Date(v as string));
 
 /** Staff: attributions, newest first; optional status filter. */
 export async function listAttributions(db: DbOrTx, opts: { status?: AttributionRow["status"]; limit?: number } = {}): Promise<AttributionListRow[]> {

@@ -968,9 +968,8 @@
         "referred_count": "{count, plural, =0 {Nog geen vriend kwam via jouw link.} one {# vriend kwam via jouw link.} other {# vrienden kwamen via jouw link.}}",
         "rewards_title": "Ontvangen beloningen",
         "rewards_empty": "Nog geen beloningen.",
-        "reward_line": "{date}: {what}",
-        "reward_sessions": "{count, plural, one {# sessie} other {# sessies}}",
-        "reward_nights": "{count, plural, one {# nacht} other {# nachten}}"
+        "reward_line_sessions": "{date}: {count, plural, one {# sessie} other {# sessies}}",
+        "reward_line_nights": "{date}: {count, plural, one {# nacht} other {# nachten}}"
       }
     }
   }

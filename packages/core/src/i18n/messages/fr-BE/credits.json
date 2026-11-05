@@ -968,9 +968,8 @@
         "referred_count": "{count, plural, =0 {Aucun ami ne vous a encore rejoint par votre lien.} one {# ami vous a rejoint par votre lien.} other {# amis vous ont rejoint par votre lien.}}",
         "rewards_title": "Récompenses reçues",
         "rewards_empty": "Pas encore de récompenses.",
-        "reward_line": "{date} : {what}",
-        "reward_sessions": "{count, plural, one {# séance} other {# séances}}",
-        "reward_nights": "{count, plural, one {# nuit} other {# nuits}}"
+        "reward_line_sessions": "{date} : {count, plural, one {# séance} other {# séances}}",
+        "reward_line_nights": "{date} : {count, plural, one {# nuit} other {# nuits}}"
       }
     }
   }

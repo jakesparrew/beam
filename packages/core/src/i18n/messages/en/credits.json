@@ -968,9 +968,8 @@
         "referred_count": "{count, plural, =0 {No friend has joined through your link yet.} one {# friend joined through your link.} other {# friends joined through your link.}}",
         "rewards_title": "Rewards received",
         "rewards_empty": "No rewards yet.",
-        "reward_line": "{date}: {what}",
-        "reward_sessions": "{count, plural, one {# session} other {# sessions}}",
-        "reward_nights": "{count, plural, one {# night} other {# nights}}"
+        "reward_line_sessions": "{date}: {count, plural, one {# session} other {# sessions}}",
+        "reward_line_nights": "{date}: {count, plural, one {# night} other {# nights}}"
       }
     }
   }

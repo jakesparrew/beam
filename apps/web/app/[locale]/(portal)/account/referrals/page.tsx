@@ -49,10 +49,7 @@ export default async function AccountReferralsPage({ params }: { params: Promise
           <ul className="grid gap-1">
             {mine.rewards.map((rw) => (
               <li key={rw.grantId}>
-                {p("reward_line", {
-                  date: formatDate(rw.grantedAt, locale),
-                  what: tr(rw.creditKind === "night" ? "credits.portal.referrals.reward_nights" : "credits.portal.referrals.reward_sessions", { count: rw.units }),
-                })}
+                {p(rw.creditKind === "night" ? "reward_line_nights" : "reward_line_sessions", { date: formatDate(rw.grantedAt, locale), count: rw.units })}
               </li>
             ))}
           </ul>

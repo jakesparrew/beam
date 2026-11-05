@@ -96,11 +96,13 @@ function PersonSearch({ name, label, labels: l }: { name: string; label: string;
           <Button
             type="button"
             variant="outline"
-            onClick={async () => {
-              if (q.trim().length < 2) return;
-              const res = await findReferralPersons({ q });
-              setResults(res.ok ? res.data : []);
-            }}
+            onClick={() =>
+              void (async () => {
+                if (q.trim().length < 2) return;
+                const res = await findReferralPersons({ q });
+                setResults(res.ok ? res.data : []);
+              })()
+            }
           >
             {r("search")}
           </Button>
@@ -221,12 +223,14 @@ function CodesTab({ codes, partners, canManage, labels: l }: { codes: CodeView[]
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={async () => {
-                        setError(null);
-                        const res = specific(await updateReferralCode({ codeId: c.id, isActive: !c.isActive }));
-                        if (res.ok) router.refresh();
-                        else setError(errorMessage(res.error, l));
-                      }}
+                      onClick={() =>
+                        void (async () => {
+                          setError(null);
+                          const res = specific(await updateReferralCode({ codeId: c.id, isActive: !c.isActive }));
+                          if (res.ok) router.refresh();
+                          else setError(errorMessage(res.error, l));
+                        })()
+                      }
                     >
                       {c.isActive ? r("deactivate") : r("activate")}
                     </Button>

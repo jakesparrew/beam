@@ -75,8 +75,18 @@ function oklchToLinearSrgb(value: string): [number, number, number] {
   ];
 }
 
+/**
+ * Linear sRGB channel as the browser paints it: gamma-encoded, rounded to 8 bits, decoded. axe
+ * measures the painted colour, so a pair at 4.50:1 in floats can fail at 4.49:1 on screen.
+ */
+function painted(x: number): number {
+  const encoded = x <= 0.0031308 ? 12.92 * x : 1.055 * x ** (1 / 2.4) - 0.055;
+  const c = Math.round(encoded * 255) / 255;
+  return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+}
+
 function luminance(value: string): number {
-  const [r, g, b] = oklchToLinearSrgb(value);
+  const [r, g, b] = oklchToLinearSrgb(value).map(painted) as [number, number, number];
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 

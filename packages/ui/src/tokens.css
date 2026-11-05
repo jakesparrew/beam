@@ -13,7 +13,15 @@
 @custom-variant dark (&:is(.dark *));
 
 /* PL-90 contrast overrides (the shared theme is frozen; later declarations win). */
+:root {
+  /* Near-white on the theme's red (L 0.58) paints at 4.496:1 once rounded to 8-bit sRGB, below
+     4.5:1 (axe color-contrast on destructive badges); L 0.56 paints at 4.88:1. */
+  --destructive: oklch(0.56 0.22 27);
+}
+
+/* Restated after the `:root` override above, which would otherwise also win in the dark theme. */
 .dark {
+  --destructive: oklch(0.65 0.2 27);
   /* White on the dark-theme red is 3.3:1; near-black text on it is above 4.5:1. */
   --destructive-foreground: oklch(0.18 0.03 27);
 }

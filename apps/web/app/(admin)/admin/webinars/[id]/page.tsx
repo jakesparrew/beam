@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { Badge, buttonVariants } from "@beam/ui";
 import { formatDateTime } from "@beam/core/i18n";
 import { localMinuteKey, wallClock } from "@beam/core/platform";
-import { requireStaff } from "@/lib/auth";
+import { hasPermission, requireStaff } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
 import { adminLocale, translator } from "@/lib/i18n";
 import { adminErrorLabels, fieldNames, getWebinar, listStaffOptions, localeNames, webinarFormLabels } from "@/modules/webinar/queries";
@@ -25,7 +25,7 @@ const brusselsLocal = (d: Date | null) => (d ? localMinuteKey(wallClock(d)) : ""
  * series; Publish, Cancel, Archive, Duplicate to dates and Force live / ended.
  */
 export default async function WebinarPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireStaff({ permission: "webinars.host" });
+  const actor = await requireStaff({ permission: "webinars.host" });
   const { id } = await params;
   if (!UUID.test(id)) notFound();
   const locale = await adminLocale();
@@ -72,6 +72,17 @@ export default async function WebinarPage({ params }: { params: Promise<{ id: st
         <span className="text-sm text-muted-foreground">{tr("webinar.admin.detail.registrations", { count: detail.registrations })}</span>
         <Link href={`/admin/webinars/${w.id}/interactive` as Route} className={buttonVariants({ variant: "outline", size: "sm" })}>
           {tr("webinar.admin.detail.interactive")}
+        </Link>
+        <Link href={`/admin/webinars/${w.id}/host` as Route} className={buttonVariants({ variant: "outline", size: "sm" })}>
+          {tr("webinar.admin.detail.host_link")}
+        </Link>
+        {hasPermission(actor, "persons.read") ? (
+          <Link href={`/admin/webinars/${w.id}/registrations` as Route} className={buttonVariants({ variant: "outline", size: "sm" })}>
+            {tr("webinar.admin.detail.registrations_link")}
+          </Link>
+        ) : null}
+        <Link href={`/admin/webinars/${w.id}/report` as Route} className={buttonVariants({ variant: "outline", size: "sm" })}>
+          {tr("webinar.admin.detail.report_link")}
         </Link>
       </div>
       {w.status === "cancelled" && w.cancelledReason ? <p className="text-sm text-destructive">{tr("webinar.admin.detail.cancelled_reason", { reason: w.cancelledReason })}</p> : null}

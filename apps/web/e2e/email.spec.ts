@@ -3,7 +3,7 @@ import { sql } from "drizzle-orm";
 import { emailHash } from "@beam/core/crm";
 import { FAKE_RESEND_WEBHOOK_SECRET, signResendWebhook } from "@beam/integrations/resend";
 import { signInStaff } from "./support/auth";
-import { closeE2eDb, e2eRows } from "./support/db";
+import { closeE2eDb, e2eRows, e2eRewrite } from "./support/db";
 import { uniqueEmail } from "./support/ids";
 import { latestEmail } from "./support/sink";
 
@@ -35,11 +35,11 @@ async function resetTemplates(): Promise<void> {
   const owned = sql`select id from email_templates where slug like 'e2e-newsletter-%'`;
   const ownedCampaigns = sql`select id from campaigns where template_id in (${owned})`;
   await e2eRows(sql`update campaign_recipients set email_message_id = null where campaign_id in (${ownedCampaigns})`);
-  await e2eRows(sql`delete from email_messages where campaign_id in (${ownedCampaigns})`);
+  await e2eRewrite([sql`delete from email_messages where campaign_id in (${ownedCampaigns})`]);
   await e2eRows(sql`delete from campaigns where id in (${ownedCampaigns})`);
   await e2eRows(sql`delete from segments where name like 'E2E campaign segment %'`);
   await e2eRows(sql`update email_templates set current_version_id = null where id in (${owned})`);
-  await e2eRows(sql`delete from email_messages where template_version_id in (select id from email_template_versions where template_id in (${owned}))`);
+  await e2eRewrite([sql`delete from email_messages where template_version_id in (select id from email_template_versions where template_id in (${owned}))`]);
   await e2eRows(sql`delete from email_template_versions where template_id in (${owned})`);
   await e2eRows(sql`delete from email_templates where slug like 'e2e-newsletter-%'`);
 }

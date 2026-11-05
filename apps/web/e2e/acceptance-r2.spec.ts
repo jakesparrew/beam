@@ -27,10 +27,11 @@ import { expect, test, type Page } from "@playwright/test";
 import { sql } from "drizzle-orm";
 import { deriveAccessKey, signAccessToken } from "@beam/core/webinar";
 import { signInCustomer, signInStaff } from "./support/auth";
-import { closeE2eDb, e2eDb, e2eRows } from "./support/db";
+import { closeE2eDb, e2eDb, e2eRows, pgArray } from "./support/db";
 import { uniqueEmail } from "./support/ids";
 import { latestEmail } from "./support/sink";
 import { buyPackage, copy, eventually, one, payCheckout, personIdOf } from "./support/acceptance-fixtures";
+import { newCheckinCode } from "@beam/core/booking";
 
 const stamp = Date.now().toString(36);
 const MARK = "E2E acceptance-r2";
@@ -57,7 +58,7 @@ async function raiseFlag(key: string, state: "on" | "testers"): Promise<FlagRow 
 
 async function restoreFlag(key: string, previous: FlagRow | null): Promise<void> {
   if (previous) {
-    await e2eRows(sql`update feature_flags set state = ${previous.state}::feature_flags_state, user_ids = ${previous.user_ids}::uuid[], person_ids = ${previous.person_ids}::uuid[] where key = ${key}`);
+    await e2eRows(sql`update feature_flags set state = ${previous.state}::feature_flags_state, user_ids = ${pgArray(previous.user_ids)}::uuid[], person_ids = ${pgArray(previous.person_ids)}::uuid[] where key = ${key}`);
   } else {
     await e2eRows(sql`delete from feature_flags where key = ${key}`);
   }
@@ -229,7 +230,7 @@ async function createLeadMagnet(): Promise<void> {
   };
   await makeCustomer(lead.customer);
   await makeCustomer(lead.other);
-  await e2eRows(sql`insert into bookings (session_id, person_id, status, paid_with, source) values (${lead.sessionId}::uuid, ${lead.other}::uuid, 'confirmed', 'free', 'admin')`);
+  await e2eRows(sql`insert into bookings (session_id, person_id, status, paid_with, source, checkin_code) values (${lead.sessionId}::uuid, ${lead.other}::uuid, 'confirmed', 'free', 'admin', ${newCheckinCode()})`);
 }
 
 async function cleanupLeadMagnet(): Promise<void> {

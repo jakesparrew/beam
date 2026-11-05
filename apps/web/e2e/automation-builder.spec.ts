@@ -65,7 +65,7 @@ test.beforeAll(async () => {
   }
   const [a] = await e2eRows<{ id: string }>(sql`select id from automations where slug = ${SLUG}`);
   automationId = a?.id ?? null;
-  const [p] = await e2eRows<{ id: string }>(sql`select id from persons where email like '%@demo.beam.be' and deleted_at is null and processing_restricted_at is null order by created_at limit 1`);
+  const [p] = await e2eRows<{ id: string }>(sql`select id from persons where email like '%@demo.beam.be' and erased_at is null and merged_into_person_id is null and processing_restricted_at is null order by created_at limit 1`);
   personId = p?.id ?? null;
   await reset();
 });

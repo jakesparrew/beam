@@ -4,7 +4,7 @@ import { emailHash } from "@beam/core/crm";
 import { newLinkToken } from "@beam/core/email";
 import { expectAccessible } from "./support/a11y";
 import { signInCustomer, signInStaff } from "./support/auth";
-import { closeE2eDb, e2eRows } from "./support/db";
+import { closeE2eDb, e2eRows, e2eRewrite } from "./support/db";
 import { uniqueEmail } from "./support/ids";
 
 /**
@@ -39,7 +39,7 @@ async function clickAndWait(page: Page, click: () => Promise<void>): Promise<voi
 async function resetShared(): Promise<void> {
   await e2eRows(sql`update persons set email = null, email_hash = null, phone = null, phone_e164 = null, erased_at = coalesce(erased_at, now()) where last_name like 'E2E-crm-%'`);
   await e2eRows(sql`update tasks set status = 'cancelled' where title like 'E2E crm task %' and status = 'open'`);
-  await e2eRows(sql`delete from email_messages where idempotency_key like 'e2e:crm:%'`);
+  await e2eRewrite([sql`delete from email_messages where idempotency_key like 'e2e:crm:%'`]);
 }
 
 test.beforeAll(async () => {

@@ -14,6 +14,7 @@ import { sql } from "drizzle-orm";
 import { closeE2eDb, e2eRows } from "./support/db";
 import { uniqueEmail } from "./support/ids";
 import { latestEmail } from "./support/sink";
+import { newCheckinCode } from "@beam/core/booking";
 
 const TITLE = { "nl-BE": "Scenario 4 sessie", "fr-BE": "Scénario 4 séance", en: "Scenario 4 session" };
 const TICK_WAIT = 150_000;
@@ -64,7 +65,7 @@ test.describe("Scenario 4: seat claim expiry (proposal section 11)", () => {
       values ('day', ${JSON.stringify(TITLE)}::jsonb, now() + interval '2 days', now() + interval '2 days 2 hours', 1, null, 0, now() - interval '1 day', 120)
       returning id`);
     ids = { sessionId: session!.id, a: await person(emails.a, "Anna"), b: await person(emails.b, "Bert"), b2: await person(emails.b2, "Bea"), emails };
-    await e2eRows(sql`insert into bookings (session_id, person_id, status, paid_with, source) values (${ids.sessionId}, ${ids.b}, 'confirmed', 'free', 'admin')`);
+    await e2eRows(sql`insert into bookings (session_id, person_id, status, paid_with, source, checkin_code) values (${ids.sessionId}, ${ids.b}, 'confirmed', 'free', 'admin', ${newCheckinCode()})`);
     await e2eRows(sql`insert into waitlist_entries (session_id, person_id, joined_at) values (${ids.sessionId}, ${ids.a}, now() - interval '10 minutes')`);
     await e2eRows(sql`insert into waitlist_entries (session_id, person_id, joined_at) values (${ids.sessionId}, ${ids.b2}, now() - interval '5 minutes')`);
   });

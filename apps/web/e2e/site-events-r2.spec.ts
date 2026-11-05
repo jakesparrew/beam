@@ -19,6 +19,7 @@ import { expect, test } from "@playwright/test";
 import { sql } from "drizzle-orm";
 import { expectAccessible } from "./support/a11y";
 import { closeE2eDb, e2eRows } from "./support/db";
+import { newCheckinCode } from "@beam/core/booking";
 
 const TAG = randomUUID().replace(/-/g, "").slice(0, 8);
 const SKU_PREFIX = `E2E-R2-${TAG.toUpperCase()}`;
@@ -144,7 +145,7 @@ test.describe("event pages, R2 extensions (site-P8)", () => {
     const sessionId = await eventSession({ capacity: 1, productId: await product(4, 1000, null) });
     const [person] = await e2eRows<{ id: string }>(sql`select id from persons where email like '%@demo.beam.be' order by created_at limit 1`);
     test.skip(!person, "no demo person to fill the seat");
-    await e2eRows(sql`insert into bookings (session_id, person_id, status, paid_with, source) values (${sessionId}, ${person!.id}, 'confirmed', 'free', 'admin')`);
+    await e2eRows(sql`insert into bookings (session_id, person_id, status, paid_with, source, checkin_code) values (${sessionId}, ${person!.id}, 'confirmed', 'free', 'admin', ${newCheckinCode()})`);
     const path = await eventPage(sessionId, 3);
 
     await page.goto(`/fr/${path}`);

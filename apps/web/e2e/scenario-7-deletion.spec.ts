@@ -2,8 +2,9 @@ import { createHash, randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 import { sql } from "drizzle-orm";
 import { demoStaffEmail, signInStaff } from "./support/auth";
-import { closeE2eDb, e2eRows } from "./support/db";
+import { closeE2eDb, e2eRows, e2eRewrite } from "./support/db";
 import { uniqueEmail } from "./support/ids";
+import { newCheckinCode } from "@beam/core/booking";
 
 /**
  * Scenario 7: end-to-end deletion (proposal section 11; ops-P5, ops rules 59-64). Replaces Wave 0's
@@ -45,7 +46,7 @@ async function seed(): Promise<void> {
   );
   personId = person!.id;
   const sessions = await e2eRows<{ id: string }>(sql`select id::text as id from sessions where starts_at > now() and status = 'open' order by starts_at limit 2`);
-  await e2eRows(sql`insert into bookings (session_id, person_id, status, paid_with, source) values (${sessions[0]!.id}::uuid, ${personId}::uuid, 'confirmed', 'free', 'admin')`);
+  await e2eRows(sql`insert into bookings (session_id, person_id, status, paid_with, source, checkin_code) values (${sessions[0]!.id}::uuid, ${personId}::uuid, 'confirmed', 'free', 'admin', ${newCheckinCode()})`);
   await e2eRows(sql`insert into waitlist_entries (session_id, person_id) values (${(sessions[1] ?? sessions[0])!.id}::uuid, ${personId}::uuid)`);
   await e2eRows(sql`insert into form_submissions (form_id, form_version_id, funnel, locale, person_id)
     select fv.form_id, fv.id, 'assessment', 'nl-BE', ${personId}::uuid from form_versions fv order by fv.created_at limit 1`);
@@ -109,7 +110,7 @@ async function seed(): Promise<void> {
 }
 
 async function cleanup(): Promise<void> {
-  await e2eRows(sql`delete from email_messages where idempotency_key like 'e2e:scenario7:%'`);
+  await e2eRewrite([sql`delete from email_messages where idempotency_key like 'e2e:scenario7:%'`]);
   await e2eRows(sql`delete from webinar_polls where webinar_id in (select id from webinars w where w.slug like 'e2e-s7-webinar-%'
     and not exists (select 1 from webinar_registrations r where r.webinar_id = w.id))`);
   await e2eRows(sql`delete from webinars w where w.slug like 'e2e-s7-webinar-%' and not exists (select 1 from webinar_registrations r where r.webinar_id = w.id)`);

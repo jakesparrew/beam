@@ -13,14 +13,13 @@ import { closeE2eDb, e2eRows } from "./support/db";
  */
 test.describe.configure({ mode: "serial" });
 
-const EMAIL = "e2e-ops-revenue@example.com";
+// A fresh person per run: paid orders, their payments and invoices are financial records the
+// database protects from deletion, so the spec never cleans them up (it adds one more each run).
+const EMAIL = `e2e-ops-revenue-${Date.now()}@example.com`;
 const AMOUNT = 12_345;
 
 async function reset(): Promise<void> {
-  await e2eRows(sql`delete from payments where order_id in (select o.id from orders o join persons p on p.id = o.person_id where p.email = ${EMAIL})`);
-  await e2eRows(sql`delete from order_lines where order_id in (select o.id from orders o join persons p on p.id = o.person_id where p.email = ${EMAIL})`);
-  await e2eRows(sql`delete from orders where person_id in (select id from persons where email = ${EMAIL})`);
-  await e2eRows(sql`delete from persons where email = ${EMAIL}`);
+  // Nothing to remove: EMAIL is new for every run.
 }
 
 /** A paid admin order of a new non-tester person with one package line, and its paid Mollie payment. */

@@ -17,10 +17,11 @@
  */
 import { expect, test } from "@playwright/test";
 import { sql } from "drizzle-orm";
-import { closeE2eDb, e2eRows } from "./support/db";
+import { closeE2eDb, e2eRows, pgArray } from "./support/db";
 import { uniqueEmail } from "./support/ids";
 import { signInCustomer } from "./support/auth";
 import { latestEmail } from "./support/sink";
+import { newCheckinCode } from "@beam/core/booking";
 
 const TITLE = { "nl-BE": "Scenario 3 lezing", "fr-BE": "Scénario 3 conférence", en: "Scenario 3 lecture" };
 const FLAG = "ff_booking_lead_priority";
@@ -88,13 +89,13 @@ test.describe("Scenario 3: lead vs customer event access (proposal section 11)",
     await buyPackage(ids.customer);
     await buyPackage(ids.other);
     // The general seat is taken: only the two lead seats are left.
-    await e2eRows(sql`insert into bookings (session_id, person_id, status, paid_with, source) values (${ids.sessionId}, ${ids.other}, 'confirmed', 'free', 'admin')`);
+    await e2eRows(sql`insert into bookings (session_id, person_id, status, paid_with, source, checkin_code) values (${ids.sessionId}, ${ids.other}, 'confirmed', 'free', 'admin', ${newCheckinCode()})`);
   });
 
   test.afterAll(async () => {
     await cleanup();
     if (previousFlag) {
-      await e2eRows(sql`update feature_flags set state = ${previousFlag.state}::feature_flags_state, user_ids = ${previousFlag.user_ids}::uuid[], person_ids = ${previousFlag.person_ids}::uuid[] where key = ${FLAG}`);
+      await e2eRows(sql`update feature_flags set state = ${previousFlag.state}::feature_flags_state, user_ids = ${pgArray(previousFlag.user_ids)}::uuid[], person_ids = ${pgArray(previousFlag.person_ids)}::uuid[] where key = ${FLAG}`);
     } else {
       await e2eRows(sql`delete from feature_flags where key = ${FLAG}`);
     }

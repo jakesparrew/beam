@@ -1,6 +1,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { config } from "dotenv";
+import { sql } from "drizzle-orm";
 import { createDbHandle, type Db, type DbHandle } from "@beam/db";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -29,3 +30,18 @@ export async function e2eRows<T>(query: Parameters<Db["execute"]>[0]): Promise<T
   const result: unknown = await (await e2eDb()).execute(query);
   return ((result as { rows?: T[] }).rows ?? (result as T[])) as T[];
 }
+
+/**
+ * Runs `queries` in one transaction under `beam.allow_rewrite`, the way the erasure and retention
+ * jobs delete: append-only tables (`email_events`, ...) refuse a plain DELETE, also by cascade.
+ */
+export async function e2eRewrite(queries: Parameters<Db["execute"]>[0][]): Promise<void> {
+  const db = await e2eDb();
+  await db.transaction(async (tx) => {
+    await tx.execute(sql`set local beam.allow_rewrite = 'on'`);
+    for (const q of queries) await tx.execute(q);
+  });
+}
+
+/** A Postgres array literal for a `::uuid[]` parameter (a JS array would expand to `($1, $2)`). */
+export const pgArray = (values: readonly string[] | null | undefined): string => `{${(values ?? []).join(",")}}`;

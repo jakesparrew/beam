@@ -14,6 +14,37 @@ export type ClaudeScript = string | Record<string, unknown> | ((request: ClaudeR
 
 export type ClaudeFailure = "refusal" | "overloaded" | "rate_limited" | "bad_request" | "network";
 
+/** The fake's answer to a question about revenue per customer: one row per person (ops' person links). */
+export const FAKE_CUSTOMER_REVENUE_ANSWER = Object.freeze({
+  sql:
+    "select o.person_id, sum(o.total_cents) as revenue_cents from ai.orders o " +
+    "where o.person_id is not null and o.paid_at >= date_trunc('year', now()) " +
+    "group by o.person_id order by revenue_cents desc limit 20",
+  explanation: "Paid revenue per customer this year, highest first.",
+});
+
+/** The fake's answer to any other question: revenue per day. */
+export const FAKE_DAILY_REVENUE_ANSWER = Object.freeze({
+  sql: "select day_on, sum(gross_cents) as revenue_cents from ai.revenue group by day_on order by day_on desc limit 7",
+  explanation: "Revenue per day for the last seven days.",
+});
+
+/** Customers or people (en, nl, fr), and revenue or spending, in one question. */
+const CUSTOMER_WORDS = /\b(customers?|clients?|persons?|people|members?|klanten?|personen|leden|lid|membres?)\b/i;
+const REVENUE_WORDS = /\b(revenue|spen[dt]|sales|omzet|uitgegeven|opbrengst|chiffre d'affaires|revenus?|dépens)/i;
+
+/**
+ * `ai.answer_question` (ops rule 77): a question about revenue per customer gets a person-level
+ * query over `ai.orders` (a `person_id` column, so the staff screen links each row), any other
+ * question the daily revenue. Both of ops' calls (the SQL, then the explanation, whose payload
+ * repeats the question) read the question from the last user message.
+ */
+function answerQuestionScript(request: ClaudeRequest): Record<string, unknown> {
+  const text = request.messages.at(-1)?.content ?? "";
+  const perCustomer = CUSTOMER_WORDS.test(text) && REVENUE_WORDS.test(text);
+  return { ...(perCustomer ? FAKE_CUSTOMER_REVENUE_ANSWER : FAKE_DAILY_REVENUE_ANSWER) };
+}
+
 /** Default answers, one per feature, shaped like each feature's output. */
 export const DEFAULT_CLAUDE_SCRIPTS: Readonly<Record<string, ClaudeScript>> = {
   "site.propose_page": {
@@ -40,10 +71,7 @@ export const DEFAULT_CLAUDE_SCRIPTS: Readonly<Record<string, ClaudeScript>> = {
     headline: "Bookings up 4 % on last week",
     points: ["Occupancy 78 %", "12 new members", "Two classes waitlisted on Thursday"],
   },
-  "ai.answer_question": {
-    sql: "select day_on, sum(revenue_cents) as revenue_cents from ai.revenue group by day_on order by day_on desc limit 7",
-    explanation: "Revenue per day for the last seven days.",
-  },
+  "ai.answer_question": (request) => answerQuestionScript(request),
   "site.audit_content": { issues: [] },
 };
 

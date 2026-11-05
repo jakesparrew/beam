@@ -8,7 +8,8 @@
  * credit-balance amount, else a `grantCredits` of the part, rule 38), applies the credit effects
  * per line (package grants revoked, bookings cancelled, the membership cancelled, vouchers voided
  * with a scheduled email withdrawn), issues one credit note per refund row, moves the payments
- * and the order to `partially_refunded` or `refunded` and writes `order.refunded`. Local money
+ * and the order to `partially_refunded` or `refunded`, writes `order.refunded` and hands every
+ * refund row to credits' `onOrderRefundedForReferrals` (negative partner commissions). Local money
  * (credit balance, cash) is `refunded` at once; a bank transfer is `sent` until staff confirm;
  * provider payments are refunded by the job `payments.refund`.
  *

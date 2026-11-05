@@ -659,11 +659,16 @@
       "mergedAt": "2026-11-04T06:49:17Z"
     },
     "forms-P5": {
-      "status": "running",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "ed9fc79",
       "runId": null,
-      "startedAt": "2026-11-04T23:22:10Z"
+      "startedAt": "2026-11-04T23:22:10Z",
+      "branchSha": "fb52df1",
+      "endedAt": "2026-11-05T00:07:17Z",
+      "minutes": 38,
+      "mergeSha": "7ca3db7",
+      "mergedAt": "2026-11-05T00:24:43Z"
     },
     "email-P4": {
       "status": "merged",
@@ -841,19 +846,30 @@
       "attempts": 0
     },
     "email-P6": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "9711c76",
+      "runId": null,
+      "startedAt": "2026-11-05T00:01:54Z"
     },
     "automation-P6": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "9711c76",
+      "runId": null,
+      "startedAt": "2026-11-05T00:01:54Z"
     },
     "commerce-P7": {
-      "status": "running",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "ed9fc79",
       "runId": null,
-      "startedAt": "2026-11-04T23:22:10Z"
+      "startedAt": "2026-11-04T23:22:10Z",
+      "branchSha": "7fcca11",
+      "endedAt": "2026-11-05T00:07:17Z",
+      "minutes": 38,
+      "mergeSha": "a309cad",
+      "mergedAt": "2026-11-05T00:25:06Z"
     },
     "credits-P7": {
       "status": "merged",
@@ -868,11 +884,16 @@
       "mergedAt": "2026-11-04T21:44:22Z"
     },
     "finance-P7": {
-      "status": "running",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "ed9fc79",
       "runId": null,
-      "startedAt": "2026-11-04T23:22:10Z"
+      "startedAt": "2026-11-04T23:22:10Z",
+      "branchSha": "bdf363d",
+      "endedAt": "2026-11-05T00:07:17Z",
+      "minutes": 29,
+      "mergeSha": "f5878f8",
+      "mergedAt": "2026-11-05T00:24:55Z"
     },
     "email-P7": {
       "status": "pending",
@@ -915,19 +936,27 @@
       "mergedAt": "2026-11-04T18:09:17Z"
     },
     "booking-P7": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "9711c76",
+      "runId": null,
+      "startedAt": "2026-11-05T00:01:54Z"
     },
     "automation-P7": {
       "status": "pending",
       "attempts": 0
     },
     "credits-P8": {
-      "status": "running",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "ed9fc79",
       "runId": null,
-      "startedAt": "2026-11-04T23:22:10Z"
+      "startedAt": "2026-11-04T23:22:10Z",
+      "branchSha": "51d5130",
+      "endedAt": "2026-11-05T00:07:17Z",
+      "minutes": 37,
+      "mergeSha": "2ca9e15",
+      "mergedAt": "2026-11-05T00:25:16Z"
     },
     "webinar-P2": {
       "status": "merged",
@@ -954,8 +983,11 @@
       "attempts": 0
     },
     "webinar-P3": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "9711c76",
+      "runId": null,
+      "startedAt": "2026-11-05T00:01:54Z"
     },
     "webinar-P4": {
       "status": "pending",
@@ -1006,8 +1038,11 @@
       "mergedAt": "2026-11-04T18:09:09Z"
     },
     "crm-P8": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "9711c76",
+      "runId": null,
+      "startedAt": "2026-11-05T00:01:54Z"
     },
     "finance-P8": {
       "status": "pending",

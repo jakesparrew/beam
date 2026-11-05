@@ -7,6 +7,11 @@
  * - a guest buys a gift voucher on the site;
  * - a booking-created order is paid on `/account/checkout/[orderId]`;
  * - axe finds no serious or critical issue on the shop, checkout and return pages (rule 56).
+ * commerce-P7 front desk and refunds:
+ * - reception sells the 5-day package at `/admin/pos` by cash and prints the receipt (axe on the
+ *   POS screen, rule 56);
+ * - finance refunds that unused package from `/admin/orders/[id]/refund`;
+ * - a customer withdraws an unused online package within 14 days (rule 54).
  * Demo customers `customer1..5@example.com` have portal users; the member is the person with an
  * active membership in the demo seed. Rows this spec creates are its own orders and checkouts.
  */
@@ -14,7 +19,7 @@ import { randomUUID } from "node:crypto";
 import { expect, test, type Page } from "@playwright/test";
 import { sql } from "drizzle-orm";
 import { expectAccessible } from "./support/a11y";
-import { signInCustomer } from "./support/auth";
+import { signInCustomer, signInStaff } from "./support/auth";
 import { closeE2eDb, e2eRows } from "./support/db";
 import { uniqueEmail } from "./support/ids";
 
@@ -127,5 +132,89 @@ test.describe("customer shop and checkout", () => {
     await payWithFake(page);
     const [order] = await e2eRows<{ status: string }>(sql`select status::text as status from orders where id = ${orderId}`);
     expect(order?.status).toBe("paid");
+  });
+});
+
+test.describe.serial("front desk and refunds", () => {
+  const POS_BUYER = "customer3@example.com";
+  let posOrderId: string | null = null;
+
+  test("reception sells a package by cash and prints the receipt", async ({ page }) => {
+    const [buyer] = await e2eRows<{ id: string }>(sql`select id from persons where email = ${POS_BUYER}`);
+    const [product] = await e2eRows<{ id: string; amount: number }>(sql`
+      select pr.id, v.amount_cents as amount from products pr join v_product_current_prices v on v.product_id = pr.id and v.audience = 'public'
+      where pr.sku = ${PACKAGE_SKU}`);
+    test.skip(!buyer || !product, "demo buyer or package missing");
+    const before = await dayUnits(POS_BUYER);
+    await signInStaff(page, "reception", { returnTo: "/admin/pos" });
+    await page.goto("/admin/pos?tab=package");
+    await expectAccessible(page);
+    await page.locator(`a[href*="${product!.id}"]`).first().click();
+    await page.waitForURL(/items=/);
+    await page.getByLabel(/Zoek op naam|Search by name|Rechercher par nom/).fill(POS_BUYER);
+    await page.getByRole("button", { name: /^(Zoeken|Search|Rechercher)$/ }).click();
+    await page.getByRole("link", { name: new RegExp(POS_BUYER.replace(/[.]/g, "\\.")) }).click();
+    await page.waitForURL(/personId=/);
+    await page.getByRole("radio", { name: /^(Contant|Cash|Espèces)$/ }).check();
+    await page.getByLabel(/Ontvangen contant geld|Cash received|Espèces reçues/).fill(String(Number(product!.amount) / 100));
+    await expectAccessible(page);
+    const posted = page.waitForResponse((r) => r.request().method() === "POST");
+    await page.getByRole("button", { name: /Betaling ontvangen|Take payment|Encaisser/ }).click();
+    await posted;
+    await page.waitForURL(/\/admin\/pos\?done=/);
+    await expect(page.locator('[data-pos-result="paid"]')).toBeVisible();
+    posOrderId = new URL(page.url()).searchParams.get("done");
+    const [order] = await e2eRows<{ status: string; channel: string }>(sql`select status::text as status, channel::text as channel from orders where id = ${posOrderId}`);
+    expect(order).toEqual({ status: "paid", channel: "pos" });
+    await expect.poll(() => dayUnits(POS_BUYER), { timeout: 30_000 }).toBe(before + 5);
+
+    await page.getByRole("link", { name: /Kasticket afdrukken|Print receipt|Imprimer le ticket/ }).click();
+    await page.waitForURL(/\/admin\/pos\/receipt\//);
+    await expect(page.locator("#receipt-title")).toBeVisible();
+    await expectAccessible(page);
+  });
+
+  test("staff refunds an unused package", async ({ page }) => {
+    test.skip(!posOrderId, "the POS sale did not run");
+    await signInStaff(page, "finance", { returnTo: `/admin/orders/${posOrderId}/refund` });
+    await page.goto(`/admin/orders/${posOrderId}/refund`);
+    await page.locator('input[name^="include_"]').first().check();
+    await page.locator('input[name="reason"]').fill("Customer changed their mind");
+    const posted = page.waitForResponse((r) => r.request().method() === "POST");
+    await page.getByRole("button", { name: /Terugbetaling bevestigen|Confirm refund|Confirmer le remboursement/ }).click();
+    await posted;
+    await expect.poll(async () => {
+      const [row] = await e2eRows<{ status: string }>(sql`select status::text as status from orders where id = ${posOrderId}`);
+      return row?.status ?? null;
+    }, { timeout: 30_000 }).toBe("refunded");
+    const [refund] = await e2eRows<{ status: string; amount: number }>(sql`select status::text as status, amount_cents as amount from refunds where order_id = ${posOrderId}`);
+    // A cash refund is paid at the counter at once.
+    expect(refund?.status).toBe("refunded");
+  });
+
+  test("customer withdraws an unused package within 14 days", async ({ page }) => {
+    await signInCustomer(page, BUYER, "nl");
+    await page.goto(`/nl/account/shop/${PACKAGE_SKU}`);
+    await page.getByRole("button", { name: "Nu kopen" }).click();
+    await page.waitForURL(/\/nl\/account\/checkout\?checkout=/);
+    await acceptAndPay(page);
+    await payWithFake(page);
+    const orderId = page.url().match(/\/checkout\/return\/([0-9a-f-]{36})/)?.[1];
+    expect(orderId).toBeTruthy();
+    await expect.poll(async () => {
+      const [row] = await e2eRows<{ status: string }>(sql`select status::text as status from orders where id = ${orderId}`);
+      return row?.status ?? null;
+    }, { timeout: 30_000 }).toBe("paid");
+
+    await page.goto(`/nl/account/orders/${orderId}#withdrawal`);
+    await expect(page.getByRole("heading", { name: "Deze aankoop herroepen" })).toBeVisible();
+    await expectAccessible(page);
+    await page.locator('input[name="confirm"]').check();
+    const posted = page.waitForResponse((r) => r.request().method() === "POST");
+    await page.getByRole("button", { name: "Herroepen" }).click();
+    await posted;
+    await expect(page.getByText("Je herroeping is geregistreerd.", { exact: false })).toBeVisible();
+    const [refund] = await e2eRows<{ n: number }>(sql`select count(*)::int as n from refunds where order_id = ${orderId}`);
+    expect(Number(refund?.n ?? 0)).toBeGreaterThan(0);
   });
 });

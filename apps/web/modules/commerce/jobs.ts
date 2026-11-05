@@ -18,6 +18,10 @@
  * `commerce.expire_vouchers` (daily, rule 47a) and the handler of
  * `commerce.refund_unavailable_lines`. After every sync the payment's `sent` refunds take the
  * provider's final status.
+ *
+ * commerce-P7: `payments.terminal` (inline, the POS card terminal) and
+ * `payments.cancel_terminal` (a terminal payment staff cancelled at the counter is cancelled on
+ * the device too; a device that already took the money opens a finance task).
  */
 import { z } from "zod";
 import { files, orders, persons } from "@beam/db/schema";
@@ -39,6 +43,7 @@ import { loadReceiptInput, renderReceiptPdf } from "./ui/receipt-pdf";
 import { runProviderRefund, syncProviderRefunds } from "./server/refunds";
 import { CreatePayLinkInput, createPayLinkJob } from "./server/payment-links";
 import { expireVouchers, issueVoucherEmail } from "./server/vouchers";
+import { runCancelTerminal, runTerminalPayment } from "./server/pos";
 
 export const PaymentsCreateInput = z.object({ paymentId: z.uuid(), redirectUrl: z.string().url().optional() });
 export const PaymentsSyncInput = z.object({ providerPaymentId: z.string().min(1) });
@@ -54,6 +59,18 @@ export const PaymentsRefundInput = z.object({ refundId: z.uuid() });
 export { CreatePayLinkInput };
 export const IssueVoucherEmailInput = z.object({ voucherId: z.uuid(), n: z.number().int().min(0), email: z.string().email().optional() });
 export const ExpireVouchersInput = z.object({}).passthrough();
+export const PaymentsTerminalInput = z.object({ paymentId: z.uuid(), terminalId: z.string().min(1) });
+export const PaymentsCancelTerminalInput = z.object({ paymentId: z.uuid() });
+
+/** `payments.terminal` (inline at the POS, key `payment_terminal:<payment_id>`). */
+export function runPaymentsTerminal(ctx: JobCtx, input: z.infer<typeof PaymentsTerminalInput>) {
+  return runTerminalPayment(ctx, input);
+}
+
+/** `payments.cancel_terminal` (key `payment_terminal_cancel:<payment_id>`). */
+export function runPaymentsCancelTerminal(ctx: JobCtx, input: z.infer<typeof PaymentsCancelTerminalInput>) {
+  return runCancelTerminal(ctx, input);
+}
 
 /** `payments.create` (inline at checkout, key `payment_create:<payment_id>`). */
 export function runPaymentsCreate(ctx: JobCtx, input: z.infer<typeof PaymentsCreateInput>) {
@@ -197,6 +214,8 @@ export const jobs = [
   defineJob({ kind: "payments.refund", lane: "fast", priority: 2, maxAttempts: 6, input: PaymentsRefundInput, run: runPaymentsRefund }),
   defineJob({ kind: "payments.create_link", lane: "fast", priority: 2, maxAttempts: 6, input: CreatePayLinkInput, run: runCreatePayLink }),
   defineJob({ kind: "commerce.issue_voucher_email", lane: "fast", priority: 2, maxAttempts: 6, input: IssueVoucherEmailInput, run: runIssueVoucherEmail }),
+  defineJob({ kind: "payments.terminal", lane: "fast", priority: 1, inline: true, maxAttempts: 6, timeoutMs: 20_000, input: PaymentsTerminalInput, run: runPaymentsTerminal }),
+  defineJob({ kind: "payments.cancel_terminal", lane: "fast", priority: 1, maxAttempts: 6, input: PaymentsCancelTerminalInput, run: runPaymentsCancelTerminal }),
   defineJob({ kind: "commerce.expire_vouchers", lane: "bulk", priority: 9, maxAttempts: 3, input: ExpireVouchersInput, run: runExpireVouchers }),
 ];
 

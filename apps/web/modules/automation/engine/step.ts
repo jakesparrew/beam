@@ -35,6 +35,12 @@
  * - An `exit` step naming an automation the person is not in writes `skipped_condition`
  *   `not_enrolled:<slug>`. An `exit` of the enrolment itself writes the one `exited` run of
  *   A-25 (`exit_step`, `data.step_key`).
+ * - Checkout recovery (A-31a, automation-P8): an email step of an enrolment about a checkout
+ *   (subject `checkout:<id>`, or a `checkout.*` trigger) passes `checkout_id` and the `resume_url`
+ *   of `commerce.getCheckoutRecoveryProps` in `context` and, once email queued the message, links
+ *   it with `commerce.markCheckoutRecoveryMessage` (commerce keeps the first one, rule 51); the
+ *   run's `data.checkout_id` records the link. A checkout that no longer exists fails the step
+ *   (`checkout_not_found`) and the enrolment advances.
  * - Task due dates use `booking.nextOpeningAt(tx, due)` with its default, which skips Belgian
  *   public holidays (booking decision 57; `includePublicHolidays: true` is the customer-facing
  *   opening and would let a task fall due on Easter Monday).
@@ -61,7 +67,7 @@ import {
   type Step,
   type TaskStep,
 } from "@beam/core/automation";
-import { createCtx, eq, sql, type Actor, type Ctx } from "@/lib/ctx";
+import { createCtx, eq, NotFoundError, sql, type Actor, type Ctx } from "@/lib/ctx";
 import { flag } from "@/lib/flags";
 import { getSetting } from "@/lib/settings";
 import { rowsOf } from "@/lib/sensitive";
@@ -372,18 +378,50 @@ async function runEmailStep(tx: Tx, ctx: Ctx, e: LockedEnrolment, step: EmailSte
     if (decision.action === "skip") return { outcome: "skipped_frequency_cap", reason: frequencyCapReason(input) ?? "frequency_cap", data: { template_slug: slug } };
   }
   const context = buildEmailContext(e);
-  const checkoutId = e.subjectKey.startsWith("checkout:") ? e.subjectKey.slice("checkout:".length) : null;
+  const checkoutId = checkoutOf(e);
   if (checkoutId) {
-    const props = await getCheckoutRecoveryProps(tx, checkoutId);
+    const resumeUrl = await recoveryResumeUrl(tx, checkoutId);
+    if (!resumeUrl) return { outcome: "failed", reason: "checkout_not_found", data: { template_slug: slug, checkout_id: checkoutId } };
     context.checkout_id = checkoutId;
-    context.resume_url = props.resumeUrl;
+    context.resume_url = resumeUrl;
   }
   const input = { templateSlug: slug, personId: e.personId, enrolmentId: e.id, idempotencyKey: stepEmailKey(e.id, step.key), context, stepKey: step.key };
   const res = asMarketing ? await queueMarketingEmail(ctx, input) : await queueAutomationEmail(ctx, input);
   const data: RunDataJson = { template_slug: slug, template_version_id: res.templateVersionId };
   if (res.status !== "queued") return { outcome: res.status, reason: `email:${res.status}`, data };
-  if (checkoutId) await markCheckoutRecoveryMessage(tx, { checkoutId, emailMessageId: res.messageId });
+  if (checkoutId) {
+    await markCheckoutRecoveryMessage(tx, { checkoutId, emailMessageId: res.messageId });
+    data.checkout_id = checkoutId;
+  }
   return { outcome: "sent", data, emailMessageId: res.messageId };
+}
+
+/**
+ * The checkout of an abandoned-checkout enrolment (A-31a): its subject `checkout:<id>`, else the
+ * trigger's `checkout_id` when the trigger is a `checkout.*` event (a journey BEAM built without
+ * `subject: ref`).
+ */
+export function checkoutOf(e: Pick<LockedEnrolment, "subjectKey" | "context">): string | null {
+  if (e.subjectKey.startsWith("checkout:")) return e.subjectKey.slice("checkout:".length);
+  const t = e.context.trigger;
+  if (!t?.kind?.startsWith("checkout.")) return null;
+  if (t.ref_type === "checkout" && t.ref_id) return t.ref_id;
+  const id = t.data?.checkout_id;
+  return typeof id === "string" && id ? id : null;
+}
+
+/**
+ * The resume URL of the recovery email (`commerce.getCheckoutRecoveryProps`, which creates the
+ * resume token once), or null when the checkout no longer exists: the step then fails with
+ * `checkout_not_found` instead of retrying a job that can never succeed.
+ */
+async function recoveryResumeUrl(tx: Tx, checkoutId: string): Promise<string | null> {
+  try {
+    return (await getCheckoutRecoveryProps(tx, checkoutId)).resumeUrl;
+  } catch (err) {
+    if (err instanceof NotFoundError) return null;
+    throw err;
+  }
 }
 
 /**

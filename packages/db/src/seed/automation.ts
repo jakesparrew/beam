@@ -10,18 +10,29 @@
  * `draft` with their published version. `apps/web`'s `seedAutomation(tx)` runs the same writer
  * with email's `seedTemplate` api.
  *
- * Decision: the tags `engaged`, `package_nearly_used`, `dormant` and `reviewed` are inserted here
- * (`is_system = true`) because the journeys' tag steps and conditions need them (A-1 `tag_unknown`);
- * crm's own seed lists its system tags.
+ * Decision: the tags `engaged`, `package_nearly_used`, `dormant` and `reviewed` (and the B2C
+ * playbook's `repeat` and `lost`, automation-P8) are inserted here (`is_system = true`) because
+ * the journeys' tag steps and conditions need them (A-1 `tag_unknown`); crm's own seed lists its
+ * system tags.
+ *
+ * `activateReleaseSequences(tx, release)` (automation-P8, decision 30, A-5a) switches on the
+ * seeded drafts of a release at its go-live: a seeded slug that is still `draft`, has a published
+ * version and was never activated (`activated_at` null) becomes `active`. A journey BEAM
+ * activated before and then paused or archived, or edited back to draft after an activation,
+ * keeps its status, so a journey switched off stays off; a DPIA-gated journey stays draft while
+ * its DPIA is not approved and is reported in `blocked`. Running it twice activates nothing new.
  */
 import { createHash } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import { canonicalJson, parseDefinition, type Definition } from "@beam/core/automation";
-import { SEED_AUTOMATIONS, SEED_GROUPS, SEED_TAGS, seedTemplates, type SeedAutomation } from "@beam/core/automation/seeds";
+import { SEED_AUTOMATIONS, SEED_GROUPS, SEED_TAGS, seedsOfRelease, seedTemplates, type ActivationRelease, type SeedAutomation } from "@beam/core/automation/seeds";
 import type { SeedTemplateInput } from "@beam/core/email";
-import type { DbOrTx } from "../client";
+import { isDpiaStatusApproved, type DpiaKey } from "@beam/core/ops";
+import type { DbOrTx, Tx } from "../client";
 import { automationGroups, automations, automationVersions } from "../schema/automation";
 import { tags } from "../schema/crm";
+import { dpiaRecords } from "../schema/ops";
+import { auditLog } from "../schema/platform";
 import { insertSeededTemplate } from "./email";
 import type { DefaultSeed } from "./run";
 
@@ -108,6 +119,88 @@ export async function seedAutomationRows(
     if (await insertSeedAutomation(db, seed, groupId, now)) created++;
   }
   return { groups: groupsCreated.length, automations: created, templates };
+}
+
+// ---------------------------------------------------------------------------
+// Release activation (automation-P8)
+// ---------------------------------------------------------------------------
+
+/** Reads whether a DPIA is approved (ops' `isDpiaApproved`; apps/web passes it). */
+export type DpiaCheck = (db: DbOrTx, key: DpiaKey) => Promise<boolean>;
+
+export type ActivateReleaseOptions = {
+  /** ops' `isDpiaApproved`; the default reads `dpia_records` with ops' own rule (`approved` or `not_required`). */
+  isDpiaApproved?: DpiaCheck;
+  now?: Date;
+  /** Only these seeds (tests); default every seed of the release. */
+  seeds?: readonly SeedAutomation[];
+};
+
+export type ActivateReleaseResult = {
+  /** Slugs switched on by this call, in seed order. */
+  activated: string[];
+  /** Slugs left draft because their DPIA is not approved (A-5a), as `<slug>:<dpia key>`. */
+  blocked: string[];
+};
+
+/** The default DPIA read: ops rule 70 on `dpia_records.status` (a missing row is `not_started`). */
+const readDpia: DpiaCheck = async (db, key) => {
+  const [row] = await db.select({ status: dpiaRecords.status }).from(dpiaRecords).where(eq(dpiaRecords.key, key)).limit(1);
+  return isDpiaStatusApproved(row?.status ?? "not_started");
+};
+
+/**
+ * Activates the seeded drafts of `release` that were never activated (decision 30, A-5a); see
+ * the file header. Locks the candidate rows, writes one `automation.activate` audit row per
+ * journey with the system actor, and returns the activated slugs.
+ */
+export async function activateReleaseSequences(tx: Tx, release: ActivationRelease, opts: ActivateReleaseOptions = {}): Promise<ActivateReleaseResult> {
+  const now = opts.now ?? new Date();
+  const check = opts.isDpiaApproved ?? readDpia;
+  const seeds = seedsOfRelease(release, opts.seeds ?? SEED_AUTOMATIONS);
+  if (!seeds.length) return { activated: [], blocked: [] };
+  const rows = await tx
+    .select({ id: automations.id, slug: automations.slug, requiresDpia: automations.requiresDpia })
+    .from(automations)
+    .where(
+      and(
+        inArray(
+          automations.slug,
+          seeds.map((s) => s.slug),
+        ),
+        eq(automations.status, "draft"),
+        isNull(automations.activatedAt),
+        isNotNull(automations.currentVersionId),
+      ),
+    )
+    .for("update");
+  const bySlug = new Map(rows.map((r) => [r.slug, r]));
+  const approved = new Map<string, boolean>();
+  const activated: string[] = [];
+  const blocked: string[] = [];
+  for (const s of seeds) {
+    const row = bySlug.get(s.slug);
+    if (!row) continue;
+    if (row.requiresDpia) {
+      if (!approved.has(row.requiresDpia)) approved.set(row.requiresDpia, await check(tx, row.requiresDpia as DpiaKey));
+      if (!approved.get(row.requiresDpia)) {
+        blocked.push(`${row.slug}:${row.requiresDpia}`);
+        continue;
+      }
+    }
+    await tx.update(automations).set({ status: "active", activatedAt: now, updatedAt: now }).where(eq(automations.id, row.id));
+    await tx.insert(auditLog).values({
+      actor: { kind: "system", id: null },
+      action: "automation.activate",
+      entityType: "automation",
+      entityId: row.id,
+      oldValue: { status: "draft" },
+      newValue: { status: "active", release },
+      createdAt: now,
+    });
+    activated.push(row.slug);
+  }
+  return { activated, blocked };
 }
 
 export const seed: DefaultSeed = {

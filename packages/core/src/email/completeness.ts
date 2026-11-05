@@ -3,8 +3,8 @@
  *
  * A version is complete in a locale when `subject`, `preheader` and every text slot have a
  * non-blank value there: the `copy` slots of a code-backed template, or every text field of the
- * block document of that locale (heading text, text markdown, button label, product and event
- * CTA labels; an image `alt` of `""` is an explicit decorative image and counts as present).
+ * block document of that locale (heading text, text markdown, button label, product, event and
+ * webinar CTA labels; an image `alt` of `""` is an explicit decorative image and counts as present).
  */
 import { LOCALES, type Locale } from "../i18n/locales";
 import type { LocalizedText } from "../i18n/localized-text";
@@ -32,6 +32,7 @@ function textFields(block: Block): [string, unknown][] {
       return [["label", block.label]];
     case "product":
     case "event":
+    case "webinar":
       return [["ctaLabel", block.ctaLabel]];
     case "image":
       return typeof block.alt === "string" ? [] : [["alt", block.alt]];

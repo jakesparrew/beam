@@ -159,8 +159,7 @@ function leafMjml(block: LeafBlock, ctx: LeafCtx): string {
     case "webinar": {
       const card = webinarCardOf(block, ctx.cards);
       if (!card) {
-        // a11y's WarningCode has no webinar code yet: the editor shows the event wording for a webinar too.
-        ctx.warnings?.push({ code: "event_unavailable", locale, blockId: block.id, detail: block.webinarId });
+        ctx.warnings?.push({ code: "webinar_unavailable", locale, blockId: block.id, detail: block.webinarId });
         return "";
       }
       const when = card.startsAt ? `<p style="margin:4px 0 0;color:${brand.text}">${formatDateTime(card.startsAt, locale, "long")}</p>` : "";

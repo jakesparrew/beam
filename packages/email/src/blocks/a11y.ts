@@ -4,7 +4,7 @@
  *
  * - `missing_alt`: an image without an `alt` string, or a linked image with an empty one
  *   (decorative images use `alt=""` explicitly and are fine when they are not links);
- * - `vague_link_text`: a button, link or card CTA reading "click here", "hier", "ici", ...;
+ * - `vague_link_text`: a button, link or card CTA (product, event, webinar) reading "click here", "hier", "ici", ...;
  * - `heading_order`: a heading more than one level below the previous one (h1 -> h3);
  * - `image_heavy`: images with fewer than 50 words of text in the locale;
  * - `low_contrast` and `small_text`: the brand fails 4.5:1 or body text is below 14 px;
@@ -26,7 +26,8 @@ export type WarningCode =
   | "missing_presentation_role"
   | "html_too_large"
   | "product_unavailable"
-  | "event_unavailable";
+  | "event_unavailable"
+  | "webinar_unavailable";
 
 /** A non-blocking finding; `blockId` points the editor at the block, `variant` at the compiled variant. */
 export type Warning = { code: WarningCode; locale: Locale; blockId?: string; variant?: string; detail?: string };
@@ -130,6 +131,7 @@ export function checkAccessibility(doc: BlockDocument, locale: Locale, brand: Br
         break;
       case "product":
       case "event":
+      case "webinar":
         words += countWords(b.ctaLabel);
         if (isVagueLinkText(b.ctaLabel)) warnings.push({ code: "vague_link_text", locale, blockId: b.id, detail: b.ctaLabel });
         break;

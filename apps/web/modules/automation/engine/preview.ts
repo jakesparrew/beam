@@ -16,12 +16,22 @@
  * Mapping of the step job's outcomes: `skipped_late_entry`, `skipped_stale` and `skipped_paused`
  * -> `late_entry`; `skipped_condition` (`unless`, the flag gate of A-11a, a branch not taken) ->
  * `condition_false`; `skipped_unreachable` -> `unreachable`; `skipped_translation` ->
- * `translation_missing`; every step that would run -> `will_send`.
+ * `translation_missing`; `skipped_frequency_cap` -> `frequency_cap`; every step that would run ->
+ * `will_send` (a quiet-hours deferral stays `will_send`, at the deferred time, reason `quiet_hours`).
  *
  * Decisions:
  * - A missing published template gives `failed` (reason `template_unavailable`), the outcome
  *   the step job writes; the spec's list of predicted outcomes lacks it.
- * - `frequency_cap` is never predicted in V1 (the cap is R2, automation-P7).
+ * - Frequency rules (A-32, R2): an email step sent as marketing that passes the template,
+ *   reachability and locale checks is judged by `applyFrequencyRules`, exactly like the step job,
+ *   at the time it would run (its due time, or `now` when already due). The recent sends are the
+ *   person's automation marketing messages of the last 7 days (`recentMarketingSends` of the step
+ *   job) plus the marketing sends this preview predicts earlier in the same journey. Inside the
+ *   quiet hours the step is deferred: its `dueAt` moves to the end of the quiet hours, the reason
+ *   is `quiet_hours`, and the caps are judged again at that time (as the deferred job does); over
+ *   a cap it is `frequency_cap` with the reason `cap_day:<n>` or `cap_week:<n>`. A deferral does
+ *   not move the later steps (their due times come from the plan, as in the step job). Marketing
+ *   sends of other automations due between now and the step are unknown and not counted.
  * - `wait` steps are not listed (they never execute). Steps after a `condition` are judged on the
  *   branch the current facts take; the others are `condition_false` with reason
  *   `branch_not_taken`, keeping their default-path due time.
@@ -32,10 +42,13 @@ import { randomUUID } from "node:crypto";
 import type { DbOrTx, Tx } from "@beam/db";
 import { automationEnrolments, automationVersions, persons, type EnrolmentContextJson } from "@beam/db/schema";
 import {
+  applyFrequencyRules,
   evaluateCondition,
+  frequencyCapReason,
   overdueOutcome,
   planSteps,
   type AutomationPurpose,
+  type AutomationRules,
   type ConditionScope,
   type Definition,
   type PlannedStep,
@@ -44,10 +57,12 @@ import {
 } from "@beam/core/automation";
 import { and, desc, eq, NotFoundError, ValidationError } from "@/lib/ctx";
 import { flag } from "@/lib/flags";
+import { getSetting } from "@/lib/settings";
 import { getPublishedTemplateInfo, getReachability } from "@/modules/email/api";
 import { loadAutomations } from "./enrol";
 import { versionDefinition } from "./exits";
 import { loadFacts, needsOf } from "./facts";
+import { recentMarketingSends } from "./step";
 
 export type PreviewOutcome = "will_send" | "late_entry" | "condition_false" | "unreachable" | "translation_missing" | "frequency_cap" | "failed";
 
@@ -158,12 +173,21 @@ async function predict(tx: DbOrTx, b: Basis, p: PredictPerson): Promise<PreviewS
     return reach.get(purpose)!;
   };
   const flagOn = p.requiresFlag ? await flag(p.requiresFlag as Parameters<typeof flag>[0], { kind: "system", jobId: "" }) : true;
+  // A-32: the rules and the person's recent marketing sends, loaded on the first marketing step.
+  let frequency: { rules: AutomationRules; sends: Date[] } | null = null;
+  const frequencyBasis = async () => {
+    frequency ??= {
+      rules: (await getSetting(tx, "automation_rules")) as AutomationRules,
+      sends: await recentMarketingSends(tx as Tx, p.personId, p.now, `preview:${b.enrolment.id}`),
+    };
+    return frequency;
+  };
 
   const out: PreviewStep[] = [];
   let jumpTo: string | null = null;
   let ended = false;
-  const push = (e: PlannedStep, s: Step, outcome: PreviewOutcome, reason: string | null) =>
-    out.push({ key: e.key, type: s.type, dueAt: new Date(e.due_at), outcome, reason, templateSlug: s.type === "email" ? s.template : null });
+  const push = (e: PlannedStep, s: Step, outcome: PreviewOutcome, reason: string | null, dueAt = new Date(e.due_at)) =>
+    out.push({ key: e.key, type: s.type, dueAt, outcome, reason, templateSlug: s.type === "email" ? s.template : null });
 
   for (const e of listed) {
     const s = steps.get(e.key)!;
@@ -214,7 +238,8 @@ async function predict(tx: DbOrTx, b: Basis, p: PredictPerson): Promise<PreviewS
       push(e, s, "failed", "template_unavailable");
       continue;
     }
-    if (s.send_as === "marketing" || info.kind === "marketing") {
+    const asMarketing = s.send_as === "marketing" || info.kind === "marketing";
+    if (asMarketing) {
       const purpose = s.send_as === "marketing" ? p.purpose : (info.purpose ?? p.purpose);
       if (!purpose) {
         push(e, s, "unreachable", "no_purpose");
@@ -230,7 +255,46 @@ async function predict(tx: DbOrTx, b: Basis, p: PredictPerson): Promise<PreviewS
       push(e, s, "translation_missing", `locale ${p.locale} missing in template ${s.template}`);
       continue;
     }
+    if (asMarketing) {
+      const fr = await frequencyBasis();
+      const due = new Date(e.due_at);
+      const judged = predictFrequency(due.getTime() < p.now.getTime() ? p.now : due, fr.sends, fr.rules);
+      if (judged.outcome === "frequency_cap") {
+        push(e, s, "frequency_cap", judged.reason, judged.at);
+        continue;
+      }
+      fr.sends.push(judged.at);
+      push(e, s, "will_send", judged.reason, judged.at);
+      continue;
+    }
     push(e, s, "will_send", null);
   }
   return out;
+}
+
+/**
+ * A-32 for one marketing step run at `at`: inside the quiet hours it is deferred to their end and
+ * judged again there (the deferred job re-runs the checks), then sent or capped.
+ */
+export function predictFrequency(
+  at: Date,
+  sends: readonly Date[],
+  rules: AutomationRules,
+): { outcome: "will_send" | "frequency_cap"; at: Date; reason: string | null } {
+  let when = at;
+  let deferred = false;
+  // A deferral ends outside the quiet hours; the bound only guards a malformed setting.
+  for (let i = 0; i < 3; i++) {
+    const input = { now: when, recentMarketingSends: [...sends], rules };
+    const decision = applyFrequencyRules(input);
+    if (decision.action === "defer") {
+      if (decision.until.getTime() <= when.getTime()) break;
+      when = decision.until;
+      deferred = true;
+      continue;
+    }
+    if (decision.action === "skip") return { outcome: "frequency_cap", at: when, reason: frequencyCapReason(input) ?? "frequency_cap" };
+    break;
+  }
+  return { outcome: "will_send", at: when, reason: deferred ? "quiet_hours" : null };
 }

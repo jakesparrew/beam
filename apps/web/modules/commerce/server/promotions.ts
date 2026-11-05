@@ -5,13 +5,19 @@
  *
  * Codes are stored upper case (`promotions_code_chk`); uniqueness is the partial unique index
  * `promotions_code_uq`, checked first so the form gets a field error.
+ *
+ * R3 partner referral codes (commerce-P9): a code promotion may name a partner company
+ * (`partner_company_id`, crm's `companies.is_partner`). Saving checks the company is a partner
+ * and the promotion has a code (`promotions_partner_code_chk`); the partner is locked once the
+ * code was used (its revenue is attributed through `v_sales_lines.partner_company_id`); and the
+ * code stops being eligible when the company is no longer a partner.
  */
 import { z } from "zod";
 import { orders, promotionRedemptions, promotions } from "@beam/db/schema";
 import { ORDER_CHANNELS, PRODUCT_KINDS, PROMOTION_KINDS, normalisePromoCode, type OrderChannel, type PromotionRow } from "@beam/core/commerce";
 import { LocalizedTextSchema, missingLocales } from "@beam/core/i18n";
 import { and, eq, gt, isNotNull, isNull, lte, ne, or, sql, ConflictError, NotFoundError, ValidationError, type Ctx, type DbOrTx } from "@/lib/ctx";
-import { getPersonStatus, isInSegment } from "@/modules/crm/api";
+import { getCompany, getPersonStatus, isInSegment } from "@/modules/crm/api";
 
 export type PromotionDbRow = typeof promotions.$inferSelect;
 export type EligiblePromotion = PromotionRow & { isEligible: boolean };
@@ -49,6 +55,8 @@ export const PromotionFields = z.object({
   maxUses: z.number().int().positive().nullable().optional(),
   maxUsesPerPerson: z.number().int().positive().nullable().optional(),
   isActive: z.boolean().default(true),
+  /** R3: the partner of a referral code; omitted = unchanged on update, none on create. */
+  partnerCompanyId: z.uuid().nullable().optional(),
 });
 export const CreatePromotionInput = PromotionFields;
 export const UpdatePromotionInput = PromotionFields.extend({ promotionId: z.uuid() });
@@ -65,6 +73,7 @@ export function promotionColumns(v: PromotionFieldsValue): PromotionColumns {
   const isNamed = codeValue !== null || v.isActive;
   const missing = isNamed ? missingLocales(v.name) : [];
   if (missing.length) fields.name = missing.join(",");
+  if (v.partnerCompanyId && codeValue === null) fields.partnerCompanyId = "partner_needs_code";
   if (Object.keys(fields).length) throw new ValidationError(missing.length && Object.keys(fields).length === 1 ? "missing_translation" : "validation", fields);
   const e = v.eligibility;
   return {
@@ -84,7 +93,15 @@ export function promotionColumns(v: PromotionFieldsValue): PromotionColumns {
     maxUses: v.maxUses ?? null,
     maxUsesPerPerson: v.maxUsesPerPerson ?? null,
     isActive: v.isActive,
+    ...(v.partnerCompanyId !== undefined ? { partnerCompanyId: v.partnerCompanyId } : {}),
   };
+}
+
+/** A partner code must point at a company crm marks as a partner (`companies.is_partner`). */
+async function assertPartner(tx: DbOrTx, companyId: string | null | undefined): Promise<void> {
+  if (!companyId) return;
+  const company = await getCompany(tx, companyId);
+  if (!company?.isPartner) throw new ValidationError("validation", { partnerCompanyId: "not_partner" });
 }
 
 async function codeTaken(tx: DbOrTx, value: string | null, exceptId?: string): Promise<boolean> {
@@ -106,6 +123,7 @@ function staffUserId(ctx: Ctx): string {
 export async function createPromotionRecord(ctx: Ctx, input: PromotionFieldsValue): Promise<{ promotionId: string }> {
   const values = promotionColumns(input);
   if (await codeTaken(ctx.tx, values.code ?? null)) throw new ValidationError("validation", { code: "code_taken" });
+  await assertPartner(ctx.tx, values.partnerCompanyId);
   const [row] = await ctx.tx
     .insert(promotions)
     .values({ ...values, createdByUserId: staffUserId(ctx) })
@@ -131,6 +149,7 @@ export function lockedFieldChanges(before: PromotionDbRow, after: PromotionColum
   if ((before.code ?? null) !== (after.code ?? null)) changed.push("code");
   if (before.startsAt.getTime() !== after.startsAt.getTime()) changed.push("startsAt");
   if (!sameJson(before.eligibility, after.eligibility)) changed.push("eligibility");
+  if (after.partnerCompanyId !== undefined && (before.partnerCompanyId ?? null) !== (after.partnerCompanyId ?? null)) changed.push("partnerCompanyId");
   return changed;
 }
 
@@ -148,6 +167,9 @@ export async function updatePromotionRecord(ctx: Ctx, input: z.output<typeof Upd
   if (locked.length) throw new ConflictError(`promotion_locked:${locked.join(",")}`);
   if (values.maxUses != null && values.maxUses < before.usesCount) throw new ValidationError("validation", { maxUses: "below_uses" });
   if (values.code !== before.code && (await codeTaken(ctx.tx, values.code ?? null, promotionId))) throw new ValidationError("validation", { code: "code_taken" });
+  const partnerId = values.partnerCompanyId !== undefined ? values.partnerCompanyId : before.partnerCompanyId;
+  if (partnerId && values.code === null) throw new ValidationError("validation", { partnerCompanyId: "partner_needs_code" });
+  if (values.partnerCompanyId && values.partnerCompanyId !== before.partnerCompanyId) await assertPartner(ctx.tx, values.partnerCompanyId);
   const [after] = await ctx.tx
     .update(promotions)
     .set({ ...values, updatedAt: sql`now()` })
@@ -199,19 +221,28 @@ async function hasPaidOrder(db: DbOrTx, personId: string): Promise<boolean> {
  * Whether `personId` (null = anonymous buyer) may use the promotion on `channel` at `at`
  * (rule 17): active, `starts_at <= at < ends_at`, channel listed (when set), person status
  * (crm's, which respects a staff override) listed (when set), segment membership (when set),
- * no earlier paid order (`first_order_only`), and fewer non-released redemptions than
- * `max_uses_per_person`. Anonymous buyers qualify only without segment, status or first-order rules.
+ * no earlier paid order (`first_order_only`), fewer non-released redemptions than
+ * `max_uses_per_person`, and (R3) a partner code only while its company is still a partner. Anonymous buyers qualify only without segment, status or first-order rules.
  */
 export async function isPromotionEligible(
   db: DbOrTx,
   promotion: PromotionDbRow,
   input: { personId: string | null; channel: OrderChannel; at: Date },
-  cache: { status?: Promise<string>; paid?: Promise<boolean> } = {},
+  cache: { status?: Promise<string>; paid?: Promise<boolean>; partners?: Map<string, Promise<boolean>> } = {},
 ): Promise<boolean> {
   const { personId, channel, at } = input;
   if (!promotion.isActive) return false;
   if (promotion.startsAt.getTime() > at.getTime()) return false;
   if (promotion.endsAt && promotion.endsAt.getTime() <= at.getTime()) return false;
+  if (promotion.partnerCompanyId) {
+    const partners = (cache.partners ??= new Map<string, Promise<boolean>>());
+    let isPartner = partners.get(promotion.partnerCompanyId);
+    if (!isPartner) {
+      isPartner = getCompany(db, promotion.partnerCompanyId).then((c) => c?.isPartner === true);
+      partners.set(promotion.partnerCompanyId, isPartner);
+    }
+    if (!(await isPartner)) return false;
+  }
   const e = promotion.eligibility ?? {};
   if (e.channels?.length && !e.channels.includes(channel)) return false;
   const needsPerson = !!e.segment_id || !!e.statuses?.length || !!e.first_order_only;

@@ -4,8 +4,8 @@
  * `pnpm db:views` writes the migration and `createTestDb()` applies the same SQL (DM-1).
  * Sums are cast to `int` so Drizzle reads numbers, not bigint strings.
  */
-import { integer, pgView, text, timestamp, uuid } from "drizzle-orm/pg-core";
-import { priceVersionsAudience } from "./commerce";
+import { boolean, date, integer, pgView, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { ordersChannel, priceVersionsAudience, productsKind } from "./commerce";
 
 /** The price version valid now per product and audience (highest version wins, rule 5). */
 export const vProductCurrentPricesSql = `select distinct on (pv.product_id, pv.audience)
@@ -73,4 +73,94 @@ export const vPaymentAttention = pgView("v_payment_attention", {
   personId: uuid("person_id"),
   amountCents: integer("amount_cents").notNull(),
   sinceAt: timestamp("since_at", { withTimezone: true }),
+}).existing();
+
+/**
+ * R3 (commerce-P9): one row per order line of a paid, partially refunded or refunded order, for
+ * the management and finance dashboards and ops' read-only `ai` schema. No person columns (the
+ * persons join only drops tester orders, like `v_revenue_daily`). `refunded_cents` sums the
+ * line's share of the order's `sent` and `refunded` refunds (`refunds.lines`); `is_deferred`
+ * marks voucher lines (multi-purpose voucher money is a liability, not revenue, decision 16);
+ * `payment_methods` are the providers of the order's settled payments; `partner_company_id` is
+ * the partner of the line's (or order's) promotion code (R3 referral attribution).
+ */
+export const vSalesLinesSql = `select ol.id as order_line_id, o.id as order_id, o.paid_at,
+  (o.paid_at at time zone 'Europe/Brussels')::date as business_day_on,
+  o.channel, ol.product_kind, ol.product_id, ol.quantity,
+  ol.line_total_cents, ol.vat_cents, (ol.line_total_cents - ol.vat_cents)::int as net_cents,
+  coalesce(rf.refunded_cents, 0)::int as refunded_cents,
+  (ol.product_kind = 'voucher') as is_deferred,
+  coalesce(pm.methods, '{}'::text[]) as payment_methods,
+  coalesce(ol.promotion_id, o.promotion_id) as promotion_id,
+  pr.partner_company_id
+from order_lines ol
+join orders o on o.id = ol.order_id
+left join persons pe on pe.id = o.person_id
+left join lateral (
+  select sum((l.value->>'amount_cents')::int) as refunded_cents
+  from refunds r cross join lateral jsonb_array_elements(r.lines) l
+  where r.order_id = o.id and r.status in ('sent', 'refunded') and l.value->>'order_line_id' = ol.id::text
+) rf on true
+left join lateral (
+  select array_agg(distinct p.provider::text order by p.provider::text) as methods
+  from payments p
+  where p.order_id = o.id and p.status in ('paid', 'partially_refunded', 'refunded')
+) pm on true
+left join promotions pr on pr.id = coalesce(ol.promotion_id, o.promotion_id)
+where o.paid_at is not null and o.status in ('paid', 'partially_refunded', 'refunded')
+  and coalesce(pe.is_tester, false) = false`;
+
+export const vSalesLines = pgView("v_sales_lines", {
+  orderLineId: uuid("order_line_id").notNull(),
+  orderId: uuid("order_id").notNull(),
+  paidAt: timestamp("paid_at", { withTimezone: true }).notNull(),
+  businessDayOn: date("business_day_on", { mode: "string" }).notNull(),
+  channel: ordersChannel("channel").notNull(),
+  productKind: productsKind("product_kind").notNull(),
+  productId: uuid("product_id").notNull(),
+  quantity: integer("quantity").notNull(),
+  lineTotalCents: integer("line_total_cents").notNull(),
+  vatCents: integer("vat_cents").notNull(),
+  netCents: integer("net_cents").notNull(),
+  refundedCents: integer("refunded_cents").notNull(),
+  isDeferred: boolean("is_deferred").notNull(),
+  paymentMethods: text("payment_methods").array().notNull(),
+  promotionId: uuid("promotion_id"),
+  partnerCompanyId: uuid("partner_company_id"),
+}).existing();
+
+/** The columns of `v_sales_lines` (none of them names a person). */
+export const SALES_LINES_COLUMNS = [
+  "order_line_id",
+  "order_id",
+  "paid_at",
+  "business_day_on",
+  "channel",
+  "product_kind",
+  "product_id",
+  "quantity",
+  "line_total_cents",
+  "vat_cents",
+  "net_cents",
+  "refunded_cents",
+  "is_deferred",
+  "payment_methods",
+  "promotion_id",
+  "partner_company_id",
+] as const;
+
+/** R3 (commerce-P9): Lightspeed food-and-drink figures per business day and category. */
+export const vLightspeedDailySql = `select business_day_on, category,
+  sum(total_cents)::int as total_cents, sum(vat_cents)::int as vat_cents,
+  count(distinct receipt_number)::int as receipts, count(*)::int as lines
+from lightspeed_sales
+group by business_day_on, category`;
+
+export const vLightspeedDaily = pgView("v_lightspeed_daily", {
+  businessDayOn: date("business_day_on", { mode: "string" }).notNull(),
+  category: text("category").notNull(),
+  totalCents: integer("total_cents").notNull(),
+  vatCents: integer("vat_cents").notNull(),
+  receipts: integer("receipts").notNull(),
+  lines: integer("lines").notNull(),
 }).existing();

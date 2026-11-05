@@ -23,6 +23,10 @@
  * commerce-P7: `payments.terminal` (inline, the POS card terminal) and
  * `payments.cancel_terminal` (a terminal payment staff cancelled at the counter is cancelled on
  * the device too; a device that already took the money opens a finance task).
+ *
+ * commerce-P9 (R3): `commerce.import_lightspeed` (1,000 Lightspeed rows per run, self-continuing,
+ * key `lightspeed:<import_id>:<offset>`; a dead import is marked `failed`) and
+ * `commerce.import_lightspeed_pending` (daily 02:40, every import still `uploaded`), rule 53.
  */
 import { z } from "zod";
 import { files, orders, persons } from "@beam/db/schema";
@@ -46,6 +50,7 @@ import { runProviderRefund, syncProviderRefunds } from "./server/refunds";
 import { CreatePayLinkInput, createPayLinkJob } from "./server/payment-links";
 import { expireVouchers, issueVoucherEmail } from "./server/vouchers";
 import { runCancelTerminal, runTerminalPayment } from "./server/pos";
+import { ImportLightspeedInput, ImportLightspeedPendingInput, failLightspeedImport, importLightspeedChunk, importPendingLightspeed } from "./server/lightspeed";
 
 export const PaymentsCreateInput = z.object({ paymentId: z.uuid(), redirectUrl: z.string().url().optional() });
 export const PaymentsSyncInput = z.object({ providerPaymentId: z.string().min(1) });
@@ -63,6 +68,18 @@ export const IssueVoucherEmailInput = z.object({ voucherId: z.uuid(), n: z.numbe
 export const ExpireVouchersInput = z.object({}).passthrough();
 export const PaymentsTerminalInput = z.object({ paymentId: z.uuid(), terminalId: z.string().min(1) });
 export const PaymentsCancelTerminalInput = z.object({ paymentId: z.uuid() });
+
+export { ImportLightspeedInput, ImportLightspeedPendingInput };
+
+/** `commerce.import_lightspeed` (key `lightspeed:<import_id>:<offset>`). */
+export function runImportLightspeed(ctx: JobCtx, input: z.infer<typeof ImportLightspeedInput>) {
+  return importLightspeedChunk(ctx, input);
+}
+
+/** `commerce.import_lightspeed_pending` (daily 02:40; key `schedule:commerce.import_lightspeed_pending:<minute>`). */
+export function runImportLightspeedPending(ctx: JobCtx) {
+  return importPendingLightspeed(ctx);
+}
 
 /** `payments.terminal` (inline at the POS, key `payment_terminal:<payment_id>`). */
 export function runPaymentsTerminal(ctx: JobCtx, input: z.infer<typeof PaymentsTerminalInput>) {
@@ -223,6 +240,17 @@ export const jobs = [
   defineJob({ kind: "payments.terminal", lane: "fast", priority: 1, inline: true, maxAttempts: 6, timeoutMs: 20_000, input: PaymentsTerminalInput, run: runPaymentsTerminal }),
   defineJob({ kind: "payments.cancel_terminal", lane: "fast", priority: 1, maxAttempts: 6, input: PaymentsCancelTerminalInput, run: runPaymentsCancelTerminal }),
   defineJob({ kind: "commerce.expire_vouchers", lane: "bulk", priority: 9, maxAttempts: 3, input: ExpireVouchersInput, run: runExpireVouchers }),
+  defineJob({
+    kind: "commerce.import_lightspeed",
+    lane: "bulk",
+    priority: 9,
+    maxAttempts: 5,
+    timeoutMs: 120_000,
+    input: ImportLightspeedInput,
+    run: runImportLightspeed,
+    onDead: (ctx, input) => failLightspeedImport(ctx, input),
+  }),
+  defineJob({ kind: "commerce.import_lightspeed_pending", lane: "bulk", priority: 9, maxAttempts: 3, input: ImportLightspeedPendingInput, run: runImportLightspeedPending }),
 ];
 
 /**

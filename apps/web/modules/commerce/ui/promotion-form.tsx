@@ -3,6 +3,9 @@
  * The promotion form of `/admin/products/promotions/new` and `/[id]` (commerce spec 5.1, rules 17
  * and 18). Once a promotion has been used, its code, discount, start, products and eligibility are
  * disabled with the hint "used N times"; name, end, limits and the active switch stay editable.
+ * R3 (commerce-P9): when the page passes `options.partners` (crm's partner companies), a code can
+ * be attributed to a partner (referral code); the partner is locked after the first use like the
+ * code. Without `options.partners` the field is not shown and not sent, so the partner is kept.
  */
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent, type ReactNode } from "react";
@@ -35,6 +38,8 @@ export type PromotionFormValues = {
   maxUses: string;
   maxUsesPerPerson: string;
   isActive: boolean;
+  /** R3: the partner company id of a referral code, `""` for none. */
+  partnerCompanyId?: string;
 };
 
 export type PromotionFormOptions = {
@@ -44,6 +49,8 @@ export type PromotionFormOptions = {
   statuses: Option[];
   channels: Option[];
   localeNames: Record<Locale, string>;
+  /** R3: crm's partner companies (`listPartnerCompanies`); omit to hide the partner field. */
+  partners?: Option[];
 };
 
 const optInt = (v: string): number | null => (v.trim() === "" ? null : Number.parseInt(v, 10));
@@ -117,6 +124,7 @@ export function PromotionForm({ initial, usesCount, options, labels }: { initial
       maxUses: optInt(v.maxUses),
       maxUsesPerPerson: optInt(v.maxUsesPerPerson),
       isActive: v.isActive,
+      ...(options.partners ? { partnerCompanyId: v.partnerCompanyId?.trim() || null } : {}),
     };
     setPending(true);
     setError(null);
@@ -177,6 +185,24 @@ export function PromotionForm({ initial, usesCount, options, labels }: { initial
             <Input inputMode="decimal" value={v.value} onChange={(e) => set("value", e.target.value)} disabled={locked} title={locked ? lockedHint : undefined} />
           </FormField>
         </div>
+        {options.partners ? (
+          <FormField label={l("field_partner")} hint={locked ? lockedHint : l("field_partner_hint")} error={fieldError("partnerCompanyId")}>
+            <select
+              value={v.partnerCompanyId ?? ""}
+              onChange={(e) => set("partnerCompanyId", e.target.value)}
+              disabled={locked}
+              title={locked ? lockedHint : undefined}
+              className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm disabled:opacity-60"
+            >
+              <option value="">{l("field_partner_none")}</option>
+              {options.partners.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </FormField>
+        ) : null}
         <LocalizedInput
           name="name"
           value={v.name}

@@ -1,0 +1,3 @@
+ALTER TABLE "form_submissions" ADD COLUMN "partner_company_id" uuid;--> statement-breakpoint
+ALTER TABLE "form_submissions" ADD CONSTRAINT "form_submissions_partner_company_id_companies_id_fk" FOREIGN KEY ("partner_company_id") REFERENCES "public"."companies"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "form_submissions_partner_idx" ON "form_submissions" USING btree ("partner_company_id","started_at") WHERE "form_submissions"."partner_company_id" is not null;

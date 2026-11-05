@@ -354,6 +354,16 @@
         "body": "Voici le ticket de votre achat à l’accueil de BEAM (commande {reference}). Le PDF est en pièce jointe.",
         "cta": "Voir votre commande",
         "total": "Total payé (TVA incl.) : {total}"
+      },
+      "checkout_recovery": {
+        "subject": "{variant, select, first {Vous avez oublié quelque chose dans votre panier} other {Votre panier vous attend toujours}}",
+        "preheader": "Reprenez là où vous vous êtes arrêté.",
+        "heading": "{variant, select, first {Vous hésitez encore ?} other {Votre panier vous attend toujours}}",
+        "body": "{variant, select, first {Vous n'avez pas terminé votre commande chez BEAM. Votre panier est enregistré : vous pouvez reprendre exactement là où vous vous êtes arrêté.} other {Votre panier chez BEAM est toujours enregistré. Reprenez quand vous voulez ; nous vérifions à nouveau les prix à l'ouverture.}}",
+        "cta": "Terminer ma commande",
+        "line": "{quantity} × {name}",
+        "total": "Total : {total}",
+        "prices": "Les prix sont vérifiés à nouveau lorsque vous continuez."
       }
     },
     "receipt": {
@@ -868,6 +878,16 @@
       "reopened": "La journée est rouverte ; recomptez la caisse à la prochaine clôture.",
       "reopen_forbidden": "Seul le personnel autorisé à rembourser peut rouvrir une journée clôturée.",
       "failed": "Non enregistré : {message}"
+    },
+    "resume": {
+      "title": "Reprendre votre commande",
+      "intro": "Bon retour. Nous avons conservé votre panier et vérifié à nouveau les prix.",
+      "continue": "Passer à la caisse",
+      "not_found": "Ce lien ne fonctionne pas (ou plus). Recommencez depuis la boutique.",
+      "completed": "Cette commande est déjà terminée. Vous la retrouvez dans votre compte.",
+      "expired": "Ce panier n'est plus disponible. Recommencez depuis la boutique.",
+      "empty": "Les produits de ce panier ne sont plus disponibles.",
+      "my_orders": "Mes commandes"
     }
   }
 }

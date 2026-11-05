@@ -133,6 +133,8 @@ export async function markCheckoutRecoveryMessage(tx: Tx, input: { checkoutId: s
 
 export type AttributeRecoveriesResult = { recovered: number; messagesFilled: number };
 
+type RecoveryCandidate = { id: string; personId: string | null; items: unknown; abandonedAt: Date | null; recoveryMessageId: string | null };
+
 /**
  * The first order (by `paid_at`) the person paid within the window after `abandoned_at` that
  * contains one of `productIds`, or null.
@@ -178,7 +180,7 @@ export async function attributeRecoveries(ctx: JobCtx | Ctx): Promise<AttributeR
 
   for (let round = 0; round < 40; round++) {
     const cursor: { at: Date; id: string } | null = after;
-    const batch = await tx
+    const batch: RecoveryCandidate[] = await tx
       .select({
         id: checkouts.id,
         personId: checkouts.personId,
@@ -228,7 +230,7 @@ export async function attributeRecoveries(ctx: JobCtx | Ctx): Promise<AttributeR
       out.recovered++;
     }
     if (batch.length < BATCH) break;
-    const last = batch[batch.length - 1]!;
+    const last: RecoveryCandidate = batch[batch.length - 1]!;
     after = { at: last.abandonedAt!, id: last.id };
   }
   return out;

@@ -354,6 +354,16 @@
         "body": "Hier is het kasticket van je aankoop aan het onthaal van BEAM (bestelling {reference}). De pdf zit in bijlage.",
         "cta": "Bekijk je bestelling",
         "total": "Totaal betaald (incl. btw): {total}"
+      },
+      "checkout_recovery": {
+        "subject": "{variant, select, first {Je liet iets achter in je winkelmandje} other {Je winkelmandje wacht nog op je}}",
+        "preheader": "Ga verder waar je gebleven was.",
+        "heading": "{variant, select, first {Nog even nadenken?} other {Je winkelmandje wacht nog op je}}",
+        "body": "{variant, select, first {Je hebt je bestelling bij BEAM niet afgerond. Je winkelmandje is bewaard, dus je kunt meteen verdergaan waar je stopte.} other {Je winkelmandje bij BEAM is nog bewaard. Ga verder wanneer je wilt; we controleren de prijzen opnieuw wanneer je het opent.}}",
+        "cta": "Mijn bestelling afronden",
+        "line": "{quantity} × {name}",
+        "total": "Totaal: {total}",
+        "prices": "De prijzen worden opnieuw gecontroleerd wanneer je verdergaat."
       }
     },
     "receipt": {
@@ -868,6 +878,16 @@
       "reopened": "De dag is opnieuw open; tel de kas opnieuw bij de volgende afsluiting.",
       "reopen_forbidden": "Enkel medewerkers met het recht om terug te betalen kunnen een afgesloten dag heropenen.",
       "failed": "Niet opgeslagen: {message}"
+    },
+    "resume": {
+      "title": "Ga verder met je bestelling",
+      "intro": "Welkom terug. We hebben je winkelmandje bewaard en de prijzen opnieuw gecontroleerd.",
+      "continue": "Verder naar afrekenen",
+      "not_found": "Deze link werkt niet (meer). Begin opnieuw in de shop.",
+      "completed": "Deze bestelling is al afgerond. Je vindt ze in je account.",
+      "expired": "Dit winkelmandje is niet meer beschikbaar. Begin opnieuw in de shop.",
+      "empty": "De producten in dit winkelmandje zijn niet meer beschikbaar.",
+      "my_orders": "Mijn bestellingen"
     }
   }
 }

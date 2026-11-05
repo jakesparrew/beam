@@ -354,6 +354,16 @@
         "body": "Here is the receipt of your purchase at the BEAM front desk (order {reference}). The PDF is attached.",
         "cta": "View your order",
         "total": "Total paid (incl. VAT): {total}"
+      },
+      "checkout_recovery": {
+        "subject": "{variant, select, first {You left something in your basket} other {Your basket is still waiting}}",
+        "preheader": "Pick up where you left off.",
+        "heading": "{variant, select, first {Still thinking it over?} other {Your basket is still waiting}}",
+        "body": "{variant, select, first {You did not finish your order at BEAM. Your basket is saved, so you can continue right where you stopped.} other {Your basket at BEAM is still saved. Continue whenever you are ready; we check the prices again when you open it.}}",
+        "cta": "Continue my order",
+        "line": "{quantity} × {name}",
+        "total": "Total: {total}",
+        "prices": "Prices are checked again when you continue."
       }
     },
     "receipt": {
@@ -868,6 +878,16 @@
       "reopened": "The day is open again; count the drawer again at the next close.",
       "reopen_forbidden": "Only staff with the refund permission can reopen a closed day.",
       "failed": "Not saved: {message}"
+    },
+    "resume": {
+      "title": "Continue your order",
+      "intro": "Welcome back. We saved your basket and checked the prices again.",
+      "continue": "Continue to checkout",
+      "not_found": "This link does not work (any more). Start again from the shop.",
+      "completed": "This order is already complete. You find it in your account.",
+      "expired": "This basket is no longer available. Start again from the shop.",
+      "empty": "The products in this basket are no longer available.",
+      "my_orders": "My orders"
     }
   }
 }

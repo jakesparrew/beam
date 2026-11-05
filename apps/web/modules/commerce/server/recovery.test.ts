@@ -281,3 +281,30 @@ describe("resume links (getCheckoutRecoveryProps, /checkout/resume/[token])", ()
     expect(view!.quote.totalCents).toBe(5_000);
   });
 });
+
+describe("commerce.checkout_recovery template (rule 52, D54)", () => {
+  it("is a registry template with loadProps that reads the checkout of context.checkout_id for its person", async () => {
+    const { TEMPLATE_REGISTRY } = await import("@beam/email/templates/registry");
+    const def = TEMPLATE_REGISTRY["commerce.checkout_recovery"];
+    expect(typeof def.loadProps).toBe("function");
+    type Args = { personId: string; locale: "nl-BE" | "fr-BE" | "en"; context: Record<string, string>; stepKey: string | null };
+    const loadProps = (tx: unknown, args: Args) => def.loadProps!(tx, args) as Promise<Record<string, unknown>>;
+
+    const person = await makePerson(h.db);
+    const a = await makeProduct(h.db, { kind: "package", priceCents: 4_500, name: { "nl-BE": "Vijfdagenpakket", "fr-BE": "Forfait cinq jours", en: "Five-day package" } });
+    const c = await abandoned(person.id, [a.id], 0.1, { items: [{ productId: a.id, quantity: 2 }], totalCents: 9_000 });
+    const { resumeUrl } = await h.db.transaction((tx) => rec.getCheckoutRecoveryProps(tx, c.id));
+    const context = { checkout_id: c.id, resume_url: resumeUrl };
+
+    const props = await h.db.transaction((tx) => loadProps(tx, { personId: person.id, locale: "fr-BE", context, stepKey: "remind_24h" }));
+    expect(def.props.safeParse(props).success).toBe(true);
+    expect(props).toMatchObject({ variant: "second", checkoutId: c.id, resumeUrl, items: [{ name: "Forfait cinq jours", quantity: 2 }] });
+    expect(props.total).toMatch(/90,00/);
+    const first = await h.db.transaction((tx) => loadProps(tx, { personId: person.id, locale: "en", context, stepKey: "remind_1h" }));
+    expect(first).toMatchObject({ variant: "first", items: [{ name: "Five-day package", quantity: 2 }] });
+
+    const other = await makePerson(h.db);
+    await expect(h.db.transaction((tx) => loadProps(tx, { personId: other.id, locale: "en", context, stepKey: "remind_1h" }))).rejects.toThrow(/not found/);
+    await expect(h.db.transaction((tx) => loadProps(tx, { personId: person.id, locale: "en", context: { checkout_id: c.id }, stepKey: "remind_1h" }))).rejects.toThrow(/resume_url/);
+  });
+});

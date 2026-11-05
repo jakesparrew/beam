@@ -7,7 +7,8 @@ import { createTestDb } from "@beam/db/testing";
 import { makeUser } from "@beam/db/testing/factories";
 import { makePaidOrder } from "@beam/db/testing/commerce-factories";
 import { makeMembership } from "@beam/db/testing/credits-factories";
-import { adSpendDaily, personStats, webinarRegistrations, webinars } from "@beam/db/schema";
+import { makeRegistration, makeWebinar } from "@beam/db/testing/webinar-factories";
+import { adSpendDaily, personStats } from "@beam/db/schema";
 import { makeCustomer, makeHistory } from "../stats/ops-p2.fixtures";
 import { computeCampaignFunnel, type CampaignFunnelRow } from "./funnel";
 
@@ -27,15 +28,13 @@ beforeAll(async () => {
   const acq = { source: "paid_meta" as const, campaign: "fake_meta_1", medium: "cpc" };
   const host = await makeUser(db, { roleKey: "marketing" });
   const users = { ownerUserId: host.id, createdByUserId: host.id };
-  const [w1] = await db.insert(webinars).values({ slug: "sleep-1", title: { en: "Sleep", "nl-BE": "Slaap", "fr-BE": "Sommeil" }, mode: "on_demand", ...users }).returning();
-  const [w2] = await db.insert(webinars).values({ slug: "sleep-2", title: { en: "Sleep 2", "nl-BE": "Slaap 2", "fr-BE": "Sommeil 2" }, mode: "on_demand", ...users }).returning();
+  const w1 = await makeWebinar(db, { slug: "sleep-1", mode: "on_demand", ...users });
+  const w2 = await makeWebinar(db, { slug: "sleep-2", mode: "on_demand", ...users });
 
   // p1: two native registrations, two package orders, a second purchase, member.
   const p1 = await makeCustomer(db, { createdAt: day("2026-09-01"), acquisition: acq });
-  await db.insert(webinarRegistrations).values([
-    { webinarId: w1!.id, personId: p1.id, registeredMode: "on_demand", accessTokenHash: "h3", source: "site", locale: "nl-BE", personStatus: "lead", createdAt: day("2026-09-03") },
-    { webinarId: w2!.id, personId: p1.id, registeredMode: "on_demand", accessTokenHash: "h5", source: "site", locale: "nl-BE", personStatus: "lead", createdAt: day("2026-09-05") },
-  ]);
+  await makeRegistration(db, { webinarId: w1.id, personId: p1.id, registeredMode: "on_demand", createdAt: day("2026-09-03") });
+  await makeRegistration(db, { webinarId: w2.id, personId: p1.id, registeredMode: "on_demand", createdAt: day("2026-09-05") });
   await makePaidOrder(db, { personId: p1.id, lines: [{ productKind: "package", unitAmountCents: 20_000 }], order: { paidAt: day("2026-09-11") } });
   await makePaidOrder(db, { personId: p1.id, lines: [{ productKind: "package", unitAmountCents: 10_000 }], order: { paidAt: day("2026-09-21") } });
   await makeMembership(db, { personId: p1.id, startedAt: day("2026-09-25") });

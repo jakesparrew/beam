@@ -42,6 +42,7 @@ const V1_ROUTES: RequiredRoute[] = [
   { url: `/nl/account/checkout/${UUID}`, owner: "commerce-P5" },
   { url: `/nl/account/checkout/return/${UUID}`, owner: "commerce-P5" },
   { url: "/nl/account/packages", owner: "credits-P7" },
+  { url: "/en/account/shop", owner: "commerce-P5" },
   // Booking, cancel and reschedule (G11: these three must be real pages under the portal shell)
   { url: `/nl/account/book/${UUID}`, owner: "booking-P6" },
   { url: "/nl/account/bookings", owner: "booking-P6", needs: ["loading", "error"] },
@@ -52,6 +53,8 @@ const V1_ROUTES: RequiredRoute[] = [
   { url: "/nl/preferences/token-abc", owner: "crm-P3" },
   { url: "/nl/f/recovery-check", owner: "forms-P4" },
   { url: "/fr/f/recovery-check", owner: "forms-P4" },
+  { url: "/fr/f/recovery-check/r/token-abc", owner: "forms-P4" },
+  { url: "/nl/account/preferences", owner: "crm-P3" },
   { url: "/nl/account/privacy", owner: "ops-P5" },
   // Staff back office
   { url: "/admin/login", owner: "platform-P6" },
@@ -73,6 +76,13 @@ const V1_HANDLERS = [
   { url: `/api/dev/fake-pay/${UUID}`, file: "app/api/dev/fake-pay/[id]/route.ts" },
   { url: "/api/health", file: "app/api/health/route.ts" },
   { url: "/api/public/unsubscribe/token-abc", file: "app/api/public/unsubscribe/[token]/route.ts" },
+  { url: "/api/webhooks/resend", file: "app/api/webhooks/resend/route.ts" },
+  { url: "/api/public/forms/recovery-check/save", file: "app/api/public/forms/[slug]/save/route.ts" },
+  { url: "/api/public/forms/recovery-check/submit", file: "app/api/public/forms/[slug]/submit/route.ts" },
+  // A static `revenue` page folder beside the dynamic `[report]/csv` handler: the resolver backtracks like Next.
+  { url: "/admin/reports/revenue/csv?period=day&vat=incl", file: "app/(admin)/admin/reports/[report]/csv/route.ts" },
+  { url: `/admin/reports/exports/${UUID}/download`, file: "app/(admin)/admin/reports/exports/[id]/download/route.ts" },
+  { url: `/admin/privacy/${UUID}/download`, file: "app/(admin)/admin/privacy/[id]/download/route.ts" },
 ];
 
 type Ownership = Record<string, { owns?: string[] }>;

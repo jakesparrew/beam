@@ -420,6 +420,36 @@ function submissionWhere(f: SubmissionFilter): SQL {
   return and(...where)!;
 }
 
+const SUBMISSION_STATUSES: readonly string[] = ["started", "partial", "abandoned", "completed"];
+
+/** The list filter from the query string (unknown or malformed values are dropped). */
+export function parseSubmissionFilter(sp: Record<string, string | string[] | undefined>): Omit<SubmissionFilter, "formId"> {
+  const one = (k: string, max = 100): string | undefined => {
+    const v = sp[k];
+    return typeof v === "string" && v.trim() ? v.trim().slice(0, max) : undefined;
+  };
+  const day = (k: string) => {
+    const v = one(k, 10);
+    return v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : undefined;
+  };
+  const status = one("status");
+  const versionId = one("versionId", 36);
+  const out: Omit<SubmissionFilter, "formId"> = {};
+  if (status && SUBMISSION_STATUSES.includes(status)) out.status = status as SubmissionStatus;
+  if (versionId && /^[0-9a-f-]{36}$/i.test(versionId)) out.versionId = versionId;
+  for (const k of ["outcomeKey", "source", "funnel", "q"] as const) {
+    const v = one(k);
+    if (v) out[k] = v;
+  }
+  const from = day("from");
+  const to = day("to");
+  if (from) out.from = from;
+  if (to) out.to = to;
+  const cursor = one("cursor", 200);
+  if (cursor) out.cursor = cursor;
+  return out;
+}
+
 const fullName = (first: string | null | undefined, last: string | null | undefined): string | null => [first, last].filter(Boolean).join(" ") || null;
 
 /** `/admin/forms/[formId]/submissions`: 50 per page, newest first, keyset paging (`forms.write` and `persons.read`). */

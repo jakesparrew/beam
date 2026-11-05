@@ -755,8 +755,11 @@
       "mergedAt": "2026-11-04T08:26:09Z"
     },
     "forms-P6": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "2c17bb6",
+      "runId": null,
+      "startedAt": "2026-11-05T00:25:52Z"
     },
     "email-P5": {
       "status": "merged",
@@ -979,8 +982,11 @@
       "attempts": 0
     },
     "ops-P7": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "2c17bb6",
+      "runId": null,
+      "startedAt": "2026-11-05T00:25:52Z"
     },
     "webinar-P3": {
       "status": "running",

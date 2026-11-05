@@ -2,7 +2,7 @@
  * finance read functions for the back office (finance spec 4.3, finance-P5) and the customer
  * portal (`listMyInvoices`, `getMyInvoice`, `getMyInvoicePdf`, finance-P6). Staff pages check the
  * permission (`invoices.read`) before calling them; portal pages pass the signed-in customer's
- * person id, and the queries filter on it. `listFinanceExports` (finance-P7) needs `reports.finance`. Every function takes the database first.
+ * person id, and the queries filter on it. `listFinanceExports` (finance-P7) and `getFinanceDashboard` (finance-P8) need `reports.finance`. Every function takes the database first.
  * Explicit columns only; lists are keyset-paginated (50 rows, cursor `issued_at,id`).
  * Search is an exact document number or `ilike` on the customer name inside the period filter.
  */
@@ -17,6 +17,8 @@ import {
   payments,
   refunds,
   vFinanceBillitBacklog,
+  vFinanceOpenInvoices,
+  vFinanceRecurringMonthly,
 } from "@beam/db/schema";
 import {
   buildSellerSnapshot,
@@ -33,6 +35,15 @@ import { LOCALES, type Locale } from "@beam/core/i18n";
 import { and, asc, desc, eq, gte, lt, lte, or, sql, type SQL } from "@/lib/ctx";
 import { rowsOf } from "@/lib/sensitive";
 import { getSetting } from "@/lib/settings";
+// Relative until `@beam/core/finance` re-exports `./periods` (index.ts is not finance-P8's file).
+import {
+  addPeriodDays,
+  resolvePeriod,
+  trendGranularity,
+  type DashboardPeriod,
+  type DateRange,
+  type ResolvedPeriod,
+} from "../../../../packages/core/src/finance/periods";
 import { brusselsDay } from "./service/billit-sync";
 import { listExports, type FinanceExportRow } from "./service/exports";
 import { blockedPdfIds } from "./service/pdf-file";
@@ -634,4 +645,316 @@ function addDaysIso(day: string, days: number): string {
   const d = new Date(`${day}T12:00:00Z`);
   d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString().slice(0, 10);
+}
+
+// ---------------------------------------------------------------------------
+// Finance dashboard (finance-P8, R3, blueprint 43; `reports.finance`). Revenue is invoice-based
+// and excludes VAT; credit notes reduce it on their own issue day; vouchers are a liability and
+// are reported apart (decision 30). Cash uses payments and settled credit notes. Every figure is
+// compared with the previous period and the same period last year (rule 44, `resolvePeriod`).
+// ---------------------------------------------------------------------------
+
+export type DashboardInput = { period: DashboardPeriod; from?: string; to?: string; now?: Date };
+/** A figure for the selected period, the previous period and the same period last year. */
+export type DashboardFigure = { current: number; previous: number; lastYear: number };
+export type DashboardTiles = {
+  netRevenue: DashboardFigure;
+  vatCollected: DashboardFigure;
+  cashInflow: DashboardFigure;
+  refunds: DashboardFigure;
+  failedPayments: DashboardFigure;
+  recurringRevenue: DashboardFigure;
+  activeMemberships: DashboardFigure;
+  voucherSales: DashboardFigure;
+  openInvoices: { count: number; amountCents: number; overdueCount: number; overdueCents: number };
+};
+export type TrendPoint = { bucket: string; currentCents: number; previousCents: number; lastYearCents: number };
+export type CategoryRow = { category: string; liability: boolean } & DashboardFigure;
+export type MethodRow = { method: string } & DashboardFigure;
+export type VatRateRow = { quarter: string; ratePct: number; netCents: number; vatCents: number; grossCents: number };
+export type CashFlowPoint = { bucket: string; inflowCents: number; outflowCents: number };
+export type DashboardOpenInvoice = {
+  id: string;
+  number: string;
+  customerName: string | null;
+  issuedOn: string;
+  dueOn: string | null;
+  amountDueCents: number;
+  daysOverdue: number;
+};
+export type DashboardFailedPayment = {
+  id: string;
+  orderId: string;
+  failedAt: Date;
+  provider: string;
+  method: string | null;
+  status: "failed" | "expired";
+  amountCents: number;
+  reason: string | null;
+};
+
+export type FinanceDashboard = {
+  period: ResolvedPeriod & { period: DashboardPeriod; granularity: "day" | "month" };
+  /** False when the selected period has no document, cash movement or failed payment (tiles show 0). */
+  hasData: boolean;
+  tiles: DashboardTiles;
+  revenueTrend: { granularity: "day" | "month"; points: TrendPoint[] };
+  byCategory: CategoryRow[];
+  byMethod: MethodRow[];
+  vatByRate: VatRateRow[];
+  cashFlow: { granularity: "day" | "month"; points: CashFlowPoint[]; totals: { inflowCents: number; outflowCents: number; netCents: number } };
+  openInvoices: { count: number; amountCents: number; overdueCount: number; overdueCents: number; rows: DashboardOpenInvoice[] };
+  failedPayments: { count: number; amountCents: number; pastDueMemberships: number; rows: DashboardFailedPayment[] };
+  recurring: {
+    invoiceCount: number;
+    netCents: number;
+    grossCents: number;
+    activeMemberships: number;
+    months: { month: string; invoiceCount: number; netCents: number; grossCents: number }[];
+  };
+};
+
+const DASHBOARD_TABLE_ROWS = 10;
+const NOT_VOUCHER = sql`category is distinct from 'voucher'`;
+const inRange = (r: DateRange, column: SQL = sql`day`) => sql`${column} >= ${r.from}::date and ${column} <= ${r.to}::date`;
+const toNum = (v: unknown) => Number(v ?? 0);
+
+/** `sum(expr) filter (where <range> and cond)` for the three ranges, as columns `<name>_c`, `_p` and `_l`. */
+function figureColumns(name: string, expr: SQL, ranges: readonly DateRange[], cond: SQL = sql`true`, column: SQL = sql`day`): SQL {
+  const parts = ranges.map(
+    (r, i) => sql`coalesce(sum(${expr}) filter (where ${inRange(r, column)} and ${cond}), 0)::int as ${sql.raw(`${name}_${"cpl"[i]}`)}`,
+  );
+  return sql.join(parts, sql`, `);
+}
+
+const figureOf = (row: Record<string, unknown> | undefined, name: string): DashboardFigure => ({
+  current: toNum(row?.[`${name}_c`]),
+  previous: toNum(row?.[`${name}_p`]),
+  lastYear: toNum(row?.[`${name}_l`]),
+});
+
+/** The buckets of a range: every day, or the first day of every month. */
+function bucketsOf(r: DateRange, granularity: "day" | "month"): string[] {
+  const out: string[] = [];
+  if (granularity === "day") {
+    for (let d = r.from; d <= r.to; d = addPeriodDays(d, 1)) out.push(d);
+    return out;
+  }
+  let [y, m] = r.from.split("-").map(Number) as [number, number];
+  const end = r.to.slice(0, 7);
+  for (;;) {
+    const key = `${y}-${String(m).padStart(2, "0")}`;
+    if (key > end) break;
+    out.push(`${key}-01`);
+    m += 1;
+    if (m > 12) [y, m] = [y + 1, 1];
+  }
+  return out;
+}
+
+async function seriesOf(db: DbOrTx, from: SQL, value: SQL, r: DateRange, granularity: "day" | "month", cond: SQL = sql`true`): Promise<Map<string, number>> {
+  const unit = granularity === "day" ? sql`day` : sql`date_trunc('month', day)::date`;
+  const rows = rowsOf<{ bucket: string; v: number }>(
+    await db.execute(sql`select to_char(${unit}, 'YYYY-MM-DD') as bucket, coalesce(sum(${value}), 0)::int as v
+      from ${from} where ${inRange(r)} and ${cond} group by 1`),
+  );
+  return new Map(rows.map((row) => [row.bucket, toNum(row.v)]));
+}
+
+/** Index-aligned values of `series` over the buckets of `r` (day i of the period against day i of the other). */
+const aligned = (series: Map<string, number>, r: DateRange, granularity: "day" | "month") => bucketsOf(r, granularity).map((b) => series.get(b) ?? 0);
+
+const nonZero = (row: DashboardFigure) => row.current !== 0 || row.previous !== 0 || row.lastYear !== 0;
+
+/**
+ * `/admin/finance/dashboard` (`reports.finance`; the page checks the permission): tiles, series and
+ * tables for the period of `input` in Europe/Brussels. A custom range that is not two valid dates,
+ * ends before it starts or spans more than 731 days throws a `RangeError`. Open invoices and
+ * past-due memberships are the state now; everything else belongs to the selected period.
+ */
+export async function getFinanceDashboard(db: DbOrTx, input: DashboardInput): Promise<FinanceDashboard> {
+  const now = input.now ?? new Date();
+  const resolved = resolvePeriod({ period: input.period, ...(input.from ? { from: input.from } : {}), ...(input.to ? { to: input.to } : {}) }, now);
+  const cur: DateRange = { from: resolved.from, to: resolved.to };
+  const prev = resolved.previous;
+  const ly = resolved.lastYear;
+  const ranges = [cur, prev, ly] as const;
+  const granularity = trendGranularity(cur);
+  const span = sql`day >= ${[cur.from, prev.from, ly.from].sort()[0]}::date and day <= ${[cur.to, prev.to, ly.to].sort()[2]}::date`;
+
+  const [rev] = rowsOf<Record<string, unknown>>(
+    await db.execute(sql`select ${figureColumns("rev", sql`net_cents`, ranges, NOT_VOUCHER)},
+        ${figureColumns("vat", sql`vat_cents`, ranges)},
+        ${figureColumns("ref", sql`-net_cents`, ranges, sql`kind = 'credit_note' and ${NOT_VOUCHER}`)},
+        ${figureColumns("vou", sql`net_cents`, ranges, sql`category = 'voucher'`)},
+        ${figureColumns("docs", sql`document_count`, ranges)}
+      from v_finance_revenue_daily where ${span}`),
+  );
+  const [cash] = rowsOf<Record<string, unknown>>(
+    await db.execute(sql`select ${figureColumns("cin", sql`inflow_cents`, ranges)}, ${figureColumns("cout", sql`outflow_cents`, ranges)},
+        ${figureColumns("cmov", sql`movement_count`, ranges)}
+      from v_finance_cash_inflow_daily where ${span}`),
+  );
+  const [failed] = rowsOf<Record<string, unknown>>(
+    await db.execute(sql`select ${figureColumns("fail", sql`failed_count`, ranges)}, ${figureColumns("failamt", sql`amount_cents`, ranges)}
+      from v_finance_failed_payments where ${span}`),
+  );
+  const issuedOn = sql`i.issued_on`;
+  const [recurring] = rowsOf<Record<string, unknown>>(
+    await db.execute(sql`select ${figureColumns("rec", sql`i.subtotal_cents`, ranges, sql`true`, issuedOn)},
+        ${figureColumns("recgross", sql`i.total_cents`, ranges, sql`true`, issuedOn)},
+        ${figureColumns("recn", sql`case when i.kind = 'invoice' then 1 else 0 end`, ranges, sql`true`, issuedOn)}
+      from invoices i join orders o on o.id = i.order_id where o.channel = 'recurring'`),
+  );
+  // Memberships live at the end of each range (capped at now): started, not pending, not ended.
+  const liveAt = (r: DateRange) => {
+    const at = sql`least(${now.toISOString()}::timestamptz, ((${r.to}::date + 1)::timestamp at time zone 'Europe/Brussels'))`;
+    return sql`(count(*) filter (where m.started_at < ${at} and (m.ended_at is null or m.ended_at >= ${at})))::int`;
+  };
+  const [members] = rowsOf<Record<string, unknown>>(
+    await db.execute(sql`select ${liveAt(cur)} as mem_c, ${liveAt(prev)} as mem_p, ${liveAt(ly)} as mem_l,
+        (count(*) filter (where m.status = 'past_due'))::int as past_due
+      from memberships m where m.status <> 'pending'`),
+  );
+  const [open] = rowsOf<{ n: number; cents: number; overdue_n: number; overdue_cents: number }>(
+    await db.execute(sql`select count(*)::int as n, coalesce(sum(amount_due_cents), 0)::int as cents,
+        count(*) filter (where days_overdue > 0)::int as overdue_n,
+        coalesce(sum(amount_due_cents) filter (where days_overdue > 0), 0)::int as overdue_cents
+      from v_finance_open_invoices`),
+  );
+  const openTotals = { count: toNum(open?.n), amountCents: toNum(open?.cents), overdueCount: toNum(open?.overdue_n), overdueCents: toNum(open?.overdue_cents) };
+
+  const tiles: DashboardTiles = {
+    netRevenue: figureOf(rev, "rev"),
+    vatCollected: figureOf(rev, "vat"),
+    cashInflow: figureOf(cash, "cin"),
+    refunds: figureOf(rev, "ref"),
+    failedPayments: figureOf(failed, "fail"),
+    recurringRevenue: figureOf(recurring, "rec"),
+    activeMemberships: figureOf(members, "mem"),
+    voucherSales: figureOf(rev, "vou"),
+    openInvoices: openTotals,
+  };
+
+  // Revenue trend: the current buckets, with the previous period and last year aligned by index.
+  const revenueView = sql`v_finance_revenue_daily`;
+  const [sc, sp, sl] = await Promise.all(ranges.map((r) => seriesOf(db, revenueView, sql`net_cents`, r, granularity, NOT_VOUCHER)));
+  const curBuckets = bucketsOf(cur, granularity);
+  const prevValues = aligned(sp!, prev, granularity);
+  const lyValues = aligned(sl!, ly, granularity);
+  const points = curBuckets.map((bucket, i) => ({
+    bucket,
+    currentCents: sc!.get(bucket) ?? 0,
+    previousCents: prevValues[i] ?? 0,
+    lastYearCents: lyValues[i] ?? 0,
+  }));
+
+  const byCategory = rowsOf<Record<string, unknown> & { category: string | null }>(
+    await db.execute(sql`select category, ${figureColumns("net", sql`net_cents`, ranges)}
+      from v_finance_revenue_daily where ${span} group by category`),
+  )
+    .map((row) => ({ category: row.category ?? "other", liability: row.category === "voucher", ...figureOf(row, "net") }))
+    .filter(nonZero)
+    .sort((a, b) => Number(a.liability) - Number(b.liability) || b.current - a.current || a.category.localeCompare(b.category));
+  const byMethod = rowsOf<Record<string, unknown> & { method: string }>(
+    await db.execute(sql`select coalesce(payment_method, 'unknown') as method, ${figureColumns("net", sql`net_cents`, ranges, NOT_VOUCHER)}
+      from v_finance_revenue_daily where ${span} group by 1`),
+  )
+    .map((row) => ({ method: row.method, ...figureOf(row, "net") }))
+    .filter(nonZero)
+    .sort((a, b) => b.current - a.current || a.method.localeCompare(b.method));
+  const vatByRate = rowsOf<{ quarter: string; rate: string | number; net: number; vat: number; gross: number }>(
+    await db.execute(sql`select to_char(day, 'YYYY') || '-Q' || extract(quarter from day)::int as quarter, coalesce(vat_rate_pct, 0) as rate,
+        sum(net_cents)::int as net, sum(vat_cents)::int as vat, sum(gross_cents)::int as gross
+      from v_finance_revenue_daily where ${inRange(cur)} group by 1, 2 order by 1, 2 desc`),
+  ).map((row) => ({ quarter: row.quarter, ratePct: Number(row.rate), netCents: toNum(row.net), vatCents: toNum(row.vat), grossCents: toNum(row.gross) }));
+
+  const cashView = sql`v_finance_cash_inflow_daily`;
+  const [inflow, outflow] = await Promise.all([
+    seriesOf(db, cashView, sql`inflow_cents`, cur, granularity),
+    seriesOf(db, cashView, sql`outflow_cents`, cur, granularity),
+  ]);
+  const cashPoints = curBuckets.map((bucket) => ({ bucket, inflowCents: inflow.get(bucket) ?? 0, outflowCents: outflow.get(bucket) ?? 0 }));
+  const cashIn = toNum(cash?.cin_c);
+  const cashOut = toNum(cash?.cout_c);
+
+  const openRows = await db
+    .select({
+      id: vFinanceOpenInvoices.id,
+      number: vFinanceOpenInvoices.number,
+      customerName: vFinanceOpenInvoices.customerName,
+      issuedOn: vFinanceOpenInvoices.issuedOn,
+      dueOn: vFinanceOpenInvoices.dueOn,
+      amountDueCents: vFinanceOpenInvoices.amountDueCents,
+      daysOverdue: vFinanceOpenInvoices.daysOverdue,
+    })
+    .from(vFinanceOpenInvoices)
+    .orderBy(desc(vFinanceOpenInvoices.daysOverdue), desc(vFinanceOpenInvoices.amountDueCents), asc(vFinanceOpenInvoices.number))
+    .limit(DASHBOARD_TABLE_ROWS);
+
+  const failedAt = sql`coalesce((select max((e ->> 'at')::timestamptz) from jsonb_array_elements(p.status_history) e where e ->> 'status' = p.status::text), p.updated_at)`;
+  type FailedSqlRow = {
+    id: string;
+    order_id: string;
+    failed_at: string | Date;
+    provider: string;
+    method: string | null;
+    status: "failed" | "expired";
+    amount_cents: number;
+    reason: string | null;
+  };
+  const failedRows = rowsOf<FailedSqlRow>(
+    await db.execute(sql`select * from (select p.id, p.order_id, ${failedAt} as failed_at, p.provider::text as provider, p.method,
+          p.status::text as status, p.amount_cents, p.failed_reason as reason
+        from payments p where p.status in ('failed', 'expired')) f
+      where (f.failed_at at time zone 'Europe/Brussels')::date >= ${cur.from}::date
+        and (f.failed_at at time zone 'Europe/Brussels')::date <= ${cur.to}::date
+      order by f.failed_at desc, f.id limit ${DASHBOARD_TABLE_ROWS}`),
+  ).map((row) => ({
+    id: row.id,
+    orderId: row.order_id,
+    failedAt: new Date(row.failed_at),
+    provider: row.provider,
+    method: row.method,
+    status: row.status,
+    amountCents: toNum(row.amount_cents),
+    reason: row.reason,
+  }));
+
+  const months = (
+    await db
+      .select({
+        month: vFinanceRecurringMonthly.month,
+        invoiceCount: vFinanceRecurringMonthly.invoiceCount,
+        netCents: vFinanceRecurringMonthly.netCents,
+        grossCents: vFinanceRecurringMonthly.grossCents,
+      })
+      .from(vFinanceRecurringMonthly)
+      .where(and(gte(vFinanceRecurringMonthly.month, `${cur.from.slice(0, 7)}-01`), lte(vFinanceRecurringMonthly.month, cur.to)))
+      .orderBy(asc(vFinanceRecurringMonthly.month))
+  ).map((m) => ({ month: String(m.month), invoiceCount: m.invoiceCount, netCents: m.netCents, grossCents: m.grossCents }));
+
+  const hasData = toNum(rev?.docs_c) > 0 || toNum(cash?.cmov_c) > 0 || tiles.failedPayments.current > 0;
+  return {
+    period: { period: input.period, from: cur.from, to: cur.to, previous: prev, lastYear: ly, granularity },
+    hasData,
+    tiles,
+    revenueTrend: { granularity, points },
+    byCategory,
+    byMethod,
+    vatByRate,
+    cashFlow: { granularity, points: cashPoints, totals: { inflowCents: cashIn, outflowCents: cashOut, netCents: cashIn - cashOut } },
+    openInvoices: {
+      ...openTotals,
+      rows: openRows.map((r) => ({ ...r, issuedOn: String(r.issuedOn), dueOn: r.dueOn == null ? null : String(r.dueOn) })),
+    },
+    failedPayments: { count: tiles.failedPayments.current, amountCents: toNum(failed?.failamt_c), pastDueMemberships: toNum(members?.past_due), rows: failedRows },
+    recurring: {
+      invoiceCount: toNum(recurring?.recn_c),
+      netCents: tiles.recurringRevenue.current,
+      grossCents: toNum(recurring?.recgross_c),
+      activeMemberships: tiles.activeMemberships.current,
+      months,
+    },
+  };
 }

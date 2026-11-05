@@ -3,7 +3,9 @@
  * with its SQL exported beside it as `<name>Sql`; `pnpm db:views` writes the migration and
  * `createTestDb()` applies the same SQL. Sums and counts are cast to `int` so Drizzle reads
  * numbers. Credit notes carry negative amounts, so sums over both kinds are net figures.
- * R3 views (`v_finance_revenue_daily` and the others) are added by finance-P8.
+ * finance-P8 (R3 dashboard) adds `v_finance_revenue_daily`, `v_finance_cash_inflow_daily`,
+ * `v_finance_failed_payments` and `v_finance_recurring_monthly`: aggregates without any person
+ * column (finance-P10 lists them for the read-only `ai` schema).
  */
 import { boolean, date, integer, numeric, pgView, smallint, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { invoicesBillitStatus, invoicesKind, invoicesStatus } from "./finance";
@@ -124,4 +126,102 @@ export const vFinanceBillitBacklog = pgView("v_finance_billit_backlog", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
   ageMinutes: integer("age_minutes").notNull(),
   failingMinutes: integer("failing_minutes"),
+}).existing();
+
+/**
+ * Invoice-based revenue per Brussels issue day (finance-P8, decision 30). Credit notes count on
+ * their own issue day with their negative amounts, so a sum over both kinds is net revenue. A
+ * credit note takes the payment method of the invoice it reverses until it is settled. Category
+ * `voucher` stays in the view; readers report it apart (a liability, not revenue).
+ */
+export const vFinanceRevenueDailySql = `select i.issued_on as day, i.kind, l.category,
+  coalesce(i.payment_method, r.payment_method) as payment_method, l.vat_rate_pct,
+  sum(l.net_cents)::int as net_cents,
+  sum(l.vat_cents)::int as vat_cents,
+  sum(l.line_total_cents)::int as gross_cents,
+  count(distinct i.id)::int as document_count
+from invoices i
+left join invoices r on r.id = i.reverses_invoice_id
+cross join lateral jsonb_to_recordset(i.lines) as l(category text, vat_rate_pct numeric, vat_cents int, net_cents int, line_total_cents int)
+group by i.issued_on, i.kind, l.category, coalesce(i.payment_method, r.payment_method), l.vat_rate_pct`;
+
+export const vFinanceRevenueDaily = pgView("v_finance_revenue_daily", {
+  day: date("day").notNull(),
+  kind: invoicesKind("kind").notNull(),
+  category: text("category"),
+  paymentMethod: text("payment_method"),
+  vatRatePct: numeric("vat_rate_pct"),
+  netCents: integer("net_cents").notNull(),
+  vatCents: integer("vat_cents").notNull(),
+  grossCents: integer("gross_cents").notNull(),
+  documentCount: integer("document_count").notNull(),
+}).existing();
+
+/**
+ * Cash in and out per Brussels day, provider and method (finance-P8): payments that were paid
+ * (later refunds included, their own refund shows as outflow) and settled credit notes. Payments
+ * from the euro credit balance are not cash (the cash came in when the voucher was sold).
+ */
+export const vFinanceCashInflowDailySql = `select (p.paid_at at time zone 'Europe/Brussels')::date as day, p.provider::text as provider, p.method,
+  sum(p.amount_cents)::int as inflow_cents, 0 as outflow_cents, count(*)::int as movement_count
+from payments p
+where p.status in ('paid', 'refunded', 'partially_refunded') and p.paid_at is not null and p.provider <> 'credit_balance'
+group by 1, 2, 3
+union all
+select (i.paid_at at time zone 'Europe/Brussels')::date as day, i.payment_provider as provider, i.payment_method as method,
+  0 as inflow_cents, sum(-i.total_cents)::int as outflow_cents, count(*)::int as movement_count
+from invoices i
+where i.kind = 'credit_note' and i.status = 'paid' and i.paid_at is not null
+group by 1, 2, 3`;
+
+export const vFinanceCashInflowDaily = pgView("v_finance_cash_inflow_daily", {
+  day: date("day").notNull(),
+  provider: text("provider"),
+  method: text("method"),
+  inflowCents: integer("inflow_cents").notNull(),
+  outflowCents: integer("outflow_cents").notNull(),
+  movementCount: integer("movement_count").notNull(),
+}).existing();
+
+/**
+ * Failed and expired payments per Brussels day of the failure (the status-history entry, else the
+ * last update) and method, with the memberships in `past_due` now (finance-P8).
+ */
+export const vFinanceFailedPaymentsSql = `select (coalesce(
+    (select max((e ->> 'at')::timestamptz) from jsonb_array_elements(p.status_history) e where e ->> 'status' = p.status::text),
+    p.updated_at) at time zone 'Europe/Brussels')::date as day,
+  p.provider::text as provider, p.method,
+  count(*)::int as failed_count,
+  sum(p.amount_cents)::int as amount_cents,
+  (select count(*) from memberships m where m.status = 'past_due')::int as past_due_memberships
+from payments p
+where p.status in ('failed', 'expired')
+group by 1, 2, 3`;
+
+export const vFinanceFailedPayments = pgView("v_finance_failed_payments", {
+  day: date("day").notNull(),
+  provider: text("provider").notNull(),
+  method: text("method"),
+  failedCount: integer("failed_count").notNull(),
+  amountCents: integer("amount_cents").notNull(),
+  pastDueMemberships: integer("past_due_memberships").notNull(),
+}).existing();
+
+/** Documents of recurring (membership renewal) orders per Brussels month, with active memberships now. */
+export const vFinanceRecurringMonthlySql = `select date_trunc('month', i.issued_on)::date as month,
+  (count(*) filter (where i.kind = 'invoice'))::int as invoice_count,
+  sum(i.subtotal_cents)::int as net_cents,
+  sum(i.total_cents)::int as gross_cents,
+  (select count(*) from memberships m where m.status = 'active')::int as active_memberships
+from invoices i
+join orders o on o.id = i.order_id
+where o.channel = 'recurring'
+group by 1`;
+
+export const vFinanceRecurringMonthly = pgView("v_finance_recurring_monthly", {
+  month: date("month").notNull(),
+  invoiceCount: integer("invoice_count").notNull(),
+  netCents: integer("net_cents").notNull(),
+  grossCents: integer("gross_cents").notNull(),
+  activeMemberships: integer("active_memberships").notNull(),
 }).existing();

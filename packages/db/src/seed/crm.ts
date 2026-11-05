@@ -1,6 +1,6 @@
 /**
- * crm's `defaults` seed profile (runbook 3.4, BS-11, crm-P1): the system tags (`vip`, the
- * three starter interests and the four tags automation's journeys use), version 1 of every
+ * crm's `defaults` seed profile (runbook 3.4, BS-11, crm-P1): the system tags (`vip` and the
+ * three starter interests), version 1 of every
  * consent wording in the three locales, published, and (R3, crm-P8) the default sales playbook
  * (`DEFAULT_B2B_PLAYBOOK`: 13 stages, `DEFAULT_B2C_PLAYBOOK`: 10 stages). Idempotent (`on conflict do nothing`): existing rows are never changed, so staff
  * edits and later wording versions survive a re-run. Demo persons, companies and tasks are
@@ -18,11 +18,6 @@ export const SYSTEM_TAGS: readonly { key: string; name: Required<LocalizedText>;
   { key: "interest:sleep", name: { "nl-BE": "Interesse: slaap", "fr-BE": "Intérêt : sommeil", en: "Interest: sleep" }, color: "#4f46e5", description: "Interested in sleep programmes." },
   { key: "interest:breathwork", name: { "nl-BE": "Interesse: ademwerk", "fr-BE": "Intérêt : respiration", en: "Interest: breathwork" }, color: "#0d9488", description: "Interested in breathwork sessions." },
   { key: "interest:events", name: { "nl-BE": "Interesse: events", "fr-BE": "Intérêt : événements", en: "Interest: events" }, color: "#be185d", description: "Interested in events and workshops." },
-  // The tags automation's journeys set and test (request of automation-P4).
-  { key: "engaged", name: { "nl-BE": "Betrokken", "fr-BE": "Engagé", en: "Engaged" }, color: "#16a34a", description: "Clicked a nurture email or watched a webinar; makes a lead an engaged lead." },
-  { key: "package_nearly_used", name: { "nl-BE": "Pakket bijna op", "fr-BE": "Forfait presque épuisé", en: "Package nearly used" }, color: "#d97706", description: "80 % of a day or night package is used." },
-  { key: "dormant", name: { "nl-BE": "Slapend", "fr-BE": "Inactif", en: "Dormant" }, color: "#64748b", description: "No visit for 180 days." },
-  { key: "reviewed", name: { "nl-BE": "Review geschreven", "fr-BE": "Avis donné", en: "Reviewed" }, color: "#7c3aed", description: "Has left a review; no more review requests." },
 ];
 
 type T3 = Required<LocalizedText>;

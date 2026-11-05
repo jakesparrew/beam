@@ -17,6 +17,8 @@ import type { DbOrTx } from "@beam/db";
 import { attributionCredits } from "@beam/db/schema";
 import { sql } from "@/lib/ctx";
 import { rowsOf } from "@/lib/sensitive";
+import { inRange, type DateRange } from "../reports/no-shows";
+import { adsDataAsOf, spendByCampaignKey, type CampaignSpend } from "./ads";
 
 /** One marketing touch of a person (a `v_marketing_touches` row). */
 export type Touch = { campaignKey: string; touchedAt: Date; source?: string | null; medium?: string | null; campaign?: string | null };
@@ -152,4 +154,136 @@ export async function computeAttribution(tx: DbOrTx, opts: { fromPaidAt: Date; t
   }
   for (let i = 0; i < inserts.length; i += 500) await tx.insert(attributionCredits).values(inserts.slice(i, i + 500));
   return { rows: inserts.length };
+}
+
+// ---------------------------------------------------------------------------------------------
+// The attribution report (rule 73, `/admin/reports/attribution`)
+// ---------------------------------------------------------------------------------------------
+
+export type AttributionModel = "first_touch" | "linear";
+
+export type AttributionReportRow = {
+  campaignKey: string;
+  source: string | null;
+  medium: string | null;
+  campaign: string | null;
+  /** The ad campaign name when the key joins `ad_spend_daily`. */
+  adName: string | null;
+  leads: number;
+  firstPurchases: number;
+  revenueFirstTouchCents: number;
+  revenueLinearCents: number;
+  ltvCents: number | null;
+  spendCents: number;
+  cplCents: number | null;
+  cacCents: number | null;
+  /** Linear revenue / spend; null without spend (edge case 19). */
+  roas: number | null;
+};
+
+export type AttributionReport = { range: DateRange; model: AttributionModel; rows: AttributionReportRow[]; withoutSpend: AttributionReportRow[]; dataAsOf: string | null };
+
+type ReportRaw = {
+  campaign_key: string;
+  source: string | null;
+  medium: string | null;
+  campaign: string | null;
+  leads: number | string;
+  first_purchases: number | string;
+  rev_first: number | string;
+  rev_linear: number | string;
+  ltv: number | string | null;
+};
+
+/**
+ * Rule 73 over `range`: per campaign key, leads (people first-touched by it and created in the
+ * range), first purchases (their first purchase in the range), first-touch and linear revenue
+ * (credits paid in the range), LTV (average `person_stats.revenue_cents` of everyone it
+ * first-touched), spend, cost per lead, CAC and ROAS (linear revenue / spend). Rows are sorted
+ * by the chosen model's revenue; keys with revenue or leads but no spend are also listed apart.
+ */
+export async function computeAttributionReport(db: DbOrTx, input: { range: DateRange; model?: AttributionModel }): Promise<AttributionReport> {
+  const model = input.model ?? "linear";
+  const raw = rowsOf<ReportRaw>(
+    await db.execute(sql`with ft as (select * from v_person_first_touch where is_tester = false),
+      firsts as (
+        select ft.person_id, ft.campaign_key, ft.created_at,
+          (select min(x.at) from (
+              select o.paid_at as at from orders o where o.person_id = ft.person_id and o.status in ('paid', 'partially_refunded', 'refunded') and o.paid_at is not null
+              union all select ih.occurred_at from imported_history ih where ih.person_id = ft.person_id and ih.kind = 'purchase') x) as first_purchase_at
+        from ft),
+      leads as (select campaign_key, count(*) filter (where ${inRange(sql`created_at`, input.range)}) as leads,
+                       count(*) filter (where ${inRange(sql`first_purchase_at`, input.range)}) as first_purchases from firsts group by campaign_key),
+      ltv as (select ft.campaign_key, avg(coalesce(ps.revenue_cents, 0)) as ltv from ft left join person_stats ps on ps.person_id = ft.person_id group by ft.campaign_key),
+      credits as (select ac.campaign_key,
+                         sum(ac.revenue_cents) filter (where ac.model = 'first_touch') as rev_first,
+                         sum(ac.revenue_cents) filter (where ac.model = 'linear') as rev_linear,
+                         max(ac.source) as source, max(ac.medium) as medium, max(ac.campaign) as campaign
+                  from attribution_credits ac join persons pe on pe.id = ac.person_id
+                  where pe.is_tester = false and ${inRange(sql`ac.paid_at`, input.range)} group by ac.campaign_key),
+      names as (select campaign_key, max(source) as source, max(medium) as medium, max(campaign) as campaign from ft group by campaign_key)
+      select k.campaign_key, coalesce(n.source, c.source) as source, coalesce(n.medium, c.medium) as medium, coalesce(n.campaign, c.campaign) as campaign,
+        coalesce(l.leads, 0)::int as leads, coalesce(l.first_purchases, 0)::int as first_purchases,
+        coalesce(c.rev_first, 0)::bigint as rev_first, coalesce(c.rev_linear, 0)::bigint as rev_linear, lt.ltv
+      from (select campaign_key from leads where leads > 0 or first_purchases > 0 union select campaign_key from credits) k
+      left join leads l on l.campaign_key = k.campaign_key left join credits c on c.campaign_key = k.campaign_key
+      left join ltv lt on lt.campaign_key = k.campaign_key left join names n on n.campaign_key = k.campaign_key`),
+  );
+  const known = new Set(raw.map((r) => r.campaign_key));
+  const spend = await spendByCampaignKey(db, input.range, known);
+  const rows: AttributionReportRow[] = raw.map((r) => {
+    const s = spend.get(r.campaign_key);
+    spend.delete(r.campaign_key);
+    return toRow(r, s);
+  });
+  for (const s of spend.values()) {
+    const [source, campaign] = s.campaignKey.split("|");
+    rows.push(toRow({ campaign_key: s.campaignKey, source: source ?? null, medium: null, campaign: campaign ?? null, leads: 0, first_purchases: 0, rev_first: 0, rev_linear: 0, ltv: null }, s));
+  }
+  const revenueOf = (r: AttributionReportRow) => (model === "linear" ? r.revenueLinearCents : r.revenueFirstTouchCents);
+  rows.sort((a, b) => revenueOf(b) - revenueOf(a) || b.spendCents - a.spendCents || b.leads - a.leads || a.campaignKey.localeCompare(b.campaignKey));
+  return { range: input.range, model, rows, withoutSpend: rows.filter((r) => r.spendCents === 0 && (r.revenueLinearCents > 0 || r.revenueFirstTouchCents > 0 || r.leads > 0)), dataAsOf: await adsDataAsOf(db) };
+}
+
+function toRow(r: ReportRaw, s: CampaignSpend | undefined): AttributionReportRow {
+  const leads = Number(r.leads);
+  const firstPurchases = Number(r.first_purchases);
+  const revLinear = Number(r.rev_linear);
+  const spendCents = s?.spendCents ?? 0;
+  return {
+    campaignKey: r.campaign_key,
+    source: r.source,
+    medium: r.medium,
+    campaign: r.campaign,
+    adName: s?.name ?? null,
+    leads,
+    firstPurchases,
+    revenueFirstTouchCents: Number(r.rev_first),
+    revenueLinearCents: revLinear,
+    ltvCents: r.ltv === null ? null : Math.round(Number(r.ltv)),
+    spendCents,
+    cplCents: spendCents > 0 && leads > 0 ? Math.round(spendCents / leads) : null,
+    cacCents: spendCents > 0 && firstPurchases > 0 ? Math.round(spendCents / firstPurchases) : null,
+    roas: spendCents > 0 ? Math.round((revLinear / spendCents) * 100) / 100 : null,
+  };
+}
+
+export const ATTRIBUTION_CSV_COLUMNS = [
+  "campaign_key",
+  "source",
+  "medium",
+  "campaign",
+  "leads",
+  "first_purchases",
+  "revenue_first_touch_cents",
+  "revenue_linear_cents",
+  "ltv_cents",
+  "spend_cents",
+  "cpl_cents",
+  "cac_cents",
+  "roas",
+] as const;
+
+export function attributionCsvRowOf(r: AttributionReportRow): unknown[] {
+  return [r.campaignKey, r.source ?? "", r.medium ?? "", r.campaign ?? "", r.leads, r.firstPurchases, r.revenueFirstTouchCents, r.revenueLinearCents, r.ltvCents ?? "", r.spendCents, r.cplCents ?? "", r.cacCents ?? "", r.roas ?? ""];
 }

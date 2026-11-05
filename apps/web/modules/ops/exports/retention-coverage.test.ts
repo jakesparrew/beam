@@ -29,9 +29,7 @@ const byKey = (key: string) => policies.find((p) => p.key === key);
  * them: the prefix names a registered module. Once a handler exists the key leaves this list
  * by itself (the assertion only accepts a listed key while its handler is missing).
  */
-const HANDLER_PENDING: Readonly<Record<string, string>> = {
-  "crm.inbox_resolved": "crm (R3 inbox)",
-};
+const HANDLER_PENDING: Readonly<Record<string, string>> = {};
 
 describe("retention coverage (ops spec 9, blueprint 63)", () => {
   it("every blueprint 63 key exists after all seeds ran", () => {
@@ -67,6 +65,10 @@ describe("retention coverage (ops spec 9, blueprint 63)", () => {
       unowned.push(p.key);
     }
     expect(unowned).toEqual([]);
+    // crm's R3 inbox key has its own handler now (it was the last pending one).
+    const inbox = byKey("crm.inbox_resolved");
+    expect(inbox).toBeDefined();
+    expect(resolveSweepHandler(inbox!).kind).toBe("module");
     for (const key of ["marketing_profile", "invoices", "audit_log", "crm.inactive_profile"]) expect(byKey(key), key).toBeUndefined();
   });
 

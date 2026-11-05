@@ -1175,8 +1175,14 @@
         "retention": "Rétention",
         "b2b": "B2B",
         "marketing": "Marketing",
+        "forms": "Formulaires",
         "lists": "Listes",
         "finance": "Finances"
+      },
+      "forms": {
+        "funnel": "Tunnel des formulaires",
+        "outcomes": "Résultats des formulaires",
+        "conversion": "Conversions des formulaires (30 jours)"
       }
     },
     "opportunity": {

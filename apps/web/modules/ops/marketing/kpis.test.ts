@@ -8,7 +8,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import { createTestDb } from "@beam/db/testing";
 import { makeUser } from "@beam/db/testing/factories";
 import { makePaidOrder } from "@beam/db/testing/commerce-factories";
-import { campaigns, emailMessages, emailTemplates, emailTemplateVersions, formSubmissions, formVersions, forms, importedHistory, webinarRegistrations, webinars } from "@beam/db/schema";
+import { makeRegistration, makeWebinar } from "@beam/db/testing/webinar-factories";
+import { campaigns, emailMessages, emailTemplates, emailTemplateVersions, formSubmissions, formVersions, forms, importedHistory } from "@beam/db/schema";
 import { sql } from "@/lib/ctx";
 import type { WebinarKpis } from "@/modules/webinar/api";
 import { makeBooking, makeCustomer, makeHistory } from "../stats/ops-p2.fixtures";
@@ -47,12 +48,9 @@ beforeAll(async () => {
   h = await createTestDb();
   const db = h.db;
   const staff = await makeUser(db, { roleKey: "marketing" });
-  const [w] = await db
-    .insert(webinars)
-    .values({ slug: "kpi-live", title: { en: "Live", "nl-BE": "Live", "fr-BE": "Live" }, mode: "live", startsAt: day("2026-09-20"), attendedMinSec: ATTENDED_MIN_SEC, ownerUserId: staff.id, createdByUserId: staff.id })
-    .returning();
+  const w = await makeWebinar(db, { slug: "kpi-live", mode: "live", startsAt: day("2026-09-20"), attendedMinSec: ATTENDED_MIN_SEC, ownerUserId: staff.id, createdByUserId: staff.id });
   const register = (personId: string, at: Date, mode: "live" | "on_demand", personStatus: "lead" | "customer" | "member") =>
-    db.insert(webinarRegistrations).values({ webinarId: w!.id, personId, registeredMode: mode, accessTokenHash: randomUUID(), source: "site", locale: "nl-BE", personStatus, createdAt: at });
+    makeRegistration(db, { webinarId: w.id, personId, registeredMode: mode, personStatus, createdAt: at });
 
   // Leads (rule 75: not imported, no paid order when created, testers excluded).
   const l1 = await makeCustomer(db, { createdAt: day("2026-09-05"), acquisition: { source: "paid_meta", campaign: "x" } });

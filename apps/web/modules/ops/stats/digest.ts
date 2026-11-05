@@ -9,6 +9,11 @@
  * broadcast error yes or no), never its title or the error text. While webinar's function is
  * not implemented the section is left out.
  *
+ * R3 (rule 74): while `ff_ops_marketing` is on and an ads account is configured, an "Ads" section
+ * gives the data age ("data as of <date>") and one line per account whose last successful pull
+ * is `ADS_STALE_DAYS` or more days old (`getStaleAdsAccounts`, platform and account id only);
+ * any such account also raises a Normal alert of its own (fingerprint `ads-stale`).
+ *
  * `ops_state.digest_last_sent_on` stops a second post on the same day (edge case 26).
  */
 import type { DbOrTx } from "@beam/db";
@@ -25,6 +30,7 @@ import { getFormsHealth } from "@/modules/forms/api";
 import { getPlatformDigest, type DigestSection } from "@/modules/platform/api";
 import { listUpcomingWebinarHealth } from "@/modules/webinar/api";
 import { NotImplementedError } from "@beam/core/errors";
+import { ADS_STALE_DAYS, adsDataAsOf, configuredAccounts, getStaleAdsAccounts, marketingEnabled, readAdsSettings } from "../marketing/ads";
 
 export type DigestBlock = { title: string; lines: string[] };
 
@@ -70,6 +76,43 @@ async function webinarLines(db: DbOrTx): Promise<string[] | null> {
         `${w.broadcastError ? "(!) " : ""}${w.webinarId}: ${w.mode}, broadcast ${w.youtubeLifecycle ?? "none"}${w.broadcastError ? ", broadcast error" : ""}`,
     ),
   ];
+}
+
+type StaleAdsAccount = Awaited<ReturnType<typeof getStaleAdsAccounts>>[number];
+
+const staleText = (a: StaleAdsAccount) =>
+  `${a.platform} ${a.accountId}: ${a.daysSincePull === null ? "never pulled" : `last successful pull ${a.daysSincePull} days ago`}`;
+
+/** Rule 74: the stale ads accounts, or `null` while `ff_ops_marketing` is off or no account is configured. */
+async function staleAds(db: DbOrTx, now: Date): Promise<StaleAdsAccount[] | null> {
+  if (!(await marketingEnabled(db))) return null;
+  if (configuredAccounts(await readAdsSettings(db)).length === 0) return null;
+  return getStaleAdsAccounts(db, now);
+}
+
+/** Rule 74 (R3): the ads data age and the accounts without a successful pull for `ADS_STALE_DAYS` days. */
+async function adsLines(db: DbOrTx, now: Date): Promise<string[] | null> {
+  const stale = await staleAds(db, now);
+  if (!stale) return null;
+  return [`data as of ${(await adsDataAsOf(db)) ?? "none"}`, ...stale.map((a) => `(!) ${staleText(a)}`)];
+}
+
+/** Rule 74: one Normal alert when an ads account has had no successful pull for `ADS_STALE_DAYS` days. */
+async function alertStaleAds(ctx: Ctx): Promise<void> {
+  let stale: StaleAdsAccount[] | null;
+  let asOf: string | null;
+  try {
+    [stale, asOf] = await ctx.tx.transaction(async (sp) => [await staleAds(sp, ctx.now), await adsDataAsOf(sp)] as const);
+  } catch (error) {
+    reportError(error, { tags: { job: "ops.daily_digest", section: "Ads alert" } });
+    return;
+  }
+  if (!stale?.length) return;
+  await notifySlack(ctx, {
+    fingerprint: "ads-stale",
+    severity: "normal",
+    text: [`Ads data is stale (no successful pull for ${ADS_STALE_DAYS} days or more); dashboards show data as of ${asOf ?? "none"}.`, ...stale.map((a) => `- ${staleText(a)}`)].join("\n"),
+  });
 }
 
 function fromSection(section: DigestSection): string[] {
@@ -178,6 +221,7 @@ export function digestSources(input: { day: string; today: string; now: Date }):
       },
     },
     { title: "Webinars", build: webinarLines },
+    { title: "Ads", build: (db) => adsLines(db, input.now) },
     { title: "Platform", build: async (db) => fromSection(await getPlatformDigest(db, day)) },
     { title: "Finance", build: async (db) => fromSection(await getFinanceDigest(db, day)) },
   ];
@@ -218,6 +262,7 @@ export async function runDigest(ctx: Ctx): Promise<unknown> {
   const blocks = await buildDigestBlocks(ctx.tx, { day, today, now: ctx.now });
   const text = formatDigest(day, blocks);
   await notifySlack(ctx, { fingerprint: "digest", severity: "normal", text });
+  await alertStaleAds(ctx);
   await ctx.tx.execute(sql`update ops_state set value = ${JSON.stringify(today)}::jsonb, updated_at = now() where key = ${DIGEST_STATE}`);
   return { day, sections: blocks.length, unavailable: blocks.filter((b) => b.lines[0] === "unavailable").map((b) => b.title) };
 }

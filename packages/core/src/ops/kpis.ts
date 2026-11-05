@@ -3,8 +3,8 @@
  * `KPI_REGISTRY`, never free SQL. Every KPI of rules 34-38 (revenue, sales mix, customers,
  * retention, B2B) and rule 75 (marketing), the two list counts `retention_candidates_by_reason`
  * and `opportunities_by_reason`, and finance's dashboard figures (`getFinanceKpis`,
- * finance-P10, `finance_*` keys, `reports.finance`). `apps/web/modules/ops/insights/evaluate-kpi.ts`
- * computes them.
+ * finance-P10, `finance_*` keys, `reports.finance`) and forms' widget sources (forms-P10,
+ * `forms.*` keys). `apps/web/modules/ops/insights/evaluate-kpi.ts` computes them.
  *
  * - `label` is the catalogue key of the KPI's name (`ops.kpi.<key>`).
  * - `unit`: `cents` (EUR), `count`, or `pct` (a ratio from 0 to 1; null when the denominator is 0).
@@ -20,9 +20,9 @@ import type { DashboardDefinition } from "./schemas";
 
 export type KpiUnit = "cents" | "count" | "pct";
 export type KpiViz = DashboardDefinition["widgets"][number]["viz"];
-export type KpiGroup = "revenue" | "customers" | "retention" | "b2b" | "marketing" | "lists" | "finance";
+export type KpiGroup = "revenue" | "customers" | "retention" | "b2b" | "marketing" | "forms" | "lists" | "finance";
 
-export const KPI_GROUPS: readonly KpiGroup[] = ["revenue", "customers", "retention", "b2b", "marketing", "lists", "finance"];
+export const KPI_GROUPS: readonly KpiGroup[] = ["revenue", "customers", "retention", "b2b", "marketing", "forms", "lists", "finance"];
 
 export type KpiDefinition = {
   label: string;
@@ -103,13 +103,29 @@ const OPS_KPIS = {
 
 type OpsKpiKey = keyof typeof OPS_KPIS;
 
+/**
+ * Forms' widget sources (forms-P10, `FORMS_DASHBOARD_SOURCES` in `apps/web/modules/forms/api`):
+ * the keys and visualisations are forms'; `evaluate-kpi.ts` loads them through
+ * `loadFormsDashboardSource`. Each shows a headline count, its parts as breakdown rows and a
+ * daily series (the outcomes have no series).
+ */
+const FORMS_KPIS = {
+  "forms.funnel": k("forms", "count", { breakdown: true, views: ["number", "line", "bar", "table"] }),
+  "forms.outcomes": k("forms", "count", { breakdown: true, views: ["table", "bar"] }),
+  "forms.conversion": k("forms", "count", { breakdown: true, views: ["number", "line", "bar", "table"] }),
+} as const;
+
+export type FormsDashboardKpiKey = keyof typeof FORMS_KPIS;
+
+export const FORMS_KPI_KEYS = Object.keys(FORMS_KPIS) as FormsDashboardKpiKey[];
+
 /** `netRevenueCents` -> `finance_net_revenue_cents`. */
 export const financeKpiKeyOf = (key: FinanceKpiKey) => `finance_${key.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`)}` as FinanceDashboardKpiKey;
 
 type Snake<S extends string> = S extends `${infer H}${infer T}` ? `${H extends Uppercase<H> ? (H extends Lowercase<H> ? H : `_${Lowercase<H>}`) : H}${Snake<T>}` : S;
 export type FinanceDashboardKpiKey = `finance_${Snake<FinanceKpiKey>}`;
 
-export type KpiKey = OpsKpiKey | FinanceDashboardKpiKey;
+export type KpiKey = OpsKpiKey | FormsDashboardKpiKey | FinanceDashboardKpiKey;
 
 const FINANCE_KPIS = Object.fromEntries(
   FINANCE_KPI_DEFINITIONS.map((d) => [
@@ -127,7 +143,7 @@ const withLabels = <T extends Record<string, Omit<KpiDefinition, "label">>>(defs
   Object.fromEntries(Object.entries(defs).map(([key, d]) => [key, { label: `ops.kpi.${key}`, ...d }])) as { [K in keyof T]: KpiDefinition };
 
 /** Every dashboard KPI (rule 79). */
-export const KPI_REGISTRY: Readonly<Record<KpiKey, KpiDefinition>> = { ...withLabels(OPS_KPIS), ...withLabels(FINANCE_KPIS) };
+export const KPI_REGISTRY: Readonly<Record<KpiKey, KpiDefinition>> = { ...withLabels(OPS_KPIS), ...withLabels(FORMS_KPIS), ...withLabels(FINANCE_KPIS) };
 
 export const KPI_KEYS = Object.keys(KPI_REGISTRY) as KpiKey[];
 

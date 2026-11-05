@@ -7,17 +7,15 @@
  * only the owner or a holder of `dashboards.manage` can edit it (`canEdit`).
  */
 import type { DbOrTx } from "@beam/db";
-import type { DashboardDefinition } from "@beam/core/ops";
+import { type DashboardDefinition, KPI_KEYS, KPI_REGISTRY, type KpiDefinition, type KpiKey, type KpiValue, PERIODS } from "@beam/core/ops";
 import { dashboards } from "@beam/db/schema";
 import { asc, desc, eq, NotFoundError, or, sql, type Actor } from "@/lib/ctx";
-import { PERIODS } from "@beam/core/ops";
 import { translator } from "@/lib/i18n";
 import { getSegmentSummaries } from "@/modules/crm/api";
 import { holdsAny, requireAny, type OpsReadCtx } from "../reports/registry";
 import type { PickerKpi, WidgetPickerLabels } from "../ui/WidgetPicker";
 import { evaluateKpi, type EvaluateKpiOptions } from "./evaluate-kpi";
 import { listOpportunityCandidates, type OpportunityReason } from "./opportunities";
-import { KPI_KEYS, KPI_REGISTRY, type KpiDefinition, type KpiKey, type KpiValue } from "../../../../../packages/core/src/ops/kpis";
 
 export { evaluateKpi };
 export type { EvaluateKpiOptions, KpiValue };

@@ -7,13 +7,12 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { DbHandle } from "@beam/db";
 import { companies, dpiaRecords, opportunities, segmentMembers, segments } from "@beam/db/schema";
-import { DashboardDefinition, PERIODS } from "@beam/core/ops";
+import { checkDashboardDefinition, DashboardDefinition, KPI_KEYS, KPI_REGISTRY, type KpiKey, MAX_DASHBOARD_WIDGETS, PERIODS } from "@beam/core/ops";
 import { ForbiddenError } from "@beam/core/errors";
 import { createTestDb, makePerson, makeUser } from "@beam/db/testing";
 import { makePaidOrder } from "@beam/db/testing/commerce-factories";
 import { ValidationError } from "@/lib/ctx";
 import { resetRuntime, staffActor } from "@/lib/testing";
-import { checkDashboardDefinition, KPI_KEYS, KPI_REGISTRY, MAX_DASHBOARD_WIDGETS, type KpiKey } from "../../../../../packages/core/src/ops/kpis";
 import { customerCounts, retentionRates } from "../marketing/management";
 import { computeRevenueReport } from "../reports/revenue";
 import { daysAgo, makeBooking } from "../stats/ops-p2.fixtures";

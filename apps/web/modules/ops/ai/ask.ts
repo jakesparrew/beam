@@ -19,14 +19,12 @@ import type { DbOrTx } from "@beam/db";
 import { nlQuestions, persons, users } from "@beam/db/schema";
 import { PermanentError } from "@beam/core/errors";
 import { AiSqlRejectedError } from "@beam/core/ai";
-import { DPIA_KEYS, type DpiaKey } from "@beam/core/ops";
+import { AI_SQL_ROW_LIMIT, describeAiSchema, DPIA_KEYS, type DpiaKey, validateAiSql } from "@beam/core/ops";
 import type { Locale } from "@beam/core/i18n";
 import { and, eq, inArray, isNull } from "@/lib/ctx";
 import type { JobCtx } from "@/lib/job-runner";
 import { AiSqlRunError, callClaude, runAiReadOnlyQuery } from "@/modules/platform/api";
 import { isDpiaApproved } from "../exports/api";
-import { describeAiSchema } from "../../../../../packages/core/src/ops/ai-schema-doc";
-import { AI_SQL_ROW_LIMIT, validateAiSql } from "../../../../../packages/core/src/ops/validate-ai-sql";
 
 export type NlStatus = "answered" | "refused" | "error" | "timeout" | "budget_exceeded";
 

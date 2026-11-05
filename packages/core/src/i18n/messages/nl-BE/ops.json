@@ -1175,8 +1175,14 @@
         "retention": "Retentie",
         "b2b": "B2B",
         "marketing": "Marketing",
+        "forms": "Formulieren",
         "lists": "Lijsten",
         "finance": "Financiën"
+      },
+      "forms": {
+        "funnel": "Formulierfunnel",
+        "outcomes": "Uitkomsten van formulieren",
+        "conversion": "Conversies uit formulieren (30 dagen)"
       }
     },
     "opportunity": {

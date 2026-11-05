@@ -1,8 +1,9 @@
 /**
  * `@beam/core/ops`: the pure parts of the ops module (ops spec 4.7): stage and inactivity
  * rules, retention scores, report periods, business days, the profile, import, export,
- * cut-over, privacy and DPIA catalogues, action inputs, and the streaming CSV and zip writers.
- * Later packages add `predict.ts`, `kpis.ts` (ops-P9) and `validate-ai-sql.ts` (ops-P10).
+ * cut-over, privacy and DPIA catalogues, action inputs, the streaming CSV and zip writers, the
+ * predictions and the KPI catalogue of custom dashboards (ops-P9), and the ai schema description
+ * and the AI SQL validator (ops-P10).
  */
 export * from "./types";
 export * from "./retention-defaults";
@@ -35,3 +36,7 @@ export * from "./dpia";
 export * from "./schemas";
 export * from "./csv";
 export * from "./zip";
+export * from "./predict";
+export * from "./kpis";
+export * from "./ai-schema-doc";
+export * from "./validate-ai-sql";

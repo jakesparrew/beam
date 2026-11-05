@@ -33,7 +33,7 @@ vi.stubEnv("VOUCHER_CODE_SECRET", "ops-p10-blueprint-voucher-secret-012345");
 const { createFakeIntegrations, makeCtx, makeJobCtx, resetRuntime } = await import("@/lib/testing");
 const { runSeed } = await import("@/scripts/seed-demo");
 const { answerQuestion, EXPLAIN_SYSTEM_PREFIX } = await import("./ask");
-const { validateAiSql } = await import("../../../../../packages/core/src/ops/validate-ai-sql");
+const { validateAiSql } = await import("@beam/core/ops");
 const { runRefreshPersonStats } = await import("../stats/jobs");
 const { sql } = await import("@/lib/ctx");
 const { rowsOf } = await import("@/lib/sensitive");

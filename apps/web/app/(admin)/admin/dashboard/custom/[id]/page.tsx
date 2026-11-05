@@ -71,7 +71,7 @@ export default async function CustomDashboardPage({ params }: { params: Promise<
         ? {
             rows: v.breakdown.map((b) => ({
               key: b.key,
-              label: b.label.startsWith("ops.") ? tr(b.label) : b.label,
+              label: b.label.startsWith("ops.") || b.label.startsWith("forms.") ? tr(b.label) : b.label,
               value: fmt(b.current),
               raw: b.current,
               previous: b.previous === null ? null : fmt(b.previous),

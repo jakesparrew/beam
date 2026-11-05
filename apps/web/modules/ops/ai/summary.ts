@@ -17,19 +17,17 @@
  */
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { aiRequests, managementSummaries, roles, users } from "@beam/db/schema";
+import { managementSummaries, roles, users } from "@beam/db/schema";
 import { AI_FEATURES, costCents, modelIdFor, pricingFor, type AiPricing } from "@beam/core/ai";
-import { brusselsDate, brusselsMidnight, periodRange, type RetentionReason } from "@beam/core/ops";
+import { brusselsDate, brusselsMidnight, KPI_REGISTRY, type KpiKey, periodRange, type RetentionReason } from "@beam/core/ops";
 import { LOCALES, type Locale } from "@beam/core/i18n";
 import type { ClaudeBatchItem, ClaudeRequest } from "@beam/integrations/anthropic";
-import { actorJson, and, eq, inArray, sql, writeDurably, type Actor } from "@/lib/ctx";
-import { aiUsage, NON_PRODUCTION_DAILY_CAP } from "@/lib/ai";
-import { appEnv } from "@/lib/integrations";
+import { and, eq, inArray, sql, type Actor } from "@/lib/ctx";
+import { checkAiBatchBudget, logAiBatchRequests, type AiBatchRow } from "@/lib/ai";
 import type { JobCtx } from "@/lib/job-runner";
 import { rowsOf } from "@/lib/sensitive";
 import { getSetting, notifySlack } from "@/modules/platform/api";
 import { evaluateKpi } from "../insights/evaluate-kpi";
-import { KPI_REGISTRY, type KpiKey } from "../../../../../packages/core/src/ops/kpis";
 
 /** Rules 34-38: revenue, sales mix, customers, retention, B2B. */
 export const SUMMARY_KPIS = [
@@ -176,35 +174,7 @@ function requestFor(k: SummaryKpis, locale: Locale): ClaudeRequest {
 
 const promptText = (r: ClaudeRequest) => [`[system]\n${r.system}`, ...r.messages.map((m) => `[${m.role}]\n${m.content}`)].join("\n\n");
 
-type AiRow = { id?: string; status: "ok" | "error" | "budget_exceeded"; prompt: string; output?: string | null; error?: string | null; usage?: { inputTokens: number; outputTokens: number; cacheReadTokens: number }; costCents?: number };
-
-/** One `ai_requests` row per batch request, durable like `callClaude`'s rows. */
-async function logBatchRequests(ctx: JobCtx, model: string, rows: readonly AiRow[]): Promise<void> {
-  if (!rows.length) return;
-  await writeDurably(ctx, async (db) => {
-    await db.insert(aiRequests).values(
-      rows.map((r) => ({
-        ...(r.id ? { id: r.id } : {}),
-        feature: SUMMARY_FEATURE,
-        model,
-        actor: actorJson(ctx.actor),
-        personId: null,
-        fieldsSent: [],
-        prompt: r.prompt,
-        output: r.output ?? null,
-        inputTokens: r.usage?.inputTokens ?? 0,
-        outputTokens: r.usage?.outputTokens ?? 0,
-        cacheReadTokens: r.usage?.cacheReadTokens ?? 0,
-        costCents: String(r.costCents ?? 0),
-        status: r.status,
-        error: r.error ?? null,
-        jobId: ctx.job.id || null,
-      })),
-    );
-  });
-}
-
-type AiSetting = { monthly_budget_cents: number; daily_cap_calls: number; pricing: AiPricing };
+type AiSetting = { pricing: AiPricing };
 
 async function loadRow(ctx: JobCtx, weekStartOn: string) {
   const [row] = await ctx.tx.select().from(managementSummaries).where(eq(managementSummaries.weekStartOn, weekStartOn)).for("update");
@@ -234,12 +204,10 @@ export async function startWeeklySummary(ctx: JobCtx, input: { weekStartOn?: str
   const requests = locales.map((l) => ({ customId: customIdFor(weekStartOn, l, generation), request: requestFor(k, l) }) satisfies ClaudeBatchItem);
 
   // PL-56 for the batch: the monthly budget and the daily cap must leave room for every request.
-  const ai = (await getSetting(ctx.tx, "ai")) as AiSetting;
-  const usage = await aiUsage(ctx.tx);
-  const cap = appEnv() === "production" ? ai.daily_cap_calls : Math.min(ai.daily_cap_calls, NON_PRODUCTION_DAILY_CAP);
+  const budget = await checkAiBatchBudget(ctx, requests.length);
   const values = { kpis: k as unknown as Record<string, unknown>, updatedAt: ctx.now };
-  if (usage.monthCents >= ai.monthly_budget_cents || usage.todayCalls + requests.length > cap) {
-    await logBatchRequests(ctx, model, requests.map((r) => ({ status: "budget_exceeded", prompt: promptText(r.request), error: "budget" })));
+  if (!budget.ok) {
+    await logAiBatchRequests(ctx, { feature: SUMMARY_FEATURE, model }, requests.map((r) => ({ status: "budget_exceeded", prompt: promptText(r.request), error: "budget" })));
     await ctx.tx
       .insert(managementSummaries)
       .values({ weekStartOn, summary: {}, status: "skipped_budget", batchId: null, ...values })
@@ -311,7 +279,7 @@ export async function collectWeeklySummary(ctx: JobCtx, input: { weekStartOn: st
       return { status: "running", next: n };
     }
     // Six hours without an end: every request is logged as failed and the row fails.
-    await logBatchRequests(ctx, model, locales.map((l) => ({ status: "error", prompt: promptText(requestFor(k, l)), error: `batch_not_ended:${batch.status}` })));
+    await logAiBatchRequests(ctx, { feature: SUMMARY_FEATURE, model }, locales.map((l) => ({ status: "error", prompt: promptText(requestFor(k, l)), error: `batch_not_ended:${batch.status}` })));
     await ctx.tx.update(managementSummaries).set({ status: "failed", updatedAt: ctx.now }).where(eq(managementSummaries.id, row.id));
     await notifySlack(ctx, { fingerprint: `weekly-summary-failed-${input.weekStartOn}`, severity: "normal", text: `The weekly management summary for the week of ${input.weekStartOn} failed: the batch did not end within 6 hours.` });
     return { status: "failed", weekStartOn: input.weekStartOn, locales: [] };
@@ -320,7 +288,7 @@ export async function collectWeeklySummary(ctx: JobCtx, input: { weekStartOn: st
   const ai = (await getSetting(ctx.tx, "ai")) as AiSetting;
   const results = await ctx.integrations.anthropic.getBatchResults(input.batchId);
   const summary: Record<string, string> = {};
-  const logged: AiRow[] = [];
+  const logged: AiBatchRow[] = [];
   const ids: string[] = [];
   for (const r of results) {
     const locale = localeOfCustomId(r.customId);
@@ -346,7 +314,7 @@ export async function collectWeeklySummary(ctx: JobCtx, input: { weekStartOn: st
     }
     ids.push(id);
   }
-  await logBatchRequests(ctx, model, logged);
+  await logAiBatchRequests(ctx, { feature: SUMMARY_FEATURE, model }, logged);
   const stored = Object.keys(summary) as Locale[];
   const status = stored.length ? "ready" : "failed";
   // A regeneration that produced nothing keeps the earlier texts.

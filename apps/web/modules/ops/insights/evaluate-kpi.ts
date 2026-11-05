@@ -13,17 +13,33 @@
  * - Marketing (rule 75): ops-P8's `computeMarketingKpiSet` for the period's Brussels dates.
  * - Lists: `v_retention_candidates` and `v_opportunity_candidates` per reason, now.
  * - Finance: finance-P10's `getFinanceKpis` (`reports.finance`).
+ * - Forms (forms-P10): `loadFormsDashboardSource` of forms' api for the period's Brussels days
+ *   (aggregates of the non-sensitive `ai` views only). `forms.funnel` is the completed
+ *   submissions with the funnel stages as rows and a daily series; `forms.outcomes` the completed
+ *   submissions per outcome; `forms.conversion` the bookings within 30 days with the linked,
+ *   booked and purchased counts as rows and a daily series.
  *
  * The heavy report functions are evaluated once per context and range: a dashboard evaluates
  * all its widgets with one context, so ten marketing widgets cost one marketing computation.
  */
-import { periodRange, type Period } from "@beam/core/ops";
-import { RETENTION_REASONS } from "@beam/core/ops";
+import {
+  FINANCE_KPI_BY_DASHBOARD_KEY,
+  type FinanceDashboardKpiKey,
+  FORMS_KPI_KEYS,
+  type FormsDashboardKpiKey,
+  isKpiKey,
+  KPI_REGISTRY,
+  kpiChange,
+  type KpiKey,
+  type KpiValue,
+  type Period,
+  periodRange,
+  RETENTION_REASONS,
+} from "@beam/core/ops";
 import { sql, ValidationError, type SQL } from "@/lib/ctx";
 import { rowsOf } from "@/lib/sensitive";
 import { getFinanceKpis } from "@/modules/finance/api";
-// Relative until `@beam/core/ops` re-exports `./kpis` (index.ts is not ops-P9's file).
-import { FINANCE_KPI_BY_DASHBOARD_KEY, KPI_REGISTRY, isKpiKey, kpiChange, type FinanceDashboardKpiKey, type KpiKey, type KpiValue } from "../../../../../packages/core/src/ops/kpis";
+import { loadFormsDashboardSource } from "@/modules/forms/api";
 import { computeMarketingKpiSet, REGISTRANT_SEGMENTS, type MarketingKpiSet } from "../marketing/kpis-marketing";
 import { b2bFigures, rate, retentionRates, type Rate } from "../marketing/management";
 import { requireAny, type OpsReadCtx } from "../reports/registry";
@@ -35,9 +51,10 @@ export type EvaluateKpiOptions = { period: Period; at: Date; segmentId?: string 
 type Range = { from: Date; to: Date };
 type Breakdown = NonNullable<KpiValue["breakdown"]>;
 /** What one side (current or previous period) of a KPI yields. */
-type Side = { value: number | null; ratio?: Rate; breakdown?: Map<string, { label: string; value: number }> };
+type Side = { value: number | null; ratio?: Rate; breakdown?: Map<string, { label: string; value: number }>; series?: { day: string; value: number }[] };
 
 const HALF_DAY = 43_200_000;
+const isFormsKpi = (key: KpiKey): key is FormsDashboardKpiKey => (FORMS_KPI_KEYS as readonly string[]).includes(key);
 const ts = (d: Date): SQL => sql`${d.toISOString()}::timestamptz`;
 /** Brussels dates of a half-open range, `to` inclusive (the report date ranges). */
 const dateRange = (r: Range) => ({ from: brusselsDate(r.from), to: brusselsDate(new Date(r.to.getTime() - HALF_DAY)) });
@@ -131,6 +148,37 @@ const b2b = (ctx: OpsReadCtx, r: Range) => memo(ctx, `b2b:${rk(r)}`, () => b2bFi
 const marketing = (ctx: OpsReadCtx, r: Range): Promise<MarketingKpiSet> => memo(ctx, `marketing:${rk(r)}`, () => computeMarketingKpiSet(ctx.tx, dateRange(r)));
 const finance = (ctx: OpsReadCtx, r: Range) => memo(ctx, `finance:${rk(r)}`, () => getFinanceKpis(ctx.tx, dateRange(r)));
 
+const FUNNEL_STAGES = ["views", "started", "engaged", "completed", "abandoned"] as const;
+const CONVERSION_PARTS = ["linked", "booked", "purchased"] as const;
+const parts = (entries: readonly (readonly [string, string, number])[]) => new Map(entries.map(([key, label, value]) => [key, { label, value }]));
+
+/** Forms' widget sources (forms-P10) for the Brussels days of `r`. */
+async function formsSide(ctx: OpsReadCtx, key: FormsDashboardKpiKey, r: Range): Promise<Side> {
+  const days = dateRange(r);
+  switch (key) {
+    case "forms.funnel": {
+      const v = await memo(ctx, `forms.funnel:${rk(r)}`, () => loadFormsDashboardSource(ctx.tx, "forms.funnel", days));
+      return {
+        value: v.totals.completed,
+        breakdown: parts(FUNNEL_STAGES.map((s) => [s, `forms.report.${s}`, v.totals[s]] as const)),
+        series: v.series.map((p) => ({ day: p.day, value: p.completed })),
+      };
+    }
+    case "forms.outcomes": {
+      const v = await memo(ctx, `forms.outcomes:${rk(r)}`, () => loadFormsDashboardSource(ctx.tx, "forms.outcomes", days));
+      return { value: v.completed, breakdown: parts(v.rows.map((o) => [o.key ?? "none", o.label, o.count] as const)) };
+    }
+    case "forms.conversion": {
+      const v = await memo(ctx, `forms.conversion:${rk(r)}`, () => loadFormsDashboardSource(ctx.tx, "forms.conversion", days));
+      return {
+        value: v.totals.booked,
+        breakdown: parts(CONVERSION_PARTS.map((c) => [c, `forms.report.${c}`, v.totals[c]] as const)),
+        series: v.series.map((p) => ({ day: p.day, value: p.booked })),
+      };
+    }
+  }
+}
+
 async function retentionByReason(ctx: OpsReadCtx, segmentId: string | undefined): Promise<Map<string, { label: string; value: number }>> {
   const rows = rowsOf<{ reason: string; n: string | number }>(
     await ctx.tx.execute(sql`select rc.reason, count(distinct rc.person_id)::int as n from v_retention_candidates rc
@@ -167,6 +215,7 @@ const sumRates = (rates: Rate[]): Rate => rate(rates.reduce((a, r) => a + r.nume
 async function side(ctx: OpsReadCtx, key: KpiKey, r: Range, which: "current" | "previous", opts: EvaluateKpiOptions): Promise<Side> {
   if (key in CUSTOMER_KEYS) return count((await customers(ctx, r, opts.segmentId))[CUSTOMER_KEYS[key]!] ?? 0);
   if (key in RETENTION_KEYS) return fromRate((await retention(ctx, r))[RETENTION_KEYS[key as keyof typeof RETENTION_KEYS]]);
+  if (isFormsKpi(key)) return formsSide(ctx, key, r);
   if (key.startsWith("finance_")) {
     const f = await finance(ctx, r);
     return count(f[FINANCE_KPI_BY_DASHBOARD_KEY[key as FinanceDashboardKpiKey]]);
@@ -283,6 +332,7 @@ export async function evaluateKpi(ctx: OpsReadCtx, key: KpiKey, opts: EvaluateKp
     for (const [k, v] of p?.breakdown ?? []) if (!c.breakdown.has(k)) rows.push({ key: k, label: v.label, current: 0, previous: v.value });
     value.breakdown = rows;
   }
+  if (c.series) value.series = c.series;
   if (key === "revenue_net" || key === "revenue_orders") value.series = await dailySeries(ctx, cur, key === "revenue_net" ? "net" : "orders");
   return value;
 }

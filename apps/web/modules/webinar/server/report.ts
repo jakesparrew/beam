@@ -605,7 +605,7 @@ export type PersonWebinarStatsRow = {
   lastAttendedAt: Date | null;
 };
 
-const asDate = (v: unknown): Date | null => (v === null || v === undefined ? null : v instanceof Date ? v : new Date(String(v)));
+const asDate = (v: unknown): Date | null => (v === null || v === undefined ? null : v instanceof Date ? v : new Date(v as string | number));
 
 /**
  * `v_person_webinar_stats` of the person (resolved through `merged_into_person_id`, so a merged

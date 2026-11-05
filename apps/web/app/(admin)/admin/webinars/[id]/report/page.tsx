@@ -60,9 +60,9 @@ export default async function WebinarReportPage({ params, searchParams }: Props)
   }
 
   const modes = Object.fromEntries(WATCH_MODES.map((m) => [m, tr(`webinar.enum.watch_mode.${m}`)])) as Record<(typeof WATCH_MODES)[number], string>;
-  const text = (t: Record<string, string | undefined> | null | undefined) => textIn(t as Parameters<typeof textIn>[0], locale);
+  const text = (t: Parameters<typeof textIn>[0]) => textIn(t, locale);
   const csv = buildReportCsv(report, locale);
-  const csvHref = `data:text/csv;charset=utf-8,${encodeURIComponent(`﻿${csv}`)}`;
+  const csvHref = `data:text/csv;charset=utf-8,${encodeURIComponent(`\uFEFF${csv}`)}`;
   const fileId = sp.file && FILE_ID.test(sp.file) ? sp.file : null;
   const t = report.totals;
 

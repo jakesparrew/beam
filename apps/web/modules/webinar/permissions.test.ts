@@ -195,7 +195,7 @@ describe("P6 registrant export and report (rule 41, section 7)", () => {
     const [file] = await h.db.select().from(files).where(eq(files.id, res.data.fileId));
     expect(file).toMatchObject({ kind: "export", mime: "text/csv" });
     expect(file!.expiresAt!.getTime()).toBeGreaterThan(Date.now() + 6 * 86_400_000);
-    expect(Buffer.from(file!.bytes as Uint8Array).toString("utf8")).toContain(p.email!);
+    expect(Buffer.from(file!.bytes).toString("utf8")).toContain(p.email!);
     const audits = await h.db.select().from(auditLog).where(eq(auditLog.entityId, w.id));
     const exported = audits.filter((a) => a.action === "webinar.registrants_exported");
     expect(exported).toHaveLength(1);

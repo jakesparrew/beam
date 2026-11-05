@@ -223,3 +223,4 @@ One entry per merge batch and gate (runbook section 5.7, adapted by OD-3).
 - commerce-P8: merged as `b574f1f` in batch `g110-batch`.
 - Batch `g110-batch` (crm-P10 platform-P11b platform-P12 webinar-P5 commerce-P8): migrations 0044_w22.sql; merge gate green, peak 11788 MB.
 - email-P9: 33 min, merged as `55298f5`, migrations 0045_w21_views.sql; gate `g112-email-P9` (merge) green, peak 5688 MB.
+- ops-P9: 53 min, merged as `60866a7`, migrations 0046_w22_views.sql; gate `g113-ops-P9` (merge) green, peak 4366 MB.

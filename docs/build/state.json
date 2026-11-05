@@ -1425,14 +1425,16 @@
       "attempts": 0
     },
     "ops-P9": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "861f081",
       "runId": null,
       "startedAt": "2026-11-05T04:58:59Z",
       "branchSha": "71a8dbb",
-      "endedAt": "2026-11-05T06:04:42Z",
-      "minutes": 53
+      "endedAt": "2026-11-05T07:19:08Z",
+      "minutes": 53,
+      "mergeSha": "60866a7",
+      "mergedAt": "2026-11-05T07:45:23Z"
     },
     "ops-P10": {
       "status": "pending",

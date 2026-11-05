@@ -210,12 +210,15 @@ export const invoices = pgTable(
       "chk_invoices_status_kind",
       sql`(${t.kind} = 'invoice' and ${t.status} in ('paid', 'open', 'cancelled')) or (${t.kind} = 'credit_note' and ${t.status} in ('issued', 'paid'))`,
     ),
+    // A buyer is a person, a CRM company, a reduced, anonymised or walk-in snapshot, or a company
+    // known only from billing details with a VAT number (a POS company sale; Billit party `vat:<number>`).
     check(
       "chk_invoices_party",
       sql`${t.personId} is not null or ${t.companyId} is not null
         or coalesce((${t.customerSnapshot}->>'is_reduced')::boolean, false)
         or coalesce((${t.customerSnapshot}->>'anonymised')::boolean, false)
-        or coalesce(${t.customerSnapshot}->>'kind' = 'walk_in', false)`,
+        or coalesce(${t.customerSnapshot}->>'kind' = 'walk_in', false)
+        or coalesce(${t.customerSnapshot}->>'kind' = 'company' and nullif(btrim(${t.customerSnapshot}->>'vat_number'), '') is not null, false)`,
     ),
     check("chk_invoices_sequence_number", sql`${t.sequenceNumber} > 0`),
     check(

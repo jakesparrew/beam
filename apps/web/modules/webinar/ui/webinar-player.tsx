@@ -20,12 +20,22 @@
  *    announced in one `aria-live="polite"` region; on a player error the unlisted
  *    `youtube.com/watch?v=` link is offered with a note that it leaves BEAM.
  *
+ * 6. The interactions (webinar-P5, rules 33-38): `WebinarInteractions` polls `/api/webinar/state`
+ *    every 5 s while live (30 s otherwise) and mounts the poll card, the CTA, the live chat and
+ *    the question box under the video. In a live webinar the host launches polls and CTAs; in
+ *    simulive, replay and on-demand they show at their video position. A new poll or CTA is
+ *    announced through the same `aria-live` region and never takes focus (rule 44).
+ *
  * Every text comes from the server as a prop (`labels`).
  */
 import Script from "next/script";
 import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore, type RefObject } from "react";
 import { Button } from "@beam/ui";
+import { ChatPanel, type ChatPanelLabels, type ChatPanelLine, type MessageOutcome } from "./chat-panel";
+import { CtaButton, type CtaButtonCta, type CtaButtonLabels } from "./cta-button";
 import { PlayerNotice, type PlayerNoticeLabels } from "./player-notice";
+import { PollCard, type PollAnswerOutcome, type PollCardLabels, type PollCardPoll } from "./poll-card";
+import { QuestionBox, type QuestionBoxLabels } from "./question-box";
 
 type Locale = "nl-BE" | "fr-BE" | "en";
 type Mode = "live" | "replay" | "on_demand";
@@ -43,7 +53,16 @@ export type ViewPayload = {
   showingStartedAt: string | null;
   viewsLeft: number | null;
   nextMs: number;
+  /** Polls and CTAs at a video position (simulive, replay, on-demand; rule 34). */
+  polls?: Array<PollCardPoll & { showAtSec: number; showForSec: number }>;
+  ctas?: Array<CtaButtonCta & { showAtSec: number; showForSec: number }>;
+  chatEnabled?: boolean;
+  questionsEnabled?: boolean;
+  muted?: boolean;
 };
+
+/** The texts of the interaction panels (catalogue keys `webinar.player.poll.*`, `cta.*`, `chat.*`, `question.*`). */
+export type InteractionLabels = { poll: PollCardLabels; cta: CtaButtonLabels; chat: ChatPanelLabels; question: QuestionBoxLabels };
 
 export type WebinarPlayerLabels = {
   notice: PlayerNoticeLabels;
@@ -68,6 +87,8 @@ export type WebinarPlayerLabels = {
   position: string;
   /** `{count}` views left. */
   viewsLeft: string;
+  /** The interaction panels; without them the player shows the video only. */
+  interactions?: InteractionLabels;
 };
 
 export type WebinarPlayerProps = {
@@ -164,6 +185,7 @@ export function WebinarPlayer(props: WebinarPlayerProps) {
           view={phase.view}
           props={props}
           headers={headers}
+          announce={setAnnounce}
           onReload={() => {
             setAnnounce(labels.reloading);
             void loadView();
@@ -222,10 +244,11 @@ function Watching(input: {
   view: ViewPayload;
   props: WebinarPlayerProps;
   headers: () => HeadersInit;
+  announce: (text: string) => void;
   onReload: () => void;
   onStop: (code: Refusal) => void;
 }) {
-  const { view, props, headers, onReload, onStop } = input;
+  const { view, props, headers, announce, onReload, onStop } = input;
   const { labels } = props;
   const fake = view.videoId.startsWith("fake_");
   const [captions, setCaptions] = useState(false);
@@ -235,6 +258,8 @@ function Watching(input: {
   const lastPos = useRef(view.startSec);
   /** Where a reloaded player (captions toggle) starts: state, so rendering never reads a ref. */
   const [resumeAt, setResumeAt] = useState(view.startSec);
+  /** The current video position, for the interaction panels (timed items and `atSec`). */
+  const position = useCallback(() => adapter.current?.time() ?? 0, []);
 
   const send = useCallback(
     async (state: PlayState, keepalive = false) => {
@@ -340,6 +365,182 @@ function Watching(input: {
         <Button type="button" variant="outline" size="sm" aria-pressed={captions} onClick={toggleCaptions}>
           {captions ? labels.captionsOff : labels.captionsOn}
         </Button>
+      </div>
+      {labels.interactions && (
+        <WebinarInteractions
+          webinarId={props.webinarId}
+          view={view}
+          headers={headers}
+          labels={labels.interactions}
+          position={position}
+          announce={announce}
+          onReload={onReload}
+          onStop={onStop}
+        />
+      )}
+    </div>
+  );
+}
+
+type LiveStateBody = {
+  mode: Mode | null;
+  videoId: string | null;
+  activePoll: PollCardPoll | null;
+  activeCta: CtaButtonCta | null;
+  chat: ChatPanelLine[];
+  hidden: string[];
+  myAnswers: Record<string, string[]>;
+  muted: boolean;
+  chatEnabled: boolean;
+  questionsEnabled: boolean;
+  stop?: "blocked" | "cancelled";
+};
+
+const CHAT_KEEP = 200;
+const shownAt = <T extends { showAtSec: number; showForSec: number }>(items: readonly T[] | undefined, pos: number): T | null =>
+  items?.find((i) => pos >= i.showAtSec && pos < i.showAtSec + i.showForSec) ?? null;
+
+/** Polls, CTAs, chat and questions under the video (rules 33-38, 44). */
+function WebinarInteractions(input: {
+  webinarId: string;
+  view: ViewPayload;
+  headers: () => HeadersInit;
+  labels: InteractionLabels;
+  position: () => number;
+  announce: (text: string) => void;
+  onReload: () => void;
+  onStop: (code: Refusal) => void;
+}) {
+  const { webinarId, view, headers, labels, position, announce } = input;
+  const [state, setState] = useState<LiveStateBody | null>(null);
+  const [lines, setLines] = useState<ChatPanelLine[]>([]);
+  const [answers, setAnswers] = useState<Record<string, string[]>>({});
+  const [pos, setPos] = useState(view.startSec);
+  const after = useRef<string | null>(null);
+  const announced = useRef(new Set<string>());
+  const callbacks = useRef({ onReload: input.onReload, onStop: input.onStop });
+  useEffect(() => {
+    callbacks.current = { onReload: input.onReload, onStop: input.onStop };
+  });
+
+  // The state poll: every 5 s while live, every 30 s otherwise (section 5.3).
+  useEffect(() => {
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const tick = async () => {
+      try {
+        const q = new URLSearchParams({ webinarId });
+        if (after.current) q.set("after", after.current);
+        const res = await fetch(`/api/webinar/state?${q.toString()}`, { headers: headers(), credentials: "same-origin" });
+        if (res.status === 403) {
+          const b = (await res.json().catch(() => ({}))) as { error?: string };
+          return callbacks.current.onStop(b.error === "cancelled" ? "cancelled" : "blocked");
+        }
+        if (res.ok) {
+          const body = (await res.json()) as LiveStateBody;
+          if (body.stop) return callbacks.current.onStop(body.stop);
+          if ((body.mode && body.mode !== view.mode) || (body.videoId && body.videoId !== view.videoId)) return callbacks.current.onReload();
+          setState(body);
+          setAnswers((a) => ({ ...a, ...body.myAnswers }));
+          setLines((prev) => {
+            const hidden = new Set(body.hidden);
+            const byId = new Map(prev.filter((l) => !hidden.has(l.id)).map((l) => [l.id, l]));
+            for (const l of body.chat) if (!hidden.has(l.id)) byId.set(l.id, l);
+            return [...byId.values()].sort((x, y) => x.at.localeCompare(y.at)).slice(-CHAT_KEEP);
+          });
+          const last = body.chat.at(-1);
+          if (last) after.current = last.at;
+        }
+      } catch {
+        // The next poll tries again.
+      }
+      if (!stopped) timer = setTimeout(() => void tick(), view.mode === "live" ? 5000 : 30_000);
+    };
+    void tick();
+    return () => {
+      stopped = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [headers, view.mode, view.videoId, webinarId]);
+
+  // The video position for items shown at `show_at_sec` (simulive, replay, on-demand).
+  const timed = (view.polls?.length ?? 0) + (view.ctas?.length ?? 0) > 0;
+  useEffect(() => {
+    if (!timed) return;
+    const t = setInterval(() => setPos(position()), 1000);
+    return () => clearInterval(t);
+  }, [timed, position]);
+
+  const poll = state?.activePoll ?? shownAt(view.polls, pos);
+  const cta = state?.activeCta ?? shownAt(view.ctas, pos);
+  useEffect(() => {
+    if (poll && !announced.current.has(`poll:${poll.id}`)) {
+      announced.current.add(`poll:${poll.id}`);
+      announce(labels.poll.announce.replace("{question}", poll.question));
+    }
+    if (cta && !announced.current.has(`cta:${cta.id}`)) {
+      announced.current.add(`cta:${cta.id}`);
+      announce(labels.cta.announce.replace("{label}", cta.label));
+    }
+  }, [poll, cta, announce, labels]);
+
+  const interact = useCallback(
+    (body: Record<string, unknown>) =>
+      fetch("/api/webinar/interact", {
+        method: "POST",
+        headers: headers(),
+        credentials: "same-origin",
+        body: JSON.stringify({ webinarId, viewId: view.viewId, atSec: Math.max(0, Math.floor(position())), ...body }),
+      }),
+    [headers, position, view.viewId, webinarId],
+  );
+
+  const answerPoll = async (pollId: string, optionKeys: string[]): Promise<PollAnswerOutcome> => {
+    try {
+      const res = await interact({ type: "poll_answer", pollId, optionKeys });
+      if (res.ok) {
+        setAnswers((a) => ({ ...a, [pollId]: optionKeys }));
+        announce(labels.poll.answered);
+        return "ok";
+      }
+      const b = (await res.json().catch(() => ({}))) as { error?: string };
+      return b.error === "already_answered" || b.error === "closed" ? b.error : "error";
+    } catch {
+      return "error";
+    }
+  };
+
+  const send =
+    (kind: "chat" | "question") =>
+    async (text: string): Promise<MessageOutcome> => {
+      try {
+        const res = await interact({ type: kind, text });
+        if (res.status === 403) return "muted";
+        if (res.status === 429) return "too_fast";
+        if (!res.ok) return "error";
+        const b = (await res.json().catch(() => ({}))) as { id?: string };
+        const id = b.id;
+        if (kind === "chat" && id) setLines((prev) => [...prev, { id, name: "", text, at: new Date().toISOString(), mine: true }].slice(-CHAT_KEEP));
+        return "ok";
+      } catch {
+        return "error";
+      }
+    };
+
+  const onShown = useCallback((ctaId: string) => void interact({ type: "cta_shown", ctaId }).catch(() => undefined), [interact]);
+  const muted = state?.muted ?? view.muted ?? false;
+  const chatOn = state?.chatEnabled ?? view.chatEnabled ?? false;
+  const questionsOn = state?.questionsEnabled ?? view.questionsEnabled ?? false;
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-[3fr_2fr]">
+      <div className="flex flex-col gap-3">
+        {poll && <PollCard key={poll.id} poll={poll} answered={answers[poll.id] ?? null} labels={labels.poll} onSubmit={(keys) => answerPoll(poll.id, keys)} />}
+        {cta && <CtaButton cta={cta} labels={labels.cta} onShown={onShown} />}
+      </div>
+      <div className="flex flex-col gap-3">
+        {chatOn && <ChatPanel lines={lines} muted={muted} labels={labels.chat} onSend={send("chat")} />}
+        {questionsOn && <QuestionBox live={view.mode === "live"} muted={muted} labels={labels.question} onSend={send("question")} />}
       </div>
     </div>
   );

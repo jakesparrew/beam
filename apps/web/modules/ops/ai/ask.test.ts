@@ -14,9 +14,10 @@ import { eq } from "@/lib/ctx";
 import { getSetting } from "@/lib/settings";
 import { createFakeIntegrations, makeJobCtx, type FakeIntegrations } from "@/lib/testing";
 import { rowsOf } from "@/lib/sensitive";
+import type * as PlatformApi from "@/modules/platform/api";
 
 vi.mock("@/modules/platform/api", async (orig) => {
-  const m = await orig<typeof import("@/modules/platform/api")>();
+  const m = await orig<typeof PlatformApi>();
   return { ...m, runAiReadOnlyQuery: vi.fn(m.runAiReadOnlyQuery) };
 });
 
@@ -62,7 +63,7 @@ beforeAll(async () => {
     people.push({ id: p.id, firstName: name, lastName: `Lastname${name}Ask` });
     for (let k = 0; k < 5; k++) await makePaidOrder(db, { personId: p.id, order: { paidAt: new Date(Date.UTC(2026, 9, 1 + i * 5 + k, 10)) } });
   }
-  defaultAi = (await getSetting(db, "ai")) as Record<string, unknown>;
+  defaultAi = (await getSetting(db, "ai"));
 }, 120_000);
 afterAll(() => handle.close());
 beforeEach(async () => {

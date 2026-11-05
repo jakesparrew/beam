@@ -174,7 +174,7 @@ export async function answerQuestion(ctx: JobCtx, questionId: string): Promise<A
   }
 
   // 4. The explanation (a failure keeps the answer without one).
-  let explanation: string | null = null;
+  let explanation: string | null;
   try {
     const res = await callClaude(ctx, {
       feature: "ai.answer_question",

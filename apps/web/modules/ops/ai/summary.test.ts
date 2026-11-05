@@ -41,7 +41,7 @@ beforeAll(async () => {
   person.id = p.id;
   await makePaidOrder(db, { personId: p.id, order: { paidAt: new Date("2026-10-28T10:00:00Z") } });
   await makePaidOrder(db, { personId: p.id, order: { paidAt: new Date("2026-10-21T10:00:00Z") } });
-  defaultAi = (await getSetting(db, "ai")) as Record<string, unknown>;
+  defaultAi = (await getSetting(db, "ai"));
 }, 120_000);
 afterAll(() => handle.close());
 beforeEach(async () => {

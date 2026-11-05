@@ -13,7 +13,6 @@
  * A "use server" file exports async functions only.
  */
 import { AskQuestionInput, RegenerateWeeklySummaryInput } from "@beam/core/ops";
-import type { Tx } from "@beam/db";
 import { featureFlags, managementSummaries, nlQuestions, users } from "@beam/db/schema";
 import { ForbiddenError } from "@beam/core/errors";
 import { action } from "@/lib/action";
@@ -67,9 +66,9 @@ export const askQuestion = action(
 
     let outcome: AskOutcome;
     try {
-      const result = await runJobInline<AskOutcome | { status: "skipped" }>("ai.answer_question", { questionId }, { key: `question:${questionId}`, requestId: ctx.requestId, db: ctx.tx as Tx as never });
+      const result = await runJobInline<AskOutcome | { status: "skipped" }>("ai.answer_question", { questionId }, { key: `question:${questionId}`, requestId: ctx.requestId, db: ctx.tx });
       if (result.status === "skipped") throw new NotFoundError("ff_ops_ai");
-      outcome = result as AskOutcome;
+      outcome = result;
     } catch (error) {
       if (error instanceof NotFoundError) throw error;
       const message = error instanceof Error ? error.message : String(error);

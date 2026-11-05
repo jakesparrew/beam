@@ -170,7 +170,7 @@ function requestFor(k: SummaryKpis, locale: Locale): ClaudeRequest {
     messages: [{ role: "user", content: p.user }],
     maxTokens: 1500,
     effort: AI_FEATURES[SUMMARY_FEATURE].effort,
-    outputSchema: z.toJSONSchema(SummaryOutput) as Record<string, unknown>,
+    outputSchema: z.toJSONSchema(SummaryOutput),
   };
 }
 

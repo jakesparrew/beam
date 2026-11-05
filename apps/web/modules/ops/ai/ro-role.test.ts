@@ -13,7 +13,7 @@ import { WEBINAR_PERFORMANCE_DAILY_COLUMNS } from "@beam/db/schema";
 import { eq } from "@/lib/ctx";
 import { makeJobCtx } from "@/lib/testing";
 import { rowsOf } from "@/lib/sensitive";
-import { AiSqlRunError, runAiReadOnlyQuery } from "@/modules/platform/ai-sql";
+import { runAiReadOnlyQuery } from "@/modules/platform/api";
 import { AI_VIEWS } from "../../../../../packages/core/src/ops/ai-schema-doc";
 
 let handle: DbHandle;
@@ -93,12 +93,23 @@ describe("0101_ai_views_ops.sql", () => {
   it("cannot read public.persons and cannot insert, even past the guard", async () => {
     expect(await q("select has_table_privilege('beam_ai_ro', 'public.persons', 'select') as can")).toEqual([{ can: false }]);
     await expect(runAiReadOnlyQuery(ctx(), "select email from public.persons")).rejects.toThrow(/relation_outside_ai/);
-    const denied = await runAiReadOnlyQuery(ctx(), "select email from public.persons", { skipGuard: "test-only" }).catch((e: unknown) => e);
-    expect(denied).toBeInstanceOf(AiSqlRunError);
-    expect((denied as AiSqlRunError).reason).toBe("permission_denied");
+    // Past the guard, Postgres itself refuses the role (the way the runner switches to it).
+    const asRole = (text: string) =>
+      db
+        .transaction(async (tx) => {
+          await tx.execute(sql.raw("set transaction read only"));
+          await tx.execute(sql.raw("set local role beam_ai_ro"));
+          await tx.execute(sql.raw("set local search_path = ai"));
+          await tx.execute(sql.raw(text));
+        })
+        .then(
+          () => "ran",
+          (e: unknown) => String((e as { cause?: unknown })?.cause ?? e),
+        );
+    expect(await asRole("select email from public.persons")).toMatch(/permission denied/i);
     // Unqualified names resolve in `ai` only.
-    const missing = await runAiReadOnlyQuery(ctx(), "select email from persons", { skipGuard: "test-only" }).catch((e: unknown) => e);
-    expect(missing).toBeInstanceOf(AiSqlRunError);
+    expect(await asRole("select email from persons")).toMatch(/does not exist/i);
+    expect(await asRole("select first_name from ai.customers")).toBe("ran");
 
     await expect(runAiReadOnlyQuery(ctx(), "insert into ai.ad_spend_daily (platform) values ('meta')")).rejects.toThrow(/first_keyword|forbidden_word/);
     const inserted = await db

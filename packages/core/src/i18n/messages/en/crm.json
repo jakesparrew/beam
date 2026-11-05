@@ -277,6 +277,22 @@
         "pct": "Percentage",
         "cents": "Amount",
         "days": "Days"
+      },
+      "inbox_channel": {
+        "email": "Email",
+        "instagram": "Instagram",
+        "messenger": "Messenger",
+        "form": "Web form"
+      },
+      "inbox_thread_status": {
+        "open": "Open",
+        "pending": "Waiting for customer",
+        "resolved": "Resolved"
+      },
+      "inbox_message_direction": {
+        "in": "Received",
+        "out": "Reply",
+        "note": "Internal note"
       }
     },
     "persons": {
@@ -995,6 +1011,11 @@
         "body": "Use the button below to choose which emails you receive from BEAM. The link works for a year.",
         "cta": "Manage my emails",
         "footer": "Did you not ask for this link? Then ignore this email."
+      },
+      "inbox_reply": {
+        "subject": "Re: {subject}",
+        "preheader": "A reply from BEAM to your message.",
+        "footer": "Reply to this email to continue the conversation."
       }
     },
     "consentPanel": {
@@ -1125,6 +1146,95 @@
         "saved": "Stage saved.",
         "error": "The stage could not be saved.",
         "missing_locales": "Fill in the texts in every language."
+      }
+    },
+    "inbox": {
+      "title": "Inbox",
+      "empty": "Inbox zero.",
+      "empty_filtered": "No threads match these filters.",
+      "filter_status": "Status",
+      "filter_assignee": "Assignee",
+      "filter_channel": "Channel",
+      "filter_escalated": "Escalated only",
+      "filter": "Filter",
+      "all_statuses": "All statuses",
+      "all_channels": "All channels",
+      "anyone": "Anyone",
+      "me": "Assigned to me",
+      "unassigned": "Unassigned",
+      "escalated": "Escalated",
+      "no_subject": "(no subject)",
+      "unlinked": "Not linked",
+      "nobody": "Nobody",
+      "back": "Back to the inbox",
+      "list_label": "Threads",
+      "thread": {
+        "from": "From",
+        "channel": "Channel",
+        "status": "Status",
+        "assignee": "Assignee",
+        "assign": "Assign",
+        "received": "Received",
+        "first_response": "First response",
+        "escalated_at": "Escalated",
+        "resolve": "Resolve",
+        "reopen": "Reopen",
+        "sensitive": "Sensitive",
+        "mark_sensitive": "Mark as sensitive",
+        "unmark_sensitive": "Mark as not sensitive",
+        "sensitive_hint": "Sensitive threads are never sent to AI tools.",
+        "sent_by": "Sent by {name}",
+        "attachments": "{count} attachments (not stored)",
+        "not_delivered": "Not delivered: {reason}",
+        "delivering": "Sending…",
+        "email_status": "Email: {status}",
+        "saved": "Saved.",
+        "error": "The change could not be saved. Try again.",
+        "conflict": "This change is not possible in the current status."
+      },
+      "reply": {
+        "reply": "Reply",
+        "note": "Internal note",
+        "placeholder_reply": "Write your reply…",
+        "placeholder_note": "Only staff see this note. It is never sent.",
+        "send": "Send reply",
+        "add_note": "Add note",
+        "sending": "Sending…",
+        "template": "Template",
+        "no_template": "No template",
+        "window_closed": "Meta's 24-hour reply window has closed. You can no longer reply in this channel.",
+        "window_closes": "Reply before {time}: Meta closes the conversation 24 hours after the customer's last message.",
+        "meta_disabled": "Replies through Instagram and Messenger are switched off.",
+        "no_recipient": "This thread has no address to reply to. Link a person first.",
+        "error": "The reply could not be sent. Try again.",
+        "sent": "Reply sent.",
+        "note_saved": "Note saved."
+      },
+      "person": {
+        "title": "Person",
+        "status": "Status",
+        "credits": "Credits",
+        "no_credits": "No credits",
+        "membership": "Membership",
+        "next_booking": "Next booking",
+        "no_booking": "No upcoming booking",
+        "open": "Open profile",
+        "unlinked": "This thread is not linked to a person.",
+        "search": "Find a person",
+        "search_placeholder": "Name, email or customer number",
+        "search_button": "Search",
+        "link": "Link",
+        "no_results": "No person found.",
+        "create": "Create person from sender",
+        "create_locale": "Language",
+        "linked": "Person linked.",
+        "error": "The person could not be linked."
+      },
+      "delivery": {
+        "window_closed": "the 24-hour window had closed",
+        "permission": "missing permission",
+        "meta_disabled": "Meta replies are switched off",
+        "other": "Meta refused the message"
       }
     }
   }

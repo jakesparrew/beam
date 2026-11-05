@@ -1,7 +1,8 @@
 /**
  * crm's GDPR registration (crm spec section 9, cross-module D69). Facade read by
  * `pnpm gen:indexes`. crm-P1 registers every V1 crm table that references a person, the tables
- * without person data, the retention policies and their sweeps. crm-P7 implements `export` and
+ * without person data, the retention policies and their sweeps (crm-P9 adds the inbox tables and
+ * `crm.inbox_resolved`). crm-P7 implements `export` and
  * `erase` (they run last in the erase order, over `resolvePersonIds`).
  */
 import type { Tx } from "@beam/db";
@@ -17,6 +18,7 @@ const affected = async (tx: DbOrTx, q: ReturnType<typeof sql>) => rowsOf(await t
 export const retention: readonly RetentionPolicySeed[] = [
   { key: "crm.duplicate_candidates_closed", tableName: "person_duplicate_candidates", days: 365, action: "delete", description: "Reviewed (merged or dismissed) duplicate candidates" },
   { key: "crm.tasks_closed", tableName: "tasks", days: 730, action: "delete", description: "Done and cancelled tasks" },
+  { key: "crm.inbox_resolved", tableName: "inbox_threads", days: 730, action: "delete", description: "Resolved inbox threads after 2 years" },
   { key: "crm.declarations_superseded", tableName: "person_declarations", days: 1095, action: "delete", description: "Guardian consents that are not the latest per person and kind" },
   { key: "crm.suppressions", tableName: "suppressions", days: null, action: "keep", description: "Kept forever to honour the objection" },
   { key: "crm.consent_records", tableName: "consent_records", days: null, action: "keep", description: "Proof of consent, kept for the life of the profile" },
@@ -27,6 +29,8 @@ export const sweep: Record<string, (tx: Tx, cutoff: Date) => Promise<number>> = 
   "crm.duplicate_candidates_closed": (tx, cutoff) =>
     affected(tx, sql`delete from person_duplicate_candidates where status <> 'open' and coalesce(reviewed_at, updated_at) < ${cutoff} returning id`),
   "crm.tasks_closed": (tx, cutoff) => affected(tx, sql`delete from tasks where status in ('done', 'cancelled') and updated_at < ${cutoff} returning id`),
+  // R3 (crm-P9): resolved threads by `resolved_at`; their messages go with them (cascade).
+  "crm.inbox_resolved": (tx, cutoff) => affected(tx, sql`delete from inbox_threads where status = 'resolved' and resolved_at < ${cutoff} returning id`),
   "crm.declarations_superseded": async (tx, cutoff) => {
     await tx.execute(sql`set local beam.allow_rewrite = 'on'`);
     return affected(
@@ -206,6 +210,8 @@ export const privacy: PrivacyRegistration<Tx> = {
     "tasks",
     "company_contacts",
     "opportunities",
+    "inbox_threads",
+    "inbox_messages",
   ],
   export: exportPerson,
   erase: erasePerson,
@@ -214,4 +220,4 @@ export const privacy: PrivacyRegistration<Tx> = {
 };
 
 /** crm tables that hold no person data (crm spec 9). */
-export const noPiiTables = ["consent_wordings", "tags", "segments", "playbook_stages"] as const;
+export const noPiiTables = ["consent_wordings", "tags", "segments", "playbook_stages", "inbox_reply_templates"] as const;

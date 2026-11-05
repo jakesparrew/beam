@@ -277,6 +277,22 @@
         "pct": "Pourcentage",
         "cents": "Montant",
         "days": "Jours"
+      },
+      "inbox_channel": {
+        "email": "E-mail",
+        "instagram": "Instagram",
+        "messenger": "Messenger",
+        "form": "Formulaire web"
+      },
+      "inbox_thread_status": {
+        "open": "Ouvert",
+        "pending": "En attente du client",
+        "resolved": "Résolu"
+      },
+      "inbox_message_direction": {
+        "in": "Reçu",
+        "out": "Réponse",
+        "note": "Note interne"
       }
     },
     "persons": {
@@ -995,6 +1011,11 @@
         "body": "Utilisez le bouton ci-dessous pour choisir les e-mails que vous recevez de BEAM. Le lien est valable un an.",
         "cta": "Gérer mes e-mails",
         "footer": "Vous n’avez pas demandé ce lien ? Ignorez cet e-mail."
+      },
+      "inbox_reply": {
+        "subject": "Re: {subject}",
+        "preheader": "Une réponse de BEAM à votre message.",
+        "footer": "Répondez à cet e-mail pour poursuivre la conversation."
       }
     },
     "consentPanel": {
@@ -1125,6 +1146,95 @@
         "saved": "Étape enregistrée.",
         "error": "L'étape n'a pas pu être enregistrée.",
         "missing_locales": "Remplissez les textes dans chaque langue."
+      }
+    },
+    "inbox": {
+      "title": "Boîte de réception",
+      "empty": "Boîte de réception vide.",
+      "empty_filtered": "Aucune conversation ne correspond à ces filtres.",
+      "filter_status": "Statut",
+      "filter_assignee": "Attribué à",
+      "filter_channel": "Canal",
+      "filter_escalated": "Escaladées uniquement",
+      "filter": "Filtrer",
+      "all_statuses": "Tous les statuts",
+      "all_channels": "Tous les canaux",
+      "anyone": "Tout le monde",
+      "me": "Attribuées à moi",
+      "unassigned": "Non attribuées",
+      "escalated": "Escaladée",
+      "no_subject": "(sans objet)",
+      "unlinked": "Non liée",
+      "nobody": "Personne",
+      "back": "Retour à la boîte de réception",
+      "list_label": "Conversations",
+      "thread": {
+        "from": "De",
+        "channel": "Canal",
+        "status": "Statut",
+        "assignee": "Attribué à",
+        "assign": "Attribuer",
+        "received": "Reçu",
+        "first_response": "Première réponse",
+        "escalated_at": "Escaladée",
+        "resolve": "Résoudre",
+        "reopen": "Rouvrir",
+        "sensitive": "Sensible",
+        "mark_sensitive": "Marquer comme sensible",
+        "unmark_sensitive": "Marquer comme non sensible",
+        "sensitive_hint": "Les conversations sensibles ne sont jamais envoyées aux outils d’IA.",
+        "sent_by": "Envoyé par {name}",
+        "attachments": "{count} pièces jointes (non conservées)",
+        "not_delivered": "Non distribué : {reason}",
+        "delivering": "Envoi en cours…",
+        "email_status": "E-mail : {status}",
+        "saved": "Enregistré.",
+        "error": "La modification n’a pas pu être enregistrée. Réessayez.",
+        "conflict": "Cette modification n’est pas possible dans le statut actuel."
+      },
+      "reply": {
+        "reply": "Répondre",
+        "note": "Note interne",
+        "placeholder_reply": "Écrivez votre réponse…",
+        "placeholder_note": "Seul le personnel voit cette note. Elle n’est jamais envoyée.",
+        "send": "Envoyer la réponse",
+        "add_note": "Ajouter la note",
+        "sending": "Envoi en cours…",
+        "template": "Modèle",
+        "no_template": "Aucun modèle",
+        "window_closed": "La fenêtre de réponse de 24 heures de Meta est fermée. Vous ne pouvez plus répondre sur ce canal.",
+        "window_closes": "Répondez avant {time} : Meta ferme la conversation 24 heures après le dernier message du client.",
+        "meta_disabled": "Les réponses via Instagram et Messenger sont désactivées.",
+        "no_recipient": "Cette conversation n’a pas d’adresse de réponse. Liez d’abord une personne.",
+        "error": "La réponse n’a pas pu être envoyée. Réessayez.",
+        "sent": "Réponse envoyée.",
+        "note_saved": "Note enregistrée."
+      },
+      "person": {
+        "title": "Personne",
+        "status": "Statut",
+        "credits": "Crédits",
+        "no_credits": "Aucun crédit",
+        "membership": "Abonnement",
+        "next_booking": "Prochaine réservation",
+        "no_booking": "Aucune réservation à venir",
+        "open": "Ouvrir le profil",
+        "unlinked": "Cette conversation n’est liée à aucune personne.",
+        "search": "Chercher une personne",
+        "search_placeholder": "Nom, e-mail ou numéro de client",
+        "search_button": "Chercher",
+        "link": "Lier",
+        "no_results": "Aucune personne trouvée.",
+        "create": "Créer la personne à partir de l’expéditeur",
+        "create_locale": "Langue",
+        "linked": "Personne liée.",
+        "error": "La personne n’a pas pu être liée."
+      },
+      "delivery": {
+        "window_closed": "la fenêtre de 24 heures était fermée",
+        "permission": "autorisation manquante",
+        "meta_disabled": "les réponses via Meta sont désactivées",
+        "other": "Meta a refusé le message"
       }
     }
   }

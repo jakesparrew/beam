@@ -14,12 +14,9 @@
  * person column is read.
  */
 import type { DbOrTx } from "@beam/db";
-import { brusselsDateOf } from "@beam/core/finance";
+import { assembleFinanceKpis, brusselsDateOf, financeKpiPeriods, type DateRange, type FinanceKpis, type FinanceKpiValues } from "@beam/core/finance";
 import { sql, type SQL } from "@/lib/ctx";
 import { rowsOf } from "@/lib/sensitive";
-// Relative until `@beam/core/finance` re-exports `./kpis` and `./periods` (index.ts is not finance-P10's file).
-import { assembleFinanceKpis, financeKpiPeriods, type FinanceKpis, type FinanceKpiValues } from "../../../../../packages/core/src/finance/kpis";
-import type { DateRange } from "../../../../../packages/core/src/finance/periods";
 import { endOfDayBrussels, getBreakage, getDeferredRevenue } from "./deferred";
 
 const NOT_VOUCHER = sql`category is distinct from 'voucher'`;

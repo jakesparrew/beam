@@ -313,19 +313,7 @@ export type InvoiceSummary = {
   pdfReady: boolean;
 };
 
-/** R4 KPIs for ops dashboards, weekly summary and NL questions (shape finalised by finance-P10). */
-export type FinanceKpis = {
-  from: string;
-  to: string;
-  invoicedCents: number;
-  creditedCents: number;
-  netRevenueCents: number;
-  vatCents: number;
-  openCents: number;
-  overdueCents: number;
-  invoices: number;
-  creditNotes: number;
-};
+// `FinanceKpis` (R4) lives in `./kpis` (finance-P10).
 
 // ---------------------------------------------------------------------------
 // Errors

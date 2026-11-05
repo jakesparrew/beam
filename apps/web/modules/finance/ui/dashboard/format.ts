@@ -3,9 +3,8 @@
  * the change against the previous period, and the CSV of each table as a `data:` link (the same
  * accountant format as the exports: `;`, UTF-8 with a BOM, euros with a dot, ISO dates).
  */
+import { centsToEuros, toCsv, type CsvCell } from "@beam/core/finance";
 import { formatDate, type Locale } from "@beam/core/i18n";
-// Relative until `@beam/core/finance` re-exports `./csv` (index.ts is not finance-P8's file).
-import { centsToEuros, toCsv, type CsvCell } from "../../../../../../packages/core/src/finance/csv";
 
 /** Fills `{param}` placeholders of a dashboard label (`dashboard.<key>`). */
 export type DashboardLabel = (key: string, params?: Record<string, string | number>) => string;

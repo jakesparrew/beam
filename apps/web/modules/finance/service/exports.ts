@@ -31,15 +31,24 @@
  */
 import type { DbOrTx } from "@beam/db";
 import { financeExports } from "@beam/db/schema";
-import type { FinanceExportKind, FinanceExportStatus } from "@beam/core/finance";
+import {
+  boolCell,
+  centsToEuros,
+  csvLine,
+  CSV_BOM,
+  EXPORT_COLUMNS,
+  exportFileName,
+  vatRateCell,
+  type CsvCell,
+  type FinanceExportKind,
+  type FinanceExportStatus,
+} from "@beam/core/finance";
 import { actorHasPermission, createCtx, eq, sql, type Actor, type Ctx, type SQL } from "@/lib/ctx";
 import { MAX_FILE_BYTES } from "@/lib/files";
 import type { JobCtx } from "@/lib/job-runner";
 import { rowsOf } from "@/lib/sensitive";
 import { readFile, storeFile } from "@/modules/platform/api";
 import { getBreakage, getDeferredRevenue, voucherRedemptionPage } from "./deferred";
-// Imported by path until `@beam/core/finance` re-exports `./csv` (request to the owner of its index.ts).
-import { boolCell, centsToEuros, csvLine, CSV_BOM, EXPORT_COLUMNS, exportFileName, vatRateCell, type CsvCell } from "../../../../../packages/core/src/finance/csv";
 
 export { EXPORT_COLUMNS, exportFileName };
 

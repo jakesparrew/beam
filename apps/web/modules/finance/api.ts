@@ -15,7 +15,7 @@
 import { createHash } from "node:crypto";
 import type { DbOrTx, Tx } from "@beam/db";
 import { billitParties, invoices, persons } from "@beam/db/schema";
-import type { BillingDetails, CreditNoteLineInput, InvoiceSummary } from "@beam/core/finance";
+import type { BillingDetails, CreditNoteLineInput, FinanceKpis, InvoiceSummary } from "@beam/core/finance";
 import { and, desc, eq, type Ctx } from "@/lib/ctx";
 import type { DigestSection } from "@/modules/platform/api";
 import { setOrderBillingDetails as setBillingDetails } from "./service/billing-details";
@@ -25,12 +25,10 @@ import { assertCustomerOwns, enqueueFinanceJob } from "./service/invoice-state";
 import { issueCreditNote as issueCreditNoteService } from "./service/issue-credit-note";
 import { issueInvoice as issueInvoiceService } from "./service/issue-invoice";
 import { markCreditNoteSettled as markCreditNoteSettledService } from "./service/settle";
-// Relative until `@beam/core/finance` re-exports `./kpis` (index.ts is not finance-P10's file).
-import type { FinanceKpis } from "../../../../packages/core/src/finance/kpis";
 
 export type { BillingDetails, CreditNoteLineInput, InvoiceSummary } from "@beam/core/finance";
-export type { FinanceKpiDefinition, FinanceKpiKey, FinanceKpis, FinanceKpiValues } from "../../../../packages/core/src/finance/kpis";
-export { FINANCE_KPI_DEFINITIONS, FINANCE_KPI_KEYS } from "../../../../packages/core/src/finance/kpis";
+export type { FinanceKpiDefinition, FinanceKpiKey, FinanceKpis, FinanceKpiValues } from "@beam/core/finance";
+export { FINANCE_KPI_DEFINITIONS, FINANCE_KPI_KEYS } from "@beam/core/finance";
 export { FINANCE_AI_VIEWS, type FinanceAiView } from "./ai-views";
 
 export type IssueInvoiceInput = {

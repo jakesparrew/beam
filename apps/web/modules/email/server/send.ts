@@ -14,7 +14,7 @@ import type { Tx } from "@beam/db";
 import { emailMessages, persons, suppressions, vMarketingReachability, vPersonStatus } from "@beam/db/schema";
 import { MissingTranslationError, PermanentError } from "@beam/core/errors";
 import { emailHash } from "@beam/core/crm";
-import { linkTokenFor, newLinkToken, type BlockDocument, type MarketingPurpose, type SendTransactionalInput } from "@beam/core/email";
+import { linkTokenFor, newLinkToken, SAMPLE_PERSONAS, type BlockDocument, type MarketingPurpose, type SamplePersona, type SendTransactionalInput } from "@beam/core/email";
 import { isLocale, type Locale } from "@beam/core/i18n";
 import { buildOutgoingEmail, type FooterParts } from "@beam/email";
 import { personalise, tokenNames, type VariantRecipient } from "@beam/email/blocks";
@@ -29,6 +29,18 @@ import { readFile } from "@/lib/files";
 import type { JobCtx } from "@/lib/job-runner";
 import { listLatestOutcomes } from "@/modules/forms/api";
 import { footerFor, loadSendSettings, senderFor } from "./context";
+import {
+  assessmentFormSlugs,
+  needsLiveCards,
+  personRecipient,
+  previewLinks,
+  recipientTokenValues,
+  resolveCardsFor,
+  samplePersona,
+  variantRecipientOf,
+  webinarCardsFor,
+  type RecipientContext,
+} from "./preview";
 import { buildTokenValues } from "./merge-fields";
 import { sinkDecision, storeRenderedCopy } from "./sink";
 import { applyTracking } from "./tracking";
@@ -267,15 +279,7 @@ function resendErrorCode(error: IntegrationError): string {
   return `resend_4xx:${error.statusCode ?? "unknown"}`;
 }
 
-/** The form slugs the `assessmentOutcome` conditions of a document's dynamic blocks select on (rule 18). */
-export function assessmentFormSlugs(doc: BlockDocument | null | undefined, locale: Locale): string[] {
-  const slugs = new Set<string>();
-  for (const block of doc?.locales[locale] ?? []) {
-    if (block.type !== "dynamic") continue;
-    for (const v of block.variants) if ("assessmentOutcome" in v.when) slugs.add(v.when.assessmentOutcome.formSlug);
-  }
-  return [...slugs];
-}
+export { assessmentFormSlugs };
 
 /** The person's latest completed outcome key per form slug (forms' `listLatestOutcomes`, through the caller tx). */
 async function outcomesFor(tx: Tx, personId: string | null, slugs: readonly string[]): Promise<Record<string, string | null>> {
@@ -285,6 +289,21 @@ async function outcomesFor(tx: Tx, personId: string | null, slugs: readonly stri
   return outcomes;
 }
 
+/**
+ * Rule 60: the persona a test message renders for, from the `context` `sendTestEmail` stored
+ * (`test_as_person_id`, or `test_sample` with `test_outcome`). Null for other kinds, and for a
+ * person who no longer exists or was erased (the message then renders without a persona).
+ */
+export async function testPersonaOf(tx: Tx, m: Pick<MessageRow, "kind" | "context">, doc: BlockDocument | null | undefined, locale: Locale): Promise<RecipientContext | null> {
+  if (m.kind !== "test") return null;
+  const c = (m.context ?? {}) as Record<string, unknown>;
+  if (typeof c.test_as_person_id === "string") return personRecipient(tx, c.test_as_person_id, doc, locale);
+  if (typeof c.test_sample === "string" && (SAMPLE_PERSONAS as readonly string[]).includes(c.test_sample)) {
+    return samplePersona(c.test_sample as SamplePersona, typeof c.test_outcome === "string" ? c.test_outcome : undefined);
+  }
+  return null;
+}
+
 type Rendered = { subject: string; html: string; text: string; generated: TemplateAttachment[] };
 
 /** Renders the template (placeholders kept) or returns the permanent outcome of a content problem. */
@@ -292,7 +311,7 @@ async function renderMessage(
   ctx: JobCtx,
   m: MessageRow,
   tpl: SendTemplate,
-  input: { locale: Locale; props: unknown; footer: FooterParts | null },
+  input: { locale: Locale; props: unknown; footer: FooterParts | null; persona: RecipientContext | null },
 ): Promise<Rendered | { status: "failed" | "blocked_translation"; error: string | null }> {
   try {
     if (tpl.def) {
@@ -303,17 +322,26 @@ async function renderMessage(
     }
     const v = tpl.version!;
     if (!input.footer) return { status: "failed", error: "footer_incomplete" };
-    const [status] = m.personId ? await ctx.tx.select({ status: vPersonStatus.status }).from(vPersonStatus).where(eq(vPersonStatus.personId, m.personId)) : [];
-    const outcomes = await outcomesFor(ctx.tx, m.personId, assessmentFormSlugs(v.document, input.locale));
+    let recipient: VariantRecipient;
+    if (input.persona) recipient = variantRecipientOf(input.persona, v.document, input.locale);
+    else {
+      const [status] = m.personId ? await ctx.tx.select({ status: vPersonStatus.status }).from(vPersonStatus).where(eq(vPersonStatus.personId, m.personId)) : [];
+      const outcomes = await outcomesFor(ctx.tx, m.personId, assessmentFormSlugs(v.document, input.locale));
+      recipient = { status: (status?.status as VariantRecipient["status"]) ?? null, outcomes };
+    }
+    // Booking spec 4.9: a lead-window event block is compiled again with today's cards.
+    const live = needsLiveCards(v.document, input.locale);
     const r = await renderEmail({
       source: "blocks",
       locale: input.locale,
       subject: v.subject,
       preheader: v.preheader,
       document: v.document,
-      compiled: v.htmlByLocale && v.textByLocale ? { htmlByLocale: v.htmlByLocale, textByLocale: v.textByLocale } : null,
-      recipient: { status: (status?.status as VariantRecipient["status"]) ?? null, outcomes },
+      compiled: !live && v.htmlByLocale && v.textByLocale ? { htmlByLocale: v.htmlByLocale, textByLocale: v.textByLocale } : null,
+      recipient,
       footer: input.footer,
+      resolveCards: resolveCardsFor(ctx.tx, input.locale, ctx.now),
+      webinars: webinarCardsFor(ctx.tx),
     });
     return { ...r, generated: [] };
   } catch (error) {
@@ -371,25 +399,39 @@ export async function sendEmailMessage(ctx: JobCtx, input: SendJobInput): Promis
   const unsubscribe = link ? unsubscribeLinksFor({ linkToken: link.token, kind: marketing ? "marketing" : "transactional", locale }) : null;
   const preferenceUrls = unsubscribe ? footerPreferenceUrls(unsubscribe) : null;
 
+  // Rule 60: a test renders for its persona, with the template's own footer (marketing templates
+  // get the marketing footer, its links pointing at the preview preferences page).
+  const persona = await testPersonaOf(ctx.tx, m, tpl.version?.document, locale);
+  const testMarketing = m.kind === "test" && tpl.kind === "marketing";
+  const footerPurpose: MarketingPurpose | "transactional" = marketing && purpose ? purpose : testMarketing ? (tpl.purpose ?? m.purpose ?? "newsletter") : "transactional";
+
   let footer: FooterParts | null;
   try {
-    footer = await footerFor(ctx.tx, { settings, locale, purpose: marketing && purpose ? purpose : "transactional", personId: m.personId, preferenceUrls });
+    footer = await footerFor(ctx.tx, {
+      settings,
+      locale,
+      purpose: footerPurpose,
+      personId: persona?.personId ?? m.personId,
+      preferenceUrls: testMarketing ? previewLinks(locale) : preferenceUrls,
+    });
   } catch (error) {
     if (error instanceof MissingTranslationError) return failMessage(ctx, ref, { status: "blocked_translation", error: null });
     if (error instanceof PermanentError) return failMessage(ctx, ref, { status: "failed", error: "footer_incomplete" });
     throw error;
   }
-  const rendered = await renderMessage(ctx, m, tpl, { locale, props, footer });
+  const rendered = await renderMessage(ctx, m, tpl, { locale, props, footer, persona });
   if ("status" in rendered) return failMessage(ctx, ref, rendered);
 
   const names = tokenNames(`${rendered.subject}\n${rendered.html}\n${rendered.text}`);
-  const values = await buildTokenValues(ctx.tx, {
-    personId: m.personId,
-    locale,
-    context: m.context as Record<string, unknown> | null,
-    names: [...names.tokens, ...names.mergeFields],
-    links: preferenceUrls,
-  });
+  const values = persona
+    ? await recipientTokenValues(ctx.tx, persona, locale, [...names.tokens, ...names.mergeFields])
+    : await buildTokenValues(ctx.tx, {
+        personId: m.personId,
+        locale,
+        context: m.context as Record<string, unknown> | null,
+        names: [...names.tokens, ...names.mergeFields],
+        links: preferenceUrls,
+      });
   const subject = personalise(rendered.subject, values, { escape: false }).trim();
   let html = personalise(rendered.html, values, { escape: true });
   const text = personalise(rendered.text, values, { escape: false }).trim();
@@ -422,6 +464,7 @@ export async function sendEmailMessage(ctx: JobCtx, input: SendJobInput): Promis
       replyTo: m.replyTo ?? sender.replyTo,
       listUnsubscribe: unsubscribe ? listUnsubscribeOption(unsubscribe) : null,
       sinkRewrite: !sink.production && sink.sink ? { sink: sink.sink, env: sink.env } : null,
+      allowLocalhost: !sink.production,
     },
   );
   if ("error" in outgoing) return failMessage(ctx, ref, { status: "failed", error: outgoing.error });

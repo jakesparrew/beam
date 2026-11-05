@@ -10,7 +10,9 @@
  *   which read only names, status, credits, the next booking and merge fields (rule 24): no
  *   sensitive field is ever read.
  * - `resolveCardsFor(tx, locale)`: product and event cards through `commerce.getProductCards`,
- *   `booking.getSessionCards` and `site.getEventPageUrl` (rule 19), shared with publish.
+ *   `booking.getSessionCards` (with `opensForCustomersAt`, R2) and `site.getEventPageUrl`
+ *   (rule 19), shared with publish and the send-time re-render; `webinarCardsFor(tx)` binds
+ *   `webinar.getWebinarCards` for `compileMarketing`'s `webinars` (R2).
  * - `buildPreview(tx, input)`: subject, preheader, HTML, text, size and warnings of one locale of
  *   the draft or current version. Block-backed versions compile on the fly (MJML strict), so the
  *   preview shows exactly what publish would store; code-backed versions render the registry
@@ -24,6 +26,7 @@ import { URL_SEGMENT, type Locale, type LocalizedText } from "@beam/core/i18n";
 import { buildFooter, type FooterParts } from "@beam/email";
 import {
   compileMarketing,
+  hasLeadWindowEvent,
   personalise,
   selectVariant,
   tokenNames,
@@ -31,6 +34,7 @@ import {
   type PersonStatus,
   type ProductCard,
   type ResolveCards,
+  type ResolveWebinars,
   type TokenValues,
   type VariantPath,
   type Warning,
@@ -41,10 +45,29 @@ import { getSessionCards } from "@/modules/booking/api";
 import { getProductCards } from "@/modules/commerce/api";
 import { listLatestOutcomes } from "@/modules/forms/api";
 import { getEventPageUrl } from "@/modules/site/api";
+import { getWebinarCards } from "@/modules/webinar/api";
 import { consentDateOf, legalLinksFor, loadSendSettings, type SendSettings } from "./context";
 import { appOrigin, buildTokenValues } from "./merge-fields";
-import { assessmentFormSlugs } from "./send";
 import { registryTemplate, type TemplateRow, type VersionRow } from "./templates-info";
+
+/** The form slugs the `assessmentOutcome` conditions of a document's dynamic blocks select on (rule 18). */
+export function assessmentFormSlugs(doc: BlockDocument | null | undefined, locale: Locale): string[] {
+  const slugs = new Set<string>();
+  for (const block of doc?.locales[locale] ?? []) {
+    if (block.type !== "dynamic") continue;
+    for (const v of block.variants) if ("assessmentOutcome" in v.when) slugs.add(v.when.assessmentOutcome.formSlug);
+  }
+  return [...slugs];
+}
+
+/**
+ * Booking spec 4.9 (R2): a locale whose blocks hold an `event` block with `showLeadWindow` is
+ * compiled again at send time with fresh cards, so "Opens for you on ..." follows the session's
+ * current lead window instead of the one frozen at publish.
+ */
+export function needsLiveCards(doc: BlockDocument | null | undefined, locale: Locale): boolean {
+  return hasLeadWindowEvent(doc?.locales[locale] ?? []);
+}
 
 /** The facts a preview or a test send renders for: a sample persona or a real contact. */
 export type RecipientContext = {
@@ -151,12 +174,31 @@ export function resolveCardsFor(tx: DbOrTx, locale: Locale, now: Date = new Date
           if (!(error instanceof NotImplementedError)) throw error;
         }
         const startsAt = new Date(s.startsAt);
-        events[s.sessionId] = { id: s.sessionId, title: s.title, startsAt, url: url ?? `${appOrigin()}${s.bookUrl}`, active: startsAt.getTime() > now.getTime() };
+        events[s.sessionId] = {
+          id: s.sessionId,
+          title: s.title,
+          startsAt,
+          url: url ?? `${appOrigin()}${s.bookUrl}`,
+          active: startsAt.getTime() > now.getTime(),
+          opensForCustomersAt: s.opensForCustomersAt ?? null,
+        };
       }
     } catch (error) {
       if (!(error instanceof NotImplementedError)) throw error;
     }
     return { products, events };
+  };
+}
+
+/** Webinar cards of a document (R2) through `webinar.getWebinarCards`, bound to the transaction. */
+export function webinarCardsFor(tx: DbOrTx): ResolveWebinars {
+  return async (ids, locale) => {
+    try {
+      return await getWebinarCards(tx, ids, locale);
+    } catch (error) {
+      if (!(error instanceof NotImplementedError)) throw error;
+      return [];
+    }
   };
 }
 
@@ -243,6 +285,7 @@ export async function buildPreview(
       const compiled = await compileMarketing(doc, locale, {
         footer: footer ?? EMPTY_FOOTER,
         resolveCards: resolveCardsFor(tx, locale, input.now),
+        webinars: webinarCardsFor(tx),
         ...(subjectRaw ? { subject: subjectRaw } : {}),
         ...(preheaderRaw ? { preheader: preheaderRaw } : {}),
       });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { PermanentError } from "@beam/core/errors";
-import { buildOutgoingEmail, LIST_UNSUBSCRIBE_POST, sinkSubject, type OutgoingMessage } from "./resend";
+import { buildOutgoingEmail, isLoopbackHttpUrl, LIST_UNSUBSCRIBE_POST, sinkSubject, type OutgoingMessage } from "./resend";
 
 const MSG: OutgoingMessage = {
   messageId: "44444444-4444-4444-8444-444444444444",
@@ -30,6 +30,22 @@ describe("buildOutgoingEmail", () => {
     expect(() => buildOutgoingEmail(MSG, { kind: "marketing", from: "x", replyTo: "y", listUnsubscribe: { oneClickPostUrl: "mailto:unsubscribe@beam.be" } })).toThrow(
       /list_unsubscribe_not_https/,
     );
+  });
+
+  it("accepts an http://localhost one-click URL outside production or with the sink rewrite, never otherwise (request email-P4)", () => {
+    const local = { oneClickPostUrl: "http://localhost:3100/api/public/unsubscribe?t=tok123" };
+    const base = { kind: "marketing" as const, from: "x", replyTo: "y", listUnsubscribe: local };
+    expect(() => buildOutgoingEmail(MSG, base)).toThrow(/list_unsubscribe_not_https/);
+    expect(() => buildOutgoingEmail(MSG, { ...base, allowLocalhost: false })).toThrow(/list_unsubscribe_not_https/);
+    expect(buildOutgoingEmail(MSG, { ...base, allowLocalhost: true }).headers["List-Unsubscribe"]).toBe(`<${local.oneClickPostUrl}>`);
+    expect(buildOutgoingEmail(MSG, { ...base, sinkRewrite: { sink: "sink@example.com", env: "e2e" } }).headers["List-Unsubscribe"]).toBe(`<${local.oneClickPostUrl}>`);
+    // Only loopback hosts: a plain-http public host stays refused.
+    expect(() => buildOutgoingEmail(MSG, { ...base, allowLocalhost: true, listUnsubscribe: { oneClickPostUrl: "http://beam.be/api/public/unsubscribe?t=1" } })).toThrow(/list_unsubscribe_not_https/);
+    expect(isLoopbackHttpUrl("http://127.0.0.1:3100/x")).toBe(true);
+    expect(isLoopbackHttpUrl("http://[::1]:3100/x")).toBe(true);
+    expect(isLoopbackHttpUrl("http://app.localhost/x")).toBe(true);
+    expect(isLoopbackHttpUrl("http://localhost.example.com/x")).toBe(false);
+    expect(isLoopbackHttpUrl("https://localhost/x")).toBe(false);
   });
 
   it("never puts List-Unsubscribe headers on transactional messages", () => {

@@ -33,7 +33,8 @@ function suggestedStart(scheduledAt: Date | null): string {
  * hidden and server-refused otherwise; `reports.read` reads), email spec section 5: the stepper
  * Content (the block editor of the campaign's template; scheduling publishes the draft),
  * Audience (segment, exclusions, live estimate), Review (checklist with links to fix each item,
- * test send, preview), Schedule (Brussels date and time or Send now), then the sending progress.
+ * test send, preview), Schedule (Brussels date and time or Send now), then the sending progress
+ * with links to the recipients list and the campaign report.
  */
 export default async function CampaignPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ step?: string }> }) {
   const actor = await requireStaff();
@@ -223,10 +224,15 @@ export default async function CampaignPage({ params, searchParams }: { params: P
             {c.startedAt ? <span>{clab(labels, "started_at", { at: dateFmt.format(c.startedAt) })}</span> : null}
             {c.finishedAt ? <span>{clab(labels, "finished_at", { at: dateFmt.format(c.finishedAt) })}</span> : null}
           </div>
-          <div>
+          <div className="flex flex-wrap gap-2">
             <Button variant="outline" asChild>
               <Link href={`/admin/campaigns/${c.id}/recipients`} data-testid="campaign-recipients-link">
                 {clab(labels, "recipients_link")}
+              </Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link href={`/admin/campaigns/${c.id}/report`} data-testid="campaign-report-link">
+                {clab(labels, "report_link")}
               </Link>
             </Button>
           </div>

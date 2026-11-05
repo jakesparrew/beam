@@ -41,7 +41,7 @@ import {
 } from "@beam/core/email";
 import { isLocale, type Locale } from "@beam/core/i18n";
 import { buildOutgoingEmail, type FooterParts } from "@beam/email";
-import { personalise, tokenNames, type VariantRecipient } from "@beam/email/blocks";
+import { compileMarketing, personalise, tokenNames, type VariantRecipient } from "@beam/email/blocks";
 import { renderEmail } from "@beam/email/render";
 import { IntegrationError } from "@beam/integrations/_shared";
 import type { OutgoingEmail } from "@beam/integrations/resend";
@@ -54,8 +54,8 @@ import { transitionCampaign } from "./campaigns";
 import { loadSendSettings, senderFor, type SendSettings } from "./context";
 import { buildTokenValues } from "./merge-fields";
 import { chunkJobKey } from "./plan";
-import { templateFooter } from "./preview";
-import { assessmentFormSlugs, linkTokenSecret } from "./send";
+import { assessmentFormSlugs, needsLiveCards, resolveCardsFor, templateFooter, webinarCardsFor } from "./preview";
+import { linkTokenSecret } from "./send";
 import { sinkDecision, storeRenderedCopy, type SinkDecision } from "./sink";
 import { applyTracking } from "./tracking";
 import { footerPreferenceUrls, listUnsubscribeOption, unsubscribeLinksFor } from "./unsubscribe-links";
@@ -96,7 +96,11 @@ type ChunkEnv = {
   sink: SinkDecision;
   secret: string | null;
   footers: Map<Locale, FooterParts | null>;
+  /** Locales compiled again in this chunk with fresh cards (lead-window event blocks, booking spec 4.9). */
+  live: Map<Locale, Compiled | null>;
 };
+
+type Compiled = { htmlByLocale: Record<string, Record<string, string>>; textByLocale: Record<string, Record<string, string>> };
 
 /** The skip status of a reachability reason (rule 32). */
 const skipFor = (reason: BlockedReason | null | undefined): RecipientStatus => recipientSkipStatus(reason ?? "erased");
@@ -124,6 +128,34 @@ async function footerOf(ctx: JobCtx, env: ChunkEnv, locale: Locale): Promise<Foo
   return env.footers.get(locale) ?? null;
 }
 
+/**
+ * The compiled variants of `locale` for this chunk: the published ones, or, when the locale holds
+ * a lead-window event block, a compile with today's cards (once per chunk and locale).
+ */
+async function compiledOf(ctx: JobCtx, env: ChunkEnv, locale: Locale): Promise<Compiled | null> {
+  const v = env.version;
+  const published = v.htmlByLocale && v.textByLocale ? { htmlByLocale: v.htmlByLocale, textByLocale: v.textByLocale } : null;
+  if (!v.document || !needsLiveCards(v.document, locale)) return published;
+  if (!env.live.has(locale)) {
+    const footer = await footerOf(ctx, env, locale);
+    if (!footer) throw new PermanentError("footer_incomplete");
+    const subject = v.subject[locale]?.trim();
+    const preheader = v.preheader?.[locale]?.trim();
+    const result = await compileMarketing(v.document, locale, {
+      footer,
+      resolveCards: resolveCardsFor(ctx.tx, locale, ctx.now),
+      webinars: webinarCardsFor(ctx.tx),
+      ...(subject ? { subject } : {}),
+      ...(preheader ? { preheader } : {}),
+    });
+    env.live.set(locale, {
+      htmlByLocale: { [locale]: Object.fromEntries(Object.entries(result.variants).map(([k, x]) => [k, x.html])) },
+      textByLocale: { [locale]: Object.fromEntries(Object.entries(result.variants).map(([k, x]) => [k, x.text])) },
+    });
+  }
+  return env.live.get(locale) ?? null;
+}
+
 type Prepared = { recipient: Recipient; messageId: string; outgoing: OutgoingEmail; subject: string; to: string; linkHash: string; links: string[] | null; renderedFileId: string | null };
 type Failed = { recipient: Recipient; messageId: string; error: string };
 
@@ -142,9 +174,20 @@ async function prepare(
   const preferenceUrls = footerPreferenceUrls(unsubscribe);
   let rendered: { subject: string; html: string; text: string };
   try {
-    const compiled = v.htmlByLocale && v.textByLocale ? { htmlByLocale: v.htmlByLocale, textByLocale: v.textByLocale } : null;
+    const compiled = await compiledOf(ctx, env, p.locale);
     const footer = compiled?.htmlByLocale[p.locale] ? null : await footerOf(ctx, env, p.locale);
-    rendered = await renderEmail({ source: "blocks", locale: p.locale, subject: v.subject, preheader: v.preheader, document: v.document, compiled, recipient: variant, footer });
+    rendered = await renderEmail({
+      source: "blocks",
+      locale: p.locale,
+      subject: v.subject,
+      preheader: v.preheader,
+      document: v.document,
+      compiled,
+      recipient: variant,
+      footer,
+      resolveCards: resolveCardsFor(ctx.tx, p.locale, ctx.now),
+      webinars: webinarCardsFor(ctx.tx),
+    });
   } catch (error) {
     if (error instanceof MissingTranslationError) return { error: "missing_translation" };
     if (error instanceof PermanentError) return { error: error.message.split(":")[0]! };
@@ -167,6 +210,7 @@ async function prepare(
         replyTo: sender.replyTo,
         listUnsubscribe: listUnsubscribeOption(unsubscribe),
         sinkRewrite: !env.sink.production && env.sink.sink ? { sink: env.sink.sink, env: env.sink.env } : null,
+        allowLocalhost: !env.sink.production,
       },
     );
   } catch (error) {
@@ -324,6 +368,7 @@ export async function sendChunk(ctx: JobCtx, input: CampaignChunkJobInput): Prom
     sink: sinkDecision(),
     secret: linkTokenSecret(),
     footers: new Map(),
+    live: new Map(),
   };
   const schedule = await getSetting(tx, "warmup_schedule");
 

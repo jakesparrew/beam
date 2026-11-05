@@ -50,7 +50,12 @@ async function seed(): Promise<void> {
   await e2eRows(sql`insert into waitlist_entries (session_id, person_id) values (${(sessions[1] ?? sessions[0])!.id}::uuid, ${personId}::uuid)`);
   await e2eRows(sql`insert into form_submissions (form_id, form_version_id, funnel, locale, person_id)
     select fv.form_id, fv.id, 'assessment', 'nl-BE', ${personId}::uuid from form_versions fv order by fv.created_at limit 1`);
-  await e2eRows(sql`insert into email_messages (kind, locale, idempotency_key, person_id) values ('campaign', 'nl-BE', ${`e2e:scenario7:${personId}`}, ${personId}::uuid)`);
+  // A sent newsletter: campaign messages carry a purpose and a template version (email_messages checks).
+  await e2eRows(sql`insert into email_messages (kind, purpose, template_version_id, locale, to_email, idempotency_key, person_id, status, sent_at)
+    select 'campaign', 'newsletter', v.id, 'nl-BE', ${EMAIL}, ${`e2e:scenario7:${personId}`}, ${personId}::uuid, 'sent', now() - interval '3 days'
+    from email_template_versions v order by v.created_at limit 1`);
+  const [message] = await e2eRows<{ n: number }>(sql`select count(*)::int as n from email_messages where idempotency_key = ${`e2e:scenario7:${personId}`}`);
+  expect(message?.n, "the seeded newsletter message exists").toBe(1);
   const file = await one<{ id: string }>(
     sql`insert into files (kind, name, mime, size_bytes, bytes, sha256) values ('import', 'webinar.csv', 'text/csv', 5, '\\x656d61696c'::bytea, ${createHash("sha256").update("email").digest("hex")}) returning id::text as id`,
   );
@@ -92,11 +97,22 @@ async function seed(): Promise<void> {
     sql`insert into orders (channel, status, subtotal_cents, discount_cents, vat_cents, total_cents, locale, client_key, person_id, paid_at)
         values ('admin', 'paid', 4500, 0, 781, 4500, 'nl-BE', ${randomUUID()}, ${personId}::uuid, now()) returning id::text as id`,
   );
+  // A paid invoice that satisfies the invoices checks: number `BEAM-<year>-<6-digit sequence>`,
+  // the issue date inside the fiscal year, at least one line, paid_at, issued_by an actor. Fiscal
+  // year 2099 keeps the row out of the real numbering and this year's reports.
+  const sequence = 1 + Math.floor(Math.random() * 999_998);
+  const line = {
+    order_line_id: randomUUID(), product_id: randomUUID(), sku: "E2E-S7", category: "session", description: "Scenario 7 session",
+    description_i18n: { "nl-BE": "Scenario 7 sessie", "fr-BE": "Séance scénario 7", en: "Scenario 7 session" },
+    quantity: 1, unit_amount_cents: 4500, discount_cents: 0, discount_label: null, line_total_cents: 4500, vat_rate_pct: 21,
+    vat_cents: 781, net_cents: 3719, vat_note: null, credit_kind: null, credit_units: null, session_starts_at: null,
+  };
   const invoice = await one<{ id: string }>(
     sql`insert into invoices (kind, number, order_id, person_id, customer_snapshot, lines, subtotal_cents, vat_cents, total_cents, vat_breakdown,
-          issued_on, status, fiscal_year, sequence_number, locale, seller_snapshot, issued_by)
-        values ('invoice', ${`E2E-S7-${Date.now()}`}, ${order!.id}::uuid, ${personId}::uuid, ${JSON.stringify({ name: `${FIRST} ${LAST}`, email: EMAIL })}::jsonb, '[]'::jsonb,
-          3719, 781, 4500, '[]'::jsonb, current_date, 'paid', 2099, ${Math.floor(Date.now() / 1000)}, 'nl-BE', '{}'::jsonb, 'system')
+          issued_on, status, paid_at, fiscal_year, sequence_number, locale, seller_snapshot, issued_by)
+        values ('invoice', ${`BEAM-2099-${String(sequence).padStart(6, "0")}`}, ${order!.id}::uuid, ${personId}::uuid, ${JSON.stringify({ name: `${FIRST} ${LAST}`, email: EMAIL })}::jsonb,
+          ${JSON.stringify([line])}::jsonb, 3719, 781, 4500, ${JSON.stringify([{ vat_rate_pct: 21, net_cents: 3719, vat_cents: 781, gross_cents: 4500 }])}::jsonb,
+          '2099-01-01', 'paid', now(), 2099, ${sequence}, 'nl-BE', '{}'::jsonb, '{"kind":"system","id":null}'::jsonb)
         returning id::text as id`,
   );
   invoiceId = invoice!.id;
@@ -164,10 +180,16 @@ test("one request erases the person everywhere, propagates externally and leaves
   expect(person!.email).toBeNull();
   expect(person!.first_name).not.toBe(FIRST);
   expect(person!.phone).toBeNull();
-  for (const table of ["email_messages", "imported_history", "form_submissions", "waitlist_entries", "ai_requests", "bookings"]) {
+  for (const table of ["email_messages", "imported_history", "form_submissions", "waitlist_entries", "ai_requests"]) {
     const left = await one<{ n: number }>(sql`select count(*)::int as n from ${sql.raw(table)} where person_id = ${personId}::uuid`);
     expect(left!.n, table).toBe(0);
   }
+  // Bookings are kept, linked to the anonymised person (booking spec section 9): the future seat
+  // is cancelled with code `erased`, and no free text or QR file is left on the row.
+  const booking = await one<{ status: string; code: string | null; notes: string | null; reason: string | null; qr: string | null }>(
+    sql`select status::text as status, cancel_reason_code::text as code, notes, cancel_reason as reason, qr_file_id::text as qr from bookings where person_id = ${personId}::uuid`,
+  );
+  expect(booking, "bookings").toEqual({ status: "cancelled", code: "erased", notes: null, reason: null, qr: null });
 
   // R2: the native webinar registration, its watch segments and both poll answers are gone.
   const webinarLeft = await one<{ registrations: number; segments: number; answers: number }>(

@@ -82,3 +82,117 @@ export const vFormLatestResults = pgView("v_form_latest_results", {
   totalRangeKey: text("total_range_key"),
   completedAt: tz("completed_at").notNull(),
 }).existing();
+
+// ---------------------------------------------------------------------------
+// R3 (forms-P9): marketing KPIs and campaign attribution
+// ---------------------------------------------------------------------------
+
+/** Brussels day of a timestamp expression. */
+const bxl = (expr: string) => `(${expr} at time zone 'Europe/Brussels')::date`;
+
+/**
+ * When crm stamped `persons p`'s acquisition (`captured_at`, crm's `ctx.now` of the creating
+ * transaction); null for a missing or malformed value, so a hand-imported acquisition never
+ * breaks the view.
+ */
+const CAPTURED_AT = `case when p.acquisition->>'captured_at' ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}T' then (p.acquisition->>'captured_at')::timestamptz end`;
+
+/** The campaign of `form_submissions fs` for attribution: `utm.campaign`, trimmed and lower-cased; null when empty. */
+const UTM_CAMPAIGN = `nullif(lower(trim(fs.utm->>'campaign')), '')`;
+
+/**
+ * `v_form_kpis_daily` (R3, marketing dashboard and `/admin/forms/attribution`): one row per Brussels
+ * day with leads created by forms (persons whose acquisition carries a `form_slug`, by the day crm
+ * captured it; testers, merged losers and existing persons whose empty acquisition a form filled
+ * later, crm's `person.acquisition_filled`, excluded), completed submissions, result CTA clicks
+ * (`assessment.cta_clicked`), and the submissions completed that day that converted within 30 days
+ * (a booking or a paid order, from `v_form_conversions`) with their 30-day revenue. No person ids.
+ */
+export const vFormKpisDailySql = `with l as (
+  select ${bxl(CAPTURED_AT)} as day_on, count(*)::int as leads
+  from persons p
+  where p.merged_into_person_id is null and p.is_tester = false and jsonb_typeof(p.acquisition) = 'object'
+    and coalesce(p.acquisition->>'form_slug', '') <> '' and ${CAPTURED_AT} is not null
+    and not exists (select 1 from activity_events e where e.person_id = p.id and e.kind = 'person.acquisition_filled')
+  group by 1),
+c as (
+  select ${bxl("fs.completed_at")} as day_on, count(*)::int as completions
+  from form_submissions fs where fs.status = 'completed' and fs.completed_at is not null group by 1),
+k as (
+  select ${bxl("e.occurred_at")} as day_on, count(*)::int as cta_clicks
+  from activity_events e where e.kind = 'assessment.cta_clicked' group by 1),
+v as (
+  select ${bxl("v.completed_at")} as day_on,
+         count(*) filter (where v.first_booking_at is not null or v.first_paid_at is not null)::int as conversions,
+         count(*) filter (where v.first_booking_at is not null)::int as bookings,
+         count(*) filter (where v.first_paid_at is not null)::int as purchases,
+         coalesce(sum(v.revenue_30d_cents), 0)::bigint as revenue_30d_cents
+  from v_form_conversions v group by 1),
+d as (select day_on from l union select day_on from c union select day_on from k union select day_on from v)
+select d.day_on, coalesce(l.leads, 0) as leads, coalesce(c.completions, 0) as completions,
+       coalesce(k.cta_clicks, 0) as cta_clicks, coalesce(v.conversions, 0) as conversions,
+       coalesce(v.bookings, 0) as bookings, coalesce(v.purchases, 0) as purchases,
+       coalesce(v.revenue_30d_cents, 0)::bigint as revenue_30d_cents
+from d left join l on l.day_on = d.day_on left join c on c.day_on = d.day_on
+  left join k on k.day_on = d.day_on left join v on v.day_on = d.day_on`;
+
+export const vFormKpisDaily = pgView("v_form_kpis_daily", {
+  dayOn: date("day_on", { mode: "string" }).notNull(),
+  leads: integer("leads").notNull(),
+  completions: integer("completions").notNull(),
+  ctaClicks: integer("cta_clicks").notNull(),
+  conversions: integer("conversions").notNull(),
+  bookings: integer("bookings").notNull(),
+  purchases: integer("purchases").notNull(),
+  revenue30dCents: bigint("revenue_30d_cents", { mode: "number" }).notNull(),
+}).existing();
+
+/**
+ * `v_form_campaign_attribution` (R3): one row per `utm_campaign` (trimmed, lower-cased; null = no
+ * campaign) per Brussels day. `leads` = distinct linked persons and `completions` = completed
+ * submissions of that day; `bookings` and `revenue_30d_cents` = what those submissions led to
+ * within 30 days (`v_form_conversions`); `spend_cents` = ops' `ad_spend_daily` of that day for the
+ * campaigns forms has seen, joined by campaign id (BEAM's UTM convention puts the ad campaign id in
+ * `utm_campaign`) and, when no form campaign has that id, by campaign name. A day with spend and
+ * no lead keeps its row. `cost_per_lead_cents` is that day's spend / leads (null without leads or
+ * spend); a range recomputes it from the summed columns.
+ */
+export const vFormCampaignAttributionSql = `with s as (
+  select ${UTM_CAMPAIGN} as utm_campaign, ${bxl("fs.completed_at")} as day_on,
+         count(*)::int as completions, count(distinct fs.person_id)::int as leads
+  from form_submissions fs where fs.status = 'completed' and fs.completed_at is not null
+  group by 1, 2),
+cv as (
+  select ${UTM_CAMPAIGN} as utm_campaign, ${bxl("v.completed_at")} as day_on,
+         count(*) filter (where v.first_booking_at is not null)::int as bookings,
+         coalesce(sum(v.revenue_30d_cents), 0)::bigint as revenue_30d_cents
+  from v_form_conversions v join form_submissions fs on fs.id = v.submission_id
+  group by 1, 2),
+k as (select distinct utm_campaign from s where utm_campaign is not null),
+a as (
+  select k.utm_campaign, a.day_on, sum(a.spend_cents)::bigint as spend_cents
+  from ad_spend_daily a
+  join k on k.utm_campaign = lower(trim(a.campaign_external_id))
+    or (k.utm_campaign = lower(trim(a.campaign_name))
+        and not exists (select 1 from k k2 where k2.utm_campaign = lower(trim(a.campaign_external_id))))
+  group by 1, 2),
+d as (select utm_campaign, day_on from s union select utm_campaign, day_on from a)
+select d.utm_campaign, d.day_on, coalesce(s.leads, 0) as leads, coalesce(s.completions, 0) as completions,
+       coalesce(cv.bookings, 0) as bookings, coalesce(cv.revenue_30d_cents, 0)::bigint as revenue_30d_cents,
+       coalesce(a.spend_cents, 0)::bigint as spend_cents,
+       case when coalesce(s.leads, 0) > 0 and a.spend_cents is not null then round(a.spend_cents::numeric / s.leads)::bigint end as cost_per_lead_cents
+from d
+left join s on s.utm_campaign is not distinct from d.utm_campaign and s.day_on = d.day_on
+left join cv on cv.utm_campaign is not distinct from d.utm_campaign and cv.day_on = d.day_on
+left join a on a.utm_campaign is not distinct from d.utm_campaign and a.day_on = d.day_on`;
+
+export const vFormCampaignAttribution = pgView("v_form_campaign_attribution", {
+  utmCampaign: text("utm_campaign"),
+  dayOn: date("day_on", { mode: "string" }).notNull(),
+  leads: integer("leads").notNull(),
+  completions: integer("completions").notNull(),
+  bookings: integer("bookings").notNull(),
+  revenue30dCents: bigint("revenue_30d_cents", { mode: "number" }).notNull(),
+  spendCents: bigint("spend_cents", { mode: "number" }).notNull(),
+  costPerLeadCents: bigint("cost_per_lead_cents", { mode: "number" }),
+}).existing();

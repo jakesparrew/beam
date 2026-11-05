@@ -18,7 +18,9 @@ import {
   formVersions,
   persons,
   users,
+  vFormCampaignAttribution,
   vFormFunnelDaily,
+  vFormKpisDaily,
   type FormConsentSnapshotJson,
   type FormCtaWarningJson,
   type FormUtmJson,
@@ -36,8 +38,9 @@ import {
   type SubmissionStatus,
 } from "@beam/core/forms";
 import { MESSAGES, type Locale, type LocalizedText } from "@beam/core/i18n";
-import { and, asc, desc, eq, gte, inArray, isNull, lt, or, sql, type SQL } from "@/lib/ctx";
+import { and, asc, desc, eq, gte, inArray, isNull, lt, or, sql, type Ctx, type SQL } from "@/lib/ctx";
 import { rowsOf } from "@/lib/sensitive";
+import { requirePartnerOrPermission } from "@/modules/platform/api";
 import { diffVersions, type VersionDiff } from "./service/diff";
 import { mappingOf, maskedImportUrl } from "./service/import";
 import { answerText, type SubmissionExportRow } from "./service/export-csv";
@@ -1050,4 +1053,231 @@ export async function listImportEvents(db: DbOrTx, input: { sourceId: string; st
   const page = more ? rows.slice(0, IMPORT_EVENTS_PAGE_SIZE) : rows;
   const last = page[page.length - 1];
   return { rows: page, nextCursor: more && last ? encodeCursor(last.receivedAt, last.id) : null };
+}
+
+// ---------------------------------------------------------------------------
+// R3 (forms-P9): marketing KPIs, campaign attribution, partner and referral link counts
+// ---------------------------------------------------------------------------
+
+/** A Brussels day range, both days included (`YYYY-MM-DD`). */
+export type DayRange = { from: string; to: string };
+
+export type FormKpiCounts = { leads: number; completions: number; ctaClicks: number; conversions: number; bookings: number; purchases: number; revenue30dCents: number };
+export type FormKpiDay = FormKpiCounts & { dayOn: string };
+export type FormKpis = { days: FormKpiDay[]; totals: FormKpiCounts & { conversionRate: number | null } };
+
+const ratio = (n: number, d: number): number | null => (d > 0 ? n / d : null);
+
+/** `/admin/forms/attribution` and the marketing dashboard: `v_form_kpis_daily` over a range, with totals. */
+export async function getFormKpis(db: DbOrTx, range: DayRange): Promise<FormKpis> {
+  const v = vFormKpisDaily;
+  const rows = await db
+    .select()
+    .from(v)
+    .where(and(gte(v.dayOn, range.from), sql`${v.dayOn} <= ${range.to}`))
+    .orderBy(asc(v.dayOn));
+  const days: FormKpiDay[] = rows.map((r) => ({
+    dayOn: r.dayOn,
+    leads: Number(r.leads),
+    completions: Number(r.completions),
+    ctaClicks: Number(r.ctaClicks),
+    conversions: Number(r.conversions),
+    bookings: Number(r.bookings),
+    purchases: Number(r.purchases),
+    revenue30dCents: Number(r.revenue30dCents),
+  }));
+  const sum = (f: (d: FormKpiDay) => number) => days.reduce((s, d) => s + f(d), 0);
+  const totals: FormKpiCounts = {
+    leads: sum((d) => d.leads),
+    completions: sum((d) => d.completions),
+    ctaClicks: sum((d) => d.ctaClicks),
+    conversions: sum((d) => d.conversions),
+    bookings: sum((d) => d.bookings),
+    purchases: sum((d) => d.purchases),
+    revenue30dCents: sum((d) => d.revenue30dCents),
+  };
+  return { days, totals: { ...totals, conversionRate: ratio(totals.conversions, totals.completions) } };
+}
+
+export type CampaignAttributionCounts = { leads: number; completions: number; bookings: number; revenue30dCents: number; spendCents: number; costPerLeadCents: number | null };
+export type CampaignAttributionRow = CampaignAttributionCounts & { utmCampaign: string | null };
+export type CampaignAttribution = { rows: CampaignAttributionRow[]; totals: CampaignAttributionCounts };
+
+/** Spend / leads in whole cents; null without leads or without spend. */
+export const costPerLead = (spendCents: number, leads: number): number | null => (leads > 0 && spendCents > 0 ? Math.round(spendCents / leads) : null);
+
+/**
+ * Campaign attribution over a range (`v_form_campaign_attribution` summed per `utm_campaign`):
+ * leads, completions, bookings, 30-day revenue and ad spend, cost per lead recomputed from the
+ * sums. Ordered by leads, then spend, then name; the "no campaign" row (null) last.
+ */
+export async function getCampaignAttribution(db: DbOrTx, range: DayRange): Promise<CampaignAttribution> {
+  const v = vFormCampaignAttribution;
+  const rows = await db
+    .select({
+      utmCampaign: v.utmCampaign,
+      leads: sql<number>`sum(${v.leads})::int`,
+      completions: sql<number>`sum(${v.completions})::int`,
+      bookings: sql<number>`sum(${v.bookings})::int`,
+      revenue30dCents: sql<number>`sum(${v.revenue30dCents})::bigint`,
+      spendCents: sql<number>`sum(${v.spendCents})::bigint`,
+    })
+    .from(v)
+    .where(and(gte(v.dayOn, range.from), sql`${v.dayOn} <= ${range.to}`))
+    .groupBy(v.utmCampaign);
+  const out: CampaignAttributionRow[] = rows.map((r) => {
+    const leads = Number(r.leads);
+    const spendCents = Number(r.spendCents);
+    return {
+      utmCampaign: r.utmCampaign,
+      leads,
+      completions: Number(r.completions),
+      bookings: Number(r.bookings),
+      revenue30dCents: Number(r.revenue30dCents),
+      spendCents,
+      costPerLeadCents: costPerLead(spendCents, leads),
+    };
+  });
+  out.sort((a, b) => {
+    if ((a.utmCampaign === null) !== (b.utmCampaign === null)) return a.utmCampaign === null ? 1 : -1;
+    return b.leads - a.leads || b.spendCents - a.spendCents || (a.utmCampaign ?? "").localeCompare(b.utmCampaign ?? "");
+  });
+  const sum = (f: (r: CampaignAttributionRow) => number) => out.reduce((s, r) => s + f(r), 0);
+  const leads = sum((r) => r.leads);
+  const spendCents = sum((r) => r.spendCents);
+  return {
+    rows: out,
+    totals: {
+      leads,
+      completions: sum((r) => r.completions),
+      bookings: sum((r) => r.bookings),
+      revenue30dCents: sum((r) => r.revenue30dCents),
+      spendCents,
+      costPerLeadCents: costPerLead(spendCents, leads),
+    },
+  };
+}
+
+/**
+ * One partner's tracked link with its counts (R3, `partner.own`): no person id, name or email, no
+ * answer and no referrer; the partner sees only links carrying their `partner_company_id`.
+ */
+export type PartnerLinkCount = {
+  linkId: string;
+  formSlug: string;
+  formName: LocalizedText;
+  name: string;
+  channel: FormLinkChannel;
+  isActive: boolean;
+  views: number;
+  starts: number;
+  completions: number;
+};
+
+/** The columns a partner may see, in display order. */
+export const PARTNER_LINK_COLUMNS = ["linkId", "formSlug", "formName", "name", "channel", "isActive", "views", "starts", "completions"] as const satisfies readonly (keyof PartnerLinkCount)[];
+
+/** A partner or referral link as staff see it on the attribution screen. */
+export type AttributedLinkCount = PartnerLinkCount & { partnerCompanyId: string | null; partnerName: string | null; referrerPersonId: string | null };
+
+/**
+ * Partner and referral links with their views, starts and completions. `companyId` set: only that
+ * company's links. Null: every link with a partner or a referrer. `range` (Brussels days) limits
+ * the counts by view day, start day and completion day; without it they are all-time.
+ */
+export async function listAttributedLinkCounts(db: DbOrTx, input: { companyId: string | null; range?: DayRange }): Promise<AttributedLinkCount[]> {
+  const scope = input.companyId ? sql`l.partner_company_id = ${input.companyId}::uuid` : sql`(l.partner_company_id is not null or l.referrer_person_id is not null)`;
+  const r = input.range;
+  const inRange = (col: SQL) => (r ? sql`${col} between ${r.from}::date and ${r.to}::date` : sql`true`);
+  const started = inRange(sql`(s.started_at at time zone 'Europe/Brussels')::date`);
+  const completed = inRange(sql`(s.completed_at at time zone 'Europe/Brussels')::date`);
+  const viewed = inRange(sql`d.day_on`);
+  const rows = rowsOf<{
+    link_id: string;
+    form_slug: string;
+    form_name: LocalizedText;
+    name: string;
+    channel: FormLinkChannel;
+    is_active: boolean;
+    partner_company_id: string | null;
+    partner_name: string | null;
+    referrer_person_id: string | null;
+    views: number | string;
+    starts: number | string;
+    completions: number | string;
+  }>(
+    await db.execute(sql`
+      select l.id::text as link_id, f.slug as form_slug, f.name as form_name, l.name, l.channel::text as channel, l.is_active,
+             l.partner_company_id::text as partner_company_id, c.name as partner_name, l.referrer_person_id::text as referrer_person_id,
+             coalesce((select sum(d.views) from form_views_daily d where d.form_id = l.form_id and d.link_key = l.key and ${viewed}), 0)::int as views,
+             (select count(*) from form_submissions s where s.link_id = l.id and ${started})::int as starts,
+             (select count(*) from form_submissions s where s.link_id = l.id and s.status = 'completed' and ${completed})::int as completions
+      from form_links l
+      join forms f on f.id = l.form_id
+      left join companies c on c.id = l.partner_company_id
+      where ${scope}
+      order by c.name nulls last, f.slug, l.name, l.id`),
+  );
+  return rows.map((x) => ({
+    linkId: x.link_id,
+    formSlug: x.form_slug,
+    formName: x.form_name,
+    name: x.name,
+    channel: x.channel,
+    isActive: x.is_active,
+    views: Number(x.views),
+    starts: Number(x.starts),
+    completions: Number(x.completions),
+    partnerCompanyId: x.partner_company_id,
+    partnerName: x.partner_name,
+    referrerPersonId: x.referrer_person_id,
+  }));
+}
+
+/** Only the partner-safe columns of a link count (no company, no referrer). */
+export function toPartnerLinkCount(row: AttributedLinkCount): PartnerLinkCount {
+  return Object.fromEntries(PARTNER_LINK_COLUMNS.map((k) => [k, row[k]])) as PartnerLinkCount;
+}
+
+/**
+ * The partner area (R3, `partner.own`): the counts of the caller's own company's links. The company
+ * comes from platform's `requirePartnerOrPermission(ctx, 'forms.write')`: an external partner (or
+ * a staff member with only `partner.own`) is scoped to their `partner_company_id`; staff with
+ * `forms.write` see every partner link (referral-only links stay out). Anyone else gets
+ * `ForbiddenError`.
+ */
+export async function partnerLinkCounts(ctx: Ctx, range?: DayRange): Promise<PartnerLinkCount[]> {
+  const { companyId } = await requirePartnerOrPermission(ctx, "forms.write");
+  const rows = await listAttributedLinkCounts(ctx.tx, { companyId, ...(range ? { range } : {}) });
+  return rows.filter((r) => r.partnerCompanyId !== null).map(toPartnerLinkCount);
+}
+
+export type LandingConversionRow = { landingPath: string; utmCampaign: string | null; submissions: number; newPersons: number };
+
+/**
+ * `countLandingConversions` (site insights, R3): completed submissions with a landing path whose
+ * `completed_at` is in `[from, to)`, per landing path and `utm_campaign` (trimmed, lower-cased),
+ * and how many of them created their person: the person's acquisition names this form and crm
+ * captured it between the submission's start and its completion (ID3 at submit or ID9 at a save),
+ * and it was not filled later into an existing person (crm's `person.acquisition_filled`).
+ */
+export async function countLandingConversions(db: DbOrTx, input: { from: Date; to: Date }): Promise<LandingConversionRow[]> {
+  const rows = rowsOf<{ landing_path: string; utm_campaign: string | null; submissions: number | string; new_persons: number | string }>(
+    await db.execute(sql`
+      select fs.landing_path, nullif(lower(trim(fs.utm->>'campaign')), '') as utm_campaign,
+             count(*)::int as submissions,
+             (count(*) filter (where p.id is not null
+               and p.acquisition->>'form_slug' = f.slug
+               and p.acquisition->>'captured_at' ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}T'
+               and (p.acquisition->>'captured_at')::timestamptz between fs.started_at and fs.completed_at
+               and not exists (select 1 from activity_events e where e.person_id = p.id and e.kind = 'person.acquisition_filled')))::int as new_persons
+      from form_submissions fs
+      join forms f on f.id = fs.form_id
+      left join persons p on p.id = fs.person_id
+      where fs.status = 'completed' and fs.landing_path is not null and fs.landing_path <> ''
+        and fs.completed_at >= ${input.from.toISOString()}::timestamptz and fs.completed_at < ${input.to.toISOString()}::timestamptz
+      group by 1, 2
+      order by 3 desc, 1, 2 nulls first`),
+  );
+  return rows.map((r) => ({ landingPath: r.landing_path, utmCampaign: r.utm_campaign, submissions: Number(r.submissions), newPersons: Number(r.new_persons) }));
 }

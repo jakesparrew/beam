@@ -37,7 +37,7 @@ import { formatNumber, LOCALES, LocalizedTextSchema, type Locale, type Localized
 import { action } from "@/lib/action";
 import { and, ConflictError, eq, isNotNull, isNull, NotFoundError, sql, ValidationError, type Ctx, type DbOrTx } from "@/lib/ctx";
 import { translator } from "@/lib/i18n";
-import { getPersonPrefill } from "@/modules/crm/api";
+import { getCompany, getPerson, getPersonPrefill } from "@/modules/crm/api";
 import { sendTransactional } from "@/modules/email/api";
 import { countResends, linkLocale, resendKeyPrefix } from "./queries";
 import { answerText } from "./service/export-csv";
@@ -52,7 +52,7 @@ import {
   updateImportSource as updateImportSourceService,
 } from "./service/import";
 import { readSubmissionAnswers } from "./service/sensitive";
-import { createStaffEntryUrl, requestResultLink as requestResultLinkService } from "./service/submissions";
+import { createStaffEntryUrl, openPortalResult, requestResultLink as requestResultLinkService } from "./service/submissions";
 import { createResultToken, ctaRedirectUrl, hashToken, RESULT_TOKEN_DAYS, resultPageUrl } from "./service/tokens";
 import { copyToDraft, insertDraftVersion, parseVersion, publishVersion as publishService, updateDraftVersion } from "./service/versions";
 
@@ -374,6 +374,31 @@ async function linkUrl(tx: DbOrTx, formId: string, slug: string, key: string): P
   return trackedLinkUrl({ slug, locale: await linkLocale(tx, formId), key });
 }
 
+/**
+ * R3 (forms-P9): the partner and the referrer of a link must exist. A referrer is stored as the
+ * surviving person of a merge; an erased or unknown person is refused (`referrer_not_found`), as
+ * is an unknown company (`partner_not_found`). Undefined stays undefined (an update leaves it).
+ */
+async function linkParties(
+  tx: DbOrTx,
+  i: { partnerCompanyId?: string | null; referrerPersonId?: string | null },
+): Promise<{ partnerCompanyId?: string | null; referrerPersonId?: string | null }> {
+  const out: { partnerCompanyId?: string | null; referrerPersonId?: string | null } = {};
+  if (i.partnerCompanyId !== undefined) {
+    if (i.partnerCompanyId !== null && !(await getCompany(tx, i.partnerCompanyId))) throw new ValidationError("partner_not_found", { partnerCompanyId: "not_found" });
+    out.partnerCompanyId = i.partnerCompanyId;
+  }
+  if (i.referrerPersonId !== undefined) {
+    if (i.referrerPersonId === null) out.referrerPersonId = null;
+    else {
+      const p = await getPerson(tx, i.referrerPersonId);
+      if (!p || p.erasedAt) throw new ValidationError("referrer_not_found", { referrerPersonId: "not_found" });
+      out.referrerPersonId = p.id;
+    }
+  }
+  return out;
+}
+
 /** A tracked link `?l=<key>` (8 characters `[a-z0-9]`, unique). */
 export const createLink = action(
   { name: "forms.create_link", audience: "staff", permission: "forms.write", input: CreateLinkInput, audit: false },
@@ -382,6 +407,9 @@ export const createLink = action(
     if (!form) throw new NotFoundError("form_not_found");
     const userId = staffUserId(ctx);
     if (!userId) throw new ConflictError("staff_only");
+    const parties = await linkParties(ctx.tx, i);
+    const partnerCompanyId = parties.partnerCompanyId ?? null;
+    const referrerPersonId = parties.referrerPersonId ?? null;
     for (let attempt = 0; attempt < 5; attempt++) {
       const key = newLinkKey();
       const [row] = await ctx.tx
@@ -392,14 +420,14 @@ export const createLink = action(
           name: i.name,
           channel: i.channel,
           utm: i.utm ?? {},
-          partnerCompanyId: i.partnerCompanyId ?? null,
-          referrerPersonId: i.referrerPersonId ?? null,
+          partnerCompanyId,
+          referrerPersonId,
           createdByUserId: userId,
         })
         .onConflictDoNothing({ target: formLinks.key })
         .returning({ id: formLinks.id });
       if (!row) continue;
-      await ctx.audit({ action: "forms.link_created", entityType: "form_link", entityId: row.id, newValue: { formId: i.formId, key, name: i.name, channel: i.channel, utm: i.utm ?? {}, partnerCompanyId: i.partnerCompanyId ?? null } });
+      await ctx.audit({ action: "forms.link_created", entityType: "form_link", entityId: row.id, newValue: { formId: i.formId, key, name: i.name, channel: i.channel, utm: i.utm ?? {}, partnerCompanyId, referrerPersonId } });
       return { linkId: row.id, key, url: await linkUrl(ctx.tx, i.formId, form.slug, key) };
     }
     throw new ConflictError("link_key_collision");
@@ -426,7 +454,7 @@ export const updateLink = action(
     if (!link) throw new NotFoundError("link_not_found");
     const [form] = await ctx.tx.select({ slug: forms.slug }).from(forms).where(eq(forms.id, link.formId));
     const { linkId: _id, ...rest } = i;
-    const patch = Object.fromEntries(Object.entries(rest).filter(([, v]) => v !== undefined)) as Partial<typeof formLinks.$inferInsert>;
+    const patch = Object.fromEntries(Object.entries({ ...rest, ...(await linkParties(ctx.tx, rest)) }).filter(([, v]) => v !== undefined)) as Partial<typeof formLinks.$inferInsert>;
     if (Object.keys(patch).length) {
       await ctx.tx.update(formLinks).set({ ...patch, updatedAt: ctx.now }).where(eq(formLinks.id, link.id));
       const old = Object.fromEntries(Object.keys(patch).map((k) => [k, (link as Record<string, unknown>)[k]]));
@@ -612,6 +640,16 @@ export const requestResultLink = action(
     audit: false,
   },
   async (ctx, i): Promise<{ ok: true }> => requestResultLinkService(ctx.tx, ctx, i),
+);
+
+/**
+ * Portal "View result" (forms-P8, moved here from the results page by forms-P9): the customer's
+ * own completed submission only (`not_found` otherwise); a fresh result token, then the result
+ * page URL. Audience `customer`, so no staff audit row.
+ */
+export const openMyResult = action(
+  { name: "forms.open_my_result", audience: "customer", input: z.object({ submissionId: z.uuid() }).strict() },
+  async (ctx, i): Promise<{ url: string }> => openPortalResult(ctx.tx, ctx, i),
 );
 
 /**

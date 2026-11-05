@@ -3,7 +3,9 @@
  * pricing rows, event and post lists, availability bands, opening hours, company details, the
  * legal "Version n", event facts and the page's JSON-LD. Each dynamic loader is isolated: a
  * failing module api (or a not-yet-built one) hides that block's data and is reported, and the
- * page still renders. The block components themselves stay synchronous and pure.
+ * page still renders. The block components themselves stay synchronous and pure. R2 (site-P8):
+ * event facts carry ticket types, the lead window and the webinar link; the `webinar_signup` block
+ * needs no preloaded data (webinar's `WebinarSignup` server component reads its own).
  */
 import type { Locale } from "@beam/core/i18n";
 import type { UtmParams } from "@beam/core/forms";
@@ -159,6 +161,16 @@ export async function loadRenderData(page: ResolvedPage, searchParams?: SearchPa
   return data;
 }
 
+/**
+ * The JSON-LD offer price of an event (R2): the session product's public price, else the lowest
+ * public price of the ticket types on sale (member-only types are not a public offer).
+ */
+export function eventOfferPrice(e: Pick<EventFacts, "priceCents" | "ticketTypes">): number | null {
+  if (e.priceCents !== null) return e.priceCents;
+  const prices = e.ticketTypes.filter((t) => t.onSale && !t.isMemberOnly && !t.soldOut && t.publicCents !== null).map((t) => t.publicCents!);
+  return prices.length ? Math.min(...prices) : null;
+}
+
 /** Breadcrumbs of a nested path: home, every live ancestor, the page. */
 async function breadcrumbs(page: ResolvedPage, origin: string, homeLabel: string): Promise<BreadcrumbFacts> {
   const segments = page.path.split("/").filter(Boolean);
@@ -209,7 +221,7 @@ export async function pageJsonLd(page: ResolvedPage, data: RenderData, homeLabel
       location: e.location,
       image,
       organizer: { name, url: origin },
-      offer: e.priceCents !== null && e.band ? { priceCents: e.priceCents, band: e.band } : null,
+      offer: eventOfferPrice(e) !== null && e.band ? { priceCents: eventOfferPrice(e)!, band: e.band } : null,
     };
   }
   if (page.kind === "post") {

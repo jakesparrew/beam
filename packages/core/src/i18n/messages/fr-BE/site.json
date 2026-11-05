@@ -222,6 +222,8 @@
       "import": {
         "apply": "Lancer l'import",
         "col": {
+          "appliedAt": "Appliqué le",
+          "counts": "Éléments",
           "decision": "Décision",
           "message": "Message",
           "oldPath": "Ancienne adresse",
@@ -484,7 +486,13 @@
         "joinWaitlist": "Rejoindre la liste d'attente",
         "membersOnly": "Réservé aux membres",
         "more": "Tous les événements",
-        "past": "Cet événement a eu lieu"
+        "past": "Cet événement a eu lieu",
+        "priorityUntil": "Accès prioritaire pour les nouveaux visiteurs jusqu’au {date}",
+        "registerWebinar": "S’inscrire au webinaire",
+        "salesEnded": "La vente est terminée",
+        "salesFrom": "En vente à partir du {date}",
+        "soldOut": "Épuisé",
+        "tickets": "Billets"
       },
       "gift": {
         "cta": "Offrir un bon cadeau"
@@ -578,8 +586,14 @@
         "quickTitle": "Accès rapide",
         "remaining": "{kind, select, day {{count, plural, one {Encore # séance de jour} other {Encore # séances de jour}}} night {{count, plural, one {Encore # nuit} other {Encore # nuits}}} other {Encore {amount} de crédit}}",
         "renew": "Renouveler",
+        "sharedWithMe": "Partagé avec moi",
+        "sharedWithMeBody": "{count, plural, one {# forfait est partagé avec vous} other {# forfaits sont partagés avec vous}}",
         "unavailableCard": "Temporairement indisponible",
-        "upcoming": "Vos prochaines visites"
+        "upcoming": "Vos prochaines visites",
+        "webinarLive": "En direct le {date}",
+        "webinarOnDemand": "À la demande",
+        "webinars": "Vos prochains webinaires",
+        "webinarsAll": "Tous mes webinaires"
       },
       "install": {
         "body": "Accédez à vos réservations et à votre solde depuis votre écran d'accueil.",

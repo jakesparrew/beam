@@ -5,10 +5,12 @@
  * facts, availability preview). Read through the app database; the public ones are wrapped in
  * `unstable_cache` with the tags of section 4, so every result is JSON-safe (ISO date strings,
  * never `Date`). `resolveRequest` lives in `server/resolve.ts`; `getSitemapEntries` and
- * `getLegalLinks` belong to site-P5.
+ * `getLegalLinks` belong to site-P5. site-P8 (R2) adds the event extensions: ticket types with
+ * public and member prices, the lead-window state of Lead Magnet events (rule 32, scenario 3), the
+ * waitlist entry of a full event and the webinar link of a webinar-linked event (edge case 36).
  */
 import { unstable_cache } from "next/cache";
-import { files, mediaAssets, navMenus, pageRoutes, pages, pageVersions, products, sessions, vLegalVersions } from "@beam/db/schema";
+import { files, mediaAssets, navMenus, pageRoutes, pages, pageVersions, products, sessions, ticketTypes, vLegalVersions, vTicketTypeAvailability } from "@beam/db/schema";
 import type { DbOrTx } from "@beam/db";
 import { percentOf } from "@beam/core/commerce";
 import { LOCALES, type Locale, type LocalizedText } from "@beam/core/i18n";
@@ -20,6 +22,7 @@ import {
   localePath,
   parseSiteSettings,
   portalPath,
+  prefixFromLocale,
   type AvailabilityBand,
   type Block,
   type CompanyFooter,
@@ -35,6 +38,7 @@ import {
 import { and, asc, desc, eq, getAppDb, inArray, sql } from "@/lib/ctx";
 import { NotImplementedError } from "@beam/core/errors";
 import { reportError } from "@/lib/logger";
+import { flag } from "@/lib/flags";
 import { getSetting } from "@/lib/settings";
 import { getAvailability, getAvailabilityPreview, getOpeningHours as bookingOpeningHours, listPublicEvents } from "@/modules/booking/api";
 import { getProductPrice } from "@/modules/commerce/api";
@@ -312,7 +316,27 @@ export type PublicEvent = {
   /** The event page in this locale, else the portal booking page. */
   href: string;
   bookHref: string;
+  /**
+   * R2 (rule 32, scenario 3): end of the open lead window of a Lead Magnet event (ISO), shown as
+   * "Priority access for new guests until <date>"; null outside the window. Never a count or rank.
+   */
+  priorityUntil: string | null;
 };
+
+/** R2: the lead phase of a Lead Magnet session at `now`, from its window (same rule as `v_session_availability`). */
+export function leadWindowOpen(s: { isLeadMagnet: boolean; leadWindowStartAt: Date | string | null; leadWindowEndAt: Date | string | null }, now: Date): boolean {
+  if (!s.isLeadMagnet || !s.leadWindowEndAt) return false;
+  const start = s.leadWindowStartAt ? new Date(s.leadWindowStartAt).getTime() : Number.NEGATIVE_INFINITY;
+  return start <= now.getTime() && now.getTime() < new Date(s.leadWindowEndAt).getTime();
+}
+
+/** Lead window starts of the Lead Magnet sessions among `sessionIds` (the listing row carries only the end). */
+async function leadWindowStarts(db: DbOrTx, sessionIds: readonly string[]): Promise<Map<string, Date | null>> {
+  const ids = [...new Set(sessionIds)];
+  if (!ids.length) return new Map();
+  const rows = await db.select({ id: sessions.id, start: sessions.leadWindowStartAt }).from(sessions).where(inArray(sessions.id, ids));
+  return new Map(rows.map((r) => [r.id, r.start]));
+}
 
 /** Site-relative event page paths of sessions in `locale`. */
 export async function eventPageHrefs(db: DbOrTx, sessionIds: readonly string[], locale: Locale): Promise<Record<string, string>> {
@@ -337,6 +361,7 @@ async function loadPublicEvents(locale: Locale, opts: { page: number; limit: num
     .filter((r) => (r.status === "open" || r.status === "closed") && new Date(r.startsAt).getTime() >= now.getTime())
     .filter((r) => opts.showFull || (r.availabilityBand !== "full" && r.status !== "closed"));
   const hrefs = await eventPageHrefs(db, visible.map((r) => r.sessionId), locale);
+  const starts = await leadWindowStarts(db, visible.filter((r) => r.isLeadMagnet && r.leadWindowEndAt).map((r) => r.sessionId));
   const items: PublicEvent[] = visible
     .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime())
     .map((r) => ({
@@ -351,6 +376,7 @@ async function loadPublicEvents(locale: Locale, opts: { page: number; limit: num
       location: r.location,
       href: hrefs[r.sessionId] ?? bookSessionPath(locale, r.sessionId),
       bookHref: bookSessionPath(locale, r.sessionId),
+      priorityUntil: leadWindowOpen({ isLeadMagnet: r.isLeadMagnet, leadWindowStartAt: starts.get(r.sessionId) ?? null, leadWindowEndAt: r.leadWindowEndAt }, now) ? iso(r.leadWindowEndAt) : null,
     }));
   return { items, page, hasMore };
 }
@@ -360,6 +386,23 @@ export const listPublicEventsForSite = publicCache(loadPublicEvents, "site:listP
   tags: () => ["site:events", "site:routes"],
   revalidate: DYNAMIC_REVALIDATE,
 });
+
+/** R2: one ticket type of an event (booking `ticket_types`, prices through `commerce.getProductPrice`). */
+export type TicketTypeFact = {
+  id: string;
+  name: string;
+  /** Null when the product has no current public price (the type is then shown without a price). */
+  publicCents: number | null;
+  /** "Members: <amount>" (rule 26), null when members pay the public price. */
+  memberCents: number | null;
+  isMemberOnly: boolean;
+  /** On sale now (R51: active, after `sales_start_at`, before `sales_end_at` or the start). */
+  onSale: boolean;
+  /** Sales open later: the ISO start, else null. */
+  salesStartAt: string | null;
+  /** A capped type with no seat left ("Sold out"; never the count). */
+  soldOut: boolean;
+};
 
 export type EventFacts = {
   sessionId: string;
@@ -371,33 +414,129 @@ export type EventFacts = {
   isMemberOnly: boolean;
   isLeadMagnet: boolean;
   priceCents: number | null;
+  /** R2: the member price of the session product (rule 26), null when equal to the public price. */
+  memberPriceCents: number | null;
   /** Null when booking could not answer (the band is then not shown). */
   band: AvailabilityBand | null;
   bookHref: string;
+  /** R2: the active ticket types in `sort_order`; empty for an event priced by its product only. */
+  ticketTypes: TicketTypeFact[];
+  /** R2 (rule 32, scenario 3): end of the open lead window (ISO), else null. */
+  priorityUntil: string | null;
+  /**
+   * R2: whether booking now depends on the viewer's status (lead window or customer release of a
+   * Lead Magnet event). The cached public page then shows "Check your access", never a booking button.
+   */
+  accessDependsOnViewer: boolean;
+  /** R2: the session belongs to a webinar (booking refuses it; the webinar page registers). */
+  isWebinar: boolean;
+  /** R2 (edge case 36): the webinar's public page in this locale, null while it is not public. */
+  webinar: { href: string } | null;
 };
+
+/** The member price of a product: its member price version or the public price minus the member discount (rule 26). */
+async function memberPriceOf(db: DbOrTx, productId: string, publicCents: number, memberDiscountPct: string | number | null): Promise<number | null> {
+  const candidates: number[] = [];
+  const member = await getProductPrice(db, productId, "member");
+  if (member) candidates.push(member.amountCents);
+  if (memberDiscountPct !== null && Number(memberDiscountPct) > 0) candidates.push(Math.max(0, publicCents - percentOf(publicCents, memberDiscountPct)));
+  const memberCents = candidates.length ? Math.min(...candidates) : null;
+  return memberCents !== null && memberCents < publicCents ? memberCents : null;
+}
+
+/** Public and member price of a product; nulls when commerce cannot answer (reported unless a stub). */
+async function pricesOf(db: DbOrTx, productId: string, step: string): Promise<{ publicCents: number | null; memberCents: number | null }> {
+  try {
+    const pub = await getProductPrice(db, productId, "public");
+    if (!pub) return { publicCents: null, memberCents: null };
+    const [p] = await db.select({ pct: products.memberDiscountPct }).from(products).where(eq(products.id, productId));
+    return { publicCents: pub.amountCents, memberCents: await memberPriceOf(db, productId, pub.amountCents, p?.pct ?? null) };
+  } catch (error) {
+    reportUnlessStub(error, step);
+    return { publicCents: null, memberCents: null };
+  }
+}
+
+/** R2: the active ticket types of an event with their prices and sale state at `now`. */
+export async function loadTicketTypeFacts(db: DbOrTx, session: { id: string; startsAt: Date }, locale: Locale, now: Date): Promise<TicketTypeFact[]> {
+  const rows = await db
+    .select({ t: ticketTypes, available: vTicketTypeAvailability.available })
+    .from(ticketTypes)
+    .leftJoin(vTicketTypeAvailability, eq(vTicketTypeAvailability.ticketTypeId, ticketTypes.id))
+    .where(and(eq(ticketTypes.sessionId, session.id), eq(ticketTypes.isActive, true)))
+    .orderBy(asc(ticketTypes.sortOrder), asc(ticketTypes.createdAt));
+  const out: TicketTypeFact[] = [];
+  for (const { t, available } of rows) {
+    const prices = await pricesOf(db, t.productId, "event_ticket_price");
+    const notYet = !!t.salesStartAt && now.getTime() < t.salesStartAt.getTime();
+    const end = t.salesEndAt ?? session.startsAt;
+    out.push({
+      id: t.id,
+      name: pickText(t.name, locale) ?? pickText(t.name, "en") ?? "",
+      ...prices,
+      isMemberOnly: t.isMemberOnly,
+      onSale: !notYet && now.getTime() < end.getTime(),
+      salesStartAt: notYet ? iso(t.salesStartAt) : null,
+      soldOut: t.capacity !== null && available !== null && Number(available) <= 0,
+    });
+  }
+  return out;
+}
+
+/** R2 (edge case 36): the public page of the webinar linked to the session, while webinars are public. */
+async function webinarLinkOf(db: DbOrTx, sessionId: string, locale: Locale): Promise<{ href: string } | null> {
+  try {
+    if (!(await flag("ff_webinar_portal", { kind: "public" }))) return null;
+    // Loaded on use: the webinar api pulls in email templates the other public readers do not need.
+    const { getWebinarForSession } = await import("@/modules/webinar/api");
+    const w = await getWebinarForSession(db, sessionId);
+    return w ? { href: `/${prefixFromLocale(locale)}/webinars/${encodeURIComponent(w.slug)}` } : null;
+  } catch (error) {
+    reportUnlessStub(error, "event_webinar");
+    return null;
+  }
+}
 
 async function loadEventFacts(sessionId: string, locale: Locale): Promise<EventFacts | null> {
   const db = await getAppDb();
+  const now = new Date();
   const [s] = await db
-    .select({ id: sessions.id, kind: sessions.kind, title: sessions.title, startsAt: sessions.startsAt, endsAt: sessions.endsAt, status: sessions.status, location: sessions.location, isMemberOnly: sessions.isMemberOnly, isLeadMagnet: sessions.isLeadMagnet, productId: sessions.productId })
+    .select({
+      id: sessions.id,
+      kind: sessions.kind,
+      title: sessions.title,
+      startsAt: sessions.startsAt,
+      endsAt: sessions.endsAt,
+      status: sessions.status,
+      location: sessions.location,
+      isMemberOnly: sessions.isMemberOnly,
+      isLeadMagnet: sessions.isLeadMagnet,
+      leadWindowStartAt: sessions.leadWindowStartAt,
+      leadWindowEndAt: sessions.leadWindowEndAt,
+      webinarId: sessions.webinarId,
+      productId: sessions.productId,
+    })
     .from(sessions)
     .where(eq(sessions.id, sessionId));
   if (!s || s.kind !== "event") return null;
   let band: AvailabilityBand | null = null;
+  let phase: string = "none";
   try {
     const a = await getAvailability(db, { sessionId });
     band = bandFor({ bookable: a.bookable, capacity: a.capacity, reason: a.reason });
+    phase = a.phase;
   } catch (error) {
     reportUnlessStub(error, "event_availability");
   }
-  let priceCents: number | null = null;
-  if (s.productId) {
-    try {
-      priceCents = (await getProductPrice(db, s.productId, "public"))?.amountCents ?? null;
-    } catch (error) {
-      reportUnlessStub(error, "event_price");
-    }
+  const prices = s.productId ? await pricesOf(db, s.productId, "event_price") : { publicCents: null, memberCents: null };
+  let types: TicketTypeFact[] = [];
+  try {
+    types = await loadTicketTypeFacts(db, s, locale, now);
+  } catch (error) {
+    reportUnlessStub(error, "event_ticket_types");
   }
+  const leadOpen = leadWindowOpen(s, now) || (s.isLeadMagnet && phase === "lead");
+  const isWebinar = !!s.webinarId;
   return {
     sessionId: s.id,
     title: pickText(s.title, locale) ?? "",
@@ -407,13 +546,19 @@ async function loadEventFacts(sessionId: string, locale: Locale): Promise<EventF
     location: s.location,
     isMemberOnly: s.isMemberOnly,
     isLeadMagnet: s.isLeadMagnet,
-    priceCents,
-    band,
+    priceCents: prices.publicCents,
+    memberPriceCents: prices.memberCents,
+    band: isWebinar ? null : band,
     bookHref: bookSessionPath(locale, s.id),
+    ticketTypes: types,
+    priorityUntil: leadOpen ? iso(s.leadWindowEndAt) : null,
+    accessDependsOnViewer: s.isLeadMagnet && (leadOpen || phase === "customer_release"),
+    isWebinar,
+    webinar: isWebinar ? await webinarLinkOf(db, s.id, locale) : null,
   };
 }
 
-/** Facts of an event page's session: date, place, price and band (revalidate 300). */
+/** Facts of an event page's session: date, place, prices, ticket types, band, lead window and webinar (revalidate 300). */
 export const getEventFacts = publicCache(loadEventFacts, "site:getEventFacts", { tags: () => ["site:events", "site:prices"], revalidate: DYNAMIC_REVALIDATE });
 
 export type AvailabilityDay = { sessionId: string; startsAt: string; band: AvailabilityBand };
@@ -495,18 +640,14 @@ async function loadPricingRows(productIds: string[], locale: Locale): Promise<Pr
     if (!p || !p.isActive) continue;
     const pub = await getProductPrice(db, id, "public");
     if (!pub) continue;
-    const candidates: number[] = [];
-    const member = await getProductPrice(db, id, "member");
-    if (member) candidates.push(member.amountCents);
-    if (p.memberDiscountPct !== null && Number(p.memberDiscountPct) > 0) candidates.push(Math.max(0, pub.amountCents - percentOf(pub.amountCents, p.memberDiscountPct)));
-    const memberCents = candidates.length ? Math.min(...candidates) : null;
+    const memberCents = await memberPriceOf(db, id, pub.amountCents, p.memberDiscountPct);
     out.push({
       productId: id,
       sku: p.sku,
       kind: p.kind,
       name: pickText(p.name, locale) ?? p.sku,
       publicCents: pub.amountCents,
-      memberCents: memberCents !== null && memberCents < pub.amountCents ? memberCents : null,
+      memberCents,
       creditKind: p.creditKind,
       creditUnits: p.creditUnits,
       validityDays: p.validityDays,

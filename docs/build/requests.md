@@ -123,7 +123,13 @@ to "Served" with the package id.
 | booking-P8 | booking (owner of `actions/sessions.ts`) | `publishSession` calls `assertTicketTypesPublishable(ctx.tx, id)` from `server/book.ts` (R50). |
 | booking-P8 | booking (owner of `app/[locale]/(portal)/account/book/[sessionId]/page.tsx`) | Pass `BookForm` the `ticketTypes` prop and `labels.ticketType`, send `ticketTypeId` to `bookSession`, show guest fields on ticketed events, pass `guests.usesLeft` from `guestUseState`. |
 | booking-P8 | booking (owner of `queries/bookings.ts`, `ui/manual-booking-wizard.tsx`) | Offer the event's ticket types in `getBookableSession` and in the staff manual booking. |
-| booking-P8 | credits | Expose the monthly guest uses left on a person's grants (`getGuestUsesLeft(db, { personId, kind, at })`). |
+| forms-P7 | forms (owner of `apps/web/modules/forms/nav.ts`) | Add an Imports nav entry to `/admin/forms/imports` (permission `forms.publish`). |
+| forms-P7 | platform (owner of `apps/web/next.config.ts`) | Set `experimental.serverActions.bodySizeLimit` to about `'3mb'`; the 1 MB default rejects a 1-2 MB CSV in `uploadImportCsv`. |
+| credits-P10 | ops | Expose `v_package_cycles` in the ai schema as non-sensitive (for example `ai.package_cycles`). |
+| crm-P9 | email (owner of `server/process-event.ts`) | The Resend `email.received` dispatch calls `crm.ingestInboundEmail`. |
+| crm-P9 | forms | Call `crm.createInboxThreadFromForm` for form versions with `FormSettings.createInboxThread`. |
+| crm-P9 | platform | Document `META_APP_SECRET`, `META_PAGE_ACCESS_TOKEN` and `META_VERIFY_TOKEN` in the environment list. |
+| crm-P9 | crm (crm-P10: `actions.ts`, `queries.ts`, `nav.ts`) | Re-export `./inbox/actions` and `./inbox/queries`; inbox nav badge from `countOpenUnassignedThreads`. |
 
 ## Served
 

@@ -99,6 +99,13 @@ to "Served" with the package id.
 | credits-P8 | credits (owner of `ui/adjust-dialog.tsx`) | Optionally add `already_shared`, `share_with_owner`, `grant_not_active`, `review_item_not_found` to `SPECIFIC` in `errorMessage`. |
 | automation-P6 | automation (owner of `packages/core/src/i18n/messages/*/automation.json`) | Add the `automation.panel.*`, `automation.panel.warning.*`, `automation.panel.refused.*`, `automation.panel.filter.*`, `automation.preview.failed` and `automation.errors.{enrolment_not_active,enrolment_not_found,person_not_found,anchor_required,move_same_automation,move_refused}` keys to all three catalogues; the text is in `PANEL_FALLBACK` in `apps/web/modules/automation/ui/person-automations-panel.tsx` (then drop the fallback). |
 | automation-P6 | automation (owner of `app/(admin)/admin/automations/[id]/enrolments/page.tsx`, `ui/run-log.tsx`) | Per-row Exit through `exitEnrolment`. |
+| crm-P8 | crm (owner of `tasks/queries.ts`) | `listTasks({ opportunityId })` should filter on `tasks.opportunity_id` instead of returning an empty list. |
+| crm-P8 | crm (owner of `tasks/api.ts`) | `createTask` should accept `opportunityId`, so the pipeline no longer updates the task afterwards. |
+| crm-P8 | crm (owner of `packages/db/src/schema/crm.test.ts`) | Allow the four automation system tags (`engaged`, `package_nearly_used`, `dormant`, `reviewed`), then add them to `SYSTEM_TAGS` (automation-P4 request). |
+| crm-P8 | crm (owner of `timeline/queries.ts`) | `crmParams` for the `opportunity.*` kinds (`from_stage`, `to_stage`) so timeline summaries name the stages. |
+| booking-P7 | booking (owner of `app/[locale]/(portal)/account/book/[sessionId]/page.tsx`) | Pass `BookForm`'s `leadSeatNotice` prop (key `booking.portalSession.lead_seat_notice`) when `availability.useLeadSeat` is true. |
+| email-P6 | email (owner of `server/process-event.ts`) | Call `evaluateBounceRate(ctx.tx, campaignId, ctx)` after each processed hard bounce of a campaign message (rule 37). |
+| email-P6 | email-P7 | Link `/admin/campaigns/[id]/report` from the campaign page; `email.watch_complaints` re-evaluates rule 37 through `evaluateBounceRate` for campaigns in sending. |
 
 ## Served
 

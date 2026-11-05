@@ -753,3 +753,11 @@ export async function guestUseState(
   const r = await checkCredits(db, { personId: ownerPersonId, beneficiaryPersonId: randomUUID(), kind: session.creditKind, units: session.creditCost, validAt: session.startsAt });
   return r.ok ? { allowed: true, usesLeft: null, reason: null } : { allowed: false, usesLeft: 0, reason: r.reason };
 }
+
+/** The ticket types tab (booking spec 5.1, R2): every type of a session with its live sold count, in order. */
+export async function listTicketTypesWithSold(db: DbOrTx, sessionId: string, now: Date = new Date()): Promise<Array<TicketTypeRow & { sold: number }>> {
+  const rows = await db.select().from(ticketTypes).where(eq(ticketTypes.sessionId, sessionId)).orderBy(ticketTypes.sortOrder, ticketTypes.createdAt);
+  const out: Array<TicketTypeRow & { sold: number }> = [];
+  for (const r of rows) out.push({ ...r, sold: await ticketTypeSold(db, r.id, now) });
+  return out;
+}

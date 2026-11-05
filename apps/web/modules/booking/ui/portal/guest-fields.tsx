@@ -4,7 +4,9 @@
  * R54-R56): first and last name, an optional email, "Shares my bed" on nights and how the guest
  * is paid (with my package or by order). Rows are added and removed on the client; the inputs
  * are named `guests.<n>.<field>` so the server action reads them from the form data. Without
- * JavaScript the `initial` rows are still there. Texts come from the page.
+ * JavaScript the `initial` rows are still there. Texts come from the page. booking-P8 (R55): the
+ * "{n} guest uses left this month" line under the legend (`usesLeft`); guest names stay required
+ * (R52: a ticket type with guest details asks first and last name per guest).
  */
 import { useState } from "react";
 import { Button, Input, Label } from "@beam/ui";
@@ -30,6 +32,7 @@ export function GuestFields({
   payOptions,
   initial = 0,
   fixed = false,
+  usesLeft = null,
 }: {
   labels: GuestFieldsLabels;
   /** Most guests per booking (`max_guests_per_booking`). */
@@ -41,6 +44,8 @@ export function GuestFields({
   initial?: number;
   /** Exactly `initial` rows, without add or remove (the "Invite a guest" form). */
   fixed?: boolean;
+  /** R55: the translated "{n} guest uses left this month", shown under the legend. */
+  usesLeft?: string | null;
 }) {
   const [rows, setRows] = useState<number[]>(() => Array.from({ length: initial }, (_, i) => i));
   const [next, setNext] = useState(initial);
@@ -48,6 +53,11 @@ export function GuestFields({
   return (
     <fieldset className="space-y-3" data-testid="guest-fields">
       <legend className="font-medium">{labels.legend}</legend>
+      {usesLeft ? (
+        <p className="text-sm text-muted-foreground" data-testid="guest-uses-left">
+          {usesLeft}
+        </p>
+      ) : null}
       {rows.map((n, i) => {
         const id = (f: string) => `guest-${n}-${f}`;
         const name = (f: string) => `guests.${i}.${f}`;

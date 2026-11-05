@@ -525,7 +525,14 @@
       "waitlist_joined": "You are on the waiting list. We email you as soon as a place frees up.",
       "when": "When",
       "where": "Where",
-      "lead_seat_notice": "You book one of the places reserved for leads."
+      "lead_seat_notice": "You book one of the places reserved for leads.",
+      "ticket_type": "Choose your ticket",
+      "ticket_left": "{count, plural, one {# ticket left} other {# tickets left}}",
+      "ticket_sold_out": "Sold out",
+      "ticket_not_on_sale": "Not on sale right now",
+      "ticket_sales_from": "On sale from {date}",
+      "ticket_members_only": "For members",
+      "guest_uses_none": "Your package cannot be used for guests this month. You can pay for your guest instead."
     },
     "portalBookings": {
       "title": "My bookings",
@@ -729,6 +736,32 @@
       "error_window": "Check the lead window: it must end after it opens, in the future and before the event starts.",
       "error_seats": "Give a number of places or a percentage, at most the capacity.",
       "error_public_release": "The public opening must lie between the end of the lead window and the start of the event."
+    },
+    "tickets": {
+      "intro": "Sell several ticket types for this event, each with its own price (public and member prices come from the ticket product), places, sales period and guest rules. The session capacity stays the limit for all types together.",
+      "empty": "No ticket types yet: this event is sold at its single price.",
+      "flag_off": "Ticket types are not switched on for your account yet.",
+      "name": "Ticket name",
+      "product": "Ticket product",
+      "product_hint": "The public and member prices of this product are used.",
+      "no_product": "Choose a ticket product",
+      "capacity": "Places for this type",
+      "capacity_hint": "Leave empty to share the event's places.",
+      "capacity_of": "of {count}",
+      "member_only": "Members only",
+      "sales_start": "Sales start",
+      "sales_end": "Sales end",
+      "sales_hint": "Brussels time. Empty: on sale from publication until the event starts.",
+      "max_per_booking": "Most tickets per booking (with guests)",
+      "requires_guest_details": "Ask first and last name of every guest",
+      "sort_order": "Order",
+      "sold": "Sold: {count}",
+      "archived": "Archived",
+      "add": "Add ticket type",
+      "archive": "Archive",
+      "error_name": "Give the ticket a name in all three languages before the event is published.",
+      "error_window": "The sales end must come after the sales start and before the end of the event.",
+      "error_capacity": "The places for this type cannot exceed the event capacity."
     }
   }
 }

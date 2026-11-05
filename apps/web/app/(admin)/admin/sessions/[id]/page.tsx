@@ -9,13 +9,24 @@ import { getAppDb } from "@/lib/ctx";
 import { flag } from "@/lib/flags";
 import { adminLocale, softTranslator, translator } from "@/lib/i18n";
 import { getSetting } from "@/lib/settings";
-import { attendeeListLabels, attendeeRow, bookingErrorLabels, changeDialogLabels, getSession, getSessionAttendees, listHolds, listSessionsInRange } from "@/modules/booking/queries";
+import {
+  attendeeListLabels,
+  attendeeRow,
+  bookingErrorLabels,
+  changeDialogLabels,
+  getSession,
+  getSessionAttendees,
+  listHolds,
+  listProductOptions,
+  listSessionsInRange,
+} from "@/modules/booking/queries";
 import { AttendeeList } from "@/modules/booking/ui/attendee-list";
 import { CancelSessionDialog } from "@/modules/booking/ui/cancel-dialog";
 import { DeleteHoldButton, HoldForm } from "@/modules/booking/ui/hold-form";
 import { SessionWaitlistTab } from "@/modules/booking/ui/session-waitlist-tab";
 import { LeadMagnetForm } from "@/modules/booking/ui/lead-magnet-form";
-import { readAvailabilityRow } from "@/modules/booking/server/book";
+import { TicketTypesForm } from "@/modules/booking/ui/ticket-types-form";
+import { listTicketTypesWithSold, readAvailabilityRow } from "@/modules/booking/server/book";
 
 const show = (text: LocalizedText | null | undefined, locale: Locale) => text?.[locale] || text?.["nl-BE"] || text?.en || text?.["fr-BE"] || "";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -31,7 +42,9 @@ const localInput = (d: Date | null) => (d ? `${brusselsDate(d)}T${brusselsTime(d
  * in, undo, no-show, notes and cancel (`bookings.write`), the holds with P2's hold form and the
  * waitlist tab. A cancelled session shows its reason read-only. booking-P7 (R2): the Lead Magnet
  * tab with the current phase, lead places left and opening times, and the configuration form
- * (`bookings.override`, flag `ff_booking_lead_priority`, events only).
+ * (`bookings.override`, flag `ff_booking_lead_priority`, events only). booking-P8 (R2): the ticket
+ * types tab of an event (sold per type, archived types) with the ticket types form
+ * (`bookings.override`, flag `ff_booking_ticket_types`).
  */
 export default async function SessionDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const actor = await requireStaff({ permission: "bookings.read" });
@@ -46,14 +59,18 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
   const now = new Date();
   const canWrite = hasPermission(actor, "bookings.write");
   const canOverride = hasPermission(actor, "bookings.override");
-  const [blocks, attendees, holds, rules, leadOn, availability] = await Promise.all([
+  const isEvent = session.kind === "event" && !session.webinarId;
+  const [blocks, attendees, holds, rules, leadOn, availability, ticketsOn, ticketTypes] = await Promise.all([
     listSessionsInRange(db, { from: session.startsAt, to: new Date(session.startsAt.getTime() + 1000) }),
     getSessionAttendees(db, id),
     listHolds(db, { sessionId: id, now: new Date(0) }),
     getSetting(db, "booking_rules"),
     flag("ff_booking_lead_priority", actor),
     readAvailabilityRow(db, session),
+    flag("ff_booking_ticket_types", actor),
+    isEvent ? listTicketTypesWithSold(db, id, now) : Promise.resolve([]),
   ]);
+  const ticketProducts = isEvent && ticketsOn && canOverride ? (await listProductOptions(db)).filter((p) => p.kind === "ticket") : [];
   const block = blocks.find((b) => b.id === id);
   const rows = attendees.map((a) => attendeeRow(a, session, rules, { now, locale, tr, canOverride }));
   const errors = bookingErrorLabels(tr);
@@ -225,6 +242,84 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
                 errorWindow: tr("booking.lead.error_window"),
                 errorSeats: tr("booking.lead.error_seats"),
                 errorPublicRelease: tr("booking.lead.error_public_release"),
+                errors,
+              }}
+            />
+          ) : null}
+        </section>
+      ) : null}
+
+      {isEvent && (ticketsOn || ticketTypes.length > 0) ? (
+        <section aria-labelledby="tickets" className="grid gap-3" data-testid="tickets-tab">
+          <h2 id="tickets" className="text-xl font-semibold">
+            {tr("booking.session.tab_ticket_types")}
+          </h2>
+          <p className="text-sm text-muted-foreground">{tr("booking.tickets.intro")}</p>
+          {ticketTypes.length === 0 ? <p className="text-sm text-muted-foreground">{tr("booking.tickets.empty")}</p> : null}
+          {!ticketsOn || !canOverride || cancelled ? (
+            <ul className="grid gap-2" data-testid="ticket-types-list">
+              {ticketTypes.map((t) => (
+                <li key={t.id} className="flex flex-wrap items-center gap-2 rounded-md border px-3 py-2 text-sm">
+                  <span className="font-medium">{show(t.name, locale)}</span>
+                  <span>{tr("booking.tickets.sold", { count: t.sold })}</span>
+                  {t.capacity !== null ? <span>{tr("booking.tickets.capacity_of", { count: t.capacity })}</span> : null}
+                  {t.isMemberOnly ? <Badge variant="secondary">{tr("booking.session.member_only")}</Badge> : null}
+                  {t.isActive ? null : <Badge variant="outline">{tr("booking.tickets.archived")}</Badge>}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {!ticketsOn ? (
+            <p className="text-sm" role="status">
+              {tr("booking.tickets.flag_off")}
+            </p>
+          ) : canOverride && !cancelled ? (
+            <TicketTypesForm
+              sessionId={id}
+              types={ticketTypes.map((t) => ({
+                id: t.id,
+                name: t.name,
+                productId: t.productId,
+                capacity: t.capacity,
+                isMemberOnly: t.isMemberOnly,
+                salesStartLocal: localInput(t.salesStartAt),
+                salesEndLocal: localInput(t.salesEndAt),
+                maxPerBooking: t.maxPerBooking,
+                requiresGuestDetails: t.requiresGuestDetails,
+                sortOrder: t.sortOrder,
+                isActive: t.isActive,
+                sold: t.sold,
+              }))}
+              products={ticketProducts.map((p) => ({ id: p.id, label: `${show(p.name, locale)} (${p.sku})` }))}
+              labels={{
+                name: {
+                  field: tr("booking.tickets.name"),
+                  locales: { "nl-BE": tr("platform.shell.locale_nl"), "fr-BE": tr("platform.shell.locale_fr"), en: tr("platform.shell.locale_en") },
+                  missing: tr("platform.settings.locale_missing"),
+                  complete: tr("platform.settings.locale_complete"),
+                },
+                product: tr("booking.tickets.product"),
+                productHint: tr("booking.tickets.product_hint"),
+                noProduct: tr("booking.tickets.no_product"),
+                capacity: tr("booking.tickets.capacity"),
+                capacityHint: tr("booking.tickets.capacity_hint"),
+                memberOnly: tr("booking.tickets.member_only"),
+                salesStart: tr("booking.tickets.sales_start"),
+                salesEnd: tr("booking.tickets.sales_end"),
+                salesHint: tr("booking.tickets.sales_hint"),
+                maxPerBooking: tr("booking.tickets.max_per_booking"),
+                requiresGuestDetails: tr("booking.tickets.requires_guest_details"),
+                sortOrder: tr("booking.tickets.sort_order"),
+                sold: tr("booking.tickets.sold", { count: "{count}" }),
+                archived: tr("booking.tickets.archived"),
+                add: tr("booking.tickets.add"),
+                save: tr("booking.common.save"),
+                saving: tr("booking.common.saving"),
+                saved: tr("booking.common.saved"),
+                archive: tr("booking.tickets.archive"),
+                errorName: tr("booking.tickets.error_name"),
+                errorWindow: tr("booking.tickets.error_window"),
+                errorCapacity: tr("booking.tickets.error_capacity"),
                 errors,
               }}
             />

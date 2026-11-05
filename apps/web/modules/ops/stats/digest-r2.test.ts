@@ -61,7 +61,7 @@ const text = () => vi.mocked(notifySlack).mock.calls[0]![1].text;
 describe("ops.daily_digest webinar section (rule 71, R2)", () => {
   it("lists the next 48 hours' webinars with ids and states only", async () => {
     vi.mocked(listUpcomingWebinarHealth).mockResolvedValue([
-      { webinarId: REPLAY, title: "Slaap beter met ademwerk", startsAt: new Date(now.getTime() + 30 * 3_600_000), mode: "replay", youtubeLifecycle: null, broadcastError: null, registrations: 12 },
+      { webinarId: REPLAY, title: "Slaap beter met ademwerk", startsAt: new Date(now.getTime() + 30 * 3_600_000), mode: "simulive", youtubeLifecycle: null, broadcastError: null, registrations: 12 },
       {
         webinarId: LIVE,
         title: "Koude training voor beginners",
@@ -77,7 +77,7 @@ describe("ops.daily_digest webinar section (rule 71, R2)", () => {
     const t = text();
     expect(t).toContain("*Webinars*\n- next 48 h 2");
     expect(t).toContain(`- (!) ${LIVE}: live, broadcast ready, broadcast error`);
-    expect(t).toContain(`- ${REPLAY}: replay, broadcast none`);
+    expect(t).toContain(`- ${REPLAY}: simulive, broadcast none`);
     expect(t.indexOf(LIVE)).toBeLessThan(t.indexOf(REPLAY));
     for (const secret of ["Slaap beter", "Koude training", "Stream key"]) expect(t).not.toContain(secret);
     expect(t.indexOf("*Webinars*")).toBeLessThan(t.indexOf("*Platform*"));

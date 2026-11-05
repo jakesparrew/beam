@@ -12,7 +12,7 @@ import { createTestDb } from "@beam/db/testing";
 vi.mock("@/lib/alerts", async (orig) => ({ ...(await orig<Record<string, unknown>>()), notifySlack: vi.fn() }));
 
 const { notifySlack } = await import("@/lib/alerts");
-const { asc, eq, sql } = await import("@/lib/ctx");
+const { asc, eq } = await import("@/lib/ctx");
 const { makeJobCtx, resetRuntime, runJobTwice } = await import("@/lib/testing");
 const { ago, makeCustomer } = await import("../dashboard/ops-p3.fixtures");
 const { runBuildWeeklyRetentionList } = await import("./jobs");
@@ -72,8 +72,7 @@ describe("ops.build_weekly_retention_list", () => {
     expect(await runBuildWeeklyRetentionList(ctx, { weekStartOn: WEEK })).toEqual({ skipped: "flag_off" });
     await h.db.insert(featureFlags).values({ key: "ff_ops_retention", state: "off" });
     expect(await runBuildWeeklyRetentionList(ctx, { weekStartOn: WEEK })).toEqual({ skipped: "flag_off" });
-    const [n] = (await h.db.execute<{ n: number }>(sql`select count(*)::int as n from retention_lists`)).rows;
-    expect(Number(n!.n)).toBe(0);
+    expect(await h.db.select().from(retentionLists)).toHaveLength(0);
     expect(vi.mocked(notifySlack)).not.toHaveBeenCalled();
   });
 });

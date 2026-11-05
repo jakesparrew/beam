@@ -8,6 +8,7 @@
  * are nearly used up or expiring.
  */
 import { randomUUID } from "node:crypto";
+import { PgDialect } from "drizzle-orm/pg-core";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DbHandle, Tx } from "@beam/db";
 import { personStats, retentionListItems, retentionLists, tasks } from "@beam/db/schema";
@@ -25,6 +26,7 @@ const { buildWeeklyRetentionList, postRetentionNotice, weekStartOf } = await imp
 
 let h: DbHandle;
 const WEEK = "2026-11-02";
+const dialect = new PgDialect();
 
 beforeAll(async () => {
   h = await createTestDb();
@@ -154,7 +156,7 @@ describe("rule 20: buildWeeklyRetentionList", () => {
         get(target, prop, receiver) {
           if (prop === "execute") {
             return (q: Parameters<Tx["execute"]>[0]) => {
-              statements.push(h.db.dialect.sqlToQuery(q as never).sql.replace(/\s+/g, " "));
+              statements.push(dialect.sqlToQuery(q as never).sql.replace(/\s+/g, " "));
               return target.execute(q);
             };
           }

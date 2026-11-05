@@ -4,7 +4,8 @@
       "webinars_host": "Créer et animer des webinaires"
     },
     "nav": {
-      "webinars": "Webinaires"
+      "webinars": "Webinaires",
+      "my_webinars": "Webinaires"
     },
     "enum": {
       "mode": {
@@ -262,6 +263,64 @@
         "tagRules": "Règles de tags",
         "poll": "Sondage {key}",
         "cta": "CTA {key}"
+      },
+      "registrations": {
+        "title": "Inscriptions",
+        "tab": "Inscriptions",
+        "back": "Retour au webinaire",
+        "count": "{count, plural, one {# inscription} other {# inscriptions}}",
+        "empty": "Personne n’est encore inscrit. Partagez la page d’accueil : {url}",
+        "search": "Rechercher par nom ou e-mail",
+        "filter_status": "Statut",
+        "filter_segment": "Segment",
+        "all": "Tous",
+        "apply": "Filtrer",
+        "col_name": "Nom",
+        "col_email": "E-mail",
+        "col_status": "Statut",
+        "col_segment": "Prospect, client ou membre",
+        "col_registered_mode": "Inscrit·e pour",
+        "col_source": "Source",
+        "col_watch": "Regardé (direct / replay / à la demande)",
+        "col_last_activity": "Dernière activité",
+        "col_actions": "Actions",
+        "minutes": "{minutes} min",
+        "muted": "en sourdine",
+        "register_title": "Inscrire une personne",
+        "register_email": "Adresse e-mail d’une personne existante",
+        "register_send": "Envoyer l’e-mail d’accès",
+        "register_submit": "Inscrire",
+        "register_not_found": "Aucune personne avec cette adresse e-mail. Créez d’abord la personne.",
+        "cancel": "Annuler",
+        "resend": "Renvoyer le lien",
+        "revoke": "Révoquer le lien",
+        "revoke_confirm": "Le lien actuel ne fonctionne plus. La personne peut en demander un nouveau sur la page de demande de lien.",
+        "done": "Fait.",
+        "more": "Page suivante",
+        "status": {
+          "registered": "Inscrit·e",
+          "cancelled": "Annulé",
+          "blocked": "Bloqué"
+        },
+        "segment": {
+          "lead": "Prospect",
+          "customer": "Client",
+          "member": "Membre"
+        },
+        "source": {
+          "site": "Site web",
+          "portal": "Portail",
+          "admin": "Personnel",
+          "automation": "Automatisation"
+        },
+        "errors": {
+          "forbidden": "Vous n’avez pas l’autorisation pour cela.",
+          "conflict": "Ce n’est pas possible pour cette inscription.",
+          "not_found": "Introuvable. Rechargez la page.",
+          "closed": "Les inscriptions à ce webinaire sont closes.",
+          "blocked": "Cette personne est bloquée pour ce webinaire.",
+          "internal": "Une erreur s’est produite. Réessayez."
+        }
       }
     },
     "email": {
@@ -278,6 +337,125 @@
         "intro": "Malheureusement, {title} du {date} n’aura pas lieu.",
         "apology": "Veuillez nous excuser pour ce désagrément. Vous pouvez vous inscrire à un autre webinaire sur notre site.",
         "cta": "Voir les webinaires"
+      },
+      "access": {
+        "subject": "Vous êtes inscrit·e : {title}",
+        "preheader": "Votre lien personnel pour {title}",
+        "heading": "Vous êtes inscrit·e",
+        "intro": "{title} commence le {date} (heure belge). Utilisez le bouton ci-dessous pour participer.",
+        "intro_on_demand": "Vous pouvez regarder {title} quand cela vous convient. Utilisez le bouton ci-dessous pour commencer.",
+        "language": "Ce webinaire est en {language}.",
+        "cta": "Ouvrir le webinaire",
+        "personal": "Ce lien est personnel : ne le partagez pas. Il ne vous connecte pas à votre compte.",
+        "calendar": "Ajouter à l’agenda"
+      },
+      "reminder": {
+        "subject": "{variant, select, d7 {La semaine prochaine : {title}} d3 {Dans trois jours : {title}} other {Aujourd’hui : {title}}}",
+        "heading": "{variant, select, d7 {Encore une semaine} d3 {Encore trois jours} other {À tout à l’heure}}",
+        "intro": "{variant, select, h3 {{title} commence dans trois heures, le {date} (heure belge).} other {{title} a lieu le {date} (heure belge).}}",
+        "language": "Ce webinaire est en {language}.",
+        "cta": "Ouvrir le webinaire",
+        "personal": "Ce lien est personnel : ne le partagez pas."
+      },
+      "replay_available": {
+        "subject": "Le replay de {title} est prêt",
+        "heading": "Vous avez manqué la session en direct",
+        "intro": "Pas de souci : vous pouvez encore regarder {title} en replay.",
+        "until": "Le replay est disponible jusqu’au {until}.",
+        "cta": "Regarder le replay",
+        "personal": "Ce lien est personnel : ne le partagez pas."
+      }
+    },
+    "public": {
+      "list": {
+        "title": "Webinaires",
+        "intro": "Des sessions en ligne gratuites par l’équipe BEAM. En direct ou plus tard.",
+        "upcoming": "Prochainement",
+        "on_demand": "À regarder quand vous voulez",
+        "empty": "Aucun webinaire n’est prévu pour le moment.",
+        "open": "Voir et s’inscrire"
+      },
+      "card": {
+        "on_demand": "À la demande",
+        "live_now": "En direct",
+        "language": "En {language}"
+      },
+      "landing": {
+        "date": "{date} (heure belge)",
+        "duration": "{minutes} minutes",
+        "in_language": "Ce webinaire est en {language}.",
+        "presenters": "Présentateurs",
+        "register_title": "Inscrivez-vous gratuitement",
+        "replay_title": "Inscrivez-vous pour le replay",
+        "replay_note": "La session en direct est terminée. Inscrivez-vous pour regarder le replay.",
+        "on_demand_note": "À regarder quand cela vous convient.",
+        "not_available_title": "Pas disponible dans votre langue",
+        "not_available_body": "Ce webinaire n’est pas proposé dans cette langue. Choisissez une autre langue :",
+        "cancelled_title": "Ce webinaire est annulé",
+        "cancelled_body": "Ce webinaire n’a pas lieu. Découvrez nos autres webinaires.",
+        "ended_title": "Ce webinaire est terminé",
+        "ended_body": "Il n’y a pas de replay de ce webinaire. Découvrez nos autres webinaires.",
+        "lost_link": "Déjà inscrit·e ? Recevez à nouveau votre lien.",
+        "add_calendar": "Ajouter à l’agenda",
+        "back": "Tous les webinaires"
+      },
+      "join": {
+        "title": "Recevoir votre lien du webinaire",
+        "intro": "Indiquez l’adresse e-mail utilisée pour vous inscrire. Si vous êtes inscrit·e, nous vous renvoyons votre lien personnel.",
+        "email": "Adresse e-mail",
+        "submit": "Envoyer mon lien",
+        "sent": "Si vous êtes inscrit·e à ce webinaire, votre lien est en route. Consultez votre boîte de réception.",
+        "rate_limited": "Trop de tentatives. Réessayez dans une minute.",
+        "invalid": "Indiquez une adresse e-mail valide.",
+        "back": "Retour au webinaire"
+      }
+    },
+    "register": {
+      "email": "Adresse e-mail",
+      "first_name": "Prénom",
+      "last_name": "Nom (facultatif)",
+      "consent_legend": "Rester informé·e (facultatif)",
+      "consent_events": "Oui, tenez-moi informé·e par e-mail des événements et webinaires BEAM.",
+      "consent_newsletter": "Oui, envoyez-moi la newsletter BEAM.",
+      "consent_hint": "Vous pouvez vous désinscrire à tout moment. L’inscription à ce webinaire ne vous abonne à rien.",
+      "privacy_before": "Nous utilisons vos données pour gérer votre inscription et vous envoyer le lien d’accès et les rappels.",
+      "privacy_link": "Lire notre politique de confidentialité",
+      "submit": "S’inscrire",
+      "submit_portal": "S’inscrire en un clic",
+      "submitting": "Inscription en cours…",
+      "success_title": "Consultez votre boîte de réception",
+      "success_body": "Nous avons envoyé votre lien personnel à votre adresse e-mail.",
+      "success_portal": "Vous êtes inscrit·e. Nous avons aussi envoyé le lien à votre adresse e-mail.",
+      "errors": {
+        "closed": "Les inscriptions à ce webinaire sont closes.",
+        "blocked": "Vous ne pouvez pas vous inscrire à ce webinaire. Contactez-nous si vous pensez qu’il s’agit d’une erreur.",
+        "rate_limited": "Trop de tentatives. Réessayez dans une minute.",
+        "validation": "Vérifiez les champs : une adresse e-mail valide et un prénom sont nécessaires.",
+        "not_found": "Ce webinaire n’existe plus.",
+        "unauthorized": "Reconnectez-vous.",
+        "conflict": "Ce n’est pas possible pour le moment.",
+        "internal": "Une erreur s’est produite. Réessayez."
+      }
+    },
+    "portal": {
+      "list": {
+        "title": "Mes webinaires",
+        "upcoming": "Prochainement",
+        "watch_again": "Revoir",
+        "on_demand": "Bibliothèque à la demande",
+        "empty": "Vous n’avez pas encore de webinaires.",
+        "discover": "Webinaires auxquels vous pouvez participer",
+        "watch": "Regarder",
+        "details": "Détails",
+        "cancel": "Annuler l’inscription",
+        "cancelled": "Votre inscription est annulée.",
+        "calendar": "Ajouter à l’agenda",
+        "registered": "Inscrit·e",
+        "available_until": "Disponible jusqu’au {date}",
+        "no_expiry": "Sans date de fin",
+        "views_left": "{count, plural, one {encore # visionnage} other {encore # visionnages}}",
+        "register": "S’inscrire",
+        "error": "Cela n’a pas fonctionné. Réessayez."
       }
     }
   }

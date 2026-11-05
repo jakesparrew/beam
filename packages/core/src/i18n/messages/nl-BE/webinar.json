@@ -4,7 +4,8 @@
       "webinars_host": "Webinars aanmaken en presenteren"
     },
     "nav": {
-      "webinars": "Webinars"
+      "webinars": "Webinars",
+      "my_webinars": "Webinars"
     },
     "enum": {
       "mode": {
@@ -262,6 +263,64 @@
         "tagRules": "Tagregels",
         "poll": "Poll {key}",
         "cta": "CTA {key}"
+      },
+      "registrations": {
+        "title": "Inschrijvingen",
+        "tab": "Inschrijvingen",
+        "back": "Terug naar de webinar",
+        "count": "{count, plural, one {# inschrijving} other {# inschrijvingen}}",
+        "empty": "Nog niemand ingeschreven. Deel de landingspagina: {url}",
+        "search": "Zoek op naam of e-mail",
+        "filter_status": "Status",
+        "filter_segment": "Segment",
+        "all": "Alle",
+        "apply": "Filteren",
+        "col_name": "Naam",
+        "col_email": "E-mail",
+        "col_status": "Status",
+        "col_segment": "Lead, klant of lid",
+        "col_registered_mode": "Ingeschreven voor",
+        "col_source": "Bron",
+        "col_watch": "Bekeken (live / herbekijking / op aanvraag)",
+        "col_last_activity": "Laatste activiteit",
+        "col_actions": "Acties",
+        "minutes": "{minutes} min",
+        "muted": "gedempt",
+        "register_title": "Een persoon inschrijven",
+        "register_email": "E-mailadres van een bestaande persoon",
+        "register_send": "Stuur de toegangsmail",
+        "register_submit": "Inschrijven",
+        "register_not_found": "Geen persoon met dit e-mailadres. Maak eerst de persoon aan.",
+        "cancel": "Annuleren",
+        "resend": "Link opnieuw sturen",
+        "revoke": "Link intrekken",
+        "revoke_confirm": "De huidige link werkt niet meer. De persoon kan een nieuwe aanvragen op de pagina om de link op te vragen.",
+        "done": "Klaar.",
+        "more": "Volgende pagina",
+        "status": {
+          "registered": "Ingeschreven",
+          "cancelled": "Geannuleerd",
+          "blocked": "Geblokkeerd"
+        },
+        "segment": {
+          "lead": "Lead",
+          "customer": "Klant",
+          "member": "Lid"
+        },
+        "source": {
+          "site": "Website",
+          "portal": "Portaal",
+          "admin": "Medewerker",
+          "automation": "Automatisering"
+        },
+        "errors": {
+          "forbidden": "Je hebt hiervoor geen toestemming.",
+          "conflict": "Dit is niet mogelijk voor deze inschrijving.",
+          "not_found": "Niet gevonden. Laad de pagina opnieuw.",
+          "closed": "De inschrijvingen voor deze webinar zijn gesloten.",
+          "blocked": "Deze persoon is geblokkeerd voor deze webinar.",
+          "internal": "Er ging iets mis. Probeer het opnieuw."
+        }
       }
     },
     "email": {
@@ -278,6 +337,125 @@
         "intro": "Helaas gaat {title} op {date} niet door.",
         "apology": "Sorry voor het ongemak. Je kunt je op onze website inschrijven voor een andere webinar.",
         "cta": "Bekijk de webinars"
+      },
+      "access": {
+        "subject": "Je bent ingeschreven: {title}",
+        "preheader": "Je persoonlijke link voor {title}",
+        "heading": "Je bent ingeschreven",
+        "intro": "{title} begint op {date} (Belgische tijd). Gebruik de knop hieronder om deel te nemen.",
+        "intro_on_demand": "Je kunt {title} bekijken wanneer het jou past. Gebruik de knop hieronder om te starten.",
+        "language": "Deze webinar is in het {language}.",
+        "cta": "Open de webinar",
+        "personal": "Deze link is persoonlijk: deel hem niet. Hij meldt je niet aan in je account.",
+        "calendar": "Toevoegen aan agenda"
+      },
+      "reminder": {
+        "subject": "{variant, select, d7 {Volgende week: {title}} d3 {Over drie dagen: {title}} other {Vandaag: {title}}}",
+        "heading": "{variant, select, d7 {Nog een week} d3 {Nog drie dagen} other {Tot straks}}",
+        "intro": "{variant, select, h3 {{title} begint over drie uur, op {date} (Belgische tijd).} other {{title} vindt plaats op {date} (Belgische tijd).}}",
+        "language": "Deze webinar is in het {language}.",
+        "cta": "Open de webinar",
+        "personal": "Deze link is persoonlijk: deel hem niet."
+      },
+      "replay_available": {
+        "subject": "De herbekijking van {title} staat klaar",
+        "heading": "Je hebt de live sessie gemist",
+        "intro": "Geen probleem: je kunt {title} nog herbekijken.",
+        "until": "De herbekijking is beschikbaar tot {until}.",
+        "cta": "Bekijk de opname",
+        "personal": "Deze link is persoonlijk: deel hem niet."
+      }
+    },
+    "public": {
+      "list": {
+        "title": "Webinars",
+        "intro": "Gratis online sessies van het BEAM-team. Kijk live of later.",
+        "upcoming": "Binnenkort",
+        "on_demand": "Altijd te bekijken",
+        "empty": "Er zijn op dit moment geen webinars gepland.",
+        "open": "Bekijk en schrijf je in"
+      },
+      "card": {
+        "on_demand": "Op aanvraag",
+        "live_now": "Nu live",
+        "language": "In het {language}"
+      },
+      "landing": {
+        "date": "{date} (Belgische tijd)",
+        "duration": "{minutes} minuten",
+        "in_language": "Deze webinar is in het {language}.",
+        "presenters": "Presentatoren",
+        "register_title": "Schrijf je gratis in",
+        "replay_title": "Schrijf je in voor de herbekijking",
+        "replay_note": "De live sessie is voorbij. Schrijf je in om de opname te bekijken.",
+        "on_demand_note": "Bekijk hem wanneer het jou past.",
+        "not_available_title": "Niet beschikbaar in jouw taal",
+        "not_available_body": "Deze webinar wordt niet in deze taal aangeboden. Kies een andere taal:",
+        "cancelled_title": "Deze webinar is geannuleerd",
+        "cancelled_body": "Deze webinar gaat niet door. Bekijk onze andere webinars.",
+        "ended_title": "Deze webinar is afgelopen",
+        "ended_body": "Er is geen opname van deze webinar. Bekijk onze andere webinars.",
+        "lost_link": "Al ingeschreven? Vraag je link opnieuw aan.",
+        "add_calendar": "Toevoegen aan agenda",
+        "back": "Alle webinars"
+      },
+      "join": {
+        "title": "Vraag je webinarlink aan",
+        "intro": "Vul het e-mailadres in waarmee je je hebt ingeschreven. Ben je ingeschreven, dan sturen we je persoonlijke link opnieuw.",
+        "email": "E-mailadres",
+        "submit": "Stuur mijn link",
+        "sent": "Als je voor deze webinar bent ingeschreven, is je link onderweg. Kijk in je mailbox.",
+        "rate_limited": "Te veel pogingen. Probeer het over een minuut opnieuw.",
+        "invalid": "Vul een geldig e-mailadres in.",
+        "back": "Terug naar de webinar"
+      }
+    },
+    "register": {
+      "email": "E-mailadres",
+      "first_name": "Voornaam",
+      "last_name": "Achternaam (optioneel)",
+      "consent_legend": "Op de hoogte blijven (optioneel)",
+      "consent_events": "Ja, houd me per e-mail op de hoogte van BEAM-evenementen en webinars.",
+      "consent_newsletter": "Ja, stuur me de BEAM-nieuwsbrief.",
+      "consent_hint": "Je kunt je altijd uitschrijven. Door je in te schrijven voor deze webinar abonneer je je nergens op.",
+      "privacy_before": "We gebruiken je gegevens om je inschrijving te beheren en je de toegangslink en herinneringen te sturen.",
+      "privacy_link": "Lees onze privacyverklaring",
+      "submit": "Inschrijven",
+      "submit_portal": "Inschrijven met één klik",
+      "submitting": "Bezig met inschrijven…",
+      "success_title": "Kijk in je mailbox",
+      "success_body": "We hebben je persoonlijke link naar je e-mailadres gestuurd.",
+      "success_portal": "Je bent ingeschreven. We hebben de link ook naar je e-mailadres gestuurd.",
+      "errors": {
+        "closed": "De inschrijvingen voor deze webinar zijn gesloten.",
+        "blocked": "Je kunt je niet inschrijven voor deze webinar. Neem contact met ons op als je denkt dat dit een vergissing is.",
+        "rate_limited": "Te veel pogingen. Probeer het over een minuut opnieuw.",
+        "validation": "Controleer de velden: een geldig e-mailadres en een voornaam zijn nodig.",
+        "not_found": "Deze webinar bestaat niet meer.",
+        "unauthorized": "Meld je opnieuw aan.",
+        "conflict": "Dit is nu niet mogelijk.",
+        "internal": "Er ging iets mis. Probeer het opnieuw."
+      }
+    },
+    "portal": {
+      "list": {
+        "title": "Mijn webinars",
+        "upcoming": "Binnenkort",
+        "watch_again": "Herbekijken",
+        "on_demand": "Bibliotheek op aanvraag",
+        "empty": "Je hebt nog geen webinars.",
+        "discover": "Webinars waaraan je kunt deelnemen",
+        "watch": "Bekijken",
+        "details": "Details",
+        "cancel": "Inschrijving annuleren",
+        "cancelled": "Je inschrijving is geannuleerd.",
+        "calendar": "Toevoegen aan agenda",
+        "registered": "Ingeschreven",
+        "available_until": "Beschikbaar tot {date}",
+        "no_expiry": "Geen einddatum",
+        "views_left": "{count, plural, one {nog # keer bekijken} other {nog # keer bekijken}}",
+        "register": "Inschrijven",
+        "error": "Dit is niet gelukt. Probeer het opnieuw."
       }
     }
   }

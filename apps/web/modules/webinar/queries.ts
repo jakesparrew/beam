@@ -1,12 +1,16 @@
 /**
  * webinar queries (webinar spec 4.3; webinar-P2): the staff list with its tabs, one webinar with
  * its polls, CTAs, presenters, series and broadcast job state, and the staff owner options.
- * Every function takes the caller's database or transaction first. Later packages add the
- * registrant list, the host console state and the reports.
+ * Every function takes the caller's database or transaction first. webinar-P3 adds the public
+ * landing data, the public and portal lists and the registrant list; later packages add the host
+ * console state and the reports.
  */
-import { jobs, persons, users, watchSegments, webinarCtas, webinarInteractions, webinarPolls, webinarPresenters, webinarRegistrations, webinars } from "@beam/db/schema";
-import type { WatchMode, WebinarMode, WebinarStatus } from "@beam/core/webinar";
+import { jobs, persons, users, vWebinarWatch, watchSegments, webinarCtas, webinarInteractions, webinarPolls, webinarPresenters, webinarRegistrations, webinars } from "@beam/db/schema";
+import type { Locale } from "@beam/core/i18n";
+import { canRegister, registeredModeFor, replayAccess, resolveMode, type WatchMode, type WebinarMode, type WebinarStatus } from "@beam/core/webinar";
 import { and, asc, desc, eq, inArray, ne, or, sql, type DbOrTx, type SQL } from "@/lib/ctx";
+import { rowsOf } from "@/lib/sensitive";
+import { resolvePersonIds } from "@/modules/crm/api";
 import { jobKeys, type CtaRow, type PollRow, type PresenterRow, type WebinarRow } from "./server/lifecycle";
 
 /** The tabs of `/admin/webinars` (section 5.1). */
@@ -249,4 +253,328 @@ export async function listStaffOptions(db: DbOrTx): Promise<Array<{ id: string; 
     .where(and(eq(users.audience, "staff"), eq(users.status, "active")))
     .orderBy(asc(users.name), asc(users.email));
   return rows.map((r) => ({ id: r.id, label: r.name ? `${r.name} (${r.email})` : r.email }));
+}
+
+// ---------------------------------------------------------------------------------------------
+// webinar-P3: public pages, the portal list and the registrant list
+// ---------------------------------------------------------------------------------------------
+
+/** Statuses a visitor can see (forms' read contract: linkable while published, live or ended). */
+export const PUBLIC_STATUSES: readonly WebinarStatus[] = ["published", "live", "ended"];
+
+const isUuid = (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+const durationSecOf = (w: Pick<WebinarRow, "durationSec" | "plannedDurationMinutes">) => w.durationSec ?? w.plannedDurationMinutes * 60;
+const endMs = (w: Pick<WebinarRow, "startsAt" | "durationSec" | "plannedDurationMinutes">) => (w.startsAt ? w.startsAt.getTime() + durationSecOf(w) * 1000 : null);
+
+/**
+ * What the landing page shows (section 5.3): `register` (registration open), `replay` (open for
+ * the replay after the end), `closed_ended` (ended without an open replay), `cancelled`, or
+ * `wrong_locale` when the URL locale is not one of the webinar's locales.
+ */
+export type LandingState = "register" | "replay" | "closed_ended" | "cancelled" | "wrong_locale";
+
+export type PublicWebinar = {
+  webinar: WebinarRow;
+  presenters: Array<{ displayName: string; role: PresenterRow["role"] }>;
+  state: LandingState;
+};
+
+/**
+ * The public landing data of a slug (section 4.3 `getWebinarBySlug`): published, live and ended
+ * webinars plus the cancelled notice; drafts and archived webinars are not found.
+ */
+export async function getWebinarBySlug(db: DbOrTx, slug: string, locale: Locale, now: Date = new Date()): Promise<PublicWebinar | null> {
+  const [w] = await db.select().from(webinars).where(eq(webinars.slug, slug));
+  if (!w || (w.status !== "cancelled" && !PUBLIC_STATUSES.includes(w.status))) return null;
+  const presenters = await db
+    .select({ displayName: webinarPresenters.displayName, role: webinarPresenters.role })
+    .from(webinarPresenters)
+    .where(eq(webinarPresenters.webinarId, w.id))
+    .orderBy(asc(webinarPresenters.sortOrder), asc(webinarPresenters.createdAt));
+  let state: LandingState;
+  if (w.status === "cancelled") state = "cancelled";
+  else if (!w.locales.includes(locale)) state = "wrong_locale";
+  else if (!canRegister(w, now).ok) state = "closed_ended";
+  else state = w.mode !== "on_demand" && registeredModeFor(w, now) === "replay" ? "replay" : "register";
+  return { webinar: w, presenters, state };
+}
+
+/** The slug of a webinar id when it is public (the 308 fallback of `/[locale]/webinars/[id]`). */
+export async function publicSlugById(db: DbOrTx, idOrSlug: string): Promise<string | null> {
+  if (!isUuid(idOrSlug)) return null;
+  const [w] = await db.select({ slug: webinars.slug, status: webinars.status }).from(webinars).where(eq(webinars.id, idOrSlug.toLowerCase()));
+  return w && (w.status === "cancelled" || PUBLIC_STATUSES.includes(w.status)) ? w.slug : null;
+}
+
+/** Upcoming (or live) live and simulive webinars, then published on-demand ones, in `locale`. */
+export async function listPublicWebinarRows(db: DbOrTx, opts: { locale: Locale; from: Date; limit: number }): Promise<WebinarRow[]> {
+  return db
+    .select()
+    .from(webinars)
+    .where(
+      and(
+        sql`${opts.locale} = any(${webinars.locales})`,
+        or(
+          and(eq(webinars.mode, "on_demand"), eq(webinars.status, "published")),
+          and(
+            ne(webinars.mode, "on_demand"),
+            inArray(webinars.status, ["published", "live"]),
+            sql`${webinars.startsAt} + make_interval(secs => coalesce(${webinars.durationSec}, ${webinars.plannedDurationMinutes} * 60)) >= ${opts.from}`,
+          ),
+        ),
+      ),
+    )
+    .orderBy(sql`case when ${webinars.mode} = 'on_demand' then 1 else 0 end`, sql`${webinars.startsAt} asc nulls last`, desc(webinars.publishedAt), asc(webinars.id))
+    .limit(Math.max(1, Math.min(opts.limit, 200)));
+}
+
+const zeroModes = <T,>(v: T): Record<WatchMode, T> => ({ live: v, replay: v, on_demand: v });
+
+type RegistrationRecord = typeof webinarRegistrations.$inferSelect;
+
+export type PersonRegistrationRow = {
+  registration: RegistrationRecord;
+  webinar: WebinarRow;
+  watchedSec: Record<WatchMode, number>;
+  attended: Record<WatchMode, boolean>;
+};
+
+/**
+ * Every registration of the person and of the persons merged into them, one per webinar (the
+ * person's own registration wins over a merged one, edge case 19), newest first, with the merged
+ * watch time per mode from `v_webinar_watch`.
+ */
+export async function listPersonRegistrations(db: DbOrTx, personId: string): Promise<PersonRegistrationRow[]> {
+  const ids = await resolvePersonIds(db, personId).catch(() => [personId]);
+  const canonical = ids[0] ?? personId;
+  const rows = await db
+    .select({ r: webinarRegistrations, w: webinars })
+    .from(webinarRegistrations)
+    .innerJoin(webinars, eq(webinars.id, webinarRegistrations.webinarId))
+    .where(inArray(webinarRegistrations.personId, ids))
+    .orderBy(desc(webinarRegistrations.createdAt), asc(webinarRegistrations.id));
+  const byWebinar = new Map<string, (typeof rows)[number]>();
+  for (const row of rows) {
+    const seen = byWebinar.get(row.w.id);
+    if (!seen || (seen.r.personId !== canonical && row.r.personId === canonical)) byWebinar.set(row.w.id, row);
+  }
+  const watch = await db.select().from(vWebinarWatch).where(inArray(vWebinarWatch.personId, ids));
+  return [...byWebinar.values()].map(({ r, w }) => {
+    const watchedSec = zeroModes(0);
+    const attended = zeroModes(false);
+    for (const x of watch.filter((v) => v.webinarId === w.id)) {
+      watchedSec[x.mode] = Math.max(watchedSec[x.mode], Number(x.watchedSec));
+      attended[x.mode] = attended[x.mode] || x.isAttended === true;
+    }
+    return { registration: r, webinar: w, watchedSec, attended };
+  });
+}
+
+/** A live or simulive webinar still to come or live (the live part not over). */
+export function isUpcoming(w: WebinarRow, now: Date): boolean {
+  if (w.mode === "on_demand" || !(w.status === "published" || w.status === "live")) return false;
+  if (w.status === "live") return true;
+  const end = endMs(w);
+  return end !== null && end > now.getTime();
+}
+
+export type MyWebinarItem = {
+  webinar: WebinarRow;
+  registration: RegistrationRecord | null;
+  /** Replay or on-demand: when access ends (`replay_until_at` or the on-demand days); null = no end. */
+  availableUntil: Date | null;
+  /** Views left under `replay_view_limit`; null = unlimited. */
+  viewsLeft: number | null;
+};
+
+export type MyWebinars = { upcoming: MyWebinarItem[]; watchAgain: MyWebinarItem[]; onDemand: MyWebinarItem[] };
+
+/** Counted views per registration and mode: a `started` more than 30 minutes after the previous one (rule 31). */
+async function countedViews(db: DbOrTx, registrationIds: string[]): Promise<Map<string, number>> {
+  if (!registrationIds.length) return new Map();
+  const rows = rowsOf<{ registration_id: string; mode: string; views: number }>(
+    await db.execute(sql`select registration_id::text as registration_id, mode::text as mode, count(*)::int as views from (
+        select registration_id, mode, occurred_at,
+               lag(occurred_at) over (partition by registration_id, mode order by occurred_at) as prev
+        from webinar_interactions
+        where kind = 'started' and registration_id in (${sql.join(
+          registrationIds.map((id) => sql`${id}::uuid`),
+          sql`, `,
+        )})
+      ) s where prev is null or occurred_at - prev > interval '30 minutes'
+      group by 1, 2`),
+  );
+  return new Map(rows.map((r) => [`${r.registration_id}:${r.mode}`, Number(r.views)]));
+}
+
+/**
+ * The portal list (section 5.2, `listMyWebinars`): Upcoming (registered, not ended), Watch again
+ * (registered, a replay this registration may watch) and the On-demand library (published
+ * on-demand webinars in `locale`, with the person's registration when there is one).
+ */
+export async function listMyWebinars(db: DbOrTx, personId: string, locale: Locale, now: Date = new Date()): Promise<MyWebinars> {
+  const regs = (await listPersonRegistrations(db, personId)).filter((x) => x.registration.status === "registered");
+  const views = await countedViews(
+    db,
+    regs.map((x) => x.registration.id),
+  );
+  const upcoming: MyWebinarItem[] = [];
+  const watchAgain: MyWebinarItem[] = [];
+  const onDemandRegs = new Map<string, MyWebinarItem>();
+  for (const { registration, webinar: w } of regs) {
+    if (isUpcoming(w, now)) {
+      upcoming.push({ webinar: w, registration, availableUntil: null, viewsLeft: null });
+      continue;
+    }
+    const mode = resolveMode(w, now);
+    if (!("mode" in mode) || mode.mode === "live") continue;
+    const used = views.get(`${registration.id}:${mode.mode}`) ?? 0;
+    const access = replayAccess({ w, registration, viewsInMode: used, now });
+    if (!access.ok && access.code === "expired") continue;
+    const days = w.mode === "on_demand" && w.onDemandAccessDays ? new Date(registration.createdAt.getTime() + w.onDemandAccessDays * 86_400_000) : null;
+    const until = [w.replayUntilAt, days].filter((d): d is Date => d instanceof Date).sort((a, b) => a.getTime() - b.getTime())[0] ?? null;
+    const item: MyWebinarItem = { webinar: w, registration, availableUntil: until, viewsLeft: w.replayViewLimit === null ? null : Math.max(0, w.replayViewLimit - used) };
+    if (mode.mode === "on_demand") onDemandRegs.set(w.id, item);
+    else watchAgain.push(item);
+  }
+  upcoming.sort((a, b) => (a.webinar.startsAt?.getTime() ?? 0) - (b.webinar.startsAt?.getTime() ?? 0));
+  const library = await db
+    .select()
+    .from(webinars)
+    .where(and(eq(webinars.mode, "on_demand"), eq(webinars.status, "published"), sql`${locale} = any(${webinars.locales})`))
+    .orderBy(desc(webinars.publishedAt), asc(webinars.id));
+  const onDemand = library
+    .filter((w) => !(w.replayUntilAt && w.replayUntilAt.getTime() <= now.getTime()))
+    .map((w) => onDemandRegs.get(w.id) ?? { webinar: w, registration: null, availableUntil: w.replayUntilAt, viewsLeft: w.replayViewLimit });
+  return { upcoming, watchAgain, onDemand };
+}
+
+export const REGISTRATIONS_PAGE_SIZE = 100;
+
+export type RegistrantRow = {
+  id: string;
+  personId: string;
+  firstName: string | null;
+  lastName: string | null;
+  email: string | null;
+  status: RegistrationRecord["status"];
+  personStatus: RegistrationRecord["personStatus"];
+  registeredMode: WatchMode;
+  source: RegistrationRecord["source"];
+  mutedAt: Date | null;
+  createdAt: Date;
+  lastActivityAt: Date | null;
+  watchedSec: Record<WatchMode, number>;
+};
+
+/**
+ * The registrant list of `/admin/webinars/[id]/registrations` (section 4.3 `listRegistrations`;
+ * the page checks `webinars.host` and `persons.read`). `q` matches the name or the email.
+ */
+export async function listRegistrations(
+  db: DbOrTx,
+  webinarId: string,
+  opts: { status?: RegistrantRow["status"]; personStatus?: RegistrantRow["personStatus"]; q?: string; page?: number } = {},
+): Promise<{ rows: RegistrantRow[]; total: number; hasMore: boolean }> {
+  const page = Math.max(1, opts.page ?? 1);
+  const where: SQL[] = [eq(webinarRegistrations.webinarId, webinarId)];
+  if (opts.status) where.push(eq(webinarRegistrations.status, opts.status));
+  if (opts.personStatus) where.push(eq(webinarRegistrations.personStatus, opts.personStatus));
+  const q = opts.q?.trim();
+  if (q) where.push(sql`(${persons.email} ilike ${`%${q}%`} or (coalesce(${persons.firstName}, '') || ' ' || coalesce(${persons.lastName}, '')) ilike ${`%${q}%`})`);
+  const [count] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(webinarRegistrations)
+    .innerJoin(persons, eq(persons.id, webinarRegistrations.personId))
+    .where(and(...where));
+  const rows = await db
+    .select({
+      r: webinarRegistrations,
+      firstName: persons.firstName,
+      lastName: persons.lastName,
+      email: persons.email,
+      lastSegmentAt: sql<string | null>`(select max(${watchSegments.recordedAt})::text from ${watchSegments} where ${watchSegments.registrationId} = ${webinarRegistrations.id})`,
+    })
+    .from(webinarRegistrations)
+    .innerJoin(persons, eq(persons.id, webinarRegistrations.personId))
+    .where(and(...where))
+    .orderBy(desc(webinarRegistrations.createdAt), asc(webinarRegistrations.id))
+    .limit(REGISTRATIONS_PAGE_SIZE + 1)
+    .offset((page - 1) * REGISTRATIONS_PAGE_SIZE);
+  const regIds = rows.map((x) => x.r.id);
+  const watch = regIds.length
+    ? await db
+        .select({ registrationId: vWebinarWatch.registrationId, mode: vWebinarWatch.mode, watchedSec: vWebinarWatch.watchedSec })
+        .from(vWebinarWatch)
+        .where(inArray(vWebinarWatch.registrationId, regIds))
+    : [];
+  return {
+    rows: rows.slice(0, REGISTRATIONS_PAGE_SIZE).map(({ r, firstName, lastName, email, lastSegmentAt }) => {
+      const watchedSec = zeroModes(0);
+      for (const x of watch) if (x.registrationId === r.id) watchedSec[x.mode] = Number(x.watchedSec);
+      const segAt = lastSegmentAt ? new Date(lastSegmentAt) : null;
+      const lastActivityAt = segAt && segAt.getTime() > r.updatedAt.getTime() ? segAt : r.updatedAt;
+      return {
+        id: r.id,
+        personId: r.personId,
+        firstName,
+        lastName,
+        email,
+        status: r.status,
+        personStatus: r.personStatus,
+        registeredMode: r.registeredMode,
+        source: r.source,
+        mutedAt: r.mutedAt,
+        createdAt: r.createdAt,
+        lastActivityAt,
+        watchedSec,
+      };
+    }),
+    total: Number(count?.n ?? 0),
+    hasMore: rows.length > REGISTRATIONS_PAGE_SIZE,
+  };
+}
+
+// ---------------------------------------------------------------------------------------------
+// webinar-P3 labels (server side; the client form takes every text as a prop)
+// ---------------------------------------------------------------------------------------------
+
+/** Error message or code -> text for the registration paths (`webinar.register.errors.*`). */
+export function registerErrorLabels(tr: Tr): Record<string, string> {
+  const e = (k: string) => tr(`webinar.register.errors.${k}`);
+  return {
+    "webinar.register.closed": e("closed"),
+    "webinar.access.blocked": e("blocked"),
+    closed: e("closed"),
+    blocked: e("blocked"),
+    rate_limited: e("rate_limited"),
+    validation: e("validation"),
+    not_found: e("not_found"),
+    unauthorized: e("unauthorized"),
+    conflict: e("conflict"),
+    internal: e("internal"),
+  };
+}
+
+/** The labels of `RegistrationForm`. */
+export function registrationFormLabels(tr: Tr) {
+  const g = (k: string) => tr(`webinar.register.${k}`);
+  return {
+    email: g("email"),
+    firstName: g("first_name"),
+    lastName: g("last_name"),
+    consentLegend: g("consent_legend"),
+    consentEvents: g("consent_events"),
+    consentNewsletter: g("consent_newsletter"),
+    consentHint: g("consent_hint"),
+    privacyBefore: g("privacy_before"),
+    privacyLink: g("privacy_link"),
+    submit: g("submit"),
+    submitPortal: g("submit_portal"),
+    submitting: g("submitting"),
+    successTitle: g("success_title"),
+    successBody: g("success_body"),
+    successPortal: g("success_portal"),
+    errors: registerErrorLabels(tr),
+  };
 }

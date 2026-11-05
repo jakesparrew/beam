@@ -1017,11 +1017,14 @@
       "mergedAt": "2026-11-04T23:39:25Z"
     },
     "booking-P8": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "baseSha": "e402e9c",
       "runId": null,
-      "startedAt": "2026-11-05T02:52:32Z"
+      "startedAt": "2026-11-05T02:52:32Z",
+      "branchSha": "444d1ef",
+      "endedAt": "2026-11-05T03:25:50Z",
+      "minutes": 32
     },
     "ops-P7": {
       "status": "merged",

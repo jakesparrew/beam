@@ -107,7 +107,6 @@ to "Served" with the package id.
 | email-P6 | email (owner of `server/process-event.ts`) | Call `evaluateBounceRate(ctx.tx, campaignId, ctx)` after each processed hard bounce of a campaign message (rule 37). |
 | email-P6 | email-P7 | Link `/admin/campaigns/[id]/report` from the campaign page; `email.watch_complaints` re-evaluates rule 37 through `evaluateBounceRate` for campaigns in sending. |
 | webinar-P3 | crm | Export `currentWordingVersion` or `getCurrentMarketingWordings` from `modules/crm/api.ts` so the webinar form shows crm's published consent wording and version (today it shows catalogue text as v1). |
-| webinar-P3 | booking (booking-P8) | `upsertWebinarSession` is needed before the demo seed can publish the live and simulive demo webinars. |
 | forms-P6 | forms (owner of `app/(admin)/admin/forms/[formId]/page.tsx`) | Link the form overview to `/admin/forms/[formId]/submissions` and `/admin/forms/[formId]/report`. |
 | ops-P7 | ops (owner of `app/(admin)/admin/dashboard/page.tsx`) | Render `ActionCard.secondary` (imported webinar leads) and `ActionCard.linkHref` (credits sharing review). |
 | ops-P7 | ops (owner of `modules/ops/reports/queries.ts`) | Add the no-shows, abandoned-checkouts and capacity pages to `REPORT_PAGES` behind `ff_ops_retention`. |
@@ -120,6 +119,11 @@ to "Served" with the package id.
 | credits-P9 | credits (owner of `packages/core/src/credits/index.ts`) | `export * from "./referrals"`, then switch `config.ts` and `server/referrals.ts` to `@beam/core/credits`. |
 | credits-P9 | commerce (owner of the refund transaction) | Call `credits.onOrderRefundedForReferrals(tx, ctx, { orderId, refundId })` when a refund is recorded; until then refunds write no negative commission rows. |
 | email-P7 | email (owner of `app/(admin)/admin/campaigns/[id]/page.tsx`) | Add a Report button on the progress step linking to `/admin/campaigns/[id]/report`. |
+| finance-P9 | finance (owner of `actions.ts`, `app/(admin)/admin/finance/exports/page.tsx`) | Accept `deferred_revenue`, `breakage` and `voucher_redemptions` in `requestFinanceExport` and the exports form, then remove the page-local `finance.export.request_r3` action from `deferred/page.tsx`. |
+| booking-P8 | booking (owner of `actions/sessions.ts`) | `publishSession` calls `assertTicketTypesPublishable(ctx.tx, id)` from `server/book.ts` (R50). |
+| booking-P8 | booking (owner of `app/[locale]/(portal)/account/book/[sessionId]/page.tsx`) | Pass `BookForm` the `ticketTypes` prop and `labels.ticketType`, send `ticketTypeId` to `bookSession`, show guest fields on ticketed events, pass `guests.usesLeft` from `guestUseState`. |
+| booking-P8 | booking (owner of `queries/bookings.ts`, `ui/manual-booking-wizard.tsx`) | Offer the event's ticket types in `getBookableSession` and in the staff manual booking. |
+| booking-P8 | credits | Expose the monthly guest uses left on a person's grants (`getGuestUsesLeft(db, { personId, kind, at })`). |
 
 ## Served
 

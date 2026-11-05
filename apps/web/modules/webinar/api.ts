@@ -5,7 +5,9 @@
  * `NotImplementedError('webinar.<fn>')`. webinar-P1 implemented `mergePersons`; webinar-P3 the
  * registration and discovery functions (`getWebinarForSession`, `listPublicWebinars`,
  * `listPersonWebinars`, `listUpcomingRegistrationsForPerson`, `getWebinarCards`, `getAccessUrl`,
- * `WebinarSignup`).
+ * `WebinarSignup`); webinar-P6 the ops-facing stats (`getPersonWebinarStats`,
+ * `countWebinarLeadsWithoutBooking`, `listWebinarLeadsWithoutBooking`, `listUpcomingWebinarHealth`,
+ * built in `server/report.ts`).
  *
  * Implementing packages: webinar-P3 (`getWebinarForSession`, `listPublicWebinars`,
  * `listPersonWebinars`, `listUpcomingRegistrationsForPerson`, `getWebinarCards`, `getAccessUrl`,
@@ -22,6 +24,7 @@ import { and, eq, inArray, notInArray, sql } from "@/lib/ctx";
 import type { WatchMode, WebinarMode, WebinarStatus } from "@beam/core/webinar";
 import { PUBLIC_STATUSES, isUpcoming, listPersonRegistrations, listPublicWebinarRows, type PersonRegistrationRow } from "./queries";
 import { accessUrlOf } from "./server/registration";
+import { countLeadsWithoutBooking, listLeadsWithoutBooking, personWebinarStats, upcomingWebinarHealth } from "./server/report";
 import type { WebinarRow } from "./server/lifecycle";
 
 export type { WatchMode, WebinarMode, WebinarStatus } from "@beam/core/webinar";
@@ -121,8 +124,9 @@ export async function listPersonWebinars(db: DbOrTx, personId: string): Promise<
   return (await listPersonRegistrations(db, personId)).map(personRowOf);
 }
 
-export function getPersonWebinarStats(_db: DbOrTx, _personId: string): Promise<PersonWebinarStats> {
-  return notYet("getPersonWebinarStats");
+/** `v_person_webinar_stats` of the resolved person (zeros without history; the person card). */
+export function getPersonWebinarStats(db: DbOrTx, personId: string): Promise<PersonWebinarStats> {
+  return personWebinarStats(db, personId);
 }
 
 /** Absolute https URL `/<l>/w/<token>` at the registration's current `token_version`. */
@@ -183,15 +187,21 @@ export function getWebinarWeeklyFacts(_db: DbOrTx, _weekStart: Date): Promise<Ar
   return notYet("getWebinarWeeklyFacts");
 }
 
-export function countWebinarLeadsWithoutBooking(_db: DbOrTx, _input: { startedSince: Date }): Promise<number> {
-  return notYet("countWebinarLeadsWithoutBooking");
+/**
+ * "Webinar leads have not booked" (ops card `webinar_leads_not_booked`, ops rule 29): lead
+ * registrations of webinars started since `startedSince` whose person has no booking created
+ * after registering. The one definition; `listWebinarLeadsWithoutBooking` returns its rows.
+ */
+export function countWebinarLeadsWithoutBooking(db: DbOrTx, input: { startedSince: Date }): Promise<number> {
+  return countLeadsWithoutBooking(db, input);
 }
 
+/** The rows of `countWebinarLeadsWithoutBooking`, newest registrations first. */
 export function listWebinarLeadsWithoutBooking(
-  _db: DbOrTx,
-  _input: { startedSince: Date; limit: number },
+  db: DbOrTx,
+  input: { startedSince: Date; limit: number },
 ): Promise<Array<{ personId: string; webinarId: string; registeredAt: Date }>> {
-  return notYet("listWebinarLeadsWithoutBooking");
+  return listLeadsWithoutBooking(db, input);
 }
 
 /** Email `webinar` block (email-P8); unknown, draft, cancelled and archived ids are left out; order follows `ids`. */
@@ -226,13 +236,14 @@ export async function listUpcomingRegistrationsForPerson(db: DbOrTx, personId: s
     .map(personRowOf);
 }
 
+/** Ops daily digest: live and simulive webinars of the next 48 hours (and live now) with their broadcast state. */
 export function listUpcomingWebinarHealth(
-  _db: DbOrTx,
-  _within: { hours: 48 },
+  db: DbOrTx,
+  within: { hours: 48 },
 ): Promise<
   Array<{ webinarId: string; title: string; startsAt: Date; mode: WebinarMode; youtubeLifecycle: string | null; broadcastError: string | null; registrations: number }>
 > {
-  return notYet("listUpcomingWebinarHealth");
+  return upcomingWebinarHealth(db, within);
 }
 
 /** Server component `{ webinarId, locale }` for site's `webinar_signup` block. */

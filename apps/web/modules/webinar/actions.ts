@@ -10,7 +10,9 @@
  * cancellation, the resend and revoke of access links (`server/registration.ts`, rules 14-20)
  * and the public lost-link request. webinar-P5: the host console's live controls (`launchPoll`,
  * `closePoll`, `showCta`, `hideCta`) and `moderate` (hide, unhide, mark answered, mute, unmute,
- * block, unblock; `server/interactions.ts`, rules 21, 34, 37). Later packages add the export.
+ * block, unblock; `server/interactions.ts`, rules 21, 34, 37). webinar-P6: the registrant CSV
+ * export (`exportWebinarRegistrants`, rule 41: `webinars.host` plus `persons.export`, audited as
+ * `webinar.registrants_exported` with the row count).
  */
 import {
   ArchiveWebinarInput,
@@ -21,6 +23,7 @@ import {
   DeleteCtaInput,
   DeletePollInput,
   DuplicateWebinarInput,
+  ExportWebinarRegistrantsInput,
   ClosePollInput,
   ForceLiveStateInput,
   HideCtaInput,
@@ -42,11 +45,14 @@ import {
 } from "@beam/core/webinar";
 import { z } from "zod";
 import { URL_SEGMENT } from "@beam/core/i18n";
+import { webinars } from "@beam/db/schema";
 import { action } from "@/lib/action";
-import { ValidationError } from "@/lib/ctx";
+import { NotFoundError, ValidationError, eq } from "@/lib/ctx";
+import { storeFile } from "@/lib/files";
 import * as interactions from "./server/interactions";
 import * as lifecycle from "./server/lifecycle";
 import * as registration from "./server/registration";
+import { buildRegistrantsCsv, listRegistrantExportRows } from "./server/report";
 
 const staff = { audience: "staff", permission: "webinars.host", audit: false } as const;
 
@@ -160,3 +166,32 @@ export const requestAccessLink = action(
     return { limited: false };
   },
 );
+
+// ---------------------------------------------------------------------------------------------
+// Reporting (webinar-P6, rule 41)
+// ---------------------------------------------------------------------------------------------
+
+/** Days a registrant export file stays downloadable. */
+const EXPORT_DAYS = 7;
+
+/**
+ * The registrant CSV (name, email, status snapshot, per-mode facts) as a `files` row of kind
+ * `export` that expires after 7 days; needs `persons.export` on top of `webinars.host`. Audited as
+ * `webinar.registrants_exported` with the row count (never the rows).
+ */
+export const exportWebinarRegistrants = action({ name: "webinar.export_webinar_registrants", ...staff, input: ExportWebinarRegistrantsInput }, async (ctx, input) => {
+  ctx.require("persons.export");
+  const [w] = await ctx.tx.select({ id: webinars.id, slug: webinars.slug }).from(webinars).where(eq(webinars.id, input.webinarId));
+  if (!w) throw new NotFoundError("webinar_not_found");
+  const rows = await listRegistrantExportRows(ctx.tx, w.id);
+  const bytes = new TextEncoder().encode(`\uFEFF${buildRegistrantsCsv(rows)}`);
+  const { fileId } = await storeFile(ctx, {
+    kind: "export",
+    name: `webinar-${w.slug}-registrants.csv`,
+    mime: "text/csv",
+    bytes,
+    expiresAt: new Date(ctx.now.getTime() + EXPORT_DAYS * 86_400_000),
+  });
+  await ctx.audit({ action: "webinar.registrants_exported", entityType: "webinar", entityId: w.id, newValue: { rows: rows.length, fileId } });
+  return { fileId };
+});

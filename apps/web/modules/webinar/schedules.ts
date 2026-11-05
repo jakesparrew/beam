@@ -4,7 +4,8 @@
  * one indexed select, then one `enqueue` per webinar with the per-minute key of section 4.5.
  *
  * webinar-P2: `webinar.scan_live` (every minute) and `webinar.scan_recordings` (every 10
- * minutes). webinar-P4 adds `webinar.scan_finalise` (every 5 minutes), webinar-P6 `webinar.preflight`.
+ * minutes). webinar-P4 adds `webinar.scan_finalise` (every 5 minutes), webinar-P6 `webinar.preflight`
+ * (every 5 minutes; its handler `runPreflightScan` is in `server/preflight.ts`).
  */
 import { z } from "zod";
 import { webinars } from "@beam/db/schema";
@@ -114,4 +115,5 @@ export const schedules = [
   defineSchedule({ kind: "webinar.scan_live", cron: "* * * * *", catchUp: false }),
   defineSchedule({ kind: "webinar.scan_recordings", cron: "*/10 * * * *", catchUp: false }),
   defineSchedule({ kind: "webinar.scan_finalise", cron: "*/5 * * * *", catchUp: false }),
+  defineSchedule({ kind: "webinar.preflight", cron: "*/5 * * * *", catchUp: false }),
 ];

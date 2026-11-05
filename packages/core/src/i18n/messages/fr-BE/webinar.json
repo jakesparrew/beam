@@ -142,7 +142,10 @@
         "force_live": "Passer en direct",
         "force_ended": "Marquer comme terminé",
         "forced": "Statut modifié.",
-        "cancelled_reason": "Annulé : {reason}"
+        "cancelled_reason": "Annulé : {reason}",
+        "host_link": "Console de l'animateur",
+        "registrations_link": "Inscriptions",
+        "report_link": "Rapport"
       },
       "broadcast": {
         "title": "YouTube et Meet",
@@ -384,6 +387,93 @@
         "refreshing": "Mis à jour toutes les quelques secondes.",
         "anonymous": "Spectateur",
         "at": "à {time}"
+      },
+      "report": {
+        "title": "Rapport : {title}",
+        "links": "Pages du webinaire",
+        "back": "Retour au webinaire",
+        "host_link": "Console de l'animateur",
+        "period": "Période",
+        "period_option": "{days} jours",
+        "period_default": "{days} jours (par défaut du webinaire)",
+        "period_note": "Conversion dans les {days} jours",
+        "period_hint": "Les réservations et les achats comptent à partir du début du webinaire (à partir de l'inscription pour le replay et la demande) jusqu'à la fin de la période. Chaque personne compte une seule fois.",
+        "apply": "Afficher",
+        "download_report": "Télécharger le rapport (CSV)",
+        "download_registrants": "Télécharger les inscriptions (CSV)",
+        "export_ready": "L'export des inscriptions est prêt (valable 7 jours).",
+        "export_download": "Télécharger",
+        "export_failed": "L'export n'a pas pu être créé ({error}).",
+        "empty": "Aucune inscription pour l'instant.",
+        "detail_removed": "Détail de visionnage supprimé après 2 ans (durée de conservation).",
+        "inactive": "Inactif",
+        "summary": {
+          "label": "Résumé",
+          "registrations": "Inscriptions",
+          "live_attended": "Présents en direct",
+          "replay_viewers": "Ont regardé le replay",
+          "on_demand_viewers": "Ont regardé à la demande",
+          "converted": "Convertis",
+          "conversion_rate": "Taux de conversion {rate}",
+          "revenue": "Chiffre d'affaires de la période"
+        },
+        "segments": {
+          "title": "Par segment",
+          "metric": "Indicateur",
+          "lead": "Prospects",
+          "customer": "Clients",
+          "member": "Membres",
+          "total": "Total",
+          "mode_caption": "Visionnage : {mode}",
+          "conversion_caption": "Conversion dans les {days} jours"
+        },
+        "metrics": {
+          "registered": "Inscrits pour ce mode",
+          "started": "Commencé",
+          "attended": "Présents",
+          "watched_15m": "15 minutes regardées",
+          "watched_30m": "30 minutes regardées",
+          "watched_half": "Moitié regardée",
+          "watched_end": "Regardé jusqu'à la fin",
+          "avg_watch_minutes": "Minutes de visionnage en moyenne",
+          "poll_responses": "Réponses aux sondages",
+          "cta_shown": "CTA affiché",
+          "cta_clicked": "CTA cliqué"
+        },
+        "conversion": {
+          "registrations": "Inscriptions",
+          "booked": "Réservé",
+          "purchased": "Acheté",
+          "converted": "Réservé ou acheté",
+          "conversion_rate": "Taux de conversion",
+          "revenue": "Chiffre d'affaires"
+        },
+        "polls": {
+          "title": "Résultats des sondages",
+          "empty": "Ce webinaire n'a pas de sondage.",
+          "option": "Réponse",
+          "respondents": "Participants"
+        },
+        "ctas": {
+          "title": "Appels à l'action",
+          "empty": "Ce webinaire n'a pas d'appel à l'action.",
+          "cta": "Appel à l'action",
+          "shown": "Affiché ({mode})",
+          "clicked": "Cliqué ({mode})",
+          "ctr": "Taux de clic",
+          "booked_after": "Réservé dans les {days} jours après le clic",
+          "purchased_after": "Acheté dans les {days} jours après le clic"
+        },
+        "utm": {
+          "title": "Sources (UTM)",
+          "empty": "Aucune inscription avec une source pour l'instant.",
+          "source": "Source",
+          "campaign": "Campagne",
+          "none": "(aucune)",
+          "registrations": "Inscriptions",
+          "attended": "Présents",
+          "converted": "Convertis"
+        }
       }
     },
     "email": {

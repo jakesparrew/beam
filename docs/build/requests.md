@@ -130,6 +130,18 @@ to "Served" with the package id.
 | crm-P9 | forms | Call `crm.createInboxThreadFromForm` for form versions with `FormSettings.createInboxThread`. |
 | crm-P9 | platform | Document `META_APP_SECRET`, `META_PAGE_ACCESS_TOKEN` and `META_VERIFY_TOKEN` in the environment list. |
 | crm-P9 | crm (crm-P10: `actions.ts`, `queries.ts`, `nav.ts`) | Re-export `./inbox/actions` and `./inbox/queries`; inbox nav badge from `countOpenUnassignedThreads`. |
+| crm-P9 | crm (owner of `modules/crm/jobs.ts`, `schedules.ts`) | Register `crm.send_meta_reply` (fast, 1), `crm.close_stale_threads` (bulk, 9), `crm.escalate_threads` (fast, 5) and the Meta `webhookHandlers` from `modules/crm/inbox/jobs.ts`; then schedules `crm.escalate_threads '25 * * * *'` and `crm.close_stale_threads '10 5 * * *'`. Until then Meta replies cannot be enqueued. |
+| ops-P8 | ops (owner of `stats/digest.ts`) | Call `getStaleAdsAccounts(db, now)` for rule 74's ads data age line and alert. |
+| ops-P8 | ops (owner of `reports/queries.ts`) | Add marketing, attribution and ads to `REPORT_PAGES` behind `ff_ops_marketing`. |
+| ops-P8 | crm | Store the email message id on preference-centre unsubscribe consent records (`ref_type email_message`). |
+| booking-P9 | booking (owner of `nav.ts`) | Nav entry for `/admin/sessions/holds` with permission `partner.own`. |
+| finance-P10 | finance (owner of `packages/core/src/finance/types.ts`, `index.ts`) | Remove the placeholder `FinanceKpis`; `export * from "./kpis"`, `"./periods"`, `"./csv"`. |
+| site-P8 | site (owner of `ui/public/page-view.tsx`) | Use `EventFactsView` from `./event-facts`; until then event pages show no ticket types, lead window, waitlist or webinar states and `e2e/site-events-r2.spec.ts` fails. |
+| site-P8 | site (owner of `ui/public/block-renderer.tsx`) | `case "webinar_signup"` renders `WebinarSignupBlockView` from `./event-facts` (renders null today). |
+| site-P8 | site (owner of `ui/public/blocks/events-list.tsx`) | Show `priorityUntil` on listing rows (`site.blocks.events.priorityUntil`). |
+| email-P8 | email (owner of `server/preview.ts`, `server/templates.ts`) | `resolveCardsFor` copies `opensForCustomersAt` into `EventCard` and passes `webinars: (ids, locale) => getWebinarCards(tx, ids, locale)` to `compileMarketing`. |
+| email-P8 | email (owner of `server/send.ts`, `send-chunk.ts`) | Re-resolve cards at send time for documents with a `showLeadWindow` event (booking spec 4.9). |
+| email-P8 | email (owner of `completeness.ts`, `a11y.ts`, `blocks/index.ts`) | Require and check the webinar block's `ctaLabel`; add `webinar_unavailable`; re-export `WebinarCard`, `ResolveWebinars`, `LEAD_WINDOW_KEY`, `hasLeadWindowEvent`. |
 
 ## Served
 

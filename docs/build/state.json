@@ -1083,11 +1083,18 @@
       "mergedAt": "2026-11-05T04:23:21Z"
     },
     "email-P8": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "baseSha": "3047202",
       "runId": null,
-      "startedAt": "2026-11-05T03:53:46Z"
+      "startedAt": "2026-11-05T03:53:46Z",
+      "extraOwns": [
+        "apps/web/modules/email/ui/editor/BlockCanvas.tsx",
+        "packages/email/src/blocks/to-mjml.test.ts"
+      ],
+      "branchSha": "c744a81",
+      "endedAt": "2026-11-05T04:24:02Z",
+      "minutes": 29
     },
     "forms-P8": {
       "status": "pending",

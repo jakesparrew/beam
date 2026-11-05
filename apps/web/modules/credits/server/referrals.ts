@@ -17,13 +17,11 @@
  */
 import type { DbOrTx, Tx } from "@beam/db";
 import { companies, creditGrants, orders, partnerCommissions, persons, referralAttributions, referralCodes, refunds } from "@beam/db/schema";
-import { computeExpiresAt } from "@beam/core/credits";
 import { LOCALES, t, URL_SEGMENT, type Locale } from "@beam/core/i18n";
 import { and, asc, ConflictError, eq, NotFoundError, sql, ValidationError, type Ctx } from "@/lib/ctx";
 import { getSetting } from "@/lib/settings";
 import { rowsOf } from "@/lib/sensitive";
 import { grantCredits } from "./ledger";
-// `@beam/core/credits` does not re-export `referrals.ts` yet (requested from the owner of its index).
 import {
   assertAttributionTransition,
   assertCommissionTransition,
@@ -32,6 +30,7 @@ import {
   commissionBase,
   commissionFor,
   commissionUntilFor,
+  computeExpiresAt,
   generateReferralCode,
   isSelfReferral,
   isValidReferralCode,
@@ -45,9 +44,46 @@ import {
   type ReferralAttributionSource,
   type ReferralReward,
   type ReferralsSettings,
-} from "../../../../../packages/core/src/credits/referrals";
+} from "@beam/core/credits";
 
-export * from "../../../../../packages/core/src/credits/referrals";
+// The pure R3 rules stay importable from this file as before (credits-P9 re-exported them here).
+export {
+  ATTRIBUTION_TRANSITIONS,
+  COMMISSION_TRANSITIONS,
+  PARTNER_COMMISSION_STATUSES,
+  PERSONAL_CODE_LENGTH,
+  REFERRAL_ATTRIBUTION_SOURCES,
+  REFERRAL_ATTRIBUTION_STATUSES,
+  REFERRAL_CODE_ALPHABET,
+  REFERRAL_CODE_RE,
+  REFERRALS_SETTINGS_DEFAULTS,
+  REJECTED_REASONS,
+  ReferralReward,
+  ReferralsSettings,
+  assertAttributionTransition,
+  assertCommissionTransition,
+  brusselsMonthStart,
+  brusselsYear,
+  canTransitionAttribution,
+  canTransitionCommission,
+  commissionBase,
+  commissionFor,
+  commissionUntilFor,
+  generateReferralCode,
+  isSelfReferral,
+  isValidReferralCode,
+  normalizePhone,
+  normalizeReferralCode,
+  qualifiesAtFor,
+  referralKeys,
+  referralShareUrl,
+  refundCommissionBase,
+  type PartnerCommissionStatus,
+  type RandomSource,
+  type ReferralAttributionSource,
+  type ReferralAttributionStatus,
+  type ReferralParty,
+} from "@beam/core/credits";
 
 // email is loaded on call: its import graph reaches booking, which imports credits' api.
 const email = () => import("@/modules/email/api");

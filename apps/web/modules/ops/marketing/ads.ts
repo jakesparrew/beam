@@ -198,6 +198,45 @@ export async function requestAdsPull(ctx: Pick<Ctx, "tx" | "enqueue" | "now">, i
 }
 
 // ---------------------------------------------------------------------------------------------
+// Spend by campaign key (rule 73)
+// ---------------------------------------------------------------------------------------------
+
+export type CampaignSpend = { campaignKey: string; platform: AdsPlatform; campaignIds: string[]; name: string; spendCents: number; impressions: number; clicks: number; leads: number };
+
+/**
+ * Rule 73: the spend of the days `from..to` (Brussels dates, both included) per campaign key. An ad
+ * campaign joins by `<platform>|<campaign id>` (BEAM's UTM convention); when no attributed key
+ * has that id but one has the campaign name, the name is the fallback; otherwise the campaign
+ * keeps its id key (spend without attributed people).
+ */
+export async function spendByCampaignKey(db: DbOrTx, range: { from: string; to: string }, knownKeys: ReadonlySet<string>): Promise<Map<string, CampaignSpend>> {
+  const rows = rowsOf<{ platform: AdsPlatform; campaign_external_id: string; campaign_name: string; spend: number | string; impressions: number | string; clicks: number | string; leads: number | string }>(
+    await db.execute(sql`select platform::text as platform, campaign_external_id, max(campaign_name) as campaign_name,
+        sum(spend_cents)::bigint as spend, sum(impressions)::bigint as impressions, sum(clicks)::bigint as clicks, sum(leads)::bigint as leads
+      from ad_spend_daily where day_on >= ${range.from}::date and day_on <= ${range.to}::date
+      group by platform, campaign_external_id order by platform, campaign_external_id`),
+  );
+  const out = new Map<string, CampaignSpend>();
+  for (const r of rows) {
+    const byId = `${r.platform}|${r.campaign_external_id.trim().toLowerCase()}`;
+    const byName = `${r.platform}|${r.campaign_name.trim().toLowerCase()}`;
+    const key = knownKeys.has(byId) || !knownKeys.has(byName) ? byId : byName;
+    const prev = out.get(key);
+    out.set(key, {
+      campaignKey: key,
+      platform: r.platform,
+      campaignIds: [...(prev?.campaignIds ?? []), r.campaign_external_id],
+      name: prev?.name ?? r.campaign_name,
+      spendCents: (prev?.spendCents ?? 0) + Number(r.spend),
+      impressions: (prev?.impressions ?? 0) + Number(r.impressions),
+      clicks: (prev?.clicks ?? 0) + Number(r.clicks),
+      leads: (prev?.leads ?? 0) + Number(r.leads),
+    });
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------------------------
 // Status (the ads report, the "data as of" line and the digest)
 // ---------------------------------------------------------------------------------------------
 

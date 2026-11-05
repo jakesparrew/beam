@@ -191,14 +191,23 @@ function runAfterCommit(ctx: EventCtx, jobId: string | null): void {
 export async function unsubscribe(
   tx: Tx,
   ctx: EventCtx,
-  input: { personId: string; purpose: MarketingPurpose | "all"; method: ConsentMethod; source: string },
+  input: { personId: string; purpose: MarketingPurpose | "all"; method: ConsentMethod; source: string; ref?: { type: string; id: string } },
 ): Promise<{ suppressionId: string }> {
   const person = await activePerson(tx, input.personId);
   if (!person.email) throw new ValidationError("person_has_no_email", { personId: "no_email" });
   const current = await getCurrentConsents(tx, person.id);
   const purposes = input.purpose === "all" ? purposesToWithdraw(current) : current[input.purpose]?.status === "granted" ? [input.purpose] : [];
   for (const purpose of purposes) {
-    await appendConsent(tx, ctx, person.id, { purpose, status: "withdrawn", method: input.method, source: input.source, wordingVersion: "unsubscribe", lawfulBasis: "consent", recordedAt: ctx.now });
+    await appendConsent(tx, ctx, person.id, {
+      purpose,
+      status: "withdrawn",
+      method: input.method,
+      source: input.source,
+      wordingVersion: "unsubscribe",
+      lawfulBasis: "consent",
+      recordedAt: ctx.now,
+      ...(input.ref ? { ref: input.ref } : {}),
+    });
   }
   const { suppressionId } = await addSuppression(tx, ctx, { email: person.email, scope: input.purpose, reason: "unsubscribe", source: input.source, personId: person.id });
   return { suppressionId };
@@ -373,6 +382,8 @@ export type PreferenceChange = {
   source: string;
   ip?: string | null;
   userAgent?: string | null;
+  /** The email message whose link opened the preference centre (`ref_type email_message`, ops-P8). */
+  ref?: { type: string; id: string };
 };
 
 const MARKETING_PURPOSE_LIST: readonly MarketingPurpose[] = ["newsletter", "events", "member_comms", "b2b"];
@@ -392,11 +403,11 @@ export async function applyPreferences(
   const consents = await getCurrentConsents(tx, person.id);
   const supp = await personSuppressions(tx, person);
   const effective = (p: MarketingPurpose) => consents[p]?.status === "granted" && !isSuppressedFor({ purpose: p, suppressions: supp, currentConsent: consents[p] });
-  const meta = { ...(change.ip ? { ip: change.ip } : {}), ...(change.userAgent ? { userAgent: change.userAgent } : {}) };
+  const meta = { ...(change.ip ? { ip: change.ip } : {}), ...(change.userAgent ? { userAgent: change.userAgent } : {}), ...(change.ref ? { ref: change.ref } : {}) };
   if (change.unsubscribeAll) {
     const changed = purposesToWithdraw(consents);
     if (person.email) {
-      await unsubscribe(tx, ctx, { personId: person.id, purpose: "all", method: change.method, source: change.source });
+      await unsubscribe(tx, ctx, { personId: person.id, purpose: "all", method: change.method, source: change.source, ...(change.ref ? { ref: change.ref } : {}) });
     } else {
       for (const purpose of changed) {
         await recordConsent(tx, ctx, { personId: person.id, purpose, status: "withdrawn", method: change.method, source: change.source, wordingVersion: "unsubscribe", ...meta });

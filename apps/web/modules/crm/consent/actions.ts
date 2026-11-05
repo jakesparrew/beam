@@ -134,6 +134,7 @@ export const updatePreferencesByToken = action(
       method: "preference_centre",
       source: "preference_centre",
       ip: ctx.ip,
+      ref: { type: "email_message", id: link.emailMessageId },
     });
   },
 );
@@ -161,6 +162,7 @@ export const unsubscribeByToken = action(
       purpose,
       method: "unsubscribe_link",
       source: input.oneClick ? `one_click:${link.emailMessageId}` : "unsubscribe_link",
+      ref: { type: "email_message", id: link.emailMessageId },
     });
     return { done: true, purpose };
   },

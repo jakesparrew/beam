@@ -5,8 +5,15 @@
  * and returns the stage changes and inactivity hits; `emitStatsEvents` turns them into
  * `ops.stage_changed` and `person.inactive_days` activity events (deduped by their keys).
  *
- * Running it twice gives identical rows apart from `computed_at` and `updated_at`: the stage
- * change time only moves when the stage changes. The R4 prediction columns are never touched.
+ * Running it twice gives identical rows apart from `computed_at`, `updated_at` and
+ * `predicted_at`: the stage change time only moves when the stage changes.
+ *
+ * R4 (ops-P9, rule 76): while the `behavioural_scoring` DPIA is approved (rule 70), every run
+ * (the nightly one included) also writes `churn_probability`, `repurchase_probability`,
+ * `predicted_value_cents` and `predicted_at` from the pure `predictIndicators`, for people with
+ * at least one purchase or visit; the population median of the mean visit interval comes from
+ * the stored rows. Without the approval, and for people with no purchase and no visit, the four
+ * columns are written as null, so a withdrawn approval clears them on the next run.
  */
 import type { DbOrTx, Tx } from "@beam/db";
 import { personStats, type ActorJson } from "@beam/db/schema";
@@ -23,6 +30,9 @@ import {
   type RetentionDefaults,
 } from "@beam/core/ops";
 import { sql } from "@/lib/ctx";
+import { isDpiaApproved } from "../exports/api";
+// Relative until `@beam/core/ops` re-exports `./predict` (index.ts is not ops-P9's file).
+import { predictIndicators, tenureYears } from "../../../../../packages/core/src/ops/predict";
 import { recordEvent } from "@/lib/events";
 import { rowsOf } from "@/lib/sensitive";
 import { getSetting } from "@/lib/settings";
@@ -56,6 +66,8 @@ export type ComputeStatsOptions = {
   now?: Date;
   /** `settings.retention_defaults`; read from the settings when absent. */
   cfg?: RetentionDefaults;
+  /** Rule 76: compute the prediction columns; default `isDpiaApproved('behavioural_scoring')`. */
+  predict?: boolean;
 };
 
 export type ComputeStatsResult = { upserted: number; lastId: string | null; stageChanges: StageChange[]; inactivity: InactivityHit[] };
@@ -137,6 +149,9 @@ function inputsQuery(opts: ComputeStatsOptions, now: Date) {
     em as (
       select m.person_id, max(m.clicked_at) as at from email_messages m join target t on t.id = m.person_id
       where m.clicked_at is not null group by m.person_id),
+    gr as (
+      select b.person_id, bool_or(b.status = 'active' and b.remaining_units <= 2) as low_grant
+      from v_credit_grant_balances b join target t on t.id = b.person_id group by b.person_id),
     ev as (
       select a.person_id, max(a.occurred_at) filter (where a.kind = 'webinar.attended') as webinar_at,
              max(a.occurred_at) filter (where a.kind = 'webinar.registered') as webinar_reg_at
@@ -156,12 +171,13 @@ function inputsQuery(opts: ComputeStatsOptions, now: Date) {
            coalesce(bk.events, 0) as bk_events, coalesce(bk.no_shows, 0) as bk_no_shows, coalesce(bk.late, 0) as bk_late,
            bk.last_booked_at, bk.next_at,
            fm.at as form_at, em.at as click_at, ev.webinar_at as ev_webinar_at, ev.webinar_reg_at as ev_webinar_reg_at,
+           coalesce(gr.low_grant, false) as low_grant,
            coalesce(st.status, 'lead') as status,
            old.person_id is not null as has_row, old.b2c_stage as old_stage, old.b2c_stage_changed_at as old_changed_at
     from target t
     left join ord on ord.person_id = t.id left join ref on ref.person_id = t.id left join hist on hist.person_id = t.id
     left join bk on bk.person_id = t.id left join fm on fm.person_id = t.id left join em on em.person_id = t.id
-    left join ev on ev.person_id = t.id
+    left join ev on ev.person_id = t.id left join gr on gr.person_id = t.id
     left join v_person_status st on st.person_id = t.id
     left join person_stats old on old.person_id = t.id
     order by t.id`;
@@ -173,8 +189,22 @@ type Computed = {
   inactivity: InactivityHit | null;
 };
 
-/** Rules 1-17 for one input row (pure apart from the clock). */
-function derive(r: Raw, now: Date, cfg: RetentionDefaults, today: string): Computed {
+/** Rule 76's inputs beyond one row: on (approved) and the population median interval. */
+type PredictCfg = { on: boolean; medianIntervalDays: number | null };
+
+/** The median of the mean visit interval (days) over the stored stats rows with 2+ visits. */
+export async function populationMedianIntervalDays(db: DbOrTx): Promise<number | null> {
+  const rows = rowsOf<{ m: string | number | null }>(
+    await db.execute(sql`select percentile_cont(0.5) within group (
+        order by extract(epoch from (ps.last_visit_at - ps.first_visit_at)) / 86400.0 / (ps.visits - 1)) as m
+      from person_stats ps where ps.visits >= 2 and ps.first_visit_at is not null and ps.last_visit_at is not null`),
+  );
+  const m = rows[0]?.m;
+  return m === null || m === undefined ? null : Number(m);
+}
+
+/** Rules 1-17 for one input row (pure apart from the clock), and rule 76 when `predict.on`. */
+function derive(r: Raw, now: Date, cfg: RetentionDefaults, today: string, predict: PredictCfg): Computed {
   const personId = String(r.person_id);
   const purchases = toInt(r.order_count) + toInt(r.hist_purchases);
   const revenueCents = toInt(r.order_gross) - toInt(r.refunded) + toInt(r.hist_revenue);
@@ -219,6 +249,31 @@ function derive(r: Raw, now: Date, cfg: RetentionDefaults, today: string): Compu
     if (hit && anchorAt) inactivity = { personId, days: hit.days, anchorAt, hasFutureBooking };
   }
 
+  const lastActivityAt = latest(lastVisitAt, lastPurchaseAt, lastBookedAt, formAt, clickAt, webinarAt);
+  const avgOrderCents = purchases > 0 ? Math.floor(revenueCents / purchases + 0.5) : 0;
+  let prediction: Pick<typeof personStats.$inferInsert, "churnProbability" | "repurchaseProbability" | "predictedValueCents" | "predictedAt"> = {
+    churnProbability: null,
+    repurchaseProbability: null,
+    predictedValueCents: null,
+    predictedAt: null,
+  };
+  if (predict.on && (purchases > 0 || visits > 0) && lastActivityAt) {
+    const p = predictIndicators({
+      visits,
+      firstVisitAt,
+      lastVisitAt,
+      daysSinceActivity: Math.max(0, Math.floor((now.getTime() - lastActivityAt.getTime()) / DAY_MS)),
+      purchases,
+      avgOrderCents,
+      tenureYears: tenureYears(earliest(firstPurchaseAt, firstVisitAt), now),
+      isActiveMember: status === "member",
+      hasFutureBooking,
+      hasLowActiveGrant: r.low_grant === true || r.low_grant === "t",
+      medianIntervalDays: predict.medianIntervalDays,
+    });
+    prediction = { churnProbability: p.churn.toFixed(3), repurchaseProbability: p.repurchase.toFixed(3), predictedValueCents: p.predictedValueCents, predictedAt: now };
+  }
+
   return {
     row: {
       personId,
@@ -231,15 +286,16 @@ function derive(r: Raw, now: Date, cfg: RetentionDefaults, today: string): Compu
       noShows: toInt(r.bk_no_shows) + toInt(r.hist_no_shows),
       lateCancellations: toInt(r.bk_late),
       // Rule 2: half up, 0 without purchases.
-      avgOrderCents: purchases > 0 ? Math.floor(revenueCents / purchases + 0.5) : 0,
+      avgOrderCents,
       firstPurchaseAt,
       lastPurchaseAt,
       firstVisitAt,
       lastVisitAt,
-      lastActivityAt: latest(lastVisitAt, lastPurchaseAt, lastBookedAt, formAt, clickAt, webinarAt),
+      lastActivityAt,
       nextBookingAt,
       b2cStage: stage,
       b2cStageChangedAt: changedAt,
+      ...prediction,
       computedAt: now,
     },
     stageChange: changed ? { personId, from: oldStage, to: stage, at: now } : null,
@@ -260,7 +316,9 @@ export async function computeStatsSql(tx: Tx, opts: ComputeStatsOptions): Promis
   const today = brusselsDate(now);
   const raw = rowsOf<Raw>(await tx.execute(inputsQuery(opts, now)));
   if (raw.length === 0) return { upserted: 0, lastId: null, stageChanges: [], inactivity: [] };
-  const computed = raw.map((r) => derive(r, now, cfg, today));
+  const on = opts.predict ?? (await isDpiaApproved(tx, "behavioural_scoring"));
+  const predict: PredictCfg = { on, medianIntervalDays: on ? await populationMedianIntervalDays(tx) : null };
+  const computed = raw.map((r) => derive(r, now, cfg, today, predict));
 
   await tx
     .insert(personStats)
@@ -285,6 +343,10 @@ export async function computeStatsSql(tx: Tx, opts: ComputeStatsOptions): Promis
         nextBookingAt: excluded("next_booking_at"),
         b2cStage: excluded("b2c_stage"),
         b2cStageChangedAt: excluded("b2c_stage_changed_at"),
+        churnProbability: excluded("churn_probability"),
+        repurchaseProbability: excluded("repurchase_probability"),
+        predictedValueCents: excluded("predicted_value_cents"),
+        predictedAt: excluded("predicted_at"),
         computedAt: excluded("computed_at"),
         updatedAt: sql`now()`,
       },

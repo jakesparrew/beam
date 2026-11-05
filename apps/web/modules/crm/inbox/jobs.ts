@@ -15,6 +15,8 @@
  *   and `inbox.escalated` on the linked person, all keyed `inbox:<thread_id>:escalated`.
  * - Webhook handler `meta` (inside platform's `webhook.process`): every inbound message of the
  *   stored delivery goes through `ingestMetaMessage` (one message per `mid`).
+ * - R4 (crm-P10) `ai.draft_reply` (fast / 5, max 3, key `ai:draft_reply:<message_id>`): the AI
+ *   reply draft of one inbound message (`./ai-draft`); a draft is never sent by the system.
  */
 import { createHash } from "node:crypto";
 import { z } from "zod";
@@ -33,6 +35,7 @@ import { defineWebhookHandler, type VerifyResult } from "@/lib/webhooks";
 import { notifySlack } from "@/modules/platform/api";
 import { userLocale } from "../pipeline/api";
 import { createTask, resolveTaskOwner } from "../tasks/api";
+import { DraftReplyInput, onDraftReplyDead, runDraftReply } from "./ai-draft";
 import { ingestMetaMessage, isMetaChannel } from "./api";
 
 export const SendMetaReplyInput = z.object({ messageId: z.uuid() });
@@ -276,4 +279,5 @@ export const INBOX_JOBS = [
   defineJob({ kind: "crm.send_meta_reply" as never, lane: "fast", priority: 1, input: SendMetaReplyInput, run: runSendMetaReply }),
   defineJob({ kind: "crm.close_stale_threads" as never, lane: "bulk", priority: 9, input: CloseStaleThreadsInput, run: runCloseStaleThreads }),
   defineJob({ kind: "crm.escalate_threads" as never, lane: "fast", priority: 5, input: EscalateThreadsInput, run: runEscalateThreads }),
+  defineJob({ kind: "ai.draft_reply" as never, lane: "fast", priority: 5, maxAttempts: 3, input: DraftReplyInput, run: runDraftReply, onDead: onDraftReplyDead }),
 ];

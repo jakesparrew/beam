@@ -220,4 +220,4 @@ export const privacy: PrivacyRegistration<Tx> = {
 };
 
 /** crm tables that hold no person data (crm spec 9). */
-export const noPiiTables = ["consent_wordings", "tags", "segments", "playbook_stages", "inbox_reply_templates"] as const;
+export const noPiiTables = ["consent_wordings", "tags", "segments", "playbook_stages", "inbox_reply_templates", "support_knowledge_articles"] as const;

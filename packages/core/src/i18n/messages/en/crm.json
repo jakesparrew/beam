@@ -8,7 +8,8 @@
       "pipeline": "Pipeline",
       "inbox": "Inbox",
       "profile": "My details",
-      "preferences": "Communication preferences"
+      "preferences": "Communication preferences",
+      "knowledge": "Knowledge"
     },
     "permissions": {
       "persons_read": "See persons, their timeline and status",
@@ -293,6 +294,15 @@
         "in": "Received",
         "out": "Reply",
         "note": "Internal note"
+      },
+      "inbox_ai_draft_status": {
+        "none": "No draft",
+        "pending": "Drafting",
+        "ready": "Draft ready",
+        "blocked_sensitive": "Blocked (sensitive)",
+        "failed": "Failed",
+        "used": "Used",
+        "discarded": "Discarded"
       }
     },
     "persons": {
@@ -1235,6 +1245,51 @@
         "permission": "missing permission",
         "meta_disabled": "Meta replies are switched off",
         "other": "Meta refused the message"
+      },
+      "ai": {
+        "title": "AI draft",
+        "hint": "Claude drafts a reply from the profile, the conversation and the BEAM policies. Nothing is sent until you edit it and press Send.",
+        "request": "Draft a reply with AI",
+        "regenerate": "Draft again",
+        "pending": "Drafting a reply…",
+        "ready": "Check and edit the draft before you send it.",
+        "use": "Send this reply",
+        "discard": "Discard",
+        "sending": "Sending…",
+        "failed": "The draft could not be made (the AI budget may be used up). Write the reply yourself or try again later.",
+        "blocked": "This conversation looks sensitive, so nothing was sent to AI. Write the reply yourself.",
+        "thread_sensitive": "This thread is marked sensitive: AI drafts are off.",
+        "used": "The AI draft was used for a reply.",
+        "discarded": "The draft was discarded.",
+        "error": "That did not work. Try again.",
+        "pending_conflict": "A draft is already being made.",
+        "no_permission": "You cannot request AI drafts.",
+        "sent": "Reply sent."
+      },
+      "knowledge": {
+        "title": "Knowledge base",
+        "intro": "BEAM policies that AI reply drafts may use: cancellation rules, opening hours, what to bring, sauna etiquette. Never put customer data here.",
+        "empty": "No articles yet. Add BEAM policies so AI drafts can use them.",
+        "back": "Back to the inbox",
+        "new": "New article",
+        "edit": "Edit",
+        "key": "Key",
+        "key_hint": "Lower-case letters, digits, - and _ (2 to 64 characters).",
+        "article_title": "Title",
+        "body": "Text",
+        "body_hint": "Plain text, at most 5,000 characters per language.",
+        "active": "Active",
+        "inactive": "Inactive",
+        "status": "Status",
+        "last_edited": "Last edited",
+        "save": "Save article",
+        "cancel": "Cancel",
+        "saved": "Article saved.",
+        "error": "The article could not be saved. Check every language.",
+        "error_key_taken": "This key is already used by another article.",
+        "error_missing": "Fill in the title and the text in every language.",
+        "error_too_long": "A title or text is too long.",
+        "error_forbidden": "You cannot edit the knowledge base."
       }
     }
   }

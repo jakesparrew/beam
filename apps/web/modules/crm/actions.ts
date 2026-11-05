@@ -2,7 +2,8 @@
  * crm Server Actions (crm spec 4.1). A barrel written once by crm-P1 for every V1 area; each
  * area's `actions.ts` is a "use server" file built on `action()` and implemented by its package
  * (P2 persons and tags, P3 consent, portal and declarations, P4 duplicates, merge and sensitive,
- * P5 segments, P6 tasks and companies, P7 timeline). R3: crm-P8 the pipeline and playbook.
+ * P5 segments, P6 tasks and companies, P7 timeline). R3: crm-P8 the pipeline and playbook,
+ * crm-P9 the inbox; R4: crm-P10 AI reply drafts and the knowledge base.
  */
 export { confirmStatusOverride, createPerson, fillAcquisition, setStatusOverride, updatePerson } from "./persons/actions";
 export { createTag, deleteTag, tagPersons, untagPersons, updateTag } from "./tags/actions";
@@ -17,3 +18,16 @@ export { cancelTask, completeTask, createTask, reopenTask, updateTask } from "./
 export { endContact, linkContact, saveCompany, updateContact } from "./companies/actions";
 export { addNote, logInteraction } from "./timeline/actions";
 export { moveOpportunityStage, saveOpportunity, savePlaybookStage } from "./pipeline/actions";
+export {
+  addThreadNote,
+  assignThread,
+  discardAiDraft,
+  linkThreadPerson,
+  loadAiDraftPanel,
+  markThreadSensitive,
+  replyToThread,
+  requestAiDraft,
+  saveReplyTemplate,
+  setThreadStatus,
+} from "./inbox/actions";
+export { saveKnowledgeArticle } from "./knowledge/actions";

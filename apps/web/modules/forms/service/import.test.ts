@@ -33,8 +33,10 @@ const { POST: importRoute } = await import("@/app/api/public/forms/import/[sourc
 const imp = await import("./import");
 
 const fixture = (name: string): string => readFileSync(new URL(`../__fixtures__/${name}`, import.meta.url), "utf8");
-const typeformBody = () => JSON.parse(fixture("typeform.json")) as Record<string, any>;
-const scoreappBody = () => JSON.parse(fixture("scoreapp.json")) as Record<string, any>;
+type TypeformBody = { event_id: string; form_response: { hidden: { email: string } } };
+type ScoreappBody = { id: string; lead: { email: string } };
+const typeformBody = () => JSON.parse(fixture("typeform.json")) as TypeformBody;
+const scoreappBody = () => JSON.parse(fixture("scoreapp.json")) as ScoreappBody;
 
 let h: DbHandle;
 let staffUserId: string;
@@ -52,7 +54,7 @@ afterAll(async () => {
 const NOW = new Date("2026-11-04T10:00:00Z");
 const staffCtx = () => makeCtx(h.db, { actor: staffActor({ userId: staffUserId, permissions: ["forms.publish", "forms.write"] }), now: NOW });
 
-const field = (key: string, type: "short_text" | "number" | "long_text", label: string): Field => ({ key, type, label: T(label), required: false, sensitive: false }) as Field;
+const field = (key: string, type: "short_text" | "number" | "long_text", label: string): Field => ({ key, type, label: T(label), required: false, sensitive: false });
 
 const TYPEFORM_MAPPING: ImportMapping = {
   email: "form_response.hidden.email",

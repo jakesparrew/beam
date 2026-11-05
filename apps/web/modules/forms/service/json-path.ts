@@ -67,7 +67,8 @@ function parse(path: string): Step[] | null {
 const isRecord = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
 
 /** `String()` of a scalar, for filter comparison; objects and arrays never match. */
-const scalarText = (v: unknown): string | null => (v === null || v === undefined || typeof v === "object" ? null : String(v as string | number | boolean));
+const scalarText = (v: unknown): string | null =>
+  typeof v === "string" ? v : typeof v === "number" || typeof v === "boolean" || typeof v === "bigint" ? String(v) : null;
 
 /** I2: the value at `path` inside `obj`, or `undefined`. */
 export function resolvePath(obj: unknown, path: string): unknown {

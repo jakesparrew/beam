@@ -163,7 +163,7 @@ export function csvRows(csv: string): { row: Record<string, string>; payload: Re
   if (Buffer.byteLength(csv, "utf8") > IMPORT_CSV_MAX_BYTES) throw new ValidationError("csv_too_large", { csv: "csv_too_large" });
   let records: Record<string, string>[];
   try {
-    records = parseCsv(csv, { columns: true, bom: true, skip_empty_lines: true, trim: true, relax_column_count: true }) as Record<string, string>[];
+    records = parseCsv<Record<string, string>>(csv, { columns: true, bom: true, skip_empty_lines: true, trim: true, relax_column_count: true });
   } catch {
     throw new ValidationError("csv_invalid", { csv: "csv_invalid" });
   }
@@ -538,7 +538,9 @@ export function mirrorContent(i: CreateImportSourceInput): { definition: FormDef
   if (m.lastName) add({ key: "last_name", type: "short_text", label: fromCatalogue(locales, "forms.imports.mirror.last_name"), required: false, sensitive: false, mapsTo: "person.last_name" });
   for (const f of i.mirrorFields) {
     if ((MIRROR_RESERVED_KEYS as readonly string[]).includes(f.key)) throw new ValidationError("validation", { [`mirrorFields.${f.key}`]: "reserved_key" });
-    add({ ...f, required: false, sensitive: sensitive.has(f.key), ...(f.mapsTo ? {} : {}) } as Field);
+    // A mirror field never maps to the person: email and names are the mirror's own fields.
+    const { mapsTo: _mapsTo, ...rest } = f;
+    add({ ...rest, required: false, sensitive: sensitive.has(f.key) });
   }
   for (const key of Object.keys(m.answers)) if (!fields[key]) throw new ValidationError("validation", { [`mapping.answers.${key}`]: "unknown_field" });
   for (const key of m.sensitiveFieldKeys) if (!fields[key]) throw new ValidationError("validation", { [`mapping.sensitiveFieldKeys.${key}`]: "unknown_field" });
@@ -588,7 +590,7 @@ export async function createImportSource(tx: Tx, ctx: StaffCtx, i: CreateImportS
     const secret = newImportSecret();
     const [source] = await tx
       .insert(formImportSources)
-      .values({ key, provider: i.provider, name: i.name, formId: form.id, tokenHash: hashToken(secret), mapping: mapping as unknown as Record<string, unknown>, createdByUserId: userId })
+      .values({ key, provider: i.provider, name: i.name, formId: form.id, tokenHash: hashToken(secret), mapping: mapping, createdByUserId: userId })
       .onConflictDoNothing({ target: formImportSources.key })
       .returning({ id: formImportSources.id });
     if (!source) throw new ConflictError("import_key_collision");

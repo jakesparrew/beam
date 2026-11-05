@@ -61,7 +61,7 @@ const all = (s: string) => Object.fromEntries(LOCALES.map((l) => [l, s])) as Rec
 
 function mirrorField(f: FieldRow): Field {
   const base = { key: f.key, label: all(f.label || f.key), required: false, sensitive: f.sensitive };
-  return { ...base, type: f.type } as Field;
+  return { ...base, type: f.type };
 }
 
 export type ImportWizardProps = { labels: Labels };
@@ -104,7 +104,7 @@ export function ImportWizard({ labels }: ImportWizardProps) {
     }
     const outcomeRows = outcomes.filter((o) => o.key.trim());
     if (outcomeRows.length) mapping.outcomeMap = Object.fromEntries(outcomeRows.filter((o) => o.external.trim()).map((o) => [o.external.trim(), o.key.trim()]));
-    const consentPaths = Object.fromEntries(Object.entries(consents).filter(([, v]) => v?.trim()).map(([k, v]) => [k, v!.trim()]));
+    const consentPaths = Object.fromEntries(Object.entries(consents).filter(([, v]) => v?.trim()).map(([k, v]) => [k, v.trim()]));
     if (Object.keys(consentPaths).length) mapping.consents = consentPaths;
     const r = await createImportSource({
       provider,

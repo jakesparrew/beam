@@ -3108,7 +3108,7 @@
       "mergedAt": "2026-11-05T08:10:31Z"
     },
     "fix-w21-commerce-wiring": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "fixer": true,
       "module": "commerce",
@@ -3298,8 +3298,10 @@
       "runId": null,
       "startedAt": "2026-11-05T10:41:08Z",
       "branchSha": "b850c8e",
-      "endedAt": "2026-11-05T11:38:14Z",
-      "minutes": 45
+      "endedAt": "2026-11-05T14:08:18Z",
+      "minutes": 45,
+      "mergeSha": "dc9cf47",
+      "mergedAt": "2026-11-05T14:35:36Z"
     },
     "fix-w21-email-wiring": {
       "status": "done",

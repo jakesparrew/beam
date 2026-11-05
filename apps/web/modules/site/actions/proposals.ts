@@ -5,7 +5,8 @@
  * panel's state read (`getClaudePanelState`, polled every 2 s). Asking Claude needs `site.edit`
  * and `ai.use`; one active request per page (a second is `conflict`). A proposal is published
  * through `publishVersion` (`site.publish`), rejected with a reason, or copied into the draft; it is
- * never edited in place.
+ * never edited in place. R4 (site-P10): `kind: "translate"` ("Translate missing locales") asks for the
+ * locales the base lacks; its instruction is optional.
  */
 import { z } from "zod";
 import { pageEditRequests, pageVersions } from "@beam/db/schema";
@@ -32,12 +33,32 @@ async function proposalBase(ctx: Ctx, pageId: string, currentVersionId: string |
 // requestProposal (rule 41), cancelProposalRequest (rule 56)
 // ---------------------------------------------------------------------------------------------
 
-const RequestProposalInput = z.object({
-  pageId: uuid,
-  instruction: z.string().trim().min(3).max(4000),
-  locales: z.array(z.enum(LOCALES)).min(1).max(3).optional(),
-  kind: z.enum(["edit", "new_page"]),
-});
+const RequestProposalInput = z
+  .object({
+    pageId: uuid,
+    /** Optional only for `translate`, which then stores `TRANSLATE_INSTRUCTION`. */
+    instruction: z.string().trim().min(3).max(4000).optional(),
+    locales: z.array(z.enum(LOCALES)).min(1).max(3).optional(),
+    kind: z.enum(["edit", "new_page", "translate"]),
+  })
+  .refine((v) => v.kind === "translate" || v.instruction !== undefined, { path: ["instruction"], message: "required" });
+
+/** The stored instruction of a "Translate missing locales" request without staff wording (R4). */
+const TRANSLATE_INSTRUCTION = (locales: readonly Locale[]) => `Translate the page into ${locales.join(", ")}, keeping its blocks and structure.`;
+
+/**
+ * The target locales of a request. `translate` (R4, site-P10): the locales the base lacks (limited
+ * to `requested` when given); a page without content, or with every locale, has nothing to
+ * translate (`conflict`). Other kinds: `requested`, else the base's locales, else nl-BE.
+ */
+function targetLocales(kind: "edit" | "new_page" | "translate", base: VersionRow | null, requested: readonly Locale[] | undefined): Locale[] {
+  const fromBase = (base?.locales ?? []).filter((l): l is Locale => (LOCALES as readonly string[]).includes(l));
+  if (kind !== "translate") return LOCALES.filter((l) => (requested ?? (fromBase.length ? fromBase : ["nl-BE"])).includes(l));
+  if (!base || !fromBase.length) throw new ConflictError("translate_no_content");
+  const missing = LOCALES.filter((l) => !fromBase.includes(l) && (!requested || requested.includes(l)));
+  if (!missing.length) throw new ConflictError("translate_nothing_missing");
+  return missing;
+}
 
 export const requestProposal = action(
   { name: "site.proposal.request", audience: "staff", permission: "site.edit", input: RequestProposalInput },
@@ -52,8 +73,8 @@ export const requestProposal = action(
       .where(and(eq(pageEditRequests.pageId, page.id), inArray(pageEditRequests.status, ["pending", "running"])));
     if (active) throw new ConflictError("request_active");
     const base = await proposalBase(ctx, page.id, page.currentVersionId);
-    const fromBase = (base?.locales ?? []).filter((l): l is Locale => (LOCALES as readonly string[]).includes(l));
-    const locales: Locale[] = LOCALES.filter((l) => (input.locales ?? (fromBase.length ? fromBase : ["nl-BE"])).includes(l));
+    const locales = targetLocales(input.kind, base, input.locales);
+    const instruction = input.instruction ?? TRANSLATE_INSTRUCTION(locales);
     const requester = userId(ctx);
     if (!requester) throw new ConflictError("staff_required");
     const [row] = await tx
@@ -61,7 +82,7 @@ export const requestProposal = action(
       .values({
         pageId: page.id,
         kind: input.kind,
-        instruction: input.instruction,
+        instruction,
         locales,
         baseVersionId: base?.id ?? null,
         baseUpdatedAt: base?.updatedAt ?? null,
@@ -75,7 +96,7 @@ export const requestProposal = action(
       action: "site.proposal.request",
       entityType: "page",
       entityId: page.id,
-      newValue: { editRequestId: row.id, kind: input.kind, locales, baseVersionId: base?.id ?? null, instructionLength: input.instruction.length },
+      newValue: { editRequestId: row.id, kind: input.kind, locales, baseVersionId: base?.id ?? null, instructionLength: instruction.length },
     });
     return { editRequestId: row.id };
   },

@@ -15,18 +15,25 @@
  * transaction, `running` would only become visible at the commit together with the outcome, so
  * the request moves from `pending` straight to its final status (the panel shows "running" for
  * any active request).
+ *
+ * R4 (site-P10): a `translate` request fills the target locales (those the base lacks) from the
+ * base's source locale. Claude's answer is merged onto the base first (`mergeTranslation`): the
+ * base locales are taken from the base unchanged and only the target locales from the answer, so a
+ * translation can never alter or drop an existing locale. `translationErrors` then requires every
+ * target locale to repeat the source blocks' ids, order, types and references; a mismatch counts as
+ * invalid output (the one repair round applies).
  */
 import { z } from "zod";
 import { pageEditRequests, pages, pageVersions } from "@beam/db/schema";
 import { PermanentError, RetryableError } from "@beam/core/errors";
-import { LOCALES } from "@beam/core/i18n";
-import { ProposalOutput, type VersionContent } from "@beam/core/site";
+import { LOCALES, type Locale } from "@beam/core/i18n";
+import { ProposalOutput, type Block, type VersionContent } from "@beam/core/site";
 import { IntegrationError } from "@beam/integrations/_shared";
 import { callClaude } from "@/lib/ai";
 import { and, eq, inArray } from "@/lib/ctx";
 import type { JobCtx } from "@/lib/job-runner";
 import { getEditorPickers } from "../queries/admin";
-import { buildProposalPrompt, buildRepairMessages, capRefs, type ProposalRefs } from "../server/ai-prompt";
+import { buildProposalPrompt, buildRepairMessages, capRefs, translationSource, type ProposalRefs } from "../server/ai-prompt";
 import { validateProposal } from "../server/proposal-validate";
 import { getSiteSettings } from "../server/settings";
 import { allocateVersion, contentColumns, getVersionRow, lockPage, versionContent, type PageRow } from "../server/versions";
@@ -89,6 +96,79 @@ export async function loadProposalRefs(ctx: JobCtx, pageId: string): Promise<Pro
   });
 }
 
+// ---------------------------------------------------------------------------------------------
+// Translations (R4)
+// ---------------------------------------------------------------------------------------------
+
+const PER_LOCALE_KEYS = ["title", "paths", "blocks", "seo", "excerpt"] as const;
+const isRecord = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
+
+/**
+ * The answer of a translation merged onto the base: every per-locale field holds the base's value
+ * for the base locales and the answer's value for the target locales only; other locales of the
+ * answer are dropped. A value that is not an object is returned unchanged (it fails validation).
+ */
+export function mergeTranslation(base: VersionContent, raw: unknown, targets: readonly Locale[]): unknown {
+  if (!isRecord(raw)) return raw;
+  const merged: Record<string, unknown> = { ...raw };
+  for (const key of PER_LOCALE_KEYS) {
+    const fromBase = (base[key] ?? {}) as Partial<Record<Locale, unknown>>;
+    const fromAnswer = (isRecord(raw[key]) ? raw[key] : {}) as Partial<Record<Locale, unknown>>;
+    const out: Partial<Record<Locale, unknown>> = {};
+    for (const l of LOCALES) {
+      const value = base.locales.includes(l) ? fromBase[l] : targets.includes(l) ? fromAnswer[l] : undefined;
+      if (value !== undefined && value !== null) out[l] = value;
+    }
+    if (key === "excerpt" && !Object.keys(out).length) delete merged.excerpt;
+    else merged[key] = out;
+  }
+  return merged;
+}
+
+/** Keys whose string values are references (a translation keeps them); other strings are text. */
+const REFERENCE_KEYS = new Set(["id", "type", "kind", "mediaId", "posterMediaId", "formSlug", "sessionId", "productId", "productIds", "pageId", "webinarId", "youtubeId", "imageSide", "route"]);
+/** Rich text documents: their wording and paragraphs may differ between languages. */
+const RICH_TEXT_KEYS = new Set(["doc", "answer"]);
+
+/** A block without its text: references, numbers, switches and list lengths only. */
+function skeleton(value: unknown, key: string | null = null): unknown {
+  if (Array.isArray(value)) return value.map((v) => skeleton(v, key));
+  if (isRecord(value)) {
+    const out: Record<string, unknown> = {};
+    for (const k of Object.keys(value).sort()) {
+      if (RICH_TEXT_KEYS.has(k)) continue;
+      const v = skeleton(value[k], k);
+      if (v !== undefined) out[k] = v;
+    }
+    return out;
+  }
+  if (typeof value === "string") return key && REFERENCE_KEYS.has(key) ? value : undefined;
+  return value;
+}
+
+/**
+ * The structure check of a translation: each target locale has a title and the source locale's
+ * blocks in the same order with the same ids, types and references (only the text differs).
+ */
+export function translationErrors(content: Pick<VersionContent, "title" | "blocks">, source: Locale, targets: readonly Locale[]): string[] {
+  const errors: string[] = [];
+  const src: Block[] = content.blocks[source] ?? [];
+  for (const l of targets) {
+    if (!(content.title[l] ?? "").trim()) errors.push(`title.${l}: the translation has no title`);
+    const blocks: Block[] = content.blocks[l] ?? [];
+    if (blocks.length !== src.length) {
+      errors.push(`blocks.${l}: the translation has ${blocks.length} blocks and ${source} has ${src.length}; translate every block and add none`);
+      continue;
+    }
+    blocks.forEach((b, i) => {
+      const s = src[i]!;
+      if (b.id !== s.id || b.type !== s.type) errors.push(`blocks.${l}[${i}]: expected the ${s.type} block with id ${s.id} (the order of ${source}), got ${b.type} ${b.id}`);
+      else if (JSON.stringify(skeleton(b)) !== JSON.stringify(skeleton(s))) errors.push(`blocks.${l}[${i}]: the ${b.type} block ${b.id} changes references, numbers, switches or the number of items of ${source}; translate only the text`);
+    });
+  }
+  return errors;
+}
+
 const isInvalidOutput = (e: unknown) => (e instanceof RetryableError || e instanceof PermanentError) && e.message === "invalid_output";
 const isRetryable = (e: unknown) => e instanceof RetryableError || (e instanceof IntegrationError && e.retryable);
 function rawJson(text: string): unknown {
@@ -112,7 +192,11 @@ export async function proposePage(ctx: JobCtx, input: ProposePageInput): Promise
 
   const baseRow = req.baseVersionId ? await getVersionRow(ctx.tx, req.baseVersionId) : null;
   const base: VersionContent | null = baseRow ? versionContent(baseRow) : null;
-  const targetLocales = LOCALES.filter((l) => req.locales.includes(l));
+  const translate = req.kind === "translate";
+  // A translation fills only locales the base lacks (the base may have gained some since the request).
+  const targetLocales = LOCALES.filter((l) => req.locales.includes(l) && !(translate && base?.locales.includes(l)));
+  const source = translate && base ? translationSource(base.locales) : null;
+  if (translate && (!base || !source || !targetLocales.length)) return failRequest(ctx, req, "invalid_output", "nothing_to_translate");
   const settings = await getSiteSettings(ctx.tx);
   const refs = await loadProposalRefs(ctx, page.id);
   const prompt = buildProposalPrompt({
@@ -122,7 +206,8 @@ export async function proposePage(ctx: JobCtx, input: ProposePageInput): Promise
     locales: targetLocales.length ? targetLocales : (base?.locales ?? ["nl-BE"]),
     refs,
     brandVoice: settings.brand_voice ?? "",
-    kind: req.kind === "new_page" ? "new_page" : "edit",
+    kind: req.kind,
+    ...(source ? { sourceLocale: source } : {}),
   });
   const known = { productIds: refs.products.map((p) => p.id), sessionIds: refs.sessions.map((s) => s.id), formSlugs: refs.forms.map((f) => f.slug), pageIds: [...refs.pages.map((p) => p.id), page.id] };
   const pageFacts = { kind: page.kind, legalKey: page.legalKey ?? null, sessionId: page.sessionId ?? null };
@@ -155,10 +240,12 @@ export async function proposePage(ctx: JobCtx, input: ProposePageInput): Promise
       return failRequest(ctx, req, "ai_unavailable", errorText(error));
     }
 
-    const checked = validateProposal(base, parsed, pageFacts, { targetLocales, known });
-    if (!checked.ok) {
-      lastErrors = checked.errors;
-      messages = buildRepairMessages(prompt.messages, text, checked.errors);
+    const candidate = translate && base ? mergeTranslation(base, parsed, targetLocales) : parsed;
+    const checked = validateProposal(base, candidate, pageFacts, { targetLocales, known });
+    const structure = checked.ok && translate && source ? translationErrors(checked.content, source, targetLocales) : [];
+    if (!checked.ok || structure.length) {
+      lastErrors = checked.ok ? structure : checked.errors;
+      messages = buildRepairMessages(prompt.messages, text, lastErrors);
       continue;
     }
 

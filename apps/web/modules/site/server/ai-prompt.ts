@@ -5,6 +5,12 @@
  * ids and titles, form slugs, page ids and titles), each capped at 200 items. It never receives
  * personal data: no requester, no persons, no emails or phone numbers from the database. The
  * system prompt is stable (no per-call text), so the client's `cache_control` reads the cache.
+ *
+ * R4 (site-P10): a `translate` request fills the locales the base version lacks from one source
+ * locale (nl-BE when present). Claude returns only the target locales; the translated blocks keep
+ * the source blocks' ids, order and types, and the base locales stay exactly as they are (the job
+ * merges and checks this, see `jobs/propose.ts`). The translation rules travel in the user message
+ * so the system prompt stays the same for every kind.
  */
 import type { ClaudeMessage } from "@/lib/ai";
 import { LOCALES, type Locale, type LocalizedText } from "@beam/core/i18n";
@@ -32,9 +38,27 @@ export type ProposalPromptInput = {
   locales: readonly Locale[];
   refs: ProposalRefs;
   brandVoice: string;
-  /** `edit` (default) changes the base; `new_page` writes the page from the instruction. */
-  kind?: "edit" | "new_page";
+  /**
+   * `edit` (default) changes the base; `new_page` writes the page from the instruction;
+   * `translate` (R4) fills `locales` (the missing ones) from `sourceLocale` of the base.
+   */
+  kind?: "edit" | "new_page" | "translate";
+  /** The locale a `translate` request translates from (default: nl-BE when the base has it). */
+  sourceLocale?: Locale;
 };
+
+/** The source locale of a translation: nl-BE when the base has it, else its first locale. */
+export function translationSource(baseLocales: readonly Locale[]): Locale | null {
+  const ordered = LOCALES.filter((l) => baseLocales.includes(l));
+  return ordered.includes("nl-BE") ? "nl-BE" : (ordered[0] ?? null);
+}
+
+const TRANSLATE_RULES = (source: Locale, targets: readonly Locale[]) => `Translation task: translate the page from ${source} into ${targets.join(", ")}.
+- Return only the target locales (${targets.join(", ")}) in title, paths, blocks, seo and excerpt; the other locales stay as they are and are not returned.
+- Each target locale's blocks are the ${source} blocks in the same order, with the same "id" and "type" and the same references (media, products, sessions, forms, pages, links, YouTube ids, numbers and switches); translate only the visible text.
+- Write a path for each target locale in that language (lower-case words joined by hyphens, same number of segments as the ${source} path).
+- SEO title 1-70 characters and description 50-170 characters in each target locale.
+- changeSummary (English) says which locales you added.`;
 
 const BLOCK_SCHEMA = `Block types (every block has "id": a UUID, and "type"):
 - hero: heading (<=120), subheading?, mediaId?, cta? { label, link }. Only as the first block.
@@ -88,15 +112,18 @@ function baseContent(base: VersionContent | null) {
 
 export function buildProposalPrompt(input: ProposalPromptInput): { system: string; messages: AiMessage[]; fieldsSent: string[] } {
   const targets = LOCALES.filter((l) => input.locales.includes(l));
+  const source = input.kind === "translate" ? (input.sourceLocale ?? translationSource(input.base?.locales ?? [])) : null;
   const payload = {
-    task: input.kind === "new_page" ? "write_new_page" : "edit_page",
+    task: input.kind === "new_page" ? "write_new_page" : input.kind === "translate" ? "translate_page" : "edit_page",
+    ...(source ? { sourceLocale: source } : {}),
     page: { kind: input.page.kind, legalKey: input.page.legalKey, hasLinkedSession: !!input.page.sessionId, isHome: input.page.kind === "home" },
     targetLocales: targets,
     brandVoice: input.brandVoice.trim() || null,
     base: baseContent(input.base),
     references: capRefs(input.refs),
   };
-  const user = `Page and references (JSON):\n${JSON.stringify(payload)}\n\nInstruction from the staff member:\n${input.instruction.trim()}`;
+  const extra = source ? `\n\n${TRANSLATE_RULES(source, targets)}` : "";
+  const user = `Page and references (JSON):\n${JSON.stringify(payload)}${extra}\n\nInstruction from the staff member:\n${input.instruction.trim()}`;
   return { system: SYSTEM, messages: [{ role: "user", content: user }], fieldsSent: [...PROPOSAL_FIELDS_SENT] };
 }
 

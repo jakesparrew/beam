@@ -389,7 +389,8 @@
     },
     "nav": {
       "forms": "Formulieren",
-      "enter": "Formulier invullen"
+      "enter": "Formulier invullen",
+      "my_results": "Mijn resultaten"
     },
     "locale": {
       "nl-BE": "Nederlands",
@@ -955,6 +956,25 @@
         "thanks_title": "Bedankt",
         "thanks_body": "Je resultaat werd uit een andere tool geïmporteerd.",
         "submit": "Versturen"
+      }
+    },
+    "portal": {
+      "results": {
+        "title": "Mijn resultaten",
+        "intro": "Je ingevulde assessments en formulieren. Open een resultaat om het opnieuw te bekijken.",
+        "completed_heading": "Ingevuld",
+        "open_heading": "Nog niet afgewerkt",
+        "completed_on": "Ingevuld op {date}",
+        "last_activity": "Laatst bewaard op {date}",
+        "outcome": "Resultaat: {outcome}",
+        "view_result": "Bekijk resultaat",
+        "view_result_for": "Bekijk resultaat van {form}",
+        "continue": "Verder invullen",
+        "continue_for": "Verder invullen: {form}",
+        "no_result_page": "Dit formulier heeft geen resultatenpagina.",
+        "empty": "Je hebt nog geen assessment ingevuld",
+        "empty_cta": "Start {form}",
+        "error": "Dit resultaat kan nu niet geopend worden. Probeer het opnieuw."
       }
     }
   }

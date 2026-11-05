@@ -4,9 +4,10 @@
  *
  * Targets: `booking`/`experience` -> `/<locale>/account/book?template=<id>`, `event` -> site's
  * event page (or `/<locale>/account/book/<sessionId>`), `product` -> `/<locale>/account/shop?
- * product=<id>`, `url` -> the https URL with `utm_source=beam_form&utm_medium=result&
- * utm_campaign=<slug>`. An inactive or past target falls back to the ending's first `url` CTA or
- * to `/<locale>` with `data.fallback = true`. Every BEAM target carries `pt=<identity token>` of
+ * product=<id>`, `webinar` (R2, forms-P8) -> `/<locale>/webinars/<webinar slug>` while the
+ * webinar is `published`, `live` or `ended`, `url` -> the https URL with `utm_source=beam_form&
+ * utm_medium=result&utm_campaign=<slug>`. An inactive, past or unlinkable target falls back to
+ * the ending's first `url` CTA or to `/<locale>` with `data.fallback = true`. Every BEAM target carries `pt=<identity token>` of
  * the result's person. `assessment.cta_clicked` is recorded once per CTA per Brussels day
  * (`form:<submission_id>:cta:<cta_key>:<YYYY-MM-DD>`). An expired link goes to the result page
  * (which offers a new link); an unknown or revoked token or CTA answers `404`.

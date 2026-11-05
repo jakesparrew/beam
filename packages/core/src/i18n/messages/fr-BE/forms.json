@@ -389,7 +389,8 @@
     },
     "nav": {
       "forms": "Formulaires",
-      "enter": "Remplir un formulaire"
+      "enter": "Remplir un formulaire",
+      "my_results": "Mes résultats"
     },
     "locale": {
       "nl-BE": "Nederlands",
@@ -955,6 +956,25 @@
         "thanks_title": "Merci",
         "thanks_body": "Votre résultat a été importé depuis un autre outil.",
         "submit": "Envoyer"
+      }
+    },
+    "portal": {
+      "results": {
+        "title": "Mes résultats",
+        "intro": "Vos évaluations et formulaires complétés. Ouvrez un résultat pour le revoir.",
+        "completed_heading": "Complétés",
+        "open_heading": "Pas encore terminés",
+        "completed_on": "Complété le {date}",
+        "last_activity": "Enregistré pour la dernière fois le {date}",
+        "outcome": "Résultat : {outcome}",
+        "view_result": "Voir le résultat",
+        "view_result_for": "Voir le résultat de {form}",
+        "continue": "Continuer",
+        "continue_for": "Continuer {form}",
+        "no_result_page": "Ce formulaire n'a pas de page de résultat.",
+        "empty": "Vous n'avez pas encore complété d'évaluation",
+        "empty_cta": "Commencer {form}",
+        "error": "Ce résultat ne peut pas être ouvert pour le moment. Veuillez réessayer."
       }
     }
   }

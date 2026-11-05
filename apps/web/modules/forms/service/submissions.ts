@@ -9,7 +9,7 @@
  * Every status change runs `select ... for update` and a guarded `update ... where status in (...)`,
  * so a submit racing the abandon job cannot produce two outcomes.
  */
-import type { Tx } from "@beam/db";
+import type { DbOrTx, Tx } from "@beam/db";
 import { formLinks, forms, formSubmissions, formVersions, type FormConsentSnapshotJson, type FormScoreJson, type FormSubmissionSource } from "@beam/db/schema";
 import {
   brusselsDay,
@@ -41,7 +41,7 @@ import {
 } from "@beam/core/forms";
 import { ACQUISITION_SOURCES, type Acquisition, type AcquisitionSource } from "@beam/core/crm";
 import type { Locale, LocalizedText } from "@beam/core/i18n";
-import { AppError, and, ConflictError, eq, inArray, NotFoundError, sql, ValidationError, type Ctx } from "@/lib/ctx";
+import { AppError, and, ConflictError, desc, eq, inArray, NotFoundError, sql, ValidationError, type Ctx } from "@/lib/ctx";
 import { rowsOf } from "@/lib/sensitive";
 import { applyTag, fillAcquisitionIfEmpty, findOrCreatePersonByEmail, getPerson, getPersonPrefill, recordConsent, updatePersonFields } from "@/modules/crm/api";
 import { sendTransactional } from "@/modules/email/api";
@@ -210,8 +210,20 @@ function isAcquisitionSource(v: string | undefined): boolean {
   return !!v && (ACQUISITION_SOURCES as readonly string[]).includes(v);
 }
 
-/** U1: inserts the `started` submission pinned to the current version. */
-export async function startSubmission(tx: Tx, ctx: PublicCtx, i: StartInput): Promise<{ submissionId: string; resumeToken: string | null; prefill: Prefill | null }> {
+/** A session resume (U5, R2): the continued submission's non-sensitive answers and section. */
+export type SessionResume = { answers: Answers; currentSectionKey: string | null };
+
+/**
+ * U1: inserts the `started` submission pinned to the current version. U5 (R2): a logged-in
+ * customer (`identified_by = session`) instead continues their latest open submission of this
+ * form on any device, when its pinned version has resume on and it is within `resumeDays` of
+ * `last_activity_at` (`resumed` is then set; no new row, no second `form.started`).
+ */
+export async function startSubmission(
+  tx: Tx,
+  ctx: PublicCtx,
+  i: StartInput,
+): Promise<{ submissionId: string; resumeToken: string | null; prefill: Prefill | null; resumed?: SessionResume }> {
   const { form, versionRow, definition } = await loadPublishedForm(tx, i.slug);
   if (!versionRow.locales.includes(i.locale)) throw new ValidationError("unavailable_locale", { locale: "unavailable_locale" });
   const ipHash = hashIp(i.ip);
@@ -253,6 +265,14 @@ export async function startSubmission(tx: Tx, ctx: PublicCtx, i: StartInput): Pr
   const identity = resolveIdentity(ctx, { identityToken: i.identityToken, slug: form.slug });
   if (identity.identifiedBy === "staff" && !definition.settings.staffEntryAllowed) throw new ValidationError("staff_entry_not_allowed", { form: "staff_entry_not_allowed" });
   if (identity.staffUserId && !(await isActiveStaff(tx, identity.staffUserId))) throw new ValidationError("staff_user_inactive", { identityToken: "staff_user_inactive" });
+
+  if (identity.identifiedBy === "session" && identity.personId) {
+    const resumed = await resumeForSession(tx, ctx, { formId: form.id, personId: identity.personId, locale: i.locale });
+    if (resumed) {
+      const prefill = await buildPrefill(tx, resumed.l.definition, identity.personId);
+      return { submissionId: resumed.l.sub.id, resumeToken: null, prefill, resumed: resumed.state };
+    }
+  }
 
   // U5: a resume token when resume is on; always for embedded forms (edge case 22, kept in memory there).
   const resumeToken = definition.settings.resumeEnabled || embedHost ? randomToken() : null;
@@ -523,6 +543,53 @@ export async function resumeSubmission(
     return null;
   }
   return { submissionId: l.sub.id, answers: (l.sub.answers ?? {}) as Answers, currentSectionKey: resumeSectionOf(l) };
+}
+
+// ---------------------------------------------------------------------------
+// Cross-device resume for logged-in customers (U5, R2; forms-P8)
+// ---------------------------------------------------------------------------
+
+/** Statuses a submission can be continued from. */
+const OPEN_STATUSES: SubmissionRow["status"][] = ["started", "partial", "abandoned"];
+
+/**
+ * Whether a session customer may continue this open submission: the form is still published,
+ * the pinned version has resume on, it is within `resumeDays` of `last_activity_at` (abandoned:
+ * `mayReopen`), and it was not a staff-assisted entry (ID10 keeps its own consent rules).
+ */
+function sessionResumable(sub: SubmissionRow, formStatus: FormRow["status"], def: FormDefinition, now: Date): boolean {
+  if (formStatus !== "published" || !def.settings.resumeEnabled || sub.identifiedBy === "staff" || sub.identifiedBy === "import") return false;
+  if (sub.status === "abandoned") return mayReopen(sub, def, now);
+  if (sub.status !== "started" && sub.status !== "partial") return false;
+  return now.getTime() - sub.lastActivityAt.getTime() <= def.settings.resumeDays * DAY_MS;
+}
+
+/** The person's latest open submission of a form (any device), locked, when it may be continued. */
+async function latestResumable(tx: Tx, formId: string, personId: string, now: Date): Promise<Loaded | null> {
+  const [row] = await tx
+    .select({ id: formSubmissions.id })
+    .from(formSubmissions)
+    .where(and(eq(formSubmissions.formId, formId), eq(formSubmissions.personId, personId), inArray(formSubmissions.status, OPEN_STATUSES)))
+    .orderBy(desc(formSubmissions.lastActivityAt), desc(formSubmissions.startedAt))
+    .limit(1);
+  if (!row) return null;
+  const l = await loadSubmission(tx, row.id, true);
+  return OPEN_STATUSES.includes(l.sub.status) && sessionResumable(l.sub, l.form.status, l.definition, now) ? l : null;
+}
+
+/**
+ * U5 (R2): continues the session customer's latest open submission of the form. An abandoned one
+ * becomes `partial` (its `form.abandoned` event stays); the locale follows the device when the
+ * pinned version offers it. Ownership on later saves is the session itself (section 4).
+ */
+async function resumeForSession(tx: Tx, ctx: Ctx, i: { formId: string; personId: string; locale: Locale }): Promise<{ l: Loaded; state: SessionResume } | null> {
+  const l = await latestResumable(tx, i.formId, i.personId, ctx.now);
+  if (!l) return null;
+  if (l.sub.status === "abandoned") await reopen(tx, l, ctx.now);
+  const locale = l.version.locales.includes(i.locale) ? i.locale : l.sub.locale;
+  await guardedUpdate(tx, l.sub.id, ["started", "partial"], { lastActivityAt: ctx.now, locale });
+  l.sub = { ...l.sub, lastActivityAt: ctx.now, locale };
+  return { l, state: { answers: (l.sub.answers ?? {}) as Answers, currentSectionKey: resumeSectionOf(l) } };
 }
 
 /**
@@ -916,4 +983,107 @@ export async function sendResultLink(tx: Tx, ctx: Ctx, i: { submissionId: string
   });
   const r = await sendTransactional(ctx, { template: "forms.result_link", personId: l.sub.personId, locale, data, key: i.key });
   return { emailMessageId: r.emailMessageId };
+}
+
+// ---------------------------------------------------------------------------
+// Customer portal "My results" (forms spec section 5, R2; forms-P8)
+// ---------------------------------------------------------------------------
+
+/** A completed submission on the portal list; `hasResultPage` when its ending is a result page. */
+export type PortalCompletedResult = {
+  submissionId: string;
+  formSlug: string;
+  formName: LocalizedText;
+  completedAt: Date;
+  outcomeLabel: LocalizedText | null;
+  hasResultPage: boolean;
+};
+
+/** An open submission the customer can continue (the latest open one per form, U5). */
+export type PortalOpenSubmission = { submissionId: string; formSlug: string; formName: LocalizedText; lastActivityAt: Date };
+
+export type PortalResults = { completed: PortalCompletedResult[]; open: PortalOpenSubmission[] };
+
+/**
+ * The portal list of one person (always `ctx.actor.personId` of the page): completed submissions,
+ * newest first, and per form the latest open submission that may be continued on any device
+ * (`sessionResumable`). Never an answer value or a score.
+ */
+export async function listPortalResults(db: DbOrTx, personId: string, now: Date): Promise<PortalResults> {
+  const rows = await db
+    .select({ s: formSubmissions, slug: forms.slug, name: forms.name, formStatus: forms.status, v: formVersions })
+    .from(formSubmissions)
+    .innerJoin(forms, eq(forms.id, formSubmissions.formId))
+    .innerJoin(formVersions, eq(formVersions.id, formSubmissions.formVersionId))
+    .where(eq(formSubmissions.personId, personId))
+    .orderBy(desc(formSubmissions.lastActivityAt), desc(formSubmissions.startedAt));
+  const out: PortalResults = { completed: [], open: [] };
+  const seenOpen = new Set<string>();
+  for (const r of rows) {
+    const c = parseVersion(r.v);
+    if (r.s.status === "completed" && r.s.completedAt) {
+      const outcome = c.scoring.outcomes.find((o) => o.key === r.s.outcomeKey);
+      out.completed.push({
+        submissionId: r.s.id,
+        formSlug: r.slug,
+        formName: r.name,
+        completedAt: r.s.completedAt,
+        outcomeLabel: outcome?.label ?? null,
+        hasResultPage: endingOf(c.definition, r.s.endingKey).kind === "result",
+      });
+    } else if (OPEN_STATUSES.includes(r.s.status) && !seenOpen.has(r.s.formId)) {
+      // Only the latest open submission of a form is the one a new start continues (U5).
+      seenOpen.add(r.s.formId);
+      if (sessionResumable(r.s, r.formStatus, c.definition, now)) {
+        out.open.push({ submissionId: r.s.id, formSlug: r.slug, formName: r.name, lastActivityAt: r.s.lastActivityAt });
+      }
+    }
+  }
+  out.completed.sort((a, b) => b.completedAt.getTime() - a.completedAt.getTime());
+  return out;
+}
+
+/**
+ * "View result" (portal): a fresh result link for the customer's own completed submission. The
+ * link lives another 180 days from now; an expired token is replaced by bumping
+ * `result_token_version` (the dead link stays dead), a valid one keeps its token so the result
+ * email's link keeps working, and a submission that never had one (an import) gets its first.
+ * Another person's submission, an open one or one without a result page answers `not_found`.
+ */
+export async function openPortalResult(tx: Tx, ctx: Ctx, i: { submissionId: string }): Promise<{ url: string }> {
+  if (ctx.actor.kind !== "customer") throw new NotFoundError("submission_not_found");
+  const personId = ctx.actor.personId;
+  const [own] = await tx
+    .select({ id: formSubmissions.id })
+    .from(formSubmissions)
+    .where(and(eq(formSubmissions.id, i.submissionId), eq(formSubmissions.personId, personId), eq(formSubmissions.status, "completed")));
+  if (!own) throw new NotFoundError("submission_not_found");
+  const l = await loadSubmission(tx, own.id, true);
+  if (l.sub.status !== "completed" || l.sub.personId !== personId) throw new NotFoundError("submission_not_found");
+  if (endingOf(l.definition, l.sub.endingKey).kind !== "result") throw new NotFoundError("result_not_available");
+  const live = !!l.sub.resultTokenHash && !!l.sub.resultTokenExpiresAt && l.sub.resultTokenExpiresAt.getTime() > ctx.now.getTime();
+  const version = live || !l.sub.resultTokenHash ? l.sub.resultTokenVersion : l.sub.resultTokenVersion + 1;
+  const token = createResultToken(l.sub.id, version);
+  await tx
+    .update(formSubmissions)
+    .set({
+      resultTokenVersion: version,
+      resultTokenHash: hashToken(token),
+      resultTokenExpiresAt: new Date(ctx.now.getTime() + RESULT_TOKEN_DAYS * DAY_MS),
+      updatedAt: ctx.now,
+    })
+    .where(eq(formSubmissions.id, l.sub.id));
+  return { url: resultPageUrl(l.form.slug, l.sub.locale as Locale, token) };
+}
+
+/** The portal's empty-state link: the newest published assessment offered in the locale, or null. */
+export async function featuredAssessment(db: DbOrTx, locale: Locale): Promise<{ slug: string; name: LocalizedText } | null> {
+  const [row] = await db
+    .select({ slug: forms.slug, name: forms.name })
+    .from(forms)
+    .innerJoin(formVersions, eq(formVersions.id, forms.currentVersionId))
+    .where(and(eq(forms.status, "published"), eq(forms.kind, "assessment"), sql`${locale} = any(${formVersions.locales})`))
+    .orderBy(desc(formVersions.publishedAt), desc(forms.createdAt))
+    .limit(1);
+  return row ?? null;
 }

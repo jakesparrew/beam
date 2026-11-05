@@ -389,7 +389,8 @@
     },
     "nav": {
       "forms": "Forms",
-      "enter": "Fill in a form"
+      "enter": "Fill in a form",
+      "my_results": "My results"
     },
     "locale": {
       "nl-BE": "Nederlands",
@@ -955,6 +956,25 @@
         "thanks_title": "Thank you",
         "thanks_body": "Your result was imported from another tool.",
         "submit": "Send"
+      }
+    },
+    "portal": {
+      "results": {
+        "title": "My results",
+        "intro": "Your completed assessments and forms. Open a result to see it again.",
+        "completed_heading": "Completed",
+        "open_heading": "Not finished yet",
+        "completed_on": "Completed on {date}",
+        "last_activity": "Last saved on {date}",
+        "outcome": "Result: {outcome}",
+        "view_result": "View result",
+        "view_result_for": "View result of {form}",
+        "continue": "Continue",
+        "continue_for": "Continue {form}",
+        "no_result_page": "This form has no result page.",
+        "empty": "You have not completed an assessment yet",
+        "empty_cta": "Start {form}",
+        "error": "This result cannot be opened right now. Please try again."
       }
     }
   }

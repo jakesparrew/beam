@@ -14,13 +14,14 @@
  * Within 60 s A's journey is `exited` with `unsubscribed`, a marketing message queued before the
  * unsubscribe is `suppressed` at send time, and nothing more of marketing reaches the sink, while a
  * transactional booking confirmation still arrives. Person B's fake Resend complaint (a signed
- * `email.complained` webhook) has the same effect. The campaign chunk (email-P6) then marks both
+ * `email.complained` webhook) has the same effect on marketing; being a scope `all` suppression it
+ * also stops B's booking confirmation (email rule 40). The campaign chunk (email-P6) then marks both
  * `skipped_suppressed`.
  */
 import { expect, test, type APIRequestContext } from "@playwright/test";
 import { sql } from "drizzle-orm";
 import { emailHash } from "@beam/core/crm";
-import { hashLinkToken } from "@beam/core/email";
+import { hashLinkToken, newBlockId } from "@beam/core/email";
 import { FAKE_RESEND_WEBHOOK_SECRET, signResendWebhook } from "@beam/integrations/resend";
 import { closeE2eDb, e2eRows } from "./support/db";
 import { uniqueEmail } from "./support/ids";
@@ -48,9 +49,10 @@ async function until<T>(read: () => Promise<T>, done: (value: T) => boolean, tim
 
 const one = async <T>(query: Parameters<typeof e2eRows>[0]): Promise<T | undefined> => (await e2eRows<T>(query))[0];
 
+// Block ids are 10-character nanoids (BLOCK_ID_PATTERN); anything else fails the send as `invalid_document`.
 const blocks = (locale: string) => [
-  { id: `s2h${RUN}${locale}`, type: "heading", level: 1, text: "Hallo {{first_name|vriend}}" },
-  { id: `s2t${RUN}${locale}`, type: "text", markdown: `Scenario 2 nieuws (${locale}). [Programma](https://beam.be/nl/events)` },
+  { id: newBlockId(), type: "heading", level: 1, text: "Hallo {{first_name|vriend}}" },
+  { id: newBlockId(), type: "text", markdown: `Scenario 2 nieuws (${locale}). [Programma](https://beam.be/nl/events)` },
 ];
 
 async function marketingTemplate(): Promise<{ templateId: string; versionId: string; slug: string }> {
@@ -172,8 +174,13 @@ async function complain(request: APIRequestContext, resendId: string, to: string
   return res.status();
 }
 
-/** After an unsubscribe: the journey exits, the queued marketing message is suppressed, transactional mail still arrives. */
-async function expectMarketingStopped(person: Person, input: { queuedBefore: string; since: Date }): Promise<void> {
+/**
+ * After an unsubscribe: the journey exits and the queued marketing message is suppressed. A scoped
+ * unsubscribe never blocks transactional mail, so the booking confirmation arrives; a complaint is a
+ * scope `all` suppression, which email rule 40 applies to every message except the four
+ * complaint-exempt templates, so the booking confirmation is suppressed too.
+ */
+async function expectMarketingStopped(person: Person, input: { queuedBefore: string; since: Date; transactional: "sent" | "suppressed" }): Promise<void> {
   const e = await until(() => enrolment(person.enrolmentId), (r) => r?.status !== "active");
   expect(e, "the marketing journey ends within 60 s with the reason unsubscribed").toMatchObject({ status: "exited", end_reason: "unsubscribed" });
 
@@ -188,8 +195,12 @@ async function expectMarketingStopped(person: Person, input: { queuedBefore: str
     props: { title: "Scenario 2 sessie", date: "maandag 9 november 2026 om 10:00", url: "http://localhost:3100/nl/account/bookings", payAtDesk: false },
   });
   const tx = await until(() => message(confirmation), (m) => m?.status !== "queued", SEND_WAIT);
-  expect(tx?.status, "a transactional booking confirmation still goes out").toBe("sent");
-  await latestEmail(person.email, { after: input.since, timeoutMs: SEND_WAIT });
+  if (input.transactional === "sent") {
+    expect(tx?.status, "a transactional booking confirmation still goes out").toBe("sent");
+    await latestEmail(person.email, { after: input.since, timeoutMs: SEND_WAIT });
+  } else {
+    expect(tx?.status, "rule 40: a complaint suppression blocks the booking confirmation too").toBe("suppressed");
+  }
 
   expect(await marketingSentAfter(person.id, input.since), "no further marketing message reaches the sink").toBe(0);
 }
@@ -239,7 +250,7 @@ test.describe("Scenario 2: fast unsubscribe (proposal section 11)", () => {
     expect(await oneClick(request, token)).toBe(200);
     const rows = await suppressionsOf(a.email);
     expect(rows, "the one-click POST writes the suppression immediately").toEqual([{ scope: "newsletter", reason: "unsubscribe", source: `one_click:${first}` }]);
-    await expectMarketingStopped(a, { queuedBefore: later, since: at });
+    await expectMarketingStopped(a, { queuedBefore: later, since: at, transactional: "sent" });
     expect(Date.now() - at.getTime(), "marketing stops well inside 15 minutes").toBeLessThan(15 * 60_000);
   });
 
@@ -257,7 +268,7 @@ test.describe("Scenario 2: fast unsubscribe (proposal section 11)", () => {
     expect(await complain(request, sent.resend_id!, b.email)).toBeLessThan(300);
     const rows = await until(() => suppressionsOf(b.email), (r) => r.some((s) => s.reason === "complaint"));
     expect(rows.find((s) => s.reason === "complaint"), "the complaint suppresses every marketing purpose").toMatchObject({ scope: "all", reason: "complaint" });
-    await expectMarketingStopped(b, { queuedBefore: later, since: at });
+    await expectMarketingStopped(b, { queuedBefore: later, since: at, transactional: "suppressed" });
   });
 
   test("the campaign chunk marks the unsubscribed and the complaining person skipped_suppressed", async () => {

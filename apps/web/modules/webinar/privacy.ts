@@ -3,7 +3,9 @@
  * read by `pnpm gen:indexes`; ops runs export, erase and the retention sweeps. webinar-P1
  * registers the five person-referencing tables, the three tables without personal data, a first
  * export and erase, and the sweep handlers of the retention keys ops seeds (section 9.2); the
- * later webinar packages complete the export topics (webinar-P3 to webinar-P6).
+ * later webinar packages complete the export topics (webinar-P3 to webinar-P6). webinar-P4 adds
+ * the raw segments as a CSV next to the merged watch per mode (section 9.1: "merged watch seconds
+ * and thresholds plus the raw segments CSV").
  *
  * - `export` and `erase` cover every id of `crm.resolvePersonIds` (the subject and the persons
  *   merged into it).
@@ -71,6 +73,22 @@ export const sweep: Record<string, (tx: Tx, cutoff: Date) => Promise<number>> = 
 };
 
 type Label = Record<string, string | undefined> | null | undefined;
+
+/** One RFC 4180 cell: quoted when it holds a comma, quote or line break. */
+function csvCell(v: string | number | null | undefined): string {
+  if (v === null || v === undefined) return "";
+  const text = String(v);
+  return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
+type SegmentExportRow = { webinar_title: string | null; mode: string; from_sec: number; to_sec: number; recorded_at: string | null };
+
+/** The raw watch segments as CSV (header first; one line per heartbeat). */
+export function segmentsCsv(rows: readonly SegmentExportRow[]): string {
+  const header = ["webinar_title", "mode", "from_sec", "to_sec", "recorded_at"];
+  const lines = rows.map((r) => [r.webinar_title, r.mode, r.from_sec, r.to_sec, r.recorded_at].map(csvCell).join(","));
+  return [header.join(","), ...lines].join("\r\n") + "\r\n";
+}
 const inLocale = (text: Label, locale: string) => (text ? (text[locale] ?? null) : null);
 
 async function exportPerson(tx: Tx, personId: string): Promise<PrivacyExport> {
@@ -171,6 +189,7 @@ async function exportPerson(tx: Tx, personId: string): Promise<PrivacyExport> {
     "webinar/registrations.json": registrations,
     "webinar/watch.json": watch,
     "webinar/watch_segments.json": segments,
+    "webinar/watch_segments.csv": segmentsCsv(segments),
     "webinar/interactions.json": interactionRows,
     "webinar/moderation.json": moderation,
     "webinar/presenters.json": presenters,

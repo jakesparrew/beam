@@ -11,11 +11,10 @@ import { createTestDb, makePerson, makeProduct, makeSession } from "@beam/db/tes
 import type { DbHandle } from "@beam/db";
 import { bookings, priceVersions, ticketTypes } from "@beam/db/schema";
 import { formatDateTime, formatMoney, t, type Locale } from "@beam/core/i18n";
-import type * as WebinarApi from "@/modules/webinar/api";
 import type { EventFacts } from "../../queries/public";
 
 vi.mock("next/cache", () => ({ unstable_cache: (fn: (...a: unknown[]) => unknown) => fn, revalidateTag: () => undefined }));
-const webinarFlag = vi.fn(async () => true);
+const webinarFlag = vi.fn(() => Promise.resolve(true));
 vi.mock("@/lib/flags", () => ({ flag: (...args: unknown[]) => webinarFlag(...(args as [])), clearFlagCache: () => undefined }));
 vi.mock("@/modules/webinar/api", async () => {
   const { createElement: h } = await import("react");
@@ -188,12 +187,12 @@ describe("event facts from booking and commerce", () => {
       slug: "ademwerk-avond",
       title: { "nl-BE": "Ademwerk", "fr-BE": "Respiration", en: "Breathwork" },
       mode: "live",
-      status: "scheduled",
+      status: "published",
       startsAt: s.startsAt,
       sessionId: s.id,
       spokenLocale: "nl-BE",
       landingPath: "/nl/webinars/ademwerk-avond",
-    } as Awaited<ReturnType<typeof WebinarApi.getWebinarForSession>>);
+    });
     const f = await getEventFacts(s.id, "fr-BE");
     expect(webinar.getWebinarForSession).toHaveBeenCalledWith(expect.anything(), s.id);
     expect(f).toMatchObject({ isWebinar: true, webinar: { href: "/fr/webinars/ademwerk-avond" }, band: null });

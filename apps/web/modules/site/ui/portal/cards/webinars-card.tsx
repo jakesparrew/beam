@@ -22,7 +22,10 @@ export function accountWebinarsPath(locale: Locale): string {
 function titleOf(title: PortalWebinarRow["title"], locale: Locale): string {
   const own = title[locale]?.trim();
   if (own) return own;
-  for (const l of LOCALES) if (title[l]?.trim()) return title[l]!.trim();
+  for (const l of LOCALES) {
+    const text = title[l]?.trim();
+    if (text) return text;
+  }
   return "";
 }
 

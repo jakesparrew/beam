@@ -16,7 +16,7 @@ vi.mock("next/cache", () => ({ unstable_cache: (fn: (...a: unknown[]) => unknown
 
 type Row = Awaited<ReturnType<typeof WebinarApi.listUpcomingRegistrationsForPerson>>[number];
 const registrationsByPerson = new Map<string, Row[]>();
-const listUpcoming = vi.fn(async (_db: unknown, personId: string): Promise<Row[]> => registrationsByPerson.get(personId) ?? []);
+const listUpcoming = vi.fn((_db: unknown, personId: string): Promise<Row[]> => Promise.resolve(registrationsByPerson.get(personId) ?? []));
 vi.mock("@/modules/webinar/api", () => ({ listUpcomingRegistrationsForPerson: (db: unknown, personId: string) => listUpcoming(db, personId) }));
 
 const sharedWith = vi.fn<typeof CreditsApi.listGrantsSharedWith>();
@@ -61,7 +61,7 @@ async function setFlag(state: "on" | "off" | "testers", personIds: string[] = []
 }
 
 function registration(title: string, startsAt: Date | null): Row {
-  return {
+  const row: Row = {
     registrationId: randomUUID(),
     webinarId: randomUUID(),
     title: { "nl-BE": `${title} (nl)`, "fr-BE": `${title} (fr)`, en: title },
@@ -71,7 +71,8 @@ function registration(title: string, startsAt: Date | null): Row {
     startsAt,
     watchedSec: { live: 0, replay: 0, on_demand: 0 },
     attended: { live: false, replay: false, on_demand: false },
-  } as Row;
+  };
+  return row;
 }
 
 async function customerWithMergedAway() {
@@ -149,7 +150,7 @@ describe("account home Shared with me", () => {
     const { personId, mergedAwayId } = await customerWithMergedAway();
     const shared = (grantId: string) => ({ grantId }) as Awaited<ReturnType<typeof CreditsApi.listGrantsSharedWith>>[number];
     const g1 = randomUUID();
-    sharedWith.mockImplementation(async (_db, id) => (id === personId ? [shared(g1)] : id === mergedAwayId ? [shared(g1), shared(randomUUID())] : []));
+    sharedWith.mockImplementation((_db, id) => Promise.resolve(id === personId ? [shared(g1)] : id === mergedAwayId ? [shared(g1), shared(randomUUID())] : []));
     const home = await getAccountHome(personId, "en");
     expect(home.sharedWithMe).toEqual({ ok: true, data: 2 });
     const out = html(home);

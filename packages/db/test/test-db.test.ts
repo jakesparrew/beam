@@ -19,7 +19,7 @@ describe("createTestDb", () => {
     const handle = await createTestDb({ from: "migrations" });
     try {
       const rows = async (q: string) => {
-        const r: unknown = await handle.db.execute(q as never);
+        const r: unknown = await handle.db.execute(q);
         return ((r as { rows?: unknown[] }).rows ?? r) as Record<string, unknown>[];
       };
       expect(await rows("select rolname from pg_roles where rolname = 'beam_ai_ro'")).toHaveLength(1);

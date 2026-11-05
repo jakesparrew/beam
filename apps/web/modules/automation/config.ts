@@ -5,8 +5,9 @@
  *   only, without a version bump or audit row. It holds the last processed `activity_events.id`
  *   and the gap ids below it that were not visible yet (A-8, edge case 2).
  * - `automation_rules` holds the frequency caps, quiet hours (R2, automation-P7) and the webhook
- *   host allow-list. Until the R2 rules page exists it is edited through platform's generic
- *   settings screen (`settings.write`).
+ *   host allow-list. It is edited on `/admin/automations/rules` (`updateAutomationRules`,
+ *   `automations.publish`; changing the webhook hosts also needs `settings.write`), linked from
+ *   the automations list.
  */
 import { z } from "zod";
 import { defineSetting } from "@/lib/settings";

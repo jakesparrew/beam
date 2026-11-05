@@ -55,7 +55,7 @@ export default async function AutomationBuilderPage({ params }: { params: Promis
   const draft: unknown = a.draftDefinition ?? detail.currentVersion?.definition ?? null;
   return (
     <div className="grid gap-6">
-      <AutomationHeader id={a.id} name={a.name} slug={a.slug} status={a.status} current="edit" l={l} />
+      <AutomationHeader id={a.id} name={a.name} slug={a.slug} status={a.status} current="builder" l={l} />
       <div className="grid gap-1">
         <h2 className="text-lg font-semibold">{l["builder.title"]}</h2>
         <p className="text-sm text-muted-foreground">{l["builder.intro"]}</p>

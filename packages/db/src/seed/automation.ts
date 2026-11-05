@@ -28,7 +28,7 @@ import { canonicalJson, parseDefinition, type Definition } from "@beam/core/auto
 import { SEED_AUTOMATIONS, SEED_GROUPS, SEED_TAGS, seedsOfRelease, seedTemplates, type ActivationRelease, type SeedAutomation } from "@beam/core/automation/seeds";
 import type { SeedTemplateInput } from "@beam/core/email";
 import { isDpiaStatusApproved, type DpiaKey } from "@beam/core/ops";
-import type { DbOrTx, Tx } from "../client";
+import type { Db, DbOrTx, Tx } from "../client";
 import { automationGroups, automations, automationVersions } from "../schema/automation";
 import { tags } from "../schema/crm";
 import { dpiaRecords } from "../schema/ops";
@@ -201,6 +201,75 @@ export async function activateReleaseSequences(tx: Tx, release: ActivationReleas
     activated.push(row.slug);
   }
   return { activated, blocked };
+}
+
+// ---------------------------------------------------------------------------
+// Release activation command (go-live step, N-1 of docs/build/seam-issues-r2.md)
+// ---------------------------------------------------------------------------
+
+/** The releases `activateReleaseSequences` accepts, in order. */
+export const ACTIVATION_RELEASES = ["R2", "R3"] as const satisfies readonly ActivationRelease[];
+
+/** `R2` or `r2` -> `R2`; anything else throws with the accepted values. */
+export function parseActivationRelease(arg: string | undefined): ActivationRelease {
+  const value = (arg ?? "").trim().toUpperCase();
+  const hit = ACTIVATION_RELEASES.find((r) => r === value);
+  if (!hit) throw new Error(`release must be one of ${ACTIVATION_RELEASES.join(", ")} (got "${arg ?? ""}")`);
+  return hit;
+}
+
+/** The lines the go-live command prints: what was switched on and what a DPIA still blocks. */
+export function formatActivationReport(release: ActivationRelease, r: ActivateReleaseResult): string[] {
+  const lines = [`${release}: ${r.activated.length} journey(s) activated${r.activated.length ? `: ${r.activated.join(", ")}` : ""}`];
+  for (const b of r.blocked) {
+    const [slug, dpia] = b.split(":");
+    lines.push(`${release}: ${slug} stays draft until DPIA ${dpia} is approved`);
+  }
+  return lines;
+}
+
+/**
+ * The body of the go-live command `release:activate <R>` (automation spec 3.6, decision 30):
+ * runs `activateReleaseSequences` in one transaction of `db`, prints the report and returns it.
+ * Idempotent: a second run activates nothing new. DPIA approval is read with ops' rule
+ * (`dpia_records`), so a DPIA-gated journey activates on the first run after the approval.
+ */
+export async function runReleaseActivation(
+  db: Db,
+  release: ActivationRelease,
+  opts: ActivateReleaseOptions & { log?: (line: string) => void } = {},
+): Promise<ActivateReleaseResult> {
+  const { log = console.log, ...rest } = opts;
+  const result = await db.transaction((tx) => activateReleaseSequences(tx, release, rest));
+  for (const line of formatActivationReport(release, result)) log(line);
+  return result;
+}
+
+/**
+ * A command-line entry for the go-live step: `argv[0]` is the release. Connects with
+ * `DATABASE_URL_UNPOOLED` (else `DATABASE_URL`) and `DATABASE_DRIVER` like `db:migrate`, runs
+ * `runReleaseActivation` and returns the exit code (0 done, 1 refused or failed). See
+ * `docs/runbooks/automations.md` ("Switching on a release's journeys").
+ */
+export async function releaseActivationCli(argv: readonly string[], log: (line: string) => void = console.log): Promise<number> {
+  let release: ActivationRelease;
+  try {
+    release = parseActivationRelease(argv[0]);
+  } catch (err) {
+    log(`release:activate: ${(err as Error).message}`);
+    return 1;
+  }
+  const { createDbHandle } = await import("../client");
+  const handle = await createDbHandle(undefined, process.env.DATABASE_URL_UNPOOLED ?? process.env.DATABASE_URL);
+  try {
+    await runReleaseActivation(handle.db, release, { log });
+    return 0;
+  } catch (err) {
+    log(`release:activate ${release} failed: ${(err as Error).message}`);
+    return 1;
+  } finally {
+    await handle.close();
+  }
 }
 
 export const seed: DefaultSeed = {

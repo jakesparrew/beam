@@ -106,6 +106,8 @@
       "description": "Parcours qui assurent le suivi de ce que font les personnes. Chiffres des 7 derniers jours.",
       "new": "Nouvelle automatisation",
       "groups": "Groupes",
+      "rules": "Règles",
+      "conflicts": "Conflits",
       "empty": "Pas encore d’automatisations",
       "empty_filtered": "Aucune automatisation ne correspond à ces filtres.",
       "filter_status": "Statut",
@@ -270,6 +272,7 @@
       "col_entered": "Entrée",
       "col_next": "Étape suivante",
       "col_end_reason": "Motif de fin",
+      "col_actions": "Actions",
       "next_at": "{step} le {date}",
       "unnamed": "(sans nom)"
     },

@@ -2,15 +2,17 @@
 /**
  * The builder's side panel (automation-P10, spec 5): the settings of the selected block with the
  * same field forms as the V1 editor. The Trigger block shows the trigger, timing, audience,
- * re-entry and exit cards; an action block shows the editor's step form (its "Add step" picker
- * adds the new block right after this one); a Condition or Branch block shows its step key, the
+ * re-entry and exit cards; an action block shows the editor's single-step `StepForm` (its
+ * condition builders offer every step key of the flow), an "Add step" picker that adds the new
+ * block right after this one, and Remove; a Condition or Branch block shows its step key, the
  * condition builder and, for an empty lane, where that lane goes.
  */
-import { Input } from "@beam/ui";
-import type { BranchLane, BuilderNode, BuilderTrigger } from "@beam/core/automation";
+import { useId, useState } from "react";
+import { Button, Input } from "@beam/ui";
+import { STEP_TYPES, type BranchLane, type BuilderNode, type BuilderTrigger, type StepType } from "@beam/core/automation";
 import { ConditionBuilder, selectClass, type EditorOptions, type Json } from "../condition-builder";
 import { fill, type Labels } from "../outcome-badge";
-import { Field, StepForms, type IssueView, type StepJson } from "../step-forms";
+import { Field, newStep, StepForm, type IssueView, type StepJson } from "../step-forms";
 import { AudienceCard, IssueList, ReEntryExitCard, TimingCard, TriggerCard } from "../trigger-card";
 
 type Obj = { [k: string]: Json };
@@ -88,22 +90,22 @@ export function NodePanel({
 }) {
   const { l, options, readOnly, issues } = p;
   if (node.kind === "step") {
+    const step = node.step as unknown as StepJson;
     return (
       <div className="grid gap-2" data-testid="builder-panel-step">
         <p className="text-xs text-muted-foreground">{l[`editor.step_help.${node.step.type}`]}</p>
-        <StepForms
-          steps={[node.step]}
-          onChange={(steps) => {
-            if (steps.length === 0) return onRemove();
-            const [first, ...added] = steps;
-            onChange({ ...node, step: first as unknown as typeof node.step });
-            for (const s of added) onInsertAfter(s);
-          }}
+        <IssueList issues={issues.filter((i) => i.path === "steps.0")} />
+        <StepForm
+          step={step}
+          index={0}
+          steps={[step, ...allKeys.filter((k) => k !== node.step.key).map((key): StepJson => ({ key }))]}
+          onChange={(s) => onChange({ ...node, step: s as unknown as typeof node.step })}
           l={l}
           options={options}
           issues={issues}
           disabled={readOnly}
         />
+        {!readOnly ? <AddAfter l={l} options={options} allKeys={allKeys} onAdd={onInsertAfter} onRemove={onRemove} /> : null}
       </div>
     );
   }
@@ -130,5 +132,33 @@ export function NodePanel({
         : null}
       <IssueList issues={[...on("then"), ...on("else")]} />
     </fieldset>
+  );
+}
+
+/** "Add step" after the selected block (a `condition` becomes a Branch) and Remove. */
+function AddAfter({ l, options, allKeys, onAdd, onRemove }: { l: Labels; options: EditorOptions; allKeys: string[]; onAdd: (step: StepJson) => void; onRemove: () => void }) {
+  const addId = useId();
+  const [type, setType] = useState<StepType>("email");
+  return (
+    <div className="flex flex-wrap items-end gap-2">
+      <div className="grid gap-1">
+        <label htmlFor={addId} className="text-sm font-medium">
+          {l["editor.step_kind"]}
+        </label>
+        <select id={addId} className={selectClass} value={type} onChange={(e) => setType(e.target.value as StepType)} data-testid="add-step-type">
+          {STEP_TYPES.map((t) => (
+            <option key={t} value={t}>
+              {l[`editor.step_type.${t}`] ?? t}
+            </option>
+          ))}
+        </select>
+      </div>
+      <Button type="button" variant="outline" onClick={() => onAdd(newStep(type, allKeys, options))}>
+        {l["editor.add_step"]}
+      </Button>
+      <Button type="button" variant="ghost" onClick={onRemove} data-testid="builder-panel-remove">
+        {l["common.remove"]}
+      </Button>
+    </div>
   );
 }

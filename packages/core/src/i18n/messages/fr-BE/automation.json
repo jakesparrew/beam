@@ -193,7 +193,8 @@
       "dpia_approved": "approuvée",
       "dpia_pending": "non approuvée",
       "flag_badge": "Ne fonctionne que si le drapeau {flag} est activé",
-      "gates": "Verrous"
+      "gates": "Verrous",
+      "tab_builder": "Constructeur"
     },
     "controls": {
       "activate": "Activer",
@@ -446,7 +447,9 @@
       "placeholder_not_allowed": "Ce paramètre n’est pas autorisé ici.",
       "interpolation_not_allowed": "Les paramètres du déclencheur ne sont pas autorisés dans son filtre.",
       "unknown_event_kind": "Ce type d’événement n’est pas dans le registre.",
-      "unknown_event_path": "Cet événement n’a pas ce champ de données."
+      "unknown_event_path": "Cet événement n’a pas ce champ de données.",
+      "builder_empty": "Ajoutez au moins un bloc après le déclencheur.",
+      "builder_invalid_node": "Ce bloc n’est pas complet."
     },
     "preview": {
       "will_send": "Sera exécutée",
@@ -735,7 +738,8 @@
         "nl-BE": "Néerlandais",
         "fr-BE": "Français",
         "en": "Anglais"
-      }
+      },
+      "open_builder": "Ouvrir le constructeur visuel"
     },
     "rules": {
       "title": "Règles des automatisations",
@@ -776,6 +780,82 @@
       "persons_hidden": "Masqué sans accès aux personnes",
       "unnamed": "Personne sans nom",
       "group": "Groupe {key}"
+    },
+    "builder": {
+      "title": "Constructeur visuel",
+      "intro": "Construisez le parcours comme un flux de blocs. Le flux est enregistré comme le même brouillon que dans l’éditeur de formulaire.",
+      "open_form": "Passer à l’éditeur de formulaire",
+      "open_builder": "Ouvrir le constructeur visuel",
+      "save": "Enregistrer le brouillon",
+      "saved": "Brouillon enregistré.",
+      "not_saved": "Le flux n’a pas été enregistré : corrigez d’abord les problèmes signalés sur les blocs.",
+      "unsaved": "Modifications non enregistrées",
+      "readonly": "Cette automatisation est archivée : le flux est en lecture seule.",
+      "unreadable": "Ce brouillon ne peut pas être affiché comme un flux. Corrigez-le d’abord dans l’éditeur de formulaire ou dans son onglet JSON.",
+      "canvas_label": "Flux de travail",
+      "palette_title": "Blocs",
+      "palette_hint": "Glissez un bloc sur le flux, ou appuyez dessus pour l’ajouter à la fin de la voie choisie.",
+      "adding_to": "Les nouveaux blocs vont dans : {lane}",
+      "lane_main": "Flux principal",
+      "lane_then": "Oui",
+      "lane_else": "Non",
+      "lane_of": "{branch} : {lane}",
+      "add_here": "Ajouter un bloc ici",
+      "drop_here": "Déposez un bloc ici",
+      "lane_continue": "Continue après l’embranchement",
+      "lane_end": "Termine le parcours",
+      "lane_goto": "Va à {key}",
+      "lane_falls_through": "Continue ensuite avec la voie Non",
+      "lane_when_empty": "Quand cette voie n’a aucun bloc",
+      "lane_option_continue": "Continuer après l’embranchement",
+      "lane_option_end": "Terminer le parcours",
+      "lane_option_goto": "Aller à {key}",
+      "move_up": "Monter",
+      "move_down": "Descendre",
+      "remove": "Supprimer le bloc",
+      "select": "Modifier le bloc",
+      "keyboard_hint": "Alt+flèche haut et Alt+flèche bas déplacent le bloc ayant le focus dans sa voie.",
+      "issues_badge": "Problèmes : {count}",
+      "no_issues_badge": "Aucun problème",
+      "skip_when": "Ignoré quand une condition est remplie",
+      "panel_title": "Réglages du bloc",
+      "panel_empty": "Sélectionnez un bloc pour modifier ses réglages.",
+      "trigger_issues": "Problèmes du déclencheur",
+      "condition_if": "Continuer seulement si",
+      "branch_if": "Prendre la voie Oui si",
+      "unless_toggle": "Ignorer ce bloc si",
+      "issues_title": "Validation",
+      "no_issues": "Aucun problème dans le flux.",
+      "step_count": "Blocs : {count}",
+      "blocks_label": "Bloc {name}",
+      "block": {
+        "trigger": "Déclencheur",
+        "condition": "Condition",
+        "delay": "Délai",
+        "branch": "Embranchement",
+        "email": "Envoyer un e-mail",
+        "task": "Créer une tâche",
+        "tag": "Appliquer une étiquette",
+        "status": "Changer le statut",
+        "sequence": "Ajouter/retirer une séquence",
+        "notify": "Prévenir un membre de l’équipe",
+        "field": "Mettre à jour un champ",
+        "webhook": "Appeler un webhook"
+      },
+      "block_help": {
+        "trigger": "Quand le parcours démarre, qui y entre, quand on peut y revenir et ce qui en fait sortir.",
+        "condition": "Continuer seulement si la condition est remplie ; sinon le parcours s’arrête ici.",
+        "delay": "Attendre un nombre de minutes avant le bloc suivant.",
+        "branch": "Exécuter la voie Oui si la condition est remplie, sinon la voie Non.",
+        "email": "Envoyer un modèle d’e-mail publié.",
+        "task": "Créer une tâche pour un rôle de l’équipe ou le propriétaire du déclencheur.",
+        "tag": "Ajouter ou retirer une étiquette sur la personne.",
+        "status": "Définir ou effacer le statut forcé de la personne.",
+        "sequence": "Inscrire la personne dans une autre automatisation, ou terminer une inscription.",
+        "notify": "Publier un message dans le canal Slack de l’équipe.",
+        "field": "Mettre à jour le canal préféré de la personne.",
+        "webhook": "Appeler un webhook https autorisé."
+      }
     }
   }
 }

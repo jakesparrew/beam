@@ -193,7 +193,8 @@
       "dpia_approved": "approved",
       "dpia_pending": "not approved",
       "flag_badge": "Runs only while flag {flag} is on",
-      "gates": "Gates"
+      "gates": "Gates",
+      "tab_builder": "Builder"
     },
     "controls": {
       "activate": "Activate",
@@ -446,7 +447,9 @@
       "placeholder_not_allowed": "This placeholder is not allowed here.",
       "interpolation_not_allowed": "Trigger placeholders are not allowed in a trigger filter.",
       "unknown_event_kind": "This event kind is not in the event registry.",
-      "unknown_event_path": "This event has no such data field."
+      "unknown_event_path": "This event has no such data field.",
+      "builder_empty": "Add at least one block after the trigger.",
+      "builder_invalid_node": "This block is not complete."
     },
     "preview": {
       "will_send": "Will run",
@@ -735,7 +738,8 @@
         "nl-BE": "Dutch",
         "fr-BE": "French",
         "en": "English"
-      }
+      },
+      "open_builder": "Open the visual builder"
     },
     "rules": {
       "title": "Automation rules",
@@ -776,6 +780,82 @@
       "persons_hidden": "Hidden without access to persons",
       "unnamed": "Unnamed person",
       "group": "Group {key}"
+    },
+    "builder": {
+      "title": "Visual builder",
+      "intro": "Build the journey as a flow of blocks. The flow is saved as the same draft as the form editor.",
+      "open_form": "Switch to the form editor",
+      "open_builder": "Open the visual builder",
+      "save": "Save draft",
+      "saved": "Draft saved.",
+      "not_saved": "The flow was not saved: fix the issues marked on the blocks first.",
+      "unsaved": "Unsaved changes",
+      "readonly": "This automation is archived: the flow is read only.",
+      "unreadable": "This draft cannot be shown as a flow. Fix it in the form editor or its JSON tab first.",
+      "canvas_label": "Workflow",
+      "palette_title": "Blocks",
+      "palette_hint": "Drag a block onto the flow, or press it to add it at the end of the selected lane.",
+      "adding_to": "New blocks go to: {lane}",
+      "lane_main": "Main flow",
+      "lane_then": "Yes",
+      "lane_else": "No",
+      "lane_of": "{branch}: {lane}",
+      "add_here": "Add a block here",
+      "drop_here": "Drop a block here",
+      "lane_continue": "Continues after the branch",
+      "lane_end": "Ends the journey",
+      "lane_goto": "Goes to {key}",
+      "lane_falls_through": "Then continues with the No lane",
+      "lane_when_empty": "When this lane has no blocks",
+      "lane_option_continue": "Continue after the branch",
+      "lane_option_end": "End the journey",
+      "lane_option_goto": "Go to {key}",
+      "move_up": "Move up",
+      "move_down": "Move down",
+      "remove": "Remove block",
+      "select": "Edit block",
+      "keyboard_hint": "Alt+Arrow up and Alt+Arrow down move the focused block within its lane.",
+      "issues_badge": "Issues: {count}",
+      "no_issues_badge": "No issues",
+      "skip_when": "Skipped when a condition holds",
+      "panel_title": "Block settings",
+      "panel_empty": "Select a block to edit its settings.",
+      "trigger_issues": "Trigger issues",
+      "condition_if": "Continue only when",
+      "branch_if": "Take the Yes lane when",
+      "unless_toggle": "Skip this block when",
+      "issues_title": "Validation",
+      "no_issues": "No issues in the flow.",
+      "step_count": "Blocks: {count}",
+      "blocks_label": "{name} block",
+      "block": {
+        "trigger": "Trigger",
+        "condition": "Condition",
+        "delay": "Delay",
+        "branch": "Branch",
+        "email": "Send email",
+        "task": "Create task",
+        "tag": "Apply tag",
+        "status": "Change status",
+        "sequence": "Add/remove sequence",
+        "notify": "Notify team member",
+        "field": "Update field",
+        "webhook": "Trigger webhook"
+      },
+      "block_help": {
+        "trigger": "When the journey starts, who enters, when they may enter again and what makes them leave.",
+        "condition": "Continue only when the condition holds; otherwise the journey ends here.",
+        "delay": "Wait a number of minutes before the next block.",
+        "branch": "Run the Yes lane when the condition holds and the No lane otherwise.",
+        "email": "Send a published email template.",
+        "task": "Create a task for a team role or the trigger's owner.",
+        "tag": "Add or remove a tag on the person.",
+        "status": "Set or clear the person's status override.",
+        "sequence": "Enrol the person in another automation, or end an enrolment.",
+        "notify": "Post a message to the team's Slack channel.",
+        "field": "Update the person's preferred channel.",
+        "webhook": "Call an allowed https webhook."
+      }
     }
   }
 }

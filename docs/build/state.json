@@ -5516,8 +5516,8 @@
       "startedAt": "2026-11-05T17:04:32Z"
     },
     "fix-w23-leftovers": {
-      "status": "pending",
-      "attempts": 0,
+      "status": "running",
+      "attempts": 1,
       "fixer": true,
       "module": "cross-module",
       "goal": "Serve the cross-module leftover rows of docs/build/requests.md listed in the launch message, inside the owned files only.",
@@ -5542,7 +5542,10 @@
         "apps/web/modules/booking/fix-w23-leftovers*",
         "apps/web/modules/crm/fix-w23-leftovers*"
       ],
-      "dependsOn": []
+      "dependsOn": [],
+      "baseSha": "855bdbf",
+      "runId": null,
+      "startedAt": "2026-11-05T17:05:10Z"
     }
   }
 }

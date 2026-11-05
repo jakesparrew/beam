@@ -1,27 +1,17 @@
 import type { Route } from "next";
 import { notFound, redirect } from "next/navigation";
-import { z } from "zod";
 import { formatDate, localeFromSegment, URL_SEGMENT, type Locale, type LocalizedText } from "@beam/core/i18n";
-import { action } from "@/lib/action";
 import { requireCustomer } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
 import { flag } from "@/lib/flags";
 import { translator } from "@/lib/i18n";
-import { featuredAssessment, listPortalResults, openPortalResult } from "@/modules/forms/service/submissions";
+import { openMyResult } from "@/modules/forms/actions";
+import { featuredAssessment, listPortalResults } from "@/modules/forms/service/submissions";
 import { ResultsList } from "@/modules/forms/ui/portal/results-list";
 
 export const dynamic = "force-dynamic";
 
 type Props = { params: Promise<{ locale: string }>; searchParams: Promise<{ error?: string }> };
-
-/**
- * "View result": the customer's own completed submission only (`not_found` otherwise); a fresh
- * result token, then the result page. Audience `customer`, so no staff audit row.
- */
-const openMyResult = action(
-  { name: "forms.open_my_result", audience: "customer", input: z.object({ submissionId: z.uuid() }) },
-  (ctx, input) => openPortalResult(ctx.tx, ctx, input),
-);
 
 /** The customer-facing form name in the page locale; the slug when that locale is missing (no fallback language). */
 const nameIn = (name: LocalizedText, slug: string, locale: Locale): string => name[locale]?.trim() || slug;
@@ -52,6 +42,7 @@ export default async function MyResultsPage({ params, searchParams }: Props) {
   async function view(formData: FormData) {
     "use server";
     const id = formData.get("submissionId");
+    // "View result" (`forms.open_my_result`): the customer's own completed submission only, a fresh result token.
     const r = await openMyResult({ submissionId: typeof id === "string" ? id : "" });
     if (r.ok) redirect(r.data.url as Route);
     redirect(`${here}?error=1` as Route);

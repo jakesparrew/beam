@@ -10,7 +10,11 @@ import { getForm, screenLabels } from "@/modules/forms/queries";
 import { appOrigin, hostedFormUrl } from "@/modules/forms/service/tokens";
 import { CopyButton, FormActions } from "@/modules/forms/ui/admin/form-list";
 
-/** `/admin/forms/[formId]` (`forms.write`): status, versions, hosted URL, embed snippet, 7-day funnel, CTA warnings. */
+/**
+ * `/admin/forms/[formId]` (`forms.write`): status, versions, hosted URL, embed snippet, 7-day
+ * funnel, CTA warnings, and links to the builder, scoring, preview, versions, tracked links,
+ * submissions (shown with `persons.read`, the second permission of that page) and the report.
+ */
 export default async function FormOverviewPage({ params }: { params: Promise<{ formId: string }> }) {
   const actor = await requireStaff({ permission: "forms.write" });
   const { formId } = await params;
@@ -54,6 +58,14 @@ export default async function FormOverviewPage({ params }: { params: Promise<{ f
           </Link>
           <Link className={buttonVariants({ variant: "outline" })} href={`/admin/forms/${form.id}/links`}>
             {o("nav_links", { n: form.linkCount })}
+          </Link>
+          {hasPermission(actor, "persons.read") ? (
+            <Link className={buttonVariants({ variant: "outline" })} href={`/admin/forms/${form.id}/submissions`}>
+              {o("nav_submissions")}
+            </Link>
+          ) : null}
+          <Link className={buttonVariants({ variant: "outline" })} href={`/admin/forms/${form.id}/report`}>
+            {o("nav_report")}
           </Link>
         </nav>
       </header>

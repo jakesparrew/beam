@@ -124,6 +124,8 @@ export function FormRenderer(p: FormRendererProps) {
   const [focusTick, setFocusTick] = useState(0);
   const sub = useRef<{ id: string; resumeToken: string | null } | null>(null);
   const starting = useRef<Promise<boolean> | null>(null);
+  /** Set when `start` resumed a submission at another section; the pending Next stops there. */
+  const movedByResume = useRef(false);
   const emitted = useRef(new Set<string>());
   const summaryRef = useRef<HTMLDivElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -193,6 +195,20 @@ export function FormRenderer(p: FormRendererProps) {
   const step = history.length + 1;
   const total = Math.max(step, step + (willEnd ? 0 : 1));
 
+  /**
+   * U5: restores a continued submission's saved answers and moves to the section to continue at
+   * (unknown or missing: the first). `keepLocal` keeps what this device already typed before the
+   * session resume answered. Returns whether the visible section changed.
+   */
+  const restore = (saved: Answers, currentSectionKey: string | null, keepLocal: boolean): boolean => {
+    setAnswers((a) => (keepLocal ? { ...saved, ...a } : { ...saved }));
+    const order = def.sections.map((s) => s.key);
+    const cur = currentSectionKey && order.includes(currentSectionKey) ? currentSectionKey : first;
+    setHistory(order.slice(0, Math.max(0, order.indexOf(cur))));
+    setSectionKey(cur);
+    return cur !== sectionKey;
+  };
+
   const failWith = (r: Reply): boolean => {
     const err = (r.data?.error ?? null) as { code?: string; fields?: Record<string, string> } | null;
     if (r.status === 410) setStatus("closed");
@@ -236,6 +252,13 @@ export function FormRenderer(p: FormRendererProps) {
       }
       const pf = r.data?.prefill as PublicPrefill | undefined;
       if (pf && !prefill) setPrefill(pf);
+      // U5 (R2): a logged-in customer continues their open submission from another device.
+      const resumed = r.data?.resumed as { answers?: unknown; currentSectionKey?: unknown } | undefined;
+      if (resumed && typeof resumed === "object") {
+        const answersIn = resumed.answers && typeof resumed.answers === "object" ? (resumed.answers as Answers) : {};
+        const cur = typeof resumed.currentSectionKey === "string" ? resumed.currentSectionKey : null;
+        movedByResume.current = restore(answersIn, cur, true);
+      }
       return true;
     })().catch(() => {
       starting.current = null;
@@ -328,6 +351,12 @@ export function FormRenderer(p: FormRendererProps) {
     setErrors({});
     setStatus("saving");
     if (!(await ensureStarted())) return;
+    if (movedByResume.current) {
+      // The session resume moved to the saved section: continue there, nothing to save here.
+      movedByResume.current = false;
+      setStatus("idle");
+      return;
+    }
     const r = await send("save", { ...proof(), sectionKey: section.key, answers: { ...answers, ...(section.key === first ? hiddenValues(def, query) : {}) } });
     if (!r) return;
     if (r.status !== 200) return void failWith(r);
@@ -357,11 +386,7 @@ export function FormRenderer(p: FormRendererProps) {
       if (r.status !== 200 || typeof r.data?.submissionId !== "string") throw new Error("resume");
       sub.current = { id: r.data.submissionId, resumeToken: token };
       setStarted(true);
-      setAnswers((r.data.answers ?? {}) as Answers);
-      const cur = typeof r.data.currentSectionKey === "string" ? r.data.currentSectionKey : first;
-      const order = def.sections.map((s) => s.key);
-      setHistory(order.slice(0, Math.max(0, order.indexOf(cur))));
-      setSectionKey(cur);
+      restore((r.data.answers ?? {}) as Answers, typeof r.data.currentSectionKey === "string" ? r.data.currentSectionKey : null, false);
     } catch {
       storage("local")?.removeItem(resumeKey(slug));
     }

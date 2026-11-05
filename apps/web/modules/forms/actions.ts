@@ -565,7 +565,7 @@ export const resendResultEmail = action(
       intro: localized(ending.email?.intro, locale),
       resultUrl: resultPageUrl(slug, locale, token),
       ctas: ending.ctas.slice(0, 4).map((c) => ({ label: localized(c.label, locale) ?? c.key, url: ctaRedirectUrl(token, c.key) })),
-      pendingConfirmation: (sub.consentSnapshot ?? []).some((c) => (c as { pendingConfirmation?: boolean }).pendingConfirmation === true),
+      pendingConfirmation: (sub.consentSnapshot ?? []).some((c) => c.pendingConfirmation === true),
     });
     const key = `${resendKeyPrefix(sub.id)}${n}`;
     const r = await sendTransactional(ctx, { template: "forms.result", personId: sub.personId, locale, data, key });

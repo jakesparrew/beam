@@ -1,13 +1,16 @@
 /**
  * `POST /api/public/forms/[slug]/start` (forms spec section 4, rules U1, A1, A2, ID1, ID2, R2,
  * R3, U5): `{ locale, url, referrer?, embedHost?, identityToken?, embedContext?, honeypot }` ->
- * `{ submissionId, resumeToken?, prefill?: { firstName, maskedEmail, known } }`.
+ * `{ submissionId, resumeToken?, prefill?: { firstName, maskedEmail, known }, resumed?: { answers,
+ * currentSectionKey } }`.
  *
  * Inserts the `started` submission pinned to the current version (`form.started` when the person
  * is known) and sets the signed `fsid` cookie. `embedContext` is verified by its HMAC; an
  * unsigned or tampered context is ignored. The prefill returns only the first name, the masked
  * email and the known field keys, never the person's values (edge case 19). A filled honeypot
- * gets a normal-looking answer and nothing is written (R3).
+ * gets a normal-looking answer and nothing is written (R3). A logged-in customer who continues
+ * their open submission on another device (U5, R2) gets `resumed`: its saved non-sensitive
+ * answers and the section to continue at, which the renderer restores.
  */
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
@@ -54,6 +57,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
         submissionId: r.submissionId,
         ...(r.resumeToken ? { resumeToken: r.resumeToken } : {}),
         ...(r.prefill ? { prefill: { firstName: r.prefill.firstName, maskedEmail: r.prefill.maskedEmail, known: r.prefill.known } } : {}),
+        ...(r.resumed ? { resumed: { answers: r.resumed.answers, currentSectionKey: r.resumed.currentSectionKey } } : {}),
       };
     },
     { route: "start", slug },

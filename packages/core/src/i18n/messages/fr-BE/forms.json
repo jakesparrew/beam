@@ -391,7 +391,8 @@
       "forms": "Formulaires",
       "enter": "Remplir un formulaire",
       "my_results": "Mes résultats",
-      "imports": "Imports de formulaires"
+      "imports": "Imports de formulaires",
+      "attribution": "Attribution"
     },
     "locale": {
       "nl-BE": "Nederlands",
@@ -463,6 +464,8 @@
       "nav_preview": "Aperçu",
       "nav_versions": "Versions",
       "nav_links": "Liens suivis ({n})",
+      "nav_submissions": "Réponses",
+      "nav_report": "Rapport",
       "archived_title": "Ce formulaire est archivé",
       "archived_body": "La page affiche « Ce formulaire est fermé » et n'accepte plus de réponses.",
       "cta_warnings": "{n} boutons de résultat mènent à quelque chose qui n'est plus disponible",

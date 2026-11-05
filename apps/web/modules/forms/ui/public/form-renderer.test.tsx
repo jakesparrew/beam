@@ -195,3 +195,78 @@ describe("FormRenderer, fix-w09-forms-review finding 3", () => {
     expect(document.querySelector("[data-error-summary]")).toBeNull();
   });
 });
+
+describe("FormRenderer, fix-w21-forms-wiring: session resume from start (U5, R2)", () => {
+  const T = (en: string) => ({ "nl-BE": en, "fr-BE": en, en });
+  function twoSections() {
+    const def = structuredClone(contact.definition);
+    def.fields.city = { key: "city", type: "short_text", label: T("Your city"), required: false, sensitive: false };
+    def.sections = [
+      { key: "about", fieldKeys: ["email", "first_name", "message"] },
+      { key: "more", fieldKeys: ["city"] },
+    ];
+    return def;
+  }
+  function stubStart(resumed: unknown) {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string, init?: RequestInit) => {
+        const body = typeof init?.body === "string" ? (JSON.parse(init.body) as Record<string, unknown>) : null;
+        calls.push({ url, method: init?.method ?? "GET", body });
+        if (url.endsWith("/view")) return Promise.resolve(reply(204, null));
+        if (url.endsWith("/start")) return Promise.resolve(reply(200, { submissionId: "22222222-2222-4222-8222-222222222222", resumed }));
+        if (url.endsWith("/save")) return Promise.resolve(reply(200, { next: { end: true } }));
+        if (url.endsWith("/submit")) return Promise.resolve(reply(200, submitReply.body));
+        return Promise.resolve(reply(404, null));
+      }),
+    );
+  }
+  const saved = { email: "lotte@example.com", first_name: "Lotte", message: "From my laptop", city: "Gent" };
+  const renderTwo = () => render(<FormRenderer slug="contact" kind="lead" locale="en" definition={twoSections()} scoring={contact.scoring} labels={labels} mode="page" />);
+
+  it("restores the saved answers and continues at the saved section on the second device", async () => {
+    stubStart({ answers: saved, currentSectionKey: "more" });
+    renderTwo();
+    fireEvent.change(screen.getByLabelText(/First name/), { target: { value: "Lotte" } });
+    await waitFor(() => expect(screen.getByLabelText(/Your city/)).toHaveProperty("value", "Gent"));
+    expect(screen.getByText("Step 2 of 2")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(screen.getByLabelText(/Your message/)).toHaveProperty("value", "From my laptop");
+    expect(screen.getByLabelText(/First name/)).toHaveProperty("value", "Lotte");
+    expect(calls.filter((c) => c.url.endsWith("/start"))).toHaveLength(1);
+  });
+
+  it("a Next that waits on the resuming start stops at the restored section and saves nothing", async () => {
+    stubStart({ answers: saved, currentSectionKey: "more" });
+    renderTwo();
+    await act(() => {
+      fireEvent.change(screen.getByLabelText(/Email/), { target: { value: "lotte@example.com" } });
+      fireEvent.change(screen.getByLabelText(/First name/), { target: { value: "Lotte" } });
+      fireEvent.change(screen.getByLabelText(/Your message/), { target: { value: "From my phone" } });
+      fireEvent.click(screen.getByRole("button", { name: "Next" }));
+      return Promise.resolve();
+    });
+    await waitFor(() => expect(screen.getByLabelText(/Your city/)).toHaveProperty("value", "Gent"));
+    expect(calls.some((c) => c.url.endsWith("/save"))).toBe(false);
+    await act(() => {
+      fireEvent.click(screen.getByRole("button", { name: "Send" }));
+      return Promise.resolve();
+    });
+    await waitFor(() => expect(calls.filter((c) => c.url.endsWith("/save"))).toHaveLength(1));
+    // What this device typed before the resume answered wins over the saved answer.
+    expect(calls.find((c) => c.url.endsWith("/save"))!.body).toMatchObject({
+      submissionId: "22222222-2222-4222-8222-222222222222",
+      sectionKey: "more",
+      answers: { city: "Gent", message: "From my phone" },
+    });
+  });
+
+  it("a resume without a current section restores the answers on the first section", async () => {
+    stubStart({ answers: { message: "From my laptop" }, currentSectionKey: null });
+    renderTwo();
+    fireEvent.change(screen.getByLabelText(/First name/), { target: { value: "Lotte" } });
+    await waitFor(() => expect(screen.getByLabelText(/Your message/)).toHaveProperty("value", "From my laptop"));
+    expect(screen.getByLabelText(/First name/)).toHaveProperty("value", "Lotte");
+    expect(screen.getByText(/Step 1 of/)).toBeTruthy();
+  });
+});

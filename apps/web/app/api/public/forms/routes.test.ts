@@ -5,10 +5,11 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { DbHandle } from "@beam/db";
-import { activityEvents, formSubmissions, formViewsDaily, persons } from "@beam/db/schema";
-import { createTestDb, makeProduct } from "@beam/db/testing";
+import { activityEvents, authSessions, formSubmissions, formViewsDaily, persons, referralCodes } from "@beam/db/schema";
+import { createTestDb, makePerson, makeProduct, makeUser } from "@beam/db/testing";
 import type { Cta } from "@beam/core/forms";
 import { and, eq, setAppDb } from "@/lib/ctx";
+import { SESSION_COOKIE_NAMES } from "@/lib/files";
 import { resetRuntime } from "@/lib/testing";
 import { assessment, ASSESSMENT_ANSWERS, createForm, lead, setupEnv } from "@/modules/forms/forms-p3.fixtures";
 import { createResultToken, signEmbedContext, verifyEmbedContext, verifyIdentityToken } from "@/modules/forms/service/tokens";
@@ -292,6 +293,73 @@ describe("result routes", () => {
     expect(await eventsOf(r.submissionId, "form.result_viewed")).toHaveLength(1);
     const unknown = await viewedRoute(req(`/api/public/forms/result/nope/viewed`, "POST"), { params: Promise.resolve({ token: "nope" }) });
     expect(unknown.status).toBe(404);
+  });
+});
+
+describe("fix-w21-forms-wiring: start resumes a session customer's submission (U5, R2)", () => {
+  async function customerCookie(): Promise<{ cookie: string; personId: string; email: string }> {
+    const addr = email();
+    const p = await makePerson(h.db, { email: addr, firstName: "Lotte" });
+    const u = await makeUser(h.db, { audience: "customer", email: addr, personId: p.id });
+    const token = `sess-${randomUUID()}`;
+    const far = new Date(Date.now() + 86_400_000);
+    await h.db.insert(authSessions).values({ sessionToken: token, userId: u.id, audience: "customer", expires: far, absoluteExpiresAt: far });
+    return { cookie: `${SESSION_COOKIE_NAMES[1]}=${token}`, personId: p.id, email: addr };
+  }
+
+  it("the second device gets resumed with the saved answers and the section to continue at", async () => {
+    const me = await customerCookie();
+    const f = await createForm(h.db, assessment());
+    const first = await start(f.slug, {}, { cookie: me.cookie });
+    expect(first.res.status).toBe(200);
+    expect(first.data.resumed).toBeUndefined();
+    const about = { email: me.email, first_name: "Lotte", birth_on: "", sensitive_consent: true, newsletter: false };
+    const saved = await save(f.slug, { submissionId: first.submissionId, sectionKey: "about", answers: about }, { cookie: me.cookie });
+    expect(saved.status).toBe(200);
+
+    const second = await start(f.slug, { locale: "fr-BE" }, { cookie: me.cookie });
+    expect(second.res.status).toBe(200);
+    expect(second.submissionId).toBe(first.submissionId);
+    expect(second.data.resumeToken).toBeUndefined();
+    expect(second.data.resumed).toMatchObject({ answers: { first_name: "Lotte" }, currentSectionKey: "sleep_stress" });
+  });
+
+  it("an anonymous start carries no resumed", async () => {
+    const f = await createForm(h.db, assessment());
+    const s = await start(f.slug);
+    expect(s.data).not.toHaveProperty("resumed");
+  });
+});
+
+describe("fix-w21-forms-wiring: the beam_ref cookie of the save and submit requests (rule A1)", () => {
+  const acquisitionOf = async (addr: string) => (await h.db.select().from(persons).where(eq(persons.email, addr)))[0]?.acquisition;
+  /** crm keeps only a code that resolves, so each test issues a real one to a referrer. */
+  async function issueCode(code: string): Promise<string> {
+    const referrer = await makePerson(h.db, { email: email() });
+    await h.db.insert(referralCodes).values({ code, personId: referrer.id });
+    return referrer.id;
+  }
+
+  it("submit passes the request's referral code to the new person's acquisition", async () => {
+    const referrerId = await issueCode("K7M2QX9P");
+    const f = await createForm(h.db, lead());
+    const s = await start(f.slug);
+    await age(s.submissionId);
+    const addr = email();
+    const done = await submit(f.slug, { submissionId: s.submissionId, answers: { email: addr, first_name: "Lotte", message: "Hello" } }, { cookie: `${s.cookie}; beam_ref=K7M2QX9P` });
+    expect(done.status).toBe(200);
+    expect(await acquisitionOf(addr)).toMatchObject({ referral_code: "K7M2QX9P", referrer_person_id: referrerId, form_slug: f.slug });
+  });
+
+  it("save passes the request's referral code when the save creates the person", async () => {
+    await issueCode("W4TR8NZ2");
+    const f = await createForm(h.db, lead({ capturePartialLeads: true }));
+    const s = await start(f.slug);
+    const addr = email();
+    const answers = { email: addr, first_name: "Lotte", message: "Hello" };
+    const saved = await save(f.slug, { submissionId: s.submissionId, sectionKey: "contact", answers }, { cookie: `${s.cookie}; beam_ref=W4TR8NZ2` });
+    expect(saved.status).toBe(200);
+    expect(await acquisitionOf(addr)).toMatchObject({ referral_code: "W4TR8NZ2", form_slug: f.slug });
   });
 });
 

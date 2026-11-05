@@ -324,6 +324,45 @@ function contextCalls(sf: ts.SourceFile): string[] {
   return found;
 }
 
+/**
+ * Inline `"use server"` functions that use a function declared in an enclosing function body.
+ * Next serialises everything an inline server action captures; a captured local helper (for
+ * example `const here = (q) => ...`) makes the page that defines the action fail to render
+ * ("Functions cannot be passed directly to Client Components"), found by the final e2e gate.
+ */
+function capturedLocalFunctions(sf: ts.SourceFile): string[] {
+  const isUseServer = (body: ts.Node | undefined): boolean =>
+    !!body && ts.isBlock(body) && !!body.statements[0] && ts.isExpressionStatement(body.statements[0]) && ts.isStringLiteral(body.statements[0].expression) && body.statements[0].expression.text === "use server";
+  const out: string[] = [];
+  const visit = (node: ts.Node, scopes: string[][]): void => {
+    const fnLike = ts.isFunctionDeclaration(node) || ts.isArrowFunction(node) || ts.isFunctionExpression(node);
+    if (fnLike && isUseServer(node.body) && scopes.length) {
+      const locals = new Set(scopes.flat());
+      const used = new Set<string>();
+      const look = (n: ts.Node): void => {
+        if (ts.isIdentifier(n) && locals.has(n.text)) used.add(n.text);
+        ts.forEachChild(n, look);
+      };
+      look(node.body!);
+      if (used.size) out.push(`line ${sf.getLineAndCharacterOfPosition(node.getStart()).line + 1} captures ${[...used].join(", ")}`);
+    }
+    let next = scopes;
+    if (fnLike && node.body && ts.isBlock(node.body)) {
+      const names: string[] = [];
+      for (const st of node.body.statements) {
+        if (ts.isFunctionDeclaration(st) && st.name && !isUseServer(st.body)) names.push(st.name.text);
+        if (ts.isVariableStatement(st))
+          for (const d of st.declarationList.declarations)
+            if (ts.isIdentifier(d.name) && d.initializer && (ts.isArrowFunction(d.initializer) || ts.isFunctionExpression(d.initializer)) && !isUseServer(d.initializer.body)) names.push(d.name.text);
+      }
+      next = [...scopes, names];
+    }
+    ts.forEachChild(node, (c) => visit(c, next));
+  };
+  visit(sf, []);
+  return out;
+}
+
 describe("runtime rules (CONVENTIONS 12, OD-18)", () => {
   const files = sourceFiles().map((f) => ({ file: f, sf: parse(f) }));
 
@@ -344,6 +383,19 @@ describe("runtime rules (CONVENTIONS 12, OD-18)", () => {
       .filter((f) => directive(f.sf) !== "use client")
       .flatMap((f) => contextCalls(f.sf).map((p) => `${path.relative(REPO, f.file)}: ${p}`));
     expect(problems).toEqual([]);
+  });
+
+  it("an inline server action captures no local helper function", () => {
+    const problems = files.flatMap((f) => capturedLocalFunctions(f.sf).map((p) => `${path.relative(REPO, f.file)}: ${p}`));
+    expect(problems).toEqual([]);
+  });
+
+  it("the capture check catches a helper used inside an inline action, and allows plain values", () => {
+    const src = (text: string) => ts.createSourceFile("x.tsx", text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+    expect(capturedLocalFunctions(src(`export default async function P() {\n  const here = (q?: string) => "/x" + (q ?? "");\n  const path = "/x";\n  async function go() {\n    "use server";\n    redirect(here("a") + path);\n  }\n  return null;\n}`))).toEqual([
+      "line 4 captures here",
+    ]);
+    expect(capturedLocalFunctions(src(`export default async function P() {\n  const path = "/x";\n  async function go() {\n    "use server";\n    redirect(path);\n  }\n  return null;\n}`))).toEqual([]);
   });
 
   it("the checks catch the two OD-18 defects", () => {

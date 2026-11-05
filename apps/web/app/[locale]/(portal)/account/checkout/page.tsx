@@ -32,7 +32,9 @@ export default async function AccountCheckoutPage({ params, searchParams }: { pa
   const checkoutId = sp.checkout ?? viewer.checkoutIds?.[0] ?? null;
   const view = checkoutId ? await getCheckout(await getAppDb(), checkoutId, viewer, locale) : null;
   const open = view && (view.status === "started" || view.status === "abandoned") && view.channel === "portal" ? view : null;
-  const here = (q?: string) => `/${seg}/account/checkout?checkout=${open?.checkoutId ?? ""}${q ? `&${q}` : ""}`;
+  // Inline server actions may capture only serialisable values: a captured helper function made the
+  // checkout page fail to render (final e2e gate).
+  const herePath = `/${seg}/account/checkout?checkout=${open?.checkoutId ?? ""}`;
 
   if (!open || !open.lines.length) {
     return (
@@ -56,7 +58,7 @@ export default async function AccountCheckoutPage({ params, searchParams }: { pa
     const items = itemsAfterUpdate(current.lines.map((l) => l.item), fd);
     if (!items.length) redirect(`/${seg}/account/shop` as never);
     const result = await updateCheckout({ checkoutId: current.checkoutId, items, promoCode: str(fd, "promoCode") || null });
-    redirect(here(result.ok ? undefined : errorQuery(result.error)) as never);
+    redirect((result.ok ? herePath : `${herePath}&${errorQuery(result.error)}`) as never);
   }
 
   async function place(fd: FormData) {
@@ -71,7 +73,7 @@ export default async function AccountCheckoutPage({ params, searchParams }: { pa
       ...(Number.isInteger(expected) ? { expectedTotalCents: expected } : {}),
       ...(billingDetails ? { billingDetails } : {}),
     });
-    if (!result.ok) redirect(here(errorQuery(result.error)) as never);
+    if (!result.ok) redirect(`${herePath}&${errorQuery(result.error)}` as never);
     redirect(result.data.redirectUrl as never);
   }
 

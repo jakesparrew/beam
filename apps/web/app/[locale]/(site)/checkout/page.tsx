@@ -47,13 +47,15 @@ export default async function SiteCheckoutPage({ params, searchParams }: { param
   const view = sp.checkout ? await getCheckout(db, sp.checkout, viewer, locale) : null;
   if (view && (view.status === "started" || view.status === "abandoned") && view.lines.length) {
     const current = view;
-    const here = (q?: string) => `/${seg}/checkout?checkout=${current.checkoutId}${q ? `&${q}` : ""}`;
+    // Inline server actions may capture only serialisable values (strings, plain data): a captured
+    // helper function made the whole checkout page fail to render (final e2e gate).
+    const herePath = `/${seg}/checkout?checkout=${current.checkoutId}`;
     async function update(fd: FormData) {
       "use server";
       const items = itemsAfterUpdate(current.lines.map((l) => l.item), fd);
       if (!items.length) redirect(`/${seg}` as never);
       const result = await updateCheckout({ checkoutId: current.checkoutId, items, promoCode: str(fd, "promoCode") || null });
-      redirect(here(result.ok ? undefined : errorQuery(result.error)) as never);
+      redirect((result.ok ? herePath : `${herePath}&${errorQuery(result.error)}`) as never);
     }
     async function place(fd: FormData) {
       "use server";
@@ -67,7 +69,7 @@ export default async function SiteCheckoutPage({ params, searchParams }: { param
         ...(Number.isInteger(expected) ? { expectedTotalCents: expected } : {}),
         ...(billingDetails ? { billingDetails } : {}),
       });
-      if (!result.ok) redirect(here(errorQuery(result.error)) as never);
+      if (!result.ok) redirect(`${herePath}&${errorQuery(result.error)}` as never);
       redirect(result.data.redirectUrl as never);
     }
     const loginHref = `/${seg}/account/login?returnTo=${encodeURIComponent(`/${seg}/checkout?checkout=${current.checkoutId}`)}`;

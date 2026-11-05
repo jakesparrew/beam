@@ -917,6 +917,208 @@
         "retained": "Nous conservons les factures pendant la durée légale et une empreinte de votre adresse e-mail, afin que vous ne receviez plus jamais de marketing.",
         "button": "Annuler la suppression"
       }
+    },
+    "management": {
+      "title": "Tableau de bord de direction",
+      "intro": "Chiffre d’affaires, clients, répartition des ventes, rétention et B2B pour la période choisie, comparés à la période précédente.",
+      "group": {
+        "revenue": "Chiffre d’affaires",
+        "customers": "Clients",
+        "sales": "Répartition des ventes",
+        "retention": "Rétention",
+        "b2b": "B2B"
+      },
+      "revenue": {
+        "net": "Chiffre d’affaires net",
+        "orders": "Commandes payées"
+      },
+      "customers": {
+        "new": "Nouveaux clients",
+        "active": "Clients actifs (90 jours)",
+        "returning": "Clients fidèles",
+        "dormant": "Clients dormants",
+        "reactivated": "Clients réactivés"
+      },
+      "retention": {
+        "repeat_purchase_rate": "Taux de réachat",
+        "package_completion": "Forfaits consommés",
+        "reactivation_rate": "Taux de réactivation",
+        "membership_renewal_rate": "Taux de renouvellement des abonnements"
+      },
+      "b2b": {
+        "pipeline_value": "Valeur du pipeline ouvert",
+        "weighted_value": "Valeur pondérée du pipeline",
+        "qualified": "Opportunités qualifiées",
+        "proposals": "Offres envoyées",
+        "conversion": "Taux de réussite (clôturées sur la période)",
+        "revenue": "Chiffre d’affaires B2B"
+      },
+      "rate_of": "{numerator} sur {denominator}",
+      "previous_rate": "Période précédente : {rate}",
+      "no_data": "Aucune donnée",
+      "now": "À ce jour"
+    },
+    "marketing": {
+      "title": "Marketing",
+      "intro": "Prospects, conversion des webinaires et des évaluations, performances e-mail et récupération pour les dates choisies, comparées au même nombre de jours précédents.",
+      "empty": "Aucune activité marketing sur cette période",
+      "previous": "Précédent : {value}",
+      "kpi": {
+        "leads": "Prospects générés",
+        "registration_rate": "Taux d’inscription aux webinaires",
+        "attendance_rate": "Taux de présence en direct",
+        "event_attendance_rate": "Taux de présence aux événements",
+        "lead_to_visit": "Prospect vers première visite (90 jours)",
+        "visit_to_purchase": "Première visite vers achat (30 jours)",
+        "assessment_completion": "Évaluations terminées",
+        "assessment_conversion": "Évaluation vers achat (60 jours)",
+        "reactivation_revenue": "Chiffre d’affaires de réactivation",
+        "abandoned_recovery_rate": "Récupération des paniers abandonnés",
+        "abandoned_recovery_revenue": "Chiffre d’affaires des paniers récupérés"
+      },
+      "attendance_native_unavailable": "La présence aux webinaires natifs n’est pas encore disponible ; le taux n’utilise que l’historique importé.",
+      "leads_by_source": "Prospects par source et campagne",
+      "column": {
+        "source": "Source",
+        "campaign": "Campagne",
+        "leads": "Prospects"
+      },
+      "no_campaign": "Aucune campagne",
+      "conversion": {
+        "title": "Conversion des webinaires",
+        "help": "Inscriptions suivies d’une réservation ou d’un achat dans le délai, par statut à l’inscription.",
+        "segment": "Inscrit",
+        "window": "{days} jours"
+      },
+      "segment": {
+        "lead": "Prospect",
+        "customer": "Client",
+        "member": "Membre"
+      },
+      "email": {
+        "title": "Performances e-mail",
+        "empty": "Aucun e-mail de campagne n’a été envoyé sur cette période",
+        "column": {
+          "campaign": "Campagne",
+          "sent": "Envoyés",
+          "delivered": "Délivrés",
+          "open_rate": "Taux d’ouverture",
+          "click_rate": "Taux de clic",
+          "bounce_rate": "Taux de rebond",
+          "complaint_rate": "Taux de plainte",
+          "unsubscribe_rate": "Taux de désinscription"
+        },
+        "total": "Toutes les campagnes"
+      },
+      "webinar": {
+        "title": "Performances des webinaires",
+        "empty": "Aucune inscription à un webinaire sur cette période",
+        "column": {
+          "webinar": "Webinaire",
+          "registered": "Inscrits",
+          "attended_live": "Présents en direct",
+          "avg_watch": "Durée moyenne de visionnage",
+          "replay_views": "Vues en replay",
+          "on_demand_views": "Vues à la demande",
+          "poll_answers": "Réponses aux sondages",
+          "cta_clicks": "Clics sur l’appel à l’action"
+        },
+        "total": "Tous les webinaires"
+      },
+      "minutes": "{minutes} min"
+    },
+    "attribution": {
+      "title": "Attribution des campagnes",
+      "intro": "Chiffre d’affaires, prospects et dépenses publicitaires par campagne. Le ROAS utilise le chiffre d’affaires multi-touch linéaire ; l’entonnoir suit les personnes touchées en premier par chaque campagne.",
+      "empty": "Pas encore de chiffre d’affaires attribué",
+      "model": {
+        "legend": "Modèle de chiffre d’affaires",
+        "linear": "Multi-touch linéaire",
+        "first_touch": "Premier contact"
+      },
+      "column": {
+        "campaign": "Campagne",
+        "source": "Source",
+        "medium": "Support",
+        "leads": "Prospects",
+        "first_purchases": "Premiers achats",
+        "revenue": "Chiffre d’affaires",
+        "revenue_first_touch": "Chiffre d’affaires (premier contact)",
+        "revenue_linear": "Chiffre d’affaires (linéaire)",
+        "ltv": "Valeur client",
+        "spend": "Dépenses",
+        "cpl": "Coût par prospect",
+        "cac": "CAC",
+        "roas": "ROAS"
+      },
+      "direct": "Direct / aucune campagne",
+      "funnel": {
+        "title": "Entonnoir par campagne",
+        "help": "Personnes touchées en premier par chaque campagne et créées sur la période : combien ont atteint chaque étape, et la médiane en jours du prospect à cette étape.",
+        "step": {
+          "lead": "Prospect",
+          "webinar": "Webinaire",
+          "first_visit": "Première visite",
+          "package": "Forfait",
+          "repeat": "Réachat",
+          "member": "Membre"
+        },
+        "lead_cost": "Coût par prospect",
+        "total_revenue": "Chiffre d’affaires total",
+        "median": "médiane {days} j"
+      },
+      "without_spend": {
+        "title": "Campagnes sans dépenses",
+        "help": "Ces clés de campagne ont des prospects ou du chiffre d’affaires mais aucune dépense publicitaire. S’il s’agit d’annonces, vérifiez le modèle UTM : utm_source=meta ou google et utm_campaign=l’identifiant de campagne de la plateforme."
+      },
+      "data_as_of_none": "Aucune donnée publicitaire n’a encore été récupérée"
+    },
+    "ads": {
+      "title": "Dépenses publicitaires",
+      "intro": "Dépenses, impressions, clics et prospects déclarés par Meta et Google Ads, récupérés chaque matin à 05:30, avec les trois jours précédents récupérés à nouveau.",
+      "empty": "Connectez un compte publicitaire dans les paramètres",
+      "no_rows": "Aucune donnée publicitaire sur cette période",
+      "totals": "Totaux",
+      "by_campaign": "Par campagne",
+      "by_day": "Par campagne et par jour",
+      "more": "Les 50 dernières lignes sont affichées ; réduisez la période pour en voir davantage.",
+      "column": {
+        "platform": "Plateforme",
+        "campaign": "Campagne",
+        "day": "Jour",
+        "spend": "Dépenses",
+        "impressions": "Impressions",
+        "clicks": "Clics",
+        "platform_leads": "Prospects plateforme",
+        "account": "Compte",
+        "last_pull": "Dernière récupération",
+        "last_day": "Dernier jour"
+      },
+      "never": "Jamais",
+      "stale": "Non récupéré depuis 3 jours ou plus",
+      "not_configured": "Plus configuré",
+      "platform": {
+        "meta": "Meta",
+        "google": "Google Ads"
+      },
+      "accounts": {
+        "title": "Comptes publicitaires",
+        "meta_ids": "Identifiants de comptes publicitaires Meta (un par ligne)",
+        "google_ids": "Identifiants clients Google Ads (un par ligne)",
+        "save": "Enregistrer les comptes",
+        "saved": "Comptes enregistrés",
+        "conflict": "Les paramètres ont changé entre-temps. Rechargez la page et réessayez.",
+        "invalid": "Un identifiant de compte est trop long (64 caractères maximum).",
+        "read_only": "Seuls les utilisateurs autorisés à modifier les paramètres peuvent changer les comptes."
+      },
+      "pull": {
+        "title": "Récupérer maintenant",
+        "days": "Nombre de jours à récupérer",
+        "submit": "Récupérer maintenant",
+        "queued": "{count} récupérations planifiées",
+        "none": "Aucun compte publicitaire n’est configuré",
+        "failed": "La récupération n’a pas pu être planifiée"
+      }
     }
   }
 }

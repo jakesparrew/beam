@@ -917,6 +917,208 @@
         "retained": "We bewaren facturen gedurende de wettelijke termijn en een vingerafdruk van uw e-mailadres, zodat u nooit meer marketing ontvangt.",
         "button": "Verwijderen annuleren"
       }
+    },
+    "management": {
+      "title": "Managementdashboard",
+      "intro": "Omzet, klanten, verkoopmix, retentie en B2B voor de gekozen periode, vergeleken met de periode ervoor.",
+      "group": {
+        "revenue": "Omzet",
+        "customers": "Klanten",
+        "sales": "Verkoopmix",
+        "retention": "Retentie",
+        "b2b": "B2B"
+      },
+      "revenue": {
+        "net": "Netto-omzet",
+        "orders": "Betaalde bestellingen"
+      },
+      "customers": {
+        "new": "Nieuwe klanten",
+        "active": "Actieve klanten (90 dagen)",
+        "returning": "Terugkerende klanten",
+        "dormant": "Slapende klanten",
+        "reactivated": "Gereactiveerde klanten"
+      },
+      "retention": {
+        "repeat_purchase_rate": "Herhaalaankoopratio",
+        "package_completion": "Pakketten opgebruikt",
+        "reactivation_rate": "Reactivatieratio",
+        "membership_renewal_rate": "Hernieuwingsratio lidmaatschappen"
+      },
+      "b2b": {
+        "pipeline_value": "Waarde open pipeline",
+        "weighted_value": "Gewogen pipelinewaarde",
+        "qualified": "Gekwalificeerde kansen",
+        "proposals": "Uitstaande offertes",
+        "conversion": "Winstratio (afgesloten in periode)",
+        "revenue": "B2B-omzet"
+      },
+      "rate_of": "{numerator} van {denominator}",
+      "previous_rate": "Vorige periode: {rate}",
+      "no_data": "Geen gegevens",
+      "now": "Vandaag"
+    },
+    "marketing": {
+      "title": "Marketing",
+      "intro": "Leads, webinar- en assessmentconversie, e-mailprestaties en herstel voor de gekozen data, vergeleken met even veel dagen ervoor.",
+      "empty": "Geen marketingactiviteit in deze periode",
+      "previous": "Vorige: {value}",
+      "kpi": {
+        "leads": "Gegenereerde leads",
+        "registration_rate": "Inschrijvingsratio webinars",
+        "attendance_rate": "Live aanwezigheidsratio",
+        "event_attendance_rate": "Aanwezigheidsratio events",
+        "lead_to_visit": "Lead naar eerste bezoek (90 dagen)",
+        "visit_to_purchase": "Eerste bezoek naar aankoop (30 dagen)",
+        "assessment_completion": "Assessments afgerond",
+        "assessment_conversion": "Assessment naar aankoop (60 dagen)",
+        "reactivation_revenue": "Omzet uit reactivatie",
+        "abandoned_recovery_rate": "Herstel verlaten winkelmandjes",
+        "abandoned_recovery_revenue": "Omzet herstelde winkelmandjes"
+      },
+      "attendance_native_unavailable": "Aanwezigheid bij eigen webinars is nog niet beschikbaar; de ratio gebruikt enkel geïmporteerde historiek.",
+      "leads_by_source": "Leads per bron en campagne",
+      "column": {
+        "source": "Bron",
+        "campaign": "Campagne",
+        "leads": "Leads"
+      },
+      "no_campaign": "Geen campagne",
+      "conversion": {
+        "title": "Webinarconversie",
+        "help": "Inschrijvingen gevolgd door een boeking of aankoop binnen de termijn, per status bij inschrijving.",
+        "segment": "Ingeschrevene",
+        "window": "{days} dagen"
+      },
+      "segment": {
+        "lead": "Lead",
+        "customer": "Klant",
+        "member": "Lid"
+      },
+      "email": {
+        "title": "E-mailprestaties",
+        "empty": "In deze periode werden geen campagnemails verstuurd",
+        "column": {
+          "campaign": "Campagne",
+          "sent": "Verstuurd",
+          "delivered": "Afgeleverd",
+          "open_rate": "Openratio",
+          "click_rate": "Klikratio",
+          "bounce_rate": "Bounceratio",
+          "complaint_rate": "Klachtratio",
+          "unsubscribe_rate": "Uitschrijfratio"
+        },
+        "total": "Alle campagnes"
+      },
+      "webinar": {
+        "title": "Webinarprestaties",
+        "empty": "Geen webinarinschrijvingen in deze periode",
+        "column": {
+          "webinar": "Webinar",
+          "registered": "Ingeschreven",
+          "attended_live": "Live aanwezig",
+          "avg_watch": "Gemiddelde kijktijd",
+          "replay_views": "Herbekeken",
+          "on_demand_views": "On-demand bekeken",
+          "poll_answers": "Poll-antwoorden",
+          "cta_clicks": "CTA-kliks"
+        },
+        "total": "Alle webinars"
+      },
+      "minutes": "{minutes} min"
+    },
+    "attribution": {
+      "title": "Campagne-attributie",
+      "intro": "Omzet, leads en advertentie-uitgaven per campagne. ROAS gebruikt lineaire multi-touchomzet; de funnel volgt de mensen die elke campagne als eerste raakte.",
+      "empty": "Nog geen toegewezen omzet",
+      "model": {
+        "legend": "Omzetmodel",
+        "linear": "Lineair multi-touch",
+        "first_touch": "Eerste contact"
+      },
+      "column": {
+        "campaign": "Campagne",
+        "source": "Bron",
+        "medium": "Medium",
+        "leads": "Leads",
+        "first_purchases": "Eerste aankopen",
+        "revenue": "Omzet",
+        "revenue_first_touch": "Omzet (eerste contact)",
+        "revenue_linear": "Omzet (lineair)",
+        "ltv": "Levensduurwaarde",
+        "spend": "Uitgaven",
+        "cpl": "Kost per lead",
+        "cac": "CAC",
+        "roas": "ROAS"
+      },
+      "direct": "Rechtstreeks / geen campagne",
+      "funnel": {
+        "title": "Campagnefunnel",
+        "help": "Mensen die elke campagne als eerste raakte en in de periode werden aangemaakt: hoeveel elke stap bereikten, en de mediaan in dagen van lead tot die stap.",
+        "step": {
+          "lead": "Lead",
+          "webinar": "Webinar",
+          "first_visit": "Eerste bezoek",
+          "package": "Pakket",
+          "repeat": "Herhaalaankoop",
+          "member": "Lid"
+        },
+        "lead_cost": "Kost per lead",
+        "total_revenue": "Totale omzet",
+        "median": "mediaan {days} d"
+      },
+      "without_spend": {
+        "title": "Campagnes zonder uitgaven",
+        "help": "Deze campagnesleutels hebben leads of omzet maar geen advertentie-uitgaven. Zijn het advertenties, controleer dan de UTM-sjabloon: utm_source=meta of google en utm_campaign=het campagne-id van het platform."
+      },
+      "data_as_of_none": "Er zijn nog geen advertentiegegevens opgehaald"
+    },
+    "ads": {
+      "title": "Advertentie-uitgaven",
+      "intro": "Uitgaven, vertoningen, kliks en door het platform gemelde leads uit Meta en Google Ads, elke ochtend om 05:30 opgehaald, met de drie dagen ervoor opnieuw opgehaald.",
+      "empty": "Koppel een advertentieaccount in de instellingen",
+      "no_rows": "Geen advertentiegegevens in deze periode",
+      "totals": "Totalen",
+      "by_campaign": "Per campagne",
+      "by_day": "Per campagne en dag",
+      "more": "De laatste 50 rijen worden getoond; verklein de periode om meer te zien.",
+      "column": {
+        "platform": "Platform",
+        "campaign": "Campagne",
+        "day": "Dag",
+        "spend": "Uitgaven",
+        "impressions": "Vertoningen",
+        "clicks": "Kliks",
+        "platform_leads": "Platformleads",
+        "account": "Account",
+        "last_pull": "Laatst opgehaald",
+        "last_day": "Laatste dag"
+      },
+      "never": "Nooit",
+      "stale": "Al 3 dagen of langer niet opgehaald",
+      "not_configured": "Niet meer ingesteld",
+      "platform": {
+        "meta": "Meta",
+        "google": "Google Ads"
+      },
+      "accounts": {
+        "title": "Advertentieaccounts",
+        "meta_ids": "Meta-advertentieaccount-id’s (één per regel)",
+        "google_ids": "Google Ads-klant-id’s (één per regel)",
+        "save": "Accounts opslaan",
+        "saved": "Accounts opgeslagen",
+        "conflict": "De instellingen zijn intussen gewijzigd. Herlaad de pagina en probeer opnieuw.",
+        "invalid": "Een account-id is te lang (maximaal 64 tekens).",
+        "read_only": "Enkel gebruikers die instellingen mogen wijzigen, passen de accounts aan."
+      },
+      "pull": {
+        "title": "Nu ophalen",
+        "days": "Aantal dagen opnieuw ophalen",
+        "submit": "Nu ophalen",
+        "queued": "{count} ophaalopdrachten ingepland",
+        "none": "Er is geen advertentieaccount ingesteld",
+        "failed": "Het ophalen kon niet worden ingepland"
+      }
     }
   }
 }

@@ -1,25 +1,17 @@
 /**
  * The Meta and Google Ads fakes (runbook section 1.5, ops spec section 6): deterministic daily
  * rows for three fake campaigns per platform, seeded by account and date, so dashboards have
- * data. Read-only; can be told to fail. ops-P8 writes the real `meta.ts` and `google.ts`.
+ * data. Read-only; can be told to fail (`failNext`) or to report another account currency
+ * (`setCurrency`, edge case 18). The real clients are `meta.ts` and `google.ts`.
  */
 import { createHash } from "node:crypto";
 import { digestRequest } from "../_shared/digest";
 import { IntegrationError } from "../_shared/errors";
 import { trackCall } from "../_shared/timeout";
 import { noopOnCall, type FakeCall, type OnCall } from "../_shared/types";
+import type { AdDayRow, AdsPlatform, GoogleAdsClient, MetaAdsClient } from "./types";
 
-export type AdDayRow = { campaignId: string; campaignName: string; spendCents: number; impressions: number; clicks: number; leads: number };
-
-export interface MetaAdsClient {
-  getCampaignInsights(input: { accountId: string; day: string }): Promise<AdDayRow[]>;
-}
-
-export interface GoogleAdsClient {
-  getCampaignStats(input: { customerId: string; day: string }): Promise<AdDayRow[]>;
-}
-
-export type AdsPlatform = "meta" | "google";
+export type { AdDayRow, AdsPlatform, GoogleAdsClient, MetaAdsClient } from "./types";
 
 export const FAKE_CAMPAIGNS: Readonly<Record<AdsPlatform, readonly { id: string; name: string }[]>> = {
   meta: [
@@ -58,6 +50,8 @@ export type AdsFake = {
   google: GoogleAdsClient;
   readonly calls: FakeCall[];
   failNext(platform: AdsPlatform, opts?: { retryable?: boolean; status?: number }): void;
+  /** Rows of `accountId` carry this currency from now on (`null` restores the default, EUR). */
+  setCurrency(platform: AdsPlatform, accountId: string, currency: string | null): void;
   reset(): void;
 };
 
@@ -66,6 +60,7 @@ export function createAdsFake(options: { onCall?: OnCall; now?: () => Date } = {
   const now = options.now ?? (() => new Date());
   const calls: FakeCall[] = [];
   const failures: { platform: AdsPlatform; retryable: boolean; status: number }[] = [];
+  const currencies = new Map<string, string>();
 
   function run(platform: AdsPlatform, operation: string, account: string, day: string): Promise<AdDayRow[]> {
     calls.push({ operation, input: { account, day }, at: now() });
@@ -76,7 +71,9 @@ export function createAdsFake(options: { onCall?: OnCall; now?: () => Date } = {
         const [f] = failures.splice(i, 1);
         throw new IntegrationError({ provider, operation, retryable: f!.retryable, statusCode: f!.status, message: `${provider} ${operation} failed with ${f!.status}` });
       }
-      return { value: fakeAdRows(platform, account, day), statusCode: 200 };
+      const currency = currencies.get(`${platform}:${account}`);
+      const rows = fakeAdRows(platform, account, day);
+      return { value: currency ? rows.map((r) => ({ ...r, currency })) : rows, statusCode: 200 };
     });
   }
 
@@ -88,9 +85,14 @@ export function createAdsFake(options: { onCall?: OnCall; now?: () => Date } = {
       const retryable = opts?.retryable ?? true;
       failures.push({ platform, retryable, status: opts?.status ?? (retryable ? 503 : 401) });
     },
+    setCurrency(platform, accountId, currency) {
+      if (currency) currencies.set(`${platform}:${accountId}`, currency.toUpperCase());
+      else currencies.delete(`${platform}:${accountId}`);
+    },
     reset() {
       calls.length = 0;
       failures.length = 0;
+      currencies.clear();
     },
   };
 }

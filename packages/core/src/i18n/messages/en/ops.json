@@ -917,6 +917,208 @@
         "retained": "We keep invoices for the legal period and a fingerprint of your email address, so you never receive marketing again.",
         "button": "Cancel the deletion"
       }
+    },
+    "management": {
+      "title": "Management dashboard",
+      "intro": "Revenue, customers, sales mix, retention and B2B for the selected period, against the period before.",
+      "group": {
+        "revenue": "Revenue",
+        "customers": "Customers",
+        "sales": "Sales mix",
+        "retention": "Retention",
+        "b2b": "B2B"
+      },
+      "revenue": {
+        "net": "Net revenue",
+        "orders": "Paid orders"
+      },
+      "customers": {
+        "new": "New customers",
+        "active": "Active customers (90 days)",
+        "returning": "Returning customers",
+        "dormant": "Dormant customers",
+        "reactivated": "Reactivated customers"
+      },
+      "retention": {
+        "repeat_purchase_rate": "Repeat purchase rate",
+        "package_completion": "Package completion",
+        "reactivation_rate": "Reactivation rate",
+        "membership_renewal_rate": "Membership renewal rate"
+      },
+      "b2b": {
+        "pipeline_value": "Open pipeline value",
+        "weighted_value": "Weighted pipeline value",
+        "qualified": "Qualified opportunities",
+        "proposals": "Proposals out",
+        "conversion": "Win rate (closed in period)",
+        "revenue": "B2B revenue"
+      },
+      "rate_of": "{numerator} of {denominator}",
+      "previous_rate": "Previous period: {rate}",
+      "no_data": "No data",
+      "now": "As of today"
+    },
+    "marketing": {
+      "title": "Marketing",
+      "intro": "Leads, webinar and assessment conversion, email performance and recovery for the selected dates, against the same number of days before.",
+      "empty": "No marketing activity in this period",
+      "previous": "Previous: {value}",
+      "kpi": {
+        "leads": "Leads generated",
+        "registration_rate": "Webinar registration rate",
+        "attendance_rate": "Live attendance rate",
+        "event_attendance_rate": "Event attendance rate",
+        "lead_to_visit": "Lead to first visit (90 days)",
+        "visit_to_purchase": "First visit to purchase (30 days)",
+        "assessment_completion": "Assessment completion",
+        "assessment_conversion": "Assessment to purchase (60 days)",
+        "reactivation_revenue": "Reactivation revenue",
+        "abandoned_recovery_rate": "Abandoned cart recovery",
+        "abandoned_recovery_revenue": "Recovered cart revenue"
+      },
+      "attendance_native_unavailable": "Native webinar attendance is not available yet; the rate uses imported history only.",
+      "leads_by_source": "Leads by source and campaign",
+      "column": {
+        "source": "Source",
+        "campaign": "Campaign",
+        "leads": "Leads"
+      },
+      "no_campaign": "No campaign",
+      "conversion": {
+        "title": "Webinar conversion",
+        "help": "Registrations followed by a booking or purchase within the window, by status at registration.",
+        "segment": "Registrant",
+        "window": "{days} days"
+      },
+      "segment": {
+        "lead": "Lead",
+        "customer": "Customer",
+        "member": "Member"
+      },
+      "email": {
+        "title": "Email performance",
+        "empty": "No campaign emails were sent in this period",
+        "column": {
+          "campaign": "Campaign",
+          "sent": "Sent",
+          "delivered": "Delivered",
+          "open_rate": "Open rate",
+          "click_rate": "Click rate",
+          "bounce_rate": "Bounce rate",
+          "complaint_rate": "Complaint rate",
+          "unsubscribe_rate": "Unsubscribe rate"
+        },
+        "total": "All campaigns"
+      },
+      "webinar": {
+        "title": "Webinar performance",
+        "empty": "No webinar registrations in this period",
+        "column": {
+          "webinar": "Webinar",
+          "registered": "Registered",
+          "attended_live": "Attended live",
+          "avg_watch": "Average watch time",
+          "replay_views": "Replay views",
+          "on_demand_views": "On-demand views",
+          "poll_answers": "Poll answers",
+          "cta_clicks": "CTA clicks"
+        },
+        "total": "All webinars"
+      },
+      "minutes": "{minutes} min"
+    },
+    "attribution": {
+      "title": "Campaign attribution",
+      "intro": "Revenue, leads and ad spend per campaign. ROAS uses linear multi-touch revenue; the funnel follows the people each campaign first touched.",
+      "empty": "No attributed revenue yet",
+      "model": {
+        "legend": "Revenue model",
+        "linear": "Linear multi-touch",
+        "first_touch": "First touch"
+      },
+      "column": {
+        "campaign": "Campaign",
+        "source": "Source",
+        "medium": "Medium",
+        "leads": "Leads",
+        "first_purchases": "First purchases",
+        "revenue": "Revenue",
+        "revenue_first_touch": "Revenue (first touch)",
+        "revenue_linear": "Revenue (linear)",
+        "ltv": "Lifetime value",
+        "spend": "Spend",
+        "cpl": "Cost per lead",
+        "cac": "CAC",
+        "roas": "ROAS"
+      },
+      "direct": "Direct / no campaign",
+      "funnel": {
+        "title": "Campaign funnel",
+        "help": "People first touched by each campaign and created in the period: how many reached each step, and the median days from lead to that step.",
+        "step": {
+          "lead": "Lead",
+          "webinar": "Webinar",
+          "first_visit": "First visit",
+          "package": "Package",
+          "repeat": "Repeat purchase",
+          "member": "Member"
+        },
+        "lead_cost": "Lead cost",
+        "total_revenue": "Total revenue",
+        "median": "median {days} d"
+      },
+      "without_spend": {
+        "title": "Campaigns without spend",
+        "help": "These campaign keys have leads or revenue but no ad spend. If they are ads, check the UTM template: utm_source=meta or google and utm_campaign=the platform campaign id."
+      },
+      "data_as_of_none": "No ad data has been pulled yet"
+    },
+    "ads": {
+      "title": "Ad spend",
+      "intro": "Spend, impressions, clicks and platform-reported leads from Meta and Google Ads, pulled every morning at 05:30 with the three days before re-pulled.",
+      "empty": "Connect an ad account in settings",
+      "no_rows": "No ad data in this period",
+      "totals": "Totals",
+      "by_campaign": "By campaign",
+      "by_day": "By campaign and day",
+      "more": "Showing the latest 50 rows; narrow the dates to see more.",
+      "column": {
+        "platform": "Platform",
+        "campaign": "Campaign",
+        "day": "Day",
+        "spend": "Spend",
+        "impressions": "Impressions",
+        "clicks": "Clicks",
+        "platform_leads": "Platform leads",
+        "account": "Account",
+        "last_pull": "Last pull",
+        "last_day": "Latest day"
+      },
+      "never": "Never",
+      "stale": "Not pulled for 3 days or more",
+      "not_configured": "No longer configured",
+      "platform": {
+        "meta": "Meta",
+        "google": "Google Ads"
+      },
+      "accounts": {
+        "title": "Ad accounts",
+        "meta_ids": "Meta ad account ids (one per line)",
+        "google_ids": "Google Ads customer ids (one per line)",
+        "save": "Save accounts",
+        "saved": "Accounts saved",
+        "conflict": "The settings changed in the meantime. Reload the page and try again.",
+        "invalid": "An account id is too long (at most 64 characters).",
+        "read_only": "Only users who can change settings edit the accounts."
+      },
+      "pull": {
+        "title": "Pull now",
+        "days": "Days to re-pull",
+        "submit": "Pull now",
+        "queued": "{count} pulls queued",
+        "none": "No ad account is configured",
+        "failed": "The pull could not be queued"
+      }
     }
   }
 }

@@ -113,7 +113,7 @@ describe("blocksToMjml", () => {
   });
 
   it("collects card references across columns and variants", () => {
-    expect(cardRefs([ALL_BLOCKS])).toEqual({ productIds: [PRODUCT], sessionIds: [SESSION] });
+    expect(cardRefs([ALL_BLOCKS])).toEqual({ productIds: [PRODUCT], sessionIds: [SESSION], webinarIds: [] });
   });
 
   it("escapes text but keeps tokens for personalisation", () => {

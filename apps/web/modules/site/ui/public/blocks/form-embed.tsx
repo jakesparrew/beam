@@ -82,8 +82,6 @@ async function PartnerFormEmbed({ props }: { props: FormEmbedProps }) {
   return SafeFormEmbed(partner ? { ...props, context: { ...props.context, partnerCompanyId: partner } } : props);
 }
 
-type PartnerAwareData = BlockContext["data"] & { partnerCompanyId?: string | null; pageKind?: string };
-
 /**
  * True when forms' `FormEmbed` is an async server component (the real one is): the partner
  * lookup then adds no extra suspension. A synchronous stand-in (unit tests that render with
@@ -92,11 +90,11 @@ type PartnerAwareData = BlockContext["data"] & { partnerCompanyId?: string | nul
 const embedIsAsync = (): boolean => (FormEmbed as unknown as { constructor?: { name?: string } }).constructor?.name === "AsyncFunction";
 
 export function FormEmbedBlockView({ block, ctx }: { block: BlockOf<"form_embed">; ctx: BlockContext }) {
-  const data = ctx.data as PartnerAwareData;
+  const data = ctx.data;
   const base = formEmbedProps(block.formSlug, ctx.locale, data.pagePath, data.utm);
-  // Render data that already knows the page's partner (`partnerCompanyId` with `pageKind`) needs no lookup.
-  if ("partnerCompanyId" in data) {
-    const partner = data.pageKind === undefined || data.pageKind === "landing" ? data.partnerCompanyId : null;
+  // Render data built from a page (`pageKind` set) already knows its partner: no lookup.
+  if (data.pageKind) {
+    const partner = data.pageKind === "landing" ? data.partnerCompanyId : null;
     return <div data-form={block.formSlug}>{SafeFormEmbed(formEmbedProps(block.formSlug, ctx.locale, data.pagePath, data.utm, partner))}</div>;
   }
   return <div data-form={block.formSlug}>{embedIsAsync() ? <PartnerFormEmbed props={base} /> : SafeFormEmbed(base)}</div>;

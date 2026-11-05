@@ -1,9 +1,11 @@
 /**
  * `events_list` block (rules 28, 30, 32): upcoming events from `booking.listPublicEvents` with
  * their seat band (never a count), a "Members only" badge, a link to the event page (or the
- * portal booking page) and paging with `?page=n`.
+ * portal booking page) and paging with `?page=n`. R2 (scenario 3): a Lead Magnet event in its
+ * lead window shows "Priority access for new guests until <date>" (Europe/Brussels), never a
+ * count or a rank.
  */
-import { formatDate, formatTime } from "@beam/core/i18n";
+import { formatDate, formatDateTime, formatTime } from "@beam/core/i18n";
 import type { AvailabilityBand } from "@beam/core/site";
 import type { BlockContext, BlockOf, Tr } from "../block-renderer";
 
@@ -37,6 +39,11 @@ export function EventsListBlockView({ block, ctx }: { block: BlockOf<"events_lis
                   </time>
                   {e.location ? <span> · {e.location}</span> : null}
                 </p>
+                {e.priorityUntil ? (
+                  <p className="text-sm" data-lead-window>
+                    {tr("site.blocks.events.priorityUntil", { date: formatDateTime(e.priorityUntil, locale, "long") })}
+                  </p>
+                ) : null}
               </div>
               <div className="flex flex-wrap items-center gap-2 text-sm">
                 {e.isMemberOnly ? <span className="rounded-full bg-muted px-2.5 py-0.5 font-medium">{tr("site.blocks.events.membersOnly")}</span> : null}

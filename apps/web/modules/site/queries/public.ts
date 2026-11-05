@@ -99,6 +99,11 @@ export type ResolvedPage = {
   publishedAt: string | null;
   firstPublishedAt: string | null;
   isPreview: boolean;
+  /**
+   * R3 (site-P9): the partner company of a `landing` page (`pages.partner_company_id`), else null.
+   * Optional so hand-built pages (tests) need not name it; `toResolved` always sets it.
+   */
+  partnerCompanyId?: string | null;
 };
 
 type VersionRow = {
@@ -107,6 +112,7 @@ type VersionRow = {
   slug: string;
   legalKey: LegalKey | null;
   sessionId: string | null;
+  partnerCompanyId: string | null;
   firstPublishedAt: Date | null;
   versionId: string;
   version: number;
@@ -125,6 +131,7 @@ const versionColumns = {
   slug: pages.slug,
   legalKey: pages.legalKey,
   sessionId: pages.sessionId,
+  partnerCompanyId: pages.partnerCompanyId,
   firstPublishedAt: pages.firstPublishedAt,
   versionId: pageVersions.id,
   version: pageVersions.version,
@@ -169,6 +176,7 @@ function toResolved(row: VersionRow, locale: Locale, routes: Partial<Record<Loca
     publishedAt: iso(row.publishedAt),
     firstPublishedAt: iso(row.firstPublishedAt),
     isPreview,
+    partnerCompanyId: row.kind === "landing" ? (row.partnerCompanyId ?? null) : null,
   };
 }
 

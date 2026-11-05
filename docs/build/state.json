@@ -1467,8 +1467,11 @@
       "mergedAt": "2026-11-05T04:56:26Z"
     },
     "site-P10": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "a6d21c3",
+      "runId": null,
+      "startedAt": "2026-11-05T10:41:08Z"
     },
     "automation-P10": {
       "status": "running",
@@ -1478,8 +1481,11 @@
       "startedAt": "2026-11-05T10:10:41Z"
     },
     "webinar-P8": {
-      "status": "pending",
-      "attempts": 0
+      "status": "running",
+      "attempts": 1,
+      "baseSha": "a6d21c3",
+      "runId": null,
+      "startedAt": "2026-11-05T10:41:08Z"
     },
     "ops-P9": {
       "status": "merged",
@@ -3081,8 +3087,8 @@
       "mergedAt": "2026-11-05T08:10:31Z"
     },
     "fix-w21-commerce-wiring": {
-      "status": "pending",
-      "attempts": 0,
+      "status": "running",
+      "attempts": 1,
       "fixer": true,
       "module": "commerce",
       "goal": "Wiring fixer for module commerce: serve every open row of docs/build/requests.md whose For column names commerce (or one of its packages or files). Verify each row first; report already-served rows. Implement the rest inside commerce's files, with tests. Rows needing another module's files stay open. Do not edit docs/build/requests.md.",
@@ -3266,11 +3272,14 @@
         "commerce-P7",
         "commerce-P8",
         "commerce-P9"
-      ]
+      ],
+      "baseSha": "a6d21c3",
+      "runId": null,
+      "startedAt": "2026-11-05T10:41:08Z"
     },
     "fix-w21-email-wiring": {
-      "status": "pending",
-      "attempts": 0,
+      "status": "running",
+      "attempts": 1,
       "fixer": true,
       "module": "email",
       "goal": "Wiring fixer for module email: serve every open row of docs/build/requests.md whose For column names email (or one of its packages or files). Verify each row first; report already-served rows. Implement the rest inside email's files, with tests. Rows needing another module's files stay open. Do not edit docs/build/requests.md.",
@@ -3461,11 +3470,14 @@
         "email-P8",
         "email-P9",
         "email-P10"
-      ]
+      ],
+      "baseSha": "a6d21c3",
+      "runId": null,
+      "startedAt": "2026-11-05T10:41:08Z"
     },
     "fix-w21-forms-wiring": {
-      "status": "pending",
-      "attempts": 0,
+      "status": "running",
+      "attempts": 1,
       "fixer": true,
       "module": "forms",
       "goal": "Wiring fixer for module forms: serve every open row of docs/build/requests.md whose For column names forms (or one of its packages or files). Verify each row first; report already-served rows. Implement the rest inside forms's files, with tests. Rows needing another module's files stay open. Do not edit docs/build/requests.md.",
@@ -3642,7 +3654,10 @@
         "forms-P8",
         "forms-P9",
         "forms-P10"
-      ]
+      ],
+      "baseSha": "a6d21c3",
+      "runId": null,
+      "startedAt": "2026-11-05T10:41:08Z"
     },
     "fix-w21-platform-wiring": {
       "status": "pending",
@@ -4271,8 +4286,8 @@
       ]
     },
     "fix-w21-crm-wiring": {
-      "status": "pending",
-      "attempts": 0,
+      "status": "running",
+      "attempts": 1,
       "fixer": true,
       "module": "crm",
       "goal": "Second crm wiring round: serve the crm rows of docs/build/requests.md added since fix-w20-crm-wiring (notably opportunity.stage_changed with personId and owner_user_id for the B2B journeys, getSegmentAggregates).",
@@ -4512,7 +4527,10 @@
         "crm-P8",
         "crm-P9",
         "crm-P10"
-      ]
+      ],
+      "baseSha": "a6d21c3",
+      "runId": null,
+      "startedAt": "2026-11-05T10:41:08Z"
     }
   }
 }

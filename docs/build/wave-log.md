@@ -202,3 +202,8 @@ One entry per merge batch and gate (runbook section 5.7, adapted by OD-3).
 - finance-P9: merged as `90953c8` in batch `g106-batch`.
 - booking-P8: merged as `6ae77e2` in batch `g106-batch`.
 - Batch `g106-batch` (finance-P9 booking-P8): migrations 0040_w20_views.sql; merge gate green, peak 8941 MB.
+- forms-P7: merged as `830b5de` in batch `g107-batch`.
+- webinar-P4: merged as `1ff8eb3` in batch `g107-batch`.
+- credits-P10: merged as `647280a` in batch `g107-batch`.
+- crm-P9: merged as `b41190e` in batch `g107-batch`.
+- Batch `g107-batch` (forms-P7 webinar-P4 credits-P10 crm-P9): migrations 0041_w22.sql 0042_w22_views.sql; merge gate green, peak 9827 MB.

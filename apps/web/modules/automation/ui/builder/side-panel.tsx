@@ -7,7 +7,7 @@
  * condition builder and, for an empty lane, where that lane goes.
  */
 import { Input } from "@beam/ui";
-import type { BranchLane, BuilderNode, BuilderTrigger } from "../../../../../../packages/core/src/automation/builder";
+import type { BranchLane, BuilderNode, BuilderTrigger } from "@beam/core/automation";
 import { ConditionBuilder, selectClass, type EditorOptions, type Json } from "../condition-builder";
 import { fill, type Labels } from "../outcome-badge";
 import { Field, StepForms, type IssueView, type StepJson } from "../step-forms";

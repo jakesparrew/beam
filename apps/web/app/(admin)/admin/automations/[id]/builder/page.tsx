@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ROLE_KEYS } from "@beam/db/schema";
 import { Alert, AlertDescription } from "@beam/ui";
-import type { Definition } from "@beam/core/automation";
+import { definitionToGraph, type Definition } from "@beam/core/automation";
 import { hasPermission, requireStaff } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
 import { adminLocale } from "@/lib/i18n";
@@ -18,7 +18,6 @@ import {
 } from "@/modules/automation/queries";
 import { AutomationHeader } from "@/modules/automation/ui/automation-table";
 import { BuilderCanvas } from "@/modules/automation/ui/builder/canvas";
-import { definitionToGraph } from "../../../../../../../../packages/core/src/automation/builder";
 
 const LABEL_PREFIXES = ["builder", "editor", "publish", "issue", "errors", "purpose", "status", "detail", "list", "common"] as const;
 

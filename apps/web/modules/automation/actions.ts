@@ -45,7 +45,17 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { automationEnrolments, automationGroups, automations, automationVersions, persons, segments } from "@beam/db/schema";
-import { AUTOMATION_PURPOSES, isPublishable, SLUG_RE, type Definition, type DefinitionIssue, type EnrolResult } from "@beam/core/automation";
+import {
+  AUTOMATION_PURPOSES,
+  BuilderGraphSchema,
+  graphToDefinition,
+  isPublishable,
+  SLUG_RE,
+  type BuilderGraph,
+  type Definition,
+  type DefinitionIssue,
+  type EnrolResult,
+} from "@beam/core/automation";
 import type { DpiaKey } from "@beam/core/ops";
 import { action } from "@/lib/action";
 import { and, ConflictError, eq, ne, NotFoundError, sql, ValidationError, type Ctx, type Tx } from "@/lib/ctx";
@@ -57,8 +67,6 @@ import { endEnrolmentWith } from "./engine/exits";
 import { stepJobKey, stepJobPriority } from "./engine/step";
 import type { AutomationRulesValue } from "./config";
 import { definitionHash, draftIssues } from "./queries";
-// `@beam/core/automation` does not re-export the builder yet (request to the owner of its index.ts).
-import { BuilderGraphSchema, graphToDefinition, type BuilderGraph } from "../../../../packages/core/src/automation/builder";
 
 const Purpose = z.enum(AUTOMATION_PURPOSES);
 const Slug = z.string().trim().min(2).max(80).regex(SLUG_RE, "slug");

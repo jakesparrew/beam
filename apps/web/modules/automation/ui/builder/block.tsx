@@ -9,8 +9,7 @@
  */
 import type { DragEvent, KeyboardEvent } from "react";
 import { Badge, Button } from "@beam/ui";
-import type { BuilderBlock, BuilderNode } from "../../../../../../packages/core/src/automation/builder";
-import { blockOfStepType } from "../../../../../../packages/core/src/automation/builder";
+import { blockOfStepType, type BuilderBlock, type BuilderNode } from "@beam/core/automation";
 import { predicateOf, type CondJson } from "../condition-builder";
 import { fill, type Labels, str } from "../outcome-badge";
 

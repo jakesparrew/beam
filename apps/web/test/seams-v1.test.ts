@@ -340,8 +340,8 @@ describe("seam 3: form -> person -> automation -> email", () => {
   // SI-1 (docs/build/seam-issues-v1.md, owner email): found while building this seam. A stored
   // template document that fails validation at send time kills `email.send` with
   // `invalid_document` but leaves the message `queued` (email rule 39: content problems end
-  // `failed`). `it.fails` until the fix package lands; the orchestrator then turns it into `it`.
-  it.fails("SI-1: a message whose template document is invalid ends failed, not queued", async () => {
+  // `failed`). Fixed by fix-w21-email-wiring: `email.send` calls `failMessage` on `invalid_document`.
+  it("SI-1: a message whose template document is invalid ends failed, not queued", async () => {
     const slug = "automation.seam_bad_document";
     await seedTemplate(h.db as unknown as Tx, {
       slug,

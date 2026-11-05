@@ -320,6 +320,9 @@ async function renderMessage(
     if (error instanceof MissingTranslationError) return { status: "blocked_translation", error: null };
     if (error instanceof PermanentError && error.message.startsWith("invalid_props")) return { status: "failed", error: "invalid_template_data" };
     if (error instanceof PermanentError && error.message.startsWith("missing_text_part")) return { status: "failed", error: "missing_text_part" };
+    // SI-1: a stored document that fails validation is a content problem (rule 39): the row ends
+    // `failed` with `invalid_document` (written durably by `failMessage`, which rethrows).
+    if (error instanceof PermanentError && error.message.startsWith("invalid_document")) return { status: "failed", error: "invalid_document" };
     throw error;
   }
 }

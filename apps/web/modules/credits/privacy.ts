@@ -79,11 +79,9 @@ export const sweep: Record<string, (tx: Tx, cutoff: Date) => Promise<number>> = 
   },
   /**
    * Ended memberships (`cancelled`, `expired`) older than the cutoff whose grants are already gone,
-   * with their periods. A membership a renewal order still links to stays for now. commerce has
-   * relaxed `orders_renewal_chk` (`renewal_membership_id is null or renewal_period_end_on is not
-   * null`), so the FK's `ON DELETE SET NULL` no longer fails the batch and this guard is redundant
-   * (proved by `fix-w23-leftovers.renewal-guard.test.ts`); it goes together with the flip of the
-   * fix-w09-credits-review 6 case in `privacy.test.ts`, which still asserts that the membership stays.
+   * with their periods. A renewal order that links to one keeps its row: commerce's relaxed
+   * `orders_renewal_chk` (`renewal_membership_id is null or renewal_period_end_on is not null`)
+   * lets the FK's `ON DELETE SET NULL` clear the link and keep `renewal_period_end_on`.
    */
   "credits.memberships": async (tx, cutoff) => {
     await allowRewrite(tx);
@@ -93,7 +91,6 @@ export const sweep: Record<string, (tx: Tx, cutoff: Date) => Promise<number>> = 
         sql`select m.id from memberships m
             where m.status in ('cancelled', 'expired') and m.ended_at < ${accountingCutoff(cutoff).toISOString()}::timestamptz
               and not exists (select 1 from credit_grants g where g.membership_id = m.id)
-              and not exists (select 1 from orders o where o.renewal_membership_id = m.id)
             order by m.id limit ${BATCH}`,
       )
     ).map((r) => r.id);

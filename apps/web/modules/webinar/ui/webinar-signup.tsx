@@ -12,7 +12,7 @@ import { eq, getAppDb } from "@/lib/ctx";
 import { flag } from "@/lib/flags";
 import { translator } from "@/lib/i18n";
 import { getWebinarBySlug, registrationFormLabels } from "../queries";
-import { WEBINAR_CONSENT_WORDING_VERSION } from "../server/registration";
+import { registrationConsentWordings, WEBINAR_CONSENT_WORDING_VERSION } from "../server/registration";
 import { RegistrationForm } from "./registration-form";
 
 export async function WebinarSignup({ webinarId, locale }: { webinarId: string; locale: Locale }) {
@@ -42,6 +42,7 @@ export async function WebinarSignup({ webinarId, locale }: { webinarId: string; 
           slug={w.slug}
           locale={locale}
           wordingVersion={WEBINAR_CONSENT_WORDING_VERSION}
+          consentWordings={await registrationConsentWordings(db, locale)}
           privacyHref={`/${seg}/privacy`}
           labels={registrationFormLabels(tr)}
         />

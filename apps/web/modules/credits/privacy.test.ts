@@ -245,7 +245,7 @@ describe("sweep", () => {
     expect(await h.db.select().from(membershipPeriods).where(eq(membershipPeriods.membershipId, young.id))).toHaveLength(1);
   });
 
-  it("fix-w09-credits-review 6: credits.memberships does not fail on a renewed membership; it keeps the one a renewal order still links to", async () => {
+  it("fix-w09-credits-review 6: credits.memberships also deletes a renewed membership; the renewal order keeps its row with the link cleared", async () => {
     const mk = async () => {
       const m = await makeMembership(h.db, { status: "expired", startedAt: ago(3_700), currentPeriodEndAt: ago(3_670), endedAt: ago(3_670) });
       await h.db.insert(membershipPeriods).values({ membershipId: m.id, personId: m.personId, periodStartAt: m.currentPeriodStartAt, periodEndAt: m.currentPeriodEndAt, source: "purchase" });
@@ -261,11 +261,11 @@ describe("sweep", () => {
       renewalPeriodEndOn: "2016-01-01",
     });
     const n = await inTx((tx) => sweep["credits.memberships"]!(tx, cutoff(3_653)));
-    expect(n).toBeGreaterThanOrEqual(1);
+    expect(n).toBeGreaterThanOrEqual(2);
     const left = await h.db.select({ id: memberships.id }).from(memberships).where(inArray(memberships.id, [renewed.id, plain.id]));
-    expect(left.map((m) => m.id)).toEqual([renewed.id]);
+    expect(left).toEqual([]);
     const [o] = await h.db.select({ m: orders.renewalMembershipId, on: orders.renewalPeriodEndOn }).from(orders).where(eq(orders.id, order.id));
-    expect(o).toEqual({ m: renewed.id, on: "2016-01-01" });
+    expect(o).toEqual({ m: null, on: "2016-01-01" });
   });
 
   it("credits.reconciliation_runs deletes runs older than the cutoff; credits.sharing_reviews has nothing before R2", async () => {

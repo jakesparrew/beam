@@ -10,7 +10,7 @@ import { translator } from "@/lib/i18n";
 import { getCurrentConsents } from "@/modules/crm/api";
 import { cancelMyRegistration } from "@/modules/webinar/actions";
 import { listMyWebinars, listPublicWebinarRows, registrationFormLabels, type MyWebinarItem } from "@/modules/webinar/queries";
-import { WEBINAR_CONSENT_WORDING_VERSION } from "@/modules/webinar/server/registration";
+import { registrationConsentWordings, WEBINAR_CONSENT_WORDING_VERSION } from "@/modules/webinar/server/registration";
 import { RegistrationForm } from "@/modules/webinar/ui/registration-form";
 import { WebinarCard } from "@/modules/webinar/ui/webinar-card";
 
@@ -71,6 +71,7 @@ export default async function MyWebinarsPage({ params, searchParams }: Props) {
     x.availableUntil ? tr("webinar.portal.list.available_until", { date: formatDateTime(x.availableUntil, locale, "long") }) : tr("webinar.portal.list.no_expiry"),
     ...(x.viewsLeft !== null ? [tr("webinar.portal.list.views_left", { count: x.viewsLeft })] : []),
   ];
+  const consentWordings = await registrationConsentWordings(await getAppDb(), locale);
   const registerForm = (webinarId: string, slug: string) => (
     <RegistrationForm
       variant="portal"
@@ -78,6 +79,7 @@ export default async function MyWebinarsPage({ params, searchParams }: Props) {
       slug={slug}
       locale={locale}
       wordingVersion={WEBINAR_CONSENT_WORDING_VERSION}
+      consentWordings={consentWordings}
       privacyHref={`/${URL_SEGMENT[locale]}/privacy`}
       labels={labels}
       showConsents={showConsents}

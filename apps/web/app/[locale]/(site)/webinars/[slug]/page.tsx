@@ -8,7 +8,7 @@ import { getAppDb } from "@/lib/ctx";
 import { flag } from "@/lib/flags";
 import { translator } from "@/lib/i18n";
 import { getWebinarBySlug, publicSlugById, registrationFormLabels } from "@/modules/webinar/queries";
-import { WEBINAR_CONSENT_WORDING_VERSION } from "@/modules/webinar/server/registration";
+import { registrationConsentWordings, WEBINAR_CONSENT_WORDING_VERSION } from "@/modules/webinar/server/registration";
 import { RegistrationForm } from "@/modules/webinar/ui/registration-form";
 
 export const dynamic = "force-dynamic";
@@ -124,6 +124,7 @@ export default async function WebinarLandingPage({ params }: Props) {
             slug={w.slug}
             locale={locale}
             wordingVersion={WEBINAR_CONSENT_WORDING_VERSION}
+            consentWordings={await registrationConsentWordings(await getAppDb(), locale)}
             privacyHref={`/${seg}/privacy`}
             labels={registrationFormLabels(tr)}
           />

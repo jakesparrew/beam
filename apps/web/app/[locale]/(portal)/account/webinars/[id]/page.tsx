@@ -9,7 +9,7 @@ import { webinars } from "@beam/db/schema";
 import { eq, getAppDb } from "@/lib/ctx";
 import { translator } from "@/lib/i18n";
 import { getCurrentConsents } from "@/modules/crm/api";
-import { findPublicWebinarBySlug, WEBINAR_CONSENT_WORDING_VERSION } from "@/modules/webinar/server/registration";
+import { findPublicWebinarBySlug, registrationConsentWordings, WEBINAR_CONSENT_WORDING_VERSION } from "@/modules/webinar/server/registration";
 import { registrationFormLabels } from "@/modules/webinar/queries";
 import { playerLabels, viewerFromPerson } from "@/modules/webinar/server/viewer";
 import { RegistrationForm } from "@/modules/webinar/ui/registration-form";
@@ -67,6 +67,7 @@ export default async function PortalWebinarPage({ params }: Props) {
           slug={open.slug}
           locale={locale}
           wordingVersion={WEBINAR_CONSENT_WORDING_VERSION}
+          consentWordings={await registrationConsentWordings(await getAppDb(), locale)}
           privacyHref={`/${URL_SEGMENT[locale]}/privacy`}
           labels={registrationFormLabels(tr)}
           showConsents={!consents || consents.events === null || consents.newsletter === null}

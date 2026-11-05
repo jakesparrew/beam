@@ -61,7 +61,8 @@ export default async function ResultPage({ params, searchParams }: { params: Par
     // ID8: the same answer for a known and an unknown address; only the rate limit is told apart.
     async function sendLink(formData: FormData) {
       "use server";
-      const email = String(formData.get("email") ?? "").slice(0, 254);
+      const raw = formData.get("email");
+      const email = (typeof raw === "string" ? raw : "").slice(0, 254);
       const res = await requestResultLink({ slug, email, locale: expiredLocale });
       redirect(`${self}?sent=${!res.ok && res.error.code === "rate_limited" ? "limited" : "1"}` as never);
     }

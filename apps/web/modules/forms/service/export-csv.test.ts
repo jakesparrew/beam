@@ -44,7 +44,7 @@ function parse(csv: string): string[][] {
   let rowCells: string[] = [];
   let cell = "";
   let quoted = false;
-  const text = csv.replace(/^﻿/, "");
+  const text = csv.replace(/^\uFEFF/, "");
   for (let i = 0; i < text.length; i++) {
     const c = text[i]!;
     if (quoted) {
@@ -70,7 +70,7 @@ function parse(csv: string): string[][] {
 
 describe("toSubmissionCsv", () => {
   it("has no column for a sensitive field (SE4), but one for every non-sensitive field", () => {
-    const def = seed.definition as FormDefinition;
+    const def = seed.definition;
     const sensitive = Object.values(def.fields).filter((f) => f.sensitive || version.sensitiveFieldKeys.includes(f.key));
     expect(sensitive.length).toBeGreaterThan(0);
     const [header] = parse(toSubmissionCsv([row()], version, "en"));
@@ -88,7 +88,7 @@ describe("toSubmissionCsv", () => {
   });
 
   it("writes option labels in the export locale, the outcome label and staff entry", () => {
-    const def = seed.definition as FormDefinition;
+    const def = seed.definition;
     const movement = def.fields.movement as Extract<FormDefinition["fields"][string], { type: "single_choice" }>;
     const outcome = seed.scoring.outcomes[0]!;
     const csv = parse(toSubmissionCsv([row({ outcomeKey: outcome.key, enteredByStaff: true })], version, "fr-BE"));
@@ -117,8 +117,8 @@ describe("toSubmissionCsv", () => {
 
   it("quotes commas, quotes and new lines, and ends lines with CRLF", () => {
     const text = toCsvText(["a", "b"], [["x, \"y\"", "line1\nline2"]]);
-    expect(text.startsWith("﻿")).toBe(true);
-    expect(text).toBe('﻿"a","b"\r\n"x, ""y""","line1\nline2"\r\n');
+    expect(text.startsWith("\uFEFF")).toBe(true);
+    expect(text).toBe('\uFEFF"a","b"\r\n"x, ""y""","line1\nline2"\r\n');
     expect(parse(text)[1]).toEqual(['x, "y"', "line1\nline2"]);
   });
 });

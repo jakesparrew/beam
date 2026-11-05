@@ -34,7 +34,7 @@ import {
   type SubmissionStatus,
 } from "@beam/core/forms";
 import { MESSAGES, type Locale, type LocalizedText } from "@beam/core/i18n";
-import { and, asc, desc, eq, gte, inArray, isNull, lt, lte, or, sql, type SQL } from "@/lib/ctx";
+import { and, asc, desc, eq, gte, inArray, isNull, lt, or, sql, type SQL } from "@/lib/ctx";
 import { rowsOf } from "@/lib/sensitive";
 import { diffVersions, type VersionDiff } from "./service/diff";
 import { answerText, type SubmissionExportRow } from "./service/export-csv";
@@ -567,7 +567,7 @@ export async function listSubmissionsForExport(db: DbOrTx, filter: Omit<Submissi
     landingPath: r.s.landingPath,
     linkName: r.linkName ?? null,
     enteredByStaff: r.s.identifiedBy === "staff",
-    answers: (r.s.answers ?? {}) as Record<string, unknown>,
+    answers: (r.s.answers ?? {}),
   }));
 }
 
@@ -659,7 +659,7 @@ export async function getSubmission(db: DbOrTx, submissionId: string, locale: Lo
   const s = row.s;
   const { definition: def, scoring } = parseVersion(row.v);
   const tx = (t: LocalizedText | undefined): string | null => (t ? (t[locale] ?? null) : null);
-  const answers = (s.answers ?? {}) as Record<string, unknown>;
+  const answers = (s.answers ?? {});
   const sensitiveKeys = new Set(row.v.sensitiveFieldKeys);
   const view = (f: Field): AnswerView => {
     const sensitive = f.sensitive || sensitiveKeys.has(f.key);

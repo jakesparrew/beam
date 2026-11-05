@@ -9,7 +9,7 @@ import { randomUUID } from "node:crypto";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DbHandle } from "@beam/db";
-import { auditLog, emailMessages, formSensitiveAnswers, formSubmissions, forms, formVersions, jobs, roles } from "@beam/db/schema";
+import { auditLog, emailMessages, formSensitiveAnswers, formSubmissions, forms, formVersions, jobs, roles, type NewFormSubmissionRow } from "@beam/db/schema";
 import { seedDefaults } from "@beam/db/seed";
 import { createTestDb, makePerson, makeUser } from "@beam/db/testing";
 import type { FormDefinition } from "@beam/core/forms";
@@ -101,15 +101,15 @@ describe("listSubmissions", () => {
     const f = await createForm(h.db, lead());
     const p = await makePerson(h.db, { email: `filter-${randomUUID().slice(0, 6)}@example.com`, firstName: "Marieke", lastName: "Claes" });
     const base = new Date("2026-10-01T10:00:00Z");
-    const rows = Array.from({ length: 53 }, (_, i) => {
+    const rows = Array.from({ length: 53 }, (_, i): NewFormSubmissionRow => {
       const completed = i % 3 === 0;
       return {
         formId: f.formId,
         formVersionId: f.versionId,
         funnel: i % 2 ? "form:lead" : "spring",
         locale: "en",
-        source: (i % 5 === 0 ? "qr_code" : "website") as "qr_code" | "website",
-        status: (completed ? "completed" : "partial") as "completed" | "partial",
+        source: i % 5 === 0 ? "qr_code" : "website",
+        status: completed ? "completed" : "partial",
         completedAt: completed ? new Date(base.getTime() + i * 3_600_000 + 60_000) : null,
         outcomeKey: completed ? "good" : null,
         personId: i === 7 ? p.id : null,
@@ -158,7 +158,7 @@ describe("getSubmission", () => {
     const [v1] = await h.db.select().from(formVersions).where(eq(formVersions.id, f.versionId));
     const [v2] = await h.db
       .insert(formVersions)
-      .values({ ...v1!, id: undefined, version: 2, definition: def2 as unknown as Record<string, unknown>, definitionHash: "v2", publishedAt: new Date() })
+      .values({ ...v1!, id: undefined, version: 2, definition: def2, definitionHash: "v2", publishedAt: new Date() })
       .returning();
     await h.db.update(forms).set({ currentVersionId: v2!.id }).where(eq(forms.id, f.formId));
 

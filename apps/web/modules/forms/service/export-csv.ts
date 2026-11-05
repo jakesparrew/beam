@@ -37,17 +37,25 @@ type VersionLike = Pick<FormVersionRow, "definition" | "scoring" | "sensitiveFie
 
 const FORMULA_START = /^[=+\-@\t\r]/;
 
+/** Any value as text: primitives as is, dates as ISO, objects and arrays as JSON. */
+function str(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") return String(value);
+  if (value instanceof Date) return value.toISOString();
+  return JSON.stringify(value) ?? "";
+}
+
 /** One CSV cell: injection guard for text, then quoted with doubled quotes. */
 export function csvCell(value: unknown): string {
   if (value === null || value === undefined) return '""';
-  let s = typeof value === "number" || typeof value === "boolean" ? String(value) : value instanceof Date ? value.toISOString() : String(value);
+  let s = str(value);
   if (typeof value === "string" && FORMULA_START.test(s)) s = `'${s}`;
   return `"${s.replace(/"/g, '""')}"`;
 }
 
 /** Header and rows as CSV text (CRLF line ends, UTF-8 BOM so spreadsheet apps read accents). */
 export function toCsvText(header: readonly string[], rows: readonly (readonly unknown[])[]): string {
-  return `﻿${[header, ...rows].map((r) => r.map(csvCell).join(",")).join("\r\n")}\r\n`;
+  return `\uFEFF${[header, ...rows].map((r) => r.map(csvCell).join(",")).join("\r\n")}\r\n`;
 }
 
 const text = (v: LocalizedText | undefined, locale: Locale): string | null => (v ? (v[locale] ?? null) : null);
@@ -71,26 +79,26 @@ export function answerText(field: Field, value: unknown, locale: Locale, mode: "
     case "single_choice":
     case "dropdown": {
       const o = field.options.find((x) => x.key === value);
-      return o ? (text(o.label, locale) ?? o.key) : String(value);
+      return o ? (text(o.label, locale) ?? o.key) : str(value);
     }
     case "multiple_choice": {
       const list = Array.isArray(value) ? value : [value];
       return list.map((k) => {
         const o = field.options.find((x) => x.key === k);
-        return o ? (text(o.label, locale) ?? o.key) : String(k);
+        return o ? (text(o.label, locale) ?? o.key) : str(k);
       }).join("; ");
     }
     case "yes_no":
     case "consent":
     case "acknowledgement":
-      return value === true || value === "yes" ? yes() : value === false || value === "no" ? no() : String(value);
+      return value === true || value === "yes" ? yes() : value === false || value === "no" ? no() : str(value);
     case "rating":
     case "number":
-      return typeof value === "number" ? (mode === "display" ? formatNumber(value, locale) : String(value)) : String(value);
+      return typeof value === "number" ? (mode === "display" ? formatNumber(value, locale) : String(value)) : str(value);
     case "date":
-      return mode === "display" && typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) ? formatDate(value, locale) : String(value);
+      return mode === "display" && typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) ? formatDate(value, locale) : str(value);
     default:
-      return typeof value === "object" ? JSON.stringify(value) : String(value);
+      return str(value);
   }
 }
 

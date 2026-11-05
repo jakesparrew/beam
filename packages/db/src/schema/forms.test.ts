@@ -310,6 +310,17 @@ describe("form_links, form_views_daily and imports", () => {
     expect(after!.partnerCompanyId).toBeNull();
   });
 
+  it("fix-w21-forms-wiring: form_submissions.partner_company_id references companies and is nulled when the company is deleted", async () => {
+    const ref = await makeForm({ published: true });
+    await rejectsWith(submission(ref, { partnerCompanyId: randomUUID() }), "23503", "form_submissions_partner_company_id_companies_id_fk");
+    const [company] = await h.db.insert(companies).values({ name: "Embed Partner", isPartner: true }).returning();
+    const row = await submission(ref, { partnerCompanyId: company!.id });
+    expect(row.partnerCompanyId).toBe(company!.id);
+    await h.db.delete(companies).where(eq(companies.id, company!.id));
+    const [after] = await h.db.select().from(formSubmissions).where(eq(formSubmissions.id, row.id));
+    expect(after!.partnerCompanyId).toBeNull();
+  });
+
   it("views are counted with insert ... on conflict do update and never negative", async () => {
     const { form } = await makeForm({ published: true });
     const bump = () =>

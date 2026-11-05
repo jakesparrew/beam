@@ -391,7 +391,8 @@
       "forms": "Formulieren",
       "enter": "Formulier invullen",
       "my_results": "Mijn resultaten",
-      "imports": "Formulierimports"
+      "imports": "Formulierimports",
+      "attribution": "Attributie"
     },
     "locale": {
       "nl-BE": "Nederlands",
@@ -463,6 +464,8 @@
       "nav_preview": "Voorbeeld",
       "nav_versions": "Versies",
       "nav_links": "Gevolgde links ({n})",
+      "nav_submissions": "Inzendingen",
+      "nav_report": "Rapport",
       "archived_title": "Dit formulier is gearchiveerd",
       "archived_body": "De pagina toont \"Dit formulier is gesloten\" en aanvaardt geen antwoorden.",
       "cta_warnings": "{n} resultaatknoppen verwijzen naar iets dat niet meer beschikbaar is",

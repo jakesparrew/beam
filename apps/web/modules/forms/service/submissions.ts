@@ -291,6 +291,7 @@ export async function startSubmission(
       campaign: derived.campaign,
       funnel: deriveFunnel(definition.settings.funnel, form.slug),
       linkId: activeLink?.id ?? null,
+      partnerCompanyId: await submissionPartnerOf(tx, activeLink?.partnerCompanyId ?? null, embed?.partnerCompanyId),
       referrerUrl: referrer,
       landingPath,
       embedHost,
@@ -309,13 +310,25 @@ export async function startSubmission(
 }
 
 /**
- * The partner and the referrer (R3 referral links) of the submission's tracked link
- * (`form_submissions` has no partner column; see the forms-P3 decisions).
+ * The partner (the submission's own `partner_company_id`, else its tracked link's) and the
+ * referrer (R3 referral links) of a submission.
  */
 async function linkAttributionOf(tx: Tx, sub: SubmissionRow): Promise<{ partnerCompanyId: string | null; referrerPersonId: string | null }> {
-  if (!sub.linkId) return { partnerCompanyId: null, referrerPersonId: null };
+  if (!sub.linkId) return { partnerCompanyId: sub.partnerCompanyId ?? null, referrerPersonId: null };
   const [r] = await tx.select({ p: formLinks.partnerCompanyId, r: formLinks.referrerPersonId }).from(formLinks).where(eq(formLinks.id, sub.linkId));
-  return { partnerCompanyId: r?.p ?? null, referrerPersonId: r?.r ?? null };
+  return { partnerCompanyId: sub.partnerCompanyId ?? r?.p ?? null, referrerPersonId: r?.r ?? null };
+}
+
+/**
+ * Rule A1: the partner a submission keeps, the tracked link's partner first, else the partner of
+ * a verified embed context when that company still exists (a signed id of a deleted company is
+ * dropped rather than failing the start on the foreign key).
+ */
+async function submissionPartnerOf(tx: Tx, linkPartnerId: string | null, embedPartnerId: string | null | undefined): Promise<string | null> {
+  if (linkPartnerId) return linkPartnerId;
+  if (!embedPartnerId) return null;
+  const rows = rowsOf<{ id: string }>(await tx.execute(sql`select id from companies where id = ${embedPartnerId}`));
+  return rows[0]?.id ?? null;
 }
 
 /**
@@ -504,7 +517,7 @@ async function writeConsents(
       continue;
     }
     const r = await recordConsent(tx, ctx, { ...base, purpose: f.purpose, wordingVersion });
-    const entry: FormConsentSnapshotJson & { pendingConfirmation?: boolean } = {
+    const entry: FormConsentSnapshotJson = {
       purpose: f.purpose,
       granted: r.outcome === "recorded" || r.outcome === "unchanged",
       wordingVersion,
@@ -701,7 +714,7 @@ function storedResult(l: Loaded): CompleteResult {
     resultUrl: ending.kind === "result" ? resultPageUrl(l.form.slug, l.sub.locale as Locale, token) : null,
     redirectUrl: ending.kind === "redirect" ? (ending.redirectUrl ?? null) : null,
     endingKey: ending.key,
-    pendingConfirmation: (l.sub.consentSnapshot ?? []).some((c) => (c as { pendingConfirmation?: boolean }).pendingConfirmation === true),
+    pendingConfirmation: (l.sub.consentSnapshot ?? []).some((c) => c.pendingConfirmation === true),
   };
 }
 

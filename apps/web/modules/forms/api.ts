@@ -2,7 +2,7 @@
  * forms' cross-module door (forms spec section 4 "Cross-module API", 02-data-model section 6.7).
  * Implemented by forms-P3 on top of `./service/*`; signatures are the Wave 0 contract.
  * `countLandingConversions` (R3) and `PartnerLinkCounts` are forms-P9's; `FormEmbed` is
- * forms-P4's server component.
+ * forms-P4's server component; the dashboard sources are forms-P10's.
  */
 import type { DbOrTx } from "@beam/db";
 import type { Locale, LocalizedText } from "@beam/core/i18n";
@@ -116,3 +116,29 @@ export { FormEmbed } from "./ui/public/form-embed";
  */
 export { PartnerLinkCounts } from "./ui/partner/partner-link-counts";
 export type { PartnerLinkCount } from "./queries";
+
+/**
+ * Custom dashboard widget sources (R4, forms-P10; `reports.read` on the consuming page):
+ * `forms.funnel`, `forms.outcomes` and `forms.conversion`, aggregates only (no answers, no
+ * sensitive data). `loadFormsDashboardSource(db, key, { from, to, formId? })` takes inclusive
+ * Brussels days, at most `MAX_DASHBOARD_RANGE_DAYS`.
+ */
+export {
+  FORMS_DASHBOARD_SOURCE_KEYS,
+  FORMS_DASHBOARD_SOURCES,
+  isFormsDashboardSourceKey,
+  loadFormsDashboardSource,
+  MAX_DASHBOARD_RANGE_DAYS,
+} from "./dashboard-sources";
+export type {
+  ConversionCounts,
+  FormsConversionValue,
+  FormsDashboardRange,
+  FormsDashboardSource,
+  FormsDashboardSourceKey,
+  FormsDashboardValues,
+  FormsDashboardViz,
+  FormsFunnelValue,
+  FormsOutcomesValue,
+  FunnelCounts,
+} from "./dashboard-sources";

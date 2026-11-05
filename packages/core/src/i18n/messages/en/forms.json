@@ -391,7 +391,8 @@
       "forms": "Forms",
       "enter": "Fill in a form",
       "my_results": "My results",
-      "imports": "Form imports"
+      "imports": "Form imports",
+      "attribution": "Attribution"
     },
     "locale": {
       "nl-BE": "Nederlands",
@@ -463,6 +464,8 @@
       "nav_preview": "Preview",
       "nav_versions": "Versions",
       "nav_links": "Tracked links ({n})",
+      "nav_submissions": "Submissions",
+      "nav_report": "Report",
       "archived_title": "This form is archived",
       "archived_body": "The hosted page shows \"This form is closed\" and no answers are accepted.",
       "cta_warnings": "{n} result buttons point to something that is no longer available",

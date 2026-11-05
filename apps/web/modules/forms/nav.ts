@@ -5,7 +5,9 @@
  * (`persons.write`, the staff-assisted entry page `/admin/forms/enter` of forms-P6). forms-P8 adds
  * the portal entry "My results" (`/account/results`) behind `ff_forms_portal_results` (R2) and,
  * for forms-P7's request, "Form imports" under Marketing (`/admin/forms/imports`, `forms.publish`,
- * the permission of the import pages).
+ * the permission of the import pages). fix-w21-forms-wiring adds "Attribution" under Marketing
+ * (`/admin/forms/attribution` of forms-P9, `reports.read`: the page opens for `reports.read` or
+ * `forms.write`, and every role that holds `forms.write` also holds `reports.read`).
  */
 export const nav = [
   {
@@ -17,6 +19,16 @@ export const nav = [
     permission: "forms.write",
     icon: "clipboard-list",
     order: 500,
+  },
+  {
+    key: "forms.attribution",
+    area: "admin",
+    section: "marketing",
+    labelKey: "forms.nav.attribution",
+    href: "/admin/forms/attribution",
+    permission: "reports.read",
+    icon: "chart-bar",
+    order: 505,
   },
   {
     key: "forms.imports",

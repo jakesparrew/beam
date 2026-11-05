@@ -121,6 +121,8 @@ export type FormConsentSnapshotJson = {
   wordingVersion: string;
   fieldKey: string;
   skippedMinor?: boolean;
+  /** Double opt-in pending: crm answered `needs_confirmation` (C3); the ending says "check your inbox". */
+  pendingConfirmation?: boolean;
 };
 
 /** `form_import_sources.mapping` (`ImportMapping`, rule I2); opaque at the schema level. */
@@ -341,6 +343,11 @@ export const formSubmissions = pgTable(
     /** `FormSettings.funnel` or `form:<slug>` (rule A6). */
     funnel: text().notNull(),
     linkId: uuid().references(() => formLinks.id),
+    /**
+     * The partner of the submission (rule A1): the tracked link's partner, else the partner of a
+     * verified (HMAC-signed) embed context. Null for an unsigned or tampered context.
+     */
+    partnerCompanyId: uuid().references(() => companies.id, { onDelete: "set null" }),
     /** Origin + path only, no query, max 500 chars. */
     referrerUrl: text(),
     /** Path of the BEAM page or the embedding page, max 300 chars, no query. */
@@ -387,6 +394,9 @@ export const formSubmissions = pgTable(
     index("form_submissions_link_idx")
       .on(t.linkId)
       .where(sql`${t.linkId} is not null`),
+    index("form_submissions_partner_idx")
+      .on(t.partnerCompanyId, t.startedAt)
+      .where(sql`${t.partnerCompanyId} is not null`),
     index("form_submissions_ip_idx")
       .on(t.formId, t.ipHash, t.startedAt)
       .where(sql`${t.ipHash} is not null`),

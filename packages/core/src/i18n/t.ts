@@ -106,7 +106,7 @@ export function setMissingMessageHandler(handler: ((locale: Locale, key: string)
  * no React context. Throws `MissingMessageError` in tests and development, renders `⟦key⟧`
  * in production (PL-63). Never shows another language.
  */
-export const t: Translator = createTranslator(MESSAGES, {
+export const t: Translator = /* @__PURE__ */ createTranslator(MESSAGES, {
   onMissing: (locale, key) => missingHandler?.(locale, key),
 });
 

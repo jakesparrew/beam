@@ -213,3 +213,19 @@ describe("reads", () => {
     expect(view).toHaveLength(1);
   });
 });
+
+describe("retention (commerce.lightspeed_sales, 3653 days)", () => {
+  it("deletes till lines whose fiscal year ended more than ten years before the cutoff", async () => {
+    const { sweep } = await import("../privacy");
+    const old = await upload(csvOf("OLD", 1).replace(/04\/11\/2026/g, "01/05/2015"));
+    await drain(old.importId);
+    const recent = await upload(csvOf("NEW", 1).replace(/04\/11\/2026/g, "01/05/2016"));
+    await drain(recent.importId);
+    const cutoff = new Date("2026-11-05T00:00:00Z");
+    cutoff.setUTCDate(cutoff.getUTCDate() - 3653);
+    const deleted = await h.db.transaction((tx) => sweep["commerce.lightspeed_sales"]!(tx, cutoff));
+    expect(deleted).toBe(1);
+    expect(await h.db.select().from(lightspeedSales).where(eq(lightspeedSales.importId, old.importId))).toHaveLength(0);
+    expect(await h.db.select().from(lightspeedSales).where(eq(lightspeedSales.importId, recent.importId))).toHaveLength(1);
+  });
+});

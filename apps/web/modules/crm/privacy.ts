@@ -205,6 +205,7 @@ export const privacy: PrivacyRegistration<Tx> = {
     "segment_members",
     "tasks",
     "company_contacts",
+    "opportunities",
   ],
   export: exportPerson,
   erase: erasePerson,
@@ -213,4 +214,4 @@ export const privacy: PrivacyRegistration<Tx> = {
 };
 
 /** crm tables that hold no person data (crm spec 9). */
-export const noPiiTables = ["consent_wordings", "tags", "segments"] as const;
+export const noPiiTables = ["consent_wordings", "tags", "segments", "playbook_stages"] as const;

@@ -9,7 +9,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import type { DbHandle, Tx } from "@beam/db";
+import type { DbHandle } from "@beam/db";
 import { payments } from "@beam/db/schema";
 import { makeMembership } from "@beam/db/testing/credits-factories";
 import { makeOrder, makePaidOrder } from "@beam/db/testing/commerce-factories";
@@ -108,14 +108,14 @@ beforeAll(async () => {
     ],
   });
   const ctx = (iso: string) => makeCtx(h.db, { now: at(iso) });
-  await grantCredits(tx as Tx, ctx("2027-10-05T10:00:00Z"), {
+  await grantCredits(tx, ctx("2027-10-05T10:00:00Z"), {
     personId: person.id, kind: "day", units: 10, source: "purchase", orderLineId: lines[0]!.id, lineUnitIndex: 1,
     unitValueCents: 2_000, vatRatePct: 21, expiresAt: at("2028-10-05T10:00:00Z"), key: `grant:order_line:${lines[0]!.id}:1`,
   });
-  await consumeCredits(tx as Tx, ctx("2027-11-02T09:00:00Z"), {
+  await consumeCredits(tx, ctx("2027-11-02T09:00:00Z"), {
     personId: person.id, beneficiaryPersonId: person.id, kind: "day", units: 2, ref: { type: "booking", id: randomUUID() }, validAt: at("2027-11-02T09:00:00Z"),
   });
-  const nights = await grantCredits(tx as Tx, ctx("2027-08-01T10:00:00Z"), {
+  const nights = await grantCredits(tx, ctx("2027-08-01T10:00:00Z"), {
     personId: person.id, kind: "night", units: 2, source: "purchase", orderLineId: lines[1]!.id, lineUnitIndex: 1,
     unitValueCents: 9_000, vatRatePct: 6, expiresAt: at("2027-10-15T08:00:00Z"), key: `grant:order_line:${lines[1]!.id}:1`,
   });

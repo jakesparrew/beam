@@ -14,13 +14,24 @@
  * food-and-drink lines for the three days before today, imported at once (status `done`), so
  * `/admin/pos/lightspeed` and `v_lightspeed_daily` show figures. It runs once: an existing
  * import of that file name is left alone.
+ *
+ * ops-P10 request: paid orders for crm's non-tester demo customers (`seedDemoCustomerOrders`),
+ * through the real order and paid-transaction code, found again on a rerun by their `client_key`.
  */
-import { files, lightspeedImports, lightspeedSales, users } from "@beam/db/schema";
-import { seedCommerceCatalogue } from "@beam/db/seed/commerce";
+import { createHash } from "node:crypto";
+import type { Tx } from "@beam/db";
+import { files, lightspeedImports, lightspeedSales, orders, payments, persons, products, users } from "@beam/db/schema";
+import { DEMO_SKUS, seedCommerceCatalogue } from "@beam/db/seed/commerce";
 import { businessDayRange, parseLightspeedCsv } from "@beam/core/commerce";
-import { and, asc, eq } from "@/lib/ctx";
+import type { Locale } from "@beam/core/i18n";
+import { and, asc, createCtx, eq } from "@/lib/ctx";
 import { storeFile } from "@/lib/files";
 import type { SeedCtx } from "@/scripts/seed-demo";
+import { createOrder } from "./server/orders";
+import { finalizePaidOrder } from "./server/paid";
+
+const HOUR = 3_600_000;
+const DAY = 24 * HOUR;
 
 async function staffAuthor(s: SeedCtx): Promise<string | null> {
   const owner = s.ids.get("platform.user.owner");
@@ -108,6 +119,68 @@ async function seedLightspeedDemo(s: SeedCtx, staffUserId: string | null): Promi
   s.ids.set("commerce.lightspeed_import.demo", imp!.id);
 }
 
+/**
+ * ops-P10 request: paid orders of crm's non-tester demo customers (`crm.customer.<slug>`), spread
+ * over the last three months, so reports and the `ai` schema show revenue. An Verbruggen buys
+ * the 10-session package (PKG-10-DAYS). Each order runs the real path: `createOrder` (channel
+ * `admin`) at the order's day, a paid desk-terminal payment, then the paid transaction
+ * (`finalizePaidOrder`: credits granted through credits, the invoice through finance).
+ */
+export const DEMO_CUSTOMER_ORDERS: readonly { customer: string; sku: string; quantity: number; daysAgo: number; method: string }[] = [
+  { customer: "an-verbruggen", sku: DEMO_SKUS.package10Days, quantity: 1, daysAgo: 62, method: "bancontact" },
+  { customer: "an-verbruggen", sku: DEMO_SKUS.waterBottle, quantity: 1, daysAgo: 20, method: "bancontact" },
+  { customer: "koen-de-wilde", sku: DEMO_SKUS.package5Days, quantity: 1, daysAgo: 75, method: "creditcard" },
+  { customer: "koen-de-wilde", sku: DEMO_SKUS.package5Days, quantity: 1, daysAgo: 18, method: "creditcard" },
+  { customer: "sarah-lenaerts", sku: DEMO_SKUS.package2Nights, quantity: 1, daysAgo: 48, method: "bancontact" },
+  { customer: "julie-moreau", sku: DEMO_SKUS.package5Days, quantity: 1, daysAgo: 33, method: "bancontact" },
+  { customer: "marc-gerard", sku: DEMO_SKUS.waterBottle, quantity: 2, daysAgo: 26, method: "cash" },
+  { customer: "hannah-clarke", sku: DEMO_SKUS.package2Nights, quantity: 1, daysAgo: 9, method: "creditcard" },
+];
+
+/** A stable UUID for a demo name (the order's `client_key`), so a rerun finds the same order. */
+export function demoUuid(name: string): string {
+  const h = createHash("sha256").update(`beam-demo:${name}`).digest("hex");
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-${((parseInt(h.slice(16, 17), 16) & 0x3) | 0x8).toString(16)}${h.slice(17, 20)}-${h.slice(20, 32)}`;
+}
+
+export async function seedDemoCustomerOrders(s: Pick<SeedCtx, "db" | "now" | "ids">): Promise<{ created: number; skipped: number }> {
+  const tx = s.db as Tx;
+  let created = 0;
+  let skipped = 0;
+  for (const [i, o] of DEMO_CUSTOMER_ORDERS.entries()) {
+    const personId = s.ids.get(`crm.customer.${o.customer}`);
+    const [product] = await tx.select({ id: products.id }).from(products).where(eq(products.sku, o.sku));
+    const [person] = personId ? await tx.select({ locale: persons.locale }).from(persons).where(eq(persons.id, personId)) : [];
+    if (!personId || !product || !person) {
+      skipped++;
+      continue;
+    }
+    // 11:00 Brussels-ish on the order's day (the seed's `now` is the start of a Brussels day).
+    const at = new Date(s.now.getTime() - o.daysAgo * DAY + 10 * HOUR);
+    const ctx = createCtx({ tx, actor: { kind: "system", jobId: "seed:commerce" }, requestId: "seed:commerce", now: at, durableMode: "immediate" });
+    const order = await createOrder(tx, ctx, {
+      personId,
+      channel: "admin",
+      items: [{ productId: product.id, quantity: o.quantity }],
+      clientKey: demoUuid(`order:${o.customer}:${i + 1}`),
+      locale: person.locale as Locale,
+    });
+    if (order.status !== "pending_payment") {
+      skipped++;
+      continue;
+    }
+    await tx.update(orders).set({ createdAt: new Date(at.getTime() - 5 * 60_000) }).where(eq(orders.id, order.orderId));
+    const [payment] = await tx
+      .insert(payments)
+      .values({ orderId: order.orderId, provider: o.method === "cash" ? "cash" : "terminal", method: o.method, status: "paid", amountCents: order.totalCents, paidAt: at })
+      .returning({ id: payments.id });
+    await finalizePaidOrder(tx, ctx, order.orderId, { paymentId: payment!.id });
+    s.ids.set(`commerce.order.${o.customer}.${i + 1}`, order.orderId);
+    created++;
+  }
+  return { created, skipped };
+}
+
 export const seed = {
   after: ["forms"],
   run: async (s: SeedCtx): Promise<void> => {
@@ -115,5 +188,6 @@ export const seed = {
     for (const [sku, id] of Object.entries(result.productIds)) s.ids.set(`commerce.product.${sku}`, id);
     for (const [code, id] of Object.entries(result.promotionIds)) s.ids.set(`commerce.promotion.${code}`, id);
     await seedLightspeedDemo(s, await staffAuthor(s));
+    await seedDemoCustomerOrders(s);
   },
 };

@@ -224,3 +224,4 @@ One entry per merge batch and gate (runbook section 5.7, adapted by OD-3).
 - Batch `g110-batch` (crm-P10 platform-P11b platform-P12 webinar-P5 commerce-P8): migrations 0044_w22.sql; merge gate green, peak 11788 MB.
 - email-P9: 33 min, merged as `55298f5`, migrations 0045_w21_views.sql; gate `g112-email-P9` (merge) green, peak 5688 MB.
 - ops-P9: 53 min, merged as `60866a7`, migrations 0046_w22_views.sql; gate `g113-ops-P9` (merge) green, peak 4366 MB.
+- fix-w20-credits-wiring: 15 min, merged as `9f28fc7`; gate `g114-fix-w20-credits-wiring` (merge) green, peak 4360 MB.

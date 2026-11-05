@@ -2844,7 +2844,7 @@
       "minutes": 25
     },
     "fix-w20-credits-wiring": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "fixer": true,
       "module": "credits",
@@ -2999,8 +2999,10 @@
         "packages/core/src/credits/types.ts"
       ],
       "branchSha": "74bf3b9",
-      "endedAt": "2026-11-05T06:04:42Z",
-      "minutes": 15
+      "endedAt": "2026-11-05T07:45:31Z",
+      "minutes": 15,
+      "mergeSha": "9f28fc7",
+      "mergedAt": "2026-11-05T08:10:31Z"
     }
   }
 }

@@ -9,13 +9,16 @@
  */
 import { normaliseReferralCode, REFERRAL_COOKIE, REFERRAL_PARAM } from "@beam/core/site";
 
-export function readReferralCode(cookies: { get(name: string): { value: string } | undefined }, searchParams?: URLSearchParams): string | null {
-  let stored: string | null = null;
+/** The valid code in `beam_ref`, or null (a cookie store that throws reads as none). */
+function storedCode(cookies: { get(name: string): { value: string } | undefined }): string | null {
   try {
-    stored = normaliseReferralCode(cookies.get(REFERRAL_COOKIE)?.value);
+    return normaliseReferralCode(cookies.get(REFERRAL_COOKIE)?.value);
   } catch {
-    stored = null;
+    return null;
   }
-  if (stored) return stored;
-  return normaliseReferralCode(searchParams?.get(REFERRAL_PARAM));
+}
+
+export function readReferralCode(cookies: { get(name: string): { value: string } | undefined }, searchParams?: URLSearchParams): string | null {
+  const stored = storedCode(cookies);
+  return stored ?? normaliseReferralCode(searchParams?.get(REFERRAL_PARAM));
 }

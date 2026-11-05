@@ -71,8 +71,9 @@ export function initGtag(win: GtagWindow, id: string): void {
 function defineFbq(win: GtagWindow): Fbq {
   if (win.fbq) return win.fbq;
   const fbq: Fbq = function fbq(...args: unknown[]) {
-    if (fbq.callMethod) fbq.callMethod(...args);
-    else fbq.queue!.push(args);
+    const self = fbq as Fbq;
+    if (self.callMethod) self.callMethod(...args);
+    else self.queue!.push(args);
   };
   fbq.push = fbq;
   fbq.loaded = true;

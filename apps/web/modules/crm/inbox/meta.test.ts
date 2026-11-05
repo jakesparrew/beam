@@ -131,7 +131,7 @@ describe("the meta webhook handler and crm.send_meta_reply", () => {
     const psid = `psid-${randomUUID()}`;
     const p = await makePerson(h.db, { externalIds: { meta_psid: psid } });
     const body = fake.webhookBody({ channel: "instagram", messages: [{ mid: `m_${randomUUID()}`, senderId: psid, text: "Is the sauna open on Monday?", attachments: 1 }] });
-    const ctx = makeJobCtx(h.db, "webhook.process" as never);
+    const ctx = makeJobCtx(h.db, "webhook.process");
     expect(await handleMetaWebhook(ctx, { id: "1", payload: body })).toEqual({ ingested: 1 });
     expect(await handleMetaWebhook(ctx, { id: "1", payload: body })).toEqual({ ingested: 0 });
     const [t] = await h.db.select().from(inboxThreads).where(and(eq(inboxThreads.channel, "instagram"), eq(inboxThreads.externalThreadId, psid)));

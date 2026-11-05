@@ -127,7 +127,7 @@ describe("crm inbox jobs run twice yield the same state", () => {
     for (let i = 0; i < 2; i++) {
       let ctx: ReturnType<typeof makeJobCtx> | undefined;
       await h.db.transaction(async (tx) => {
-        ctx = makeJobCtx(h.db, "webhook.process" as never, { tx, attempt: i + 1 });
+        ctx = makeJobCtx(h.db, "webhook.process", { tx, attempt: i + 1 });
         await handleMetaWebhook(ctx, { id: randomUUID(), payload: body });
       });
       if (ctx) await flushDurableWrites(h.db, ctx);

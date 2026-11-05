@@ -115,14 +115,14 @@ describe("EnrolmentTable", () => {
   const rows = [row("00000000-0000-4000-8000-0000000000a1", "active"), row("00000000-0000-4000-8000-0000000000a2", "exited")];
 
   it("has a per-row Exit for active enrolments when exit is given", () => {
-    const html = renderToStaticMarkup(createElement(EnrolmentTable, { rows: rows as never, l, locale: "en", exit: { automationName: "X" } }));
+    const html = renderToStaticMarkup(createElement(EnrolmentTable, { rows, l, locale: "en", exit: { automationName: "X" } }));
     expect(html).toContain('data-exit-for="00000000-0000-4000-8000-0000000000a1"');
     expect(html).not.toContain('data-exit-for="00000000-0000-4000-8000-0000000000a2"');
     expect(html).toContain(l["enrolments.col_actions"]!);
   });
 
   it("has no Exit column without exit", () => {
-    const html = renderToStaticMarkup(createElement(EnrolmentTable, { rows: rows as never, l, locale: "en" }));
+    const html = renderToStaticMarkup(createElement(EnrolmentTable, { rows, l, locale: "en" }));
     expect(html).not.toContain("data-exit-for");
     expect(html).not.toContain(l["enrolments.col_actions"]!);
   });

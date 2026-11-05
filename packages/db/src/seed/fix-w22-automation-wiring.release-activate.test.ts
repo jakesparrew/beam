@@ -43,7 +43,7 @@ describe("release activation command", () => {
     const slugs = seedsOfRelease("R2").map((s) => s.slug);
     const gated = seedsOfRelease("R2").filter((s) => s.requiresDpia);
     const lines: string[] = [];
-    const first = await runReleaseActivation(h.db, "R2", { isDpiaApproved: async () => false, log: (l) => lines.push(l) });
+    const first = await runReleaseActivation(h.db, "R2", { isDpiaApproved: () => Promise.resolve(false), log: (l) => lines.push(l) });
     expect(first.activated.length).toBe(slugs.length - gated.length);
     expect(first.blocked).toEqual(gated.map((s) => `${s.slug}:${s.requiresDpia}`));
     expect(lines).toEqual(formatActivationReport("R2", first));
@@ -56,9 +56,9 @@ describe("release activation command", () => {
     expect(audits).toHaveLength(first.activated.length);
 
     // A second run activates nothing new; an approved DPIA then releases the gated journeys.
-    const second = await runReleaseActivation(h.db, "R2", { isDpiaApproved: async () => false, log: () => undefined });
+    const second = await runReleaseActivation(h.db, "R2", { isDpiaApproved: () => Promise.resolve(false), log: () => undefined });
     expect(second.activated).toEqual([]);
-    const third = await runReleaseActivation(h.db, "R2", { isDpiaApproved: async () => true, log: () => undefined });
+    const third = await runReleaseActivation(h.db, "R2", { isDpiaApproved: () => Promise.resolve(true), log: () => undefined });
     expect(third).toEqual({ activated: gated.map((s) => s.slug), blocked: [] });
   });
 

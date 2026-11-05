@@ -207,6 +207,9 @@ export async function activateReleaseSequences(tx: Tx, release: ActivationReleas
 // Release activation command (go-live step, N-1 of docs/build/seam-issues-r2.md)
 // ---------------------------------------------------------------------------
 
+/** The command's output: one line on stdout. */
+const writeLine = (line: string): void => void process.stdout.write(`${line}\n`);
+
 /** The releases `activateReleaseSequences` accepts, in order. */
 export const ACTIVATION_RELEASES = ["R2", "R3"] as const satisfies readonly ActivationRelease[];
 
@@ -239,7 +242,7 @@ export async function runReleaseActivation(
   release: ActivationRelease,
   opts: ActivateReleaseOptions & { log?: (line: string) => void } = {},
 ): Promise<ActivateReleaseResult> {
-  const { log = console.log, ...rest } = opts;
+  const { log = writeLine, ...rest } = opts;
   const result = await db.transaction((tx) => activateReleaseSequences(tx, release, rest));
   for (const line of formatActivationReport(release, result)) log(line);
   return result;
@@ -251,7 +254,7 @@ export async function runReleaseActivation(
  * `runReleaseActivation` and returns the exit code (0 done, 1 refused or failed). See
  * `docs/runbooks/automations.md` ("Switching on a release's journeys").
  */
-export async function releaseActivationCli(argv: readonly string[], log: (line: string) => void = console.log): Promise<number> {
+export async function releaseActivationCli(argv: readonly string[], log: (line: string) => void = writeLine): Promise<number> {
   let release: ActivationRelease;
   try {
     release = parseActivationRelease(argv[0]);

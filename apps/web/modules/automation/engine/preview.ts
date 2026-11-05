@@ -177,7 +177,7 @@ async function predict(tx: DbOrTx, b: Basis, p: PredictPerson): Promise<PreviewS
   let frequency: { rules: AutomationRules; sends: Date[] } | null = null;
   const frequencyBasis = async () => {
     frequency ??= {
-      rules: (await getSetting(tx, "automation_rules")) as AutomationRules,
+      rules: await getSetting(tx, "automation_rules"),
       sends: await recentMarketingSends(tx as Tx, p.personId, p.now, `preview:${b.enrolment.id}`),
     };
     return frequency;

@@ -21,7 +21,8 @@ const email = uniqueEmail("scenario6");
 const NOTE = `E2E sensitive note: panic attacks ${Date.now().toString(36)}`;
 const FREE_TEXT = `E2E assessment free text: burn-out ${Date.now().toString(36)}`;
 const PURPOSE = "E2E scenario 6: staff-reviewed wellbeing follow-up for assessment clients.";
-const SENSITIVE_FIELD_NAMES = ["health_note", "sleep", "stress", "recovery", "wellbeing", "medical", "value_enc", "body_enc", "free_text", "note"];
+const DPIA = "sensitive_assessment_processing";
+const SENSITIVE_FIELD_NAMES =["health_note", "sleep", "stress", "recovery", "wellbeing", "medical", "value_enc", "body_enc", "free_text", "note"];
 
 let personId = "";
 
@@ -96,10 +97,25 @@ test("enabling sensitive processing needs the owner and a purpose, and is audite
   await panel.locator("input").fill("DPIA-E2E-6");
   await expect(enable).toBeDisabled();
   await panel.locator("textarea").fill(PURPOSE);
-  await clickAndWait(page, () => enable.click());
 
-  const [setting] = await e2eRows<{ enabled: boolean; purpose: string }>(sql`select (value->>'sensitive_enabled')::boolean as enabled, value->>'purpose' as purpose from settings where key = 'ai'`);
-  expect(setting).toEqual({ enabled: true, purpose: PURPOSE });
-  const audit = await e2eRows<{ n: number }>(sql`select count(*)::int as n from audit_log where action = 'ai.sensitive_enabled' and new_value->>'purpose' = ${PURPOSE}`);
-  expect(Number(audit[0]!.n)).toBeGreaterThan(0);
+  // Enabling also needs the DPIA `sensitive_assessment_processing` approved in the register
+  // (platform `setAiSensitiveProcessing`, ops rule 70): first refused while the demo seed's row is
+  // `not_started`, then accepted with the row approved for this step and put back afterwards.
+  await clickAndWait(page, () => enable.click());
+  await expect(panel.getByText("sensitive_assessment_processing")).toBeVisible();
+  const [notYet] = await e2eRows<{ enabled: boolean | null }>(sql`select (value->>'sensitive_enabled')::boolean as enabled from settings where key = 'ai'`);
+  expect(notYet?.enabled ?? false).toBe(false);
+
+  const [dpia] = await e2eRows<{ status: string; reviewed_at: string | null }>(sql`select status::text as status, reviewed_at::text as reviewed_at from dpia_records where key = ${DPIA}`);
+  try {
+    await e2eRows(sql`update dpia_records set status = 'approved', reviewed_at = now() where key = ${DPIA}`);
+    await clickAndWait(page, () => enable.click());
+
+    const [setting] = await e2eRows<{ enabled: boolean; purpose: string }>(sql`select (value->>'sensitive_enabled')::boolean as enabled, value->>'purpose' as purpose from settings where key = 'ai'`);
+    expect(setting).toEqual({ enabled: true, purpose: PURPOSE });
+    const audit = await e2eRows<{ n: number }>(sql`select count(*)::int as n from audit_log where action = 'ai.sensitive_enabled' and new_value->>'purpose' = ${PURPOSE}`);
+    expect(Number(audit[0]!.n)).toBeGreaterThan(0);
+  } finally {
+    await e2eRows(sql`update dpia_records set status = ${dpia?.status ?? "not_started"}::dpia_records_status, reviewed_at = ${dpia?.reviewed_at ?? null}::timestamptz where key = ${DPIA}`);
+  }
 });

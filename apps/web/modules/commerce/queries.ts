@@ -9,6 +9,7 @@
  * previews, the attention feed and the pay page read (`getPayOrderByToken`).
  * commerce-P7: the POS reads (`getPosOrder` for the `?order=` deep link, `getPosPaymentState`)
  * and the day summary (`getPosDaySummary`).
+ * commerce-P8 (R2): the resume link read (`findCheckoutByResumeToken`, `resumeContinuePath`).
  */
 import {
   activityEvents,
@@ -448,3 +449,4 @@ export { getPayOrderByToken, type PayPageView } from "./server/payment-links";
 
 export { getPosOrder, getPosPaymentState, ANONYMOUS_KINDS, type PosOrderView } from "./server/pos";
 export { getPosDaySummary, businessDayOf, isPosDayClosed, POS_DIFFERENCE_TASK_CENTS, type PosDaySummary, type PosDayTotals } from "./server/pos-day";
+export { findCheckoutByResumeToken, resumeContinuePath, type ResumeTarget } from "./server/recovery";

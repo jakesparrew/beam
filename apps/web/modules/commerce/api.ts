@@ -10,6 +10,7 @@
  * (`./server/bank-transfer`) and `revokeMandatesForPerson` (`./server/mandates`). `quote` is the pure core function, re-exported.
  * commerce-P6: `refundOrderLine` (`./server/refunds`), `listPaymentAttention`
  * (`./server/attention`) and the `redeemVoucher` server action re-exported from `./actions` (DM-13).
+ * commerce-P8 (R2): `markCheckoutRecoveryMessage` and `getCheckoutRecoveryProps` (`./server/recovery`).
  */
 import type { DbOrTx, Tx } from "@beam/db";
 import { NotImplementedError } from "@beam/core/errors";
@@ -45,6 +46,7 @@ const bankTransferService = () => import("./server/bank-transfer");
 const mandateService = () => import("./server/mandates");
 const refundService = () => import("./server/refunds");
 const attentionService = () => import("./server/attention");
+const recoveryService = () => import("./server/recovery");
 
 export { quote } from "@beam/core/commerce";
 export type {
@@ -170,15 +172,17 @@ export function revokeMandatesForPerson(tx: Tx, ctx: Ctx, personId: string): Pro
 
 // automation (R2) -------------------------------------------------------------------------
 
-export function markCheckoutRecoveryMessage(_tx: Tx, _input: { checkoutId: string; emailMessageId: string }): Promise<void> {
-  return notYet("markCheckoutRecoveryMessage");
+/** Rule 51: stores the recovery email on the checkout, only while `recovery_message_id` is null. */
+export function markCheckoutRecoveryMessage(tx: Tx, input: { checkoutId: string; emailMessageId: string }): Promise<void> {
+  return recoveryService().then((m) => m.markCheckoutRecoveryMessage(tx, input));
 }
 
+/** Rule 52, A-31a: the props of `commerce.checkout_recovery`; creates the resume token once. */
 export function getCheckoutRecoveryProps(
-  _tx: Tx,
-  _checkoutId: string,
+  tx: Tx,
+  checkoutId: string,
 ): Promise<{ resumeUrl: string; items: ProductCard[]; totalCents: number; locale: Locale }> {
-  return notYet("getCheckoutRecoveryProps");
+  return recoveryService().then((m) => m.getCheckoutRecoveryProps(tx, checkoutId));
 }
 
 // ops, crm, email, site -------------------------------------------------------------------

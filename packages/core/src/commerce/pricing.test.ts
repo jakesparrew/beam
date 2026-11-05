@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  groupTicketTypes,
   normalisePromoCode,
   personPriceAt,
   priceVersionAt,
   promotionAppliesTo,
   promotionUnitCents,
   quote,
+  ticketCartSession,
 } from "./pricing";
 import type { PersonPriceRow, PriceVersionRow, PromotionRow, QuoteInput, QuoteProduct } from "./schemas";
 import type { ProductKind } from "./types";
@@ -390,5 +392,93 @@ describe("price history and time-limited prices (rules 4 and 5)", () => {
   it("returns null before any version is valid", () => {
     const p = product();
     expect(priceVersionAt([price(p, "public", 1, { validFromAt: AT })], "public", EARLY)).toBeNull();
+  });
+});
+
+describe("multi-ticket carts: several ticket types of one event (R2, commerce-P8)", () => {
+  const SESSION = "00000000-0000-4000-8000-0000000000e1";
+  const OTHER_SESSION = "00000000-0000-4000-8000-0000000000e2";
+  const ADULT = "00000000-0000-4000-8000-0000000000a1";
+  const CHILD = "00000000-0000-4000-8000-0000000000c1";
+
+  function ticketCart(over: Partial<QuoteInput> = {}) {
+    const adult = product("ticket", { name: { en: "Adult", "nl-BE": "Volwassene", "fr-BE": "Adulte" } });
+    const child = product("ticket", { name: { en: "Child", "nl-BE": "Kind", "fr-BE": "Enfant" } });
+    const adultPrices = [price(adult, "public", 3_000), price(adult, "member", 2_400)];
+    const childPrices = [price(child, "public", 1_500), price(child, "member", 1_400)];
+    const seat = (p: QuoteProduct, prices: PriceVersionRow[], ticketTypeId: string) => ({
+      productId: p.id,
+      quantity: 1,
+      sessionId: SESSION,
+      ticketTypeId,
+      product: p,
+      prices,
+    });
+    const base = input([], over);
+    return {
+      adult,
+      child,
+      input: { ...base, items: [seat(adult, adultPrices, ADULT), seat(child, childPrices, CHILD), seat(adult, adultPrices, ADULT)] },
+    };
+  }
+
+  it("prices two ticket types per seat and groups them per type in first-seen order", () => {
+    const { adult, child, input: cart } = ticketCart();
+    const { quote: q, groups } = groupTicketTypes(cart);
+    expect(q.lines).toHaveLength(3);
+    expect(q.totalCents).toBe(3_000 + 1_500 + 3_000);
+    expect(groups.map((g) => [g.ticketTypeId, g.productId, g.quantity, g.lineTotalCents])).toEqual([
+      [ADULT, adult.id, 2, 6_000],
+      [CHILD, child.id, 1, 1_500],
+    ]);
+    expect(groups[0]).toMatchObject({ sessionId: SESSION, unitAmountCents: 3_000, pricedUnitCents: 3_000, discountCents: 0, isMemberPrice: false, lineIndexes: [0, 2] });
+    expect(groups.reduce((s, g) => s + g.lineTotalCents, 0)).toBe(q.totalCents);
+    expect(groups.reduce((s, g) => s + g.vatCents, 0)).toBe(q.vatCents);
+    expect(quote(cart)).toEqual(q);
+  });
+
+  it("applies the member price of each ticket type to a member", () => {
+    const { input: cart } = ticketCart({ isMember: true, personStatus: "member" });
+    const { quote: q, groups } = groupTicketTypes(cart);
+    expect(groups.map((g) => [g.ticketTypeId, g.pricedUnitCents, g.discountCents, g.winner, g.isMemberPrice])).toEqual([
+      [ADULT, 2_400, 1_200, "member_version", true],
+      [CHILD, 1_400, 100, "member_version", true],
+    ]);
+    expect(q.totalCents).toBe(2_400 * 2 + 1_400);
+    expect(q.discountCents).toBe(1_300);
+  });
+
+  it("uses the member discount on a type without a member version", () => {
+    const { input: cart, child } = ticketCart({ isMember: true, personStatus: "member", memberDiscountPct: 20 });
+    const items = cart.items.map((i) => (i.productId === child.id ? { ...i, prices: i.prices.filter((p) => p.audience !== "member") } : i));
+    const { groups } = groupTicketTypes({ ...cart, items });
+    // Adult: the member version (24.00) ties 20 % off 30.00; the earlier tie entry wins (rule 9).
+    expect(groups[0]).toMatchObject({ pricedUnitCents: 2_400, winner: "member_version" });
+    expect(groups[1]).toMatchObject({ pricedUnitCents: 1_200, winner: "member_discount", isMemberPrice: true });
+  });
+
+  it("leaves non-ticket items and refused seats out of the groups", () => {
+    const { input: cart, adult } = ticketCart();
+    const pkg = product("package");
+    const items = [
+      { productId: pkg.id, quantity: 1, product: pkg, prices: [price(pkg, "public", 10_000)] },
+      ...cart.items.map((i, n) => (n === 2 ? { ...i, product: { ...adult, isActive: false } } : i)),
+    ];
+    const { quote: q, groups } = groupTicketTypes({ ...cart, items });
+    expect(q.lines).toHaveLength(3);
+    expect(groups.map((g) => [g.ticketTypeId, g.quantity, g.lineIndexes])).toEqual([
+      [ADULT, 1, [1]],
+      [CHILD, 1, [2]],
+    ]);
+  });
+
+  it("accepts ticket types of one event and refuses a cart mixing events", () => {
+    expect(ticketCartSession([{ sessionId: SESSION, ticketTypeId: ADULT }, { sessionId: SESSION, ticketTypeId: CHILD }, {}])).toEqual({ sessionId: SESSION, problem: null });
+    expect(ticketCartSession([{ sessionId: SESSION, ticketTypeId: ADULT }, { sessionId: OTHER_SESSION, ticketTypeId: CHILD }])).toEqual({
+      sessionId: null,
+      problem: "mixed_events",
+    });
+    expect(ticketCartSession([{ ticketTypeId: ADULT }])).toEqual({ sessionId: null, problem: "ticket_without_session" });
+    expect(ticketCartSession([{}])).toEqual({ sessionId: null, problem: null });
   });
 });

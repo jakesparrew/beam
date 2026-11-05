@@ -11,7 +11,8 @@
  * `payments.cancel`, `commerce.revoke_mandate` and `commerce.erase_provider_customer`. After every
  * sync (job and webhook) a provider `paid` for a cancelled order is refunded in full (edge case 36).
  *
- * commerce-P5: `checkouts.mark_abandoned` (every 10 minutes; rules 49, 50).
+ * commerce-P5: `checkouts.mark_abandoned` (every 10 minutes; rules 49, 50). commerce-P8 (R2) adds
+ * the recovery attribution of rule 51 to the same run (`./server/recovery`).
  *
  * commerce-P6: `payments.refund` (provider refunds), `payments.create_link` (the
  * `commerce.payment_link` email), `commerce.issue_voucher_email` (rule 45a),
@@ -36,7 +37,8 @@ import { refundOrderLine } from "./api";
 import { orderPageUrl } from "./server/paid";
 import { createProviderPayment, syncPayment, type SyncResult } from "./server/payments";
 import { scanExpired } from "./server/expiry";
-import { markAbandoned } from "./server/checkouts";
+import { markAbandoned, type MarkAbandonedResult } from "./server/checkouts";
+import { attributeRecoveries, type AttributeRecoveriesResult } from "./server/recovery";
 import { cancelProviderPayment, chargeRecurringPayment, refundLatePaidOnCancelledOrder } from "./server/recurring";
 import { eraseProviderCustomer, revokeMandateAtProvider } from "./server/mandates";
 import { loadReceiptInput, renderReceiptPdf } from "./ui/receipt-pdf";
@@ -116,9 +118,13 @@ export function runScanExpired(ctx: JobCtx) {
   return scanExpired(ctx);
 }
 
-/** `checkouts.mark_abandoned` (every 10 minutes; key `schedule:checkouts.mark_abandoned:<minute>`). */
-export function runMarkAbandoned(ctx: JobCtx) {
-  return markAbandoned(ctx);
+/**
+ * `checkouts.mark_abandoned` (every 10 minutes; key `schedule:checkouts.mark_abandoned:<minute>`):
+ * rules 49 and 50, then the rule 51 recovery attribution (R2).
+ */
+export async function runMarkAbandoned(ctx: JobCtx): Promise<MarkAbandonedResult & AttributeRecoveriesResult> {
+  const marked = await markAbandoned(ctx);
+  return { ...marked, ...(await attributeRecoveries(ctx)) };
 }
 
 /** `payments.charge_recurring` (key `charge_recurring:<payment_id>`). */

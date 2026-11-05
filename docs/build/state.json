@@ -946,28 +946,36 @@
       "mergedAt": "2026-11-04T18:09:14Z"
     },
     "platform-P11a": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "c31f14a",
       "runId": null,
       "startedAt": "2026-11-05T04:24:11Z",
       "branchSha": "32f0bab",
-      "endedAt": "2026-11-05T04:54:13Z",
-      "minutes": 25
+      "endedAt": "2026-11-05T04:59:01Z",
+      "minutes": 25,
+      "mergeSha": "89e83b3",
+      "mergedAt": "2026-11-05T05:28:45Z"
     },
     "platform-P11b": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "baseSha": "c31f14a",
       "runId": null,
-      "startedAt": "2026-11-05T04:24:11Z"
+      "startedAt": "2026-11-05T04:24:11Z",
+      "branchSha": "1bb34e3",
+      "endedAt": "2026-11-05T05:09:16Z",
+      "minutes": 37
     },
     "platform-P12": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "baseSha": "c31f14a",
       "runId": null,
-      "startedAt": "2026-11-05T04:24:11Z"
+      "startedAt": "2026-11-05T04:24:11Z",
+      "branchSha": "e7f55a3",
+      "endedAt": "2026-11-05T05:09:16Z",
+      "minutes": 40
     },
     "webinar-P1": {
       "status": "merged",
@@ -1111,14 +1119,16 @@
       "mergedAt": "2026-11-05T04:56:33Z"
     },
     "forms-P8": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "c31f14a",
       "runId": null,
       "startedAt": "2026-11-05T04:24:11Z",
       "branchSha": "8ad0f69",
-      "endedAt": "2026-11-05T04:58:59Z",
-      "minutes": 34
+      "endedAt": "2026-11-05T04:59:01Z",
+      "minutes": 34,
+      "mergeSha": "ea52e2d",
+      "mergedAt": "2026-11-05T05:28:48Z"
     },
     "site-P8": {
       "status": "merged",
@@ -1133,18 +1143,31 @@
       "mergedAt": "2026-11-05T04:56:28Z"
     },
     "webinar-P5": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "baseSha": "c31f14a",
       "runId": null,
-      "startedAt": "2026-11-05T04:24:11Z"
+      "startedAt": "2026-11-05T04:24:11Z",
+      "extraOwns": [
+        "packages/core/src/i18n/messages/en/webinar.json",
+        "packages/core/src/i18n/messages/nl-BE/webinar.json",
+        "packages/core/src/i18n/messages/fr-BE/webinar.json",
+        "apps/web/modules/webinar/ui/webinar-player.tsx",
+        "apps/web/modules/webinar/server/viewer.ts"
+      ],
+      "branchSha": "56cac63",
+      "endedAt": "2026-11-05T05:28:17Z",
+      "minutes": 57
     },
     "commerce-P8": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "baseSha": "4de095e",
       "runId": null,
-      "startedAt": "2026-11-05T04:57:04Z"
+      "startedAt": "2026-11-05T04:57:04Z",
+      "branchSha": "b78a929",
+      "endedAt": "2026-11-05T05:28:17Z",
+      "minutes": 29
     },
     "webinar-P6": {
       "status": "pending",
@@ -1302,11 +1325,14 @@
       "mergedAt": "2026-11-04T23:39:23Z"
     },
     "crm-P10": {
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "baseSha": "c31f14a",
       "runId": null,
-      "startedAt": "2026-11-05T04:24:11Z"
+      "startedAt": "2026-11-05T04:24:11Z",
+      "branchSha": "9ca6c7b",
+      "endedAt": "2026-11-05T04:59:16Z",
+      "minutes": 33
     },
     "credits-P10": {
       "status": "merged",

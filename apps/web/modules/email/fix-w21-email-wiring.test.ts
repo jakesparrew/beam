@@ -19,7 +19,7 @@ import { PermanentError } from "@beam/core/errors";
 import { LOCALES, type Locale } from "@beam/core/i18n";
 import { eq } from "@/lib/ctx";
 import { createFakeIntegrations, makeCtx, makeJobCtx, resetRuntime, staffActor, type FakeIntegrations } from "@/lib/testing";
-import { makeWebinar } from "@/modules/webinar/test/factories";
+import { getWebinarCards } from "@/modules/webinar/api";
 import { seedTemplate, sendTransactional } from "./api";
 import { completeCompany, messageOf, personWith, resetEmailTables } from "./email-p3.fixtures";
 import { campaignOf, grant, staff, staticSegment } from "./email-p6.fixtures";
@@ -29,6 +29,27 @@ import { dispatchDueCampaigns, planCampaign } from "./server/plan";
 import { buildPreview, resolveCardsFor, samplePersona, webinarCardsFor } from "./server/preview";
 import { sendChunk } from "./server/send-chunk";
 import { sendTestEmailRecord } from "./server/templates";
+
+// webinar's `getWebinarCards` in the shape of its contract (webinar api.ts `WebinarCard`). No `importOriginal`:
+// webinar's api imports email's, so loading the original here would hand email the unmocked module.
+const WEBINAR_ID = "44444444-4444-4444-8444-444444444444";
+vi.mock("@/modules/webinar/api", () => ({
+  getWebinarCards: vi.fn((_tx: unknown, ids: string[], locale: string) =>
+    Promise.resolve(
+      ids
+        .filter((id) => id === "44444444-4444-4444-8444-444444444444")
+        .map((id) => ({
+          id,
+          slug: "sleep-better",
+          title: `Sleep better (${locale})`,
+          mode: "live",
+          startsAt: new Date(Date.now() + 3 * 86_400_000),
+          spokenLocale: "nl-BE",
+          landingUrl: `https://beam.be/${locale}/webinars/sleep-better`,
+        })),
+    ),
+  ),
+}));
 
 let h: DbHandle;
 let fakes: FakeIntegrations;
@@ -151,10 +172,10 @@ describe("cards of previews and publish (request email-P8)", () => {
   });
 
   it("webinarCardsFor returns webinar's cards, and the preview renders the webinar block", async () => {
-    const webinar = await makeWebinar(h.db, {}, { published: true });
-    const cards = await webinarCardsFor(h.db)([webinar.id], "en");
-    expect(cards.map((c) => c.id)).toEqual([webinar.id]);
-    const document: BlockDocument = { schemaVersion: 1, locales: { en: [{ id: "wb00000001", type: "webinar", webinarId: webinar.id, ctaLabel: "Save my seat" }] } };
+    const cards = await webinarCardsFor(h.db)([WEBINAR_ID], "en");
+    expect(cards.map((c) => c.id)).toEqual([WEBINAR_ID]);
+    expect(vi.mocked(getWebinarCards)).toHaveBeenCalledWith(h.db, [WEBINAR_ID], "en");
+    const document: BlockDocument = { schemaVersion: 1, locales: { en: [{ id: "wb00000001", type: "webinar", webinarId: WEBINAR_ID, ctaLabel: "Save my seat" }] } };
     const preview = await buildPreview(h.db, {
       template: { kind: "marketing", purpose: "events", slug: "fixw21-webinar" },
       version: { subject: { en: "Webinar" }, preheader: { en: "Webinar" }, document, reactComponent: null, copy: null } as never,
@@ -162,7 +183,8 @@ describe("cards of previews and publish (request email-P8)", () => {
       recipient: samplePersona("lead"),
     });
     expect(preview.html).toContain("Save my seat");
-    expect(preview.html).toContain(cards[0]!.landingUrl);
+    expect(preview.html).toContain("https://beam.be/en/webinars/sleep-better");
+    expect(preview.html).toContain("Sleep better (en)");
     expect(preview.warnings.map((w) => w.code)).not.toContain("webinar_unavailable");
   });
 });

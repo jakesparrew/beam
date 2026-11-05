@@ -259,3 +259,5 @@ One entry per merge batch and gate (runbook section 5.7, adapted by OD-3).
 - Batch `g128-batch` (fix-w21-platform-wiring): merge gate green, peak 4311 MB.
 - fix-w23-ops-wiring: merged as `720b740` in batch `g129-batch`.
 - Batch `g129-batch` (fix-w23-ops-wiring): merge gate green, peak 5805 MB.
+- fix-w23-leftovers: merged as `28837e2` in batch `g130-batch`.
+- Batch `g130-batch` (fix-w23-leftovers): merge gate green, peak 4090 MB.

@@ -500,7 +500,8 @@ async function writeConsents(
   const base = {
     personId,
     status: "granted" as const,
-    method: "form" as const,
+    // ID10: a staff-assisted entry records method `staff` with the form's wording version.
+    method: o.staffUserId ? ("staff" as const) : ("form" as const),
     source: o.staffUserId ? `staff:${o.staffUserId}` : `form:${l.form.slug}`,
     lawfulBasis: "consent" as const,
     ref: { type: "form_submission", id: l.sub.id },

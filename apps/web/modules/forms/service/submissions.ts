@@ -372,7 +372,7 @@ function cookieJar(header: string | null): { get(name: string): { value: string 
 /**
  * Rule A1 (R3, cross-module D18): the referral code of a public request, read with site's
  * `readReferralCode(cookies, searchParams)` from the `beam_ref` cookie (and site's `?ref=` rule
- * on the request URL). The submit and save routes pass it as `referralCode`.
+ * on the request URL), for a caller that holds the `Request` and passes it as `referralCode`.
  */
 export function referralCodeOf(req: Request): string | null {
   let params: URLSearchParams | undefined;

@@ -103,7 +103,8 @@ const UTM_CAMPAIGN = `nullif(lower(trim(fs.utm->>'campaign')), '')`;
 /**
  * `v_form_kpis_daily` (R3, marketing dashboard and `/admin/forms/attribution`): one row per Brussels
  * day with leads created by forms (persons whose acquisition carries a `form_slug`, by the day crm
- * captured it; testers and merged losers excluded), completed submissions, result CTA clicks
+ * captured it; testers, merged losers and existing persons whose empty acquisition a form filled
+ * later, crm's `person.acquisition_filled`, excluded), completed submissions, result CTA clicks
  * (`assessment.cta_clicked`), and the submissions completed that day that converted within 30 days
  * (a booking or a paid order, from `v_form_conversions`) with their 30-day revenue. No person ids.
  */
@@ -112,6 +113,7 @@ export const vFormKpisDailySql = `with l as (
   from persons p
   where p.merged_into_person_id is null and p.is_tester = false and jsonb_typeof(p.acquisition) = 'object'
     and coalesce(p.acquisition->>'form_slug', '') <> '' and ${CAPTURED_AT} is not null
+    and not exists (select 1 from activity_events e where e.person_id = p.id and e.kind = 'person.acquisition_filled')
   group by 1),
 c as (
   select ${bxl("fs.completed_at")} as day_on, count(*)::int as completions

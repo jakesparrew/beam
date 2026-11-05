@@ -1258,7 +1258,8 @@ export type LandingConversionRow = { landingPath: string; utmCampaign: string | 
  * `countLandingConversions` (site insights, R3): completed submissions with a landing path whose
  * `completed_at` is in `[from, to)`, per landing path and `utm_campaign` (trimmed, lower-cased),
  * and how many of them created their person: the person's acquisition names this form and crm
- * captured it between the submission's start and its completion (ID3 at submit or ID9 at a save).
+ * captured it between the submission's start and its completion (ID3 at submit or ID9 at a save),
+ * and it was not filled later into an existing person (crm's `person.acquisition_filled`).
  */
 export async function countLandingConversions(db: DbOrTx, input: { from: Date; to: Date }): Promise<LandingConversionRow[]> {
   const rows = rowsOf<{ landing_path: string; utm_campaign: string | null; submissions: number | string; new_persons: number | string }>(
@@ -1268,7 +1269,8 @@ export async function countLandingConversions(db: DbOrTx, input: { from: Date; t
              (count(*) filter (where p.id is not null
                and p.acquisition->>'form_slug' = f.slug
                and p.acquisition->>'captured_at' ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}T'
-               and (p.acquisition->>'captured_at')::timestamptz between fs.started_at and fs.completed_at))::int as new_persons
+               and (p.acquisition->>'captured_at')::timestamptz between fs.started_at and fs.completed_at
+               and not exists (select 1 from activity_events e where e.person_id = p.id and e.kind = 'person.acquisition_filled')))::int as new_persons
       from form_submissions fs
       join forms f on f.id = fs.form_id
       left join persons p on p.id = fs.person_id

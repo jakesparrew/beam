@@ -5191,8 +5191,8 @@
       "mergedAt": "2026-11-05T15:30:11Z"
     },
     "fix-w23-ops-wiring": {
-      "status": "pending",
-      "attempts": 0,
+      "status": "running",
+      "attempts": 1,
       "fixer": true,
       "module": "ops",
       "goal": "Wiring fixer for module ops: serve every open row of docs/build/requests.md whose For column names ops. Verify each row first; report already-served. Rows needing other modules' files stay open. Do not edit docs/build/requests.md.",
@@ -5510,7 +5510,10 @@
         "ops-P8",
         "ops-P9",
         "ops-P10"
-      ]
+      ],
+      "baseSha": "f1ecae1",
+      "runId": null,
+      "startedAt": "2026-11-05T17:04:32Z"
     }
   }
 }

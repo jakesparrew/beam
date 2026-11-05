@@ -127,7 +127,6 @@ to "Served" with the package id.
 | credits-P10 | ops | Expose `v_package_cycles` in the ai schema as non-sensitive (for example `ai.package_cycles`). |
 | crm-P9 | email (owner of `server/process-event.ts`) | The Resend `email.received` dispatch calls `crm.ingestInboundEmail`. |
 | crm-P9 | platform | Document `META_APP_SECRET`, `META_PAGE_ACCESS_TOKEN` and `META_VERIFY_TOKEN` in the environment list. |
-| crm-P9 | crm (crm-P10: `actions.ts`, `queries.ts`, `nav.ts`) | Re-export `./inbox/actions` and `./inbox/queries`; inbox nav badge from `countOpenUnassignedThreads`. |
 | crm-P9 | crm (owner of `modules/crm/jobs.ts`, `schedules.ts`) | Register `crm.send_meta_reply` (fast, 1), `crm.close_stale_threads` (bulk, 9), `crm.escalate_threads` (fast, 5) and the Meta `webhookHandlers` from `modules/crm/inbox/jobs.ts`; then schedules `crm.escalate_threads '25 * * * *'` and `crm.close_stale_threads '10 5 * * *'`. Until then Meta replies cannot be enqueued. |
 | ops-P8 | ops (owner of `stats/digest.ts`) | Call `getStaleAdsAccounts(db, now)` for rule 74's ads data age line and alert. |
 | ops-P8 | ops (owner of `reports/queries.ts`) | Add marketing, attribution and ads to `REPORT_PAGES` behind `ff_ops_marketing`. |
@@ -143,6 +142,13 @@ to "Served" with the package id.
 | forms-P8 | forms (owner of `app/api/public/forms/[slug]/start/route.ts`, `ui/public/form-renderer.tsx`) | Pass `resumed` from `startSubmission` through the start route and restore its answers and `currentSectionKey` in the renderer (today the second device's first section renders empty). |
 | forms-P8 | forms (owner of `actions.ts`) | Move the page-local `forms.open_my_result` action into `actions.ts`. |
 | forms-P8 | webinar | Publish a webinar row factory under `@beam/db/testing` so other modules' tests stop raw-inserting webinars. |
+| crm-P10 | crm (owner of `modules/crm/jobs.ts`) | Register `ai.draft_reply` (fast, 5, max 3, onDead) from `INBOX_JOBS` with the crm-P9 inbox kinds; until then `requestAiDraft` cannot enqueue. |
+| crm-P10 | crm (owner of `packages/core/src/crm/index.ts`) | `export * from "./sensitive-screen"`. |
+| crm-P10 | crm (owner of `packages/db/src/seed/crm.ts`) | Optional: demo `support_knowledge_articles` in three locales. |
+| platform-P12 | email (owner of `server/send.ts`) | SI-1 (`docs/build/seam-issues-v1.md`): on `invalid_document` inside `email.send`, call `failMessage` before rethrowing so the row ends `failed`; then flip the `it.fails` in `apps/web/test/seams-v1.test.ts` to `it`. |
+| platform-P11b | orchestrator | At the checkpoint: `pnpm test:load --target beam_dev` and the real training screenshot capture (`pnpm exec tsx apps/web/scripts/training-screenshots.ts`) against beam_dev. |
+| webinar-P5 | webinar (webinar-P6, owner of `app/(admin)/admin/webinars/[id]/page.tsx`) | Link the host console `/admin/webinars/[id]/host` from the webinar detail page. |
+| commerce-P8 | booking (ticket checkout) | Use `groupTicketTypes` / `ticketCartSession` from `@beam/core/commerce` for carts with several ticket types of one event. |
 
 ## Served
 

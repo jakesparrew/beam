@@ -96,8 +96,8 @@ describe("V1 routes (PL-95)", () => {
       const repoPath = `apps/web/${relativeFile(found.file)}`;
       const owners = ownersOf(repoPath);
       // Only flag a file that ownership.json assigns to other packages entirely.
-      const module = route.owner.split("-")[0]!;
-      if (owners.length > 0 && !owners.some((o) => o === route.owner || o.startsWith(`${module}-`) || o.startsWith(`fix-`))) {
+      const ownerModule = route.owner.split("-")[0]!;
+      if (owners.length > 0 && !owners.some((o) => o === route.owner || o.startsWith(`${ownerModule}-`) || o.startsWith(`fix-`))) {
         wrong.push(`${route.url} -> ${repoPath} owned by ${owners.join(", ")}, expected ${route.owner}`);
       }
     }

@@ -3,12 +3,16 @@
  * a valid answer becomes a `proposed` version by Claude; one repair round; a second invalid answer
  * ends `invalid_output` with no version; budget refusal, retries, the last attempt, an archived page,
  * a cancelled request, a dead job, and a double run that yields one version.
+ * site-P10 (R4): translate requests keep the source locale and its block ids and structure and only
+ * add the target locales.
  */
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { DbHandle } from "@beam/db";
 import { aiRequests, pageEditRequests, pages, pageVersions } from "@beam/db/schema";
 import { createTestDb } from "@beam/db/testing";
+import type { Locale } from "@beam/core/i18n";
+import { paragraphDoc, type Block, type VersionContent } from "@beam/core/site";
 import type { ClaudeRequest } from "@beam/integrations/anthropic";
 
 vi.mock("next/cache", () => ({ revalidateTag: () => undefined, unstable_cache: (fn: (...a: unknown[]) => unknown) => fn }));
@@ -22,7 +26,7 @@ vi.mock("@/modules/forms/api", async (importOriginal) => ({
 const { and, eq, setAppDb, sql } = await import("@/lib/ctx");
 const { createFakeIntegrations, makeCtx, makeJobCtx, resetRuntime, runJobTwice } = await import("@/lib/testing");
 const { getSetting, setSetting } = await import("@/lib/settings");
-const { onProposePageDead, proposePage } = await import("./propose");
+const { mergeTranslation, onProposePageDead, proposePage, translationErrors } = await import("./propose");
 const { droppedLocaleAnswer, pageWithRequest, unparsableAnswer, validAnswer } = await import("./site-p4.fixtures");
 
 let h: DbHandle;
@@ -184,5 +188,154 @@ describe("budget", () => {
     } finally {
       await setSetting(makeCtx(h.db), "ai", current, await versionOf());
     }
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+// site-P10 (R4): "Translate missing locales" (`kind: 'translate'`)
+// ---------------------------------------------------------------------------------------------
+
+/** A page live in nl-BE only (text, CTA, booking button) with a pending translate request for fr-BE and en. */
+async function translateFixture() {
+  const f = await pageWithRequest(h.db, { locales: ["nl-BE"] });
+  const nl = f.base.blocks["nl-BE"]!;
+  const blocks: Block[] = [
+    ...nl,
+    { id: randomUUID(), type: "cta", heading: "Kom langs", text: "Wij verwelkomen je graag.", button: { label: "Boek nu", link: { kind: "url", href: "https://www.example.com/boeken" } } },
+    { id: randomUUID(), type: "booking_cta", label: "Boek een dag", target: { kind: "book_day" } },
+  ];
+  await h.db.update(pageVersions).set({ blocks: { "nl-BE": blocks } }).where(eq(pageVersions.id, f.liveId));
+  await h.db.update(pageEditRequests).set({ kind: "translate", locales: ["fr-BE", "en"], instruction: "Translate the page into fr-BE, en." }).where(eq(pageEditRequests.id, f.requestId));
+  return { ...f, base: { ...f.base, blocks: { "nl-BE": blocks } } };
+}
+
+const TARGETS = ["fr-BE", "en"] as const;
+
+/** A translation of the nl-BE blocks: same ids, types and references, translated text. */
+function translatedBlocks(src: Block[], l: Locale): Block[] {
+  return src.map((b): Block => {
+    if (b.type === "rich_text") return { ...b, doc: paragraphDoc(`Welcome (${l}).`) };
+    if (b.type === "cta") return { ...b, heading: `Visit us (${l})`, text: `We welcome you (${l}).`, button: { ...b.button, label: `Book now (${l})` } };
+    if (b.type === "booking_cta") return { ...b, label: `Book a day (${l})` };
+    return b;
+  });
+}
+
+/** Claude's translation answer: only the target locales (unless `withSource` adds a changed nl-BE). */
+function translationAnswer(base: VersionContent, opts: { withSource?: boolean; blocks?: (l: Locale, src: Block[]) => Block[] } = {}): Record<string, Record<string, unknown> | string> {
+  const src = base.blocks["nl-BE"]!;
+  const pick = <T>(fn: (l: Locale) => T): Record<string, T> => Object.fromEntries(TARGETS.map((l) => [l, fn(l)]));
+  const blocksOf = opts.blocks ?? ((l: Locale, s: Block[]) => translatedBlocks(s, l));
+  const answer = {
+    title: pick((l) => `Title (${l})`),
+    paths: pick((l) => `translated-${l.slice(0, 2)}`),
+    blocks: pick((l) => blocksOf(l, src)),
+    seo: pick((l) => ({ title: `BEAM (${l})`, description: `A translated description that is long enough for search engines in ${l}.` })),
+    changeSummary: "Added fr-BE and en.",
+  };
+  if (!opts.withSource) return answer;
+  return {
+    ...answer,
+    title: { ...answer.title, "nl-BE": "Changed Dutch title" },
+    blocks: { ...answer.blocks, "nl-BE": [{ id: randomUUID(), type: "rich_text", doc: paragraphDoc("Nieuwe tekst.") }] },
+  };
+}
+
+describe("site.propose_page translate (site-P10)", () => {
+  it("adds only the target locales, keeping the source locale and its block ids and structure", async () => {
+    const f = await translateFixture();
+    const integrations = scripted([translationAnswer(f.base)]);
+    const { first, second } = await runJobTwice(h.db, "site.propose_page", { editRequestId: f.requestId }, { integrations });
+    expect(first).toMatchObject({ outcome: "proposed", repaired: false });
+    expect(second).toMatchObject({ outcome: "skipped" });
+    const versions = await versionsOf(f.pageId);
+    expect(versions).toHaveLength(2);
+    const live = versions[0]!;
+    const proposal = versions[1]!;
+    expect(proposal).toMatchObject({ state: "proposed", createdBy: "claude", editRequestId: f.requestId, basedOnVersionId: f.liveId });
+    expect(proposal.locales).toEqual(["nl-BE", "fr-BE", "en"]);
+    // The source locale is untouched.
+    expect(proposal.blocks["nl-BE"]).toEqual(live.blocks["nl-BE"]);
+    expect(proposal.title["nl-BE"]).toBe(live.title["nl-BE"]);
+    expect(proposal.paths["nl-BE"]).toBe(live.paths["nl-BE"]);
+    expect(proposal.seo["nl-BE"]).toEqual(live.seo["nl-BE"]);
+    // Every target repeats the source blocks' ids, order and types.
+    const shape = (bs: Block[] | undefined) => (bs ?? []).map((b) => [b.id, b.type]);
+    for (const l of TARGETS) {
+      expect(shape(proposal.blocks[l])).toEqual(shape(live.blocks["nl-BE"]));
+      expect(proposal.title[l]).toBe(`Title (${l})`);
+    }
+    const prompt = promptOf(integrations.anthropic.calls[0]!);
+    expect(prompt).toContain('"task":"translate_page"');
+    expect(prompt).toContain('"sourceLocale":"nl-BE"');
+    expect(prompt).toContain("Return only the target locales (fr-BE, en)");
+    expect(await requestRow(f.requestId)).toMatchObject({ status: "succeeded", resultVersionId: proposal.id });
+  });
+
+  it("ignores a changed source locale in the answer: the base locales stay exactly as they were", async () => {
+    const f = await translateFixture();
+    expect(await run(f.requestId, scripted([translationAnswer(f.base, { withSource: true })]))).toMatchObject({ outcome: "proposed" });
+    const [live, proposal] = await versionsOf(f.pageId);
+    expect(proposal!.blocks["nl-BE"]).toEqual(live!.blocks["nl-BE"]);
+    expect(proposal!.title["nl-BE"]).toBe(live!.title["nl-BE"]);
+  });
+
+  it("repairs a translation that adds a block, and fails after a changed reference and a reordering", async () => {
+    const f = await translateFixture();
+    const extra = translationAnswer(f.base, { blocks: (l, src) => [...translatedBlocks(src, l), { id: randomUUID(), type: "rich_text", doc: paragraphDoc("Extra.") }] });
+    const integrations = scripted([extra, translationAnswer(f.base)]);
+    expect(await run(f.requestId, integrations)).toMatchObject({ outcome: "proposed", repaired: true });
+    expect(integrations.anthropic.calls[1]!.input.messages.at(-1)!.content).toContain("translate every block and add none");
+
+    const g = await translateFixture();
+    const changedTarget = translationAnswer(g.base, { blocks: (l, src) => translatedBlocks(src, l).map((b): Block => (b.type === "booking_cta" ? { ...b, target: { kind: "gift" } } : b)) });
+    const reordered = translationAnswer(g.base, { blocks: (l, src) => [...translatedBlocks(src, l)].reverse() });
+    const bad = scripted([changedTarget, reordered]);
+    expect(await run(g.requestId, bad)).toEqual({ outcome: "failed", errorCode: "invalid_output" });
+    expect(bad.anthropic.calls[1]!.input.messages.at(-1)!.content).toContain("changes references");
+    expect(await versionsOf(g.pageId)).toHaveLength(1);
+    expect(await requestRow(g.requestId)).toMatchObject({ status: "failed", errorCode: "invalid_output" });
+  });
+
+  it("requires every target locale; a request with nothing left to translate fails without calling Claude", async () => {
+    const f = await translateFixture();
+    const onlyFr = translationAnswer(f.base);
+    delete (onlyFr.title as Record<string, unknown>).en;
+    delete (onlyFr.blocks as Record<string, unknown>).en;
+    const integrations = scripted([onlyFr, onlyFr]);
+    expect(await run(f.requestId, integrations)).toEqual({ outcome: "failed", errorCode: "invalid_output" });
+    expect(integrations.anthropic.calls[1]!.input.messages.at(-1)!.content).toContain("title.en");
+
+    const g = await pageWithRequest(h.db);
+    await h.db.update(pageEditRequests).set({ kind: "translate", locales: ["en"] }).where(eq(pageEditRequests.id, g.requestId));
+    const none = scripted([validAnswer(g.base)]);
+    expect(await run(g.requestId, none)).toEqual({ outcome: "failed", errorCode: "invalid_output" });
+    expect(none.anthropic.calls).toHaveLength(0);
+    expect(await requestRow(g.requestId)).toMatchObject({ status: "failed", errorMessage: "nothing_to_translate" });
+  });
+});
+
+describe("translation helpers (site-P10)", () => {
+  const src: Block[] = [
+    { id: "11111111-1111-4111-8111-111111111111", type: "rich_text", doc: paragraphDoc("Hallo.") },
+    { id: "22222222-2222-4222-8222-222222222222", type: "pricing_table", heading: "Prijzen", productIds: ["33333333-3333-4333-8333-333333333333"], showMemberPrice: true },
+  ];
+  const base: VersionContent = { title: { "nl-BE": "Prijzen" }, paths: { "nl-BE": "prijzen" }, blocks: { "nl-BE": src }, seo: {}, excerpt: null, coverMediaId: null, locales: ["nl-BE"] };
+
+  it("mergeTranslation keeps the base locales and takes only the targets from the answer", () => {
+    const merged = mergeTranslation(base, { title: { "nl-BE": "X", en: "Prices", "fr-BE": "Prix" }, blocks: { "nl-BE": [], en: src }, paths: {}, seo: {}, changeSummary: "x" }, ["en"]) as Record<string, Record<string, unknown>>;
+    expect(merged.title).toEqual({ "nl-BE": "Prijzen", en: "Prices" });
+    expect(merged.blocks).toEqual({ "nl-BE": src, en: src });
+    expect(merged.paths).toEqual({ "nl-BE": "prijzen" });
+    expect(mergeTranslation(base, "not json", ["en"])).toBe("not json");
+  });
+
+  it("translationErrors allows different text but not different references, switches or order", () => {
+    const en = src.map((b): Block => (b.type === "pricing_table" ? { ...b, heading: "Prices" } : b.type === "rich_text" ? { ...b, doc: paragraphDoc("Hello.") } : b));
+    expect(translationErrors({ title: { "nl-BE": "Prijzen", en: "Prices" }, blocks: { "nl-BE": src, en } }, "nl-BE", ["en"])).toEqual([]);
+    const switched = en.map((b): Block => (b.type === "pricing_table" ? { ...b, showMemberPrice: false } : b));
+    expect(translationErrors({ title: { en: "Prices" }, blocks: { "nl-BE": src, en: switched } }, "nl-BE", ["en"])).toHaveLength(1);
+    expect(translationErrors({ title: { en: "Prices" }, blocks: { "nl-BE": src, en: [...en].reverse() } }, "nl-BE", ["en"])).toHaveLength(2);
+    expect(translationErrors({ title: {}, blocks: { "nl-BE": src } }, "nl-BE", ["en"])).toHaveLength(2);
   });
 });

@@ -7,10 +7,11 @@
  * Also the shared server helpers of `actions.ts` (a `"use server"` file exports only actions):
  * `definitionHash` (sha256 of the canonical JSON, A-2), `loadValidationRefs` and
  * `draftIssues` (A-1, A-3, A-4: parse plus `validateDefinition` against the database).
- * `getPersonAutomations` and `previewEnrolment` come with automation-P6.
+ * The person page reads (automation-P6): `getPersonAutomations`, `previewEnrolment` (A-39,
+ * through `engine/preview.ts`) and `listEnrolOptions` (the enrol dialog's choices and warnings).
  */
 import { createHash } from "node:crypto";
-import type { DbOrTx } from "@beam/db";
+import type { DbOrTx, Tx } from "@beam/db";
 import {
   automationEnrolments,
   automationGroups,
@@ -18,33 +19,43 @@ import {
   automationVersions,
   persons,
   roles,
+  segmentMembers,
   segments,
   tags,
   users,
   vAutomationStats,
   vPersonAutomationTimeline,
+  vPersonStatus,
 } from "@beam/db/schema";
 import {
   canonicalJson,
   diffDefinitions,
   enrolTargets,
+  exclusiveDomain,
   parseDefinition,
   referencedTemplates,
   validateDefinition,
   type AutomationPurpose,
   type AutomationRunOutcome,
+  type AutomationTimelineItem,
   type Definition,
   type DefinitionChange,
   type DefinitionIssue,
+  type PersonEnrolmentSummary,
+  type PlannedStep,
   type ReEntry,
   type TemplateRef,
   type ValidationRefs,
 } from "@beam/core/automation";
 import { messagesFor, type Locale } from "@beam/core/i18n";
-import { and, asc, desc, eq, gte, lt, lte, or, sql, type Actor, type SQL } from "@/lib/ctx";
+import { and, asc, desc, eq, gte, inArray, lt, lte, ne, or, sql, type Actor, type SQL } from "@/lib/ctx";
 import { getSetting } from "@/lib/settings";
 import { EVENTS } from "@/registry/events.generated";
-import { getPublishedTemplateInfo, listPublishedTemplates } from "@/modules/email/api";
+import { getPublishedTemplateInfo, getReachability, listPublishedTemplates } from "@/modules/email/api";
+import { loadAutomations } from "./engine/enrol";
+import { previewSteps, type PreviewStep } from "./engine/preview";
+
+export type { PreviewOutcome, PreviewStep } from "./engine/preview";
 
 export type AutomationStatus = "draft" | "active" | "paused" | "archived";
 export type EnrolmentStatus = "active" | "completed" | "exited";
@@ -552,4 +563,151 @@ export function automationLabels(locale: Locale, prefixes: readonly string[]): R
   };
   for (const p of prefixes) walk(tree?.[p], p);
   return out;
+}
+
+// ---------------------------------------------------------------------------
+// Person page (automation-P6, A-36 to A-41)
+// ---------------------------------------------------------------------------
+
+export type PersonEnrolmentView = PersonEnrolmentSummary & {
+  automationId: string;
+  isMarketing: boolean;
+  source: string;
+  /** The pending steps of an active enrolment's plan (waits left out), in plan order. */
+  remaining: PlannedStep[];
+};
+
+export type PersonAutomations = { active: PersonEnrolmentView[]; ended: PersonEnrolmentView[]; runs: AutomationTimelineItem[] };
+
+/** `getPersonAutomations` (4.2): active enrolments with their remaining plan, the last 20 ended ones and the last 100 runs. */
+export async function getPersonAutomations(db: DbOrTx, input: { personId: string }): Promise<PersonAutomations> {
+  if (!isUuid(input.personId)) return { active: [], ended: [], runs: [] };
+  const e = automationEnrolments;
+  const select = {
+    enrolmentId: e.id,
+    automationId: e.automationId,
+    automationSlug: automations.slug,
+    automationName: automations.name,
+    isMarketing: automations.isMarketing,
+    status: e.status,
+    source: e.source,
+    enteredAt: e.enteredAt,
+    endedAt: e.endedAt,
+    endReason: e.endReason,
+    nextStepKey: e.nextStepKey,
+    nextStepAt: e.nextStepAt,
+    plan: e.plan,
+  };
+  const [activeRows, endedRows, runs] = await Promise.all([
+    db
+      .select(select)
+      .from(e)
+      .innerJoin(automations, eq(automations.id, e.automationId))
+      .where(and(eq(e.personId, input.personId), eq(e.status, "active")))
+      .orderBy(desc(e.enteredAt), desc(e.id)),
+    db
+      .select(select)
+      .from(e)
+      .innerJoin(automations, eq(automations.id, e.automationId))
+      .where(and(eq(e.personId, input.personId), ne(e.status, "active")))
+      .orderBy(desc(e.endedAt), desc(e.id))
+      .limit(20),
+    personTimeline(db, input.personId, 100),
+  ]);
+  const view = ({ plan, ...r }: (typeof activeRows)[number]): PersonEnrolmentView => ({
+    ...r,
+    remaining: r.status === "active" ? plan.filter((p) => p.state === "pending" && p.type !== "wait") : [],
+  });
+  return { active: activeRows.map(view), ended: endedRows.map(view), runs };
+}
+
+/** The automation timeline of a person (A-41): every run row, newest first. */
+async function personTimeline(db: DbOrTx, personId: string, limit: number): Promise<AutomationTimelineItem[]> {
+  const v = vPersonAutomationTimeline;
+  return db
+    .select({
+      id: v.id,
+      occurredAt: v.occurredAt,
+      automationSlug: v.automationSlug,
+      automationName: v.automationName,
+      stepKey: v.stepKey,
+      outcome: v.outcome,
+      reason: v.reason,
+      endReason: v.endReason,
+      emailMessageId: v.emailMessageId,
+      emailStatus: v.emailStatus,
+      taskId: v.taskId,
+    })
+    .from(v)
+    .where(eq(v.personId, personId))
+    .orderBy(desc(v.occurredAt), desc(v.id))
+    .limit(limit);
+}
+
+/** `previewEnrolment` (4.2, A-39): the predicted outcome per step, read-only. */
+export function previewEnrolment(db: DbOrTx, input: { personId: string; automationId: string; anchorAt?: Date }, now: Date = new Date()): Promise<PreviewStep[]> {
+  return previewSteps(db, { ...input, now });
+}
+
+/** A warning the enrol dialog shows before a staff enrolment (A-37, edge case 20); only `restricted` refuses the entry. */
+export type EnrolWarning = "audience" | "unreachable" | "already_active" | "exclusive" | "restricted";
+
+export type EnrolOption = {
+  id: string;
+  slug: string;
+  name: string;
+  isMarketing: boolean;
+  /** The definition has a data anchor: the dialog asks for it (A-37). */
+  needsAnchor: boolean;
+  warnings: EnrolWarning[];
+};
+
+/**
+ * The automations staff can enrol the person into (every `active` one with a published version),
+ * each with the warnings of A-37: audience mismatch, marketing purpose not reachable (its steps
+ * will be skipped; consent is never bypassed), already in it, the exclusive domain is held by
+ * another journey (that one exits `moved`), processing restricted (a marketing journey refuses).
+ */
+export async function listEnrolOptions(db: DbOrTx, input: { personId: string }): Promise<EnrolOption[]> {
+  if (!isUuid(input.personId)) return [];
+  const [person] = await db.select({ locale: persons.locale, restrictedAt: persons.processingRestrictedAt }).from(persons).where(eq(persons.id, input.personId));
+  if (!person) return [];
+  const list = (await loadAutomations(db as Tx, { statuses: ["active"] })).filter((a) => a.definition);
+  if (!list.length) return [];
+  const names = new Map(
+    (await db.select({ id: automations.id, name: automations.name }).from(automations).where(inArray(automations.id, list.map((a) => a.id)))).map((r) => [r.id, r.name]),
+  );
+  const [statusRow] = await db.select({ status: vPersonStatus.status }).from(vPersonStatus).where(eq(vPersonStatus.personId, input.personId));
+  const segmentIds = new Set(
+    (await db.select({ id: segmentMembers.segmentId }).from(segmentMembers).where(eq(segmentMembers.personId, input.personId))).map((r) => r.id),
+  );
+  const active = await db
+    .select({ automationId: automationEnrolments.automationId, domain: automationEnrolments.exclusiveDomain })
+    .from(automationEnrolments)
+    .where(and(eq(automationEnrolments.personId, input.personId), eq(automationEnrolments.status, "active")));
+  const reach = new Map<AutomationPurpose, boolean>();
+  const reachable = async (purpose: AutomationPurpose) => {
+    if (!reach.has(purpose)) reach.set(purpose, (await getReachability(db, input.personId, purpose)).isReachable);
+    return reach.get(purpose)!;
+  };
+  const out: EnrolOption[] = [];
+  for (const a of list) {
+    const def = a.definition!;
+    const warnings: EnrolWarning[] = [];
+    const aud = def.audience;
+    const inAudience =
+      !aud ||
+      ((!aud.locales?.length || aud.locales.includes(person.locale as never)) &&
+        (!aud.status?.length || (!!statusRow && aud.status.includes(statusRow.status))) &&
+        (!aud.segment_id || segmentIds.has(aud.segment_id)) &&
+        !(aud.exclude_segment_ids ?? []).some((id) => segmentIds.has(id)));
+    if (!inAudience) warnings.push("audience");
+    if (a.isMarketing && person.restrictedAt) warnings.push("restricted");
+    if (a.isMarketing && a.purpose && !(await reachable(a.purpose))) warnings.push("unreachable");
+    if (active.some((r) => r.automationId === a.id)) warnings.push("already_active");
+    const domain = exclusiveDomain({ key: a.groupKey, isExclusive: a.isExclusive, lane: a.lane });
+    if (domain && active.some((r) => r.domain === domain && r.automationId !== a.id)) warnings.push("exclusive");
+    out.push({ id: a.id, slug: a.slug, name: names.get(a.id) ?? a.slug, isMarketing: a.isMarketing, needsAnchor: def.anchor !== "enrolment", warnings });
+  }
+  return out.sort((x, y) => x.name.localeCompare(y.name));
 }

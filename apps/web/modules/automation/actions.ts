@@ -10,18 +10,29 @@
  * Each status action locks the `automations` row `FOR UPDATE` (A-5), so a double click or two
  * staff members cannot interleave a pause and an archive. Bulk side effects are jobs enqueued in
  * the same transaction (resume, end, migrate, segment enrolment); `action()` runs them after the
- * commit. The person controls (`exitEnrolment`, `enrolPerson`, `movePerson`) come with
- * automation-P6.
+ * commit.
+ *
+ * The person controls (automation-P6, A-36 to A-38; `automations.move_person`): `exitEnrolment`
+ * ends one active enrolment with `manual`; `enrolPerson` enrols with the staff override of A-37
+ * (re-entry, audience and exclusivity priority overridden, a blocking journey in the exclusive
+ * domain exits `moved`; consent, suppression and restriction are never overridden: marketing
+ * steps are still checked when they run); `movePerson` exits one enrolment `moved` and enrols
+ * into another in one transaction, refused as a whole when the target refuses the entry. Each
+ * writes one audit row with `person_id` (entity type `automation_enrolment`), and a first step
+ * already due is enqueued so it runs in the wrapper's after-commit kick.
  */
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { automationEnrolments, automationGroups, automations, automationVersions, segments } from "@beam/db/schema";
-import { AUTOMATION_PURPOSES, isPublishable, SLUG_RE, type Definition } from "@beam/core/automation";
+import { automationEnrolments, automationGroups, automations, automationVersions, persons, segments } from "@beam/db/schema";
+import { AUTOMATION_PURPOSES, isPublishable, SLUG_RE, type Definition, type EnrolResult } from "@beam/core/automation";
 import type { DpiaKey } from "@beam/core/ops";
 import { action } from "@/lib/action";
 import { and, ConflictError, eq, NotFoundError, sql, ValidationError, type Ctx, type Tx } from "@/lib/ctx";
 import { isDpiaApproved } from "@/modules/ops/api";
 import { endJobKey, enrolSegmentJobKey, migrateJobKey, resumeJobKey } from "./engine/bulk";
+import { enrol, loadAutomations, type EngineAutomation } from "./engine/enrol";
+import { endEnrolmentWith } from "./engine/exits";
+import { stepJobKey, stepJobPriority } from "./engine/step";
 import { definitionHash, draftIssues } from "./queries";
 
 const Purpose = z.enum(AUTOMATION_PURPOSES);
@@ -339,5 +350,161 @@ export const enrolSegment = action(
     const job = await ctx.enqueue({ kind: "automation.enrol_segment", payload, key: enrolSegmentJobKey(payload), lane: "bulk" });
     await auditAutomation(ctx, "automation.enrol_segment", a.id, null, { segmentId: segment.id, estimatedCount: segment.count, jobId: job.id });
     return { jobId: job.id, estimatedCount: segment.count };
+  },
+);
+
+// ---------------------------------------------------------------------------
+// Person controls (A-36 to A-38)
+// ---------------------------------------------------------------------------
+
+/** The enrolment a person control acts on, with its automation slug. */
+async function enrolmentOf(tx: Tx, enrolmentId: string) {
+  const [row] = await tx
+    .select({
+      id: automationEnrolments.id,
+      personId: automationEnrolments.personId,
+      automationId: automationEnrolments.automationId,
+      status: automationEnrolments.status,
+      slug: automations.slug,
+    })
+    .from(automationEnrolments)
+    .innerJoin(automations, eq(automations.id, automationEnrolments.automationId))
+    .where(eq(automationEnrolments.id, enrolmentId));
+  if (!row) throw new NotFoundError("enrolment_not_found");
+  return row;
+}
+
+/** The person row lock first (the engine's lock order: person, then enrolment). */
+async function lockPerson(tx: Tx, personId: string): Promise<void> {
+  const [p] = await tx.select({ id: persons.id }).from(persons).where(eq(persons.id, personId)).for("update");
+  if (!p) throw new NotFoundError("person_not_found");
+}
+
+/** The target of a staff enrolment: active, published, and given its anchor when it has a data anchor (A-37). */
+async function staffTarget(tx: Tx, automationId: string, anchorAt: Date | null): Promise<EngineAutomation> {
+  const [a] = await loadAutomations(tx, { ids: [automationId] });
+  if (!a) throw new NotFoundError("automation_not_found");
+  if (a.status !== "active" || !a.definition) throw new ConflictError(`automation_not_active:${a.status}`);
+  if (a.definition.anchor !== "enrolment" && !anchorAt) throw new ValidationError("anchor_required", { anchorAt: "anchor_required" });
+  return a;
+}
+
+/** Enqueues the first step of a new enrolment when it is already due (A-20's job and key). */
+async function enqueueIfDue(ctx: Ctx, a: EngineAutomation, res: EnrolResult): Promise<void> {
+  if (res.status !== "enrolled") return;
+  const [e] = await ctx.tx
+    .select({ stepKey: automationEnrolments.nextStepKey, at: automationEnrolments.nextStepAt, status: automationEnrolments.status })
+    .from(automationEnrolments)
+    .where(eq(automationEnrolments.id, res.enrolmentId));
+  if (!e || e.status !== "active" || !e.stepKey || !e.at || e.at.getTime() > ctx.now.getTime()) return;
+  await ctx.enqueue({
+    kind: "automation.step",
+    payload: { enrolmentId: res.enrolmentId, stepKey: e.stepKey },
+    key: stepJobKey(res.enrolmentId, e.stepKey),
+    lane: "fast",
+    priority: stepJobPriority(a.isMarketing),
+  });
+}
+
+const staffUserId = (ctx: Ctx) => (ctx.actor.kind === "staff" ? ctx.actor.userId : null);
+const Note = z.string().trim().max(500);
+const AnchorAt = z.iso.datetime({ offset: true });
+const SubjectKey = z.string().trim().max(200).regex(/^([a-z_]+:[A-Za-z0-9_-]+)?$/, "subject_key");
+
+const ExitEnrolmentInput = z.object({ enrolmentId: z.uuid(), note: Note.optional() });
+
+/** A-36: ends one active enrolment with `manual`; one audit row `automation.person_exit`. */
+export const exitEnrolment = action(
+  { name: "automation.person_exit", audience: "staff", permission: "automations.move_person", input: ExitEnrolmentInput, audit: false },
+  async (ctx, input): Promise<{ ok: true }> => {
+    const tx = ctx.tx;
+    const before = await enrolmentOf(tx, input.enrolmentId);
+    await lockPerson(tx, before.personId);
+    const note = input.note || null;
+    const ended = await endEnrolmentWith(tx, before.id, "exited", "manual", ctx.actor, note ? { note } : {});
+    if (!ended) throw new ConflictError("enrolment_not_active");
+    await ctx.audit({
+      action: "automation.person_exit",
+      entityType: "automation_enrolment",
+      entityId: before.id,
+      personId: before.personId,
+      oldValue: { status: "active", automation: before.slug },
+      newValue: { status: "exited", endReason: "manual", automation: before.slug, note },
+    });
+    return { ok: true };
+  },
+);
+
+const EnrolPersonInput = z.object({ personId: z.uuid(), automationId: z.uuid(), anchorAt: AnchorAt.optional(), subjectKey: SubjectKey.optional() });
+
+/** A-37: staff enrolment (source `staff`) with the staff override; one audit row `automation.person_enrol`. */
+export const enrolPerson = action(
+  { name: "automation.person_enrol", audience: "staff", permission: "automations.move_person", input: EnrolPersonInput, audit: false },
+  async (ctx, input): Promise<EnrolResult> => {
+    const tx = ctx.tx;
+    const anchorAt = input.anchorAt ? new Date(input.anchorAt) : null;
+    await lockPerson(tx, input.personId);
+    const target = await staffTarget(tx, input.automationId, anchorAt);
+    const res = await enrol(tx, {
+      automation: target,
+      personId: input.personId,
+      source: "staff",
+      actor: ctx.actor,
+      now: ctx.now,
+      anchorAt,
+      ...(input.subjectKey ? { subjectKey: input.subjectKey } : {}),
+      enteredByUserId: staffUserId(ctx),
+      override: true,
+    });
+    await enqueueIfDue(ctx, target, res);
+    await ctx.audit({
+      action: "automation.person_enrol",
+      entityType: "automation_enrolment",
+      entityId: res.status === "enrolled" ? res.enrolmentId : null,
+      personId: input.personId,
+      oldValue: null,
+      newValue: { automation: target.slug, result: res.status === "enrolled" ? "enrolled" : res.outcome, anchorAt: input.anchorAt ?? null, subjectKey: input.subjectKey ?? null },
+    });
+    return res;
+  },
+);
+
+const MovePersonInput = z.object({ personId: z.uuid(), fromEnrolmentId: z.uuid(), toAutomationId: z.uuid(), anchorAt: AnchorAt.optional() });
+
+/** A-38: exit `moved` and enrol (source `staff_move`) in one transaction; one audit row `automation.person_move`. */
+export const movePerson = action(
+  { name: "automation.person_move", audience: "staff", permission: "automations.move_person", input: MovePersonInput, audit: false },
+  async (ctx, input): Promise<{ exitedEnrolmentId: string; enrolment: EnrolResult }> => {
+    const tx = ctx.tx;
+    const from = await enrolmentOf(tx, input.fromEnrolmentId);
+    if (from.personId !== input.personId) throw new NotFoundError("enrolment_not_found");
+    await lockPerson(tx, from.personId);
+    if (from.automationId === input.toAutomationId) throw new ConflictError("move_same_automation");
+    const anchorAt = input.anchorAt ? new Date(input.anchorAt) : null;
+    const target = await staffTarget(tx, input.toAutomationId, anchorAt);
+    const ended = await endEnrolmentWith(tx, from.id, "exited", "moved", ctx.actor, { moved_to: target.slug });
+    if (!ended) throw new ConflictError("enrolment_not_active");
+    const res = await enrol(tx, {
+      automation: target,
+      personId: from.personId,
+      source: "staff_move",
+      actor: ctx.actor,
+      now: ctx.now,
+      anchorAt,
+      enteredByUserId: staffUserId(ctx),
+      override: true,
+    });
+    // One transaction: a refused entry leaves the person where they were.
+    if (res.status !== "enrolled") throw new ConflictError(`move_refused:${res.outcome}`);
+    await enqueueIfDue(ctx, target, res);
+    await ctx.audit({
+      action: "automation.person_move",
+      entityType: "automation_enrolment",
+      entityId: res.enrolmentId,
+      personId: from.personId,
+      oldValue: { enrolmentId: from.id, automation: from.slug },
+      newValue: { enrolmentId: res.enrolmentId, automation: target.slug, anchorAt: input.anchorAt ?? null },
+    });
+    return { exitedEnrolmentId: from.id, enrolment: res };
   },
 );

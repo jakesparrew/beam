@@ -7,9 +7,17 @@
  * member discount and every applicable promotion. The lowest unit price wins; discounts never
  * stack. Ties go to the earlier entry of `TIE_ORDER`, so a promotion that gives nothing extra is
  * never consumed (rule 9).
+ *
+ * R2 (commerce-P8): a cart with several ticket types of one event. Each ticket type sells through
+ * its own product (`ticket_types.product_id`), so a member price, member discount or promotion is
+ * decided per type by the same candidates; `groupTicketTypes` sums the quoted seat lines per
+ * ticket type for the basket, the confirmation and the recovery email, and `ticketCartSession`
+ * refuses a cart that mixes events.
  */
 import type { Audience, ProductKind } from "./types";
 import type {
+  CartItem,
+  PricingCandidateSource,
   PersonPriceRow,
   PriceVersionRow,
   PricingCandidate,
@@ -106,6 +114,12 @@ function pickWinner(candidates: Ranked[]): Ranked {
 
 /** The pure pricing function. */
 export function quote(input: QuoteInput): Quote {
+  return quoteDetailed(input).quote;
+}
+
+/** `quote()` plus, per quoted line, the index of the input item it prices (lines skip refused items). */
+function quoteDetailed(input: QuoteInput): { quote: Quote; itemIndex: number[] } {
+  const itemIndex: number[] = [];
   const warnings: QuoteWarning[] = [];
   const at = input.at;
   const baseAudience: Audience = input.audience === "b2b" ? "b2b" : "public";
@@ -127,7 +141,7 @@ export function quote(input: QuoteInput): Quote {
   let codeApplied = false;
   let codeWon = false;
 
-  for (const item of input.items) {
+  for (const [index, item] of input.items.entries()) {
     const { product } = item;
     if (!product.isActive) {
       warnings.push({ code: "product_unavailable", productId: product.id });
@@ -242,6 +256,7 @@ export function quote(input: QuoteInput): Quote {
       promotionId: winner.source === "promotion" ? winner.sourceId : null,
       trace,
     });
+    itemIndex.push(index);
   }
 
   if (codeUsable && !codeWon) warnings.push({ code: codeApplied ? "promo_not_better" : "promo_not_eligible" });
@@ -249,12 +264,102 @@ export function quote(input: QuoteInput): Quote {
   const subtotalCents = lines.reduce((s, l) => s + l.unitAmountCents * l.quantity, 0);
   const discountCents = lines.reduce((s, l) => s + l.discountCents, 0);
   return {
-    lines,
-    subtotalCents,
-    discountCents,
-    vatCents: lines.reduce((s, l) => s + l.vatCents, 0),
-    totalCents: subtotalCents - discountCents,
-    promotionId: codeWon && codePromotion ? codePromotion.id : null,
-    warnings,
+    quote: {
+      lines,
+      subtotalCents,
+      discountCents,
+      vatCents: lines.reduce((s, l) => s + l.vatCents, 0),
+      totalCents: subtotalCents - discountCents,
+      promotionId: codeWon && codePromotion ? codePromotion.id : null,
+      warnings,
+    },
+    itemIndex,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Multi-ticket carts (R2): several ticket types of one event
+// ---------------------------------------------------------------------------
+
+/** The quoted seats of one ticket type of the cart. */
+export type TicketTypeGroup = {
+  ticketTypeId: string;
+  sessionId: string | null;
+  productId: string;
+  /** Seats of this type (each seat is its own quantity-1 line, rule 21). */
+  quantity: number;
+  /** The base unit price of the type (its product's public or b2b price). */
+  unitAmountCents: number;
+  /** What one seat costs after the winning candidate (the lowest seat when lines differ). */
+  pricedUnitCents: number;
+  subtotalCents: number;
+  discountCents: number;
+  lineTotalCents: number;
+  vatCents: number;
+  /** The winning candidate of the type's first line (`member_version`, `member_discount`, ...). */
+  winner: PricingCandidateSource;
+  /** Whether a member price or member discount won for this type. */
+  isMemberPrice: boolean;
+  /** Indexes of the quoted lines in `quote(input).lines`, in order. */
+  lineIndexes: number[];
+};
+
+/**
+ * Groups the quoted lines of ticket items (`ticketTypeId` set) per ticket type, in the order the
+ * types first appear; items without a ticket type and refused items are left out. Returns the
+ * full quote of the input with the groups, so callers price once.
+ */
+export function groupTicketTypes(input: QuoteInput): { quote: Quote; groups: TicketTypeGroup[] } {
+  const { quote: q, itemIndex } = quoteDetailed(input);
+  const groups = new Map<string, TicketTypeGroup>();
+  q.lines.forEach((line, lineIndex) => {
+    const item = input.items[itemIndex[lineIndex]!]!;
+    if (!item.ticketTypeId) return;
+    const perSeat = line.quantity > 0 ? Math.floor(line.lineTotalCents / line.quantity) : line.lineTotalCents;
+    const g = groups.get(item.ticketTypeId);
+    if (!g) {
+      groups.set(item.ticketTypeId, {
+        ticketTypeId: item.ticketTypeId,
+        sessionId: item.sessionId ?? null,
+        productId: line.productId,
+        quantity: line.quantity,
+        unitAmountCents: line.unitAmountCents,
+        pricedUnitCents: perSeat,
+        subtotalCents: line.unitAmountCents * line.quantity,
+        discountCents: line.discountCents,
+        lineTotalCents: line.lineTotalCents,
+        vatCents: line.vatCents,
+        winner: line.trace.winner,
+        isMemberPrice: line.trace.winner === "member_version" || line.trace.winner === "member_discount",
+        lineIndexes: [lineIndex],
+      });
+      return;
+    }
+    g.quantity += line.quantity;
+    g.pricedUnitCents = Math.min(g.pricedUnitCents, perSeat);
+    g.subtotalCents += line.unitAmountCents * line.quantity;
+    g.discountCents += line.discountCents;
+    g.lineTotalCents += line.lineTotalCents;
+    g.vatCents += line.vatCents;
+    g.lineIndexes.push(lineIndex);
+  });
+  return { quote: q, groups: [...groups.values()] };
+}
+
+/**
+ * The one event (session) of a ticket cart: ticket items must all carry the same `sessionId`
+ * (a cart sells several ticket types of one event). `mixed_events` when they differ,
+ * `ticket_without_session` when a ticket item has no session; `sessionId` null without tickets.
+ */
+export function ticketCartSession(
+  items: readonly Pick<CartItem, "sessionId" | "ticketTypeId">[],
+): { sessionId: string | null; problem: "mixed_events" | "ticket_without_session" | null } {
+  let sessionId: string | null = null;
+  for (const item of items) {
+    if (!item.ticketTypeId) continue;
+    if (!item.sessionId) return { sessionId: null, problem: "ticket_without_session" };
+    if (sessionId === null) sessionId = item.sessionId;
+    else if (sessionId !== item.sessionId) return { sessionId: null, problem: "mixed_events" };
+  }
+  return { sessionId, problem: null };
 }

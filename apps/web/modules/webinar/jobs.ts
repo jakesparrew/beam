@@ -4,7 +4,9 @@
  * `update_broadcast`, `delete_broadcast`, `create_meet_space`), live status and recording sync
  * (`sync_status`, `fetch_recording`), the reschedule and cancel notices (`notify_registrants`) and
  * the two scans of `schedules.ts`. webinar-P4: `webinar.finalise` (no-shows and back-filled
- * thresholds, rule 29) and its scan `webinar.scan_finalise`. Every handler is idempotent: a second run with the same
+ * thresholds, rule 29) and its scan `webinar.scan_finalise`. webinar-P6: the pre-flight check
+ * `webinar.preflight_check` and its scan `webinar.preflight` (rule 42), and the heartbeat-stopped
+ * alert inside `webinar.sync_status` (rule 43; both in `server/preflight.ts`). Every handler is idempotent: a second run with the same
  * payload leaves the same state (`jobs.test.ts`).
  *
  * The YouTube client is not one of the shared `getIntegrations()` clients: `youtubeFor(ctx)`
@@ -25,6 +27,7 @@ import { defineJob, type JobCtx } from "@/lib/job-runner";
 import { sendTransactional } from "@/modules/email/api";
 import { ScanFinaliseInput, ScanLiveInput, ScanRecordingsInput, runScanFinalise, runScanLive, runScanRecordings } from "./schedules";
 import { finaliseWebinar } from "./server/watch";
+import { PreflightCheckInput, PreflightScanInput, checkHeartbeats, runPreflightCheck, runPreflightScan } from "./server/preflight";
 import { completeBroadcastPublish, jobKeys, lockWebinar, moveLiveState, noticeEmailKey, textIn, type NoticeReason, type WebinarRow } from "./server/lifecycle";
 
 // ---------------------------------------------------------------------------------------------
@@ -223,7 +226,8 @@ export async function runSyncStatus(ctx: JobCtx, input: z.infer<typeof WebinarId
   if (w.mode === "simulive") {
     if (w.status === "published" && now >= w.startsAt) w = await moveLiveState(ctx, w, "live", w.startsAt);
     if (w.status === "live" && now >= showingEnd(w)) w = await moveLiveState(ctx, w, "ended", showingEnd(w));
-    return { status: w.status };
+    const heartbeatAlert = await checkHeartbeats(ctx, w);
+    return { status: w.status, ...(heartbeatAlert ? { heartbeatAlert } : {}) };
   }
   if (w.mode !== "live" || !w.youtubeVideoId) return { skipped: w.mode };
 
@@ -242,7 +246,8 @@ export async function runSyncStatus(ctx: JobCtx, input: z.infer<typeof WebinarId
     w = await moveLiveState(ctx, w, "live", broadcast.actualStartAt ?? broadcast.actualEndAt ?? now);
   }
   if (broadcast.lifecycle === "complete" && w.status === "live") w = await moveLiveState(ctx, w, "ended", broadcast.actualEndAt ?? now);
-  return { status: w.status, lifecycle: broadcast.lifecycle };
+  const heartbeatAlert = await checkHeartbeats(ctx, w);
+  return { status: w.status, lifecycle: broadcast.lifecycle, ...(heartbeatAlert ? { heartbeatAlert } : {}) };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -375,4 +380,6 @@ export const jobs = [
   defineJob({ kind: "webinar.scan_recordings", lane: "fast", priority: 2, maxAttempts: 2, input: ScanRecordingsInput, run: runScanRecordings }),
   defineJob({ kind: "webinar.finalise", lane: "fast", priority: 5, maxAttempts: 6, input: WebinarIdInput, run: runFinalise }),
   defineJob({ kind: "webinar.scan_finalise", lane: "fast", priority: 2, maxAttempts: 2, input: ScanFinaliseInput, run: runScanFinalise }),
+  defineJob({ kind: "webinar.preflight_check", lane: "fast", priority: 2, maxAttempts: 3, input: PreflightCheckInput, run: runPreflightCheck }),
+  defineJob({ kind: "webinar.preflight", lane: "fast", priority: 2, maxAttempts: 2, input: PreflightScanInput, run: runPreflightScan }),
 ];

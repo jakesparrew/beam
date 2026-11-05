@@ -13,6 +13,7 @@ import { MembershipPaymentFailed, membershipPaymentFailedSample, MembershipPayme
 import { MembershipRenewalReminder, membershipRenewalReminderSample, MembershipRenewalReminderProps } from "./membership-renewal-reminder";
 import { MembershipRenewed, membershipRenewedSample, MembershipRenewedProps } from "./membership-renewed";
 import { MembershipStarted, membershipStartedSample, MembershipStartedProps } from "./membership-started";
+import { ReferralReward, referralRewardSample, ReferralRewardProps } from "./referral-reward";
 import { ShareInvitation, shareInvitationSample, ShareInvitationProps } from "./share-invitation";
 
 const slots = (name: string) => ({
@@ -49,4 +50,5 @@ export const templates = [
     slots: slots("membership_cancel_confirmed"),
   }),
   defineTemplate({ name: "share_invitation", component: ShareInvitation, props: ShareInvitationProps, sample: shareInvitationSample, slots: slots("share_invitation") }),
+  defineTemplate({ name: "referral_reward", component: ReferralReward, props: ReferralRewardProps, sample: referralRewardSample, slots: slots("referral_reward") }),
 ];

@@ -251,6 +251,59 @@ where not exists (
     and (r.grant_id = c.grant_id or r.guest_person_id = c.guest_person_id)
     and c.person_ids <@ r.guest_person_ids)`;
 
+/**
+ * R3 (credits-P9): a partner company's figures per Brussels month, aggregates only (no person
+ * ids or names; ops dashboards, `/admin/referrals` Partners tab, the partner's `/admin/partner`).
+ * `referred_count`: attributions made that month; `customers_count`: attributions whose first
+ * paid order fell in that month; `revenue_cents`: `orders.total_cents` paid that month by
+ * attributed persons inside their commission window, minus refunds (sent or refunded) of those
+ * orders in the month of the refund; `commission_accrued_cents` (accrued or approved) and
+ * `commission_paid_cents` by `partner_commissions.period_month`. Rejected attributions are left
+ * out.
+ */
+export const vPartnerPerformanceSql = `with a as (
+  select id, partner_company_id, referred_person_id, attributed_at, first_paid_at, commission_until_at
+  from referral_attributions where partner_company_id is not null and status <> 'rejected'),
+windowed as (
+  select a.partner_company_id, o.id as order_id, o.total_cents, o.paid_at
+  from a join orders o on o.person_id = a.referred_person_id
+  where o.paid_at is not null and o.paid_at >= a.attributed_at
+    and (a.commission_until_at is null or o.paid_at < a.commission_until_at)),
+facts as (
+  select partner_company_id, date_trunc('month', attributed_at at time zone 'Europe/Brussels')::date as period_month,
+         1 as referred, 0 as customers, 0::bigint as revenue, 0::bigint as accrued, 0::bigint as paid
+  from a
+  union all
+  select partner_company_id, date_trunc('month', first_paid_at at time zone 'Europe/Brussels')::date, 0, 1, 0::bigint, 0::bigint, 0::bigint
+  from a where first_paid_at is not null
+  union all
+  select partner_company_id, date_trunc('month', paid_at at time zone 'Europe/Brussels')::date, 0, 0, total_cents::bigint, 0::bigint, 0::bigint
+  from windowed
+  union all
+  select w.partner_company_id, date_trunc('month', r.created_at at time zone 'Europe/Brussels')::date, 0, 0, (-r.amount_cents)::bigint, 0::bigint, 0::bigint
+  from windowed w join refunds r on r.order_id = w.order_id
+  where r.status in ('sent', 'refunded')
+  union all
+  select partner_company_id, period_month, 0, 0, 0::bigint,
+         case when status in ('accrued', 'approved') then amount_cents else 0 end::bigint,
+         case when status = 'paid' then amount_cents else 0 end::bigint
+  from partner_commissions)
+select partner_company_id, period_month,
+       sum(referred)::int as referred_count, sum(customers)::int as customers_count,
+       sum(revenue)::bigint as revenue_cents, sum(accrued)::bigint as commission_accrued_cents,
+       sum(paid)::bigint as commission_paid_cents
+from facts group by partner_company_id, period_month`;
+
+export const vPartnerPerformance = pgView("v_partner_performance", {
+  partnerCompanyId: uuid("partner_company_id").notNull(),
+  periodMonth: date("period_month", { mode: "string" }).notNull(),
+  referredCount: integer("referred_count").notNull(),
+  customersCount: integer("customers_count").notNull(),
+  revenueCents: bigint("revenue_cents", { mode: "number" }).notNull(),
+  commissionAccruedCents: bigint("commission_accrued_cents", { mode: "number" }).notNull(),
+  commissionPaidCents: bigint("commission_paid_cents", { mode: "number" }).notNull(),
+}).existing();
+
 export const vSharingReview = pgView("v_sharing_review", {
   rule: text("rule").$type<"many_guests" | "guest_hopping">().notNull(),
   grantId: uuid("grant_id"),

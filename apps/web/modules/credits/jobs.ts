@@ -1,7 +1,8 @@
 /**
  * credits jobs (`defineJob`, credits spec section 4 "Jobs"). Facade read by `pnpm gen:indexes`.
  * credits-P3: the expiry scan, the per-grant expiry and the bulk extension; credits-P4: the
- * membership scan and the renewal charge; credits-P5: the nightly `ledger.reconcile`.
+ * membership scan and the renewal charge; credits-P5: the nightly `ledger.reconcile`; credits-P9
+ * (R3): `credits.attribute_referrals` and `credits.qualify_referral_rewards`.
  */
 import { z } from "zod";
 import { brusselsDateKey, expireEntryKey, expiryWarningDedupeKey, expiryWarningsDue } from "@beam/core/credits";
@@ -10,6 +11,7 @@ import { runBulkExtension } from "./server/bulk-extend";
 import { creditsSettings, dueExpiries, expireGrant, expiryWarningCandidates } from "./server/ledger";
 import { chargeRenewal, scanCandidates, scanMembership } from "./server/memberships";
 import { reconcileLedger, type ReconcileResult } from "./server/reconcile";
+import { attributeCandidate, attributionCandidates, dueQualifications, lastAttributeCursor, qualifyAttribution, referralsSettings, type AttributeCursor } from "./server/referrals";
 
 /** Grants handled per `credits.expire_grants` run before it continues itself. */
 export const EXPIRE_CHUNK = 500;
@@ -27,6 +29,8 @@ export const ChargeRenewalInput = z.object({
   attempt: z.union([z.literal(1), z.literal(2), z.literal(3)]),
 });
 export const ReconcileInput = z.object({ manual: z.boolean().optional() });
+export const AttributeReferralsInput = z.object({});
+export const QualifyReferralRewardsInput = z.object({});
 
 /**
  * `credits.expire_grants` (daily 00:05 Brussels): enqueues `credits.expire_grant` for every active
@@ -111,6 +115,55 @@ export async function runReconcile(ctx: JobCtx, input: z.infer<typeof ReconcileI
   return reconcileLedger(ctx.tx, ctx, { jobId: ctx.job.id, manual: input.manual });
 }
 
+/**
+ * `credits.attribute_referrals` (every 10 minutes, rule 61): attributions from
+ * `persons.acquisition` for persons created after the cursor of the last succeeded run
+ * (`result.cursor` = created_at and id of the last person read), each in its own savepoint. A
+ * second run starts after the first run's cursor, and an existing attribution is never rewritten.
+ */
+export async function runAttributeReferrals(
+  ctx: JobCtx,
+  _input: z.infer<typeof AttributeReferralsInput>,
+): Promise<{ cursor: AttributeCursor | null; attributed: number; rejected: number; skipped: number }> {
+  const start = await lastAttributeCursor(ctx.tx);
+  const candidates = await attributionCandidates(ctx.tx, start);
+  let attributed = 0;
+  let rejected = 0;
+  let skipped = 0;
+  for (const c of candidates) {
+    const r = await attributeCandidate(ctx.tx, ctx, c);
+    if (r === "attributed") attributed += 1;
+    else if (r === "rejected") rejected += 1;
+    else skipped += 1;
+  }
+  const last = candidates.at(-1);
+  return { cursor: last ? { createdAt: last.created_at, id: last.id } : start, attributed, rejected, skipped };
+}
+
+/**
+ * `credits.qualify_referral_rewards` (daily 05:10 Brussels, rule 62): `qualified` attributions due
+ * at `qualifies_at`, each in its own savepoint under its row lock: reward grants (keys
+ * `grant:referral:<id>:referrer|referee`) or `rejected cap_reached`. A second run finds nothing due.
+ */
+export async function runQualifyReferralRewards(
+  ctx: JobCtx,
+  _input: z.infer<typeof QualifyReferralRewardsInput>,
+): Promise<{ due: number; outcomes: Record<string, number>; errors: { attributionId: string; message: string }[] }> {
+  const settings = await referralsSettings(ctx.tx);
+  const outcomes: Record<string, number> = {};
+  const errors: { attributionId: string; message: string }[] = [];
+  const ids = await dueQualifications(ctx.tx, ctx.now);
+  for (const id of ids) {
+    try {
+      const r = await ctx.tx.transaction((sp) => qualifyAttribution(sp, ctx, id, settings));
+      outcomes[r] = (outcomes[r] ?? 0) + 1;
+    } catch (error) {
+      errors.push({ attributionId: id, message: error instanceof Error ? error.message : String(error) });
+    }
+  }
+  return { due: ids.length, outcomes, errors };
+}
+
 export const jobs = [
   defineJob({ kind: "credits.expire_grants", lane: "bulk", priority: 5, maxAttempts: 6, input: ExpireGrantsInput, run: runExpireGrants }),
   defineJob({ kind: "credits.expire_grant", lane: "fast", priority: 5, maxAttempts: 6, input: ExpireGrantInput, run: runExpireGrant }),
@@ -118,4 +171,6 @@ export const jobs = [
   defineJob({ kind: "memberships.scan_renewals", lane: "bulk", priority: 5, maxAttempts: 6, input: ScanRenewalsInput, run: runScanRenewals }),
   defineJob({ kind: "memberships.charge_renewal", lane: "fast", priority: 3, maxAttempts: 6, input: ChargeRenewalInput, run: runChargeRenewal }),
   defineJob({ kind: "ledger.reconcile", lane: "bulk", priority: 9, maxAttempts: 3, timeoutMs: 110_000, input: ReconcileInput, run: runReconcile }),
+  defineJob({ kind: "credits.attribute_referrals", lane: "bulk", priority: 9, maxAttempts: 6, input: AttributeReferralsInput, run: runAttributeReferrals }),
+  defineJob({ kind: "credits.qualify_referral_rewards", lane: "bulk", priority: 5, maxAttempts: 6, input: QualifyReferralRewardsInput, run: runQualifyReferralRewards }),
 ];

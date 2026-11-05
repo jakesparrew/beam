@@ -2,13 +2,16 @@
  * credits settings (02-data-model 5.4, credits rule 6a). Facade read by `pnpm gen:indexes`.
  * The `credits` key uses the `CreditsSettings` Zod schema and the rule 6a defaults of
  * `@beam/core/credits` (Convention 3: snake_case fields); edited only through platform's
- * `updateSetting`. `referrals` (R3) keeps its placeholder schema until credits-P9.
+ * `updateSetting`. `referrals` (R3, credits-P9, rule 62): the default referrer and referee
+ * rewards, the yearly cap of rewarded referrals, the qualification days and the commission window.
  */
 import { z } from "zod";
 import { CREDITS_SETTINGS_DEFAULTS, CreditsSettings } from "@beam/core/credits";
+// `@beam/core/credits` does not re-export `referrals.ts` yet (requested from the owner of its index).
+import { REFERRALS_SETTINGS_DEFAULTS, ReferralsSettings } from "../../../../packages/core/src/credits/referrals";
 import { defineSetting } from "@/lib/settings";
 
-export { CreditsSettings };
+export { CreditsSettings, ReferralsSettings };
 
 export const settings = [
   defineSetting({
@@ -19,9 +22,9 @@ export const settings = [
   }),
   defineSetting({
     key: "referrals",
-    schema: z.record(z.string(), z.unknown()),
-    default: {},
-    description: "Referral rewards, yearly cap, qualification days and commission window (R3; placeholder schema)",
+    schema: ReferralsSettings,
+    default: structuredClone(REFERRALS_SETTINGS_DEFAULTS),
+    description: "Referral rewards, yearly cap, qualification days and commission window",
   }),
 ] as const;
 

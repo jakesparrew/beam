@@ -18,7 +18,10 @@
  *   anonymised person, so the owner's history stays correct (edge case 26). R2 sharing reviews
  *   (credits-P8): the person is removed from every reviewed person set and the notes are nulled;
  *   a review about the person as guest, on a deleted grant, or left with an empty set is deleted.
- *   R3 referral rows are added by credits-P9.
+ *   R3 (credits-P9): the person's referral codes and every attribution where they are the
+ *   referred person or the referrer are deleted; partner commissions stay (`retained_legal`, no
+ *   person column) with `attribution_id` nulled by the FK. The export lists the codes, the
+ *   attribution as referred person and, as referrer, only counts.
  * - `sweep`: one handler per seeded retention key (cross-module D37), at most 5,000 rows per call;
  *   the two accounting-linked keys never touch a record younger than 3653 days (D34).
  */
@@ -111,6 +114,16 @@ export const sweep: Record<string, (tx: Tx, cutoff: Date) => Promise<number>> = 
       sql`delete from credit_reconciliation_runs where id in (
             select id from credit_reconciliation_runs where started_at < ${cutoff.toISOString()}::timestamptz limit ${BATCH}) returning id`,
     ),
+  /** R3 (credits-P9): attributions older than the cutoff (3 years) that no partner commission links to. */
+  "credits.referral_attributions": (tx, cutoff) =>
+    affected(
+      tx,
+      sql`delete from referral_attributions where id in (
+            select a.id from referral_attributions a
+            where a.attributed_at < ${cutoff.toISOString()}::timestamptz
+              and not exists (select 1 from partner_commissions c where c.attribution_id = a.id)
+            order by a.id limit ${BATCH}) returning id`,
+    ),
 };
 
 // ---------------------------------------------------------------------------
@@ -172,7 +185,25 @@ async function exportPerson(tx: Tx, personId: string): Promise<PrivacyExport> {
         from memberships m left join products p on p.id = m.product_id
         where m.person_id = ${pid} order by m.started_at, m.id`,
   );
-  return { grants, entries, usesOnOtherGrants, sharesGiven, sharesReceived, memberships };
+  // R3: own codes, attributions where the person was referred, and as referrer only a count.
+  const referralCodes = await query<Record<string, unknown>>(
+    tx,
+    sql`select c.code, c.is_active, c.created_at from referral_codes c where c.person_id = ${pid} order by c.created_at`,
+  );
+  const referredBy = await query<Record<string, unknown>>(
+    tx,
+    sql`select a.source, a.status, a.attributed_at, a.first_paid_at, a.qualifies_at, a.rejected_reason,
+               ${shortName("rp")} as referrer, co.name as partner
+        from referral_attributions a left join persons rp on rp.id = a.referrer_person_id left join companies co on co.id = a.partner_company_id
+        where a.referred_person_id = ${pid}`,
+  );
+  const [asReferrer] = await query<{ referred: number; rewarded: number }>(
+    tx,
+    sql`select count(*)::int as referred, count(*) filter (where status = 'rewarded')::int as rewarded
+        from referral_attributions where referrer_person_id = ${pid}`,
+  );
+  const referrals = { codes: referralCodes, referredBy, asReferrer: { referredFriends: Number(asReferrer?.referred ?? 0), rewarded: Number(asReferrer?.rewarded ?? 0) } };
+  return { grants, entries, usesOnOtherGrants, sharesGiven, sharesReceived, memberships, referrals };
 }
 
 // ---------------------------------------------------------------------------
@@ -284,6 +315,20 @@ async function erasePerson(tx: Tx, personId: string): Promise<EraseReportRow[]> 
   const memberships = await eraseMemberships(tx, ctx, personId);
   const [periods] = await query<{ n: number }>(tx, sql`select count(*)::int as n from membership_periods where person_id = ${pid}`);
 
+  // R3: attributions as referred or referrer and own codes are deleted; the FKs null
+  // `partner_commissions.attribution_id` and `credit_grants.referral_attribution_id` (commissions are
+  // the partner's financial record and stay).
+  const [linked] = await query<{ n: number }>(
+    tx,
+    sql`select count(*)::int as n from partner_commissions c join referral_attributions a on a.id = c.attribution_id
+        where a.referred_person_id = ${pid} or a.referrer_person_id = ${pid}`,
+  );
+  const attributions = await affected(
+    tx,
+    sql`delete from referral_attributions where referred_person_id = ${pid} or referrer_person_id = ${pid} returning id`,
+  );
+  const codes = await affected(tx, sql`delete from referral_codes where person_id = ${pid} returning id`);
+
   return [
     { table: "credit_grants", rows: retained.length, action: "retained_legal" },
     { table: "credit_grants", rows: goodwillGrants, action: "deleted" },
@@ -295,11 +340,24 @@ async function erasePerson(tx: Tx, personId: string): Promise<EraseReportRow[]> 
     { table: "credit_sharing_reviews", rows: reviewsRedacted, action: "anonymised" },
     { table: "memberships", rows: memberships, action: "retained_legal" },
     { table: "membership_periods", rows: Number(periods?.n ?? 0), action: "retained_legal" },
+    { table: "referral_codes", rows: codes, action: "deleted" },
+    { table: "referral_attributions", rows: attributions, action: "deleted" },
+    { table: "partner_commissions", rows: Number(linked?.n ?? 0), action: "retained_legal" },
   ];
 }
 
 export const privacy: PrivacyRegistration<Tx> = {
-  tables: ["credit_grants", "credit_entries", "memberships", "membership_periods", "package_shares", "credit_sharing_reviews"],
+  tables: [
+    "credit_grants",
+    "credit_entries",
+    "memberships",
+    "membership_periods",
+    "package_shares",
+    "credit_sharing_reviews",
+    "referral_codes",
+    "referral_attributions",
+    "partner_commissions",
+  ],
   export: (tx, personId) => exportPerson(tx, personId),
   erase: (tx, personId) => erasePerson(tx, personId),
   sweep,

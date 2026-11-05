@@ -9,8 +9,11 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { t } from "@beam/core/i18n";
+import type * as I18nLib from "@/lib/i18n";
+import type * as CtxLib from "@/lib/ctx";
+import type * as CreditsQueries from "@/modules/credits/queries";
 
-const fx = vi.hoisted(() => ({ canAdjust: true, detail: null as unknown }));
+const fx = vi.hoisted(() => ({ canAdjust: true, detail: undefined as unknown as object }));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: () => undefined, push: () => undefined }),
@@ -19,18 +22,18 @@ vi.mock("next/navigation", () => ({
   },
 }));
 vi.mock("@/lib/auth", () => ({
-  requireStaff: async () => ({ kind: "staff", userId: "00000000-0000-4000-8000-000000000001" }),
+  requireStaff: () => Promise.resolve({ kind: "staff", userId: "00000000-0000-4000-8000-000000000001" }),
   hasPermission: (_actor: unknown, permission: string) => permission !== "credits.adjust" || fx.canAdjust,
-  getSession: async () => null,
+  getSession: () => Promise.resolve(null),
 }));
-vi.mock("@/lib/i18n", async (orig) => ({ ...(await orig<typeof import("@/lib/i18n")>()), adminLocale: async () => "en" }));
-vi.mock("@/lib/ctx", async (orig) => ({ ...(await orig<typeof import("@/lib/ctx")>()), getAppDb: async () => ({}) }));
+vi.mock("@/lib/i18n", async (orig) => ({ ...(await orig<typeof I18nLib>()), adminLocale: () => Promise.resolve("en") }));
+vi.mock("@/lib/ctx", async (orig) => ({ ...(await orig<typeof CtxLib>()), getAppDb: () => Promise.resolve({}) }));
 vi.mock("@/modules/credits/queries", async (orig) => ({
-  ...(await orig<typeof import("@/modules/credits/queries")>()),
-  getGrant: async () => fx.detail,
+  ...(await orig<typeof CreditsQueries>()),
+  getGrant: () => Promise.resolve(fx.detail),
 }));
 vi.mock("@/modules/credits/actions", () => {
-  const ok = async () => ({ ok: true, data: null });
+  const ok = () => Promise.resolve({ ok: true, data: null });
   return new Proxy({}, { get: (_t, name) => (name === "then" ? undefined : ok) });
 });
 

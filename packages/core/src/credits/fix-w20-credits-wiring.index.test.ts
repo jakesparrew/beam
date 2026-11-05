@@ -3,7 +3,7 @@
  * (credits-P9 request) and no longer carries the Wave 0 `SharingReviewRow` guess (credits-P8
  * request; the real row type lives in `apps/web/modules/credits/server/sharing.ts`).
  */
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 import * as credits from "./index";
 import * as referrals from "./referrals";
 
@@ -19,9 +19,10 @@ describe("@beam/core/credits barrel", () => {
   });
 
   it("no longer exports the Wave 0 SharingReviewRow guess", () => {
+    // `pnpm typecheck` fails here (unused @ts-expect-error) if the guess ever comes back.
     // @ts-expect-error SharingReviewRow is exported by apps/web/modules/credits/api.ts, not by core.
     type Guess = credits.SharingReviewRow;
-    const absent: Guess | undefined = undefined;
-    expect(absent).toBeUndefined();
+    expectTypeOf<Guess>().toBeAny();
+    expect("SharingReviewRow" in credits).toBe(false);
   });
 });

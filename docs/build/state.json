@@ -754,14 +754,16 @@
       "attempts": 0
     },
     "email-P5": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "baseSha": "32953d1",
       "runId": null,
       "startedAt": "2026-11-04T22:36:23Z",
       "branchSha": "b06cc76",
-      "endedAt": "2026-11-04T23:22:19Z",
-      "minutes": 45
+      "endedAt": "2026-11-04T23:39:58Z",
+      "minutes": 45,
+      "mergeSha": "5e6bfc3",
+      "mergedAt": "2026-11-05T00:00:24Z"
     },
     "automation-P5": {
       "status": "merged",

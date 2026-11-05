@@ -178,3 +178,5 @@ One entry per merge batch and gate (runbook section 5.7, adapted by OD-3).
 - platform-P10: merged as `19c32c1` in batch `g93-batch`.
 - webinar-P2: merged as `3d4409b` in batch `g93-batch`.
 - Batch `g93-batch` (automation-P5 platform-P10 webinar-P2): merge gate green, peak 9728 MB.
+- email-P5: merged as `5e6bfc3` in batch `g94-batch`.
+- Batch `g94-batch` (email-P5): merge gate green, peak 11620 MB.

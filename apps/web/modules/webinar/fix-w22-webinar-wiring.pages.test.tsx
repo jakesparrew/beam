@@ -19,7 +19,7 @@ import { makeRegistration, makeWebinar } from "./test/factories";
 const fx = vi.hoisted(() => ({
   perms: new Set<string>(["webinars.host", "persons.read", "persons.export"]),
   calls: [] as Array<{ name: string; input: unknown }>,
-  results: {} as Record<string, unknown>,
+  results: new Map<string, unknown>(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -40,7 +40,7 @@ vi.mock("@/lib/i18n", async (orig) => ({ ...(await orig<typeof I18nLib>()), admi
 vi.mock("@/modules/webinar/actions", () => {
   const record = (name: string) => (input: unknown) => {
     fx.calls.push({ name, input });
-    return Promise.resolve(fx.results[name] ?? { ok: true, data: { changed: true } });
+    return Promise.resolve(fx.results.get(name) ?? { ok: true, data: { changed: true } });
   };
   const names = ["cancelRegistrationByStaff", "exportWebinarRegistrants", "moderate", "registerPersonByStaff", "resendAccessLink", "revokeAccessLink"];
   return Object.fromEntries(names.map((n) => [n, record(n)]));
@@ -65,7 +65,7 @@ afterAll(async () => {
 beforeEach(() => {
   fx.perms = new Set(["webinars.host", "persons.read", "persons.export"]);
   fx.calls = [];
-  fx.results = {};
+  fx.results = new Map();
 });
 
 type Props = Record<string, unknown> & { children?: ReactNode };
@@ -107,7 +107,7 @@ describe("registrations page: Export CSV (webinar spec 5.1, rule 41)", () => {
     expect(textOf(form!.props.children)).toBe(en("webinar.admin.registrations.export"));
 
     const fileId = "0d6b3c1e-6a43-4c39-9a2d-5b8f0e1f2a3b";
-    fx.results.exportWebinarRegistrants = { ok: true, data: { fileId } };
+    fx.results.set("exportWebinarRegistrants", { ok: true, data: { fileId } });
     const url = await redirectOf(() => (form!.props.action as () => Promise<void>)());
     expect(fx.calls).toEqual([{ name: "exportWebinarRegistrants", input: { webinarId: w.id } }]);
     expect(url).toBe(`/admin/webinars/${w.id}/registrations?file=${fileId}`);
@@ -121,7 +121,7 @@ describe("registrations page: Export CSV (webinar spec 5.1, rule 41)", () => {
   it("reports a refused export as an error and hides the button without persons.export", async () => {
     const w = await makeWebinar(h.db, {}, { published: true });
     await makeRegistration(h.db, { webinarId: w.id });
-    fx.results.exportWebinarRegistrants = { ok: false, error: { code: "forbidden", message: "forbidden" } };
+    fx.results.set("exportWebinarRegistrants", { ok: false, error: { code: "forbidden", message: "forbidden" } });
     const tree = await registrationsTree(w.id);
     const url = await redirectOf(() => (exportForm(tree)!.props.action as () => Promise<void>)());
     expect(url).toBe(`/admin/webinars/${w.id}/registrations?error=forbidden`);

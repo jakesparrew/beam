@@ -853,7 +853,7 @@ export type AutomationRulesView = {
 /** `settings.automation_rules` with its version, in the shape of `updateAutomationRules`. */
 export async function getAutomationRules(db: DbOrTx): Promise<AutomationRulesView> {
   const { value, version } = await getSettingWithVersion(db, "automation_rules");
-  const v = value as { max_marketing_per_day: number; max_marketing_per_week: number; quiet_start: string; quiet_end: string; webhook_hosts: string[] };
+  const v = value;
   return {
     version,
     maxMarketingPerDay: v.max_marketing_per_day,

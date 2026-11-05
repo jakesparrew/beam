@@ -636,7 +636,7 @@ export const updateAutomationRules = action(
   { name: "automation.rules_update", audience: "staff", permission: "automations.publish", input: UpdateRulesInput, audit: false },
   async (ctx, input): Promise<{ ok: true; version: number }> => {
     const current = await getSettingWithVersion(ctx.tx, "automation_rules");
-    const before = current.value as AutomationRulesValue;
+    const before: AutomationRulesValue = current.value;
     const hosts = normalHosts(input.webhookHosts);
     const hostsChanged = hosts.join(",") !== normalHosts(before.webhook_hosts).join(",");
     if (hostsChanged) ctx.require("settings.write");

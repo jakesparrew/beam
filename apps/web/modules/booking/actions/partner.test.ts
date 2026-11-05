@@ -218,7 +218,9 @@ describe("listMyPartnerHolds (R3)", () => {
     const [row] = rows;
     expect(row).toMatchObject({ kind: "partner", quantity: 3, used: 1, companyId: companyA, companyName: "Partner A BV", note: null, isStarted: false, isCancelled: false });
     expect(row!.seats).toHaveLength(1);
-    expect(row!.seats[0]).toEqual({ bookingId: expect.any(String), firstName: "Guest15", lastName: "Example", status: "confirmed" });
+    const { bookingId, ...visible } = row!.seats[0]!;
+    expect(bookingId).toMatch(/^[0-9a-f-]{36}$/);
+    expect(visible).toEqual({ firstName: "Guest15", lastName: "Example", status: "confirmed" });
     const shown = JSON.stringify(rows);
     expect(shown).not.toContain(general.personId);
     expect(shown).not.toContain("Guest14");

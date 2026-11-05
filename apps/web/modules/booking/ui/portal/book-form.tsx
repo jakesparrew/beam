@@ -6,7 +6,10 @@
  * terms, the health declaration notice and the night emergency contact. A plain `<form>` posting
  * the page's server action, so it works without client JavaScript; `clientKey` makes a double
  * submit land on the same order (edge case 2). The error from a `conflict` is announced with
- * `role="alert"` and linked to its field. Every text comes from the page.
+ * `role="alert"` and linked to its field. Every text comes from the page. booking-P7 (R22): on a
+ * Lead Magnet in the lead window a lead sees `leadSeatNotice` ("You book one of the places
+ * reserved for leads"); a customer without a general seat never gets this form: the page shows
+ * "Opens for you on ..." and the customer queue button instead.
  */
 import Link from "next/link";
 import type { Route } from "next";
@@ -43,6 +46,8 @@ export type BookFormProps = {
   policy: { text: string; notice: string };
   /** The translated error and, when known, the field it belongs to. */
   error: { message: string; field: "terms" | "emergency" | "payment" | null } | null;
+  /** R22: shown when the booking will use a lead-reserved seat. */
+  leadSeatNotice?: string | null;
   labels: BookFormLabels;
 };
 
@@ -62,6 +67,12 @@ export function BookForm(p: BookFormProps) {
       {p.error ? (
         <p id={errId} role="alert" className="rounded-md border border-destructive p-3 text-sm" data-testid="book-error">
           {p.error.message}
+        </p>
+      ) : null}
+
+      {p.leadSeatNotice ? (
+        <p className="rounded-md border p-3 text-sm" data-testid="lead-seat-notice">
+          {p.leadSeatNotice}
         </p>
       ) : null}
 

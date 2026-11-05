@@ -10,17 +10,24 @@ import { bookings, capacityHolds, orderLines, orders, persons, sessions, ticketT
 import {
   AlreadyBookedError,
   BookingConflictError,
+  NeedsReviewError,
   SessionFullError,
   bookingTransition,
   computeAvailability,
+  deriveIpSalt,
+  duplicateSignals,
+  hashIp,
+  normaliseEmail,
   transition as waitlistTransition,
+  type Availability,
   type AvailabilityRow,
   type AvailabilityViewer,
   type BookingRules,
+  type DupCandidate,
   type PaidWith,
 } from "@beam/core/booking";
 import { URL_SEGMENT, formatDateTime, pick, type Locale } from "@beam/core/i18n";
-import { NotFoundError, ValidationError, actorHasPermission, and, eq, gt, inArray, or, sql, type Ctx } from "@/lib/ctx";
+import { NotFoundError, ValidationError, actorHasPermission, and, createCtx, eq, gt, inArray, ne, or, sql, writeDurably, type Ctx } from "@/lib/ctx";
 import { getSetting } from "@/lib/settings";
 import { createOrder } from "@/modules/commerce/api";
 import { InsufficientCreditsError, SharingNotAllowedError, consumeCredits, getMembershipForPerson } from "@/modules/credits/api";
@@ -32,6 +39,7 @@ import { linkOrderLines } from "./order-hooks";
 import { qrAttachment, renderCheckinQr } from "./qr";
 import { ensureTermsAccepted } from "./terms";
 
+export type { Availability };
 export type SessionRow = typeof sessions.$inferSelect;
 export type BookingRow = typeof bookings.$inferSelect;
 
@@ -116,6 +124,123 @@ export async function viewerFor(db: DbOrTx, session: Pick<SessionRow, "isMemberO
   const isMember = session.isMemberOnly ? (await getMembershipForPerson(db, personId)).isMember : false;
   const status = session.isLeadMagnet ? (await getPersonStatus(db, personId)).status : isMember ? "member" : "customer";
   return { status, isMember };
+}
+
+/**
+ * booking-P7 (R20-R27): the phase-aware availability of one session for one person (or the
+ * public with `personId = null`): the crm status at this moment (`getPersonStatus(...).status`,
+ * staff override respected) decides the lead, customer or public pools and queue; a customer in
+ * the lead window with no general seat left gets `opensAt = lead_window_end_at`, a lead in
+ * `customer_release` gets `opensAt = opens_for_public_at` (R22, R24). The view computes the pools
+ * with the database clock, so `at` only moves the horizon and cut-off checks.
+ */
+export async function availabilityFor(db: DbOrTx, sessionId: string, personId: string | null, at: Date = new Date()): Promise<Availability> {
+  const [session] = await db.select().from(sessions).where(eq(sessions.id, sessionId));
+  if (!session) throw new NotFoundError("session_not_found");
+  const rules: BookingRules = await getSetting(db, "booking_rules");
+  const row = await readAvailabilityRow(db, session);
+  return computeAvailability(row, await viewerFor(db, session, personId), at, rules);
+}
+
+/**
+ * R48 for a direct lead-seat booking: the duplicate signals of the person against the session's
+ * other waitlist entries and live bookings (same normalised email, phone, name and birth date, or
+ * the same IP hash within 24 h in the `lead` queue).
+ */
+async function leadSeatSignals(tx: DbOrTx, ctx: Ctx, sessionId: string, personId: string, entryId: string): Promise<{ signals: string[]; emailNormalised: string | null; joinIpHash: string | null }> {
+  const [me] = await tx
+    .select({ email: persons.email, phone: persons.phone, lastName: persons.lastName, birthOn: persons.birthOn })
+    .from(persons)
+    .where(eq(persons.id, personId));
+  if (!me) throw new NotFoundError("person_not_found");
+  const emailNormalised = me.email ? normaliseEmail(me.email) : null;
+  const joinIpHash = ctx.ip ? hashIp(ctx.ip, deriveIpSalt(process.env.AUTH_SECRET ?? "")) : null;
+  const entries = await tx
+    .select({
+      id: waitlistEntries.id,
+      personId: waitlistEntries.personId,
+      emailNormalised: waitlistEntries.emailNormalised,
+      joinIpHash: waitlistEntries.joinIpHash,
+      joinedAt: waitlistEntries.joinedAt,
+      queue: waitlistEntries.queue,
+      phone: persons.phone,
+      lastName: persons.lastName,
+      birthOn: persons.birthOn,
+    })
+    .from(waitlistEntries)
+    .innerJoin(persons, eq(persons.id, waitlistEntries.personId))
+    .where(and(eq(waitlistEntries.sessionId, sessionId), ne(waitlistEntries.personId, personId)));
+  const live = await tx
+    .select({ id: bookings.id, personId: bookings.personId, createdAt: bookings.createdAt, email: persons.email, phone: persons.phone, lastName: persons.lastName, birthOn: persons.birthOn })
+    .from(bookings)
+    .innerJoin(persons, eq(persons.id, bookings.personId))
+    .where(and(eq(bookings.sessionId, sessionId), inArray(bookings.status, [...LIVE_STATUSES]), ne(bookings.personId, personId)));
+  const others: DupCandidate[] = [
+    ...entries.map((e) => ({ ...e, birthOn: e.birthOn ?? null })),
+    ...live.map((b) => ({
+      id: b.id,
+      personId: b.personId,
+      emailNormalised: b.email ? normaliseEmail(b.email) : null,
+      phone: b.phone,
+      lastName: b.lastName,
+      birthOn: b.birthOn ?? null,
+      joinIpHash: null,
+      joinedAt: b.createdAt,
+      queue: null,
+    })),
+  ];
+  const candidate: DupCandidate = { id: entryId, personId, emailNormalised, phone: me.phone, lastName: me.lastName, birthOn: me.birthOn ?? null, joinIpHash, joinedAt: ctx.now, queue: "lead" };
+  return { signals: duplicateSignals(candidate, others), emailNormalised, joinIpHash };
+}
+
+/**
+ * R48: a suspicious direct lead-seat booking is refused with `needs_review` and the person is put
+ * on the `lead` queue, flagged, instead. The refusal rolls the booking transaction back, so the
+ * entry and its `waitlist.joined` / `waitlist.flagged` facts are written durably (after the
+ * rollback, on the app database). An existing entry of the person is left as it is.
+ */
+async function flagLeadSeatAttempt(
+  ctx: Ctx,
+  session: SessionRow,
+  personId: string,
+  found: { entryId: string; signals: string[]; emailNormalised: string | null; joinIpHash: string | null },
+): Promise<void> {
+  await writeDurably(ctx, async (db) => {
+    const [entry] = await db
+      .insert(waitlistEntries)
+      .values({
+        id: found.entryId,
+        sessionId: session.id,
+        personId,
+        queue: "lead",
+        state: "waiting",
+        joinedAt: ctx.now,
+        isFlaggedDuplicate: true,
+        flagReason: found.signals.join(","),
+        emailNormalised: found.emailNormalised,
+        joinIpHash: found.joinIpHash,
+      })
+      .onConflictDoNothing()
+      .returning();
+    if (!entry) return;
+    const factCtx = createCtx({ tx: db as Tx, actor: ctx.actor, now: ctx.now, requestId: ctx.requestId, durableMode: "immediate" });
+    const data = {
+      session_id: session.id,
+      session_kind: session.kind,
+      event_category: session.eventCategory,
+      starts_at: session.startsAt,
+      paid_with: null,
+      is_guest: false,
+      guest_of_person_id: null,
+      owner_person_id: personId,
+      is_first_booking: false,
+      is_first_visit: false,
+      queue: entry.queue,
+    };
+    const ref = { type: "waitlist_entry", id: entry.id } as const;
+    await factCtx.recordEvent({ kind: "waitlist.joined", personId, data: { ...data, by: "customer" }, ref, dedupeKey: `waitlist:${entry.id}:joined:0:0` });
+    await factCtx.recordEvent({ kind: "waitlist.flagged", personId, data: { ...data, signals: found.signals }, ref, dedupeKey: `waitlist:${entry.id}:flagged:0:0` });
+  });
 }
 
 /** R17: credits' two error classes, `SharingNotAllowedError` first. */
@@ -326,6 +451,11 @@ export async function bookSeats(tx: Tx, ctx: Ctx, input: BookSeatsInput): Promis
   if (session.isMemberOnly && !viewer.isMember && !override) throw new BookingConflictError("member_only");
   const availability = await readAvailabilityRow(tx, session);
   const computed = computeAvailability(availability, viewer, ctx.now, rules);
+  if (!staff && computed.reason === "not_open_yet" && computed.opensAt && computed.phase !== "none") {
+    // R22, R24: the seats left are not for this person yet (lead seats in the lead window, or
+    // released seats for customers first); the page shows "Opens for you on ..." and the queue.
+    throw new SessionFullError({ opensAt: computed.opensAt.toISOString(), phase: computed.phase, queue: computed.queue });
+  }
   if (!staff && computed.reason !== "ok" && computed.reason !== "full") refuseFor(computed.reason);
 
   // R62b, then the rows (ids first so terms and credits can reference the owner row).
@@ -382,6 +512,17 @@ export async function bookSeats(tx: Tx, ctx: Ctx, input: BookSeatsInput): Promis
     if (free < units) {
       if (!(override && input.overCapacity)) throw new SessionFullError({ free, needed: units });
       isOverCapacity = true;
+    }
+  }
+
+  // R48: a direct lead-seat booking runs the duplicate check; a suspicious one is refused and the
+  // person goes on the lead queue, flagged, for staff review.
+  if (!staff && computed.useLeadSeat && !input.holdId) {
+    const entryId = randomUUID();
+    const found = await leadSeatSignals(tx, ctx, session.id, input.personId, entryId);
+    if (found.signals.length) {
+      await flagLeadSeatAttempt(ctx, session, input.personId, { entryId, ...found });
+      throw new NeedsReviewError({ queue: "lead" });
     }
   }
 

@@ -520,11 +520,12 @@
       "add_guest": "Ajouter un invité",
       "remove_guest": "Retirer cet invité",
       "guest_number": "Invité {n}",
-      "opens_at": "Réservation possible à partir du {date}",
+      "opens_at": "Ouvert pour vous le {date}",
       "no_pay_option": "Cette séance ne peut pas être payée en ligne. Contactez l’accueil.",
       "waitlist_joined": "Vous êtes sur la liste d’attente. Nous vous écrivons dès qu’une place se libère.",
       "when": "Quand",
-      "where": "Où"
+      "where": "Où",
+      "lead_seat_notice": "Vous réservez une des places réservées aux leads."
     },
     "portalBookings": {
       "title": "Mes réservations",
@@ -691,11 +692,43 @@
         "heading": "L’offre a expiré",
         "intro": "La place pour {title} le {date} n’a pas été prise à temps et est allée à la personne suivante.",
         "cta": "Voir la séance"
+      },
+      "lead_window_open": {
+        "subject": "La période réservée aux leads est terminée : votre place pour {title} est prête",
+        "heading": "Votre place est prête",
+        "intro": "La période réservée aux leads est terminée : votre place pour {title} le {date} est prête. Nous vous la réservons jusqu’à {expiresAt}.",
+        "cta": "Prendre ma place"
       }
     },
     "new": {
       "starts_at": "Début",
       "create_draft": "Créer comme brouillon"
+    },
+    "lead": {
+      "title": "Lead Magnet",
+      "intro": "Réservez des places pour les leads (les personnes qui n’ont encore rien acheté) pendant une période dédiée. Les heures sont celles de Bruxelles.",
+      "is_lead_magnet": "Cet événement est un Lead Magnet",
+      "seats_mode": "Places réservées aux leads",
+      "seats_number": "Un nombre de places",
+      "seats_pct": "Un pourcentage de la capacité (arrondi vers le bas)",
+      "seats": "Nombre de places",
+      "pct": "Pourcentage",
+      "window_start": "Début de la période leads",
+      "window_end": "Fin de la période leads",
+      "release_rule": "Après la période leads",
+      "public_release": "Ouvert à tous à partir de (facultatif)",
+      "public_release_hint": "Vide : la fin de la période leads plus le délai de réservation.",
+      "claim_window": "Délai pour prendre la place (minutes)",
+      "position_visible": "Montrer aux personnes en liste d’attente leur position dans leur file",
+      "flag_off": "L’accès Lead Magnet n’est pas encore activé (feature flag ff_booking_lead_priority).",
+      "not_event": "Seuls les événements peuvent être un Lead Magnet.",
+      "phase": "Phase actuelle : {phase}",
+      "reserved_remaining": "Places leads restantes : {count}",
+      "opens_for_customers": "Ouvert aux clients : {date}",
+      "opens_for_public": "Ouvert à tous : {date}",
+      "error_window": "Vérifiez la période leads : elle doit se terminer après son début, dans le futur et avant le début de l’événement.",
+      "error_seats": "Indiquez un nombre de places ou un pourcentage, au maximum la capacité.",
+      "error_public_release": "L’ouverture à tous doit se situer entre la fin de la période leads et le début de l’événement."
     }
   }
 }

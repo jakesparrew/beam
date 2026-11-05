@@ -6,6 +6,7 @@ import { brusselsDate, brusselsTime } from "@beam/core/booking";
 import { formatDate, formatDateTime, type Locale, type LocalizedText } from "@beam/core/i18n";
 import { hasPermission, requireStaff } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
+import { flag } from "@/lib/flags";
 import { adminLocale, softTranslator, translator } from "@/lib/i18n";
 import { getSetting } from "@/lib/settings";
 import { attendeeListLabels, attendeeRow, bookingErrorLabels, changeDialogLabels, getSession, getSessionAttendees, listHolds, listSessionsInRange } from "@/modules/booking/queries";
@@ -13,17 +14,24 @@ import { AttendeeList } from "@/modules/booking/ui/attendee-list";
 import { CancelSessionDialog } from "@/modules/booking/ui/cancel-dialog";
 import { DeleteHoldButton, HoldForm } from "@/modules/booking/ui/hold-form";
 import { SessionWaitlistTab } from "@/modules/booking/ui/session-waitlist-tab";
+import { LeadMagnetForm } from "@/modules/booking/ui/lead-magnet-form";
+import { readAvailabilityRow } from "@/modules/booking/server/book";
 
 const show = (text: LocalizedText | null | undefined, locale: Locale) => text?.[locale] || text?.["nl-BE"] || text?.en || text?.["fr-BE"] || "";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const HOLD_KINDS = ["staff", "partner", "host", "speaker", "blocked"] as const;
 type Tr = (key: string, params?: Record<string, string | number>) => string;
+const RELEASE_RULES = ["customers_then_public", "public", "keep_for_leads"] as const;
+/** A stored instant as the Brussels wall clock of a `datetime-local` input. */
+const localInput = (d: Date | null) => (d ? `${brusselsDate(d)}T${brusselsTime(d)}` : "");
 
 /**
  * `/admin/sessions/[id]` (`bookings.read`, booking spec 5.1): the session header (time, kind,
  * event category, capacity, held, booked, open offers, waiting), the attendee list with check
  * in, undo, no-show, notes and cancel (`bookings.write`), the holds with P2's hold form and the
- * waitlist tab. A cancelled session shows its reason read-only.
+ * waitlist tab. A cancelled session shows its reason read-only. booking-P7 (R2): the Lead Magnet
+ * tab with the current phase, lead places left and opening times, and the configuration form
+ * (`bookings.override`, flag `ff_booking_lead_priority`, events only).
  */
 export default async function SessionDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const actor = await requireStaff({ permission: "bookings.read" });
@@ -38,11 +46,13 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
   const now = new Date();
   const canWrite = hasPermission(actor, "bookings.write");
   const canOverride = hasPermission(actor, "bookings.override");
-  const [blocks, attendees, holds, rules] = await Promise.all([
+  const [blocks, attendees, holds, rules, leadOn, availability] = await Promise.all([
     listSessionsInRange(db, { from: session.startsAt, to: new Date(session.startsAt.getTime() + 1000) }),
     getSessionAttendees(db, id),
     listHolds(db, { sessionId: id, now: new Date(0) }),
     getSetting(db, "booking_rules"),
+    flag("ff_booking_lead_priority", actor),
+    readAvailabilityRow(db, session),
   ]);
   const block = blocks.find((b) => b.id === id);
   const rows = attendees.map((a) => attendeeRow(a, session, rules, { now, locale, tr, canOverride }));
@@ -160,6 +170,67 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
           />
         ) : null}
       </section>
+
+      {session.kind === "event" && (leadOn || session.isLeadMagnet) ? (
+        <section aria-labelledby="lead" className="grid gap-3" data-testid="lead-tab">
+          <h2 id="lead" className="text-xl font-semibold">
+            {tr("booking.session.tab_lead")}
+          </h2>
+          <p className="text-sm text-muted-foreground">{tr("booking.lead.intro")}</p>
+          {session.isLeadMagnet ? (
+            <dl className="grid gap-1 rounded-md border p-3 text-sm" data-testid="lead-status">
+              <dt className="sr-only">{tr("booking.session.lead_phase")}</dt>
+              <dd>{tr("booking.lead.phase", { phase: tr(`booking.leadPhase.${availability.leadPhase}`) })}</dd>
+              <dd>{tr("booking.lead.reserved_remaining", { count: availability.leadReservedRemaining })}</dd>
+              {availability.opensForCustomersAt ? <dd>{tr("booking.lead.opens_for_customers", { date: formatDateTime(availability.opensForCustomersAt, locale) })}</dd> : null}
+              {availability.opensForPublicAt ? <dd>{tr("booking.lead.opens_for_public", { date: formatDateTime(availability.opensForPublicAt, locale) })}</dd> : null}
+            </dl>
+          ) : null}
+          {!leadOn ? (
+            <p className="text-sm" role="status">
+              {tr("booking.lead.flag_off")}
+            </p>
+          ) : canOverride && !cancelled && session.startsAt.getTime() > now.getTime() ? (
+            <LeadMagnetForm
+              initial={{
+                sessionId: id,
+                capacity: availability.capacity,
+                isLeadMagnet: session.isLeadMagnet,
+                leadReservedSeats: session.leadReservedSeats,
+                leadWindowStartLocal: localInput(session.leadWindowStartAt),
+                leadWindowEndLocal: localInput(session.leadWindowEndAt),
+                releaseRule: session.leadReleaseRule,
+                publicReleaseLocal: localInput(session.publicReleaseAt),
+                claimWindowMinutes: session.claimWindowMinutes,
+                isWaitlistPositionVisible: session.isWaitlistPositionVisible,
+              }}
+              labels={{
+                isLeadMagnet: tr("booking.lead.is_lead_magnet"),
+                seatsMode: tr("booking.lead.seats_mode"),
+                seatsNumber: tr("booking.lead.seats_number"),
+                seatsPct: tr("booking.lead.seats_pct"),
+                seats: tr("booking.lead.seats"),
+                pct: tr("booking.lead.pct"),
+                windowStart: tr("booking.lead.window_start"),
+                windowEnd: tr("booking.lead.window_end"),
+                releaseRule: tr("booking.lead.release_rule"),
+                rules: Object.fromEntries(RELEASE_RULES.map((r) => [r, tr(`booking.releaseRule.${r}`)])) as Record<(typeof RELEASE_RULES)[number], string>,
+                publicRelease: tr("booking.lead.public_release"),
+                publicReleaseHint: tr("booking.lead.public_release_hint"),
+                claimWindow: tr("booking.lead.claim_window"),
+                positionVisible: tr("booking.lead.position_visible"),
+                save: tr("booking.common.save"),
+                saving: tr("booking.common.saving"),
+                saved: tr("booking.common.saved"),
+                errorWindow: tr("booking.lead.error_window"),
+                errorSeats: tr("booking.lead.error_seats"),
+                errorPublicRelease: tr("booking.lead.error_public_release"),
+                errors,
+              }}
+            />
+          ) : null}
+        </section>
+      ) : null}
 
       <section aria-labelledby="waitlist" className="grid gap-3">
         <h2 id="waitlist" className="text-xl font-semibold">

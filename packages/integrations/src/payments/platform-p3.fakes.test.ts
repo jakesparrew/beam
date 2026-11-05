@@ -62,7 +62,7 @@ describe("billit fake", () => {
   it("accepts parties and invoices, finds by reference, marks paid and sends Peppol", async () => {
     const fake = createBillitFake();
     const { partyId } = await fake.upsertParty({ Name: "Example BV", PartyType: "Customer", VATNumber: "BE0123456789", Email: "billing@example.com" });
-    expect(partyId).toMatch(/^billit_\d+$/);
+    expect(partyId).toMatch(/^billit_[a-z0-9]+_\d+$/);
     const input = {
       OrderType: "Invoice" as const,
       OrderDirection: "Income" as const,

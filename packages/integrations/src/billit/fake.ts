@@ -62,6 +62,9 @@ export function createBillitFake(options: { onCall?: OnCall; now?: () => Date } 
   let lose = 0;
   let unreachable = new Set<string>();
   let seq = 0;
+  // A per-instance token keeps ids unique across processes: a re-seeded dev database already holds
+  // the ids an earlier run handed out, and invoices.billit_id is unique.
+  const token = Math.random().toString(36).slice(2, 8);
 
   function run<T>(operation: keyof BillitApi, input: unknown, work: () => T): Promise<T> {
     calls.push({ operation, input, at: now() });
@@ -103,7 +106,7 @@ export function createBillitFake(options: { onCall?: OnCall; now?: () => Date } 
         const existing =
           (input.PartyID && parties.get(input.PartyID)) ||
           (input.ExternalProviderID ? [...parties.values()].find((p) => p.ExternalProviderID === input.ExternalProviderID) : undefined);
-        const partyId = existing?.PartyID ?? `billit_${++seq}`;
+        const partyId = existing?.PartyID ?? `billit_${token}_${++seq}`;
         parties.set(partyId, { ...existing, ...input, PartyID: partyId, anonymised: existing?.anonymised ?? false });
         return { partyId };
       });
@@ -114,7 +117,7 @@ export function createBillitFake(options: { onCall?: OnCall; now?: () => Date } 
         if (found) {
           throw new IntegrationError({ provider: "billit", operation: "orders.create", retryable: false, statusCode: 422, message: `OrderNumber ${input.OrderNumber} already exists` });
         }
-        const orderId = `billit_${++seq}`;
+        const orderId = `billit_${token}_${++seq}`;
         const total = billitTotalInclCents(input.OrderLines);
         orders.set(orderId, {
           OrderID: orderId,

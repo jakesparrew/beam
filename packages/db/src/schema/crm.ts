@@ -2,7 +2,8 @@
  * crm tables (crm spec section 2). Wave 0 (platform-P2) created `persons`, `consent_records`,
  * `suppressions` and `activity_events` with their architecture columns; crm-P1 adds the ADD
  * columns to them (expand only) and creates every other V1 table. R3 tables (`opportunities`,
- * `playbook_stages`, inbox) are added by crm-P8 and crm-P9.
+ * `playbook_stages`, inbox) are added by crm-P8 and crm-P9 (`inbox_threads`, `inbox_messages`
+ * without the R4 AI columns, `inbox_reply_templates`).
  *
  * APPEND tables (`reject_update_delete()` trigger, listed in `APPEND_ONLY_TABLES`):
  * `activity_events`, `consent_records`, `suppressions`, `person_merges`, `person_declarations`.
@@ -41,6 +42,7 @@ import {
   type ActorJson,
   type LocalizedText,
 } from "./_shared";
+import { emailMessages } from "./email";
 import { users } from "./platform";
 
 /** `tsvector` (read-only generated column). */
@@ -196,6 +198,15 @@ export const opportunitiesStage = pgEnum("opportunities_stage", OPPORTUNITY_STAG
 export const PLAYBOOK_PIPELINES = ["b2b", "b2c"] as const;
 export type PlaybookPipeline = (typeof PLAYBOOK_PIPELINES)[number];
 export const playbookStagesPipeline = pgEnum("playbook_stages_pipeline", PLAYBOOK_PIPELINES);
+export const INBOX_CHANNELS = ["email", "instagram", "messenger", "form"] as const;
+export type InboxChannel = (typeof INBOX_CHANNELS)[number];
+export const inboxThreadsChannel = pgEnum("inbox_threads_channel", INBOX_CHANNELS);
+export const INBOX_THREAD_STATUSES = ["open", "pending", "resolved"] as const;
+export type InboxThreadStatus = (typeof INBOX_THREAD_STATUSES)[number];
+export const inboxThreadsStatus = pgEnum("inbox_threads_status", INBOX_THREAD_STATUSES);
+export const INBOX_MESSAGE_DIRECTIONS = ["in", "out", "note"] as const;
+export type InboxMessageDirection = (typeof INBOX_MESSAGE_DIRECTIONS)[number];
+export const inboxMessagesDirection = pgEnum("inbox_messages_direction", INBOX_MESSAGE_DIRECTIONS);
 
 // ---------------------------------------------------------------------------
 // JSON shapes (Zod schemas live in `@beam/core/crm`)
@@ -887,4 +898,91 @@ export const playbookStages = pgTable(
       sql`${t.defaultProbabilityPct} is null or (${t.pipeline} = 'b2b' and ${t.defaultProbabilityPct} between 0 and 100)`,
     ),
   ],
+);
+
+// ---------------------------------------------------------------------------
+// 2.8 Release 3: unified inbox (crm-P9)
+// ---------------------------------------------------------------------------
+
+/**
+ * One conversation per channel and external thread id (rules 3.49, 3.50, 3.57): the root
+ * Message-ID of an email thread, the sender PSID of a Meta thread, null for a web-form thread.
+ * `from_address` is the sender's email address or Meta sender id. `last_inbound_at` (ADD,
+ * crm-P9) is the newest inbound message: the Meta 24-hour window and the stale rule read it.
+ */
+export const inboxThreads = pgTable(
+  "inbox_threads",
+  {
+    id: id(),
+    channel: inboxThreadsChannel().notNull(),
+    externalThreadId: text(),
+    personId: uuid().references(() => persons.id),
+    companyId: uuid().references(() => companies.id),
+    fromAddress: text(),
+    fromName: text(),
+    status: inboxThreadsStatus().notNull().default("open"),
+    assigneeUserId: uuid().references(() => users.id),
+    subject: text(),
+    lastMessageAt: tstz().notNull(),
+    lastInboundAt: tstz(),
+    firstResponseAt: tstz(),
+    resolvedAt: tstz(),
+    escalatedAt: tstz(),
+    isSensitive: boolean().notNull().default(false),
+    ...timestamps(),
+  },
+  (t) => [
+    uniqueIndex("inbox_threads_channel_external_uq")
+      .on(t.channel, t.externalThreadId)
+      .where(sql`${t.externalThreadId} is not null`),
+    index("inbox_threads_status_last_idx").on(t.status, t.lastMessageAt.desc()),
+    index("inbox_threads_person_idx").on(t.personId),
+    index("inbox_threads_assignee_idx").on(t.assigneeUserId),
+    check("inbox_threads_subject_ck", sql`${t.subject} is null or char_length(${t.subject}) <= 500`),
+  ],
+);
+
+/**
+ * The messages of a thread: `in` from the customer, `out` a staff reply, `note` an internal note
+ * that is never sent. `external_message_id` is the email Message-ID or the Meta `mid` (unique: a
+ * repeated delivery inserts nothing). `delivery_error` (ADD, crm-P9) says why an `out` message
+ * was not delivered (a closed Meta window, a missing permission). Attachments are not stored.
+ */
+export const inboxMessages = pgTable(
+  "inbox_messages",
+  {
+    id: id(),
+    threadId: uuid()
+      .notNull()
+      .references(() => inboxThreads.id, { onDelete: "cascade" }),
+    direction: inboxMessagesDirection().notNull(),
+    body: text().notNull(),
+    externalMessageId: text().unique("inbox_messages_external_message_id_unique"),
+    aiDraft: text(),
+    sentByUserId: uuid().references(() => users.id),
+    emailMessageId: uuid().references(() => emailMessages.id),
+    attachmentCount: smallint().notNull().default(0),
+    deliveryError: text(),
+    occurredAt: tstz().notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("inbox_messages_thread_idx").on(t.threadId, t.occurredAt),
+    check("inbox_messages_body_ck", sql`char_length(${t.body}) <= 50000`),
+    check("inbox_messages_attachment_count_ck", sql`${t.attachmentCount} >= 0`),
+  ],
+);
+
+/** Staff reply templates (LocalizedText). No person data (`NO_PII_TABLES`). */
+export const inboxReplyTemplates = pgTable(
+  "inbox_reply_templates",
+  {
+    id: id(),
+    key: text().notNull().unique("inbox_reply_templates_key_unique"),
+    name: localized().notNull(),
+    body: localized().notNull(),
+    isActive: boolean().notNull().default(true),
+    ...timestamps(),
+  },
+  (t) => [check("inbox_reply_templates_key_ck", sql`${t.key} ~ '^[a-z0-9_-]{2,64}$'`)],
 );

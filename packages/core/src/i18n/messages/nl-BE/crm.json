@@ -277,6 +277,22 @@
         "pct": "Percentage",
         "cents": "Bedrag",
         "days": "Dagen"
+      },
+      "inbox_channel": {
+        "email": "E-mail",
+        "instagram": "Instagram",
+        "messenger": "Messenger",
+        "form": "Webformulier"
+      },
+      "inbox_thread_status": {
+        "open": "Open",
+        "pending": "Wacht op klant",
+        "resolved": "Afgehandeld"
+      },
+      "inbox_message_direction": {
+        "in": "Ontvangen",
+        "out": "Antwoord",
+        "note": "Interne notitie"
       }
     },
     "persons": {
@@ -995,6 +1011,11 @@
         "body": "Gebruik de knop hieronder om te kiezen welke e-mails je van BEAM ontvangt. De link werkt een jaar.",
         "cta": "Mijn e-mails beheren",
         "footer": "Heb je deze link niet gevraagd? Negeer dan deze e-mail."
+      },
+      "inbox_reply": {
+        "subject": "Re: {subject}",
+        "preheader": "Een antwoord van BEAM op je bericht.",
+        "footer": "Antwoord op deze e-mail om het gesprek verder te zetten."
       }
     },
     "consentPanel": {
@@ -1125,6 +1146,95 @@
         "saved": "Fase opgeslagen.",
         "error": "De fase kon niet worden opgeslagen.",
         "missing_locales": "Vul de teksten in elke taal in."
+      }
+    },
+    "inbox": {
+      "title": "Inbox",
+      "empty": "Inbox leeg.",
+      "empty_filtered": "Geen gesprekken voor deze filters.",
+      "filter_status": "Status",
+      "filter_assignee": "Toegewezen aan",
+      "filter_channel": "Kanaal",
+      "filter_escalated": "Alleen geëscaleerd",
+      "filter": "Filteren",
+      "all_statuses": "Alle statussen",
+      "all_channels": "Alle kanalen",
+      "anyone": "Iedereen",
+      "me": "Aan mij toegewezen",
+      "unassigned": "Niet toegewezen",
+      "escalated": "Geëscaleerd",
+      "no_subject": "(geen onderwerp)",
+      "unlinked": "Niet gekoppeld",
+      "nobody": "Niemand",
+      "back": "Terug naar de inbox",
+      "list_label": "Gesprekken",
+      "thread": {
+        "from": "Van",
+        "channel": "Kanaal",
+        "status": "Status",
+        "assignee": "Toegewezen aan",
+        "assign": "Toewijzen",
+        "received": "Ontvangen",
+        "first_response": "Eerste antwoord",
+        "escalated_at": "Geëscaleerd",
+        "resolve": "Afhandelen",
+        "reopen": "Heropenen",
+        "sensitive": "Gevoelig",
+        "mark_sensitive": "Als gevoelig markeren",
+        "unmark_sensitive": "Als niet gevoelig markeren",
+        "sensitive_hint": "Gevoelige gesprekken gaan nooit naar AI-tools.",
+        "sent_by": "Verstuurd door {name}",
+        "attachments": "{count} bijlagen (niet bewaard)",
+        "not_delivered": "Niet afgeleverd: {reason}",
+        "delivering": "Bezig met versturen…",
+        "email_status": "E-mail: {status}",
+        "saved": "Opgeslagen.",
+        "error": "De wijziging kon niet worden opgeslagen. Probeer het opnieuw.",
+        "conflict": "Deze wijziging kan niet in de huidige status."
+      },
+      "reply": {
+        "reply": "Antwoorden",
+        "note": "Interne notitie",
+        "placeholder_reply": "Schrijf je antwoord…",
+        "placeholder_note": "Alleen medewerkers zien deze notitie. Ze wordt nooit verstuurd.",
+        "send": "Antwoord versturen",
+        "add_note": "Notitie toevoegen",
+        "sending": "Bezig met versturen…",
+        "template": "Sjabloon",
+        "no_template": "Geen sjabloon",
+        "window_closed": "Het antwoordvenster van 24 uur van Meta is gesloten. Je kunt in dit kanaal niet meer antwoorden.",
+        "window_closes": "Antwoord voor {time}: Meta sluit het gesprek 24 uur na het laatste bericht van de klant.",
+        "meta_disabled": "Antwoorden via Instagram en Messenger staan uit.",
+        "no_recipient": "Dit gesprek heeft geen adres om op te antwoorden. Koppel eerst een persoon.",
+        "error": "Het antwoord kon niet worden verstuurd. Probeer het opnieuw.",
+        "sent": "Antwoord verstuurd.",
+        "note_saved": "Notitie opgeslagen."
+      },
+      "person": {
+        "title": "Persoon",
+        "status": "Status",
+        "credits": "Credits",
+        "no_credits": "Geen credits",
+        "membership": "Lidmaatschap",
+        "next_booking": "Volgende boeking",
+        "no_booking": "Geen komende boeking",
+        "open": "Profiel openen",
+        "unlinked": "Dit gesprek is niet aan een persoon gekoppeld.",
+        "search": "Persoon zoeken",
+        "search_placeholder": "Naam, e-mail of klantnummer",
+        "search_button": "Zoeken",
+        "link": "Koppelen",
+        "no_results": "Geen persoon gevonden.",
+        "create": "Persoon aanmaken vanuit afzender",
+        "create_locale": "Taal",
+        "linked": "Persoon gekoppeld.",
+        "error": "De persoon kon niet worden gekoppeld."
+      },
+      "delivery": {
+        "window_closed": "het venster van 24 uur was gesloten",
+        "permission": "ontbrekende toestemming",
+        "meta_disabled": "antwoorden via Meta staan uit",
+        "other": "Meta weigerde het bericht"
       }
     }
   }

@@ -130,7 +130,7 @@ describe("v_sales_lines", () => {
     expect(await linesOf(order.id)).toEqual([]);
 
     const cols = await h.db.execute(sql`select column_name from information_schema.columns where table_name = 'v_sales_lines' order by ordinal_position`);
-    const names = ((cols as unknown as { rows: { column_name: string }[] }).rows ?? (cols as unknown as { column_name: string }[])).map((r) => r.column_name);
+    const names = (cols as { rows: { column_name: string }[] }).rows.map((r) => r.column_name);
     expect(names).toEqual([...SALES_LINES_COLUMNS]);
     expect(names.filter((n) => /person|email|name|phone/.test(n))).toEqual([]);
   });

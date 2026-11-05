@@ -127,7 +127,7 @@ export function detectDelimiter(csv: string): ";" | "," | "\t" {
 
 /** RFC 4180 records with `""` escapes, CRLF or LF line ends; each record keeps its 1-based line number. */
 export function splitCsv(csv: string, delimiter: string): Array<{ line: number; cells: string[] }> {
-  const text = csv.replace(/^﻿/, "");
+  const text = csv.replace(/^\uFEFF/, "");
   const out: Array<{ line: number; cells: string[] }> = [];
   let cells: string[] = [];
   let cell = "";
@@ -178,7 +178,7 @@ type Decimal = { negative: boolean; int: string; frac: string };
  * point and repeated ones are thousands. `null` when it is not a number.
  */
 export function parseDecimal(raw: string): Decimal | null {
-  let s = raw.replace(/[\s  ]/g, "").replace(/€|eur$/i, "");
+  let s = raw.replace(/[\s\u00a0\u202f]/g, "").replace(/€|eur$/i, "");
   if (s === "") return null;
   let negative = false;
   if (/^\(.*\)$/.test(s)) {

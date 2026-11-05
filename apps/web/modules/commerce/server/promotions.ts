@@ -235,7 +235,7 @@ export async function isPromotionEligible(
   if (promotion.startsAt.getTime() > at.getTime()) return false;
   if (promotion.endsAt && promotion.endsAt.getTime() <= at.getTime()) return false;
   if (promotion.partnerCompanyId) {
-    const partners = (cache.partners ??= new Map());
+    const partners = (cache.partners ??= new Map<string, Promise<boolean>>());
     let isPartner = partners.get(promotion.partnerCompanyId);
     if (!isPartner) {
       isPartner = getCompany(db, promotion.partnerCompanyId).then((c) => c?.isPartner === true);

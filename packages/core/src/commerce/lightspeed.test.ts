@@ -113,7 +113,7 @@ describe("parseLightspeedCsv", () => {
       { row: 1, code: "missing_column", column: "vatRate" },
       { row: 1, code: "missing_column", column: "datetime" },
     ]);
-    expect(parseLightspeedCsv("﻿\n\n")).toEqual({ rows: [], errors: [{ row: 1, code: "empty_file" }] });
+    expect(parseLightspeedCsv("\uFEFF\n\n")).toEqual({ rows: [], errors: [{ row: 1, code: "empty_file" }] });
   });
 
   it("keeps negative till lines (returns) with their VAT", () => {

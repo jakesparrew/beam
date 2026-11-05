@@ -41,6 +41,10 @@ const nextConfig: NextConfig = {
   experimental: {
     // 3 MB: forms' `uploadImportCsv` takes a CSV of 1 to 2 MB; the 1 MB default rejects it.
     serverActions: { allowedOrigins: host ? [host] : [], bodySizeLimit: "3mb" },
+    // `@beam/ui` and `radix-ui` are barrels of client components: without this, a page importing
+    // one of them ships all of them (every radix primitive, cmdk, sonner, the admin shell) in its
+    // first-load JavaScript (site rule 51, 120 KB budget on the public pages).
+    optimizePackageImports: ["@beam/ui", "radix-ui"],
   },
   headers: () => Promise.resolve([{ source: "/:path*", headers: securityHeaders }]),
 };

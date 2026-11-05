@@ -12,7 +12,7 @@
  *   static security headers (PL-67).
  */
 import { NextResponse, type NextRequest } from "next/server";
-import { DEFAULT_LOCALE, localeFromAcceptLanguage, localeFromSegment, URL_SEGMENT, isLocale, type Locale } from "@beam/core/i18n";
+import { DEFAULT_LOCALE, localeFromAcceptLanguage, localeFromSegment, t, URL_SEGMENT, isLocale, type Locale } from "@beam/core/i18n";
 import { isLegacyGone } from "@beam/core/site";
 import { SESSION_COOKIE } from "./lib/auth-config";
 import { buildCsp, generateNonce, SECURITY_HEADERS } from "./lib/csp";
@@ -46,6 +46,23 @@ function redirectTo(request: NextRequest, pathname: string, params: Record<strin
   return NextResponse.redirect(url, 307);
 }
 
+const escapeHtml = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
+
+/**
+ * The 410 page of a legacy WordPress path (site spec section 5: localised, with navigation back to
+ * home). A page can answer only 404 through `notFound()`, so the proxy writes this small document
+ * itself, in the URL's (or the negotiated) locale; no script, no inline style.
+ */
+function goneResponse(locale: Locale): NextResponse {
+  const tr = (key: string) => escapeHtml(t(locale, key));
+  const html =
+    `<!doctype html><html lang="${locale}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">` +
+    `<meta name="robots" content="noindex"><title>${tr("site.public.gone.title")}</title></head>` +
+    `<body><main data-status="410"><h1>${tr("site.public.gone.title")}</h1><p>${tr("site.public.gone.body")}</p>` +
+    `<p><a href="/${URL_SEGMENT[locale]}">${tr("site.public.notFound.home")}</a></p></main></body></html>`;
+  return new NextResponse(html, { status: 410, headers: { "content-type": "text/html; charset=utf-8", "cache-control": "public, max-age=3600" } });
+}
+
 export function proxy(request: NextRequest): NextResponse {
   const { pathname, search } = request.nextUrl;
   const nonce = generateNonce();
@@ -58,7 +75,7 @@ export function proxy(request: NextRequest): NextResponse {
   const isAdmin = pathname === "/admin" || pathname.startsWith("/admin/");
 
   if (!isAdmin && isLegacyGone(pathname)) {
-    return withSecurityHeaders(new NextResponse("Gone", { status: 410, headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "public, max-age=3600" } }), csp);
+    return withSecurityHeaders(goneResponse(urlLocale ?? negotiateLocale(request)), csp);
   }
 
   if (isAdmin) {

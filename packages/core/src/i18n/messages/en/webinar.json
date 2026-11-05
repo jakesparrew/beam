@@ -4,7 +4,8 @@
       "webinars_host": "Create and host webinars"
     },
     "nav": {
-      "webinars": "Webinars"
+      "webinars": "Webinars",
+      "my_webinars": "Webinars"
     },
     "enum": {
       "mode": {
@@ -262,6 +263,64 @@
         "tagRules": "Tag rules",
         "poll": "Poll {key}",
         "cta": "CTA {key}"
+      },
+      "registrations": {
+        "title": "Registrations",
+        "tab": "Registrations",
+        "back": "Back to the webinar",
+        "count": "{count, plural, one {# registration} other {# registrations}}",
+        "empty": "Nobody registered yet. Share the landing page: {url}",
+        "search": "Search by name or email",
+        "filter_status": "Status",
+        "filter_segment": "Segment",
+        "all": "All",
+        "apply": "Filter",
+        "col_name": "Name",
+        "col_email": "Email",
+        "col_status": "Status",
+        "col_segment": "Lead, customer or member",
+        "col_registered_mode": "Registered for",
+        "col_source": "Source",
+        "col_watch": "Watched (live / replay / on demand)",
+        "col_last_activity": "Last activity",
+        "col_actions": "Actions",
+        "minutes": "{minutes} min",
+        "muted": "muted",
+        "register_title": "Register a person",
+        "register_email": "Email address of an existing person",
+        "register_send": "Send the access email",
+        "register_submit": "Register",
+        "register_not_found": "No person with this email address. Create the person first.",
+        "cancel": "Cancel",
+        "resend": "Resend link",
+        "revoke": "Revoke link",
+        "revoke_confirm": "The current link stops working. The person can ask for a new one on the join page.",
+        "done": "Done.",
+        "more": "Next page",
+        "status": {
+          "registered": "Registered",
+          "cancelled": "Cancelled",
+          "blocked": "Blocked"
+        },
+        "segment": {
+          "lead": "Lead",
+          "customer": "Customer",
+          "member": "Member"
+        },
+        "source": {
+          "site": "Website",
+          "portal": "Portal",
+          "admin": "Staff",
+          "automation": "Automation"
+        },
+        "errors": {
+          "forbidden": "You do not have permission for this.",
+          "conflict": "This is not possible for this registration.",
+          "not_found": "Not found. Reload the page.",
+          "closed": "Registration for this webinar is closed.",
+          "blocked": "This person is blocked for this webinar.",
+          "internal": "Something went wrong. Try again."
+        }
       }
     },
     "email": {
@@ -278,6 +337,125 @@
         "intro": "Unfortunately {title} on {date} does not take place.",
         "apology": "We are sorry for the inconvenience. You can register for another webinar on our website.",
         "cta": "See the webinars"
+      },
+      "access": {
+        "subject": "You are registered: {title}",
+        "preheader": "Your personal link for {title}",
+        "heading": "You are registered",
+        "intro": "{title} starts on {date} (Brussels time). Use the button below to join.",
+        "intro_on_demand": "You can watch {title} whenever it suits you. Use the button below to start.",
+        "language": "This webinar is in {language}.",
+        "cta": "Open the webinar",
+        "personal": "This link is personal: please do not share it. It does not sign you in to your account.",
+        "calendar": "Add to calendar"
+      },
+      "reminder": {
+        "subject": "{variant, select, d7 {Next week: {title}} d3 {In three days: {title}} other {Today: {title}}}",
+        "heading": "{variant, select, d7 {One more week} d3 {Three more days} other {See you soon}}",
+        "intro": "{variant, select, h3 {{title} starts in three hours, on {date} (Brussels time).} other {{title} takes place on {date} (Brussels time).}}",
+        "language": "This webinar is in {language}.",
+        "cta": "Open the webinar",
+        "personal": "This link is personal: please do not share it."
+      },
+      "replay_available": {
+        "subject": "The replay of {title} is ready",
+        "heading": "You missed the live session",
+        "intro": "No problem: you can still watch {title} as a replay.",
+        "until": "The replay is available until {until}.",
+        "cta": "Watch the replay",
+        "personal": "This link is personal: please do not share it."
+      }
+    },
+    "public": {
+      "list": {
+        "title": "Webinars",
+        "intro": "Free online sessions by the BEAM team. Watch live or later.",
+        "upcoming": "Upcoming",
+        "on_demand": "Watch any time",
+        "empty": "No webinars planned right now.",
+        "open": "View and register"
+      },
+      "card": {
+        "on_demand": "On demand",
+        "live_now": "Live now",
+        "language": "In {language}"
+      },
+      "landing": {
+        "date": "{date} (Brussels time)",
+        "duration": "{minutes} minutes",
+        "in_language": "This webinar is in {language}.",
+        "presenters": "Presenters",
+        "register_title": "Register for free",
+        "replay_title": "Register for the replay",
+        "replay_note": "The live session is over. Register to watch the replay.",
+        "on_demand_note": "Watch whenever it suits you.",
+        "not_available_title": "Not available in your language",
+        "not_available_body": "This webinar is not offered in this language. Choose another language:",
+        "cancelled_title": "This webinar is cancelled",
+        "cancelled_body": "This webinar does not take place. Have a look at our other webinars.",
+        "ended_title": "This webinar has ended",
+        "ended_body": "There is no replay of this webinar. Have a look at our other webinars.",
+        "lost_link": "Already registered? Get your link again.",
+        "add_calendar": "Add to calendar",
+        "back": "All webinars"
+      },
+      "join": {
+        "title": "Get your webinar link",
+        "intro": "Enter the email address you registered with. If you are registered, we send your personal link again.",
+        "email": "Email address",
+        "submit": "Send my link",
+        "sent": "If you are registered for this webinar, your link is on its way. Check your inbox.",
+        "rate_limited": "Too many attempts. Try again in a minute.",
+        "invalid": "Enter a valid email address.",
+        "back": "Back to the webinar"
+      }
+    },
+    "register": {
+      "email": "Email address",
+      "first_name": "First name",
+      "last_name": "Last name (optional)",
+      "consent_legend": "Stay informed (optional)",
+      "consent_events": "Yes, keep me informed by email about BEAM events and webinars.",
+      "consent_newsletter": "Yes, send me the BEAM newsletter.",
+      "consent_hint": "You can unsubscribe at any time. Registering for this webinar does not subscribe you to anything.",
+      "privacy_before": "We use your details to manage your registration and to send you the access link and reminders.",
+      "privacy_link": "Read our privacy notice",
+      "submit": "Register",
+      "submit_portal": "Register with one click",
+      "submitting": "Registering…",
+      "success_title": "Check your inbox",
+      "success_body": "We sent your personal link to your email address.",
+      "success_portal": "You are registered. We also sent the link to your email address.",
+      "errors": {
+        "closed": "Registration for this webinar is closed.",
+        "blocked": "You cannot register for this webinar. Contact us if you think this is a mistake.",
+        "rate_limited": "Too many attempts. Try again in a minute.",
+        "validation": "Check the fields: a valid email address and a first name are needed.",
+        "not_found": "This webinar no longer exists.",
+        "unauthorized": "Sign in again.",
+        "conflict": "This is not possible right now.",
+        "internal": "Something went wrong. Try again."
+      }
+    },
+    "portal": {
+      "list": {
+        "title": "My webinars",
+        "upcoming": "Upcoming",
+        "watch_again": "Watch again",
+        "on_demand": "On-demand library",
+        "empty": "You have no webinars yet.",
+        "discover": "Webinars you can join",
+        "watch": "Watch",
+        "details": "Details",
+        "cancel": "Cancel registration",
+        "cancelled": "Your registration is cancelled.",
+        "calendar": "Add to calendar",
+        "registered": "Registered",
+        "available_until": "Available until {date}",
+        "no_expiry": "No end date",
+        "views_left": "{count, plural, one {# view left} other {# views left}}",
+        "register": "Register",
+        "error": "This did not work. Try again."
       }
     }
   }

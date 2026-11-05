@@ -3,13 +3,15 @@
  * count, the median days from lead to step, LTV and lead cost.
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createTestDb, type DbHandle } from "@beam/db/testing";
+import { createTestDb } from "@beam/db/testing";
 import { makeUser } from "@beam/db/testing/factories";
 import { makePaidOrder } from "@beam/db/testing/commerce-factories";
 import { makeMembership } from "@beam/db/testing/credits-factories";
 import { adSpendDaily, personStats, webinarRegistrations, webinars } from "@beam/db/schema";
 import { makeCustomer, makeHistory } from "../stats/ops-p2.fixtures";
 import { computeCampaignFunnel, type CampaignFunnelRow } from "./funnel";
+
+type DbHandle = Awaited<ReturnType<typeof createTestDb>>;
 
 const day = (iso: string) => new Date(`${iso}T10:00:00.000Z`);
 const RANGE = { from: "2026-09-01", to: "2026-09-30" };

@@ -26,7 +26,10 @@ import { sql, type SQL } from "@/lib/ctx";
 import { rowsOf } from "@/lib/sensitive";
 import { getWebinarKpis, type WebinarKpis } from "@/modules/webinar/api";
 import { computeAbandonedReport } from "../reports/abandoned";
-import { addDays, inRange, rangeEnd, type DateRange } from "../reports/no-shows";
+import { addDays, inRange, parseDateRange, rangeEnd, type DateRange } from "../reports/no-shows";
+import type { OpsReadCtx, ReportFilters } from "../reports/registry";
+import { computeEmailSummary } from "./email-summary";
+import { computeWebinarSummary } from "./webinar-summary";
 import { rate, type Rate } from "./management";
 
 export type KpiPair<T> = { current: T; previous: T };
@@ -250,4 +253,19 @@ export function kpiRowsOf(k: MarketingKpis): KpiTileRow[] {
     { key: "abandoned_recovery_rate", current: k.current.abandoned.recoveryRate, previous: k.previous.abandoned.recoveryRate, unit: "pct" },
     { key: "abandoned_recovery_revenue", current: k.current.abandoned.recoveryRevenueCents, previous: k.previous.abandoned.recoveryRevenueCents, unit: "cents" },
   ];
+}
+
+/** `/admin/reports/marketing/csv?from=&to=`: the KPI tiles, the leads by source, and the email and webinar tables. */
+export const MARKETING_CSV_COLUMNS = ["section", "key", "detail", "current", "previous"] as const;
+
+export async function* marketingCsvRows(ctx: OpsReadCtx, filters: ReportFilters): AsyncIterable<unknown[]> {
+  const range = parseDateRange(filters, ctx.now);
+  const k = await computeMarketingKpis(ctx.tx, range);
+  for (const r of kpiRowsOf(k)) yield ["kpi", r.key, r.unit, r.current ?? "", r.previous ?? ""];
+  for (const l of k.current.leadsBySource) yield ["leads", l.source, l.campaign ?? "", l.leads, ""];
+  for (const seg of REGISTRANT_SEGMENTS) for (const d of CONVERSION_WINDOWS) yield ["webinar_conversion", seg, `d${d}`, k.current.webinarConversion[seg][`d${d}`].rate ?? "", k.previous.webinarConversion[seg][`d${d}`].rate ?? ""];
+  const email = await computeEmailSummary(ctx.tx, { range });
+  for (const c of email.campaigns) yield ["email", c.campaignId, c.name, `sent ${c.sent} delivered ${c.delivered} opened ${c.opened} clicked ${c.clicked} bounced ${c.bounced} complained ${c.complained} unsubscribed ${c.unsubscribed}`, ""];
+  const webinars = await computeWebinarSummary(ctx.tx, { range });
+  for (const w of webinars.webinars) yield ["webinar", w.webinarId, w.slug, `registered ${w.registered} attended_live ${w.attendedLive} avg_watch_sec ${w.avgWatchSec ?? ""} replay ${w.replayViews} on_demand ${w.onDemandViews} polls ${w.pollAnswers} cta ${w.ctaClicks}`, ""];
 }

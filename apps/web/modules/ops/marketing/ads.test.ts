@@ -4,7 +4,7 @@
  * permanent 401, the non-EUR refusal and the per-run job keys.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { createTestDb, type DbHandle } from "@beam/db/testing";
+import { createTestDb } from "@beam/db/testing";
 import { adSpendDaily, featureFlags, jobs, settings } from "@beam/db/schema";
 import { PermanentError } from "@beam/core/errors";
 import { createAdsFake, createGoogleAdsClient, createMetaAdsClient, fakeAdRows, microsToCents, type AdsFake } from "@beam/integrations/ads";
@@ -13,6 +13,8 @@ import { and, eq, sql } from "@/lib/ctx";
 import { makeJobCtx, resetRuntime } from "@/lib/testing";
 import { brusselsDay, daysToPull, getStaleAdsAccounts, pullAdsDay, pullJobKey, setAdsClients } from "./ads";
 import { runAdsBackfill, runAdsPullYesterday } from "./jobs";
+
+type DbHandle = Awaited<ReturnType<typeof createTestDb>>;
 
 const NOW = new Date("2026-10-15T03:30:00.000Z"); // 05:30 Brussels (CEST)
 const NEXT_DAY = new Date("2026-10-16T03:30:00.000Z");

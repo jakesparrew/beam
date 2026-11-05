@@ -24,7 +24,8 @@ import type { DbOrTx } from "@beam/db";
 import { comparePeriods, periodRange, type Period } from "@beam/core/ops";
 import { sql, type SQL } from "@/lib/ctx";
 import { rowsOf } from "@/lib/sensitive";
-import { brusselsDate, computeRevenueReport, type Comparison, type RevenueReport, type VatMode } from "../reports/revenue";
+import type { OpsReadCtx, ReportFilters } from "../reports/registry";
+import { brusselsDate, computeRevenueReport, parsePeriod, parseReportAt, parseVat, type Comparison, type RevenueReport, type VatMode } from "../reports/revenue";
 
 export type Rate = { numerator: number; denominator: number; rate: number | null };
 export type RateComparison = { current: Rate; previous: Rate };
@@ -204,4 +205,10 @@ export function managementCsvRowsOf(d: ManagementDashboard): unknown[][] {
   rt("b2b", "conversion", d.b2b.conversion);
   cmp("b2b", "revenue_cents", d.b2b.revenueCents);
   return out;
+}
+
+/** `/admin/reports/management/csv?period=&at=&vat=`: every tile of the dashboard. */
+export async function* managementCsvRows(ctx: OpsReadCtx, filters: ReportFilters): AsyncIterable<unknown[]> {
+  const d = await computeManagementDashboard(ctx.tx, { period: parsePeriod(filters.period, "month"), at: parseReportAt(filters.at, ctx.now), vat: parseVat(filters.vat) });
+  for (const row of managementCsvRowsOf(d)) yield row;
 }

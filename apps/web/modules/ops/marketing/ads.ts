@@ -24,6 +24,8 @@ import { eq, sql, type Ctx } from "@/lib/ctx";
 import { integrationMode, routedOnCall } from "@/lib/integrations";
 import { rowsOf } from "@/lib/sensitive";
 import { getSetting } from "@/lib/settings";
+import { parseDateRange, type DateRange } from "../reports/no-shows";
+import type { OpsReadCtx, ReportFilters } from "../reports/registry";
 
 export const MARKETING_FLAG = "ff_ops_marketing";
 /** Rule 74: yesterday and the 3 days before it. */
@@ -282,4 +284,73 @@ export async function getStaleAdsAccounts(db: DbOrTx, now: Date): Promise<{ plat
     if (age >= ADS_STALE_DAYS) out.push({ platform: a.platform, accountId: a.accountId, daysSincePull: age });
   }
   return out;
+}
+
+// ---------------------------------------------------------------------------------------------
+// The ads report (`/admin/reports/ads`) and its CSV
+// ---------------------------------------------------------------------------------------------
+
+export type AdsDayRow = { platform: AdsPlatform; accountId: string; campaignId: string; campaignName: string; dayOn: string; spendCents: number; impressions: number; clicks: number; leads: number };
+export type AdsCampaignTotal = { platform: AdsPlatform; campaignId: string; campaignName: string; spendCents: number; impressions: number; clicks: number; leads: number };
+
+export type AdsReport = {
+  range: DateRange;
+  campaigns: AdsCampaignTotal[];
+  days: AdsDayRow[];
+  totals: { spendCents: number; impressions: number; clicks: number; leads: number };
+  accounts: AdsAccountStatus[];
+  settings: AdsSettings;
+  dataAsOf: string | null;
+  more: boolean;
+};
+
+export const ADS_REPORT_ROWS = 50;
+
+type AdsRaw = { platform: AdsPlatform; account_id: string; campaign_external_id: string; campaign_name: string; day_on: string; spend: number | string; impressions: number | string; clicks: number | string; leads: number | string };
+
+/** Rule 74: the campaign totals (top 50 by spend), the latest 50 campaign days, the totals and the account status of `range`. */
+export async function computeAdsReport(db: DbOrTx, range: DateRange): Promise<AdsReport> {
+  const within = sql`day_on >= ${range.from}::date and day_on <= ${range.to}::date`;
+  const campaigns = rowsOf<AdsRaw>(
+    await db.execute(sql`select platform::text as platform, campaign_external_id, max(campaign_name) as campaign_name,
+        sum(spend_cents)::bigint as spend, sum(impressions)::bigint as impressions, sum(clicks)::bigint as clicks, sum(leads)::bigint as leads
+      from ad_spend_daily where ${within} group by platform, campaign_external_id order by sum(spend_cents) desc, platform, campaign_external_id limit ${ADS_REPORT_ROWS}`),
+  ).map((r) => ({ platform: r.platform, campaignId: r.campaign_external_id, campaignName: r.campaign_name, spendCents: Number(r.spend), impressions: Number(r.impressions), clicks: Number(r.clicks), leads: Number(r.leads) }));
+  const days = rowsOf<AdsRaw>(
+    await db.execute(sql`select platform::text as platform, account_id, campaign_external_id, campaign_name, day_on::text as day_on,
+        spend_cents as spend, impressions, clicks, leads
+      from ad_spend_daily where ${within} order by day_on desc, platform, campaign_external_id limit ${ADS_REPORT_ROWS + 1}`),
+  );
+  const [t] = rowsOf<Record<string, number | string>>(
+    await db.execute(sql`select coalesce(sum(spend_cents), 0)::bigint as spend, coalesce(sum(impressions), 0)::bigint as impressions,
+        coalesce(sum(clicks), 0)::bigint as clicks, coalesce(sum(leads), 0)::bigint as leads from ad_spend_daily where ${within}`),
+  );
+  return {
+    range,
+    campaigns,
+    days: days.slice(0, ADS_REPORT_ROWS).map((r) => ({
+      platform: r.platform,
+      accountId: r.account_id,
+      campaignId: r.campaign_external_id,
+      campaignName: r.campaign_name,
+      dayOn: r.day_on,
+      spendCents: Number(r.spend),
+      impressions: Number(r.impressions),
+      clicks: Number(r.clicks),
+      leads: Number(r.leads),
+    })),
+    totals: { spendCents: Number(t?.spend ?? 0), impressions: Number(t?.impressions ?? 0), clicks: Number(t?.clicks ?? 0), leads: Number(t?.leads ?? 0) },
+    accounts: await getAdsAccountStatus(db),
+    settings: await readAdsSettings(db),
+    dataAsOf: await adsDataAsOf(db),
+    more: days.length > ADS_REPORT_ROWS,
+  };
+}
+
+/** The campaign table of the ads page (rule 41: the rows on screen). */
+export const ADS_CSV_COLUMNS = ["platform", "campaign_id", "campaign", "spend_cents", "impressions", "clicks", "platform_leads"] as const;
+
+export async function* adsCsvRows(ctx: OpsReadCtx, filters: ReportFilters): AsyncIterable<unknown[]> {
+  const report = await computeAdsReport(ctx.tx, parseDateRange(filters, ctx.now));
+  for (const c of report.campaigns) yield [c.platform, c.campaignId, c.campaignName, c.spendCents, c.impressions, c.clicks, c.leads];
 }

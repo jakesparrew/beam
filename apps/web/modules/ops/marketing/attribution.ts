@@ -17,7 +17,9 @@ import type { DbOrTx } from "@beam/db";
 import { attributionCredits } from "@beam/db/schema";
 import { sql } from "@/lib/ctx";
 import { rowsOf } from "@/lib/sensitive";
-import { inRange, type DateRange } from "../reports/no-shows";
+import { inRange, parseDateRange, type DateRange } from "../reports/no-shows";
+import type { OpsReadCtx, ReportFilters } from "../reports/registry";
+import { computeCampaignFunnel, FUNNEL_STEPS } from "./funnel";
 import { adsDataAsOf, spendByCampaignKey, type CampaignSpend } from "./ads";
 
 /** One marketing touch of a person (a `v_marketing_touches` row). */
@@ -286,4 +288,17 @@ export const ATTRIBUTION_CSV_COLUMNS = [
 
 export function attributionCsvRowOf(r: AttributionReportRow): unknown[] {
   return [r.campaignKey, r.source ?? "", r.medium ?? "", r.campaign ?? "", r.leads, r.firstPurchases, r.revenueFirstTouchCents, r.revenueLinearCents, r.ltvCents ?? "", r.spendCents, r.cplCents ?? "", r.cacCents ?? "", r.roas ?? ""];
+}
+
+/** The two tables of the attribution page: one row per campaign, with its funnel (rule 73a). */
+export const ATTRIBUTION_PAGE_CSV_COLUMNS = [...ATTRIBUTION_CSV_COLUMNS, ...FUNNEL_STEPS.map((s) => `${s}_count`)] as const;
+
+export async function* attributionCsvRows(ctx: OpsReadCtx, filters: ReportFilters): AsyncIterable<unknown[]> {
+  const range = parseDateRange(filters, ctx.now);
+  const report = await computeAttributionReport(ctx.tx, { range, model: filters.model === "first_touch" ? "first_touch" : "linear" });
+  const funnel = new Map((await computeCampaignFunnel(ctx.tx, { range })).map((f) => [f.campaignKey, f]));
+  for (const r of report.rows) {
+    const f = funnel.get(r.campaignKey);
+    yield [...attributionCsvRowOf(r), ...FUNNEL_STEPS.map((s) => f?.steps.find((x) => x.step === s)?.count ?? 0)];
+  }
 }

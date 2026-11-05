@@ -2,7 +2,7 @@
  * Rules 36-38 on a fixture with known answers: October 2026 (Brussels) against September.
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createTestDb, type DbHandle } from "@beam/db/testing";
+import { createTestDb } from "@beam/db/testing";
 import { makeUser } from "@beam/db/testing/factories";
 import { makeOrder, makePaidOrder } from "@beam/db/testing/commerce-factories";
 import { makeCreditGrant, makeMembership } from "@beam/db/testing/credits-factories";
@@ -10,6 +10,8 @@ import { companies, creditGrants, membershipPeriods, opportunities } from "@beam
 import { eq } from "@/lib/ctx";
 import { makeBooking, makeCustomer } from "../stats/ops-p2.fixtures";
 import { b2bFigures, computeManagementDashboard, customerCounts, retentionRates } from "./management";
+
+type DbHandle = Awaited<ReturnType<typeof createTestDb>>;
 
 const FROM = new Date("2026-09-30T22:00:00.000Z"); // 1 October 2026, Brussels midnight
 const TO = new Date("2026-10-31T23:00:00.000Z"); // 1 November 2026, Brussels midnight

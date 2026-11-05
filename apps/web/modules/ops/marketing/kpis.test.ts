@@ -5,13 +5,15 @@
  */
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { createTestDb, type DbHandle } from "@beam/db/testing";
+import { createTestDb } from "@beam/db/testing";
 import { makeUser } from "@beam/db/testing/factories";
 import { makePaidOrder } from "@beam/db/testing/commerce-factories";
 import { campaigns, emailMessages, emailTemplates, emailTemplateVersions, formSubmissions, formVersions, forms, importedHistory, webinarRegistrations, webinars } from "@beam/db/schema";
 import { sql } from "@/lib/ctx";
 import type { WebinarKpis } from "@/modules/webinar/api";
 import { makeBooking, makeCustomer, makeHistory } from "../stats/ops-p2.fixtures";
+
+type DbHandle = Awaited<ReturnType<typeof createTestDb>>;
 
 vi.mock("@/modules/webinar/api", async (orig) => ({ ...(await orig<typeof import("@/modules/webinar/api")>()), getWebinarKpis: vi.fn() }));
 const { getWebinarKpis } = await import("@/modules/webinar/api");

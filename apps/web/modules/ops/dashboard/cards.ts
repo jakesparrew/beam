@@ -10,7 +10,7 @@
  * V1 cards: packages nearing completion (23), VIP inactive (24), new leads (25), memberships
  * expiring (27), failed payments (28), webinar leads from imported registrations (29), unused
  * packages expiring (30), overdue tasks (32) and privacy requests near their due date (screen
- * table, `privacy.run`). `b2b_proposals` (R3) is added by its release package.
+ * table, `privacy.run`). R3 (ops-P8) adds `b2b_proposals` (rule 26, `crm.b2b`).
  *
  * R2 (ops-P7): rule 29's native part comes from webinar's one definition: the count is
  * `countWebinarLeadsWithoutBooking(db, { startedSince })` and the first rows come from
@@ -117,6 +117,22 @@ export const CARDS: readonly CardDef[] = [
           and not exists (select 1 from bookings bk where bk.person_id = pp.person_id)
           and not exists (select 1 from tasks tk where tk.person_id = pp.person_id)`,
       order: sql`b.sort1 asc, b.person_id`,
+    }),
+  },
+  // Rule 26 (R3, ops-P8): proposals and negotiations whose next action is due or missing; the
+  // row's person is the primary contact (the opportunity title when there is none).
+  {
+    key: "b2b_proposals",
+    anyOf: ["crm.b2b"],
+    createsTasks: true,
+    query: ({ now, add }) => ({
+      base: sql`select op.primary_contact_person_id as person_id, 'opportunity' as ref_type, op.id::text as ref_id,
+          extract(epoch from coalesce(op.next_action_at, op.stage_entered_at))::numeric as sort1,
+          jsonb_build_object('company', co.name, 'stage', op.stage, 'title', op.title, 'date', op.next_action_at, 'amount', op.value_cents) as params
+        from opportunities op join companies co on co.id = op.company_id
+        where op.stage in ('proposal', 'negotiation')
+          and (op.next_action_at is null or op.next_action_at <= ${ts(now)} + ${days(add)})`,
+      order: sql`b.sort1 asc, b.ref_id`,
     }),
   },
   // Rule 27

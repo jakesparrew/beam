@@ -1,11 +1,13 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createTestDb, type DbHandle } from "@beam/db/testing";
+import { createTestDb } from "@beam/db/testing";
 import { makePerson } from "@beam/db/testing/factories";
 import { makePaidOrder } from "@beam/db/testing/commerce-factories";
 import { attributionCredits } from "@beam/db/schema";
 import { eq, sql } from "@/lib/ctx";
 import { rowsOf } from "@/lib/sensitive";
 import { computeAttribution, linearWeights, splitCents, type Touch } from "./attribution";
+
+type DbHandle = Awaited<ReturnType<typeof createTestDb>>;
 
 const NOW = new Date("2026-10-15T10:00:00.000Z");
 const DAY = 86_400_000;

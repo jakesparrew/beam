@@ -19,6 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@beam/ui";
+import { FINANCE_EXPORT_KINDS, type FinanceExportKind } from "@beam/core/finance";
 import { formatDate, formatDateTime, formatNumber } from "@beam/core/i18n";
 import { hasPermission, requireStaff } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
@@ -30,9 +31,8 @@ import { EXPORT_PRESETS, exportPresets, periodError } from "@/modules/finance/se
 import { financeLabels } from "@/modules/finance/ui/labels";
 import { actionErrorText, fillLabel } from "@/modules/finance/ui/text";
 
-const V1_KINDS = ["invoices", "invoice_lines", "vat_summary", "payments"] as const;
-type V1Kind = (typeof V1_KINDS)[number];
-const isV1Kind = (v: unknown): v is V1Kind => typeof v === "string" && (V1_KINDS as readonly string[]).includes(v);
+/** Every accountant kind (rules 42 and 43): the V1 CSVs, then deferred revenue, breakage and voucher redemptions. */
+const isExportKind = (v: unknown): v is FinanceExportKind => typeof v === "string" && (FINANCE_EXPORT_KINDS as readonly string[]).includes(v);
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 const STATUS_VARIANT = { queued: "secondary", running: "warning", done: "success", failed: "destructive" } as const;
@@ -48,7 +48,7 @@ async function onRequest(form: FormData) {
   const from = field("from");
   const to = field("to");
   const back = `kind=${encodeURIComponent(kind)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
-  if (!isV1Kind(kind)) redirect(`/admin/finance/exports?error=finance.errors.period_invalid&${back}`);
+  if (!isExportKind(kind)) redirect(`/admin/finance/exports?error=finance.errors.period_invalid&${back}`);
   const r = await requestFinanceExport({ kind, from, to });
   if (r.ok) redirect("/admin/finance/exports?requested=1");
   const key = r.error.message.startsWith("finance.errors.") ? r.error.message : (Object.values(r.error.fields ?? {}).find((v) => v.startsWith("finance.errors.")) ?? r.error.code);
@@ -72,7 +72,7 @@ export default async function FinanceExportsPage({
   const labels = financeLabels(locale, ["common", "exports"]);
   const l = (key: string, p?: Record<string, string | number>) => fillLabel(labels[key] ?? key, p);
   const presets = exportPresets(brusselsDay(new Date()));
-  const kind: V1Kind = isV1Kind(sp.kind) ? sp.kind : "invoices";
+  const kind: FinanceExportKind = isExportKind(sp.kind) ? sp.kind : "invoices";
   const from = sp.from && DAY.test(sp.from) ? sp.from : presets.last_month.from;
   const to = sp.to && DAY.test(sp.to) ? sp.to : presets.last_month.to;
   const rows = await listFinanceExports(await getAppDb());
@@ -116,7 +116,7 @@ export default async function FinanceExportsPage({
                 defaultValue={kind}
                 className="h-9 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
-                {V1_KINDS.map((k) => (
+                {FINANCE_EXPORT_KINDS.map((k) => (
                   <option key={k} value={k}>
                     {l(`exports.kind_${k}`)}
                   </option>

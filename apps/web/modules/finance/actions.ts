@@ -16,6 +16,7 @@ import {
   buildSellerSnapshot,
   creditLines,
   documentTotals,
+  FINANCE_EXPORT_KINDS,
   FinanceConflictError,
   isAnonymisedSnapshot,
   type InvoiceLine,
@@ -449,13 +450,13 @@ export const cancelCompanyInvoiceRequest = action({ name: "finance.request.cance
 // Accountant exports (rule 42, finance-P7; the CSV is built by `finance.build_export`)
 // ---------------------------------------------------------------------------
 
-const V1_EXPORT_KINDS = ["invoices", "invoice_lines", "vat_summary", "payments"] as const;
+/** Every accountant kind: the four V1 CSVs and the three Release 3 ones (rule 43, finance-P9). */
 const RequestFinanceExportInput = z
-  .object({ kind: z.enum(V1_EXPORT_KINDS), from: day, to: day })
+  .object({ kind: z.enum(FINANCE_EXPORT_KINDS), from: day, to: day })
   .refine((v) => periodError(v.from, v.to) !== "finance.errors.period_invalid", { path: ["to"], message: "finance.errors.period_invalid" })
   .refine((v) => periodError(v.from, v.to) !== "finance.errors.period_too_long", { path: ["to"], message: "finance.errors.period_too_long" });
 
-/** Rule 42: queues the accountant CSV of `kind` for a period of at most 366 days; audited as `finance.export_requested`. */
+/** Rules 42 and 43: queues the accountant CSV of `kind` (any of `FINANCE_EXPORT_KINDS`) for a period of at most 366 days; audited as `finance.export_requested`. */
 export const requestFinanceExport = action(
   { name: "finance.export.request", audience: "staff", permission: "reports.finance", input: RequestFinanceExportInput, audit: false },
   async (ctx, input) => {

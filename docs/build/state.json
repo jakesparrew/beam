@@ -1090,9 +1090,12 @@
       "baseSha": "9711c76",
       "runId": null,
       "startedAt": "2026-11-05T00:01:54Z",
-      "branchSha": "6d978bc",
-      "endedAt": "2026-11-05T01:07:09Z",
-      "minutes": 42
+      "branchSha": "fe32126",
+      "endedAt": "2026-11-05T02:01:11Z",
+      "minutes": 42,
+      "extraOwns": [
+        "apps/web/modules/ops/privacy/restrict.test.ts"
+      ]
     },
     "finance-P8": {
       "status": "done",

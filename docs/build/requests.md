@@ -106,6 +106,19 @@ to "Served" with the package id.
 | booking-P7 | booking (owner of `app/[locale]/(portal)/account/book/[sessionId]/page.tsx`) | Pass `BookForm`'s `leadSeatNotice` prop (key `booking.portalSession.lead_seat_notice`) when `availability.useLeadSeat` is true. |
 | email-P6 | email (owner of `server/process-event.ts`) | Call `evaluateBounceRate(ctx.tx, campaignId, ctx)` after each processed hard bounce of a campaign message (rule 37). |
 | email-P6 | email-P7 | Link `/admin/campaigns/[id]/report` from the campaign page; `email.watch_complaints` re-evaluates rule 37 through `evaluateBounceRate` for campaigns in sending. |
+| webinar-P3 | crm | Export `currentWordingVersion` or `getCurrentMarketingWordings` from `modules/crm/api.ts` so the webinar form shows crm's published consent wording and version (today it shows catalogue text as v1). |
+| webinar-P3 | booking (booking-P8) | `upsertWebinarSession` is needed before the demo seed can publish the live and simulive demo webinars. |
+| forms-P6 | forms (owner of `app/(admin)/admin/forms/[formId]/page.tsx`) | Link the form overview to `/admin/forms/[formId]/submissions` and `/admin/forms/[formId]/report`. |
+| ops-P7 | ops (owner of `app/(admin)/admin/dashboard/page.tsx`) | Render `ActionCard.secondary` (imported webinar leads) and `ActionCard.linkHref` (credits sharing review). |
+| ops-P7 | ops (owner of `modules/ops/reports/queries.ts`) | Add the no-shows, abandoned-checkouts and capacity pages to `REPORT_PAGES` behind `ff_ops_retention`. |
+| finance-P8 | finance (owner of `packages/core/src/finance/index.ts`) | `export * from "./periods"` and `"./csv"`, then switch `modules/finance/queries.ts`, `ui/dashboard/format.ts` and `service/exports.ts` to `@beam/core/finance`. |
+| finance-P8 | ui | Ship the shadcn chart component (Recharts is already a dependency of `@beam/ui`). |
+| automation-P7 | automation (owner of `packages/core/src/automation/index.ts`) | `export * from "./frequency"`, then switch `engine/step.ts` to `@beam/core/automation`. |
+| automation-P7 | automation (owner of `engine/preview.ts`) | Predict `frequency_cap` and the quiet-hours deferral with `applyFrequencyRules`. |
+| automation-P7 | automation (owner of `app/(admin)/admin/automations/page.tsx` or `nav.ts`) | Link `/admin/automations/rules` and `/admin/automations/conflicts` from the list screen. |
+| automation-P7 | automation (owner of `ui/person-automations-panel.tsx`) | Drop `PANEL_FALLBACK`: the panel keys are now in all three catalogues. |
+| credits-P9 | credits (owner of `packages/core/src/credits/index.ts`) | `export * from "./referrals"`, then switch `config.ts` and `server/referrals.ts` to `@beam/core/credits`. |
+| credits-P9 | commerce (owner of the refund transaction) | Call `credits.onOrderRefundedForReferrals(tx, ctx, { orderId, refundId })` when a refund is recorded; until then refunds write no negative commission rows. |
 
 ## Served
 

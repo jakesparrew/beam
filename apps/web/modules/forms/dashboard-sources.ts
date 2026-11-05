@@ -172,5 +172,5 @@ export function isFormsDashboardSourceKey(value: unknown): value is FormsDashboa
 /** Loads one widget source (`reports.read`, checked by the caller). */
 export function loadFormsDashboardSource<K extends FormsDashboardSourceKey>(db: DbOrTx, key: K, range: FormsDashboardRange): Promise<FormsDashboardValues[K]> {
   if (!isFormsDashboardSourceKey(key)) throw new TypeError("unknown_source");
-  return FORMS_DASHBOARD_SOURCES[key].load(db, range) as Promise<FormsDashboardValues[K]>;
+  return FORMS_DASHBOARD_SOURCES[key].load(db, range);
 }

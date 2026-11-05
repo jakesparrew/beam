@@ -85,7 +85,7 @@ describe("ai views: no person id, no sensitive column", () => {
     type Use = { view_schema: string; view_name: string; table_schema: string; table_name: string; column_name: string };
     const seen = new Set<string>();
     const sources: Use[] = [];
-    let frontier = AI_VIEWS.map((v) => ({ schema: "ai", name: v.name }));
+    let frontier: { schema: string; name: string }[] = AI_VIEWS.map((v) => ({ schema: "ai", name: v.name }));
     while (frontier.length) {
       const next: { schema: string; name: string }[] = [];
       for (const f of frontier) {

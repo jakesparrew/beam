@@ -2,8 +2,8 @@
  * crm tables (crm spec section 2). Wave 0 (platform-P2) created `persons`, `consent_records`,
  * `suppressions` and `activity_events` with their architecture columns; crm-P1 adds the ADD
  * columns to them (expand only) and creates every other V1 table. R3 tables (`opportunities`,
- * `playbook_stages`, inbox) are added by crm-P8 and crm-P9 (`inbox_threads`, `inbox_messages`
- * without the R4 AI columns, `inbox_reply_templates`).
+ * `playbook_stages`, inbox) are added by crm-P8 and crm-P9 (`inbox_threads`, `inbox_messages`,
+ * `inbox_reply_templates`); R4 crm-P10 adds the AI draft columns and `support_knowledge_articles`.
  *
  * APPEND tables (`reject_update_delete()` trigger, listed in `APPEND_ONLY_TABLES`):
  * `activity_events`, `consent_records`, `suppressions`, `person_merges`, `person_declarations`.
@@ -207,6 +207,10 @@ export const inboxThreadsStatus = pgEnum("inbox_threads_status", INBOX_THREAD_ST
 export const INBOX_MESSAGE_DIRECTIONS = ["in", "out", "note"] as const;
 export type InboxMessageDirection = (typeof INBOX_MESSAGE_DIRECTIONS)[number];
 export const inboxMessagesDirection = pgEnum("inbox_messages_direction", INBOX_MESSAGE_DIRECTIONS);
+/** R4 (crm-P10): the AI draft of an inbound message (rules 3.51, 3.58). */
+export const INBOX_AI_DRAFT_STATUSES = ["none", "pending", "ready", "blocked_sensitive", "failed", "used", "discarded"] as const;
+export type InboxAiDraftStatus = (typeof INBOX_AI_DRAFT_STATUSES)[number];
+export const inboxMessagesAiDraftStatus = pgEnum("inbox_messages_ai_draft_status", INBOX_AI_DRAFT_STATUSES);
 
 // ---------------------------------------------------------------------------
 // JSON shapes (Zod schemas live in `@beam/core/crm`)
@@ -947,6 +951,8 @@ export const inboxThreads = pgTable(
  * that is never sent. `external_message_id` is the email Message-ID or the Meta `mid` (unique: a
  * repeated delivery inserts nothing). `delivery_error` (ADD, crm-P9) says why an `out` message
  * was not delivered (a closed Meta window, a missing permission). Attachments are not stored.
+ * R4 (crm-P10): an inbound message can carry an AI reply draft (`ai_draft`, `ai_draft_status`,
+ * `ai_request_id`); it is never sent by the system (rule 3.51).
  */
 export const inboxMessages = pgTable(
   "inbox_messages",
@@ -959,6 +965,14 @@ export const inboxMessages = pgTable(
     body: text().notNull(),
     externalMessageId: text().unique("inbox_messages_external_message_id_unique"),
     aiDraft: text(),
+    /** R4 (crm-P10): `pending` once requested, `ready` with a draft, `used` once staff sent it. */
+    aiDraftStatus: inboxMessagesAiDraftStatus().notNull().default("none"),
+    /**
+     * R4 (crm-P10): the `ai_requests` row of the draft. No foreign key: `callClaude` writes that
+     * row durably after the job's transaction (it survives a rollback), and the 30-day sweep
+     * deletes it while the message stays (as `page_edit_requests.ai_request_id` in site).
+     */
+    aiRequestId: uuid(),
     sentByUserId: uuid().references(() => users.id),
     emailMessageId: uuid().references(() => emailMessages.id),
     attachmentCount: smallint().notNull().default(0),
@@ -985,4 +999,27 @@ export const inboxReplyTemplates = pgTable(
     ...timestamps(),
   },
   (t) => [check("inbox_reply_templates_key_ck", sql`${t.key} ~ '^[a-z0-9_-]{2,64}$'`)],
+);
+
+// ---------------------------------------------------------------------------
+// 2.8 Release 4: AI reply knowledge base (crm-P10)
+// ---------------------------------------------------------------------------
+
+/**
+ * BEAM policies staff write for AI reply drafts (rule 3.58): cancellation rules, opening hours,
+ * what to bring. Plain text, at most 5,000 characters per locale (checked in the action). No
+ * person data (`NO_PII_TABLES`).
+ */
+export const supportKnowledgeArticles = pgTable(
+  "support_knowledge_articles",
+  {
+    id: id(),
+    key: text().notNull().unique("support_knowledge_articles_key_unique"),
+    title: localized().notNull(),
+    body: localized().notNull(),
+    isActive: boolean().notNull().default(true),
+    updatedByUserId: uuid().references(() => users.id),
+    ...timestamps(),
+  },
+  (t) => [check("support_knowledge_articles_key_ck", sql`${t.key} ~ '^[a-z0-9_-]{2,64}$'`)],
 );

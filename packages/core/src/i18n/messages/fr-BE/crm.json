@@ -8,7 +8,8 @@
       "pipeline": "Pipeline",
       "inbox": "Boîte de réception",
       "profile": "Mes coordonnées",
-      "preferences": "Préférences de communication"
+      "preferences": "Préférences de communication",
+      "knowledge": "Base de connaissances"
     },
     "permissions": {
       "persons_read": "Voir les personnes, leur historique et leur statut",
@@ -293,6 +294,15 @@
         "in": "Reçu",
         "out": "Réponse",
         "note": "Note interne"
+      },
+      "inbox_ai_draft_status": {
+        "none": "Pas de brouillon",
+        "pending": "En rédaction",
+        "ready": "Brouillon prêt",
+        "blocked_sensitive": "Bloqué (sensible)",
+        "failed": "Échec",
+        "used": "Utilisé",
+        "discarded": "Rejeté"
       }
     },
     "persons": {
@@ -1235,6 +1245,51 @@
         "permission": "autorisation manquante",
         "meta_disabled": "les réponses via Meta sont désactivées",
         "other": "Meta a refusé le message"
+      },
+      "ai": {
+        "title": "Brouillon IA",
+        "hint": "Claude rédige une réponse à partir du profil, de la conversation et des règles de BEAM. Rien n'est envoyé tant que vous ne l'avez pas modifiée et envoyée.",
+        "request": "Faire rédiger une réponse par l'IA",
+        "regenerate": "Rédiger à nouveau",
+        "pending": "Rédaction de la réponse…",
+        "ready": "Vérifiez et modifiez le brouillon avant de l'envoyer.",
+        "use": "Envoyer cette réponse",
+        "discard": "Rejeter",
+        "sending": "Envoi…",
+        "failed": "Le brouillon n'a pas pu être rédigé (le budget IA est peut-être épuisé). Rédigez la réponse vous-même ou réessayez plus tard.",
+        "blocked": "Cette conversation semble sensible : rien n'a été envoyé à l'IA. Rédigez la réponse vous-même.",
+        "thread_sensitive": "Cette conversation est marquée comme sensible : les brouillons IA sont désactivés.",
+        "used": "Le brouillon IA a servi pour une réponse.",
+        "discarded": "Le brouillon a été rejeté.",
+        "error": "Cela n'a pas fonctionné. Réessayez.",
+        "pending_conflict": "Un brouillon est déjà en cours de rédaction.",
+        "no_permission": "Vous ne pouvez pas demander de brouillons IA.",
+        "sent": "Réponse envoyée."
+      },
+      "knowledge": {
+        "title": "Base de connaissances",
+        "intro": "Les règles de BEAM que les brouillons IA peuvent utiliser : conditions d'annulation, heures d'ouverture, quoi apporter, étiquette du sauna. N'y mettez jamais de données de clients.",
+        "empty": "Pas encore d'articles. Ajoutez les règles de BEAM pour que les brouillons IA puissent les utiliser.",
+        "back": "Retour à la boîte de réception",
+        "new": "Nouvel article",
+        "edit": "Modifier",
+        "key": "Clé",
+        "key_hint": "Lettres minuscules, chiffres, - et _ (2 à 64 caractères).",
+        "article_title": "Titre",
+        "body": "Texte",
+        "body_hint": "Texte brut, 5 000 caractères au maximum par langue.",
+        "active": "Actif",
+        "inactive": "Inactif",
+        "status": "Statut",
+        "last_edited": "Dernière modification",
+        "save": "Enregistrer l'article",
+        "cancel": "Annuler",
+        "saved": "Article enregistré.",
+        "error": "L'article n'a pas pu être enregistré. Vérifiez chaque langue.",
+        "error_key_taken": "Cette clé est déjà utilisée par un autre article.",
+        "error_missing": "Remplissez le titre et le texte dans chaque langue.",
+        "error_too_long": "Un titre ou un texte est trop long.",
+        "error_forbidden": "Vous ne pouvez pas modifier la base de connaissances."
       }
     }
   }

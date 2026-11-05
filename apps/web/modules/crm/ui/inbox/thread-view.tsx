@@ -4,11 +4,13 @@
  * sensitive switch, then the messages oldest first. Internal notes are marked as such; a Meta
  * reply that was not delivered shows the reason (rule 3.50). The page formats every value on
  * the server; the controls call `assignThread`, `setThreadStatus` and `markThreadSensitive`.
+ * R4 (crm-P10): the AI draft panel follows the messages (`./ai-draft-panel`).
  */
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Alert, AlertDescription, Badge, Button, Switch } from "@beam/ui";
 import { assignThread, markThreadSensitive, setThreadStatus } from "../../inbox/actions";
+import { AiDraftPanel } from "./ai-draft-panel";
 
 export type MessageView = {
   id: string;
@@ -55,12 +57,15 @@ export function ThreadView({
   assignees,
   labels,
   canWrite,
+  showAiDraft = true,
 }: {
   header: ThreadHeaderView;
   messages: MessageView[];
   assignees: { value: string; label: string }[];
   labels: ThreadViewLabels;
   canWrite: boolean;
+  /** R4: the AI draft panel under the messages (it loads its own state and hides without an inbound message). */
+  showAiDraft?: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -159,6 +164,7 @@ export function ThreadView({
           </li>
         ))}
       </ol>
+      {showAiDraft ? <AiDraftPanel threadId={header.id} canWrite={canWrite} /> : null}
     </section>
   );
 }

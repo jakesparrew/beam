@@ -8,7 +8,8 @@
       "pipeline": "Pipeline",
       "inbox": "Inbox",
       "profile": "Mijn gegevens",
-      "preferences": "Communicatievoorkeuren"
+      "preferences": "Communicatievoorkeuren",
+      "knowledge": "Kennisbank"
     },
     "permissions": {
       "persons_read": "Personen, hun tijdlijn en status bekijken",
@@ -293,6 +294,15 @@
         "in": "Ontvangen",
         "out": "Antwoord",
         "note": "Interne notitie"
+      },
+      "inbox_ai_draft_status": {
+        "none": "Geen concept",
+        "pending": "Wordt opgesteld",
+        "ready": "Concept klaar",
+        "blocked_sensitive": "Geblokkeerd (gevoelig)",
+        "failed": "Mislukt",
+        "used": "Gebruikt",
+        "discarded": "Verworpen"
       }
     },
     "persons": {
@@ -1235,6 +1245,51 @@
         "permission": "ontbrekende toestemming",
         "meta_disabled": "antwoorden via Meta staan uit",
         "other": "Meta weigerde het bericht"
+      },
+      "ai": {
+        "title": "AI-concept",
+        "hint": "Claude stelt een antwoord op uit het profiel, het gesprek en de BEAM-richtlijnen. Er wordt niets verstuurd tot jij het aanpast en op Versturen klikt.",
+        "request": "Antwoord laten opstellen door AI",
+        "regenerate": "Opnieuw opstellen",
+        "pending": "Antwoord wordt opgesteld…",
+        "ready": "Controleer en pas het concept aan voor je het verstuurt.",
+        "use": "Dit antwoord versturen",
+        "discard": "Verwerpen",
+        "sending": "Bezig met versturen…",
+        "failed": "Het concept kon niet worden opgesteld (misschien is het AI-budget op). Schrijf het antwoord zelf of probeer later opnieuw.",
+        "blocked": "Dit gesprek lijkt gevoelig, dus er is niets naar AI gestuurd. Schrijf het antwoord zelf.",
+        "thread_sensitive": "Dit gesprek is als gevoelig gemarkeerd: AI-concepten staan uit.",
+        "used": "Het AI-concept is gebruikt voor een antwoord.",
+        "discarded": "Het concept is verworpen.",
+        "error": "Dat lukte niet. Probeer opnieuw.",
+        "pending_conflict": "Er wordt al een concept opgesteld.",
+        "no_permission": "Je kunt geen AI-concepten aanvragen.",
+        "sent": "Antwoord verstuurd."
+      },
+      "knowledge": {
+        "title": "Kennisbank",
+        "intro": "BEAM-richtlijnen die AI-concepten mogen gebruiken: annuleringsregels, openingsuren, wat je meebrengt, sauna-etiquette. Zet hier nooit klantgegevens.",
+        "empty": "Nog geen artikels. Voeg BEAM-richtlijnen toe zodat AI-concepten ze kunnen gebruiken.",
+        "back": "Terug naar de inbox",
+        "new": "Nieuw artikel",
+        "edit": "Bewerken",
+        "key": "Sleutel",
+        "key_hint": "Kleine letters, cijfers, - en _ (2 tot 64 tekens).",
+        "article_title": "Titel",
+        "body": "Tekst",
+        "body_hint": "Platte tekst, maximaal 5.000 tekens per taal.",
+        "active": "Actief",
+        "inactive": "Inactief",
+        "status": "Status",
+        "last_edited": "Laatst bewerkt",
+        "save": "Artikel bewaren",
+        "cancel": "Annuleren",
+        "saved": "Artikel bewaard.",
+        "error": "Het artikel kon niet worden bewaard. Controleer elke taal.",
+        "error_key_taken": "Deze sleutel wordt al door een ander artikel gebruikt.",
+        "error_missing": "Vul de titel en de tekst in elke taal in.",
+        "error_too_long": "Een titel of tekst is te lang.",
+        "error_forbidden": "Je kunt de kennisbank niet bewerken."
       }
     }
   }

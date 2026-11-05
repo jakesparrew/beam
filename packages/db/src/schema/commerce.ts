@@ -160,6 +160,13 @@ export const vouchersStatus = pgEnum("vouchers_status", [
   "void",
 ]);
 export const posDayClosesStatus = pgEnum("pos_day_closes_status", ["open", "closed"]);
+/** R3 (commerce-P9). */
+export const lightspeedImportsStatus = pgEnum("lightspeed_imports_status", [
+  "uploaded",
+  "running",
+  "done",
+  "failed",
+]);
 
 /** `payments.status_history[]` (rule 28). */
 export type PaymentStatusHistoryEntry = {
@@ -371,9 +378,11 @@ export const orders = pgTable(
       "orders_terms_chk",
       sql`${t.channel} not in ('portal', 'site', 'link') or ${t.status} = 'draft' or ${t.termsVersionId} is not null`,
     ),
+    // A renewal order always names its period; the membership link may be nulled (set null)
+    // while the order keeps its period (fix-w09-credits-review request, commerce-P9).
     check(
       "orders_renewal_chk",
-      sql`(${t.renewalMembershipId} is null) = (${t.renewalPeriodEndOn} is null)`,
+      sql`${t.renewalMembershipId} is null or ${t.renewalPeriodEndOn} is not null`,
     ),
   ],
 );
@@ -479,6 +488,8 @@ export const promotions = pgTable(
     maxUses: integer(),
     maxUsesPerPerson: integer(),
     usesCount: integer().notNull().default(0),
+    /** R3 referral codes: the partner company a code promotion is attributed to (commerce-P9). */
+    partnerCompanyId: uuid().references((): AnyPgColumn => companies.id, { onDelete: "set null" }),
     isActive: boolean().notNull().default(true),
     createdByUserId: uuid()
       .notNull()
@@ -504,6 +515,13 @@ export const promotions = pgTable(
       sql`${t.maxUsesPerPerson} is null or ${t.maxUsesPerPerson} > 0`,
     ),
     check("promotions_uses_count_chk", sql`${t.usesCount} >= 0`),
+    check(
+      "promotions_partner_code_chk",
+      sql`${t.partnerCompanyId} is null or ${t.code} is not null`,
+    ),
+    index("promotions_partner_idx")
+      .on(t.partnerCompanyId)
+      .where(sql`${t.partnerCompanyId} is not null`),
   ],
 );
 
@@ -690,9 +708,8 @@ export const refunds = pgTable(
     status: refundsStatus().notNull().default("pending"),
     creditNoteId: uuid().references((): AnyPgColumn => invoices.id),
     failedReason: text(),
-    createdByUserId: uuid()
-      .notNull()
-      .references(() => users.id),
+    /** Null = a system refund (rule 22c late-paid renewals, rule 37a from jobs). */
+    createdByUserId: uuid().references(() => users.id),
     ...timestamps(),
   },
   (t) => [
@@ -767,5 +784,66 @@ export const posDayCloses = pgTable(
       "pos_day_closes_closed_chk",
       sql`${t.status} <> 'closed' or (${t.countedCashCents} is not null and ${t.closedAt} is not null)`,
     ),
+  ],
+);
+
+/** R3 (rule 53): one uploaded Lightspeed sales CSV and its import progress. No PII. */
+export const lightspeedImports = pgTable(
+  "lightspeed_imports",
+  {
+    id: id(),
+    fileId: uuid()
+      .notNull()
+      .references(() => files.id),
+    status: lightspeedImportsStatus().notNull().default("uploaded"),
+    businessFromOn: date({ mode: "string" }),
+    businessToOn: date({ mode: "string" }),
+    rowsTotal: integer().notNull().default(0),
+    rowsImported: integer().notNull().default(0),
+    rowsSkipped: integer().notNull().default(0),
+    /** `{ row, code, column? }[]`: row numbers count the header as row 1. */
+    errors: jsonb().$type<LightspeedImportErrorJson[]>().notNull().default([]),
+    createdByUserId: uuid()
+      .notNull()
+      .references(() => users.id),
+    ...timestamps(),
+  },
+  (t) => [
+    index("lightspeed_imports_status_idx").on(t.status, t.createdAt),
+    check(
+      "lightspeed_imports_counts_chk",
+      sql`${t.rowsTotal} >= 0 and ${t.rowsImported} >= 0 and ${t.rowsSkipped} >= 0`,
+    ),
+  ],
+);
+
+/** `lightspeed_imports.errors[]`. */
+export type LightspeedImportErrorJson = { row: number; code: string; column?: string };
+
+/** R3, APPEND (rule 53): Lightspeed till lines for reporting only. No PII (`NO_PII_TABLES`). */
+export const lightspeedSales = pgTable(
+  "lightspeed_sales",
+  {
+    id: id(),
+    importId: uuid()
+      .notNull()
+      .references(() => lightspeedImports.id),
+    /** `<receipt_number>:<line_number>`; a re-upload adds nothing. */
+    externalLineKey: text().notNull().unique("lightspeed_sales_external_line_key_unique"),
+    businessDayOn: date({ mode: "string" }).notNull(),
+    soldAt: tstz().notNull(),
+    receiptNumber: text().notNull(),
+    productName: text().notNull(),
+    category: text().notNull(),
+    quantity: numeric({ precision: 10, scale: 3 }).notNull(),
+    totalCents: integer().notNull(),
+    vatRatePct: numeric({ precision: 4, scale: 2 }).notNull(),
+    vatCents: integer().notNull(),
+    paymentMethod: text().notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("lightspeed_sales_business_day_idx").on(t.businessDayOn),
+    index("lightspeed_sales_import_idx").on(t.importId),
   ],
 );

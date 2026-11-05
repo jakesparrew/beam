@@ -9,6 +9,7 @@ import { LOCALES } from "@beam/core/i18n";
 import { brusselsDay } from "@beam/core/forms";
 import { defineJob, type JobCtx } from "@/lib/job-runner";
 import { refreshCtaWarnings } from "./service/cta-targets";
+import { markImportFailed, processImportEvent } from "./service/import";
 import { markAbandoned, sendResultLink } from "./service/submissions";
 
 export const ABANDON_BATCH = 1000;
@@ -16,6 +17,7 @@ export const ABANDON_BATCH = 1000;
 const MarkAbandonedInput = z.object({ n: z.number().int().positive().optional() });
 const SendResultLinkInput = z.object({ submissionId: z.uuid(), locale: z.enum(LOCALES) });
 const CheckCtaTargetsInput = z.object({}).passthrough();
+const ProcessImportInput = z.object({ importEventId: z.uuid() });
 
 /** The `YYYY-MM-DDTHH:mm` of the run: from the schedule or continuation key, else the Brussels minute of `now`. */
 export function abandonMinute(key: string, now: Date): string {
@@ -45,8 +47,23 @@ async function runCheckCtaTargets(ctx: JobCtx): Promise<{ forms: number }> {
   return { forms: await refreshCtaWarnings(ctx.tx, ctx.now) };
 }
 
+/** I3, I4: one imported result; a skipped event (no email, invalid mapping) commits its reason and returns. */
+async function runProcessImport(ctx: JobCtx, input: z.infer<typeof ProcessImportInput>): Promise<{ status: "processed" | "skipped" }> {
+  return { status: await processImportEvent(ctx.tx, ctx, input.importEventId) };
+}
+
 export const jobs = [
   defineJob({ kind: "forms.mark_abandoned", lane: "fast", priority: 5, maxAttempts: 6, input: MarkAbandonedInput, run: runMarkAbandoned }),
   defineJob({ kind: "forms.send_result_link", lane: "fast", priority: 1, maxAttempts: 6, input: SendResultLinkInput, run: runSendResultLink }),
   defineJob({ kind: "forms.check_cta_targets", lane: "bulk", priority: 9, maxAttempts: 3, input: CheckCtaTargetsInput, run: (ctx) => runCheckCtaTargets(ctx) }),
+  defineJob({
+    kind: "forms.process_import",
+    lane: "fast",
+    priority: 5,
+    maxAttempts: 6,
+    input: ProcessImportInput,
+    run: runProcessImport,
+    // Attempts used up: the event shows `failed` with the reason on the source page (reprocess).
+    onDead: (ctx, input, error) => markImportFailed(ctx.tx, ctx, input.importEventId, error.message),
+  }),
 ];

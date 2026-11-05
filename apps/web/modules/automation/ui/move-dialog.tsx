@@ -69,7 +69,7 @@ export function MoveDialog(p: { personId: string; sources: MoveSource[]; targets
     if (!source || !target) return;
     const anchorAt = target.needsAnchor ? localToIso(formStr(new FormData(e.currentTarget), "anchorAt")) : undefined;
     void run(
-      () => movePerson({ personId: p.personId, fromEnrolmentId: source.enrolmentId, toAutomationId: target.id, ...(anchorAt ? { anchorAt } : {}) }) as Promise<ActionResultLike>,
+      () => movePerson({ personId: p.personId, fromEnrolmentId: source.enrolmentId, toAutomationId: target.id, ...(anchorAt ? { anchorAt } : {}) }),
       () => setOpen(false),
     );
   }
@@ -157,7 +157,7 @@ export function ExitEnrolmentButton(p: { enrolmentId: string; automationName: st
   function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const note = formStr(new FormData(e.currentTarget), "note").trim();
-    void run(() => exitEnrolment({ enrolmentId: p.enrolmentId, ...(note ? { note } : {}) }) as Promise<ActionResultLike>, () => setOpen(false));
+    void run(() => exitEnrolment({ enrolmentId: p.enrolmentId, ...(note ? { note } : {}) }), () => setOpen(false));
   }
 
   return (

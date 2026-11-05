@@ -182,7 +182,7 @@ export async function PersonAutomationsPanel(props: PersonAutomationsPanelProps)
     : [];
   const previews = new Map<string, PreviewRow[]>();
   for (const e of data.active) {
-    let steps: PreviewStep[] = [];
+    let steps: PreviewStep[];
     try {
       steps = await previewSteps(db, { personId: props.personId, automationId: e.automationId, now });
     } catch {

@@ -697,7 +697,7 @@ export async function listEnrolOptions(db: DbOrTx, input: { personId: string }):
     const aud = def.audience;
     const inAudience =
       !aud ||
-      ((!aud.locales?.length || aud.locales.includes(person.locale as never)) &&
+      ((!aud.locales?.length || (aud.locales as readonly string[]).includes(person.locale)) &&
         (!aud.status?.length || (!!statusRow && aud.status.includes(statusRow.status))) &&
         (!aud.segment_id || segmentIds.has(aud.segment_id)) &&
         !(aud.exclude_segment_ids ?? []).some((id) => segmentIds.has(id)));

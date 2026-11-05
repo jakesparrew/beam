@@ -39,7 +39,6 @@ import {
   type ConditionScope,
   type Definition,
   type PlannedStep,
-  type PlanState,
   type Step,
   type StepType,
 } from "@beam/core/automation";
@@ -95,7 +94,7 @@ async function activeEnrolment(db: DbOrTx, personId: string, automationId: strin
 }
 
 const scopeOf = (context: EnrolmentContextJson | null, subjectKey: string): ConditionScope => ({
-  trigger: (context?.trigger ?? null) as ConditionScope["trigger"],
+  trigger: context?.trigger ?? null,
   subjectKey,
 });
 
@@ -152,7 +151,7 @@ async function predict(tx: DbOrTx, b: Basis, p: PredictPerson): Promise<PreviewS
   });
   const facts = await loadFacts(tx as Tx, p.personId, needsOf(conditions, { now: p.now, enrolment: b.enrolment }));
   const slugs = [...new Set(listed.map((e) => steps.get(e.key)!).flatMap((s) => (s.type === "email" ? [s.template] : [])))];
-  const templates = slugs.length ? await getPublishedTemplateInfo(tx, slugs) : new Map();
+  const templates: Awaited<ReturnType<typeof getPublishedTemplateInfo>> = slugs.length ? await getPublishedTemplateInfo(tx, slugs) : new Map<string, never>();
   const reach = new Map<string, Awaited<ReturnType<typeof getReachability>>>();
   const reachability = async (purpose: AutomationPurpose) => {
     if (!reach.has(purpose)) reach.set(purpose, await getReachability(tx, p.personId, purpose));
@@ -173,7 +172,7 @@ async function predict(tx: DbOrTx, b: Basis, p: PredictPerson): Promise<PreviewS
       continue;
     }
     jumpTo = null;
-    if ((e.state as PlanState) === "skipped") {
+    if (e.state === "skipped") {
       push(e, s, "late_entry", e.reason ?? "late_entry");
       continue;
     }
@@ -216,7 +215,7 @@ async function predict(tx: DbOrTx, b: Basis, p: PredictPerson): Promise<PreviewS
       continue;
     }
     if (s.send_as === "marketing" || info.kind === "marketing") {
-      const purpose = (s.send_as === "marketing" ? p.purpose : (info.purpose ?? p.purpose)) as AutomationPurpose | null;
+      const purpose = s.send_as === "marketing" ? p.purpose : (info.purpose ?? p.purpose);
       if (!purpose) {
         push(e, s, "unreachable", "no_purpose");
         continue;
@@ -227,7 +226,7 @@ async function predict(tx: DbOrTx, b: Basis, p: PredictPerson): Promise<PreviewS
         continue;
       }
     }
-    if (!(info.locales as string[]).includes(p.locale)) {
+    if (!(info.locales as readonly string[]).includes(p.locale)) {
       push(e, s, "translation_missing", `locale ${p.locale} missing in template ${s.template}`);
       continue;
     }

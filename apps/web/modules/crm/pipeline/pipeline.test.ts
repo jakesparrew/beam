@@ -14,7 +14,7 @@ import { defaultPlaybookRows } from "@beam/db/seed/crm";
 process.env.SENSITIVE_DATA_KEY_V1 ??= randomBytes(32).toString("base64");
 process.env.AUTH_SECRET = "crm-p8-pipeline-secret";
 
-const enrol = vi.hoisted(() => vi.fn(async () => ({ status: "enrolled" as const, enrolmentId: "00000000-0000-4000-8000-000000000001" })));
+const enrol = vi.hoisted(() => vi.fn((_tx: unknown, _input: { slug: string; personId: string }) => Promise.resolve({ status: "enrolled" as const, enrolmentId: "00000000-0000-4000-8000-000000000001" })));
 const jar = new Map<string, string>();
 vi.mock("next/headers", () => ({
   cookies: () =>
@@ -240,7 +240,8 @@ describe("3.48 escalation and the board", () => {
     await runJobTwice(h.db, "crm.escalate_opportunities", {});
     const key = `escalate:${o.id}:response:${entered.toISOString().slice(0, 16)}`;
     const esc = await h.db.select({ owner: tasks.ownerUserId, priority: tasks.priority, role: users.roleKey }).from(tasks).innerJoin(users, eq(users.id, tasks.ownerUserId)).where(eq(tasks.dedupeKey, key));
-    expect(esc).toEqual([{ owner: expect.any(String), priority: "high", role: "management" }]);
+    expect(esc).toHaveLength(1);
+    expect(esc[0]).toMatchObject({ priority: "high", role: "management" });
     const slack = rowsOf<{ n: number }>(await h.db.execute(sql`select count(*)::int as n from jobs where kind = 'notify.slack' and payload->>'fingerprint' = ${`opportunity:${o.id}:response:escalated`}`));
     expect(Number(slack[0]!.n)).toBe(1);
     const board = await getPipelineBoard(h.db, { ownerUserId: salesId });
@@ -381,9 +382,9 @@ describe("pipeline permissions", () => {
     jar.set(auth.SESSION_COOKIE, token);
   }
   const CASES: Array<[string, (raw: unknown) => Promise<{ ok: boolean; error?: { code: string } }>, string]> = [
-    ["saveOpportunity", actions.saveOpportunity as never, "crm.b2b"],
-    ["moveOpportunityStage", actions.moveOpportunityStage as never, "crm.b2b"],
-    ["savePlaybookStage", actions.savePlaybookStage as never, "settings.write"],
+    ["saveOpportunity", actions.saveOpportunity, "crm.b2b"],
+    ["moveOpportunityStage", actions.moveOpportunityStage, "crm.b2b"],
+    ["savePlaybookStage", actions.savePlaybookStage, "settings.write"],
   ];
 
   it.each(CASES)("%s refuses a staff user without its permission", async (_name, call, permission) => {

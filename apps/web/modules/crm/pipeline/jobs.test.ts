@@ -14,7 +14,7 @@ process.env.SENSITIVE_DATA_KEY_V1 ??= randomBytes(32).toString("base64");
 vi.mock("next/server", () => ({ after: () => undefined }));
 vi.mock("@/modules/automation/api", async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
-  enrolPersonBySlug: vi.fn(async () => ({ status: "enrolled", enrolmentId: "00000000-0000-4000-8000-000000000002" })),
+  enrolPersonBySlug: vi.fn(() => Promise.resolve({ status: "enrolled", enrolmentId: "00000000-0000-4000-8000-000000000002" })),
 }));
 
 const { jobs } = await import("../jobs");

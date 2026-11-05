@@ -3,10 +3,11 @@
  * The move-stage dialog (crm spec 5.1, rule 3.47): a stage list limited to the allowed moves,
  * and a required reason when the target is `lost`. The board opens it for a drop on `lost` and
  * for the keyboard "Move" button; the detail page opens it from its header. A stale `version`
- * or a refused transition shows the server's reason.
+ * or a refused transition shows the server's reason. Callers give it a `key` per opened target,
+ * so its state starts fresh each time.
  */
 import { useRouter } from "next/navigation";
-import { useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { Alert, AlertDescription, Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, FormField, Textarea } from "@beam/ui";
 import type { OpportunityStage } from "@beam/db/schema";
 import { moveOpportunityStage } from "../../pipeline/actions";
@@ -53,17 +54,13 @@ export function StageDialog({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const first = allowed[0] ?? "";
-  useEffect(() => {
-    setStage(initialStage ?? first);
-    setError(null);
-  }, [target?.id, target?.version, initialStage, first]);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!target) return;
     const form = new FormData(event.currentTarget);
-    const reason = String(form.get("lostReason") ?? "").trim();
+    const raw = form.get("lostReason");
+    const reason = typeof raw === "string" ? raw.trim() : "";
     if (stage === "lost" && !reason) {
       setError(labels.reasonRequired);
       return;
@@ -133,7 +130,7 @@ export function MoveStageButton({ target, allowed, labels, buttonLabel }: { targ
       <Button type="button" onClick={() => setOpen(true)}>
         {buttonLabel}
       </Button>
-      <StageDialog target={open ? target : null} allowed={allowed} labels={labels} onClose={() => setOpen(false)} />
+      <StageDialog key={open ? "open" : "closed"} target={open ? target : null} allowed={allowed} labels={labels} onClose={() => setOpen(false)} />
     </>
   );
 }

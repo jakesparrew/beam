@@ -17,7 +17,7 @@
 import type { DbOrTx, Tx } from "@beam/db";
 import { companies, OPPORTUNITY_STAGES, opportunities, persons, playbookStages, ROLE_KEYS, tasks, users, type OpportunityStage, type PlaybookPipeline, type RoleKey } from "@beam/db/schema";
 import { LOCALES, missingLocales, type Locale, type LocalizedText } from "@beam/core/i18n";
-import { and, ConflictError, eq, NotFoundError, sql, ValidationError, type Ctx } from "@/lib/ctx";
+import { and, ConflictError, eq, NotFoundError, ValidationError, type Ctx } from "@/lib/ctx";
 import { enrolPersonBySlug } from "@/modules/automation/api";
 import type { EventCtx } from "../api";
 import { resolveCanonicalPersonId } from "../persons/api";

@@ -89,7 +89,7 @@ export function PipelineBoard({ columns, labels }: { columns: ColumnView[]; labe
           </div>
         ))}
       </div>
-      <StageDialog target={target} initialStage={dialog?.stage} allowed={dialog?.card.allowed ?? []} labels={labels.dialog} onClose={() => setDialog(null)} />
+      <StageDialog key={dialog ? `${dialog.card.id}:${dialog.stage ?? ""}` : "closed"} target={target} initialStage={dialog?.stage} allowed={dialog?.card.allowed ?? []} labels={labels.dialog} onClose={() => setDialog(null)} />
     </div>
   );
 }
@@ -178,7 +178,10 @@ export function OpportunityForm({
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    const get = (k: string) => String(form.get(k) ?? "").trim();
+    const get = (k: string) => {
+      const v = form.get(k);
+      return typeof v === "string" ? v.trim() : "";
+    };
     const valueCents = eurosToCents(get("value"));
     if (valueCents === null) {
       setError(labels.error);

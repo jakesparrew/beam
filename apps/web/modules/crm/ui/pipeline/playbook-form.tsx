@@ -68,7 +68,7 @@ const selectClass =
 
 const filled = (v: LocalizedValue<Locale>) => LOCALES.some((l) => !!v[l]?.trim());
 const num = (raw: FormDataEntryValue | null): number | undefined => {
-  const s = String(raw ?? "").trim();
+  const s = typeof raw === "string" ? raw.trim() : "";
   if (!s) return undefined;
   const n = Number(s);
   return Number.isFinite(n) ? Math.round(n) : undefined;
@@ -87,7 +87,10 @@ export function PlaybookForm({ initial, labels, roles, canEdit }: { initial: Pla
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    const get = (k: string) => String(form.get(k) ?? "").trim();
+    const get = (k: string) => {
+      const v = form.get(k);
+      return typeof v === "string" ? v.trim() : "";
+    };
     const after = num(form.get("escalationAfterDays"));
     const target = num(form.get("kpiTarget"));
     const probability = num(form.get("defaultProbabilityPct"));

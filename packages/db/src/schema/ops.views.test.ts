@@ -7,7 +7,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { sql } from "drizzle-orm";
-import { PERSON_PROFILE_V1_COLUMNS, PROFILE_FORBIDDEN_COLUMNS, RETENTION_DEFAULTS, retentionScore } from "@beam/core/ops";
+import { PERSON_PROFILE_COLUMNS, PROFILE_FORBIDDEN_COLUMNS, RETENTION_DEFAULTS, retentionScore } from "@beam/core/ops";
 import { SEGMENT_ALLOWED_FIELDS } from "@beam/core/crm";
 import type { DbHandle } from "../client";
 import { createTestDb, makePerson, makeProduct, makeSession, makeUser } from "../testing";
@@ -50,7 +50,7 @@ describe("v_person_profile", () => {
         sql`select column_name from information_schema.columns where table_name = 'v_person_profile' order by ordinal_position`,
       )
     ).map((c) => c.column_name);
-    expect(cols).toEqual([...PERSON_PROFILE_V1_COLUMNS]);
+    expect(cols).toEqual(PERSON_PROFILE_COLUMNS.map((c) => c.name));
     for (const f of SEGMENT_ALLOWED_FIELDS) expect(cols).toContain(f);
     for (const forbidden of [...PROFILE_FORBIDDEN_COLUMNS, ...SENSITIVE_COLUMNS.map((c) => c.column)]) expect(cols).not.toContain(forbidden);
   });

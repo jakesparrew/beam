@@ -5,8 +5,11 @@
  * transfer invoices, failed and expired payments around a Brussels midnight, and memberships in
  * every state. Every tile is compared with a value computed by hand from the seed below.
  */
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { DbHandle } from "@beam/db";
+import { LOCALES } from "@beam/core/i18n";
 import { makeMembership } from "@beam/db/testing/credits-factories";
 import { makeOrder } from "@beam/db/testing/commerce-factories";
 import { payments } from "@beam/db/schema";
@@ -15,6 +18,8 @@ import { issueCreditNote, issueInvoice, markCreditNoteSettled } from "./api";
 import { openInvoice } from "./finance-p4.helpers";
 import { getFinanceDashboard } from "./queries";
 import { asTx, ctxAt, makePerson, paidOrder, payment, refund, setupDb } from "./service/__tests__/fixtures";
+import { FinanceDashboardView } from "./ui/dashboard/finance-dashboard";
+import { financeLabels } from "./ui/labels";
 
 vi.mock("@/registry/jobs.generated", async (importOriginal) => {
   const { withFinanceJobStubs } = await import("./service/__tests__/fixtures");
@@ -245,5 +250,41 @@ describe("getFinanceDashboard: other periods", () => {
 
   it("refuses an invalid custom range", async () => {
     await expect(getFinanceDashboard(h.db, { period: "custom", from: "2027-11-05", to: "2027-11-01", now: T })).rejects.toThrow(RangeError);
+  });
+});
+
+describe("the dashboard screen", () => {
+  it.each(LOCALES)("renders the seeded month in %s with the tiles, charts, tables and a CSV per table", async (locale) => {
+    const data = await getFinanceDashboard(h.db, { period: "month", now: T });
+    const html = renderToStaticMarkup(createElement(FinanceDashboardView, { data, labels: financeLabels(locale, ["dashboard"]), locale }));
+    expect(html).toContain('data-testid="tile-net-revenue" data-value="18000"');
+    expect(html).toContain('data-testid="tile-open-invoices" data-value="18150"');
+    for (const id of ["chart-revenue-trend", "chart-cash-flow", "breakdown-category", "breakdown-method", "table-vat", "table-open-invoices", "table-failed-payments", "table-recurring"]) {
+      expect(html, id).toContain(`data-testid="${id}"`);
+    }
+    expect(html.match(/download="beam-dashboard-[a-z-]+-2027-11-01-2027-11-30\.csv"/g)).toHaveLength(8);
+    expect(html).not.toContain("dashboard.");
+    expect(html).not.toContain('data-testid="dashboard-no-data"');
+  });
+
+  it("puts the hand-computed figures in the CSV of the open invoices", async () => {
+    const data = await getFinanceDashboard(h.db, { period: "month", now: T });
+    const html = renderToStaticMarkup(createElement(FinanceDashboardView, { data, labels: financeLabels("en", ["dashboard"]), locale: "en" }));
+    const href = /href="(data:text\/csv[^"]+)" download="beam-dashboard-open-invoices/.exec(html)?.[1];
+    const csv = decodeURIComponent(href!.replace(/&amp;/g, "&").slice("data:text/csv;charset=utf-8,".length));
+    const lines = csv.replace(/^﻿/, "").trim().split("\r\n");
+    expect(lines[0]).toBe("number;customer;issued_on;due_on;amount_due_eur;days_overdue");
+    expect(lines.slice(1).map((line) => line.split(";").slice(3, 5))).toEqual([
+      ["2026-10-20", "121.00"],
+      ["2099-01-31", "60.50"],
+    ]);
+  });
+
+  it("shows zero tiles and the no-data notice for an empty period", async () => {
+    const data = await getFinanceDashboard(h.db, { period: "custom", from: "2024-01-01", to: "2024-01-31", now: T });
+    const html = renderToStaticMarkup(createElement(FinanceDashboardView, { data, labels: financeLabels("nl-BE", ["dashboard"]), locale: "nl-BE" }));
+    expect(html).toContain('data-testid="dashboard-no-data"');
+    expect(html).toContain("Geen gegevens in deze periode.");
+    expect(html).toContain('data-testid="tile-net-revenue" data-value="0"');
   });
 });

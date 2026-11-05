@@ -272,7 +272,8 @@ describe("the dashboard screen", () => {
     const html = renderToStaticMarkup(createElement(FinanceDashboardView, { data, labels: financeLabels("en", ["dashboard"]), locale: "en" }));
     const href = /href="(data:text\/csv[^"]+)" download="beam-dashboard-open-invoices/.exec(html)?.[1];
     const csv = decodeURIComponent(href!.replace(/&amp;/g, "&").slice("data:text/csv;charset=utf-8,".length));
-    const lines = csv.replace(/^﻿/, "").trim().split("\r\n");
+    expect(csv.charCodeAt(0)).toBe(0xfeff);
+    const lines = csv.slice(1).trim().split("\r\n");
     expect(lines[0]).toBe("number;customer;issued_on;due_on;amount_due_eur;days_overdue");
     expect(lines.slice(1).map((line) => line.split(";").slice(3, 5))).toEqual([
       ["2026-10-20", "121.00"],

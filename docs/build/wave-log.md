@@ -249,3 +249,4 @@ One entry per merge batch and gate (runbook section 5.7, adapted by OD-3).
 - fix-w21-crm-wiring: 39 min, merged as `ccf497b`; gate `g123-fix-w21-crm-wiring` (merge) green, peak 10512 MB.
 - fix-w21-forms-wiring: 50 min, merged as `bd2ea85`, migrations 0054_w04.sql; gate `g124-fix-w21-forms-wiring` (merge) green, peak 4342 MB.
 - fix-w21-commerce-wiring: 45 min, merged as `dc9cf47`, migrations 0055_w04.sql; gate `g125-fix-w21-commerce-wiring` (merge) green, peak 4084 MB.
+- fix-w21-email-wiring: 45 min, merged as `bd02d32`; gate `g126-fix-w21-email-wiring` (merge) green, peak 4447 MB.

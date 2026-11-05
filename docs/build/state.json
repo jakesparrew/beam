@@ -3304,7 +3304,7 @@
       "mergedAt": "2026-11-05T14:35:36Z"
     },
     "fix-w21-email-wiring": {
-      "status": "done",
+      "status": "merged",
       "attempts": 1,
       "fixer": true,
       "module": "email",
@@ -3503,9 +3503,11 @@
       "extraOwns": [
         "apps/web/test/seams-v1.test.ts"
       ],
-      "branchSha": "5ac3782",
-      "endedAt": "2026-11-05T11:38:14Z",
-      "minutes": 45
+      "branchSha": "b7f32f2",
+      "endedAt": "2026-11-05T14:35:42Z",
+      "minutes": 45,
+      "mergeSha": "bd02d32",
+      "mergedAt": "2026-11-05T15:02:05Z"
     },
     "fix-w21-forms-wiring": {
       "status": "merged",

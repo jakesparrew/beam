@@ -247,6 +247,11 @@ async function openLeadMagnet(page: Page, email: string): Promise<void> {
   await page.goto(`/nl/account/book/${lead!.sessionId}`);
 }
 
+/** The fixture people never accepted the terms, so their first booking or queue join asks for them. */
+async function acceptTerms(page: Page): Promise<void> {
+  await page.getByRole("checkbox", { name: /voorwaarden/ }).check();
+}
+
 async function postOn(page: Page, click: () => Promise<void>): Promise<void> {
   const [response] = await Promise.all([page.waitForResponse((r) => r.request().method() === "POST" && r.url().includes(`/account/book/${lead!.sessionId}`)), click()]);
   expect(response.status()).toBeLessThan(500);
@@ -417,14 +422,27 @@ test.describe("Release 2 acceptance (proposal section 12)", () => {
     });
 
     test("Lead and customer rules work on a Lead Magnet event", async ({ browser }) => {
+      // Three people sign in by magic link and act in turn.
+      test.setTimeout(3 * 60_000);
       const s = lead!;
       expect(await statusOf(s.seated)).toBe("lead");
       expect(await statusOf(s.customer)).toBe("customer");
+
+      // While the reserved seat is still free and the general seat is taken, a customer sees when the
+      // event opens for them and no booking button (R22). Once every seat is taken the page says
+      // "Volzet" instead (booking's computeAvailability: nothing is left to open), so the customer
+      // looks first and joins the customer queue after the leads, keeping the queue order below.
+      const customerPage = await (await browser.newContext()).newPage();
+      await openLeadMagnet(customerPage, s.emails.customer);
+      await expect(customerPage.getByTestId("session-state")).toContainText("Opent voor jou op");
+      await expect(customerPage.getByTestId("book-submit")).toHaveCount(0);
+      await expect(customerPage.getByTestId("join-waitlist")).toHaveText(/klantenwachtrij|wachtrij voor klanten/i);
 
       // During the lead window a lead books the reserved seat.
       const leadPage = await (await browser.newContext()).newPage();
       await openLeadMagnet(leadPage, s.emails.seated);
       await expect(leadPage.getByTestId("book-form")).toBeVisible();
+      await acceptTerms(leadPage);
       await postOn(leadPage, () => leadPage.getByTestId("book-submit").click());
       await leadPage.waitForURL(/\/account\/bookings\//);
       expect(await leadBookingOf(s.seated)).toMatchObject({ status: "confirmed", used_lead_seat: true });
@@ -433,17 +451,18 @@ test.describe("Release 2 acceptance (proposal section 12)", () => {
       // A second lead finds the event full and joins the lead queue.
       const waitingPage = await (await browser.newContext()).newPage();
       await openLeadMagnet(waitingPage, s.emails.waiting);
+      await expect(waitingPage.getByTestId("join-waitlist")).toBeVisible();
+      await acceptTerms(waitingPage);
       await postOn(waitingPage, () => waitingPage.getByTestId("join-waitlist").click());
       await expect(waitingPage.getByTestId("waitlist-joined")).toBeVisible();
       expect(await entryOf(s.waiting)).toMatchObject({ queue: "lead", state: "waiting" });
       await waitingPage.context().close();
 
-      // A customer sees when the event opens for them and joins the customer queue instead.
-      const customerPage = await (await browser.newContext()).newPage();
-      await openLeadMagnet(customerPage, s.emails.customer);
-      await expect(customerPage.getByTestId("session-state")).toContainText("Opent voor jou op");
+      // The customer joins the customer queue, still without a booking button.
+      await customerPage.reload();
       await expect(customerPage.getByTestId("book-submit")).toHaveCount(0);
       await expect(customerPage.getByTestId("join-waitlist")).toHaveText(/klantenwachtrij|wachtrij voor klanten/i);
+      await acceptTerms(customerPage);
       await postOn(customerPage, () => customerPage.getByTestId("join-waitlist").click());
       await expect(customerPage.getByTestId("waitlist-joined")).toBeVisible();
       expect(await entryOf(s.customer)).toMatchObject({ queue: "customer", state: "waiting" });

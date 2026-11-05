@@ -2,13 +2,14 @@
  * forms back-office reads (forms spec section 4 "Queries"): the form list with its 30-day funnel,
  * the form overview, versions and their comparison, and tracked links (forms-P5); the submissions
  * list and detail, the CSV export rows, the funnel and conversion report and the staff-entry form
- * list (forms-P6). The pages call them after `requireStaff()` with the screen's permissions. Only
+ * list (forms-P6); the import sources and their events (forms-P7). The pages call them after `requireStaff()` with the screen's permissions. Only
  * the submission detail and the export return answer values, and never a sensitive one (SE1, SE4).
  */
 import type { DbOrTx } from "@beam/db";
 import {
   activityEvents,
   emailMessages,
+  formImportEvents,
   formImportSources,
   formLinks,
   forms,
@@ -31,12 +32,14 @@ import {
   type FormLinkChannel,
   type FormScoring,
   type FormStatus,
+  type ImportMapping,
   type SubmissionStatus,
 } from "@beam/core/forms";
 import { MESSAGES, type Locale, type LocalizedText } from "@beam/core/i18n";
 import { and, asc, desc, eq, gte, inArray, isNull, lt, or, sql, type SQL } from "@/lib/ctx";
 import { rowsOf } from "@/lib/sensitive";
 import { diffVersions, type VersionDiff } from "./service/diff";
+import { mappingOf, maskedImportUrl } from "./service/import";
 import { answerText, type SubmissionExportRow } from "./service/export-csv";
 import { trackedLinkUrl } from "./service/qr";
 import { parseVersion } from "./service/versions";
@@ -915,4 +918,136 @@ export async function listStaffEntryForms(db: DbOrTx): Promise<StaffEntryForm[]>
     const c = parseVersion(r.v);
     return c.definition.settings.staffEntryAllowed ? [{ formId: r.form.id, slug: r.form.slug, kind: r.form.kind, name: r.form.name, locales: c.locales }] : [];
   });
+}
+
+// ---------------------------------------------------------------------------
+// Import stopgap (forms-P7): sources and their events (`forms.publish` screens)
+// ---------------------------------------------------------------------------
+
+export const IMPORT_EVENT_STATUSES = ["received", "processed", "skipped", "failed"] as const;
+export type ImportEventStatus = (typeof IMPORT_EVENT_STATUSES)[number];
+export type ImportCounts = Record<ImportEventStatus, number>;
+
+export type ImportSourceRow = {
+  id: string;
+  key: string;
+  provider: "scoreapp" | "typeform";
+  name: string;
+  formId: string;
+  formSlug: string;
+  isActive: boolean;
+  lastReceivedAt: Date | null;
+  counts: ImportCounts;
+  createdAt: Date;
+};
+
+const emptyCounts = (): ImportCounts => ({ received: 0, processed: 0, skipped: 0, failed: 0 });
+
+async function importCounts(db: DbOrTx, sourceIds: string[]): Promise<Map<string, ImportCounts>> {
+  const out = new Map<string, ImportCounts>();
+  if (!sourceIds.length) return out;
+  const rows = await db
+    .select({ sourceId: formImportEvents.sourceId, status: formImportEvents.status, n: sql<number>`count(*)::int` })
+    .from(formImportEvents)
+    .where(inArray(formImportEvents.sourceId, sourceIds))
+    .groupBy(formImportEvents.sourceId, formImportEvents.status);
+  for (const r of rows) {
+    const c = out.get(r.sourceId) ?? emptyCounts();
+    c[r.status] = Number(r.n);
+    out.set(r.sourceId, c);
+  }
+  return out;
+}
+
+/** `/admin/forms/imports`: every source with its mirror form, last delivery and counts per status. */
+export async function listImportSources(db: DbOrTx): Promise<ImportSourceRow[]> {
+  const rows = await db
+    .select({ s: formImportSources, slug: forms.slug })
+    .from(formImportSources)
+    .innerJoin(forms, eq(forms.id, formImportSources.formId))
+    .orderBy(desc(formImportSources.isActive), desc(formImportSources.createdAt));
+  const counts = await importCounts(db, rows.map((r) => r.s.id));
+  return rows.map(({ s, slug }) => ({
+    id: s.id,
+    key: s.key,
+    provider: s.provider,
+    name: s.name,
+    formId: s.formId,
+    formSlug: slug,
+    isActive: s.isActive,
+    lastReceivedAt: s.lastReceivedAt,
+    counts: counts.get(s.id) ?? emptyCounts(),
+    createdAt: s.createdAt,
+  }));
+}
+
+export type ImportSourceDetail = ImportSourceRow & { maskedUrl: string; mapping: ImportMapping | null };
+
+/** `/admin/forms/imports/[sourceId]`: the source with its masked webhook URL and mapping (never the secret or its hash). */
+export async function getImportSource(db: DbOrTx, sourceId: string): Promise<ImportSourceDetail | null> {
+  const [row] = await db
+    .select({ s: formImportSources, slug: forms.slug })
+    .from(formImportSources)
+    .innerJoin(forms, eq(forms.id, formImportSources.formId))
+    .where(eq(formImportSources.id, sourceId));
+  if (!row) return null;
+  const counts = await importCounts(db, [row.s.id]);
+  const s = row.s;
+  return {
+    id: s.id,
+    key: s.key,
+    provider: s.provider,
+    name: s.name,
+    formId: s.formId,
+    formSlug: row.slug,
+    isActive: s.isActive,
+    lastReceivedAt: s.lastReceivedAt,
+    counts: counts.get(s.id) ?? emptyCounts(),
+    createdAt: s.createdAt,
+    maskedUrl: maskedImportUrl(s.key),
+    mapping: mappingOf(s),
+  };
+}
+
+export const IMPORT_EVENTS_PAGE_SIZE = 50;
+
+/** One row of the events table: no payload (person data), only status, reason and the submission link. */
+export type ImportEventRow = {
+  id: string;
+  externalId: string;
+  status: ImportEventStatus;
+  error: string | null;
+  submissionId: string | null;
+  receivedAt: Date;
+  processedAt: Date | null;
+};
+
+/** The events of a source, newest first, keyset-paged on `(received_at, id)`. */
+export async function listImportEvents(db: DbOrTx, input: { sourceId: string; status?: ImportEventStatus; cursor?: string }): Promise<Page<ImportEventRow>> {
+  const where: SQL[] = [eq(formImportEvents.sourceId, input.sourceId)];
+  if (input.status && (IMPORT_EVENT_STATUSES as readonly string[]).includes(input.status)) where.push(eq(formImportEvents.status, input.status));
+  const c = decodeCursor(input.cursor);
+  if (c) {
+    where.push(
+      or(lt(formImportEvents.receivedAt, c.at), and(eq(formImportEvents.receivedAt, c.at), sql`${formImportEvents.id} < ${c.id}::uuid`))!,
+    );
+  }
+  const rows = await db
+    .select({
+      id: formImportEvents.id,
+      externalId: formImportEvents.externalId,
+      status: formImportEvents.status,
+      error: formImportEvents.error,
+      submissionId: formImportEvents.submissionId,
+      receivedAt: formImportEvents.receivedAt,
+      processedAt: formImportEvents.processedAt,
+    })
+    .from(formImportEvents)
+    .where(and(...where))
+    .orderBy(desc(formImportEvents.receivedAt), desc(formImportEvents.id))
+    .limit(IMPORT_EVENTS_PAGE_SIZE + 1);
+  const more = rows.length > IMPORT_EVENTS_PAGE_SIZE;
+  const page = more ? rows.slice(0, IMPORT_EVENTS_PAGE_SIZE) : rows;
+  const last = page[page.length - 1];
+  return { rows: page, nextCursor: more && last ? encodeCursor(last.receivedAt, last.id) : null };
 }

@@ -1,0 +1,15 @@
+{
+  "id": "sa-result-1001",
+  "scorecard": { "id": "sc-77", "name": "Recovery scorecard" },
+  "created_at": "2026-10-18T14:20:00Z",
+  "lead": {
+    "email": "scoreapp.lead@example.com",
+    "first_name": "Bram",
+    "last_name": "Peeters",
+    "phone": "+32 470 00 00 00",
+    "language": "fr"
+  },
+  "score": { "percentage": 62, "tier": "Balanced" },
+  "answers": { "sleep_hours": "6", "stress": "7", "goal": "More energy" },
+  "consents": { "marketing": true, "terms": true }
+}

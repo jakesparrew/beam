@@ -1,0 +1,32 @@
+{
+  "event_id": "01JTFEVENT0000000000000001",
+  "event_type": "form_response",
+  "form_response": {
+    "form_id": "AbCdEf12",
+    "token": "tf-response-token-0001",
+    "landed_at": "2026-10-20T08:58:10Z",
+    "submitted_at": "2026-10-20T09:03:44Z",
+    "hidden": { "email": "Typeform.Lead@Example.com", "lang": "nl" },
+    "calculated": { "score": 14 },
+    "variables": [
+      { "key": "score", "type": "number", "number": 14 },
+      { "key": "outcome", "type": "text", "text": "Rest and recover" }
+    ],
+    "definition": {
+      "id": "AbCdEf12",
+      "title": "Recovery check (Typeform)",
+      "fields": [
+        { "id": "f1", "ref": "first_name", "type": "short_text", "title": "First name" },
+        { "id": "f2", "ref": "sleep", "type": "number", "title": "How many hours do you sleep?" },
+        { "id": "f3", "ref": "goal", "type": "short_text", "title": "Your main goal" },
+        { "id": "f4", "ref": "newsletter", "type": "yes_no", "title": "Keep me informed" }
+      ]
+    },
+    "answers": [
+      { "type": "text", "text": "Lotte", "field": { "id": "f1", "type": "short_text", "ref": "first_name" } },
+      { "type": "number", "number": 5, "field": { "id": "f2", "type": "number", "ref": "sleep" } },
+      { "type": "text", "text": "Sleep better", "field": { "id": "f3", "type": "short_text", "ref": "goal" } },
+      { "type": "boolean", "boolean": false, "field": { "id": "f4", "type": "yes_no", "ref": "newsletter" } }
+    ]
+  }
+}

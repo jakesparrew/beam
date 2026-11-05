@@ -1,0 +1,4 @@
+id,created_at,lead.email,lead.first_name,lead.last_name,lead.language,score.percentage,score.tier,answers.sleep_hours,answers.stress,answers.goal,consents.marketing
+sa-csv-2001,2026-09-01T10:00:00Z,csv.one@example.com,Ann,Janssens,nl,48,Balanced,7,4,Move more,true
+sa-csv-2002,2026-09-02T11:30:00Z,csv.two@example.com,Ben,Maes,fr,81,Thriving,8,2,Keep it up,yes
+sa-csv-2003,2026-09-03T12:45:00Z,,Cas,Wouters,en,30,Rest,5,9,Sleep better,false

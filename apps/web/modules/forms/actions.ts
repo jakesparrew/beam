@@ -8,7 +8,11 @@
  * writes its own audit row with the spec's audit name (`forms.created`, `forms.draft_saved`, ...),
  * so the wrapper's automatic row is off: one audit row per staff action. Draft and publish audits
  * carry definition hashes and version numbers only, never the definition JSON. Version writes go
- * through `service/versions.ts`, which never updates a published row.
+ * through `service/versions.ts`, which never updates a published row. The import stopgap
+ * (forms-P7, rules I1 to I5) adds the import source actions: create (mirror form published in the
+ * same transaction, secret shown once), update, rotate the secret, upload a CSV backfill and
+ * reprocess a failed or skipped event; audits carry ids, names and counts, never payloads or the
+ * secret.
  */
 import { z } from "zod";
 import { formLinks, forms, formSubmissions, formVersions, formViewsDaily } from "@beam/db/schema";
@@ -20,6 +24,8 @@ import {
   FormDefinition as FormDefinitionSchema,
   FormResultProps,
   FormScoring as FormScoringSchema,
+  FieldSchema,
+  ImportMapping as ImportMappingSchema,
   SYSTEM_FORM_SLUGS,
   validateForPublish,
   type FormDefinition,
@@ -36,6 +42,15 @@ import { sendTransactional } from "@/modules/email/api";
 import { countResends, linkLocale, resendKeyPrefix } from "./queries";
 import { answerText } from "./service/export-csv";
 import { newLinkKey, trackedLinkUrl } from "./service/qr";
+import {
+  createImportSource as createImportSourceService,
+  IMPORT_CSV_MAX_BYTES,
+  ingestCsv,
+  MirrorOutcome,
+  reprocessImportEvent as reprocessImportEventService,
+  rotateImportSecret as rotateImportSecretService,
+  updateImportSource as updateImportSourceService,
+} from "./service/import";
 import { readSubmissionAnswers } from "./service/sensitive";
 import { createStaffEntryUrl, requestResultLink as requestResultLinkService } from "./service/submissions";
 import { createResultToken, ctaRedirectUrl, hashToken, RESULT_TOKEN_DAYS, resultPageUrl } from "./service/tokens";
@@ -615,5 +630,101 @@ export const startStaffEntry = action(
     const r = await createStaffEntryUrl(ctx.tx, ctx, i);
     await ctx.audit({ action: "forms.staff_entry_started", entityType: "form", entityId: i.formId, personId: i.personId, newValue: { formId: i.formId, personId: i.personId, locale: i.locale ?? null } });
     return r;
+  },
+);
+
+// ---------------------------------------------------------------------------
+// Import stopgap (forms-P7): sources, secret, CSV backfill, reprocess
+// ---------------------------------------------------------------------------
+
+const CreateImportSourceInput = z
+  .object({
+    provider: z.enum(["scoreapp", "typeform"]),
+    name: z.string().trim().min(1).max(120),
+    mapping: ImportMappingSchema,
+    mirrorFields: z.array(FieldSchema).max(100),
+    outcomes: z.array(MirrorOutcome).max(50).optional(),
+    locales: Locales.optional(),
+  })
+  .strict();
+
+/** Section 4: the source and its published mirror form; the URL with the secret is returned once. */
+export const createImportSource = action(
+  { name: "forms.create_import_source", audience: "staff", permission: "forms.publish", input: CreateImportSourceInput, audit: false },
+  async (ctx, i): Promise<{ sourceId: string; url: string }> => {
+    const r = await createImportSourceService(ctx.tx, ctx, {
+      provider: i.provider,
+      name: i.name,
+      mapping: i.mapping,
+      mirrorFields: i.mirrorFields,
+      ...(i.outcomes ? { outcomes: i.outcomes } : {}),
+      ...(i.locales ? { locales: i.locales } : {}),
+    });
+    await ctx.audit({
+      action: "forms.import_source_created",
+      entityType: "form_import_source",
+      entityId: r.sourceId,
+      newValue: { provider: i.provider, name: i.name, key: r.key, formId: r.formId, answerKeys: Object.keys(i.mapping.answers), sensitiveFieldKeys: i.mapping.sensitiveFieldKeys },
+    });
+    return { sourceId: r.sourceId, url: r.url };
+  },
+);
+
+/** Section 4: rename, change the mapping or (de)activate a source (a deactivated URL answers 404). */
+export const updateImportSource = action(
+  {
+    name: "forms.update_import_source",
+    audience: "staff",
+    permission: "forms.publish",
+    input: z.object({ sourceId: Uuid, name: z.string().trim().min(1).max(120).optional(), mapping: ImportMappingSchema.optional(), isActive: z.boolean().optional() }).strict(),
+    audit: false,
+  },
+  async (ctx, i): Promise<{ ok: true }> => {
+    const r = await updateImportSourceService(ctx.tx, ctx, {
+      sourceId: i.sourceId,
+      ...(i.name !== undefined ? { name: i.name } : {}),
+      ...(i.mapping !== undefined ? { mapping: i.mapping } : {}),
+      ...(i.isActive !== undefined ? { isActive: i.isActive } : {}),
+    });
+    if (Object.keys(r.changed).length) {
+      await ctx.audit({ action: "forms.import_source_updated", entityType: "form_import_source", entityId: i.sourceId, oldValue: r.old, newValue: r.changed });
+    }
+    return { ok: true };
+  },
+);
+
+/** Section 4: a new secret (the old URL stops at once); the new URL is returned once. */
+export const rotateImportSecret = action(
+  { name: "forms.rotate_import_secret", audience: "staff", permission: "forms.publish", input: z.object({ sourceId: Uuid }).strict(), audit: false },
+  async (ctx, i): Promise<{ url: string }> => {
+    const r = await rotateImportSecretService(ctx.tx, ctx, i.sourceId);
+    await ctx.audit({ action: "forms.import_secret_rotated", entityType: "form_import_source", entityId: i.sourceId });
+    return r;
+  },
+);
+
+/** I5: a CSV export (max 2 MB, 5,000 rows); each row is one event; a second upload counts duplicates. */
+export const uploadImportCsv = action(
+  {
+    name: "forms.upload_import_csv",
+    audience: "staff",
+    permission: "forms.publish",
+    input: z.object({ sourceId: Uuid, csv: z.string().min(1).max(IMPORT_CSV_MAX_BYTES) }).strict(),
+    audit: false,
+  },
+  async (ctx, i): Promise<{ inserted: number; duplicates: number }> => {
+    const r = await ingestCsv(ctx.tx, ctx, i.sourceId, i.csv);
+    await ctx.audit({ action: "forms.import_csv_uploaded", entityType: "form_import_source", entityId: i.sourceId, newValue: r });
+    return r;
+  },
+);
+
+/** Section 4: a `failed` or `skipped` event back to `received`, with a new `forms.process_import` job. */
+export const reprocessImportEvent = action(
+  { name: "forms.reprocess_import", audience: "staff", permission: "forms.publish", input: z.object({ eventId: Uuid }).strict(), audit: false },
+  async (ctx, i): Promise<{ jobId: string }> => {
+    const r = await reprocessImportEventService(ctx.tx, ctx, i.eventId);
+    await ctx.audit({ action: "forms.import_reprocessed", entityType: "form_import_event", entityId: i.eventId, newValue: { sourceId: r.sourceId, jobId: r.jobId } });
+    return { jobId: r.jobId };
   },
 );

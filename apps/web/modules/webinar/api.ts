@@ -2,8 +2,10 @@
  * webinar's cross-module door (02-data-model section 6.12, webinar spec 4.7). Every function
  * another module calls in R2-R4 is declared here with its final signature; each takes the
  * caller's `db`/`tx` first (OD-15). Until its webinar package lands a function throws
- * `NotImplementedError('webinar.<fn>')`, except `listPublicWebinars` (an empty list; site-P3
- * calls it in V1) and `mergePersons`, implemented by webinar-P1 now that the tables exist.
+ * `NotImplementedError('webinar.<fn>')`. webinar-P1 implemented `mergePersons`; webinar-P3 the
+ * registration and discovery functions (`getWebinarForSession`, `listPublicWebinars`,
+ * `listPersonWebinars`, `listUpcomingRegistrationsForPerson`, `getWebinarCards`, `getAccessUrl`,
+ * `WebinarSignup`).
  *
  * Implementing packages: webinar-P3 (`getWebinarForSession`, `listPublicWebinars`,
  * `listPersonWebinars`, `listUpcomingRegistrationsForPerson`, `getWebinarCards`, `getAccessUrl`,
@@ -12,15 +14,20 @@
  * and webinar-P8 (`getWebinarWeeklyFacts`).
  */
 import type { DbOrTx, Tx } from "@beam/db";
-import { webinarPresenters, webinarRegistrations } from "@beam/db/schema";
+import { webinarPresenters, webinarRegistrations, webinars } from "@beam/db/schema";
 import { NotImplementedError } from "@beam/core/errors";
-import type { Locale, LocalizedText } from "@beam/core/i18n";
+import { URL_SEGMENT, type Locale, type LocalizedText } from "@beam/core/i18n";
+import { titleIn, webinarLandingUrl } from "@beam/email/templates/webinar";
 import { and, eq, inArray, notInArray, sql } from "@/lib/ctx";
 import type { WatchMode, WebinarMode, WebinarStatus } from "@beam/core/webinar";
+import { PUBLIC_STATUSES, isUpcoming, listPersonRegistrations, listPublicWebinarRows, type PersonRegistrationRow } from "./queries";
+import { accessUrlOf } from "./server/registration";
+import type { WebinarRow } from "./server/lifecycle";
 
 export type { WatchMode, WebinarMode, WebinarStatus } from "@beam/core/webinar";
 
 const notYet = <T>(fn: string): Promise<T> => Promise.reject(new NotImplementedError(`webinar.${fn}`));
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 export type WebinarSummary = {
   id: string;
@@ -69,28 +76,58 @@ export type WebinarKpis = {
   byUtmCampaign: Array<{ campaign: string | null; registrations: number; attended: number; converted: number }>;
 };
 
+function summaryOf(w: WebinarRow, locale: Locale): WebinarSummary {
+  return {
+    id: w.id,
+    slug: w.slug,
+    title: w.title as LocalizedText,
+    mode: w.mode,
+    status: w.status,
+    startsAt: w.startsAt,
+    sessionId: w.sessionId,
+    spokenLocale: w.spokenLocale,
+    landingPath: `/${URL_SEGMENT[locale]}/webinars/${w.slug}`,
+  };
+}
+
+function personRowOf(x: PersonRegistrationRow): PersonWebinarRow {
+  return {
+    registrationId: x.registration.id,
+    webinarId: x.webinar.id,
+    title: x.webinar.title as LocalizedText,
+    mode: x.webinar.mode,
+    registeredMode: x.registration.registeredMode,
+    status: x.registration.status,
+    startsAt: x.webinar.startsAt,
+    watchedSec: x.watchedSec,
+    attended: x.attended,
+  };
+}
+
 export type WebinarCard = { id: string; slug: string; title: string; mode: WebinarMode; startsAt: Date | null; spokenLocale: Locale; landingUrl: string };
 
-export function getWebinarForSession(_db: DbOrTx, _sessionId: string): Promise<WebinarSummary | null> {
-  return notYet("getWebinarForSession");
+export async function getWebinarForSession(db: DbOrTx, sessionId: string): Promise<WebinarSummary | null> {
+  const [w] = await db.select().from(webinars).where(and(eq(webinars.sessionId, sessionId), inArray(webinars.status, [...PUBLIC_STATUSES])));
+  return w ? summaryOf(w, w.spokenLocale) : null;
 }
 
-/** Does not throw before R2: no webinar exists yet, so the list is empty. */
-export function listPublicWebinars(_db: DbOrTx, _opts: { locale: Locale; from: Date; limit: number }): Promise<WebinarSummary[]> {
-  return Promise.resolve([]);
+/** Upcoming and live webinars, then on-demand ones, offered in `locale` (section 5.3). */
+export async function listPublicWebinars(db: DbOrTx, opts: { locale: Locale; from: Date; limit: number }): Promise<WebinarSummary[]> {
+  return (await listPublicWebinarRows(db, opts)).map((w) => summaryOf(w, opts.locale));
 }
 
-export function listPersonWebinars(_db: DbOrTx, _personId: string): Promise<PersonWebinarRow[]> {
-  return notYet("listPersonWebinars");
+/** Every registration of the person (and of persons merged into them), newest first (crm person card). */
+export async function listPersonWebinars(db: DbOrTx, personId: string): Promise<PersonWebinarRow[]> {
+  return (await listPersonRegistrations(db, personId)).map(personRowOf);
 }
 
 export function getPersonWebinarStats(_db: DbOrTx, _personId: string): Promise<PersonWebinarStats> {
   return notYet("getPersonWebinarStats");
 }
 
-/** Absolute https URL `/<l>/w/<token>`. */
-export function getAccessUrl(_db: DbOrTx, _registrationId: string, _locale: Locale): Promise<string> {
-  return notYet("getAccessUrl");
+/** Absolute https URL `/<l>/w/<token>` at the registration's current `token_version`. */
+export function getAccessUrl(db: DbOrTx, registrationId: string, locale: Locale): Promise<string> {
+  return accessUrlOf(db, registrationId, locale);
 }
 
 /**
@@ -157,13 +194,36 @@ export function listWebinarLeadsWithoutBooking(
   return notYet("listWebinarLeadsWithoutBooking");
 }
 
-/** Email `webinar` block; order follows `ids`. */
-export function getWebinarCards(_tx: DbOrTx, _ids: string[], _locale: Locale): Promise<WebinarCard[]> {
-  return notYet("getWebinarCards");
+/** Email `webinar` block (email-P8); unknown, draft, cancelled and archived ids are left out; order follows `ids`. */
+export async function getWebinarCards(tx: DbOrTx, ids: string[], locale: Locale): Promise<WebinarCard[]> {
+  const wanted = [...new Set(ids.filter((id) => UUID.test(id)))];
+  if (!wanted.length) return [];
+  const rows = await tx.select().from(webinars).where(and(inArray(webinars.id, wanted), inArray(webinars.status, [...PUBLIC_STATUSES])));
+  const byId = new Map(rows.map((w) => [w.id, w]));
+  return wanted.flatMap((id) => {
+    const w = byId.get(id);
+    if (!w) return [];
+    return [
+      {
+        id: w.id,
+        slug: w.slug,
+        title: titleIn(w.title as Record<string, string>, locale),
+        mode: w.mode,
+        startsAt: w.startsAt,
+        spokenLocale: w.spokenLocale,
+        landingUrl: webinarLandingUrl(w.slug, locale),
+      },
+    ];
+  });
 }
 
-export function listUpcomingRegistrationsForPerson(_db: DbOrTx, _personId: string): Promise<PersonWebinarRow[]> {
-  return notYet("listUpcomingRegistrationsForPerson");
+/** The person's `registered` webinars that are still to come or live, soonest first (site account home). */
+export async function listUpcomingRegistrationsForPerson(db: DbOrTx, personId: string): Promise<PersonWebinarRow[]> {
+  const now = new Date();
+  return (await listPersonRegistrations(db, personId))
+    .filter((x) => x.registration.status === "registered" && isUpcoming(x.webinar, now))
+    .sort((a, b) => (a.webinar.startsAt?.getTime() ?? 0) - (b.webinar.startsAt?.getTime() ?? 0))
+    .map(personRowOf);
 }
 
 export function listUpcomingWebinarHealth(
@@ -175,7 +235,5 @@ export function listUpcomingWebinarHealth(
   return notYet("listUpcomingWebinarHealth");
 }
 
-/** Server component `{ webinarId, locale }` for site's `webinar_signup` block (Wave 0 stand-in). */
-export function WebinarSignup(_props: { webinarId: string; locale: Locale }): never {
-  throw new NotImplementedError("webinar.WebinarSignup");
-}
+/** Server component `{ webinarId, locale }` for site's `webinar_signup` block. */
+export { WebinarSignup } from "./ui/webinar-signup";

@@ -6,8 +6,9 @@
  * webinar-P2 declares the lifecycle facts it writes: `webinar.cancelled` and
  * `webinar.rescheduled` per registration, and the fresh `webinar.registered` (with
  * `rescheduled: true`) a reschedule writes so the reminder journey re-enrols (edge case 9).
- * webinar-P3 registers people and keeps `webinar.registered`; later packages add the watch,
- * interaction and no-show facts.
+ * webinar-P3 registers people (`webinar.registered`, also after a re-registration that follows a
+ * cancellation) and cancels registrations (`webinar.registration_cancelled`); later packages add
+ * the watch, interaction and no-show facts.
  */
 import { z } from "zod";
 import { WATCH_MODES, WEBINAR_MODES } from "@beam/core/webinar";
@@ -45,11 +46,20 @@ export const WebinarRescheduledData = z.object({
 });
 export type WebinarRescheduledData = z.input<typeof WebinarRescheduledData>;
 
+/** `webinar.registration_cancelled` data: who cancelled (the customer or staff). */
+export const WebinarRegistrationCancelledData = z.object({
+  webinar_id: z.uuid(),
+  registration_id: z.uuid(),
+  by: z.enum(["customer", "staff"]),
+});
+export type WebinarRegistrationCancelledData = z.input<typeof WebinarRegistrationCancelledData>;
+
 /** The mode values an event row may carry (`activity_events.mode`). */
 export const EVENT_MODES = WATCH_MODES;
 
 export const events = [
   defineEvent({ kind: "webinar.registered", subject: "person", data: WebinarRegisteredData }),
+  defineEvent({ kind: "webinar.registration_cancelled", subject: "person", data: WebinarRegistrationCancelledData }),
   defineEvent({ kind: "webinar.cancelled", subject: "person", data: WebinarCancelledData }),
   defineEvent({ kind: "webinar.rescheduled", subject: "person", data: WebinarRescheduledData }),
 ] as const;

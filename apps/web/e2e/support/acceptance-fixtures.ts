@@ -57,10 +57,13 @@ export async function payWithFake(page: Page): Promise<void> {
 
 /** The checkout page: ticks the terms box when shown, clicks Pay and waits for the action. */
 export async function payCheckout(page: Page): Promise<void> {
+  // The URL changes before the page renders: wait for Pay, so the terms box is counted on the page.
+  const pay = page.getByRole("button", { name: /^(Betaal|Payer|Pay)\b/ });
+  await expect(pay).toBeVisible();
   const terms = page.locator("#accept-terms");
   if ((await terms.count()) > 0) await terms.check();
   const posted = page.waitForResponse((r) => r.request().method() === "POST");
-  await page.getByRole("button", { name: /^(Betaal|Payer|Pay)\b/ }).click();
+  await pay.click();
   await posted;
   await payWithFake(page);
 }
@@ -80,10 +83,13 @@ export async function buyPackage(page: Page, locale: Locale): Promise<string> {
 
 /** Ticks the terms box when the booking form shows it, submits and waits for the action's POST. */
 export async function submitBooking(page: Page): Promise<void> {
+  // Wait for the rendered form before counting its terms box (a soft navigation renders later).
+  const submit = page.getByTestId("book-submit");
+  await expect(submit).toBeVisible();
   const terms = page.getByTestId("accept-terms");
   if ((await terms.count()) > 0) await terms.check();
   const posted = page.waitForResponse((r) => r.request().method() === "POST");
-  await page.getByTestId("book-submit").click();
+  await submit.click();
   await posted;
 }
 

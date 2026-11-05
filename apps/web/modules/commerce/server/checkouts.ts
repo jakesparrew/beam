@@ -209,12 +209,6 @@ function quoteCheckout(db: DbOrTx, c: Pick<CheckoutRow, "channel" | "items" | "p
   return getQuote(db, { personId, items: c.items as CartItem[], promoCode: c.promoCode, channel: c.channel, at });
 }
 
-/** Two quotes price the basket the same (lines, promotion and total). */
-function sameQuote(a: Quote, b: Quote): boolean {
-  if (a.totalCents !== b.totalCents || a.lines.length !== b.lines.length) return false;
-  return a.lines.every((l, i) => l.lineTotalCents === b.lines[i]!.lineTotalCents && l.productId === b.lines[i]!.productId);
-}
-
 /** Locks an open checkout the viewer may change (`started`, or `abandoned` when the customer comes back). */
 async function lockCheckout(tx: Tx, checkoutId: string, viewer: CheckoutViewer, now: Date): Promise<CheckoutRow> {
   const [c] = await tx.select().from(checkouts).where(eq(checkouts.id, checkoutId)).for("update");
@@ -364,15 +358,11 @@ export async function placeOrder(
   if (input.expectedTotalCents !== undefined && fresh.totalCents !== input.expectedTotalCents) {
     throw new ConflictError("price_changed");
   }
-  // Edge case 23: `createOrder` prices for the person; a guest must not get a person's prices
-  // by typing their email, so a basket the person would pay differently needs a login.
-  if (isGuest) {
-    const personal = await quoteCheckout(tx, c, personId, ctx.now);
-    if (!sameQuote(fresh, personal)) throw new ConflictError("login_required");
-  }
-
+  // Edge case 23: a guest's order attaches to the person of the email but is priced as
+  // `public` (`pricingPersonId: null`), so nobody gets a member's prices by typing their email.
   const orderInput = {
     personId,
+    pricingPersonId: isGuest ? null : personId,
     channel: c.channel,
     items,
     promoCode: c.promoCode,

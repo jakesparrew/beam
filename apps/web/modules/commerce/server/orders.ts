@@ -29,6 +29,11 @@ import { commerceSettings, finalizePaidOrder, ONLINE_CHANNELS, paidCentsOf, type
 
 export type CreateOrderInput = {
   personId: string | null;
+  /**
+   * Whose prices apply when they differ from `personId` (edge case 23): a site guest's order is
+   * attached to the person of the typed email but priced as `public` (`null`). Omitted: `personId`.
+   */
+  pricingPersonId?: string | null;
   companyId?: string | null;
   channel: OrderChannel;
   items: CartItem[];
@@ -168,8 +173,18 @@ export async function createOrder(tx: Tx, ctx: Ctx, input: CreateOrderInput): Pr
   }
 
   await lockCandidatePromotions(tx, input.promoCode, ctx.now);
-  const quoted = await getQuote(tx, { personId, companyId, items, promoCode: input.promoCode ?? null, channel, at: ctx.now });
-  for (const w of quoted.warnings) {
+  const pricingPersonId = input.pricingPersonId === undefined ? personId : input.pricingPersonId;
+  const quoted = await getQuote(tx, { personId: pricingPersonId, companyId, items, promoCode: input.promoCode ?? null, channel, at: ctx.now });
+  const warnings = [...quoted.warnings];
+  // Priced for someone else (a guest): the person the order attaches to may still not start a
+  // membership they already hold (rule 26c) nor use a code beyond its per-person limit or
+  // eligibility (rule 17), which only their own quote tells.
+  if (personId && pricingPersonId !== personId) {
+    const own = await getQuote(tx, { personId, companyId, items, promoCode: input.promoCode ?? null, channel, at: ctx.now });
+    warnings.push(...own.warnings.filter((w) => w.code === "already_member"));
+    if (quoted.promotionId && own.warnings.some((w) => w.code === "promo_not_eligible" || w.code === "promo_exhausted")) throw new ConflictError("promo_not_eligible");
+  }
+  for (const w of warnings) {
     const kind = BLOCKING[w.code];
     if (kind === "conflict") throw new ConflictError(w.code === "no_price" ? "product_unavailable" : w.code);
     if (kind === "validation") throw new ValidationError("validation", { items: w.code });

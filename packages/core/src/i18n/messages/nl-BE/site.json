@@ -222,6 +222,8 @@
       "import": {
         "apply": "Import uitvoeren",
         "col": {
+          "appliedAt": "Toegepast op",
+          "counts": "Items",
           "decision": "Beslissing",
           "message": "Bericht",
           "oldPath": "Oud adres",
@@ -484,7 +486,13 @@
         "joinWaitlist": "Op de wachtlijst",
         "membersOnly": "Enkel voor leden",
         "more": "Alle evenementen",
-        "past": "Dit evenement heeft plaatsgevonden"
+        "past": "Dit evenement heeft plaatsgevonden",
+        "priorityUntil": "Voorrang voor nieuwe gasten tot {date}",
+        "registerWebinar": "Schrijf je in voor het webinar",
+        "salesEnded": "De verkoop is afgelopen",
+        "salesFrom": "Te koop vanaf {date}",
+        "soldOut": "Uitverkocht",
+        "tickets": "Tickets"
       },
       "gift": {
         "cta": "Geef een cadeaubon"
@@ -578,8 +586,14 @@
         "quickTitle": "Snel naar",
         "remaining": "{kind, select, day {{count, plural, one {Nog # dagsessie} other {Nog # dagsessies}}} night {{count, plural, one {Nog # nacht} other {Nog # nachten}}} other {Nog {amount} tegoed}}",
         "renew": "Verlengen",
+        "sharedWithMe": "Gedeeld met mij",
+        "sharedWithMeBody": "{count, plural, one {# pakket wordt met je gedeeld} other {# pakketten worden met je gedeeld}}",
         "unavailableCard": "Tijdelijk niet beschikbaar",
-        "upcoming": "Je volgende bezoeken"
+        "upcoming": "Je volgende bezoeken",
+        "webinarLive": "Live op {date}",
+        "webinarOnDemand": "Op aanvraag",
+        "webinars": "Je komende webinars",
+        "webinarsAll": "Al mijn webinars"
       },
       "install": {
         "body": "Open je boekingen en saldo rechtstreeks vanaf je startscherm.",

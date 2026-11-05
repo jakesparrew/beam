@@ -222,6 +222,8 @@
       "import": {
         "apply": "Apply import",
         "col": {
+          "appliedAt": "Applied on",
+          "counts": "Items",
           "decision": "Decision",
           "message": "Message",
           "oldPath": "Old address",
@@ -484,7 +486,13 @@
         "joinWaitlist": "Join the waitlist",
         "membersOnly": "Members only",
         "more": "All events",
-        "past": "This event has taken place"
+        "past": "This event has taken place",
+        "priorityUntil": "Priority access for new guests until {date}",
+        "registerWebinar": "Register for the webinar",
+        "salesEnded": "Sales have ended",
+        "salesFrom": "On sale from {date}",
+        "soldOut": "Sold out",
+        "tickets": "Tickets"
       },
       "gift": {
         "cta": "Give a gift voucher"
@@ -578,8 +586,14 @@
         "quickTitle": "Quick actions",
         "remaining": "{kind, select, day {{count, plural, one {# day session remaining} other {# day sessions remaining}}} night {{count, plural, one {# night remaining} other {# nights remaining}}} other {{amount} credit remaining}}",
         "renew": "Renew",
+        "sharedWithMe": "Shared with me",
+        "sharedWithMeBody": "{count, plural, one {# package is shared with you} other {# packages are shared with you}}",
         "unavailableCard": "Temporarily unavailable",
-        "upcoming": "Your upcoming visits"
+        "upcoming": "Your upcoming visits",
+        "webinarLive": "Live on {date}",
+        "webinarOnDemand": "On demand",
+        "webinars": "Your upcoming webinars",
+        "webinarsAll": "All my webinars"
       },
       "install": {
         "body": "Open your bookings and balance straight from your home screen.",

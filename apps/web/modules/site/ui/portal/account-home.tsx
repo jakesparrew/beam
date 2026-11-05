@@ -2,7 +2,8 @@
  * The portal home `/[locale]/account` (site rule 47, section 5; site-P6): greeting with the first
  * name, open waitlist offers, the next five bookings, the balance per credit kind, the membership,
  * the install card and the quick actions. Every card renders from its own `Result`, so one
- * failing module shows "Temporarily unavailable" on its card only (rule 48).
+ * failing module shows "Temporarily unavailable" on its card only (rule 48). R2 (site-P8): the
+ * upcoming-webinars card (behind `ff_webinar_portal`) and the "Shared with me" quick action.
  */
 import type { Locale } from "@beam/core/i18n";
 import type { AccountHome as AccountHomeData } from "../../queries/portal";
@@ -11,6 +12,7 @@ import { BookingsCard, type Tr } from "./cards/bookings-card";
 import { MembershipCard } from "./cards/membership-card";
 import { OffersCard } from "./cards/offers-card";
 import { QuickActions } from "./cards/quick-actions";
+import { WebinarsCard } from "./cards/webinars-card";
 import { InstallPrompt, type InstallPromptLabels } from "./install-prompt";
 
 export function installLabels(tr: Tr): InstallPromptLabels {
@@ -35,10 +37,11 @@ export function AccountHome({ locale, home, tr }: { locale: Locale; home: Accoun
         <div className="grid content-start gap-6">
           <BalanceCard locale={locale} balances={home.balances} tr={tr} />
           <MembershipCard locale={locale} membership={home.membership} tr={tr} />
+          <WebinarsCard locale={locale} webinars={home.webinars} tr={tr} />
         </div>
       </div>
       <InstallPrompt labels={installLabels(tr)} />
-      <QuickActions locale={locale} tr={tr} />
+      <QuickActions locale={locale} tr={tr} sharedWithMe={home.sharedWithMe} />
     </div>
   );
 }

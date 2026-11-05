@@ -6,14 +6,19 @@
  * so a merged-away person's bookings, offers, credits and membership still show for the winner.
  * Each card of the home loads independently as a `Result<T>`: a module api that throws makes only
  * its card `{ ok: false }` ("Temporarily unavailable"), reported to Sentry; the page still renders.
+ * site-P8 (R2) adds the upcoming-webinars card (`webinar.listUpcomingRegistrationsForPerson`, only
+ * while `ff_webinar_portal` is on for the person) and the "Shared with me" count
+ * (`credits.listGrantsSharedWith`) that links to credits' packages page.
  */
 import type { DbOrTx } from "@beam/db";
-import { vLegalVersions } from "@beam/db/schema";
+import { users, vLegalVersions } from "@beam/db/schema";
 import type { Locale } from "@beam/core/i18n";
-import { and, eq, getAppDb } from "@/lib/ctx";
+import { and, eq, getAppDb, type Actor } from "@/lib/ctx";
+import { flag } from "@/lib/flags";
 import { reportError } from "@/lib/logger";
 import { listOpenOffersForPerson, listUpcomingBookingsForPerson } from "@/modules/booking/api";
-import { getMembershipSummary, getPersonCreditSummary } from "@/modules/credits/api";
+import { getMembershipSummary, getPersonCreditSummary, listGrantsSharedWith } from "@/modules/credits/api";
+import type { PersonWebinarRow } from "@/modules/webinar/api";
 import { getCurrentLegalVersion, hasAcceptedCurrentTerms } from "../server/legal";
 
 /** One card's data, or a failure that the card shows as "Temporarily unavailable". */
@@ -33,7 +38,17 @@ export type AccountHome = {
   balances: Result<PortalBalanceRow[]>;
   membership: Result<MembershipSummary | null>;
   offers: Result<WaitlistOffer[]>;
+  /** R2: upcoming webinar registrations; absent (no card) while `ff_webinar_portal` is off for the person. */
+  webinars?: Result<PortalWebinarRow[]>;
+  /** R2: how many packages are shared with the person ("Shared with me", credits' packages page). */
+  sharedWithMe?: Result<number>;
 };
+
+/** An upcoming webinar registration (`webinar.listUpcomingRegistrationsForPerson`). */
+export type PortalWebinarRow = Pick<PersonWebinarRow, "registrationId" | "webinarId" | "title" | "mode" | "startsAt">;
+
+/** At most this many webinars on the home card. */
+export const HOME_WEBINARS_LIMIT = 3;
 
 /** At most this many upcoming bookings on the home (rule 47). */
 export const HOME_BOOKINGS_LIMIT = 5;
@@ -124,6 +139,43 @@ export async function homeOffersOf(db: DbOrTx, ids: readonly string[]): Promise<
   return [...byId.values()].sort((a, b) => a.offerExpiresAt.getTime() - b.offerExpiresAt.getTime());
 }
 
+/** Upcoming webinar registrations over all ids, soonest first (on-demand ones last), one row per webinar. */
+export async function homeWebinarsOf(db: DbOrTx, ids: readonly string[], limit: number = HOME_WEBINARS_LIMIT): Promise<PortalWebinarRow[]> {
+  // Loaded on use: the webinar api pulls in email templates the rest of the home does not need.
+  const { listUpcomingRegistrationsForPerson } = await import("@/modules/webinar/api");
+  const byWebinar = new Map<string, PortalWebinarRow>();
+  for (const id of ids) {
+    for (const r of await listUpcomingRegistrationsForPerson(db, id)) {
+      if (!byWebinar.has(r.webinarId)) byWebinar.set(r.webinarId, { registrationId: r.registrationId, webinarId: r.webinarId, title: r.title, mode: r.mode, startsAt: r.startsAt });
+    }
+  }
+  const at = (r: PortalWebinarRow) => r.startsAt?.getTime() ?? Number.POSITIVE_INFINITY;
+  return [...byWebinar.values()].sort((a, b) => at(a) - at(b) || a.webinarId.localeCompare(b.webinarId)).slice(0, limit);
+}
+
+/** Distinct packages shared with any of the ids. */
+export async function homeSharedCountOf(db: DbOrTx, ids: readonly string[]): Promise<number> {
+  const grants = new Set<string>();
+  for (const id of ids) for (const p of await listGrantsSharedWith(db, id)) grants.add(p.grantId);
+  return grants.size;
+}
+
+/** The customer actor of a person (its customer user), for flag checks; public when it has none. */
+async function customerActorOf(db: DbOrTx, personId: string): Promise<Actor> {
+  const [u] = await db.select({ id: users.id }).from(users).where(and(eq(users.personId, personId), eq(users.audience, "customer"))).limit(1);
+  return u ? { kind: "customer", userId: u.id, personId } : { kind: "public" };
+}
+
+/** Whether the webinar portal (flag `ff_webinar_portal`) is on for the person; off when it cannot be read. */
+export async function webinarPortalOn(db: DbOrTx, personId: string): Promise<boolean> {
+  try {
+    return await flag("ff_webinar_portal", await customerActorOf(db, personId));
+  } catch (error) {
+    reportError(error, { tags: { module: "site", step: "account_home", card: "webinars_flag" } });
+    return false;
+  }
+}
+
 /**
  * The account home of the signed-in customer (rule 47). `locale` is the URL locale; the cards
  * carry localized texts for every locale and the page picks it. Each card fails independently.
@@ -136,7 +188,10 @@ export async function getAccountHome(personId: string, _locale: Locale, db?: DbO
   const balances = await card("balances", () => homeBalancesOf(conn, ids));
   const membership = await card("membership", () => homeMembershipOf(conn, ids));
   const offers = await card("offers", () => homeOffersOf(conn, ids));
-  return { firstName, bookings, balances, membership, offers };
+  const home: AccountHome = { firstName, bookings, balances, membership, offers };
+  if (await webinarPortalOn(conn, personId)) home.webinars = await card("webinars", () => homeWebinarsOf(conn, ids));
+  home.sharedWithMe = await card("shared_with_me", () => homeSharedCountOf(conn, ids));
+  return home;
 }
 
 export type TermsBannerState =

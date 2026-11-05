@@ -280,13 +280,13 @@ describe("CTAs (rule 36, edge case 26)", () => {
 // Chat and questions (rules 21, 37, 38)
 // ---------------------------------------------------------------------------------------------
 
-const interactRequest = (r: RegistrationRow, body: Record<string, unknown>, ip = "192.0.2.90") =>
+const interactRequest = (r: RegistrationRow & { token: string }, body: Record<string, unknown>, ip = "192.0.2.90") =>
   new Request("http://localhost/api/webinar/interact", {
     method: "POST",
     headers: { "content-type": "application/json", [TOKEN_HEADER]: r.token, "x-forwarded-for": ip },
     body: JSON.stringify({ webinarId: r.webinarId, viewId: randomUUID(), ...body }),
   });
-const stateRequest = (r: RegistrationRow, after?: Date) =>
+const stateRequest = (r: RegistrationRow & { token: string }, after?: Date) =>
   new Request(`http://localhost/api/webinar/state?webinarId=${r.webinarId}${after ? `&after=${after.toISOString()}` : ""}`, {
     headers: { [TOKEN_HEADER]: r.token, "x-forwarded-for": "192.0.2.91" },
   });

@@ -29,7 +29,6 @@
 import { tags, watchSegments, webinarCtas, webinarInteractions, webinarModerationActions, webinarPolls, webinarRegistrations, webinars } from "@beam/db/schema";
 import type { Locale, LocalizedText } from "@beam/core/i18n";
 import {
-  WEBINAR_LIMITS,
   answerOptionKey,
   deriveCtaKey,
   effectiveDurationSec,
@@ -52,7 +51,7 @@ import { applyTag, createTask } from "@/modules/crm/api";
 import type { CtaRow, PollRow, WebinarRow } from "./lifecycle";
 import type { RegistrationRow } from "./registration";
 import type { Viewer } from "./viewer";
-import { ctaClickPath, factKey } from "./watch";
+import { ctaClickPath } from "./watch";
 
 export { signCtaClick };
 

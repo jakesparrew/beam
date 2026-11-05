@@ -5,7 +5,8 @@ PDFs and imports are stored in the same database, so one backup covers everythin
 
 - **Every table, column, type, key, enum and view** is listed in the generated page
   [data-model.generated.md](data-model.generated.md). It is written from the code by
-  `pnpm docs:schema` and checked in CI by `pnpm docs:schema --check`, so it is always current.
+  `pnpm docs:schema` and checked by CI on `main` with `pnpm docs:schema --check`, so it cannot
+  drift from the code.
 - The reasoning behind each table is in [02-data-model.md](../plan/02-data-model.md) and in
   section 2 of each module spec in [docs/plan/modules/](../plan/modules/).
 

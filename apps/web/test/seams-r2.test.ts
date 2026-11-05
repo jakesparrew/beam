@@ -381,3 +381,205 @@ describe("seam 2: checkout.abandoned -> recovery email -> checkout.completed att
     expect(await deadJobs()).toEqual([]);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Seam 3: the one step executor (PL-96, gap G15)
+// ---------------------------------------------------------------------------
+
+const NEWS_TEMPLATE = "seam-r2-news";
+
+/** `runStep` from its one home, in a real transaction with the system actor at `now`. */
+function step(enrolmentId: string, stepKey: string, now: Date) {
+  return h.db.transaction((tx) => runStep(tx, { enrolmentId, stepKey, now }, { ctx: createCtx({ tx, actor: { kind: "system", jobId: "" }, now, durableMode: "immediate" }) }));
+}
+
+/**
+ * A marketing automation (purpose `newsletter`) built through automation's staff actions:
+ * `tag.added` of `tagKey` enrols, then one marketing email step per `minutes` entry.
+ */
+async function marketingJourney(slug: string, tagKey: string, minutes: number[]): Promise<string> {
+  ok(await createTag({ key: tagKey, name: each(`Seam ${tagKey}`), color: "#16a34a" }));
+  const { id } = ok<{ id: string }>(await automationActions.createAutomation({ slug, name: `Seam ${slug}`, groupKey: "inactivity", isMarketing: true, purpose: "newsletter" }));
+  const definition = {
+    schema_version: 1,
+    trigger: { event: "tag.added", where: { "data.tag_key": tagKey } },
+    anchor: "enrolment",
+    re_entry: "never",
+    exit_on: [],
+    steps: minutes.map((m, i) => ({ key: `m${i + 1}`, type: "email", template: NEWS_TEMPLATE, at: { from: "enrolment", minutes: m } })),
+  };
+  const saved = ok<{ issues: { severity: string; code: string; path: string }[] }>(await automationActions.saveDraft({ automationId: id, definition }));
+  expect(saved.issues.filter((i) => i.severity === "error")).toEqual([]);
+  ok(await automationActions.publishVersion({ automationId: id, migrateActive: false }));
+  ok(await automationActions.activateAutomation({ automationId: id }));
+  return id;
+}
+
+/** Tags a reachable person at `at` (crm's api) and runs only the evaluator at `at`: the enrolment, its step jobs left pending. */
+async function enrolByTag(label: string, tagKey: string, slug: string, at: Date) {
+  const person = await reachablePerson(label);
+  await applyTag(h.db as unknown as Tx, makeCtx(h.db, { integrations: fake, now: at }), person.id, tagKey, "manual");
+  await fire("automation.evaluate", at, {}, { alone: true });
+  const [e] = await enrolmentsOf(person.id, slug);
+  expect(e, `${slug} enrolment`).toBeDefined();
+  return { person, e: e! };
+}
+
+describe("seam 3: quiet hours, frequency caps and checkout recovery run in the one executor (PL-96, gap G15)", () => {
+  beforeAll(async () => {
+    await seedTemplate(h.db as unknown as Tx, {
+      slug: NEWS_TEMPLATE,
+      name: "Seam R2 news",
+      kind: "marketing",
+      purpose: "newsletter",
+      subject: each("News from BEAM"),
+      preheader: each("This week at BEAM"),
+      document: { schemaVersion: 1, locales: Object.fromEntries(L.map((l, i) => [l, [{ id: `seamr2nw0${i}`, type: "text", markdown: `Hello {{first_name}} (${l}).` }]])) } as never,
+    });
+    // automation's rules page action: quiet hours 21:00-08:00, two marketing emails a day.
+    const current = await getSettingWithVersion(h.db, "automation_rules");
+    ok(
+      await automationActions.updateAutomationRules({
+        expectedVersion: current.version,
+        maxMarketingPerDay: 2,
+        maxMarketingPerWeek: 10,
+        quietStart: QUIET.start,
+        quietEnd: QUIET.end,
+        webhookHosts: [...(current.value.webhook_hosts ?? [])],
+      }),
+    );
+    expect((await getSettingWithVersion(h.db, "automation_rules")).value).toMatchObject({ max_marketing_per_day: 2, quiet_start: "21:00", quiet_end: "08:00" });
+  });
+
+  it("a marketing step due at 22:30 Brussels is deferred to 08:00 with a new scheduled row, and sends then", async () => {
+    await marketingJourney("seam-r2-quiet", "seam_r2_quiet", [0]);
+    const due = nextAt("22:30");
+    expect(brusselsTimeOfDay(due)).toBe("22:30");
+    const { e } = await enrolByTag("quiet", "seam_r2_quiet", "seam-r2-quiet", due);
+    expect(e).toMatchObject({ status: "active", nextStepKey: "m1", nextStepAt: due });
+
+    const until = nextBrusselsTime(due, QUIET.end);
+    expect(brusselsTimeOfDay(until)).toBe("08:00");
+    expect(brusselsDate(until)).toBe(brusselsDate(new Date(due.getTime() + 12 * HOUR)));
+    expect(await step(e.id, "m1", due)).toEqual({ status: "deferred", reason: "quiet_hours", nextStepKey: "m1", until });
+
+    const scheduled = await h.db
+      .select()
+      .from(automationRuns)
+      .where(and(eq(automationRuns.enrolmentId, e.id), eq(automationRuns.outcome, "scheduled"), eq(automationRuns.reason, "quiet_hours")));
+    expect(scheduled).toHaveLength(1);
+    expect(scheduled[0]).toMatchObject({ stepKey: "m1", data: { due_at: until.toISOString() } });
+    const [moved] = await enrolmentsOf(e.personId, "seam-r2-quiet");
+    expect(moved).toMatchObject({ status: "active", nextStepKey: "m1", nextStepAt: until });
+    const [deferJob] = await h.db.select().from(jobs).where(eq(jobs.idempotencyKey, stepJobKey(e.id, "m1", { kind: "defer", at: until })));
+    expect(deferJob).toMatchObject({ kind: "automation.step", status: "pending", runAt: until });
+    expect(await messagesOf(e.id)).toEqual([]);
+
+    // 08:00: the step jobs run and the email is queued once and sent.
+    await runDue(until);
+    const messages = await messagesOf(e.id);
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toMatchObject({ status: "sent", purpose: "newsletter", idempotencyKey: `automation:${e.id}:m1` });
+    expect(await outcomes(e.id)).toEqual([
+      [null, "completed"],
+      ["m1", "sent"],
+    ]);
+  });
+
+  it("with maxMarketingPerDay 2 the third marketing step of the day ends skipped_frequency_cap", async () => {
+    await marketingJourney("seam-r2-cap", "seam_r2_cap", [0, 1, 2]);
+    // Three steps in the day light, within 24 hours of the real clock that stamps the messages.
+    const soon = new Date(WALL.getTime() + 30 * MIN);
+    const third = !isQuiet(soon) && !isQuiet(new Date(soon.getTime() - 5 * MIN)) ? soon : nextAt("09:00", 0);
+    const enteredAt = new Date(third.getTime() - 2 * MIN);
+    const { e } = await enrolByTag("cap", "seam_r2_cap", "seam-r2-cap", enteredAt);
+    expect(e).toMatchObject({ nextStepKey: "m1", nextStepAt: enteredAt });
+
+    expect(await step(e.id, "m1", enteredAt)).toMatchObject({ status: "ran", outcome: "sent", nextStepKey: "m2" });
+    expect(await step(e.id, "m2", new Date(enteredAt.getTime() + MIN))).toMatchObject({ status: "ran", outcome: "sent", nextStepKey: "m3" });
+    expect(await step(e.id, "m3", third)).toMatchObject({ status: "ran", outcome: "skipped_frequency_cap", ended: true });
+
+    const [capped] = await h.db.select().from(automationRuns).where(and(eq(automationRuns.enrolmentId, e.id), eq(automationRuns.outcome, "skipped_frequency_cap")));
+    expect(capped).toMatchObject({ stepKey: "m3", reason: "cap_day:2", emailMessageId: null });
+    expect((await messagesOf(e.id)).map((m) => m.idempotencyKey)).toEqual([`automation:${e.id}:m1`, `automation:${e.id}:m2`]);
+    expect(await outcomes(e.id)).toEqual([
+      [null, "completed"],
+      ["m1", "sent"],
+      ["m2", "sent"],
+      ["m3", "skipped_frequency_cap"],
+    ]);
+  });
+
+  it("the abandoned-checkout email carries the resumeUrl of commerce.getCheckoutRecoveryProps; recovery_message_id is set once over two runs", async () => {
+    const remindAt = nextAt("11:00", 3 * HOUR);
+    const { person, checkoutId, abandonedAt } = await abandonedCartOf("executor", new Date(remindAt.getTime() - 121 * MIN));
+    await fire("automation.evaluate", abandonedAt, {}, { alone: true });
+    const [e] = await enrolmentsOf(person.id, "abandoned-checkout");
+    expect(e).toMatchObject({ status: "active", nextStepKey: "remind_1h", nextStepAt: remindAt });
+
+    const first = await step(e!.id, "remind_1h", remindAt);
+    expect(first).toMatchObject({ status: "ran", outcome: "sent", nextStepKey: "remind_24h" });
+    const [m1] = await messagesOf(e!.id);
+    const props = await h.db.transaction((tx) => getCheckoutRecoveryProps(tx, checkoutId));
+    expect(m1!.context).toMatchObject({ checkout_id: checkoutId, resume_url: props.resumeUrl });
+    const [run1] = await h.db.select().from(automationRuns).where(and(eq(automationRuns.enrolmentId, e!.id), eq(automationRuns.stepKey, "remind_1h"), eq(automationRuns.outcome, "sent")));
+    expect(run1).toMatchObject({ emailMessageId: m1!.id, data: { checkout_id: checkoutId } });
+    expect((await checkoutRow(checkoutId)).recoveryMessageId).toBe(m1!.id);
+
+    // Run 1 again (a retried job): nothing new. Run 2 (the 24-hour reminder): a second email, the link stays on the first.
+    expect(await step(e!.id, "remind_1h", remindAt)).toEqual({ status: "noop", reason: "not_next" });
+    const second = await step(e!.id, "remind_24h", new Date(abandonedAt.getTime() + DAY));
+    expect(second).toMatchObject({ status: "ran", outcome: "sent" });
+    const messages = await messagesOf(e!.id);
+    expect(messages.map((m) => m.idempotencyKey)).toEqual([`automation:${e!.id}:remind_1h`, `automation:${e!.id}:remind_24h`]);
+    expect(messages[1]!.context).toMatchObject({ resume_url: props.resumeUrl });
+    expect((await checkoutRow(checkoutId)).recoveryMessageId).toBe(m1!.id);
+    expect((await h.db.transaction((tx) => getCheckoutRecoveryProps(tx, checkoutId))).resumeUrl).toBe(props.resumeUrl);
+  });
+});
+
+describe("one home for the step executor (PL-96)", () => {
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  const REPO = path.resolve(here, "../../..");
+  const SKIP = new Set(["node_modules", ".git", ".next", ".turbo", ".claude", "dist", "coverage", "playwright-report", "test-results"]);
+
+  /** Every file named `step.ts` under `apps/`, `packages/` and `scripts/` (repository-relative). */
+  function stepFiles(): string[] {
+    const out: string[] = [];
+    const walk = (dir: string) => {
+      let names: string[];
+      try {
+        names = readdirSync(dir);
+      } catch {
+        return;
+      }
+      for (const name of names) {
+        if (SKIP.has(name)) continue;
+        const full = path.join(dir, name);
+        let isDir = false;
+        try {
+          isDir = statSync(full).isDirectory();
+        } catch {
+          continue;
+        }
+        if (isDir) walk(full);
+        else if (name === "step.ts") out.push(path.relative(REPO, full).split(path.sep).join("/"));
+      }
+    };
+    for (const top of ["apps", "packages", "scripts"]) walk(path.join(REPO, top));
+    return out.sort();
+  }
+
+  const EXPORTS_RUN_STEP = /export\s+(?:async\s+)?function\s+runStep\b|export\s+(?:const|let)\s+runStep\b|export\s*\{[^}]*\brunStep\b[^}]*\}/;
+
+  it("exactly one step.ts exports runStep, at apps/web/modules/automation/engine/step.ts", () => {
+    const exporting = stepFiles().filter((f) => EXPORTS_RUN_STEP.test(readFileSync(path.join(REPO, f), "utf8")));
+    expect(exporting).toEqual(["apps/web/modules/automation/engine/step.ts"]);
+    expect(typeof runStep).toBe("function");
+  });
+
+  it("no step.ts exists under packages/db/src/ or packages/core/src/i18n/", () => {
+    const stray = stepFiles().filter((f) => f.startsWith("packages/db/src/") || f.startsWith("packages/core/src/i18n/"));
+    expect(stray).toEqual([]);
+  });
+});

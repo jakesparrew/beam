@@ -9,7 +9,10 @@
  * `role="alert"` and linked to its field. Every text comes from the page. booking-P7 (R22): on a
  * Lead Magnet in the lead window a lead sees `leadSeatNotice` ("You book one of the places
  * reserved for leads"); a customer without a general seat never gets this form: the page shows
- * "Opens for you on ..." and the customer queue button instead.
+ * "Opens for you on ..." and the customer queue button instead. booking-P8 (R51, R55): the ticket
+ * type picker of an event with ticket types (`ticketTypeId`; a type not on sale, sold out or for
+ * members only is shown disabled with its reason) and the "{n} guest uses left this month" line
+ * above the guest rows.
  */
 import Link from "next/link";
 import type { Route } from "next";
@@ -18,6 +21,9 @@ import { GuestFields, type GuestFieldsLabels } from "./guest-fields";
 import { PolicyNote } from "./policy-note";
 
 export type PayOption = { value: "credit" | "order" | "free"; label: string; hint: string | null };
+
+/** R51: one ticket type of the event (label with price, a hint such as "3 left", disabled when not bookable). */
+export type TicketTypeOption = { id: string; label: string; hint: string | null; disabled: boolean };
 
 export type BookFormLabels = {
   payment: string;
@@ -32,6 +38,8 @@ export type BookFormLabels = {
   submit: string;
   noPayOption: string;
   guests: GuestFieldsLabels;
+  /** R51: legend of the ticket type picker. */
+  ticketType?: string;
 };
 
 export type BookFormProps = {
@@ -39,13 +47,16 @@ export type BookFormProps = {
   clientKey: string;
   payOptions: PayOption[];
   showPromo: boolean;
-  guests: { max: number; isNight: boolean; payOptions: ReadonlyArray<"guest" | "order"> } | null;
+  /** `usesLeft`: the translated "{n} guest uses left this month" (R55), when known. */
+  guests: { max: number; isNight: boolean; payOptions: ReadonlyArray<"guest" | "order">; usesLeft?: string | null } | null;
+  /** R51: the event's ticket types; every booking of such an event carries one. */
+  ticketTypes?: TicketTypeOption[] | null;
   terms: { required: boolean; href: string | null };
   health: { message: string; href: string | null } | null;
   emergency: boolean;
   policy: { text: string; notice: string };
   /** The translated error and, when known, the field it belongs to. */
-  error: { message: string; field: "terms" | "emergency" | "payment" | null } | null;
+  error: { message: string; field: "terms" | "emergency" | "payment" | "ticket" | null } | null;
   /** R22: shown when the booking will use a lead-reserved seat. */
   leadSeatNotice?: string | null;
   labels: BookFormLabels;
@@ -76,6 +87,30 @@ export function BookForm(p: BookFormProps) {
         </p>
       ) : null}
 
+      {p.ticketTypes && p.ticketTypes.length > 0 ? (
+        <fieldset className="space-y-2" aria-describedby={errFor("ticket")} data-testid="ticket-types">
+          <legend className="font-medium">{p.labels.ticketType}</legend>
+          {p.ticketTypes.map((t, i, all) => (
+            <label key={t.id} className={`flex min-h-11 items-start gap-3 rounded-md border p-3${t.disabled ? " opacity-60" : ""}`}>
+              <input
+                type="radio"
+                name="ticketTypeId"
+                value={t.id}
+                required
+                disabled={t.disabled}
+                defaultChecked={!t.disabled && all.findIndex((x) => !x.disabled) === i}
+                className="mt-1 size-5"
+                data-testid={`ticket-${t.id}`}
+              />
+              <span className="flex flex-col">
+                <span>{t.label}</span>
+                {t.hint ? <span className="text-sm text-muted-foreground">{t.hint}</span> : null}
+              </span>
+            </label>
+          ))}
+        </fieldset>
+      ) : null}
+
       <fieldset className="space-y-2" aria-describedby={errFor("payment")}>
         <legend className="font-medium">{p.labels.payment}</legend>
         {p.payOptions.map((o, i) => (
@@ -95,7 +130,7 @@ export function BookForm(p: BookFormProps) {
         ) : null}
       </fieldset>
 
-      {p.guests ? <GuestFields labels={p.labels.guests} max={p.guests.max} isNight={p.guests.isNight} payOptions={p.guests.payOptions} /> : null}
+      {p.guests ? <GuestFields labels={p.labels.guests} max={p.guests.max} isNight={p.guests.isNight} payOptions={p.guests.payOptions} usesLeft={p.guests.usesLeft ?? null} /> : null}
 
       {p.emergency ? (
         <fieldset className="grid gap-3 sm:grid-cols-2" aria-describedby={errFor("emergency")} data-testid="emergency-fields">

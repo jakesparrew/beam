@@ -525,7 +525,14 @@
       "waitlist_joined": "Je staat op de wachtlijst. We mailen je zodra er een plaats vrijkomt.",
       "when": "Wanneer",
       "where": "Waar",
-      "lead_seat_notice": "Je boekt een van de plaatsen die voor leads gereserveerd zijn."
+      "lead_seat_notice": "Je boekt een van de plaatsen die voor leads gereserveerd zijn.",
+      "ticket_type": "Kies je ticket",
+      "ticket_left": "{count, plural, one {nog # ticket} other {nog # tickets}}",
+      "ticket_sold_out": "Uitverkocht",
+      "ticket_not_on_sale": "Nu niet te koop",
+      "ticket_sales_from": "Te koop vanaf {date}",
+      "ticket_members_only": "Voor leden",
+      "guest_uses_none": "Je pakket kan deze maand niet voor gasten gebruikt worden. Je kan wel voor je gast betalen."
     },
     "portalBookings": {
       "title": "Mijn boekingen",
@@ -729,6 +736,32 @@
       "error_window": "Controleer het leadvenster: het moet sluiten na het openen, in de toekomst en voor de start van het evenement.",
       "error_seats": "Geef een aantal plaatsen of een percentage, hoogstens de capaciteit.",
       "error_public_release": "De opening voor iedereen moet tussen het einde van het leadvenster en de start van het evenement liggen."
+    },
+    "tickets": {
+      "intro": "Verkoop meerdere tickettypes voor dit evenement, elk met een eigen prijs (publieks- en ledenprijs komen van het ticketproduct), plaatsen, verkoopperiode en regels voor gasten. De capaciteit van de sessie blijft de grens voor alle types samen.",
+      "empty": "Nog geen tickettypes: dit evenement wordt aan één prijs verkocht.",
+      "flag_off": "Tickettypes zijn nog niet ingeschakeld voor je account.",
+      "name": "Naam van het ticket",
+      "product": "Ticketproduct",
+      "product_hint": "De publieks- en ledenprijs van dit product worden gebruikt.",
+      "no_product": "Kies een ticketproduct",
+      "capacity": "Plaatsen voor dit type",
+      "capacity_hint": "Laat leeg om de plaatsen van het evenement te delen.",
+      "capacity_of": "van {count}",
+      "member_only": "Alleen voor leden",
+      "sales_start": "Start verkoop",
+      "sales_end": "Einde verkoop",
+      "sales_hint": "Brusselse tijd. Leeg: te koop vanaf publicatie tot het evenement begint.",
+      "max_per_booking": "Maximum tickets per boeking (met gasten)",
+      "requires_guest_details": "Vraag voor- en achternaam van elke gast",
+      "sort_order": "Volgorde",
+      "sold": "Verkocht: {count}",
+      "archived": "Gearchiveerd",
+      "add": "Tickettype toevoegen",
+      "archive": "Archiveren",
+      "error_name": "Geef het ticket een naam in de drie talen voor het evenement gepubliceerd wordt.",
+      "error_window": "Het einde van de verkoop moet na de start liggen en voor het einde van het evenement.",
+      "error_capacity": "De plaatsen voor dit type mogen de capaciteit van het evenement niet overschrijden."
     }
   }
 }

@@ -168,3 +168,29 @@ export const vSessionUtilisation = pgView("v_session_utilisation", {
   waitlistPeak: integer("waitlist_peak").notNull(),
   utilisationPct: numeric("utilisation_pct", { mode: "number" }),
 }).existing();
+
+/**
+ * Per ticket type (R2, R51): live sold count against the type's own capacity and whether it is on
+ * sale now (`sales_start_at` .. `sales_end_at`, default the session start). `available` is null
+ * when the type has no capacity of its own (the session capacity is always the hard limit).
+ */
+export const vTicketTypeAvailabilitySql = `select t.id as ticket_type_id, t.session_id, t.capacity,
+  coalesce(b.sold, 0)::int as sold,
+  case when t.capacity is null then null else greatest(0, t.capacity - coalesce(b.sold, 0))::int end as available,
+  (t.is_active and now() >= coalesce(t.sales_start_at, '-infinity'::timestamptz)
+     and now() < coalesce(t.sales_end_at, s.starts_at)) as is_on_sale
+from ticket_types t
+join sessions s on s.id = t.session_id
+left join (select ticket_type_id, count(*) as sold
+           from bookings where ticket_type_id is not null
+             and (status in ('confirmed', 'attended', 'no_show') or (status = 'reserved' and reserved_until > now()))
+           group by 1) b on b.ticket_type_id = t.id`;
+
+export const vTicketTypeAvailability = pgView("v_ticket_type_availability", {
+  ticketTypeId: uuid("ticket_type_id").notNull(),
+  sessionId: uuid("session_id").notNull(),
+  capacity: integer("capacity"),
+  sold: integer("sold").notNull(),
+  available: integer("available"),
+  isOnSale: boolean("is_on_sale").notNull(),
+}).existing();

@@ -525,7 +525,14 @@
       "waitlist_joined": "Vous êtes sur la liste d’attente. Nous vous écrivons dès qu’une place se libère.",
       "when": "Quand",
       "where": "Où",
-      "lead_seat_notice": "Vous réservez une des places réservées aux leads."
+      "lead_seat_notice": "Vous réservez une des places réservées aux leads.",
+      "ticket_type": "Choisissez votre billet",
+      "ticket_left": "{count, plural, one {encore # billet} other {encore # billets}}",
+      "ticket_sold_out": "Complet",
+      "ticket_not_on_sale": "Pas en vente pour le moment",
+      "ticket_sales_from": "En vente à partir du {date}",
+      "ticket_members_only": "Pour les membres",
+      "guest_uses_none": "Votre forfait ne peut pas être utilisé pour des invités ce mois-ci. Vous pouvez payer pour votre invité."
     },
     "portalBookings": {
       "title": "Mes réservations",
@@ -729,6 +736,32 @@
       "error_window": "Vérifiez la période leads : elle doit se terminer après son début, dans le futur et avant le début de l’événement.",
       "error_seats": "Indiquez un nombre de places ou un pourcentage, au maximum la capacité.",
       "error_public_release": "L’ouverture à tous doit se situer entre la fin de la période leads et le début de l’événement."
+    },
+    "tickets": {
+      "intro": "Vendez plusieurs types de billets pour cet événement, chacun avec son prix (les prix public et membre viennent du produit billet), ses places, sa période de vente et ses règles pour les invités. La capacité de la séance reste la limite pour tous les types ensemble.",
+      "empty": "Pas encore de types de billets : cet événement est vendu à un prix unique.",
+      "flag_off": "Les types de billets ne sont pas encore activés pour votre compte.",
+      "name": "Nom du billet",
+      "product": "Produit billet",
+      "product_hint": "Les prix public et membre de ce produit sont utilisés.",
+      "no_product": "Choisissez un produit billet",
+      "capacity": "Places pour ce type",
+      "capacity_hint": "Laissez vide pour partager les places de l'événement.",
+      "capacity_of": "sur {count}",
+      "member_only": "Réservé aux membres",
+      "sales_start": "Début des ventes",
+      "sales_end": "Fin des ventes",
+      "sales_hint": "Heure de Bruxelles. Vide : en vente dès la publication jusqu'au début de l'événement.",
+      "max_per_booking": "Nombre maximum de billets par réservation (invités compris)",
+      "requires_guest_details": "Demander le prénom et le nom de chaque invité",
+      "sort_order": "Ordre",
+      "sold": "Vendus : {count}",
+      "archived": "Archivé",
+      "add": "Ajouter un type de billet",
+      "archive": "Archiver",
+      "error_name": "Donnez un nom au billet dans les trois langues avant de publier l'événement.",
+      "error_window": "La fin des ventes doit suivre le début et précéder la fin de l'événement.",
+      "error_capacity": "Les places de ce type ne peuvent pas dépasser la capacité de l'événement."
     }
   }
 }

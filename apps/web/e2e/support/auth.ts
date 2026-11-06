@@ -201,20 +201,26 @@ export async function signInStaff(page: Page, role: DemoRole, opts: { returnTo?:
  */
 export async function signInCustomer(page: Page, email: string, locale: "nl" | "fr" | "en" = "nl"): Promise<void> {
   const digest = createHash("sha256").update(email.trim().toLowerCase()).digest("hex");
-  await e2eRows(sql`delete from rate_limits where key = ${`magic:${digest}`}`);
-  await clearIpBuckets();
-  // Only a link sent after this request: a time slack ("now minus 2 s") picked the previous,
-  // already used link when the same address signed in twice within it (error=Verification).
-  const requestedAt = await newestEmailAt(email);
-  await page.goto(`/${locale}/account/login`);
-  await page.locator('input[name="email"]').first().fill(email);
-  await submitAndWait(page);
-  await waitForUrlOrFormError(page, /\/account\/login\/check-email/, `Magic-link request for ${email}`);
-  const mail = await latestEmail(email, { after: requestedAt, linkIncludes: "/account/login/verify" });
-  const link = mail.links.find((l) => l.includes("/account/login/verify"));
-  expect(link, "the magic-link email contains the verify link").toBeTruthy();
-  const url = new URL(link!);
-  await page.goto(`${url.pathname}${url.search}`);
-  await page.locator('form button[type="submit"]').click();
-  await page.waitForURL((u) => u.pathname.startsWith(`/${locale}/account`) && !u.pathname.includes("/login"));
+  // Demo customers (customer1@example.com, ...) are shared by specs on both workers: two sign-ins
+  // of one address at the same moment can open the same link, and the second use lands on
+  // error=Verification. Then a fresh link is requested, up to three times.
+  for (let attempt = 1; ; attempt++) {
+    await e2eRows(sql`delete from rate_limits where key = ${`magic:${digest}`}`);
+    await clearIpBuckets();
+    // Only a link sent after this request, on the database clock.
+    const requestedAt = await newestEmailAt(email);
+    await page.goto(`/${locale}/account/login`);
+    await page.locator('input[name="email"]').first().fill(email);
+    await submitAndWait(page);
+    await waitForUrlOrFormError(page, /\/account\/login\/check-email/, `Magic-link request for ${email}`);
+    const mail = await latestEmail(email, { after: requestedAt, linkIncludes: "/account/login/verify" });
+    const link = mail.links.find((l) => l.includes("/account/login/verify"));
+    expect(link, "the magic-link email contains the verify link").toBeTruthy();
+    const url = new URL(link!);
+    await page.goto(`${url.pathname}${url.search}`);
+    await page.locator('form button[type="submit"]').click();
+    await page.waitForURL((u) => (u.pathname.startsWith(`/${locale}/account`) && !u.pathname.includes("/login")) || u.pathname.endsWith("/account/login/error"));
+    if (!new URL(page.url()).pathname.endsWith("/account/login/error")) return;
+    if (attempt >= 3) throw new Error(`Magic-link sign-in of ${email} failed ${attempt} times: ${page.url()}`);
+  }
 }

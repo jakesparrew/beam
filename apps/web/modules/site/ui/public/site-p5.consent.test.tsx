@@ -88,6 +88,25 @@ describe("cookie banner (rules 36-39)", () => {
     expect(screen.getByTestId("state").textContent).toBe("false/false");
   });
 
+  it("reserves its own height at the end of the page so the last content can scroll above it", async () => {
+    const spy = vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(function (this: HTMLElement) {
+      return this.hasAttribute("data-cookie-banner") ? 132 : 0;
+    });
+    try {
+      const { container } = renderSite(null);
+      const spacer = container.querySelector<HTMLElement>("[data-cookie-banner-spacer]");
+      expect(spacer?.getAttribute("aria-hidden")).toBe("true");
+      expect(spacer?.style.height).toBe("132px");
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: "Reject all" }));
+        await Promise.resolve();
+      });
+      expect(container.querySelector("[data-cookie-banner-spacer]")).toBeNull();
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
   it("accept all posts the choice, hides the banner and loads both scripts with the nonce", async () => {
     window.history.replaceState(null, "", "/nl/aanbod?utm_source=newsletter&utm_campaign=spring");
     const { container } = renderSite(null);

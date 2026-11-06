@@ -32,7 +32,6 @@ async function person(email: string, firstName: string): Promise<string> {
 async function cleanup(): Promise<void> {
   if (!ids) return;
   const { sessionId } = ids;
-  await e2eRows(sql`update waitlist_entries set booking_id = null where session_id = ${sessionId}`);
   await e2eRows(sql`delete from waitlist_entries where session_id = ${sessionId}`);
   await e2eRows(sql`update sessions set status = 'cancelled', cancelled_at = now(), cancel_reason = 'e2e scenario 4 cleanup' where id = ${sessionId} and status <> 'cancelled'`);
 }

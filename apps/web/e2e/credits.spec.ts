@@ -105,19 +105,25 @@ async function buy(page: Page, sku: string, opts: { expectProvider?: boolean } =
   await page.goto(`/en/account/shop/${sku}`);
   await page.getByRole("button", { name: /Buy now/i }).click();
   await page.waitForURL(/\/en\/account\/checkout\?checkout=/);
+  // The URL changes before the basket renders: wait for Pay, so the terms box is counted on the basket.
+  const pay = page.getByRole("button", { name: /Pay/ });
+  await expect(pay).toBeVisible();
   const terms = page.locator("#accept-terms");
   if ((await terms.count()) > 0) await terms.check();
   const posted = page.waitForResponse((r) => r.request().method() === "POST");
-  await page.getByRole("button", { name: /Pay/ }).click();
+  await pay.click();
   await posted;
   if (opts.expectProvider !== false) await payWithFake(page);
 }
 
 async function submitBooking(page: Page): Promise<void> {
+  // Wait for the rendered form before counting its terms box (a soft navigation renders later).
+  const submit = page.getByTestId("book-submit");
+  await expect(submit).toBeVisible();
   const terms = page.getByTestId("accept-terms");
   if ((await terms.count()) > 0) await terms.check();
   const posted = page.waitForResponse((r) => r.request().method() === "POST");
-  await page.getByTestId("book-submit").click();
+  await submit.click();
   await posted;
 }
 
@@ -135,6 +141,8 @@ test.afterAll(async () => {
 });
 
 test("package balance updates: buy 10 sessions, book one, cancel it", async ({ page }) => {
+  // Sign-in, a purchase on the fake provider, a booking, a cancellation and two axe scans.
+  test.setTimeout(2 * 60_000);
   const before = await liabilityCents();
   await signInCustomer(page, email, "en");
   await buy(page, PACKAGE_SKU);
@@ -158,7 +166,8 @@ test("package balance updates: buy 10 sessions, book one, cancel it", async ({ p
   await page.goto(`/en/account/packages/${grantId}`);
   await expect(page.getByRole("table", { name: "Usage history of this package" })).toContainText(`${MARK} day 1`);
   await expect(page.getByRole("table").getByText("You")).toBeVisible();
-  await expect(page.getByRole("table").getByText("Upcoming", { exact: true })).toBeVisible();
+  // The badge holds an aria-hidden glyph before its word, so match the badge, then its text.
+  await expect(page.getByRole("table").locator('[data-attendance="upcoming"]')).toHaveText(/^\W*Upcoming$/);
   await expectAccessible(page);
 
   const [booking] = await e2eRows<{ id: string }>(sql`select id from bookings where person_id = ${personId} and session_id = ${fx.day1Id} order by created_at desc limit 1`);
@@ -286,7 +295,9 @@ test("data can be exported: the privacy export of the test person contains the c
   const res = await page.request.get(`/en/account/privacy/${requestId}/download`);
   expect(res.status()).toBe(200);
   const body = await res.body();
-  expect(body.includes(Buffer.from("credits/credit_grants.csv"))).toBe(true);
+  // The zip holds one CSV per key of credits' privacy export (`grants`, `entries`, ...), not per table.
+  expect(body.subarray(0, 2).toString()).toBe("PK");
+  expect(body.includes(Buffer.from("credits/grants.csv"))).toBe(true);
 });
 
 test("reception: the desk shows the credit badge, a package sold at the POS books at once", async ({ page }) => {

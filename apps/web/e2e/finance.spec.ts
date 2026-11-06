@@ -9,17 +9,20 @@
  *   skips itself while commerce's `/admin/orders/[id]` screen does not exist.
  * - The paid order counts in `/admin/finance` "issued today", the admin list finds it, and an
  *   `invoices` CSV export for today contains it (skipped until the exports screen exists).
- * The buyer is `customer3@example.com` (a demo customer with a portal user); the spec only adds
- * its own orders and documents, which are legal records and are never deleted.
+ * The buyer and the other customer are fresh customers per run, registered by their first magic
+ * link (shared demo customers run into the magic-link limit of 5 an hour, PL-68, across runs and
+ * parallel servers); the spec only adds its own people, orders and documents, which are legal
+ * records and are never deleted.
  */
 import { expect, test, type Page } from "@playwright/test";
 import { sql } from "drizzle-orm";
 import { expectAccessible } from "./support/a11y";
 import { signInCustomer, signInStaff } from "./support/auth";
 import { closeE2eDb, e2eRows } from "./support/db";
+import { uniqueEmail } from "./support/ids";
 
 const PACKAGE_SKU = "PKG-5-DAYS";
-const BUYER = "customer3@example.com";
+const BUYER = uniqueEmail("finance-buyer");
 const NUMBER_RE = /^BEAM-\d{4}-\d{6}$/;
 
 type Doc = { id: string; number: string; status: string; pdf_status: string; billit_status: string; order_id: string; total_cents: number };
@@ -96,8 +99,14 @@ test.describe.serial("invoices from purchase to report", () => {
 
   test("another customer gets 404 for this invoice and its PDF", async ({ page }) => {
     test.skip(!invoice, "needs the purchase of the first test");
-    await signInCustomer(page, "customer4@example.com", "nl");
-    expect((await page.goto(`/nl/account/invoices/${invoice.id}`))?.status()).toBe(404);
+    await signInCustomer(page, uniqueEmail("finance-other"), "nl");
+    // The portal pages stream behind `loading.tsx`, so Next.js has sent status 200 before the page
+    // calls notFound(): the page answers with the 404 page (noindex) instead of the status. The PDF
+    // route handler answers the 404 status itself (finance spec section 4, never 403).
+    await page.goto(`/nl/account/invoices/${invoice.id}`);
+    await expect(page.getByRole("heading", { level: 1, name: "Pagina niet gevonden" })).toBeVisible();
+    await expect(page.locator('meta[name="robots"][content*="noindex"]').first()).toBeAttached();
+    await expect(page.getByText(invoice.number)).toHaveCount(0);
     expect((await page.request.get(`/nl/account/invoices/${invoice.id}/pdf`)).status()).toBe(404);
   });
 
@@ -128,9 +137,16 @@ test.describe.serial("invoices from purchase to report", () => {
 
   test("reporting reflects the transaction: issued today on /admin/finance, the admin list and the invoices CSV", async ({ page }) => {
     test.skip(!invoice, "needs the purchase of the first test");
+    // A staff sign-in may wait up to 30 s for a fresh TOTP step, then three screens and an export.
+    test.setTimeout(2 * 60_000);
     await signInStaff(page, "finance");
     await page.goto("/admin/finance");
-    const tile = page.locator("section, article, div").filter({ has: page.getByText("Vandaag uitgegeven", { exact: true }) }).last();
+    // The innermost box holding both the tile's label and its count (the label sits in its own div).
+    const tile = page
+      .locator("section, article, div")
+      .filter({ has: page.getByText("Vandaag uitgegeven", { exact: true }) })
+      .filter({ hasText: /\d+ facturen/ })
+      .last();
     await expect(tile).toBeVisible();
     const [today] = await e2eRows<{ n: number }>(sql`
       select count(*)::int as n from invoices where kind = 'invoice' and issued_on = (now() at time zone 'Europe/Brussels')::date`);
@@ -145,11 +161,12 @@ test.describe.serial("invoices from purchase to report", () => {
     const exportsPage = await page.goto("/admin/finance/exports");
     test.skip(exportsPage?.status() === 404, "the exports screen lands with finance-P7");
     const day = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Brussels" });
-    await page.getByLabel(/Soort|Kind/).first().selectOption("invoices").catch(() => undefined);
-    await page.getByLabel(/Van|From/).first().fill(day);
-    await page.getByLabel(/Tot|To/).first().fill(day);
+    // The form's own ids: the kind is labelled "Export", and /Van|From/ or /Tot|To/ match other text.
+    await page.locator("#export-kind").selectOption("invoices");
+    await page.locator("#export-from").fill(day);
+    await page.locator("#export-to").fill(day);
     const posted = page.waitForResponse((r) => r.request().method() === "POST");
-    await page.getByRole("button", { name: /Export/ }).first().click();
+    await page.locator('form:has(#export-kind) button[type="submit"]').click();
     await posted;
     const [exp] = await e2eRows<{ id: string }>(sql`select id from finance_exports where kind = 'invoices' order by created_at desc limit 1`);
     await expect.poll(async () => (await e2eRows<{ status: string }>(sql`select status from finance_exports where id = ${exp!.id}::uuid`))[0]?.status, { timeout: 60_000 }).toBe("done");

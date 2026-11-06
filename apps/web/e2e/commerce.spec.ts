@@ -12,8 +12,11 @@
  *   POS screen, rule 56);
  * - finance refunds that unused package from `/admin/orders/[id]/refund`;
  * - a customer withdraws an unused online package within 14 days (rule 54).
- * Demo customers `customer1..5@example.com` have portal users; the member is the person with an
- * active membership in the demo seed. Rows this spec creates are its own orders and checkouts.
+ * The buyer is a fresh customer per run, registered by the magic link of the first sign-in: a
+ * shared demo customer runs into the magic-link limit (5 an hour, PL-68) across runs and
+ * parallel servers. The demo seed has no member either, so the member test buys the monthly
+ * membership as another fresh customer. Rows this spec creates are its own people, orders and
+ * checkouts.
  */
 import { randomUUID } from "node:crypto";
 import { expect, test, type Page } from "@playwright/test";
@@ -24,7 +27,8 @@ import { closeE2eDb, e2eRows } from "./support/db";
 import { uniqueEmail } from "./support/ids";
 
 const PACKAGE_SKU = "PKG-5-DAYS";
-const BUYER = "customer2@example.com";
+const MEMBERSHIP_SKU = "MEMBER-MONTHLY";
+const BUYER = uniqueEmail("commerce-buyer");
 
 test.afterAll(async () => {
   await closeE2eDb();
@@ -71,14 +75,25 @@ test.describe("customer shop and checkout", () => {
   });
 
   test("a member sees the member price automatically", async ({ page }) => {
-    const [member] = await e2eRows<{ email: string }>(sql`
-      select p.email from memberships m join persons p on p.id = m.person_id join users u on u.person_id = p.id
-      where m.status = 'active' and p.email is not null order by p.email limit 1`);
-    test.skip(!member, "no demo member with a portal user");
+    // The demo seed has no member, so a fresh customer becomes one by buying the monthly membership.
+    const member = uniqueEmail("commerce-member");
     const [prices] = await e2eRows<{ base: number }>(sql`
       select v.amount_cents as base from price_versions v join products pr on pr.id = v.product_id
       where pr.sku = ${PACKAGE_SKU} and v.audience = 'public' order by v.version desc limit 1`);
-    await signInCustomer(page, member!.email, "en");
+    expect(prices, `a public price for ${PACKAGE_SKU}`).toBeTruthy();
+    await signInCustomer(page, member, "en");
+    await page.goto(`/en/account/shop/${MEMBERSHIP_SKU}`);
+    await page.getByRole("button", { name: "Buy now" }).click();
+    await page.waitForURL(/\/en\/account\/checkout\?checkout=/);
+    await acceptAndPay(page);
+    await payWithFake(page);
+    await expect
+      .poll(async () => {
+        const [row] = await e2eRows<{ n: number }>(sql`
+          select count(*)::int as n from memberships m join persons p on p.id = m.person_id where p.email = ${member} and m.status = 'active'`);
+        return Number(row?.n ?? 0);
+      }, { timeout: 30_000 })
+      .toBe(1);
     await page.goto("/en/account/shop");
     await expectAccessible(page);
     const tile = page.locator("li", { has: page.getByRole("link", { name: /5 day sessions package/i }) });
@@ -109,6 +124,8 @@ test.describe("customer shop and checkout", () => {
 
   test("a booking-created order is paid on /account/checkout/[orderId]", async ({ page }) => {
     // The order booking would create: a pending portal order with the current terms version.
+    // Signing in first registers the fresh buyer.
+    await signInCustomer(page, BUYER, "nl");
     const [person] = await e2eRows<{ id: string }>(sql`select id from persons where email = ${BUYER}`);
     const [terms] = await e2eRows<{ id: string }>(sql`
       select v.version_id as id from v_legal_versions v where v.legal_key = 'terms' order by v.ordinal desc limit 1`);
@@ -121,7 +138,6 @@ test.describe("customer shop and checkout", () => {
     await e2eRows(sql`
       insert into order_lines (order_id, line_no, product_id, product_kind, sku, description, quantity, unit_amount_cents, discount_cents, line_total_cents, vat_rate_pct, vat_cents, pricing_trace, data)
       values (${orderId}, 1, ${product!.id}, 'item', ${product!.sku}, '{"nl-BE":"Drinkfles","fr-BE":"Gourde","en":"Water bottle"}'::jsonb, 1, 2500, 0, 2500, 21, 434, '{}'::jsonb, '{}'::jsonb)`);
-    await signInCustomer(page, BUYER, "nl");
     await page.goto(`/nl/account/checkout/${orderId}`);
     await expect(page.getByText(/vastgehouden tot/)).toBeVisible();
     await expect(page.locator("#accept-terms")).toHaveCount(0);

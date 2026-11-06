@@ -7,7 +7,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
-import { redirects } from "@beam/db/schema";
+import { pageRoutes, pages, pageVersions, redirects } from "@beam/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { expectAccessible } from "./support/a11y";
 import { closeE2eDb, e2eDb, e2eRows } from "./support/db";
@@ -65,23 +65,52 @@ test.describe("public site", () => {
   });
 
   test("the pricing table shows the seeded prices and Buy opens the guest checkout", async ({ page }) => {
-    const [pricing] = (await routesOf({ kind: "pricing" })).filter((r) => r.locale === "nl-BE");
-    expect(pricing, "the seeded pricing page in nl-BE").toBeTruthy();
-    await page.goto(urlOf(pricing!));
-    const card = page.locator("[data-product]").first();
-    await expect(card).toBeVisible();
-    const sku = (await card.getAttribute("data-product"))!;
-    const [price] = await e2eRows<{ amount_cents: number }>(sql`
-      select pv.amount_cents from price_versions pv join products p on p.id = pv.product_id
-      where p.sku = ${sku} and pv.audience = 'public' and pv.valid_from_at <= now() and (pv.valid_to_at is null or pv.valid_to_at > now())
-      order by pv.version desc limit 1`);
-    expect(price, `a public price for ${sku}`).toBeTruthy();
-    const formatted = new Intl.NumberFormat("nl-BE", { style: "currency", currency: "EUR" }).format(price!.amount_cents / 100);
-    await expect(card.locator('[data-price="public"]')).toHaveText(formatted);
-    await expectAccessible(page);
+    // The seeded pricing page holds placeholder text only (packages/db/src/seed/site.ts), so this
+    // test publishes its own pricing page with a pricing_table of seeded catalogue products and
+    // removes it afterwards; the prices still come from the seeded price versions.
+    const priced = await e2eRows<{ id: string }>(sql`
+      select p.id from products p
+      where p.is_active and exists (
+        select 1 from price_versions pv where pv.product_id = p.id and pv.audience = 'public'
+          and pv.valid_from_at <= now() and (pv.valid_to_at is null or pv.valid_to_at > now()))
+      order by p.sort_order, p.sku limit 3`);
+    expect(priced.length, "an active seeded product with a public price").toBeGreaterThan(0);
+    const tag = randomUUID().slice(0, 8);
+    const path = `e2e-prijzen-${tag}`;
+    const db = await e2eDb();
+    const [created] = await db.insert(pages).values({ kind: "pricing", slug: `e2e-pricing-${tag}`, status: "draft" }).returning({ id: pages.id });
+    const pageId = created!.id;
+    try {
+      const blocks = [{ id: randomUUID(), type: "pricing_table", heading: "Prijzen", productIds: priced.map((p) => p.id), showMemberPrice: true }];
+      const [version] = await db
+        .insert(pageVersions)
+        .values({ pageId, version: 1, state: "published", title: { "nl-BE": "Prijzen" }, paths: { "nl-BE": path }, blocks: { "nl-BE": blocks } as never, seo: { "nl-BE": { title: "Prijzen", description: "Onze prijzen" } }, locales: ["nl-BE"], createdBy: "user", publishedAt: new Date() })
+        .returning({ id: pageVersions.id });
+      await db.update(pages).set({ status: "published", currentVersionId: version!.id, firstPublishedAt: new Date() }).where(eq(pages.id, pageId));
+      await db.insert(pageRoutes).values({ pageId, locale: "nl-BE", path, versionId: version!.id });
+      const pricing = { locale: "nl-BE", path };
 
-    await card.getByRole("link").last().click();
-    await expect(page).toHaveURL((url) => url.pathname === "/nl/checkout" && url.searchParams.get("sku") === sku && url.searchParams.get("from") === urlOf(pricing!));
+      await page.goto(urlOf(pricing));
+      const card = page.locator("[data-product]").first();
+      await expect(card).toBeVisible();
+      const sku = (await card.getAttribute("data-product"))!;
+      const [price] = await e2eRows<{ amount_cents: number }>(sql`
+        select pv.amount_cents from price_versions pv join products p on p.id = pv.product_id
+        where p.sku = ${sku} and pv.audience = 'public' and pv.valid_from_at <= now() and (pv.valid_to_at is null or pv.valid_to_at > now())
+        order by pv.version desc limit 1`);
+      expect(price, `a public price for ${sku}`).toBeTruthy();
+      const formatted = new Intl.NumberFormat("nl-BE", { style: "currency", currency: "EUR" }).format(price!.amount_cents / 100);
+      await expect(card.locator('[data-price="public"]')).toHaveText(formatted);
+      await expectAccessible(page);
+
+      await card.getByRole("link").last().click();
+      await expect(page).toHaveURL((url) => url.pathname === "/nl/checkout" && url.searchParams.get("sku") === sku && url.searchParams.get("from") === urlOf(pricing));
+    } finally {
+      await db.delete(pageRoutes).where(eq(pageRoutes.pageId, pageId));
+      await db.update(pages).set({ currentVersionId: null, status: "draft" }).where(eq(pages.id, pageId));
+      await db.delete(pageVersions).where(eq(pageVersions.pageId, pageId));
+      await db.delete(pages).where(eq(pages.id, pageId));
+    }
   });
 
   test("events list to event detail to Get tickets lands on the portal sign-in", async ({ page }) => {

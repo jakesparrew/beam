@@ -18,7 +18,7 @@
 import { expect, test } from "@playwright/test";
 import { sql } from "drizzle-orm";
 import { closeE2eDb, e2eRows, pgArray } from "./support/db";
-import { uniqueEmail } from "./support/ids";
+import { distinctEmail, uniqueEmail } from "./support/ids";
 import { signInCustomer } from "./support/auth";
 import { latestEmail } from "./support/sink";
 import { newCheckinCode } from "@beam/core/booking";
@@ -44,7 +44,7 @@ async function buyPackage(personId: string): Promise<void> {
   expect(product, "the demo data has a package product").toBeTruthy();
   const [order] = await e2eRows<{ id: string }>(sql`
     insert into orders (person_id, channel, status, subtotal_cents, vat_cents, total_cents, locale, client_key, paid_at, terms_version_id)
-    values (${personId}, 'admin', 'paid', 9000, 1562, 9000, 'nl-BE', gen_random_uuid()::text, now(), null) returning id`);
+    values (${personId}, 'admin', 'paid', 9000, 1562, 9000, 'nl-BE', gen_random_uuid(), now(), null) returning id`);
   await e2eRows(sql`
     insert into order_lines (order_id, line_no, product_id, product_kind, sku, description, quantity, unit_amount_cents, line_total_cents, vat_rate_pct, vat_cents, pricing_trace)
     values (${order!.id}, 1, ${product!.id}, 'package', ${product!.sku}, '{"nl-BE":"Pakket","fr-BE":"Forfait","en":"Package"}'::jsonb, 1, 9000, 9000, 21.00, 1562, '{"e2e":true}'::jsonb)`);
@@ -56,7 +56,6 @@ const entryOf = async (personId: string) =>
 
 async function cleanup(): Promise<void> {
   if (!ids) return;
-  await e2eRows(sql`update waitlist_entries set booking_id = null where session_id = ${ids.sessionId}`);
   await e2eRows(sql`delete from waitlist_entries where session_id = ${ids.sessionId}`);
   await e2eRows(sql`update sessions set status = 'cancelled', cancelled_at = now(), cancel_reason = 'e2e scenario 3 cleanup' where id = ${ids.sessionId} and status <> 'cancelled'`);
 }
@@ -71,7 +70,9 @@ test.describe("Scenario 3: lead vs customer event access (proposal section 11)",
       insert into feature_flags (key, state) values (${FLAG}, 'testers')
       on conflict (key) do update set state = case when feature_flags.state = 'on' then 'on'::feature_flags_state else 'testers'::feature_flags_state end`);
 
-    const emails = { lead: uniqueEmail("s3-lead"), customer: uniqueEmail("s3-customer"), other: uniqueEmail("s3-other"), publicLead: uniqueEmail("s3-public") };
+    // Distinct normalised addresses: four `e2e+...` addresses would all read as one person to booking's
+    // duplicate signals, and the lead's own seat booking would be refused with needs_review (R48).
+    const emails = { lead: distinctEmail("s3-lead"), customer: distinctEmail("s3-customer"), other: distinctEmail("s3-other"), publicLead: distinctEmail("s3-public") };
     const [session] = await e2eRows<{ id: string }>(sql`
       insert into sessions (kind, event_category, title, starts_at, ends_at, capacity_seats, credit_kind, credit_cost, published_at,
                             is_lead_magnet, lead_reserved_seats, lead_window_start_at, lead_window_end_at, lead_release_rule, public_release_at, claim_window_minutes)
@@ -117,6 +118,8 @@ test.describe("Scenario 3: lead vs customer event access (proposal section 11)",
     await signInCustomer(page, s.emails.lead, "nl");
     await page.goto(`/nl/account/book/${s.sessionId}`);
     await expect(page.getByTestId("book-form")).toBeVisible();
+    // The new lead has not accepted the terms yet, so the first booking asks for them.
+    await page.getByTestId("accept-terms").check();
     const [response] = await Promise.all([
       page.waitForResponse((r) => r.request().method() === "POST" && r.url().includes(`/account/book/${s.sessionId}`)),
       page.getByTestId("book-submit").click(),
@@ -135,6 +138,8 @@ test.describe("Scenario 3: lead vs customer event access (proposal section 11)",
     await expect(page.getByTestId("book-submit")).toHaveCount(0);
     const join = page.getByTestId("join-waitlist");
     await expect(join).toHaveText(/klantenwachtrij|wachtrij voor klanten/i);
+    // The customer's order was written without terms acceptance, so joining asks for the terms.
+    await page.getByRole("checkbox", { name: /voorwaarden/ }).check();
     const [response] = await Promise.all([page.waitForResponse((r) => r.request().method() === "POST" && r.url().includes(`/account/book/${s.sessionId}`)), join.click()]);
     expect(response.status()).toBeLessThan(500);
     await expect(page.getByTestId("waitlist-joined")).toBeVisible();

@@ -33,7 +33,7 @@ import { makePerson } from "@beam/db/testing";
 import { bookings, waitlistEntries } from "@beam/db/schema";
 import { expectAccessible } from "./support/a11y";
 import { demoStaffEmail, signInCustomer, signInStaff } from "./support/auth";
-import { closeE2eDb, e2eDb, e2eRows } from "./support/db";
+import { closeE2eDb, e2eDb, e2eRows, pgArray } from "./support/db";
 import { uniqueEmail } from "./support/ids";
 import {
   DAY,
@@ -55,7 +55,6 @@ import {
   preferenceToken,
   resendWebhook,
   resetAcceptanceRows,
-  sentMessageOf,
   statusOfBooking,
   submitBooking,
 } from "./support/acceptance-fixtures";
@@ -144,6 +143,8 @@ test.describe("V1 acceptance", () => {
 
     test("The package balance updates", async ({ page }) => {
       test.skip(!core.personId, "the core customer did not register");
+      // Sign-in, a credit booking, two balance checks, an axe scan and a reschedule: about 60 s alone.
+      test.setTimeout(2 * 60_000);
       await signInCustomer(page, core.email, "nl");
       await page.goto(`/nl/account/book/${fx.creditDay2}`);
       await expect(page.getByText(copy(LOCALE, "booking.portalSession.credits_left", { count: 5 }))).toBeVisible({ timeout: 30_000 });
@@ -173,14 +174,18 @@ test.describe("V1 acceptance", () => {
     });
 
     test("The member discount applies automatically", async ({ page }) => {
-      const [member] = await e2eRows<{ email: string }>(sql`
-        select p.email from memberships m join persons p on p.id = m.person_id join users u on u.person_id = p.id
-        where m.status = 'active' and p.email is not null order by p.email limit 1`);
-      test.skip(!member, "no demo member with a portal user");
+      // The demo seed has no member: a fresh customer becomes one by buying the monthly membership.
+      const member = uniqueEmail("acceptance-member");
       const [price] = await e2eRows<{ base: number }>(sql`
         select v.amount_cents as base from price_versions v join products pr on pr.id = v.product_id
         where pr.sku = 'PKG-5-DAYS' and v.audience = 'public' order by v.version desc limit 1`);
-      await signInCustomer(page, member!.email, "en");
+      expect(price, "a public price for PKG-5-DAYS").toBeTruthy();
+      await signInCustomer(page, member, "en");
+      await buyPackage(page, "en", "MEMBER-MONTHLY");
+      await eventually(
+        () => one<{ id: string }>(sql`select m.id from memberships m join persons p on p.id = m.person_id where lower(p.email) = ${member} and m.status = 'active'`),
+        30_000,
+      );
       await page.goto("/en/account/shop");
       const tile = page.locator("li", { has: page.getByRole("link", { name: /5 day sessions package/i }) });
       await expect(tile.getByText("Member price")).toBeVisible();
@@ -336,7 +341,7 @@ test.describe("V1 acceptance", () => {
       await e2eRows(sql`insert into consent_records (person_id, purpose, status, method, source, wording_version, recorded_at, actor)
         values (${person.id}::uuid, 'newsletter', 'granted', 'form', 'e2e:acceptance-v1', 'newsletter@1', now() - interval '1 day', '{"kind":"system","id":null}'::jsonb)`);
       expect(await newsletterReachable(person.id)).toBe(true);
-      const token = await preferenceToken(person.id, email, "unsubscribe");
+      const token = await preferenceToken(person.id, email, "unsubscribe", "newsletter");
       const postedAt = Date.now();
       const res = await request.post(`/api/public/unsubscribe/${token}`, { form: { "List-Unsubscribe": "One-Click" } });
       expect(res.status()).toBe(200);
@@ -351,7 +356,11 @@ test.describe("V1 acceptance", () => {
       const email = uniqueEmail("acceptance-bounce");
       await signInCustomer(page, email, "nl");
       const personId = (await personIdOf(email))!;
-      const message = await eventually(() => sentMessageOf(personId));
+      // The magic link went out before the sign-in created the person, so that message carries no
+      // person_id: it is found by its address.
+      const message = await eventually(() =>
+        one<{ id: string; resend_id: string }>(sql`select id, resend_id from email_messages where lower(to_email) = ${email.toLowerCase()} and resend_id is not null order by queued_at desc limit 1`),
+      );
       expect(await resendWebhook(request, { resendId: message.resend_id, to: email })).toBe(200);
       await expect.poll(async () => (await one<{ status: string }>(sql`select status::text as status from email_messages where id = ${message.id}::uuid`))?.status, { timeout: 60_000 }).toBe("bounced");
       const suppression = await eventually(() => one<{ reason: string }>(sql`select reason::text as reason from suppressions where email_hash = ${emailHashOf(email)} and reason = 'hard_bounce' limit 1`));
@@ -397,6 +406,8 @@ test.describe("V1 acceptance", () => {
     const demo = recoveryCheckSeed({ baseUrl: "https://www.example.com" }).definition;
     const lbl = (key: string) => demo.fields[key]!.label[FR]!;
     const optLabel = (key: string, option: string) => (demo.fields[key] as { options?: { key: string; label: Record<string, string> }[] }).options!.find((o) => o.key === option)!.label[FR]!;
+    /** A rating option's accessible name is `forms.public.rating_value` ("2 sur 5"); its visible text is "2". */
+    const ratingLabel = (key: string, value: number) => copy(FR, "forms.public.rating_value", { value: String(value), scale: (demo.fields[key] as { scale: number }).scale });
     const choose = async (page: Page, fieldLabel: string, optionLabel: string) =>
       page.getByRole("group", { name: new RegExp(fieldLabel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) }).getByLabel(optionLabel, { exact: true }).check();
     const routeDone = (page: Page, route: "save" | "submit") => page.waitForResponse((r) => r.url().includes("/api/public/forms/") && r.url().endsWith(`/${route}`) && r.request().method() === "POST");
@@ -412,15 +423,17 @@ test.describe("V1 acceptance", () => {
     test("A weighted, branched assessment works", async ({ page }) => {
       await page.goto("/fr/f/recovery-check?utm_source=facebook&utm_medium=paid_social");
       await expect(page.locator("h1")).toHaveText(demo.title[FR]!);
-      await page.getByLabel(lbl("email")).fill(existing.email);
-      await page.getByLabel(lbl("first_name")).fill("Lotte");
-      await page.getByLabel((demo.fields.sensitive_consent as { wording: Record<string, string> }).wording[FR]!).check();
+      // The footer's newsletter form has its own e-mail field: the hosted form is the one in `main`.
+      const main = page.locator("main");
+      await main.getByLabel(lbl("email")).fill(existing.email);
+      await main.getByLabel(lbl("first_name")).fill("Lotte");
+      await main.getByLabel((demo.fields.sensitive_consent as { wording: Record<string, string> }).wording[FR]!).check();
       let saved = routeDone(page, "save");
       await page.getByRole("button", { name: copy(FR, "forms.public.next") }).click();
       expect((await saved).status()).toBe(200);
       await choose(page, lbl("sleep_hours"), optLabel("sleep_hours", "5_6"));
-      await choose(page, lbl("sleep_quality"), "2");
-      await choose(page, lbl("stress_level"), "8");
+      await choose(page, lbl("sleep_quality"), ratingLabel("sleep_quality", 2));
+      await choose(page, lbl("stress_level"), ratingLabel("stress_level", 8));
       // Branching: the physical stress question appears only for a stress level of 6 or more.
       await expect(page.getByRole("group", { name: new RegExp(lbl("stress_physical").slice(0, 20)) })).toBeVisible();
       await choose(page, lbl("stress_physical"), copy(FR, "forms.public.yes"));
@@ -523,7 +536,7 @@ test.describe("V1 acceptance", () => {
   });
 
   test.describe("GDPR", () => {
-    /** Creates, verifies and runs a privacy request of `kind` from `/admin/privacy/new`; returns its id once done. */
+    /** Creates and verifies a privacy request of `kind` from `/admin/privacy/new` (an erasure is then run now); returns its id once done. */
     async function runPrivacyRequest(page: Page, personId: string, kind: "export" | "erase"): Promise<string> {
       await signInStaff(page, "owner", { returnTo: `/admin/privacy/new?personId=${personId}` });
       const form = page.getByTestId("privacy-new");
@@ -537,8 +550,15 @@ test.describe("V1 acceptance", () => {
       const ack = verify.locator('input[name="acknowledgeWarnings"]');
       if ((await ack.count()) > 0) await ack.check();
       await clickAction(page, verify.locator('button[type="submit"]'));
-      await expect(page.getByTestId("privacy-status")).toHaveAttribute("data-status", "verified");
-      await clickAction(page, page.getByTestId("privacy-run-now").locator('button[type="submit"]'));
+      if (kind === "erase") {
+        // An erasure waits 24 hours after verification unless staff start it now (rule 61).
+        await expect(page.getByTestId("privacy-status")).toHaveAttribute("data-status", "verified");
+        await clickAction(page, page.getByTestId("privacy-run-now").locator('button[type="submit"]'));
+      } else {
+        // An export starts at verification (ops orchestrator: verified exports go to running).
+        await expect(page.getByTestId("privacy-status")).toHaveAttribute("data-status", /^(running|done)$/);
+        await expect(page.getByTestId("privacy-run-now")).toHaveCount(0);
+      }
       await expect
         .poll(async () => (await one<{ status: string }>(sql`select status::text as status from privacy_requests where id = ${requestId}::uuid`))?.status, { timeout: 240_000, intervals: [1_000, 2_000, 5_000] })
         .toBe("done");
@@ -571,10 +591,14 @@ test.describe("V1 acceptance", () => {
       expect(after!.erased_at).not.toBeNull();
       expect(after!.email).toBeNull();
       expect(after!.last_name).not.toBe(`Erase${RUN}`);
-      for (const table of ["email_messages", "bookings"]) {
-        const left = await one<{ n: number }>(sql`select count(*)::int as n from ${sql.raw(table)} where person_id = ${person.id}::uuid`);
-        expect(left!.n, table).toBe(0);
-      }
+      const messages = await one<{ n: number }>(sql`select count(*)::int as n from email_messages where person_id = ${person.id}::uuid`);
+      expect(messages!.n, "email_messages").toBe(0);
+      // Bookings stay, anonymised, on the anonymised person (booking spec section 9): the future
+      // booking is cancelled with code `erased` and keeps no free text.
+      const booked = await e2eRows<{ status: string; cancel_reason_code: string | null; notes: string | null }>(
+        sql`select status::text as status, cancel_reason_code::text as cancel_reason_code, notes from bookings where person_id = ${person.id}::uuid`,
+      );
+      expect(booked).toEqual([{ status: "cancelled", cancel_reason_code: "erased", notes: null }]);
       const supp = await e2eRows<{ reason: string }>(sql`select reason::text as reason from suppressions where email_hash = ${emailHashOf(email)}`);
       expect(supp.map((s) => s.reason)).toContain("erased");
       const report = await one<{ report: unknown }>(sql`select report from privacy_requests where id = ${requestId}::uuid`);
@@ -606,7 +630,7 @@ test.describe("V1 acceptance", () => {
       const person = await makePerson(db, { firstName: "E2E", lastName: "Survivor", email });
       await e2eRows(sql`update persons set email_hash = ${emailHashOf(email)} where id = ${person.id}::uuid`);
       // Unsubscribed through the one-click URL of an email footer.
-      const token = await preferenceToken(person.id, email, "survivor");
+      const token = await preferenceToken(person.id, email, "survivor", "newsletter");
       expect((await request.post(`/api/public/unsubscribe/${token}`, { form: { "List-Unsubscribe": "One-Click" } })).status()).toBe(200);
       await eventually(() => one<{ id: string }>(sql`select id from suppressions where email_hash = ${emailHashOf(email)}`));
 
@@ -620,7 +644,7 @@ test.describe("V1 acceptance", () => {
         options: { delimiter: ",", dateFormat: "iso", defaultLocale: "nl-BE", overwrite: false, preset: "mailchimp_consents", consentPurpose: "newsletter" },
       };
       const imp = await one<{ id: string }>(sql`insert into imports (kind, source, name, file_id, created_by_user_id, header, mapping, status, is_dry_run, run_seq)
-        values ('consents', 'mailchimp', ${`E2E acceptance-v1 survivor ${RUN}`}, ${file!.id}::uuid, ${owner!.id}::uuid, ${["Email Address", "Status", "CONFIRM_TIME", "Source"]}::text[],
+        values ('consents', 'mailchimp', ${`E2E acceptance-v1 survivor ${RUN}`}, ${file!.id}::uuid, ${owner!.id}::uuid, ${pgArray(["Email Address", "Status", "CONFIRM_TIME", "Source"])}::text[],
                 ${JSON.stringify(mapping)}::jsonb, 'dry_run', true, 1) returning id::text as id`);
       await e2eRows(sql`insert into jobs (kind, payload, idempotency_key, lane, priority, max_attempts)
         values ('import.parse', ${JSON.stringify({ importId: imp!.id, runSeq: 1 })}::jsonb, ${`import:${imp!.id}:1:parse`}, 'bulk', 5, 6)`);

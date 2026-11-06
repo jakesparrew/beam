@@ -28,7 +28,7 @@ import { sql } from "drizzle-orm";
 import { deriveAccessKey, signAccessToken } from "@beam/core/webinar";
 import { signInCustomer, signInStaff } from "./support/auth";
 import { closeE2eDb, e2eDb, e2eRows, pgArray } from "./support/db";
-import { uniqueEmail } from "./support/ids";
+import { distinctEmail, uniqueEmail } from "./support/ids";
 import { latestEmail } from "./support/sink";
 import { buyPackage, copy, eventually, one, payCheckout, personIdOf } from "./support/acceptance-fixtures";
 import { newCheckinCode } from "@beam/core/booking";
@@ -205,7 +205,7 @@ async function makeCustomer(personId: string): Promise<void> {
   expect(product, "the demo data has a package product").toBeTruthy();
   const order = await one<{ id: string }>(sql`
     insert into orders (person_id, channel, status, subtotal_cents, vat_cents, total_cents, locale, client_key, paid_at, terms_version_id)
-    values (${personId}::uuid, 'admin', 'paid', 9000, 1562, 9000, 'nl-BE', gen_random_uuid()::text, now(), null) returning id::text as id`);
+    values (${personId}::uuid, 'admin', 'paid', 9000, 1562, 9000, 'nl-BE', gen_random_uuid(), now(), null) returning id::text as id`);
   await e2eRows(sql`
     insert into order_lines (order_id, line_no, product_id, product_kind, sku, description, quantity, unit_amount_cents, line_total_cents, vat_rate_pct, vat_cents, pricing_trace)
     values (${order!.id}::uuid, 1, ${product!.id}::uuid, 'package', ${product!.sku}, '{"nl-BE":"Pakket","fr-BE":"Forfait","en":"Package"}'::jsonb, 1, 9000, 9000, 21.00, 1562, '{"e2e":true}'::jsonb)`);
@@ -213,7 +213,8 @@ async function makeCustomer(personId: string): Promise<void> {
 
 /** A free Lead Magnet event in its lead window: 2 seats, 1 reserved for leads, the general seat taken. */
 async function createLeadMagnet(): Promise<void> {
-  const emails = { seated: uniqueEmail("accr2-lead-seated"), waiting: uniqueEmail("accr2-lead-waiting"), customer: uniqueEmail("accr2-customer"), other: uniqueEmail("accr2-other") };
+  // Distinct normalised addresses, so booking's duplicate signals (R48) see four people.
+  const emails = { seated: distinctEmail("accr2-lead-seated"), waiting: distinctEmail("accr2-lead-waiting"), customer: distinctEmail("accr2-customer"), other: distinctEmail("accr2-other") };
   const session = await one<{ id: string }>(sql`
     insert into sessions (kind, event_category, title, starts_at, ends_at, capacity_seats, credit_kind, credit_cost, published_at,
                           is_lead_magnet, lead_reserved_seats, lead_window_start_at, lead_window_end_at, lead_release_rule, public_release_at, claim_window_minutes)
@@ -234,7 +235,6 @@ async function createLeadMagnet(): Promise<void> {
 }
 
 async function cleanupLeadMagnet(): Promise<void> {
-  await e2eRows(sql`update waitlist_entries set booking_id = null where session_id in (select id from sessions where title->>'en' = ${LEAD_TITLE.en})`);
   await e2eRows(sql`delete from waitlist_entries where session_id in (select id from sessions where title->>'en' = ${LEAD_TITLE.en})`);
   await e2eRows(sql`update bookings set status = 'cancelled', cancelled_at = now(), cancel_reason_code = 'staff', reserved_until = null, version = version + 1
     where status in ('reserved', 'confirmed') and session_id in (select id from sessions where title->>'en' = ${LEAD_TITLE.en})`);
@@ -245,6 +245,11 @@ async function cleanupLeadMagnet(): Promise<void> {
 async function openLeadMagnet(page: Page, email: string): Promise<void> {
   await signInCustomer(page, email, "nl");
   await page.goto(`/nl/account/book/${lead!.sessionId}`);
+}
+
+/** The fixture people never accepted the terms, so their first booking or queue join asks for them. */
+async function acceptTerms(page: Page): Promise<void> {
+  await page.getByRole("checkbox", { name: /voorwaarden/ }).check();
 }
 
 async function postOn(page: Page, click: () => Promise<void>): Promise<void> {
@@ -417,14 +422,27 @@ test.describe("Release 2 acceptance (proposal section 12)", () => {
     });
 
     test("Lead and customer rules work on a Lead Magnet event", async ({ browser }) => {
+      // Three people sign in by magic link and act in turn.
+      test.setTimeout(3 * 60_000);
       const s = lead!;
       expect(await statusOf(s.seated)).toBe("lead");
       expect(await statusOf(s.customer)).toBe("customer");
+
+      // While the reserved seat is still free and the general seat is taken, a customer sees when the
+      // event opens for them and no booking button (R22). Once every seat is taken the page says
+      // "Volzet" instead (booking's computeAvailability: nothing is left to open), so the customer
+      // looks first and joins the customer queue after the leads, keeping the queue order below.
+      const customerPage = await (await browser.newContext()).newPage();
+      await openLeadMagnet(customerPage, s.emails.customer);
+      await expect(customerPage.getByTestId("session-state")).toContainText("Opent voor jou op");
+      await expect(customerPage.getByTestId("book-submit")).toHaveCount(0);
+      await expect(customerPage.getByTestId("join-waitlist")).toHaveText(/klantenwachtrij|wachtrij voor klanten/i);
 
       // During the lead window a lead books the reserved seat.
       const leadPage = await (await browser.newContext()).newPage();
       await openLeadMagnet(leadPage, s.emails.seated);
       await expect(leadPage.getByTestId("book-form")).toBeVisible();
+      await acceptTerms(leadPage);
       await postOn(leadPage, () => leadPage.getByTestId("book-submit").click());
       await leadPage.waitForURL(/\/account\/bookings\//);
       expect(await leadBookingOf(s.seated)).toMatchObject({ status: "confirmed", used_lead_seat: true });
@@ -433,17 +451,18 @@ test.describe("Release 2 acceptance (proposal section 12)", () => {
       // A second lead finds the event full and joins the lead queue.
       const waitingPage = await (await browser.newContext()).newPage();
       await openLeadMagnet(waitingPage, s.emails.waiting);
+      await expect(waitingPage.getByTestId("join-waitlist")).toBeVisible();
+      await acceptTerms(waitingPage);
       await postOn(waitingPage, () => waitingPage.getByTestId("join-waitlist").click());
       await expect(waitingPage.getByTestId("waitlist-joined")).toBeVisible();
       expect(await entryOf(s.waiting)).toMatchObject({ queue: "lead", state: "waiting" });
       await waitingPage.context().close();
 
-      // A customer sees when the event opens for them and joins the customer queue instead.
-      const customerPage = await (await browser.newContext()).newPage();
-      await openLeadMagnet(customerPage, s.emails.customer);
-      await expect(customerPage.getByTestId("session-state")).toContainText("Opent voor jou op");
+      // The customer joins the customer queue, still without a booking button.
+      await customerPage.reload();
       await expect(customerPage.getByTestId("book-submit")).toHaveCount(0);
       await expect(customerPage.getByTestId("join-waitlist")).toHaveText(/klantenwachtrij|wachtrij voor klanten/i);
+      await acceptTerms(customerPage);
       await postOn(customerPage, () => customerPage.getByTestId("join-waitlist").click());
       await expect(customerPage.getByTestId("waitlist-joined")).toBeVisible();
       expect(await entryOf(s.customer)).toMatchObject({ queue: "customer", state: "waiting" });

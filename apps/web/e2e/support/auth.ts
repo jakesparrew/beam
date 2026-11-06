@@ -187,7 +187,7 @@ export async function signInCustomer(page: Page, email: string, locale: "nl" | "
   await page.locator('input[name="email"]').first().fill(email);
   await submitAndWait(page);
   await waitForUrlOrFormError(page, /\/account\/login\/check-email/, `Magic-link request for ${email}`);
-  const mail = await latestEmail(email, { after: requestedAt });
+  const mail = await latestEmail(email, { after: requestedAt, linkIncludes: "/account/login/verify" });
   const link = mail.links.find((l) => l.includes("/account/login/verify"));
   expect(link, "the magic-link email contains the verify link").toBeTruthy();
   const url = new URL(link!);

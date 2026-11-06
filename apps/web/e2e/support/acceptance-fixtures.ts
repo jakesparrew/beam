@@ -57,18 +57,21 @@ export async function payWithFake(page: Page): Promise<void> {
 
 /** The checkout page: ticks the terms box when shown, clicks Pay and waits for the action. */
 export async function payCheckout(page: Page): Promise<void> {
+  // The URL changes before the page renders: wait for Pay, so the terms box is counted on the page.
+  const pay = page.getByRole("button", { name: /^(Betaal|Payer|Pay)\b/ });
+  await expect(pay).toBeVisible();
   const terms = page.locator("#accept-terms");
   if ((await terms.count()) > 0) await terms.check();
   const posted = page.waitForResponse((r) => r.request().method() === "POST");
-  await page.getByRole("button", { name: /^(Betaal|Payer|Pay)\b/ }).click();
+  await pay.click();
   await posted;
   await payWithFake(page);
 }
 
-/** Buys the 5-day package in the portal with the fake provider; returns the paid order id. */
-export async function buyPackage(page: Page, locale: Locale): Promise<string> {
+/** Buys the 5-day package (or `sku`) in the portal with the fake provider; returns the paid order id. */
+export async function buyPackage(page: Page, locale: Locale, sku: string = PACKAGE_SKU): Promise<string> {
   const seg = SEGMENT[locale];
-  await page.goto(`/${seg}/account/shop/${PACKAGE_SKU}`);
+  await page.goto(`/${seg}/account/shop/${sku}`);
   await page.getByRole("button", { name: copy(locale, "commerce.shop.buy_now") }).click();
   await page.waitForURL(new RegExp(`/${seg}/account/checkout\\?checkout=`));
   await payCheckout(page);
@@ -80,10 +83,13 @@ export async function buyPackage(page: Page, locale: Locale): Promise<string> {
 
 /** Ticks the terms box when the booking form shows it, submits and waits for the action's POST. */
 export async function submitBooking(page: Page): Promise<void> {
+  // Wait for the rendered form before counting its terms box (a soft navigation renders later).
+  const submit = page.getByTestId("book-submit");
+  await expect(submit).toBeVisible();
   const terms = page.getByTestId("accept-terms");
   if ((await terms.count()) > 0) await terms.check();
   const posted = page.waitForResponse((r) => r.request().method() === "POST");
-  await page.getByTestId("book-submit").click();
+  await submit.click();
   await posted;
 }
 
@@ -160,13 +166,26 @@ export async function resendWebhook(request: APIRequestContext, input: { resendI
 }
 
 /**
- * A preference token for a person: a sent transactional message row carrying the link token's
- * hash (the token every email footer links to, as `crm.spec.ts` builds it). Returns the token.
+ * A preference token for a person: a sent message row carrying the link token's hash (the token
+ * every email footer links to, as `crm.spec.ts` builds it). Returns the token. Without `purpose`
+ * it is a transactional message; with one it is a sent campaign message of that marketing
+ * purpose (on a seeded marketing template version), whose one-click URL withdraws the purpose:
+ * a transactional message has no purpose, so its one-click POST withdraws nothing.
  */
-export async function preferenceToken(personId: string, email: string, tag: string): Promise<string> {
+export async function preferenceToken(personId: string, email: string, tag: string, purpose?: "newsletter" | "events" | "member_comms" | "b2b"): Promise<string> {
   const link = newLinkToken();
-  await e2eRows(sql`insert into email_messages (kind, locale, to_email, person_id, idempotency_key, status, sent_at, link_token_hash)
-    values ('transactional', 'nl-BE', ${email}, ${personId}::uuid, ${`e2e:acceptance-v1:${tag}:${Date.now()}`}, 'sent', now(), ${link.hash})`);
+  const key = `e2e:acceptance-v1:${tag}:${Date.now()}`;
+  if (!purpose) {
+    await e2eRows(sql`insert into email_messages (kind, locale, to_email, person_id, idempotency_key, status, sent_at, link_token_hash)
+      values ('transactional', 'nl-BE', ${email}, ${personId}::uuid, ${key}, 'sent', now(), ${link.hash})`);
+    return link.token;
+  }
+  const version = await one<{ id: string }>(sql`
+    select v.id::text as id from email_template_versions v join email_templates t on t.id = v.template_id
+    where t.kind = 'marketing' order by v.created_at, v.id limit 1`);
+  expect(version, "a seeded marketing template version").toBeTruthy();
+  await e2eRows(sql`insert into email_messages (kind, purpose, template_version_id, locale, to_email, person_id, idempotency_key, status, sent_at, link_token_hash)
+    values ('campaign', ${purpose}, ${version!.id}::uuid, 'nl-BE', ${email}, ${personId}::uuid, ${key}, 'sent', now(), ${link.hash})`);
   return link.token;
 }
 

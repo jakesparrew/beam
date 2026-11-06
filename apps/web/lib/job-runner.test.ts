@@ -23,6 +23,13 @@ vi.mock("@/registry/jobs.generated", async (importOriginal) => {
     "test.ok": { ...base, kind: "test.ok", input: z.object({ n: z.number().optional() }), run: (ctx: { job: { id: string } }) => Promise.resolve(count(ctx.job.id)) },
     "test.fail": { ...base, kind: "test.fail", input: z.object({}), run: () => Promise.reject(new Error("boom")) },
     "test.permanent": { ...base, kind: "test.permanent", input: z.object({}), run: () => Promise.reject(new Perm("nope")) },
+    "test.deadlock": {
+      ...base,
+      kind: "test.deadlock",
+      input: z.object({}),
+      // drizzle wraps the driver's error: the Postgres code sits on the cause.
+      run: () => Promise.reject(Object.assign(new Error("Failed query: update invoices"), { cause: Object.assign(new Error("deadlock detected"), { code: "40P01" }) })),
+    },
     "test.slow": { ...base, kind: "test.slow", timeoutMs: 50, input: z.object({}), run: () => new Promise((r) => setTimeout(r, 400)) },
     "test.late": {
       ...base,
@@ -183,6 +190,19 @@ describe("failures", () => {
     const delay = ((await job(id)).runAt.getTime() - now.getTime()) / 1000;
     expect(delay).toBeGreaterThan(71);
     expect(delay).toBeLessThanOrEqual(72);
+  });
+
+  it("a deadlock victim retries within 1 to 3 s instead of the backoff, and the attempt counts", async () => {
+    const { id } = await add("test.deadlock", "dl");
+    const now = new Date();
+    await run({ now: () => now, random: () => 0.5 });
+    const row = await job(id);
+    expect(row.status).toBe("pending");
+    expect(row.attempts).toBe(1);
+    expect(row.lastError).toContain("Failed query");
+    const delay = row.runAt.getTime() - now.getTime();
+    expect(delay).toBeGreaterThanOrEqual(1_000);
+    expect(delay).toBeLessThanOrEqual(3_000);
   });
 
   it("PermanentError, a bad payload and an unknown kind go dead at once (PL-28)", async () => {

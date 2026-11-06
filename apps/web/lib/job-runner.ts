@@ -248,11 +248,36 @@ async function runClaimed(db: Db, row: Claimed, opts: RunnerOptions): Promise<Ou
   }
 }
 
-/** Retry with backoff or turn dead (PL-26 to PL-29a). */
+/** Postgres aborted the transaction to resolve a lock conflict: deadlock or serialization failure. */
+const CONFLICT_CODES = new Set(["40P01", "40001"]);
+
+/** True when `error` (or a `cause` it wraps, as drizzle's query errors do) is such a conflict. */
+export function isLockConflict(error: unknown): boolean {
+  for (let e: unknown = error, depth = 0; e && depth < 5; e = (e as { cause?: unknown }).cause, depth++) {
+    const code = (e as { code?: unknown }).code;
+    if (typeof code === "string" && CONFLICT_CODES.has(code)) return true;
+  }
+  return false;
+}
+
+/** Retry delay of a lock conflict: 1 to 3 s. The other transaction is done by then. */
+export const CONFLICT_RETRY_MS = { min: 1_000, max: 3_000 } as const;
+
+/**
+ * Retry with backoff or turn dead (PL-26 to PL-29a). A deadlock or serialization victim retries
+ * within seconds instead of the backoff (the attempt still counts): the conflict resolved itself
+ * the moment Postgres aborted one side, and a minute's wait only delayed a payment, a refund or a
+ * Billit sync for nothing.
+ */
 async function failJob(db: Db, row: Claimed, def: JobDefinition | undefined, input: unknown, error: unknown, opts: RunnerOptions): Promise<Outcome> {
   const permanent = isPermanentFailure(error);
   const now = opts.now?.() ?? new Date();
-  const next = permanent ? null : nextRunAt(row.attempts, now, opts.random ?? Math.random, row.max_attempts);
+  const random = opts.random ?? Math.random;
+  const backoff = permanent ? null : nextRunAt(row.attempts, now, random, row.max_attempts);
+  const next =
+    backoff && isLockConflict(error)
+      ? new Date(now.getTime() + CONFLICT_RETRY_MS.min + Math.round((CONFLICT_RETRY_MS.max - CONFLICT_RETRY_MS.min) * Math.min(Math.max(random(), 0), 1)))
+      : backoff;
   const message = errorText(error);
   if (next) {
     await db

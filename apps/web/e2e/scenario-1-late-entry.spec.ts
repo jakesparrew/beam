@@ -90,7 +90,10 @@ test("a registrant 48 hours before an event gets the confirmation and the day-of
 
   // The customer books the free event in the portal.
   await signInCustomer(page, email, "en");
-  const bookedAt = new Date(Date.now() - 1000);
+  // The cut-off on the database clock, after the sign-in: "now minus 1 s" on this process's clock
+  // still counted the magic-link email when the sign-in took under a second.
+  const [{ at: bookedAtRaw }] = (await e2eRows<{ at: string | Date }>(sql`select now() as at`)) as [{ at: string | Date }];
+  const bookedAt = new Date(bookedAtRaw);
   await page.goto(`/en/account/book/${sessionId}`);
   await expect(page.getByTestId("book-form")).toBeVisible();
   await page.getByTestId("pay-free").check();

@@ -53,9 +53,12 @@ test.afterAll(async () => {
 });
 
 test("staff with MFA open the action dashboard and switch to the week view", async ({ page }) => {
+  // Sign-in can wait up to 30 s for a fresh authenticator step, and the dashboard runs many
+  // queries: under the full suite's load the 60 s default ran out before the cards rendered.
+  test.setTimeout(120_000);
   await signInStaff(page, "owner", { returnTo: "/admin/dashboard" });
   await expect(page).toHaveURL(/\/admin\/dashboard/);
-  await expect(page.locator('[data-testid^="action-card-"]').first()).toBeVisible();
+  await expect(page.locator('[data-testid^="action-card-"]').first()).toBeVisible({ timeout: 30_000 });
   await expect(page.getByTestId("action-card-overdue_tasks")).toBeVisible();
   await page.getByTestId("dashboard-view").locator("a").nth(1).click();
   await expect(page).toHaveURL(/view=week/);

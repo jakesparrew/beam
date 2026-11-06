@@ -300,8 +300,32 @@ test("data can be exported: the privacy export of the test person contains the c
   expect(body.includes(Buffer.from("credits/grants.csv"))).toBe(true);
 });
 
-test("reception: the desk shows the credit badge, a package sold at the POS books at once", async ({ page }) => {
-  test.fixme(true, "waits for commerce's POS screen and DeskCreditsBadge on booking's check-in desk (open requests)");
-  await signInStaff(page, "reception", { returnTo: "/admin/bookings/checkin" });
-  await expect(page.getByLabel(adminText("desk", "label"))).toBeVisible();
+test("reception: the desk shows the guest's credits on the booking it opens", async ({ page, browser }) => {
+  // The earlier tests leave the test person with day credits and a membership. They book day 2
+  // with a credit in the portal; reception opens that booking by its code on the check-in desk
+  // and reads "Day: n · Member until ..." in large type above the booking card.
+  test.setTimeout(2 * 60_000);
+  await signInCustomer(page, email, "en");
+  await page.goto(`/en/account/book/${fx.day2Id}`);
+  await page.getByTestId("pay-credit").check();
+  await submitBooking(page);
+  await page.waitForURL(/\/en\/account\/bookings\/[0-9a-f-]+\?done=booked/);
+  const personId = (await personIdOf(email))!;
+  const [booking] = await e2eRows<{ code: string }>(
+    sql`select checkin_code as code from bookings where person_id = ${personId} and session_id = ${fx.day2Id} and status = 'confirmed' order by created_at desc limit 1`,
+  );
+  expect(booking?.code).toBeTruthy();
+
+  const desk = await browser.newContext();
+  const reception = await desk.newPage();
+  try {
+    await signInStaff(reception, "reception", { returnTo: `/admin/bookings/checkin?c=${booking!.code}` });
+    const badge = reception.getByLabel(adminText("desk", "label"));
+    await expect(badge).toBeVisible();
+    await expect(badge).toContainText(/(Dag|Day|Jour)\s?:\s?\d+/);
+    await expect(badge).toContainText(/(Lid tot|Member until|Membre jusqu)/);
+    await expectAccessible(reception);
+  } finally {
+    await desk.close();
+  }
 });

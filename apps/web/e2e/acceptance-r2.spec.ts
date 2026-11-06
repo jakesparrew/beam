@@ -127,16 +127,16 @@ async function createWebinars(): Promise<void> {
   const title = JSON.stringify(WEBINAR_TITLE);
   const [up] = await e2eRows<{ id: string }>(sql`
     insert into webinars (slug, session_id, title, description, mode, status, starts_at, published_at, youtube_video_id, owner_user_id, created_by_user_id)
-    select ${SLUGS.upcoming}, ${upcomingSession}::uuid, ${title}::jsonb, '{}'::jsonb, 'live', 'published', now() + interval '1 day', now(), 'fake_accr2up', u.id, u.id
+    select ${SLUGS.upcoming}, ${upcomingSession}::uuid, ${title}::jsonb, '{}'::jsonb, 'live', 'published', now() + interval '1 day', now(), 'fake_acr2up', u.id, u.id
     from users u where lower(u.email) = 'owner@demo.beam.be' returning id::text as id`);
   const [od] = await e2eRows<{ id: string }>(sql`
     insert into webinars (slug, title, description, mode, status, published_at, recording_video_id, duration_sec, owner_user_id, created_by_user_id)
-    select ${SLUGS.ondemand}, ${title}::jsonb, '{}'::jsonb, 'on_demand', 'published', now(), 'fake_accr2od', 1800, u.id, u.id
+    select ${SLUGS.ondemand}, ${title}::jsonb, '{}'::jsonb, 'on_demand', 'published', now(), 'fake_acr2od', 1800, u.id, u.id
     from users u where lower(u.email) = 'owner@demo.beam.be' returning id::text as id`);
   const [rp] = await e2eRows<{ id: string }>(sql`
     insert into webinars (slug, session_id, title, description, mode, status, starts_at, live_started_at, published_at, youtube_video_id, owner_user_id, created_by_user_id)
     select ${SLUGS.replay}, ${liveSession}::uuid, ${title}::jsonb, '{}'::jsonb, 'live', 'live', now() - interval '10 minutes', now() - interval '10 minutes',
-           now() - interval '1 day', 'fake_accr2rp', u.id, u.id
+           now() - interval '1 day', 'fake_acr2rp', u.id, u.id
     from users u where lower(u.email) = 'owner@demo.beam.be' returning id::text as id`);
   if (!up || !od || !rp) throw new Error("demo owner user missing");
   await e2eRows(sql`insert into webinar_polls (webinar_id, key, question, options, show_at_sec, show_for_sec)
@@ -372,7 +372,7 @@ test.describe("Release 2 acceptance (proposal section 12)", () => {
         select ${registrationId}::uuid, ${webinarIds.replay}::uuid, 'live', 'poll_answer', p.id, '{"option_keys": ["yes"]}'::jsonb, 30
         from webinar_polls p where p.webinar_id = ${webinarIds.replay}::uuid and p.key = 'sleep'`);
       // Fake clock: the live broadcast ended and its recording is the replay.
-      await e2eRows(sql`update webinars set status = 'ended', live_ended_at = now(), recording_video_id = 'fake_accr2rp', duration_sec = 1800 where id = ${webinarIds.replay}::uuid`);
+      await e2eRows(sql`update webinars set status = 'ended', live_ended_at = now(), recording_video_id = 'fake_acr2rp', duration_sec = 1800 where id = ${webinarIds.replay}::uuid`);
 
       await watchWebinar(page, token, "replay");
       const poll = page.getByTestId("webinar-poll");

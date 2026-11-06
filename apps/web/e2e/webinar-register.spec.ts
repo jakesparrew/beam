@@ -46,10 +46,13 @@ test.describe("webinar registration (webinar-P3)", () => {
     const started = new Date();
 
     await page.goto(`/nl/webinars/${slug}`);
-    await page.getByLabel("E-mailadres").fill(email);
-    await page.getByLabel("Voornaam").fill("Eva");
+    // The page also holds the newsletter block, whose form has an email field and a button that
+    // is also called "Inschrijven": use the registration form (the one with a first name).
+    const form = page.locator("form").filter({ has: page.locator('input[name="firstName"]') });
+    await form.getByLabel("E-mailadres").fill(email);
+    await form.getByLabel("Voornaam").fill("Eva");
     const posted = page.waitForResponse((r) => r.url().includes(`/api/public/webinars/${slug}/register`) && r.request().method() === "POST");
-    await page.getByRole("button", { name: "Inschrijven" }).click();
+    await form.getByRole("button", { name: "Inschrijven" }).click();
     expect((await posted).status()).toBe(202);
     await expect(page.getByText("Kijk in je mailbox")).toBeVisible();
 

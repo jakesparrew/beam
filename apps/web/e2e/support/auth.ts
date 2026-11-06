@@ -180,8 +180,16 @@ export async function signInStaff(page: Page, role: DemoRole, opts: { returnTo?:
   await enterFreshTotp(page, email);
 }
 
-/** Requests a magic link on `/<seg>/account/login`, reads it from the sink, opens it and clicks "Sign in". */
+/**
+ * Requests a magic link on `/<seg>/account/login`, reads it from the sink, opens it and clicks
+ * "Sign in". PL-68 allows 5 magic links per address per hour and refuses the sixth silently (no
+ * email, so no enumeration); a serial spec signs one test address in more often than that (and a
+ * retry reruns the whole group), so the address's bucket is cleared first. `rate-limit.test.ts`
+ * covers the limit itself.
+ */
 export async function signInCustomer(page: Page, email: string, locale: "nl" | "fr" | "en" = "nl"): Promise<void> {
+  const digest = createHash("sha256").update(email.trim().toLowerCase()).digest("hex");
+  await e2eRows(sql`delete from rate_limits where key = ${`magic:${digest}`}`);
   const requestedAt = new Date(Date.now() - 2000);
   await page.goto(`/${locale}/account/login`);
   await page.locator('input[name="email"]').first().fill(email);

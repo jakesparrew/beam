@@ -165,6 +165,10 @@ test.describe("Scenario 5: replay data separation (proposal section 11, Release 
 
     // The live webinar ends; its recording is the replay.
     await e2eRows(sql`update webinars set status = 'ended', live_ended_at = now(), recording_video_id = 'fake_e2esc5', duration_sec = 1800 where id = ${webinarId}::uuid`);
+    // The state endpoint memoises the webinar row 2 s per instance (LIVE_STATE_MEMO_MS); the
+    // host's end action clears it, this direct update does not. Within those 2 s the replay
+    // player read "live", reloaded, and came back paused at 00:00, before the poll's window.
+    await new Promise((r) => setTimeout(r, 2500));
     await watch(page, token, "replay");
     await answerAndClick(page, "Nee");
     await page.waitForResponse((r) => r.url().endsWith("/api/webinar/heartbeat"), { timeout: 40_000 });

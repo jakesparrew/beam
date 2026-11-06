@@ -95,15 +95,28 @@ async function inSystemTx<T>(env: ScenarioEnv, label: string, work: (ctx: Ctx) =
  * Runs ticks (or waits for the deployed one) until `done()` or the limit. Returns whether it
  * finished and the elapsed time since `startedAt`.
  */
-export async function drainUntil(env: ScenarioEnv, startedAt: number, limitMs: number, done: () => Promise<boolean>): Promise<{ finished: boolean; elapsedMs: number; ticks: number }> {
+export async function drainUntil(
+  env: ScenarioEnv,
+  startedAt: number,
+  limitMs: number,
+  done: () => Promise<boolean>,
+): Promise<{ finished: boolean; elapsedMs: number; ticks: number; failedTicks: number }> {
   let ticks = 0;
+  let failedTicks = 0;
   const tick = env.tick ?? ((budgetMs: number) => runTick({ db: env.db, integrations: env.integrations, budgetMs }));
   for (;;) {
-    if (await done()) return { finished: true, elapsedMs: Date.now() - startedAt, ticks };
+    if (await done()) return { finished: true, elapsedMs: Date.now() - startedAt, ticks, failedTicks };
     const left = limitMs - (Date.now() - startedAt);
-    if (left <= 0) return { finished: false, elapsedMs: Date.now() - startedAt, ticks };
+    if (left <= 0) return { finished: false, elapsedMs: Date.now() - startedAt, ticks, failedTicks };
     if (env.driveTick) {
-      await tick(Math.max(1_000, Math.min(env.tickBudgetMs ?? 50_000, left)));
+      // A tick that throws (a dropped database connection) is what the deployed cron survives by
+      // running again a minute later: count it and run the next one, as the cron would.
+      try {
+        await tick(Math.max(1_000, Math.min(env.tickBudgetMs ?? 50_000, left)));
+      } catch (err) {
+        failedTicks += 1;
+        process.stderr.write(`load-test: tick failed, running the next one: ${err instanceof Error ? err.message : String(err)}\n`);
+      }
       ticks += 1;
     } else {
       await sleep(Math.min(env.pollMs ?? 5_000, left));
@@ -252,7 +265,7 @@ export async function magicLinks(env: ScenarioEnv): Promise<ScenarioResult> {
     { label: "All requests answered after", value: fmtMs(requestMs) },
     { label: "email.send jobs", value: countsText(counts) },
     { label: "Last job succeeded after", value: drained.finished ? fmtMs(drained.elapsedMs) : `not within ${fmtMs(limit)}` },
-    { label: "Ticks run here", value: String(drained.ticks) },
+    { label: "Ticks run here (failed)", value: `${drained.ticks} (${drained.failedTicks})` },
   ], n < t.requests);
 }
 
@@ -298,7 +311,7 @@ export async function emailDrain(env: ScenarioEnv): Promise<ScenarioResult> {
     { label: "Job statuses", value: countsText(counts) },
     { label: "Drained after", value: drained.finished ? fmtMs(drained.elapsedMs) : `not within ${fmtMs(limit)}` },
     { label: "Throughput", value: drained.elapsedMs > 0 ? `${Math.round(((counts.succeeded ?? 0) / drained.elapsedMs) * 60_000)} jobs/min` : "-" },
-    { label: "Ticks run here", value: String(drained.ticks) },
+    { label: "Ticks run here (failed)", value: `${drained.ticks} (${drained.failedTicks})` },
   ], n < t.jobs);
 }
 
@@ -420,7 +433,7 @@ export async function campaignSend(env: ScenarioEnv): Promise<ScenarioResult> {
     { label: "Messages sent", value: String(Number(messages?.n ?? 0)) },
     ...(firstFailure ? [{ label: "First failed message", value: (firstFailure.error ?? "no error text").slice(0, 200) }] : []),
     { label: "Sent after", value: drained.finished ? fmtMs(drained.elapsedMs) : `not within ${fmtMs(limit)}` },
-    { label: "Ticks run here", value: String(drained.ticks) },
+    { label: "Ticks run here (failed)", value: `${drained.ticks} (${drained.failedTicks})` },
   ], reduced, status === "sent" || !drained.finished ? undefined : `campaign ended as ${status}`);
 }
 

@@ -1,0 +1,5 @@
+{
+  "//": "For tsx only (pnpm test:load, db:seed, admin:reset-mfa, exit:export, training screenshots). tsx applies a tsconfig's compilerOptions only to the files its include matches, so with ./tsconfig.json the .tsx files of packages/* were compiled with esbuild's classic JSX (React.createElement) and every email rendered in a script failed with 'React is not defined'.",
+  "extends": "./tsconfig.json",
+  "include": ["**/*.ts", "**/*.tsx", "**/*.mts", "../../packages/*/src/**/*.ts", "../../packages/*/src/**/*.tsx"]
+}

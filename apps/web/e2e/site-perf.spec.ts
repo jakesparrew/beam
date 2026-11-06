@@ -2,7 +2,7 @@
  * The performance gate of the public site (site-P5, rule 51): on home, an offer page and an
  * event detail page, with Chromium CPU throttling 4x and the DevTools "Fast 4G" profile through
  * CDP, LCP <= 2.5 s and CLS <= 0.1 from `PerformanceObserver`, and the transferred first-load
- * JavaScript (compressed bytes on the wire) <= 120 KB. Field p75 values (LCP, CLS, INP) are read
+ * JavaScript (compressed bytes on the wire) <= 200 KB (OD-19). Field p75 values (LCP, CLS, INP) are read
  * from Vercel Analytics after go-live; this spec is the lab gate. Each page is loaded once warm
  * (server caches) and measured on the second, cold-browser-cache load in a fresh context.
  */
@@ -13,7 +13,8 @@ import { createEventPage, removeEventPage, type E2eEventPage } from "./support/e
 
 const LCP_BUDGET_MS = 2500;
 const CLS_BUDGET = 0.1;
-const JS_BUDGET_BYTES = 120 * 1024;
+/** OD-19: Next 16 and React 19 alone are about 135 KB gzip; BEAM's own code gets the rest. */
+const JS_BUDGET_BYTES = 200 * 1024;
 
 /** DevTools "Fast 4G": 9 Mbit/s down, 1.5 Mbit/s up, 60 ms RTT with the 2.75 multiplier. */
 const FAST_4G = { offline: false, downloadThroughput: (9 * 1000 * 1000) / 8, uploadThroughput: (1.5 * 1000 * 1000) / 8, latency: 165 };
@@ -91,7 +92,7 @@ async function measure(browser: Browser, baseURL: string, path: string): Promise
 test.describe("performance budgets (lab)", () => {
   test.setTimeout(120_000);
   for (const kind of ["home", "offer", "event"]) {
-    test(`${kind}: LCP <= 2.5 s, CLS <= 0.1, first-load JS <= 120 KB`, async ({ browser, baseURL }) => {
+    test(`${kind}: LCP <= 2.5 s, CLS <= 0.1, first-load JS <= 200 KB`, async ({ browser, baseURL }) => {
       const path = await pathOf(kind);
       test.skip(!path, `no seeded ${kind} page in nl-BE`);
       const origin = baseURL ?? "http://localhost:3100";

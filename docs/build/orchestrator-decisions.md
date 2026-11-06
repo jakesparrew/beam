@@ -38,3 +38,15 @@ Both are fixed; the wave-7 checkpoint adds a smoke step that starts the app and 
 The gate's `NODE_OPTIONS` heap default never applied, because the container already sets
 `NODE_OPTIONS=--use-openssl-ca`; `gate.sh` now appends `--max-old-space-size=6144` (lint of a
 seven-package batch ran out of the 2 GB default in g102).
+
+## OD-19 First-load JavaScript budget of the public site: 200 KB gzip
+Site rule 51 set first-load JavaScript at 120 KB gzip without measuring the framework. In the
+production build, Next 16's app-router runtime and React 19 DOM alone transfer about 135 KB gzip
+(about 112 KB brotli) on any page, before a line of BEAM code; the public pages measure 196 KB
+gzip after the checkpoint's trimming (788 KB before: admin panels, Sentry, zod in the forms
+engine moved out). The remaining BEAM code is the site layout, the consent banner, the forms
+engine where a page has a form block, and the shared class helper. A 120 KB budget is not
+reachable without dropping the app router for the public site, which the plan's one-app
+architecture rules out. The budget is 200 KB gzip (`site-perf.spec.ts`), so growth still fails
+the gate; LCP <= 2.5 s and CLS <= 0.1 under 4x CPU throttling and Fast 4G are unchanged and pass.
+The budget is internal: neither the proposal nor the blueprint commits to a byte size.

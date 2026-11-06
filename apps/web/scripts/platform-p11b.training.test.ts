@@ -106,6 +106,11 @@ describe("training-screenshots.ts", () => {
     }
   });
 
+  it("switches on only declared flags", async () => {
+    const { FLAGS } = (await import("../registry/flags.generated")) as { FLAGS: Record<string, unknown> };
+    for (const shot of SHOTS) for (const key of shot.flags ?? []) expect(`${shot.file}: ${key}`, "declared flag").toSatisfy(() => key in FLAGS);
+  });
+
   it("parses its arguments", () => {
     expect(parseArgs([])).toEqual({ only: null, placeholders: false });
     expect(parseArgs(["--only", "booking", "--placeholders"])).toEqual({ only: "booking", placeholders: true });

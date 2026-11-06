@@ -13,7 +13,7 @@ export default async function SiteNotFound() {
   const gone = isMarkedGone();
   const events = await getSingletonHref("events_index", locale).catch(() => null);
   return (
-    <div className="mx-auto max-w-xl space-y-4 px-4 py-16 text-center" data-status={gone ? "410" : "404"}>
+    <div className="mx-auto max-w-xl space-y-4 px-4 py-16 text-center" data-status={gone ? "410" : "404"} data-not-found="">
       <h1 className="text-3xl font-bold">{gone ? tr("site.public.gone.title") : tr("site.public.notFound.title")}</h1>
       <p className="text-muted-foreground">{gone ? tr("site.public.gone.body") : tr("site.public.notFound.body")}</p>
       <ul className="flex justify-center gap-6">

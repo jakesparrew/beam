@@ -8,7 +8,7 @@ export default async function NotFound() {
   const locale = await requestLocale();
   const tr = translator(locale);
   return (
-    <main id="main-content" className="mx-auto max-w-xl p-8">
+    <main id="main-content" className="mx-auto max-w-xl p-8" data-not-found="">
       <EmptyState
         title={<h1>{tr("platform.shell.not_found_title")}</h1>}
         description={tr("platform.shell.not_found_description")}

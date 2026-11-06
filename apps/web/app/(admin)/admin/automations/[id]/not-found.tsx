@@ -6,13 +6,15 @@ import { adminLocale, translator } from "@/lib/i18n";
 export default async function AutomationNotFound() {
   const tr = translator(await adminLocale());
   return (
-    <EmptyState
-      title={tr("automation.errors.not_found")}
-      action={
-        <Button variant="outline" asChild>
-          <Link href="/admin/automations">{tr("automation.list.title")}</Link>
-        </Button>
-      }
-    />
+    <div data-not-found="">
+      <EmptyState
+        title={tr("automation.errors.not_found")}
+        action={
+          <Button variant="outline" asChild>
+            <Link href="/admin/automations">{tr("automation.list.title")}</Link>
+          </Button>
+        }
+      />
+    </div>
   );
 }

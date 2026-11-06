@@ -10,7 +10,7 @@ export default async function FormNotFound() {
   const locale = await requestLocale();
   const tr = translator(locale);
   return (
-    <div className="mx-auto max-w-xl space-y-4 px-4 py-16 text-center" data-status="404" data-form-state="not-available">
+    <div className="mx-auto max-w-xl space-y-4 px-4 py-16 text-center" data-status="404" data-form-state="not-available" data-not-found="">
       <h1 className="text-3xl font-bold">{tr("forms.public.not_available_title")}</h1>
       <p className="text-muted-foreground">{tr("forms.public.not_available_body")}</p>
       <p>

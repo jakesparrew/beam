@@ -51,6 +51,9 @@ test("ten wrong passwords lock the account", async ({ page }) => {
     await clearLoginLimits();
   };
   const attempt = async (password: string) => {
+    // The other worker signs in from the same IP meanwhile, so the shared per-IP bucket can fill
+    // up mid-loop: clear it before every attempt, as this test is about the account lock.
+    await clearLoginLimits();
     await page.goto("/admin/login");
     await page.getByLabel(/e-?mail/i).fill(email);
     await page.locator('input[name="password"]').fill(password);

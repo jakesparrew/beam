@@ -113,10 +113,13 @@ export function proxy(request: NextRequest): NextResponse {
 
 export const config = {
   // Every page path: `/`, `/admin/*`, `/:locale(nl|fr|en)/*` and bare paths that need a prefix.
-  // API routes, Next internals and files with an extension are left alone.
+  // API routes, Next internals and static files (by their extension) are left alone. Only real
+  // file extensions: signed tokens end in ".<signature>" (`/nl/w/<id>.<n>.<sig>`), and with "any
+  // extension" a token whose signature had only letters and digits skipped the proxy, so its
+  // page went out without CSP or security headers.
   // The second entry lets the legacy WordPress files (`/wp-login.php`, `/nl/xmlrpc.php`, ...) reach the 410.
   matcher: [
-    "/((?!api/|_next/|favicon\\.ico|sw\\.js|manifest\\.webmanifest|robots\\.txt|sitemap\\.xml|.*\\.[a-zA-Z0-9]+$).*)",
+    "/((?!api/|_next/|favicon\\.ico|sw\\.js|manifest\\.webmanifest|robots\\.txt|sitemap\\.xml|.*\\.(?:png|jpe?g|gif|svg|webp|avif|ico|css|js|mjs|map|txt|xml|json|woff2?|ttf|otf|pdf|webmanifest|mp4|webm|mp3|zip|csv)$).*)",
     "/((?:nl/|fr/|en/)?(?:wp-login\\.php|xmlrpc\\.php|wp-includes/.*|wp-admin/.*|wp-json/.*))",
   ],
 };

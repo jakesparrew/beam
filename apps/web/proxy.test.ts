@@ -140,4 +140,17 @@ describe("legacy WordPress paths answer 410 Gone (site-P2 request)", () => {
     expect(matches("/logo.png")).toBe(false);
     expect(matches("/api/health")).toBe(false);
   });
+
+  it("the matcher keeps signed-token pages whose last segment looks like an extension", async () => {
+    const { config } = await import("./proxy");
+    const { createRequire } = await import("node:module");
+    const { pathToRegexp } = createRequire(import.meta.url)("next/dist/compiled/path-to-regexp") as { pathToRegexp: (p: string) => RegExp };
+    const matches = (path: string) => config.matcher.some((m) => pathToRegexp(m).test(path));
+    // A webinar link `<registration id>.<n>.<signature>`: a signature of letters and digits only
+    // used to read as a file extension, and the page skipped the CSP.
+    expect(matches("/nl/w/2b900abe-c376-4ba7-9865-70754bb4c4ab.1.Qx7fK2mZpL9sTb4wN8eRvY3cH6jD1aGk")).toBe(true);
+    expect(matches("/fr/f/recovery-check/r/abc.def123")).toBe(true);
+    expect(matches("/fonts/inter.woff2")).toBe(false);
+    expect(matches("/images/hero.webp")).toBe(false);
+  });
 });

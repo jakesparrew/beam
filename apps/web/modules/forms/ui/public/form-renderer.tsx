@@ -280,6 +280,25 @@ export function FormRenderer(p: FormRendererProps) {
     void ensureStarted();
   };
 
+  // Typed before hydration (a slow phone, the JavaScript still loading): React keeps the text a
+  // visitor typed into a controlled field, but the answers start empty, so the form showed the
+  // text and still answered "this field is required". Adopt what the fields hold, once.
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      for (const f of visibleFields) {
+        if (answers[f.key] !== undefined) continue;
+        const el = document.getElementById(`${idPrefix}-${f.key}`);
+        if (el instanceof HTMLSelectElement || el instanceof HTMLTextAreaElement) {
+          if (el.value) setAnswer(f.key, el.value);
+        } else if (el instanceof HTMLInputElement && el.type !== "checkbox" && el.type !== "radio" && el.value.trim() !== "") {
+          setAnswer(f.key, el.type === "number" ? Number(el.value) : el.value);
+        }
+      }
+    });
+    return () => cancelAnimationFrame(frame);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   /** A network error retries after 1, 3 and 9 seconds; HTTP errors answer at once. */
   const send = async (path: string, body: unknown): Promise<Reply | null> => {
     for (let attempt = 0; ; attempt++) {

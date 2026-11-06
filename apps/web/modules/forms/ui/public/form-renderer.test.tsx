@@ -270,3 +270,32 @@ describe("FormRenderer, fix-w21-forms-wiring: session resume from start (U5, R2)
     expect(screen.getByText(/Step 1 of/)).toBeTruthy();
   });
 });
+
+describe("FormRenderer, typed before hydration", () => {
+  it("keeps what the visitor typed into the server-rendered fields before the JavaScript loaded", async () => {
+    const { renderToString } = await import("react-dom/server");
+    const { hydrateRoot } = await import("react-dom/client");
+    const element = <FormRenderer slug="contact" kind="lead" locale="en" definition={contact.definition} scoring={contact.scoring} labels={labels} mode="page" />;
+    const container = document.createElement("div");
+    container.innerHTML = renderToString(element);
+    document.body.appendChild(container);
+    // The visitor types into the server HTML (no React yet).
+    const byLabel = (re: RegExp) => screen.getByLabelText(re) as HTMLInputElement | HTMLTextAreaElement;
+    byLabel(/Email/).value = "early@example.com";
+    byLabel(/First name/).value = "Lotte";
+    byLabel(/Your message/).value = "Typed while the page loaded";
+    const root = await act(() => Promise.resolve(hydrateRoot(container, element)));
+    await act(() => new Promise((r) => requestAnimationFrame(() => r(undefined))));
+    await act(() => {
+      fireEvent.click(screen.getByRole("button", { name: "Send" }));
+      return Promise.resolve();
+    });
+    // No "required" errors: the typed values are the answers, and the form saves them.
+    await waitFor(() => expect(calls.some((c) => c.url.endsWith("/save") || c.url.endsWith("/submit"))).toBe(true));
+    const sent = calls.find((c) => c.url.endsWith("/save") || c.url.endsWith("/submit"))!;
+    expect(JSON.stringify(sent.body)).toContain("early@example.com");
+    expect(screen.queryByText(/This field is required/i)).toBeNull();
+    act(() => root.unmount());
+    container.remove();
+  });
+});

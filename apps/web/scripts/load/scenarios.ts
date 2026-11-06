@@ -27,12 +27,14 @@ import type { Db } from "@beam/db";
 import { campaignRecipients, campaigns, consentRecords, emailMessages, emailTemplates, jobs, persons, segmentMembers, segments, users } from "@beam/db/schema";
 import { emailHash } from "@beam/core/crm";
 import { addDays, brusselsDate } from "@beam/core/booking";
+import { warmupCap } from "@beam/core/email";
 import { sessionCookieName } from "@/lib/auth-config";
 import { createAuthSession, deleteSessionByToken } from "@/lib/auth";
 import { and, asc, createCtx, eq, flushDurableWrites, flushIntegrationLog, inArray, sql, type Ctx } from "@/lib/ctx";
 import type { Integrations } from "@/lib/integrations";
 import { runTick } from "@/lib/job-runner";
 import { rowsOf } from "@/lib/sensitive";
+import { getSettingWithVersion, setSetting } from "@/lib/settings";
 import { seedTemplate, sendTransactional } from "@/modules/email/api";
 import { requestMagicLink } from "@/modules/platform/actions";
 import { SCENARIO_KEYS, SCENARIO_TITLES, THRESHOLD_TEXT, THRESHOLDS, type Metric, type ScenarioKey, type ScenarioResult } from "./report";
@@ -95,6 +97,8 @@ async function inSystemTx<T>(env: ScenarioEnv, label: string, work: (ctx: Ctx) =
  * Runs ticks (or waits for the deployed one) until `done()` or the limit. Returns whether it
  * finished and the elapsed time since `startedAt`.
  */
+const MIN_TICK_SPACING_MS = 500;
+
 export async function drainUntil(
   env: ScenarioEnv,
   startedAt: number,
@@ -111,6 +115,7 @@ export async function drainUntil(
     if (env.driveTick) {
       // A tick that throws (a dropped database connection) is what the deployed cron survives by
       // running again a minute later: count it and run the next one, as the cron would.
+      const tickStarted = Date.now();
       try {
         await tick(Math.max(1_000, Math.min(env.tickBudgetMs ?? 50_000, left)));
       } catch (err) {
@@ -118,6 +123,10 @@ export async function drainUntil(
         process.stderr.write(`load-test: tick failed, running the next one: ${err instanceof Error ? err.message : String(err)}\n`);
       }
       ticks += 1;
+      // A tick with nothing due returns at once: space them (the deployed cron runs once a
+      // minute), so waiting on a future-dated job does not spin thousands of empty ticks.
+      const spent = Date.now() - tickStarted;
+      if (spent < MIN_TICK_SPACING_MS) await sleep(Math.min(MIN_TICK_SPACING_MS - spent, Math.max(0, limitMs - (Date.now() - startedAt))));
     } else {
       await sleep(Math.min(env.pollMs ?? 5_000, left));
     }
@@ -385,6 +394,48 @@ export async function campaignSend(env: ScenarioEnv): Promise<ScenarioResult> {
   const template = await loadTemplate(env);
   if (!template) return result(env, "campaign_send", started, "skipped", [], reduced, `template ${LOAD_TEMPLATE_SLUG} has no published version`);
   const segmentId = await loadAudience(env, n);
+  // The warm-up caps of news.beam.be (email rules 6-8) allow 1,000 to 8,000 sends a day in the
+  // four weeks after go-live, so a 20,000-recipient campaign continues the next day by design.
+  // The scenario measures the throughput after warm-up: it lifts the cap for its own run (an
+  // audited settings.update, never on production) and restores the setting afterwards.
+  const restoreWarmup = await liftWarmup(env);
+  try {
+    return await sendCampaign(env, { started, t, n, limit, reduced, staffUserId: staffUser.id, template, segmentId, warmupLifted: restoreWarmup !== null });
+  } finally {
+    if (restoreWarmup) await restoreWarmup();
+  }
+}
+
+/** Puts `warmup_schedule.start_on` far enough back that no cap applies; returns the restore. */
+async function liftWarmup(env: ScenarioEnv): Promise<(() => Promise<void>) | null> {
+  return inSystemTx(env, "warmup:lift", async (ctx) => {
+    const { value, version } = await getSettingWithVersion(ctx.tx, "warmup_schedule");
+    if (warmupCap(value, ctx.now) === null) return null;
+    const startOn = addDays(brusselsDate(ctx.now), -7 * (value.daily_caps.length + 1));
+    const lifted = await setSetting(ctx, "warmup_schedule", { ...value, start_on: startOn }, version);
+    return async () => {
+      await inSystemTx(env, "warmup:restore", async (c) => {
+        await setSetting(c, "warmup_schedule", value, lifted.version);
+      });
+    };
+  });
+}
+
+type CampaignRun = {
+  started: number;
+  t: (typeof THRESHOLDS)["campaign_send"];
+  n: number;
+  limit: number;
+  reduced: boolean;
+  staffUserId: string;
+  template: NonNullable<Awaited<ReturnType<typeof loadTemplate>>>;
+  segmentId: string;
+  warmupLifted: boolean;
+};
+
+async function sendCampaign(env: ScenarioEnv, run: CampaignRun): Promise<ScenarioResult> {
+  const { started, n, limit, reduced, template, segmentId } = run;
+  const staffUser = { id: run.staffUserId };
   const preparedAt = Date.now();
 
   // What scheduleCampaign does after its checks (email rule 27): `planning` plus the plan job.
@@ -433,6 +484,7 @@ export async function campaignSend(env: ScenarioEnv): Promise<ScenarioResult> {
     { label: "Messages sent", value: String(Number(messages?.n ?? 0)) },
     ...(firstFailure ? [{ label: "First failed message", value: (firstFailure.error ?? "no error text").slice(0, 200) }] : []),
     { label: "Sent after", value: drained.finished ? fmtMs(drained.elapsedMs) : `not within ${fmtMs(limit)}` },
+    { label: "Warm-up cap lifted for the run", value: run.warmupLifted ? "yes (restored afterwards)" : "no (no cap applied)" },
     { label: "Ticks run here (failed)", value: `${drained.ticks} (${drained.failedTicks})` },
   ], reduced, status === "sent" || !drained.finished ? undefined : `campaign ended as ${status}`);
 }

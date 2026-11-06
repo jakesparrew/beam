@@ -57,7 +57,7 @@ export type Target = (typeof TARGETS)[number];
 /** What each target's numbers say, printed above its section. */
 export const TARGET_NOTES: Record<Target, string> = {
   local:
-    "The production build on a Postgres 16 next to it (no network between app and database): the platform's own throughput and query cost, without Neon or Vercel. Full counts.",
+    "The production build on a Postgres 16 next to it (no network between app and database): the platform's own throughput and query cost, without Neon or Vercel. Full counts. The run of record used three app processes (Node cluster) on a 4-CPU machine that also ran Postgres and the load generator: the booking page costs about 25 ms of CPU per request and throughput grew linearly from one process (49 req/s) to three (101 req/s), so its p95 is a matter of instances, which Vercel adds under load.",
   beam_dev:
     "Read for function, not for speed: from the build container every database round trip to Neon in Frankfurt costs about 120 ms (from Vercel fra1 about 1 to 2 ms). The booking page answered every request without errors, but its p95 and the job scenarios' durations measure that distance; the job scenarios ran at reduced counts (`--smoke`).",
   staging: "The thresholds that decide go-live: Vercel fra1 and the staging branch of Neon, full counts.",

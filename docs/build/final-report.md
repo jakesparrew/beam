@@ -139,5 +139,6 @@ check function only.
 ## Known open items
 
 - The booking page's p95 under 100 simultaneous visitors is measured on staging (above).
-- Training screenshots are captured from a clean demo seed (35 images). The inbox screenshot is
-  empty because the demo seed has no inbox threads.
+- Invoice PDFs and credit-note issuing can still deadlock rarely (seen twice in five full runs);
+  Postgres aborts one side and the job retries within seconds, so the only effect is a delay of a
+  few seconds.

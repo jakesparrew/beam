@@ -10,6 +10,10 @@ describe("pool error handling", () => {
     // Without a listener, EventEmitter throws on an "error" event (Node would exit).
     expect(() => pool.emit("error", new Error("Connection terminated unexpectedly"))).not.toThrow();
     expect(write).toHaveBeenCalledWith(expect.stringContaining("Connection terminated unexpectedly"));
+    // A client the pool hands out gets its own listener: a drop while checked out does not throw either.
+    const client = new EventEmitter();
+    pool.emit("connect", client);
+    expect(() => client.emit("error", new Error("Connection terminated unexpectedly"))).not.toThrow();
     write.mockRestore();
   });
 

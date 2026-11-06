@@ -49,9 +49,19 @@ function requireDatabaseUrl(): string {
  * unhandled `error` event exits Node. The pool discards that client and opens a new one on the
  * next query, so logging is enough (found by the load test on beam_dev).
  */
-export function watchPool(pool: { on(event: "error", listener: (err: Error) => void): unknown }, driver: string): void {
+type ErrorEmitter = { on(event: "error", listener: (err: Error) => void): unknown };
+type WatchablePool = ErrorEmitter & { on(event: "connect", listener: (client: ErrorEmitter) => void): unknown };
+
+export function watchPool(pool: WatchablePool, driver: string): void {
   pool.on("error", (err) => {
     process.stderr.write(`[db] ${driver} pool: idle connection error: ${err.message}\n`);
+  });
+  // A connection that drops while checked out emits `error` on the client itself; the query in
+  // flight still rejects, so the caller sees the failure, but the event must not exit the process.
+  pool.on("connect", (client) => {
+    client.on("error", (err) => {
+      process.stderr.write(`[db] ${driver} client: connection error: ${err.message}\n`);
+    });
   });
 }
 

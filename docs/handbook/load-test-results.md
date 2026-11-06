@@ -31,14 +31,6 @@ waits for the deployed cron tick instead of running it in the load test process.
 
 ## Latest run: `beam_dev`
 
-Read the `beam_dev` run for function, not for speed. It ran from the build container, where every
-database round trip to Neon in Frankfurt costs about 120 ms (Vercel fra1 to the same database: about
-1 to 2 ms). The booking page makes about 16 sequential queries, so it took about 2 s here at any
-load; at full counts it answered every request with 200 and no errors, and its p95 is the threshold
-to judge on `staging`. Enqueuing 5,000 jobs one by one would take about an hour from here, so the
-job scenarios ran at reduced counts (`--smoke`): each did its whole flow and passed. The full-count
-thresholds are measured on `staging` before go-live.
-
 <!-- load-run:beam_dev:start -->
 Run 2026-11-06T03:49:17.796Z on commit `d55097e90a74` against http://localhost:3100.
 Tick: run by the load test process with the fake integrations.

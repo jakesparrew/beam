@@ -1,5 +1,5 @@
 /**
- * `pnpm test:load --target beam_dev|staging [--only <keys>] [--no-drive-tick] [--smoke]`
+ * `pnpm test:load --target local|beam_dev|staging [--only <keys>] [--no-drive-tick] [--smoke]`
  * (platform-P11b; proposal section 5; platform spec platform-P11 "Load tests").
  *
  * Runs the four scenarios of `scripts/load/scenarios.ts` against the database of
@@ -21,28 +21,28 @@ import { randomBytes } from "node:crypto";
 import { register } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { RESULTS_PAGE, runPassed, SCENARIO_KEYS, writeReport, type ScenarioKey } from "./load/report";
+import { RESULTS_PAGE, runPassed, SCENARIO_KEYS, TARGETS, writeReport, type ScenarioKey, type Target } from "./load/report";
 
 /** The https origin the links of a local run use (`.invalid` is reserved, RFC 2606). */
 export const LOCAL_HTTPS_APP_URL = "https://beam-dev.invalid";
 
 export const SMOKE_COUNTS ={ connections: 10, durationSec: 10, magicLinks: 5, drainJobs: 50, recipients: 100 } as const;
 
-export type LoadArgs = { target: "beam_dev" | "staging"; only: ScenarioKey[]; driveTick: boolean; smoke: boolean };
+export type LoadArgs = { target: Target; only: ScenarioKey[]; driveTick: boolean; smoke: boolean };
 
 /** Parses the command line; throws with a usage line on bad input. */
 export function parseArgs(argv: readonly string[]): LoadArgs {
-  const usage = "usage: load-test.ts --target beam_dev|staging [--only portal_booking,magic_links,email_drain,campaign_send] [--no-drive-tick] [--smoke]";
+  const usage = "usage: load-test.ts --target local|beam_dev|staging [--only portal_booking,magic_links,email_drain,campaign_send] [--no-drive-tick] [--smoke]";
   const get = (name: string) => {
     const i = argv.indexOf(`--${name}`);
     return i >= 0 ? argv[i + 1] : undefined;
   };
   const target = get("target");
-  if (target !== "beam_dev" && target !== "staging") throw new Error(usage);
+  if (!(TARGETS as readonly string[]).includes(target ?? "")) throw new Error(usage);
   const onlyRaw = get("only");
   const only = onlyRaw ? onlyRaw.split(",").map((s) => s.trim()) : [...SCENARIO_KEYS];
   if (!only.length || only.some((k) => !(SCENARIO_KEYS as readonly string[]).includes(k))) throw new Error(usage);
-  return { target, only: only as ScenarioKey[], driveTick: !argv.includes("--no-drive-tick"), smoke: argv.includes("--smoke") };
+  return { target: target as Target, only: only as ScenarioKey[], driveTick: !argv.includes("--no-drive-tick"), smoke: argv.includes("--smoke") };
 }
 
 /**

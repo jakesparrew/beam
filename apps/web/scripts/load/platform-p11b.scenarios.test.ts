@@ -160,7 +160,7 @@ describe("report", () => {
       await writeReport({ ...meta, ranAt: new Date("2026-11-06T09:10:00Z") }, [sample], file);
       const page = await readFile(file, "utf8");
       const sections = parseSections(page);
-      expect(Object.keys(sections).sort()).toEqual([...TARGETS].sort());
+      expect(Object.keys(sections).sort()).toEqual(["beam_dev", "staging"]);
       expect(sections.beam_dev).toContain("Run 2026-11-06T09:10:00.000Z on commit `0123456789ab`");
       expect(sections.beam_dev).not.toContain("2026-11-05T09:10");
       expect(sections.staging).toContain("| 5,000 queued email.send jobs drained by the tick | every job succeeded within 15 minutes | FAIL | 61.0 s |");

@@ -84,6 +84,21 @@ export function mergeSteps(existing: readonly ReportStep[], module: ModuleId, ne
   return [...existing.filter((s) => s.module !== module), ...next];
 }
 
+/**
+ * Adds a second sweep's rows to the counts already recorded (same module, table and action), so
+ * rows a sweep catches late are counted on top of the module's own step instead of replacing it.
+ */
+export function addSteps(existing: readonly ReportStep[], next: readonly ReportStep[]): ReportStep[] {
+  const out = existing.map((s) => ({ ...s }));
+  for (const n of next) {
+    if (n.rows === 0) continue;
+    const hit = out.find((s) => s.module === n.module && s.table === n.table && s.action === n.action);
+    if (hit) hit.rows += n.rows;
+    else out.push({ ...n });
+  }
+  return out;
+}
+
 export function setExternal(existing: readonly ReportExternal[], provider: PrivacyReportProvider, outcome: PrivacyExternalOutcome): ReportExternal[] {
   return [...existing.filter((e) => e.provider !== provider), { provider, outcome }];
 }

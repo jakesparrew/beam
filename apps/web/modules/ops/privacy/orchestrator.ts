@@ -37,7 +37,7 @@ import { exitAllForPerson } from "@/modules/automation/api";
 import { sendTransactional } from "@/modules/email/api";
 import { resyncCustomer } from "@/modules/finance/api";
 import { GDPR_REGISTRY } from "@/registry/privacy.generated";
-import { mergeSteps, PAYMENT_PROVIDERS, reportOf, retainedOf, setExternal, stepsOf, type ReportStep } from "./report";
+import { addSteps, mergeSteps, PAYMENT_PROVIDERS, reportOf, retainedOf, setExternal, stepsOf, type ReportStep } from "./report";
 
 export type PrivacyRequestRow = typeof privacyRequests.$inferSelect;
 export type RequestedBy = "customer" | "staff" | "system";
@@ -409,10 +409,22 @@ export async function runEraseStep(tx: Tx, requestId: string, module: ModuleId):
   const row = await lockRequest(tx, requestId);
   if (!row) throw new NotFoundError("privacy_request_not_found");
   await tx.execute(sql`set local beam.allow_rewrite = 'on'`);
-  const registration = (GDPR_REGISTRY as Readonly<Record<string, { erase(tx: Tx, personId: string): Promise<{ table: string; rows: number; action: string }[]> } | undefined>>)[module];
+  const registry = GDPR_REGISTRY as Readonly<Record<string, { erase(tx: Tx, personId: string): Promise<{ table: string; rows: number; action: string }[]> } | undefined>>;
+  const report = reportOf(row.report);
+  if (module === "crm") {
+    // The steps run one transaction each, so automation can still enrol the person between its
+    // own step and this one (an event of just before the request, dispatched late). Such an
+    // enrolment references one of the person's activity_events (restrict), and crm could never
+    // delete them: the erasure stayed `running`. Lock the person (automation's enrol takes
+    // `for no key update` on it, so it waits and then sees `erased_at`), sweep automation again,
+    // and count what the sweep caught on top of automation's step.
+    await tx.execute(sql`select id from persons where id = ${row.personId}::uuid or merged_into_person_id = ${row.personId}::uuid for update`);
+    const late = registry.automation ? await registry.automation.erase(tx, row.personId) : [];
+    report.steps = addSteps(report.steps, stepsOf("automation", late));
+  }
+  const registration = registry[module];
   const rows = registration ? await registration.erase(tx, row.personId) : [];
   const steps: ReportStep[] = stepsOf(module, rows);
-  const report = reportOf(row.report);
   report.steps = mergeSteps(report.steps, module, steps);
   report.retained = retainedOf(report.steps);
   await writeReport(tx, row.id, report);

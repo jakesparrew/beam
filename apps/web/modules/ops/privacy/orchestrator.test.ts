@@ -9,11 +9,17 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import type { DbHandle } from "@beam/db";
 import { createTestDb, makePerson, makeUser } from "@beam/db/testing";
 import { ERASE_ORDER } from "@beam/core/ops";
+import { activityEvents, automationEnrolments, automationGroups, automations, automationVersions } from "@beam/db/schema";
+import { sql } from "drizzle-orm";
+import { rowsOf } from "@/lib/sensitive";
 import type * as PrivacyRegistry from "@/registry/privacy.generated";
 
 const hooks = vi.hoisted(() => ({
   seen: [] as { module: string; allow: string | null; requestSetting: string | null; inTx: boolean }[],
   failures: {} as Record<string, number>,
+  /** Runs once, inside the transaction, right after automation's own erase step. */
+  afterAutomation: null as null | ((tx: unknown, personId: string) => Promise<void>),
+  hookError: null as unknown,
 }));
 
 vi.mock("next/server", () => ({ after: () => undefined }));
@@ -34,7 +40,16 @@ vi.mock("@/registry/privacy.generated", async (importOriginal) => {
             hooks.failures[module]! -= 1;
             throw new Error(`simulated ${module} failure`);
           }
-          return reg.erase(tx, personId);
+          const out = await reg.erase(tx, personId);
+          if (module === "automation" && hooks.afterAutomation) {
+            const late = hooks.afterAutomation;
+            hooks.afterAutomation = null;
+            await late(tx, personId).catch((e: unknown) => {
+              hooks.hookError = e;
+              throw e;
+            });
+          }
+          return out;
         },
       },
     ]),
@@ -62,7 +77,12 @@ afterAll(async () => {
 beforeEach(() => {
   hooks.seen.length = 0;
   for (const k of Object.keys(hooks.failures)) delete hooks.failures[k];
+  hooks.afterAutomation = null;
+  hooks.hookError = null;
 });
+
+/** ERASE_ORDER as the steps call the registry: automation is swept once more just before crm. */
+const CALLS = ERASE_ORDER.flatMap((m) => (m === "crm" ? ["automation", "crm"] : [m]));
 
 const staff = () => makeCtx(h.db, staffActor({ userId: staffId, permissions: ["privacy.run", "persons.erase", "persons.export"] }));
 
@@ -80,7 +100,7 @@ describe("erasure orchestration", () => {
     await o.runNow(staff(), requestId);
     await drainPrivacy(h.db);
     expect((await requestOf(h.db, requestId)).status).toBe("done");
-    expect(hooks.seen.map((s) => s.module)).toEqual([...ERASE_ORDER]);
+    expect(hooks.seen.map((s) => s.module)).toEqual(CALLS);
     expect(ERASE_ORDER).toContain("site");
     const keys = (await privacyJobs(h.db, requestId)).map((j) => j.key.replace(`privacy:${requestId}:`, ""));
     const steps = keys.filter((k) => k.startsWith("r1:step:")).map((k) => k.slice("r1:step:".length));
@@ -92,7 +112,7 @@ describe("erasure orchestration", () => {
     const { requestId } = await dueErasure();
     await o.runNow(staff(), requestId);
     await drainPrivacy(h.db);
-    expect(hooks.seen).toHaveLength(ERASE_ORDER.length);
+    expect(hooks.seen).toHaveLength(CALLS.length);
     for (const s of hooks.seen) {
       expect(s.allow, s.module).toBe("on");
       expect(s.requestSetting ?? "", s.module).toBe("");
@@ -100,6 +120,32 @@ describe("erasure orchestration", () => {
     // SET LOCAL: nothing leaks to the session after the step transactions.
     const res = (await h.db.execute("select current_setting('beam.allow_rewrite', true) as allow")) as unknown as { rows: { allow: string | null }[] };
     expect(res.rows[0]!.allow ?? "").not.toBe("on");
+  });
+
+  it("an enrolment made between automation's step and crm's does not block the erasure", async () => {
+    // An event of just before the request, dispatched late: automation enrols the person after its
+    // own step ran. The enrolment references the person's activity event (restrict), which crm
+    // deletes; before the fix the crm step failed on every attempt and the request stayed running.
+    hooks.afterAutomation = async (tx, personId) => {
+      const t = tx as typeof h.db;
+      const stamp = Date.now().toString(36);
+      const key = `g_late_${stamp}`;
+      const [g] = await t.insert(automationGroups).values({ key, name: key }).returning();
+      const [a] = await t.insert(automations).values({ slug: `late-${stamp}`, name: "Late", groupId: g!.id, priority: 100, isMarketing: false, purpose: null }).returning();
+      const [v] = await t.insert(automationVersions).values({ automationId: a!.id, version: 1, definition: {}, definitionHash: key }).returning();
+      const [ev] = await t.insert(activityEvents).values({ personId, kind: "waitlist.offered", actor: { kind: "system", id: null }, data: {} }).returning({ id: activityEvents.id });
+      await t.insert(automationEnrolments).values({ automationId: a!.id, automationVersionId: v!.id, personId, groupId: g!.id, source: "trigger", triggerEventId: ev!.id });
+    };
+    const { requestId, personId } = await dueErasure();
+    await o.runNow(staff(), requestId);
+    await drainPrivacy(h.db);
+    expect(hooks.hookError).toBeNull();
+    const row = await requestOf(h.db, requestId);
+    expect(row.status).toBe("done");
+    const left = rowsOf<{ n: number }>(await h.db.execute(sql`select count(*)::int as n from automation_enrolments where person_id = ${personId}::uuid`));
+    expect(left[0]!.n).toBe(0);
+    const steps = (row.report as { steps: { module: string; table: string; rows: number; action: string }[] }).steps;
+    expect(steps.filter((st) => st.module === "automation" && st.table === "automation_enrolments").reduce((n, st) => n + st.rows, 0)).toBeGreaterThanOrEqual(1);
   });
 
   it("a failing step retries and the rerun is idempotent (one report entry per table)", async () => {
@@ -132,7 +178,7 @@ describe("erasure orchestration", () => {
     await drainPrivacy(h.db);
     const done = await requestOf(h.db, requestId);
     expect(done).toMatchObject({ status: "done", runAttempt: 2 });
-    expect(hooks.seen.map((s) => s.module)).toEqual([...ERASE_ORDER]);
+    expect(hooks.seen.map((s) => s.module)).toEqual(CALLS);
     const keys = (await privacyJobs(h.db, requestId)).map((j) => j.key);
     expect(keys).toEqual(expect.arrayContaining([`privacy:${requestId}:r2:external:resend`, `privacy:${requestId}:r2:step:webinar`, `privacy:${requestId}:r2:finalise`]));
   });

@@ -14,7 +14,7 @@ booking, commerce, credits, finance, ops and webinar, across the four releases V
 | Measure | Count |
 | --- | --- |
 | Build packages merged | 123 of 123, plus 38 fixer packages |
-| Commits | 1,222 |
+| Commits | 1,231 |
 | TypeScript files | 2,382 (about 338,500 lines) |
 | Unit and integration test files (Vitest, PGlite) | 658 |
 | End-to-end spec files (Playwright) | 39 |
@@ -30,15 +30,22 @@ the end-to-end suite against a production build on `beam_dev`. The log of every 
 
 ## Final checkpoint
 
-The last full gate (commit `a8fa920`) was green on every step. The end-to-end suite against a
-production build on `beam_dev`:
+The full gate (typecheck, lint, every unit test, migration and GDPR checks, production build)
+is green on the final code. The last full end-to-end run against a production build on
+`beam_dev` (151 tests, 29 minutes):
 
-| Result | Specs |
+| Result | Tests |
 | --- | --- |
-| Passed | 133 |
-| Failed | 4: three are the first-load JavaScript budget (see decision 1), one is a timing flake in `platform-admin` that passes when run alone (2 of 2) |
-| Flaky (passed on retry) | 1 (`commerce` withdrawal) |
-| Skipped | 12: the webinar portal specs, which run once `ff_webinar_portal` is switched on |
+| Passed | 137 |
+| Failed | 0 |
+| Flaky (passed on retry) | 2: the contact form during a dropped connection, and the `platform-admin` flow, which ran out of its 60 s under load (now 120 s) |
+| Skipped | 12: the webinar portal tests and three R2 acceptance tests, which run when `ff_webinar_portal` is on |
+
+With `ff_webinar_portal` switched on for the run, the webinar tests and the R2 acceptance tests
+pass as well (all 6 of each), and the credits spec's desk test, a placeholder until then, now
+checks the credits line on the check-in desk (6 of 6). Dropped connections in these runs come
+from the WebSocket driver this build environment needs to reach Neon; production uses the
+ordinary Postgres driver.
 
 ### Defects found by running the real app, and fixed
 
@@ -110,9 +117,9 @@ process; and a failing tick ended the drain instead of being retried as the cron
 
 ## Known open items
 
-- `platform-admin` end-to-end spec: a timing flake under load; passes alone.
-- Scenario 7 (erasure) end-to-end: the fake Resend job occasionally finds the email already
-  blanked. Not reproduced in isolation.
 - Training screenshots are real captures from the demo data on `beam_dev` (35 images). Some
   lists show leftover end-to-end test records; recapture on staging with clean demo data before
   the week-7 training (`docs/handbook/training/README.md`).
+- The speed thresholds of the load test (booking page p95, 5,000 emails and a 20,000-recipient
+  campaign within 15 minutes) are measured on staging; from the build container every query
+  costs about 120 ms.

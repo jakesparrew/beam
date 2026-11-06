@@ -412,7 +412,7 @@ async function afterRefunded(tx: Tx, ctx: Ctx, refund: RefundRow, order: OrderRo
 
 /** Moves a refund to `refunded` (provider answer or staff confirmation) and settles it once. */
 export async function markRefunded(tx: Tx, ctx: Ctx, refundId: string, patch: { providerRefundId?: string } = {}): Promise<boolean> {
-  const [refund] = await tx.select().from(refunds).where(eq(refunds.id, refundId)).for("update");
+  const [refund] = await tx.select().from(refunds).where(eq(refunds.id, refundId)).for("no key update");
   if (!refund) throw new NotFoundError("refund_not_found");
   if (nextRefundStatus(refund.status, "refunded") === null) return false;
   await tx
@@ -470,7 +470,7 @@ export async function refundOrderLine(tx: Tx, ctx: Ctx, input: { orderLineId: st
 
 /** `retryRefund`: `failed -> pending`, a new `payments.refund` with key `refund:<id>:retry:<n>`. */
 export async function retryRefund(tx: Tx, ctx: Ctx, input: { refundId: string }): Promise<{ ok: true; attempt: number }> {
-  const [refund] = await tx.select().from(refunds).where(eq(refunds.id, input.refundId)).for("update");
+  const [refund] = await tx.select().from(refunds).where(eq(refunds.id, input.refundId)).for("no key update");
   if (!refund) throw new NotFoundError("refund_not_found");
   if (nextRefundStatus(refund.status, "pending") === null) throw new ConflictError("invalid_transition");
   await tx.update(refunds).set({ status: "pending", failedReason: null, updatedAt: ctx.now }).where(eq(refunds.id, refund.id));
@@ -510,7 +510,7 @@ export type ProviderRefundResult = { skipped: true; status: RefundRow["status"] 
  */
 export async function runProviderRefund(ctx: JobCtx, input: { refundId: string }): Promise<ProviderRefundResult> {
   const tx = ctx.tx;
-  const [refund] = await tx.select().from(refunds).where(eq(refunds.id, input.refundId)).for("update");
+  const [refund] = await tx.select().from(refunds).where(eq(refunds.id, input.refundId)).for("no key update");
   if (!refund) throw new NotFoundError("refund_not_found");
   if (refund.status !== "pending") return { skipped: true, status: refund.status };
   const [payment] = await tx.select().from(payments).where(eq(payments.id, refund.paymentId));

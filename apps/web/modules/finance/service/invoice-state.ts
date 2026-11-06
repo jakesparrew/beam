@@ -74,10 +74,16 @@ const MUTABLE_KEYS = [
   "sellerSnapshot",
 ] as const satisfies readonly (keyof InvoiceMutableFields)[];
 
-/** One document as an `InvoiceRecord`, optionally locked `for update`; `null` when it does not exist. */
+/**
+ * One document as an `InvoiceRecord`, optionally row-locked; `null` when it does not exist. The
+ * lock is `for no key update`: it serialises every state change of the document but lets the
+ * foreign-key checks of other rows through (`for key share`). With `for update` the invoice PDF
+ * job (invoice locked, then checking `invoices.refund_id`) and the refund job (refund locked,
+ * then checking `refunds.credit_note_id`) deadlocked, and every refund ran a second time.
+ */
 export async function findInvoice(tx: DbOrTx, id: string, opts: { forUpdate?: boolean } = {}): Promise<InvoiceRecord | null> {
   const q = tx.select().from(invoices).where(eq(invoices.id, id));
-  const rows = opts.forUpdate ? await q.for("update") : await q;
+  const rows = opts.forUpdate ? await q.for("no key update") : await q;
   return (rows[0]) ?? null;
 }
 

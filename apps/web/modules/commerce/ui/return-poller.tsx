@@ -100,24 +100,36 @@ export function ReturnPoller({
     return () => window.clearTimeout(id);
   }, [phase, conversion]);
 
+  // The loop schedules its own next tick. It used to re-arm only when `status` changed, so a poll
+  // that failed or answered an equal status (a 429, a network blip) stopped it for good and the
+  // page said "checking your payment" forever, although the payment went through.
+  const settled = phase === "paid" || phase === "expired" || phase === "failed" || timedOut;
   useEffect(() => {
-    if (phase === "paid" || phase === "expired" || phase === "failed" || timedOut) return;
+    if (settled) return;
     started.current ??= Date.now();
     const begun = started.current;
+    let stopped = false;
+    let id: number | undefined;
     const tick = async () => {
       try {
         const res = await poll();
-        if (res.ok) setStatus(res.data);
+        if (!stopped && res.ok) setStatus(res.data);
       } catch {
         // A failed poll is retried on the next tick.
       }
-      if (Date.now() - begun >= maxMs) setTimedOut(true);
+      if (stopped) return;
+      if (Date.now() - begun >= maxMs) {
+        setTimedOut(true);
+        return;
+      }
+      id = window.setTimeout(() => void tick(), intervalMs);
     };
-    const id = window.setTimeout(() => {
-      void tick();
-    }, intervalMs);
-    return () => window.clearTimeout(id);
-  }, [phase, poll, intervalMs, maxMs, timedOut, status]);
+    id = window.setTimeout(() => void tick(), intervalMs);
+    return () => {
+      stopped = true;
+      window.clearTimeout(id);
+    };
+  }, [settled, poll, intervalMs, maxMs]);
 
   const text = phase === "paid" ? labels.paid : phase === "failed" ? labels.failed : phase === "expired" ? labels.expired : phase === "pending" ? labels.pending : labels.checking;
   return (

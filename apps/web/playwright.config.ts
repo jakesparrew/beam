@@ -32,9 +32,10 @@ export default defineConfig({
     video: "off",
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
-  // With E2E_BASE_URL set, the specs run against a server started elsewhere (for example one per
-  // worktree on its own port), and Playwright starts none.
-  webServer: process.env.E2E_BASE_URL ? undefined : {
+  // With E2E_EXTERNAL_SERVER=1 the specs run against a server started elsewhere (E2E_BASE_URL, for
+  // example one per worktree on its own port), and Playwright starts none. A separate flag, because
+  // .env.local may set E2E_BASE_URL for other tools.
+  webServer: process.env.E2E_EXTERNAL_SERVER === "1" ? undefined : {
     command: `pnpm start -p ${port}`, // production build made by the gate's `pnpm build`
     url: `http://localhost:${port}/api/health`,
     timeout: 120_000,

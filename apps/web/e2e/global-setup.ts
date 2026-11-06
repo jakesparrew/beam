@@ -36,6 +36,11 @@ export default async function globalSetup(): Promise<void> {
     if (rows.length === 0) {
       throw new Error(`The demo seed has not run (${DEMO_OWNER_EMAIL} is missing): run pnpm seed:demo.`);
     }
+    // Every spec runs from one IP and the demo forms' addresses: R2's buckets (30 starts per form
+    // per IP, 5 completions per form per email, per hour) count across back-to-back runs on one
+    // database. Each run starts with empty form buckets, as a new hour would (the limits
+    // themselves are covered by the forms unit tests).
+    await handle.db.execute(`delete from rate_limits where key like 'form_start:%' or key like 'form_submit:%' or key like 'form_link:%'`);
   } finally {
     await handle.close();
   }

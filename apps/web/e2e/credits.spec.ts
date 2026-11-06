@@ -102,6 +102,9 @@ async function payWithFake(page: Page): Promise<void> {
 
 /** Buys a product from its shop page: "Buy now", the terms box, Pay and the fake provider. */
 async function buy(page: Page, sku: string, opts: { expectProvider?: boolean } = {}): Promise<void> {
+  // "Buy now" reuses the person's open checkout, whose pay bucket allows 5 a minute (commerce
+  // 4.2): the spec buys several packages for one person within a minute against a fast database.
+  await e2eRows(sql`delete from rate_limits where key like 'commerce:pay:%'`);
   await page.goto(`/en/account/shop/${sku}`);
   await page.getByRole("button", { name: /Buy now/i }).click();
   await page.waitForURL(/\/en\/account\/checkout\?checkout=/);

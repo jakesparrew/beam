@@ -136,7 +136,8 @@ export async function lockEnrolment(tx: Tx, enrolmentId: string): Promise<Locked
   };
 }
 
-export type StepRunExtra = Pick<NewRun, "reason" | "data" | "emailMessageId" | "taskId">;
+/** `occurredAt`: the caller's clock (ctx.now); without it the row took the database's now(). */
+export type StepRunExtra = Pick<NewRun, "reason" | "data" | "emailMessageId" | "taskId" | "occurredAt">;
 
 /** Writes one step outcome of an enrolment (`run:<enrolment_id>:<step_key>:<outcome>`). */
 export function writeStepRun(tx: Tx, e: LockedEnrolment, stepKey: string, outcome: AutomationRunOutcome, actor: Actor, extra: StepRunExtra = {}): Promise<void> {
@@ -194,7 +195,7 @@ export async function advance(tx: Tx, e: LockedEnrolment, fromKey: string, opts:
   e.nextStepKey = next?.key ?? null;
   e.nextStepAt = next ? new Date(next.due_at) : null;
   if (next) {
-    await writeStepRun(tx, e, next.key, "scheduled", opts.actor, { data: { due_at: next.due_at } });
+    await writeStepRun(tx, e, next.key, "scheduled", opts.actor, { data: { due_at: next.due_at }, occurredAt: opts.now });
     return { next, completed: false };
   }
   await endEnrolmentWith(tx, e.id, "completed", "completed", opts.actor);
@@ -211,7 +212,7 @@ export async function skipStep(
   reason: string | null,
   opts: { actor: Actor; now: Date; data?: RunDataJson },
 ): Promise<AdvanceResult> {
-  await writeStepRun(tx, e, stepKey, outcome, opts.actor, { reason, ...(opts.data ? { data: opts.data } : {}) });
+  await writeStepRun(tx, e, stepKey, outcome, opts.actor, { reason, ...(opts.data ? { data: opts.data } : {}), occurredAt: opts.now });
   return advance(tx, e, stepKey, { actor: opts.actor, now: opts.now, state: "skipped", reason: outcome });
 }
 
@@ -244,7 +245,7 @@ export async function recordDeadStep(
   const dedupeKey = runDedupeKey(e.id, input.stepKey, "failed");
   const existing = rowsOf(await tx.execute(sql`select 1 from automation_runs where dedupe_key = ${dedupeKey} limit 1`));
   if (existing.length) return { written: false, advanced: false };
-  await writeStepRun(tx, e, input.stepKey, "failed", ctx.actor, { reason: deadReason(error), data: { job_kind: kind } });
+  await writeStepRun(tx, e, input.stepKey, "failed", ctx.actor, { reason: deadReason(error), data: { job_kind: kind }, occurredAt: ctx.now ?? new Date() });
   if (kind !== "automation.step" || e.nextStepKey !== input.stepKey) return { written: true, advanced: false };
   await advance(tx, e, input.stepKey, { actor: ctx.actor, now: ctx.now ?? new Date(), state: "skipped", reason: "failed" });
   return { written: true, advanced: true };

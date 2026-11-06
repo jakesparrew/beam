@@ -27,7 +27,7 @@ import { seedDefaults } from "@beam/db/seed";
 import { activateReleaseSequences } from "@beam/db/seed/automation";
 import { createTestDb, makePerson, makeUser } from "@beam/db/testing";
 import { b2cPlaybookSlug, SEED_AUTOMATIONS } from "@beam/core/automation/seeds";
-import { and, asc, eq, NotFoundError, sql } from "@/lib/ctx";
+import { and, asc, eq, ne, NotFoundError, sql } from "@/lib/ctx";
 import { clearFlagCache } from "@/lib/flags";
 import { makeJobCtx, resetRuntime } from "@/lib/testing";
 import type * as CommerceApi from "@/modules/commerce/api";
@@ -685,7 +685,11 @@ describe("abandoned-checkout (A-11a, A-31a, commerce rules 51 and 52)", () => {
     await tick(at(HOURS));
     const e = await enrolmentOf(p.id, "abandoned-checkout");
     expect(e).toMatchObject({ status: "active", nextStepKey: "remind_24h" });
-    const [run] = await h.db.select({ outcome: automationRuns.outcome, reason: automationRuns.reason }).from(automationRuns).where(and(eq(automationRuns.enrolmentId, e!.id), eq(automationRuns.stepKey, "remind_1h")));
+    // The step's outcome, not its `scheduled` row from the enrolment (both carry remind_1h).
+    const [run] = await h.db
+      .select({ outcome: automationRuns.outcome, reason: automationRuns.reason })
+      .from(automationRuns)
+      .where(and(eq(automationRuns.enrolmentId, e!.id), eq(automationRuns.stepKey, "remind_1h"), ne(automationRuns.outcome, "scheduled")));
     expect(run).toEqual({ outcome: "failed", reason: "checkout_not_found" });
     expect(sentTo(p.id)).toEqual([]);
     expect(commerce.markCheckoutRecoveryMessage).not.toHaveBeenCalled();

@@ -155,7 +155,7 @@ async function replanOnAnchor(tx: Tx, ctx: Ctx, e: LockedEnrolment, def: Definit
   await storePlan(tx, e.id, plan, next);
   for (const p of plan) {
     if (p.state === "skipped" && before.get(p.key) === "pending") {
-      await writeStepRun(tx, e, p.key, "skipped_late_entry", actor, { reason: "anchor_moved", data: { due_at: p.due_at } });
+      await writeStepRun(tx, e, p.key, "skipped_late_entry", actor, { reason: "anchor_moved", data: { due_at: p.due_at }, occurredAt: now });
     }
   }
   if (next) {
@@ -251,7 +251,7 @@ export async function runStep(tx: Tx, input: RunStepInput, opts: RunStepOptions 
     const r = evaluateCondition(step.if, facts, scope);
     const target = r.result ? step.then : step.else;
     const data: RunDataJson = { result: r.result, target, branch: r.result ? "then" : "else" };
-    await writeStepRun(tx, e, step.key, "branched", actor, { reason: r.predicate, data });
+    await writeStepRun(tx, e, step.key, "branched", actor, { reason: r.predicate, data, occurredAt: now });
     await advance(tx, e, step.key, { actor, now, branch: { target } });
     return ran("branched", e);
   }
@@ -262,6 +262,7 @@ export async function runStep(tx: Tx, input: RunStepInput, opts: RunStepOptions 
   if (result.deferUntil) return deferStep(tx, ctx, e, step.key, result.deferUntil, now);
   if (result.outcome) {
     await writeStepRun(tx, e, step.key, result.outcome, actor, {
+      occurredAt: now,
       reason: result.reason ?? null,
       data: result.data ?? {},
       emailMessageId: result.emailMessageId ?? null,

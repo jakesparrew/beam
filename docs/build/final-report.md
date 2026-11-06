@@ -71,6 +71,23 @@ These passed every unit test and were only visible in the running app on a real 
 - Contrast of the destructive colour token, the cookie banner covering the Pay button, a lock
   missing on concurrent automation steps, the read-only AI database role (migration `0056`).
 
+Found by running the whole suite against a Postgres next to the app (fast enough to expose
+races the slow connection hid), each with a test that fails without the fix:
+
+- Personal webinar links skipped the security headers about one time in four: the proxy treated
+  a signature ending in letters and digits as a file extension, so the page went out without
+  CSP. Only real static file extensions are skipped now.
+- A form field typed into before the page's JavaScript loaded (slow phones) showed the text but
+  counted as empty: "this field is required", and no submit. The form now adopts what its
+  fields hold.
+- The checkout return page could say "checking your payment" forever: one failed poll stopped
+  its polling. It now keeps polling until a final status or 30 seconds.
+- Refunds and invoice PDFs deadlocked on each other (their rows reference each other), so every
+  refund ran twice, a retry later. Both lock in a way that lets foreign-key checks through, and a
+  job that loses a deadlock now retries within seconds instead of after the backoff.
+- Scripts (load test, demo seed) rendered every email wrongly ("React is not defined"), and a
+  load-test campaign stalled at the email warm-up cap. Both fixed.
+
 ## Decided during the build
 
 - **Performance budget for public pages (OD-19).** The plan's 120 KB first-load JavaScript was
@@ -80,20 +97,24 @@ These passed every unit test and were only visible in the running app on a real 
   and CLS meet their budgets. Lowering it further means rebuilding the public site without the
   app framework, which the one-app architecture rules out.
 
-## Load test on `beam_dev`
+## Load test
 
-All four load scenarios work end to end on `beam_dev` (`docs/handbook/load-test-results.md`):
-magic-link sign-in at full count (50 at once, every email sent in time), and the email queue,
-a campaign send and the booking page at reduced counts. The booking page answered every request
-with 200 and no errors, but it is slow from the build container: each database round trip to
-Neon in Frankfurt costs about 120 ms from there, against 1 to 2 ms from Vercel fra1. The speed
-thresholds (booking p95 below 800 ms, 5,000 emails and a 20,000-recipient campaign within 15
-minutes) are therefore measured on staging before go-live: `BASE_URL=https://staging.beam.be pnpm
-test:load --target staging`.
+Full counts against the production build on a Postgres next to it (`--target local`,
+`docs/handbook/load-test-results.md`):
 
-Running the load test found three defects, now fixed: scripts compiled the email templates'
-JSX wrongly (every email a script rendered failed); a dropped database connection crashed the
-process; and a failing tick ended the drain instead of being retried as the cron does.
+| Scenario | Threshold | Result |
+| --- | --- | --- |
+| 50 magic-link requests at once | every email sent within 2 minutes | pass: all sent after 1.3 s |
+| 5,000 queued emails | sent within 15 minutes | pass: 18.7 s (16,050 a minute) |
+| 20,000-recipient campaign | sent within 15 minutes | pass: about 4.5 minutes |
+| 100 visitors on the booking page for 60 s | p95 below 800 ms, no 5xx | 0 errors; p95 1.7 s on three processes |
+
+The booking page costs about 25 ms of server CPU per request and its throughput grew linearly
+with processes (49 requests a second on one, 101 on three) on a 4-CPU machine that also ran the
+database and the load generator. Its p95 is therefore a question of instances, which Vercel adds
+under load, and is judged on staging: `BASE_URL=https://staging.beam.be pnpm test:load --target
+staging`. The same scenarios on Neon `beam_dev` from the build container (120 ms per query)
+check function only.
 
 ## Decisions that need you
 
@@ -117,9 +138,6 @@ process; and a failing tick ended the drain instead of being retried as the cron
 
 ## Known open items
 
-- Training screenshots are real captures from the demo data on `beam_dev` (35 images). Some
-  lists show leftover end-to-end test records; recapture on staging with clean demo data before
-  the week-7 training (`docs/handbook/training/README.md`).
-- The speed thresholds of the load test (booking page p95, 5,000 emails and a 20,000-recipient
-  campaign within 15 minutes) are measured on staging; from the build container every query
-  costs about 120 ms.
+- The booking page's p95 under 100 simultaneous visitors is measured on staging (above).
+- Training screenshots are captured from a clean demo seed (35 images). The inbox screenshot is
+  empty because the demo seed has no inbox threads.

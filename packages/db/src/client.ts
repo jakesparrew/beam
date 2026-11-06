@@ -43,6 +43,18 @@ function requireDatabaseUrl(): string {
   return url;
 }
 
+/**
+ * Keeps the process alive when the pool reports an error on an idle connection (a dropped socket,
+ * a Neon compute restart): node-postgres and the Neon pool emit `error` on the pool, and an
+ * unhandled `error` event exits Node. The pool discards that client and opens a new one on the
+ * next query, so logging is enough (found by the load test on beam_dev).
+ */
+export function watchPool(pool: { on(event: "error", listener: (err: Error) => void): unknown }, driver: string): void {
+  pool.on("error", (err) => {
+    process.stderr.write(`[db] ${driver} pool: idle connection error: ${err.message}\n`);
+  });
+}
+
 async function createPgHandle(url: string): Promise<DbHandle> {
   const [{ Pool }, { drizzle }, { attachDatabasePool }] = await Promise.all([
     import("pg"),
@@ -50,6 +62,7 @@ async function createPgHandle(url: string): Promise<DbHandle> {
     import("@vercel/functions"),
   ]);
   const pool = new Pool({ connectionString: url, max: 10, idleTimeoutMillis: 10_000 });
+  watchPool(pool, "pg");
   attachDatabasePool(pool);
   const db = drizzle({ client: pool, schema, casing: "snake_case" }) as unknown as Db;
   return { driver: "pg", db, close: () => pool.end() };
@@ -63,6 +76,7 @@ async function createNeonWsHandle(url: string): Promise<DbHandle> {
   // Node 22+ ships a global WebSocket (it honours NODE_USE_ENV_PROXY=1 for the sandbox proxy).
   neonConfig.webSocketConstructor = globalThis.WebSocket;
   const pool = new Pool({ connectionString: url, max: 10 });
+  watchPool(pool, "neon-ws");
   const db = drizzle({ client: pool, schema, casing: "snake_case" }) as unknown as Db;
   return { driver: "neon-ws", db, close: () => pool.end() };
 }

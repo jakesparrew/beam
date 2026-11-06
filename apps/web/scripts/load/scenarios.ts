@@ -169,7 +169,8 @@ export async function portalBooking(env: ScenarioEnv): Promise<ScenarioResult> {
   const [customer] = await env.db
     .select({ id: users.id })
     .from(users)
-    .where(and(eq(users.audience, "customer"), eq(users.status, "active"), sql`${users.email} like '%@demo.beam.be'`))
+    // The demo seed's customer users are testers at customerN@example.com (platform seed), not @demo.beam.be.
+    .where(and(eq(users.audience, "customer"), eq(users.status, "active"), eq(users.isTester, true)))
     .orderBy(asc(users.createdAt))
     .limit(1);
   if (!customer) return result(env, "portal_booking", started, "skipped", [], reduced, "no active demo customer: run pnpm seed:demo first");

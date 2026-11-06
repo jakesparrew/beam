@@ -121,8 +121,10 @@ test("marketing builds trigger -> delay -> branch -> email and task, publishes, 
 
   // Switch it on (Activate the first time, Resume after an earlier run).
   await page.goto(`/admin/automations/${id}`);
-  const activate = page.getByTestId("automation-activate");
-  const switchOn = (await activate.isVisible()) ? activate : page.getByTestId("automation-resume");
+  // Wait for whichever of the two the page renders: isVisible() does not wait, so checking it
+  // before the page had rendered picked Resume on a first run.
+  const switchOn = page.getByTestId("automation-activate").or(page.getByTestId("automation-resume"));
+  await expect(switchOn).toBeVisible();
   await clickAndWait(page, () => switchOn.click());
   await expect(page.getByTestId("automation-status")).toHaveAttribute("data-status", "active");
 

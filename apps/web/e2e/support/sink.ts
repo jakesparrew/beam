@@ -17,6 +17,18 @@ export function extractLinks(html: string): string[] {
  * `linkIncludes` keeps only messages with a link containing it (another email to the same person,
  * an invoice or a credit note, may arrive in the same seconds).
  */
+/**
+ * The `created_at` of the newest email already rendered for `to`, on the database's clock (or the
+ * epoch): pass it as `after` to wait for a message sent after this point, without guessing the
+ * clock skew between this process and the database.
+ */
+export async function newestEmailAt(to: string): Promise<Date> {
+  const [row] = await e2eRows<{ at: string | Date | null }>(sql`
+    select max(f.created_at) as at from email_messages m join files f on f.id = m.rendered_file_id and f.kind = 'rendered_email'
+    where lower(m.to_email) = ${to.toLowerCase()}`);
+  return row?.at ? new Date(row.at) : new Date(0);
+}
+
 export async function latestEmail(to: string, opts: { after?: Date; subjectIncludes?: string; linkIncludes?: string; timeoutMs?: number } = {}): Promise<SinkEmail> {
   const deadline = Date.now() + (opts.timeoutMs ?? 15_000);
   const after = (opts.after ?? new Date(0)).toISOString();

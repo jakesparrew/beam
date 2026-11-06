@@ -7,7 +7,7 @@ import { TOTP, Secret } from "otpauth";
 import { sql } from "drizzle-orm";
 import type { Db } from "@beam/db";
 import { e2eDb, e2eRows } from "./db";
-import { latestEmail } from "./sink";
+import { latestEmail, newestEmailAt } from "./sink";
 
 export type DemoRole =
   | "owner"
@@ -190,7 +190,9 @@ export async function signInStaff(page: Page, role: DemoRole, opts: { returnTo?:
 export async function signInCustomer(page: Page, email: string, locale: "nl" | "fr" | "en" = "nl"): Promise<void> {
   const digest = createHash("sha256").update(email.trim().toLowerCase()).digest("hex");
   await e2eRows(sql`delete from rate_limits where key = ${`magic:${digest}`}`);
-  const requestedAt = new Date(Date.now() - 2000);
+  // Only a link sent after this request: a time slack ("now minus 2 s") picked the previous,
+  // already used link when the same address signed in twice within it (error=Verification).
+  const requestedAt = await newestEmailAt(email);
   await page.goto(`/${locale}/account/login`);
   await page.locator('input[name="email"]').first().fill(email);
   await submitAndWait(page);

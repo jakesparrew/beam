@@ -57,8 +57,21 @@ These passed every unit test and were only visible in the running app on a real 
 - Webinar registration forms did not show CRM's published consent wording. Fixed.
 - Public pages shipped 788 KB of JavaScript (admin panels, Sentry, zod in the forms engine).
   Now 196 KB (see decision 1).
+- An erasure could end `failed` instead of `done`: automation could still enrol the person
+  between its own erase step and crm's (an event of just before the request, dispatched late),
+  and that enrolment blocked crm from deleting the person's activity. The orchestrator now locks
+  the person and sweeps automation again before crm's step; a regression test covers it.
 - Contrast of the destructive colour token, the cookie banner covering the Pay button, a lock
   missing on concurrent automation steps, the read-only AI database role (migration `0056`).
+
+## Decided during the build
+
+- **Performance budget for public pages (OD-19).** The plan's 120 KB first-load JavaScript was
+  an internal budget (not in the proposal), set without measuring the framework: Next 16 and
+  React 19 alone transfer about 135 KB gzip. The budget is now 200 KB gzip; the pages are at
+  196 KB (about 152 KB with brotli, as Vercel serves them), so growth still fails the gate. LCP
+  and CLS meet their budgets. Lowering it further means rebuilding the public site without the
+  app framework, which the one-app architecture rules out.
 
 ## Load test on `beam_dev`
 
@@ -77,28 +90,22 @@ process; and a failing tick ended the drain instead of being retried as the cron
 
 ## Decisions that need you
 
-1. **Performance budget for public pages.** The plan sets first-load JavaScript at 120 KB. With
-   brotli (what Vercel serves), Next 16's runtime and React 19 alone are about 112 KB, and BEAM's
-   own code on the home page about 40 KB: about 152 KB in all (196 KB with gzip, which the
-   end-to-end test measures on `next start`). LCP and CLS meet their budgets. A 120 KB budget
-   leaves 8 KB for the whole site. Options: set the budget to 160 KB brotli (recommended), or
-   rebuild the public site without the app framework (much more work, two code bases).
-2. **Native mobile app.** The contract includes a native mobile app; the plan and the build have
+1. **Native mobile app.** The contract includes a native mobile app; the plan and the build have
    an installable PWA for the customer portal. Either the contract is amended to the PWA, or a
    native app (for example a thin wrapper around the portal) is planned as extra work.
-3. **Production accounts and keys** in BEAM's name: Mollie (live), Resend, Billit, YouTube,
+2. **Production accounts and keys** in BEAM's name: Mollie (live), Resend, Billit, YouTube,
    Meta, Google Ads, Anthropic, Better Stack, Sentry, Vercel and Neon production. The app runs on
    fakes until they are set; `/api/health` lists what is missing.
-4. **Go-live gate.** The 13 items on `/admin/system/go-live` (`docs/runbooks/go-live.md`) need an
+3. **Go-live gate.** The 13 items on `/admin/system/go-live` (`docs/runbooks/go-live.md`) need an
    owner's confirmation: the data processing agreement and subprocessors, retention, export and
    deletion tests, the ethical-hacking test, backup and restore drill, roles and MFA, and the V1
    acceptance on staging.
-5. **Releases 2 to 4.** Their features are behind flags. Switch on a release's flags and deploy;
+4. **Releases 2 to 4.** Their features are behind flags. Switch on a release's flags and deploy;
    for R2 and R3 then run `pnpm release:activate R2` (or `R3`) once on production to switch on
    the release's seeded journeys (R4 has none). The webinar portal needs `ff_webinar_portal`.
-6. **Data migration** from the current tools into production (`docs/runbooks/data-migration.md`),
+5. **Data migration** from the current tools into production (`docs/runbooks/data-migration.md`),
    after the go-live gate, with a dry run first.
-7. **A `main` branch.** The runbooks deploy production from `main`; the repository has only the
+6. **A `main` branch.** The runbooks deploy production from `main`; the repository has only the
    build branch. Create `main` from it when you accept the build.
 
 ## Known open items

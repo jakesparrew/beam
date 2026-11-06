@@ -23,9 +23,10 @@ export function extractLinks(html: string): string[] {
  * clock skew between this process and the database.
  */
 export async function newestEmailAt(to: string): Promise<Date> {
+  // Every message, rendered or not: one still waiting for its render job would otherwise count
+  // as newer than this point once rendered (its old, used link picked as the new one).
   const [row] = await e2eRows<{ at: string | Date | null }>(sql`
-    select max(f.created_at) as at from email_messages m join files f on f.id = m.rendered_file_id and f.kind = 'rendered_email'
-    where lower(m.to_email) = ${to.toLowerCase()}`);
+    select max(m.created_at) as at from email_messages m where lower(m.to_email) = ${to.toLowerCase()}`);
   return row?.at ? new Date(row.at) : new Date(0);
 }
 
@@ -37,9 +38,9 @@ export async function latestEmail(to: string, opts: { after?: Date; subjectInclu
       select m.subject, f.bytes, f.created_at
       from email_messages m
       join files f on f.id = m.rendered_file_id and f.kind = 'rendered_email'
-      where lower(m.to_email) = ${to.toLowerCase()} and f.created_at > ${after}::timestamptz
+      where lower(m.to_email) = ${to.toLowerCase()} and m.created_at > ${after}::timestamptz
         and (${opts.subjectIncludes ?? null}::text is null or m.subject ilike '%' || ${opts.subjectIncludes ?? ""} || '%')
-      order by f.created_at desc
+      order by m.created_at desc
       limit 10`);
     for (const row of rows) {
       const html = typeof row.bytes === "string" ? Buffer.from(row.bytes.replace(/^\\x/, ""), "hex").toString("utf8") : Buffer.from(row.bytes).toString("utf8");

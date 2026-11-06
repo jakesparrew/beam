@@ -23,9 +23,10 @@ import type { DbOrTx } from "@beam/db";
 import { companies, companyContacts, opportunities, persons, personTags, supportKnowledgeArticles, tags, tasks, users, type AcquisitionJson, type PostalAddressJson } from "@beam/db/schema";
 import { brusselsDay, emailHash, normalisePhone, type AcquisitionSource } from "@beam/core/crm";
 import type { Locale } from "@beam/core/i18n";
-import { and, eq, isNull, sql } from "@/lib/ctx";
+import { and, createCtx, eq, isNull, sql } from "@/lib/ctx";
 import { rowsOf } from "@/lib/sensitive";
 import type { SeedCtx } from "@/scripts/seed-demo";
+import { ingestInboundEmail } from "./inbox/api";
 
 const SYSTEM = { kind: "system", id: null } as const;
 const DAY = 24 * 60 * 60 * 1000;
@@ -332,8 +333,33 @@ export async function runCrmDemoSeed(s: Pick<SeedCtx, "db" | "now" | "ids">): Pr
     if (rows.length) created++;
     else skipped++;
   }
+
+  // A few customer emails for the inbox (R3, behind ff_crm_inbox): what the training guide's
+  // inbox screenshot shows. Ingested as Resend Inbound would; the message ids make it idempotent.
+  for (const [i, m] of DEMO_INBOX.entries()) {
+    const p = demoPersons().find((d) => d.n === m.person);
+    if (!p) continue;
+    const before = created;
+    await db.transaction(async (tx) => {
+      const at = new Date(now.getTime() - m.hoursAgo * 60 * 60 * 1000);
+      const ctx = createCtx({ tx, actor: { kind: "system", jobId: "seed:crm" }, requestId: "seed:crm:inbox", now: at, durableMode: "immediate" });
+      const messageId = `<demo-inbox-${i + 1}@demo.beam.be>`;
+      const [seen] = rowsOf<{ n: number }>(await tx.execute(sql`select count(*)::int as n from inbox_messages where external_message_id = ${messageId}`));
+      if (Number(seen?.n ?? 0) > 0) return;
+      await ingestInboundEmail(tx, ctx, { messageId, from: p.email, fromName: `${p.firstName} ${p.lastName}`, subject: m.subject, text: m.text, attachmentCount: 0, receivedAt: at });
+      created++;
+    });
+    if (created === before) skipped++;
+  }
   return { created, skipped };
 }
+
+/** Demo customer emails for the inbox (person = `demoPersons()` number). */
+const DEMO_INBOX: readonly { person: number; hoursAgo: number; subject: string; text: string }[] = [
+  { person: 2, hoursAgo: 3, subject: "Sessie verplaatsen naar volgende week?", text: "Hallo, ik heb donderdag een sessie geboekt maar kan helaas niet. Kan ik die verplaatsen naar volgende week dinsdag? Groetjes" },
+  { person: 20, hoursAgo: 20, subject: "Question sur mon abonnement", text: "Bonjour, mon abonnement se renouvelle le mois prochain. Puis-je passer à la formule nuit sans payer deux fois ? Merci" },
+  { person: 35, hoursAgo: 46, subject: "Gift voucher for a friend", text: "Hi, I would like to buy a gift voucher for a friend's birthday. Can it be used for a night session too? Thanks!" },
+];
 
 /** Demo BEAM policies for the inbox AI drafts (crm rule 3.58): plain text, complete in every locale. */
 export const DEMO_KNOWLEDGE_ARTICLES: readonly { key: string; title: Record<Locale, string>; body: Record<Locale, string> }[] = [

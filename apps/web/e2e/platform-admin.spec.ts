@@ -43,6 +43,9 @@ test.afterAll(async () => {
 });
 
 test("the owner invites a reception user, changes its role, sets a flag to testers and finds the audit rows", async ({ page }) => {
+  // A sign-in (up to 30 s waiting for a fresh authenticator step), eight page loads and five axe
+  // scans: under the full suite's load the 60 s default ran out on the last scan.
+  test.setTimeout(120_000);
   await signInStaff(page, "owner", { returnTo: "/admin/settings" });
   await expect(page).toHaveURL(/\/admin\/settings$/);
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();

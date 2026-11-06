@@ -33,7 +33,7 @@ import { makePerson } from "@beam/db/testing";
 import { bookings, waitlistEntries } from "@beam/db/schema";
 import { expectAccessible } from "./support/a11y";
 import { demoStaffEmail, signInCustomer, signInStaff } from "./support/auth";
-import { closeE2eDb, e2eDb, e2eRows } from "./support/db";
+import { closeE2eDb, e2eDb, e2eRows, pgArray } from "./support/db";
 import { uniqueEmail } from "./support/ids";
 import {
   DAY,
@@ -406,6 +406,8 @@ test.describe("V1 acceptance", () => {
     const demo = recoveryCheckSeed({ baseUrl: "https://www.example.com" }).definition;
     const lbl = (key: string) => demo.fields[key]!.label[FR]!;
     const optLabel = (key: string, option: string) => (demo.fields[key] as { options?: { key: string; label: Record<string, string> }[] }).options!.find((o) => o.key === option)!.label[FR]!;
+    /** A rating option's accessible name is `forms.public.rating_value` ("2 sur 5"); its visible text is "2". */
+    const ratingLabel = (key: string, value: number) => copy(FR, "forms.public.rating_value", { value: String(value), scale: (demo.fields[key] as { scale: number }).scale });
     const choose = async (page: Page, fieldLabel: string, optionLabel: string) =>
       page.getByRole("group", { name: new RegExp(fieldLabel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) }).getByLabel(optionLabel, { exact: true }).check();
     const routeDone = (page: Page, route: "save" | "submit") => page.waitForResponse((r) => r.url().includes("/api/public/forms/") && r.url().endsWith(`/${route}`) && r.request().method() === "POST");
@@ -430,8 +432,8 @@ test.describe("V1 acceptance", () => {
       await page.getByRole("button", { name: copy(FR, "forms.public.next") }).click();
       expect((await saved).status()).toBe(200);
       await choose(page, lbl("sleep_hours"), optLabel("sleep_hours", "5_6"));
-      await choose(page, lbl("sleep_quality"), "2");
-      await choose(page, lbl("stress_level"), "8");
+      await choose(page, lbl("sleep_quality"), ratingLabel("sleep_quality", 2));
+      await choose(page, lbl("stress_level"), ratingLabel("stress_level", 8));
       // Branching: the physical stress question appears only for a stress level of 6 or more.
       await expect(page.getByRole("group", { name: new RegExp(lbl("stress_physical").slice(0, 20)) })).toBeVisible();
       await choose(page, lbl("stress_physical"), copy(FR, "forms.public.yes"));
@@ -534,7 +536,7 @@ test.describe("V1 acceptance", () => {
   });
 
   test.describe("GDPR", () => {
-    /** Creates, verifies and runs a privacy request of `kind` from `/admin/privacy/new`; returns its id once done. */
+    /** Creates and verifies a privacy request of `kind` from `/admin/privacy/new` (an erasure is then run now); returns its id once done. */
     async function runPrivacyRequest(page: Page, personId: string, kind: "export" | "erase"): Promise<string> {
       await signInStaff(page, "owner", { returnTo: `/admin/privacy/new?personId=${personId}` });
       const form = page.getByTestId("privacy-new");
@@ -548,8 +550,15 @@ test.describe("V1 acceptance", () => {
       const ack = verify.locator('input[name="acknowledgeWarnings"]');
       if ((await ack.count()) > 0) await ack.check();
       await clickAction(page, verify.locator('button[type="submit"]'));
-      await expect(page.getByTestId("privacy-status")).toHaveAttribute("data-status", "verified");
-      await clickAction(page, page.getByTestId("privacy-run-now").locator('button[type="submit"]'));
+      if (kind === "erase") {
+        // An erasure waits 24 hours after verification unless staff start it now (rule 61).
+        await expect(page.getByTestId("privacy-status")).toHaveAttribute("data-status", "verified");
+        await clickAction(page, page.getByTestId("privacy-run-now").locator('button[type="submit"]'));
+      } else {
+        // An export starts at verification (ops orchestrator: verified exports go to running).
+        await expect(page.getByTestId("privacy-status")).toHaveAttribute("data-status", /^(running|done)$/);
+        await expect(page.getByTestId("privacy-run-now")).toHaveCount(0);
+      }
       await expect
         .poll(async () => (await one<{ status: string }>(sql`select status::text as status from privacy_requests where id = ${requestId}::uuid`))?.status, { timeout: 240_000, intervals: [1_000, 2_000, 5_000] })
         .toBe("done");
@@ -582,10 +591,14 @@ test.describe("V1 acceptance", () => {
       expect(after!.erased_at).not.toBeNull();
       expect(after!.email).toBeNull();
       expect(after!.last_name).not.toBe(`Erase${RUN}`);
-      for (const table of ["email_messages", "bookings"]) {
-        const left = await one<{ n: number }>(sql`select count(*)::int as n from ${sql.raw(table)} where person_id = ${person.id}::uuid`);
-        expect(left!.n, table).toBe(0);
-      }
+      const messages = await one<{ n: number }>(sql`select count(*)::int as n from email_messages where person_id = ${person.id}::uuid`);
+      expect(messages!.n, "email_messages").toBe(0);
+      // Bookings stay, anonymised, on the anonymised person (booking spec section 9): the future
+      // booking is cancelled with code `erased` and keeps no free text.
+      const booked = await e2eRows<{ status: string; cancel_reason_code: string | null; notes: string | null }>(
+        sql`select status::text as status, cancel_reason_code::text as cancel_reason_code, notes from bookings where person_id = ${person.id}::uuid`,
+      );
+      expect(booked).toEqual([{ status: "cancelled", cancel_reason_code: "erased", notes: null }]);
       const supp = await e2eRows<{ reason: string }>(sql`select reason::text as reason from suppressions where email_hash = ${emailHashOf(email)}`);
       expect(supp.map((s) => s.reason)).toContain("erased");
       const report = await one<{ report: unknown }>(sql`select report from privacy_requests where id = ${requestId}::uuid`);
@@ -631,7 +644,7 @@ test.describe("V1 acceptance", () => {
         options: { delimiter: ",", dateFormat: "iso", defaultLocale: "nl-BE", overwrite: false, preset: "mailchimp_consents", consentPurpose: "newsletter" },
       };
       const imp = await one<{ id: string }>(sql`insert into imports (kind, source, name, file_id, created_by_user_id, header, mapping, status, is_dry_run, run_seq)
-        values ('consents', 'mailchimp', ${`E2E acceptance-v1 survivor ${RUN}`}, ${file!.id}::uuid, ${owner!.id}::uuid, ${["Email Address", "Status", "CONFIRM_TIME", "Source"]}::text[],
+        values ('consents', 'mailchimp', ${`E2E acceptance-v1 survivor ${RUN}`}, ${file!.id}::uuid, ${owner!.id}::uuid, ${pgArray(["Email Address", "Status", "CONFIRM_TIME", "Source"])}::text[],
                 ${JSON.stringify(mapping)}::jsonb, 'dry_run', true, 1) returning id::text as id`);
       await e2eRows(sql`insert into jobs (kind, payload, idempotency_key, lane, priority, max_attempts)
         values ('import.parse', ${JSON.stringify({ importId: imp!.id, runSeq: 1 })}::jsonb, ${`import:${imp!.id}:1:parse`}, 'bulk', 5, 6)`);

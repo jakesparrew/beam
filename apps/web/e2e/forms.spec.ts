@@ -108,6 +108,8 @@ test.describe("forms (forms-P4)", () => {
 
     await choose(page, lbl(demo, "movement"), optLabel(demo, "movement", "rarely"));
     await choose(page, lbl(demo, "screen_time"), optLabel(demo, "screen_time", "gt5"));
+    // Under MIN_FILL_SECONDS (3 s) since the start the submission counts as a bot (no result page).
+    await page.waitForTimeout(3500);
     const submitted = routeDone(page, "submit");
     await page.getByRole("button", { name: demo.settings.submitLabel[FR]! }).click();
     const res = await submitted;

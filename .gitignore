@@ -28,3 +28,8 @@ coverage/
 .claude/worktrees/
 docs/build/logs/
 .agent-start
+
+# Serwist writes the compiled service worker here on every production build
+apps/web/public/sw.js
+apps/web/public/sw.js.map
+apps/web/public/swe-worker-*.js

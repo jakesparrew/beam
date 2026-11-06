@@ -18,7 +18,7 @@ import { deriveVersionColumns, recoveryCheckSeed, seedDefinitions, type FormDefi
 import { t } from "@beam/core/i18n";
 import { formSubmissions, forms, formVersions, persons } from "@beam/db/schema";
 import { eq, sql } from "drizzle-orm";
-import { closeE2eDb, e2eDb, e2eRows } from "./support/db";
+import { clearPublicFormLimit, closeE2eDb, e2eDb, e2eRows } from "./support/db";
 
 const RUN = randomUUID().slice(0, 8);
 const demo = recoveryCheckSeed({ baseUrl: "https://www.example.com" }).definition;
@@ -46,6 +46,8 @@ function nlOnlyDefinition(): FormDefinition {
   delete c.fields.newsletter;
   return c;
 }
+
+test.beforeEach(clearPublicFormLimit);
 
 test.beforeAll(async () => {
   const db = await e2eDb();

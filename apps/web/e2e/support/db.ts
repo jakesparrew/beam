@@ -45,3 +45,12 @@ export async function e2eRewrite(queries: Parameters<Db["execute"]>[0][]): Promi
 
 /** A Postgres array literal for a `::uuid[]` parameter (a JS array would expand to `($1, $2)`). */
 export const pgArray = (values: readonly string[] | null | undefined): string => `{${(values ?? []).join(",")}}`;
+
+/**
+ * PL-68 allows 20 public-form API calls (view, start, save, submit) per IP per minute; the whole
+ * suite runs from one IP on two workers, so a form-heavy spec clears the bucket before each test.
+ * The limit itself is covered by `lib/rate-limit.test.ts`.
+ */
+export async function clearPublicFormLimit(): Promise<void> {
+  await e2eRows(sql`delete from rate_limits where key like 'forms:ip:%'`);
+}

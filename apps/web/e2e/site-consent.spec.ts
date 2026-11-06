@@ -16,7 +16,7 @@ import { expect, test, type Page, type Request } from "@playwright/test";
 import { settings } from "@beam/db/schema";
 import { eq } from "drizzle-orm";
 import { expectAccessible } from "./support/a11y";
-import { closeE2eDb, e2eDb } from "./support/db";
+import { clearPublicFormLimit, closeE2eDb, e2eDb } from "./support/db";
 
 const GA_ID = "G-E2ETEST01";
 const isAnalytics = (url: string) => /googletagmanager\.com|google-analytics\.com|\/_vercel\/insights\//.test(url);
@@ -40,6 +40,8 @@ async function watch(page: Page): Promise<{ analytics: string[]; violations: () 
 const banner = (page: Page) => page.locator("[data-cookie-banner]");
 
 let originalSite: unknown;
+
+test.beforeEach(clearPublicFormLimit);
 
 test.beforeAll(async () => {
   const db = await e2eDb();

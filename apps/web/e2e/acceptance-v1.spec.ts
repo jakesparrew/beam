@@ -33,7 +33,7 @@ import { makePerson } from "@beam/db/testing";
 import { bookings, waitlistEntries } from "@beam/db/schema";
 import { expectAccessible } from "./support/a11y";
 import { demoStaffEmail, signInCustomer, signInStaff } from "./support/auth";
-import { closeE2eDb, e2eDb, e2eRows, pgArray } from "./support/db";
+import { clearPublicFormLimit, closeE2eDb, e2eDb, e2eRows, pgArray } from "./support/db";
 import { uniqueEmail } from "./support/ids";
 import {
   DAY,
@@ -67,6 +67,8 @@ const LOCALE = "nl-BE" as const;
 /** The core customer: registered in test "register, book, pay and cancel", reused by later rows. */
 const core = { email: uniqueEmail("acceptance-core"), personId: "", orderId: "", cancelledId: "", rescheduledId: "" };
 const fx = { creditDay: "", creditDay2: "", rescheduleTarget: "", staffDay: "", full: "" };
+
+test.beforeEach(clearPublicFormLimit);
 
 test.beforeAll(async () => {
   await resetAcceptanceRows();

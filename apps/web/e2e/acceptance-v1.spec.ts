@@ -442,6 +442,9 @@ test.describe("V1 acceptance", () => {
       expect((await saved).status()).toBe(200);
       await choose(page, lbl("movement"), optLabel("movement", "rarely"));
       await choose(page, lbl("screen_time"), optLabel("screen_time", "gt5"));
+      // A form completed within MIN_FILL_SECONDS (3 s) of its start counts as a bot and gets the
+      // thank-you ending without a result: against a fast database the steps above take less.
+      await page.waitForTimeout(3500);
       const submitted = routeDone(page, "submit");
       await page.getByRole("button", { name: demo.settings.submitLabel[FR]! }).click();
       const res = await submitted;

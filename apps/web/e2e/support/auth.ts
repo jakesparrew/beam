@@ -162,11 +162,23 @@ async function clearLoginBuckets(email: string): Promise<void> {
     or key in ('login:ip:127.0.0.1', 'login:ip:::1', 'login:ip:::ffff:127.0.0.1')`);
 }
 
+/**
+ * The per-IP buckets of PL-68 (`login:ip`, `forms:ip`, `commerce:ip`, `api:ip`,
+ * `webinar_register:ip`, ...) guard production against one address; the suite's workers all
+ * come from 127.0.0.1, so their per-minute counts add up across tests. Each sign-in, i.e. each
+ * test's start, clears them; per-account and per-email limits stay. `lib/rate-limit.test.ts`
+ * covers the limits.
+ */
+export async function clearIpBuckets(): Promise<void> {
+  await e2eRows(sql`delete from rate_limits where key like '%:ip:%'`);
+}
+
 /** Signs a demo staff user in: password from `DEMO_STAFF_PASSWORD`, then a TOTP from `DEMO_TOTP_SECRET`. Callers close the e2e database in `afterAll` (`closeE2eDb()`). */
 export async function signInStaff(page: Page, role: DemoRole, opts: { returnTo?: string } = {}): Promise<void> {
   const password = process.env.DEMO_STAFF_PASSWORD;
   if (!password) throw new Error("DEMO_STAFF_PASSWORD is not set");
   const email = demoStaffEmail(role);
+  await clearIpBuckets();
   for (let attempt = 0; ; attempt++) {
     await page.goto(opts.returnTo ? `/admin/login?returnTo=${encodeURIComponent(opts.returnTo)}` : "/admin/login");
     await page.getByLabel(/e-?mail/i).fill(email);
@@ -190,6 +202,7 @@ export async function signInStaff(page: Page, role: DemoRole, opts: { returnTo?:
 export async function signInCustomer(page: Page, email: string, locale: "nl" | "fr" | "en" = "nl"): Promise<void> {
   const digest = createHash("sha256").update(email.trim().toLowerCase()).digest("hex");
   await e2eRows(sql`delete from rate_limits where key = ${`magic:${digest}`}`);
+  await clearIpBuckets();
   // Only a link sent after this request: a time slack ("now minus 2 s") picked the previous,
   // already used link when the same address signed in twice within it (error=Verification).
   const requestedAt = await newestEmailAt(email);

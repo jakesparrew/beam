@@ -14,7 +14,7 @@ booking, commerce, credits, finance, ops and webinar, across the four releases V
 | Measure | Count |
 | --- | --- |
 | Build packages merged | 123 of 123, plus 38 fixer packages |
-| Commits | 1,231 |
+| Commits | 1,255 |
 | TypeScript files | 2,382 (about 338,500 lines) |
 | Unit and integration test files (Vitest, PGlite) | 658 |
 | End-to-end spec files (Playwright) | 39 |
@@ -30,22 +30,13 @@ the end-to-end suite against a production build on `beam_dev`. The log of every 
 
 ## Final checkpoint
 
-The full gate (typecheck, lint, every unit test, migration and GDPR checks, production build)
-is green on the final code. The last full end-to-end run against a production build on
-`beam_dev` (151 tests, 29 minutes):
-
-| Result | Tests |
-| --- | --- |
-| Passed | 137 |
-| Failed | 0 |
-| Flaky (passed on retry) | 2: the contact form during a dropped connection, and the `platform-admin` flow, which ran out of its 60 s under load (now 120 s) |
-| Skipped | 12: the webinar portal tests and three R2 acceptance tests, which run when `ff_webinar_portal` is on |
-
-With `ff_webinar_portal` switched on for the run, the webinar tests and the R2 acceptance tests
-pass as well (all 6 of each), and the credits spec's desk test, a placeholder until then, now
-checks the credits line on the check-in desk (6 of 6). Dropped connections in these runs come
-from the WebSocket driver this build environment needs to reach Neon; production uses the
-ordinary Postgres driver.
+The last full end-to-end run passed every test: **151 of 151**, none flaky, none skipped. It ran
+against a production build on a freshly seeded Postgres next to the app, with
+`ff_webinar_portal` on, so the release 2 webinar and acceptance tests ran too (20 minutes, two
+workers). On Neon `beam_dev` the same suite passes apart from timing-sensitive tests, because
+every query from the build container takes about 120 ms and the WebSocket driver this container
+needs drops connections now and then (production uses the ordinary Postgres driver). The full
+gate (typecheck, lint, every unit test, migration and GDPR checks, production build) is green.
 
 ### Defects found by running the real app, and fixed
 

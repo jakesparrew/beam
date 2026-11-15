@@ -1,6 +1,6 @@
 /**
  * Local-only one-click sign-in as a demo customer, shown on the portal login page when
- * `devSkipMfa()` holds (DEV_SKIP_MFA=1 with APP_ENV=local, never on Vercel or in production).
+ * `devSkipMfa()` holds (DEV_SKIP_MFA=1 with APP_ENV=local or preview, never staging or production).
  * The server action checks the same switch again, so the form is useless anywhere else.
  */
 import { redirect } from "next/navigation";
@@ -36,7 +36,7 @@ export async function DevDemoLogin({ next }: { next: string }) {
   if (!rows.length) return null;
   return (
     <section className="grid gap-3 rounded-xl border border-dashed border-amber-500/60 bg-amber-50/60 p-4 text-sm">
-      <p className="font-semibold">Demo-login (alleen lokaal)</p>
+      <p className="font-semibold">Demo-login</p>
       <div className="grid gap-2">
         {rows.map((r) => (
           <form key={r.id} action={signInAsDemo}>

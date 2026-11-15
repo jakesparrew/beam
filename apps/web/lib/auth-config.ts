@@ -31,12 +31,12 @@ export const SESSION_COOKIE_SECURE = SESSION_COOKIE.startsWith("__Secure-");
 export const EMAIL_PROVIDER_ID = "email";
 
 /**
- * Local demo only: `DEV_SKIP_MFA=1` with `APP_ENV=local` (set explicitly, not the default) and outside
- * a production build lets a staff password sign-in skip the TOTP step. Never honoured on Vercel;
- * `configProblems` reports the flag in production.
+ * Demo only: `DEV_SKIP_MFA=1` with `APP_ENV=local` or `preview` (the demo deployment, fake data and
+ * fake providers) lets a staff password sign-in skip the TOTP step and shows the one-click demo
+ * customer login. Never honoured on staging or production; `configProblems` reports the flag there.
  */
 export function devSkipMfa(env: Env = process.env): boolean {
-  return env.DEV_SKIP_MFA === "1" && env.APP_ENV === "local" && env.NODE_ENV !== "production" && !env.VERCEL;
+  return env.DEV_SKIP_MFA === "1" && (env.APP_ENV === "local" || env.APP_ENV === "preview");
 }
 
 /** Magic links are valid 15 minutes (PL-11). */

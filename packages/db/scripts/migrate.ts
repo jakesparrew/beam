@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { config } from "dotenv";
 
 config({ path: ["../../.env.local", "../../.env"], quiet: true });
@@ -12,7 +13,7 @@ async function main() {
   const driver = process.env.DATABASE_DRIVER ?? "pg";
   const url = process.argv[2] ?? process.env.DATABASE_URL_UNPOOLED ?? process.env.DATABASE_URL;
   if (!url) throw new Error("DATABASE_URL_UNPOOLED or DATABASE_URL must be set");
-  const migrationsFolder = new URL("../migrations", import.meta.url).pathname;
+  const migrationsFolder = fileURLToPath(new URL("../migrations", import.meta.url)); // .pathname breaks on Windows ("/C:/...")
 
   if (driver === "neon-ws") {
     const { Pool, neonConfig } = await import("@neondatabase/serverless");

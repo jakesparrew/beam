@@ -177,7 +177,7 @@ describe("availability and events", () => {
     const data = await loadRenderData(pageOf([block]));
     const call = vi.mocked(booking.getAvailabilityPreview).mock.calls.at(-1)![1];
     expect(call.kind).toBe("night");
-    expect(call.to.getTime() - call.from.getTime()).toBe(3 * 86_400_000);
+    expect(call.to.getTime() - call.from.getTime()).toBe(28 * 86_400_000);
     const html = render([block], data);
     const bands = [...html.matchAll(/data-band="(\w+)"[^>]*>([^<]*)</g)].map((m) => [m[1], m[2]]);
     expect(bands).toEqual([
@@ -186,6 +186,7 @@ describe("availability and events", () => {
       ["full", "Full"],
     ]);
     expect(html).toContain('href="/en/account/book?kind=night"');
+    expect(html).toContain('href="/en/account/book/'); // each time links to its session
   });
 
   it("shows the empty state and pages listPublicEvents by limit", async () => {

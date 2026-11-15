@@ -10,7 +10,7 @@ import type { DbHandle } from "@beam/db";
 import { priceVersions, products, promotions, settings } from "@beam/db/schema";
 import { COMMERCE_SETTINGS_DEFAULTS, CommerceSettings, PaymentProviderByChannel } from "@beam/core/commerce";
 import { missingLocales, type LocalizedText } from "@beam/core/i18n";
-import { DEMO_SKUS, seed, seedCommerceCatalogue } from "@beam/db/seed/commerce";
+import { BEAM_SKUS, DEMO_SKUS, seed, seedCommerceCatalogue } from "@beam/db/seed/commerce";
 import { asc, eq } from "@/lib/ctx";
 import { getProductPrice } from "./server/catalogue";
 
@@ -42,11 +42,12 @@ describe("commerce demo catalogue", () => {
     const now = new Date("2026-11-04T23:00:00.000Z");
     const staff = await makeUser(h.db, { roleKey: "owner" });
     const first = await seedCommerceCatalogue(h.db, { now, staffUserId: staff.id });
-    expect(Object.keys(first.productIds).sort()).toEqual(Object.values(DEMO_SKUS).sort());
+    const allSkus: string[] = [...Object.values(DEMO_SKUS), ...Object.values(BEAM_SKUS)];
+    expect(Object.keys(first.productIds).sort()).toEqual(allSkus.sort());
     expect(first.created).toBeGreaterThan(9);
 
     const rows = await h.db.select().from(products);
-    for (const p of rows.filter((r) => Object.values(DEMO_SKUS).includes(r.sku as never))) {
+    for (const p of rows.filter((r) => allSkus.includes(r.sku))) {
       expect(p.isActive, p.sku).toBe(true);
       expect(missingLocales(p.name as LocalizedText), p.sku).toEqual([]);
       expect(missingLocales(p.description as LocalizedText), p.sku).toEqual([]);

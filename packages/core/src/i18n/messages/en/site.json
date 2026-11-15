@@ -514,7 +514,14 @@
       "availability": {
         "book": "Book",
         "none": "No sessions planned in this period.",
-        "title": "Availability in the coming days"
+        "title": "Availability in the coming days",
+        "titleDay": "Available day sessions",
+        "titleNight": "Available night sessions",
+        "kindDay": "By day",
+        "kindNight": "By night",
+        "prevWeek": "Previous week",
+        "nextWeek": "Next week",
+        "closed": "Closed"
       },
       "contact": {
         "address": "Address",
@@ -552,7 +559,8 @@
         "salesEnded": "Sales have ended",
         "salesFrom": "On sale from {date}",
         "soldOut": "Sold out",
-        "tickets": "Tickets"
+        "tickets": "Tickets",
+        "register": "Register"
       },
       "gift": {
         "cta": "Give a gift voucher"
@@ -574,6 +582,10 @@
         "buy": "Buy",
         "from": "From {amount}",
         "members": "Members: {amount}",
+        "nights": "{count, plural, one {# night} other {# nights}}",
+        "perNight": "{amount} per night",
+        "perSession": "{amount} per session",
+        "validityMonths": "{months, plural, one {Valid for # month} other {Valid for # months}}",
         "sessions": "{count, plural, one {# session} other {# sessions}}",
         "validity": "{days, plural, one {Valid for # day} other {Valid for # days}}",
         "vatIncluded": "VAT included"
@@ -582,6 +594,11 @@
         "consentNote": "The video loads from YouTube when you press play.",
         "openOnYoutube": "Watch on YouTube",
         "play": "Play video: {title}"
+      },
+      "reviews": {
+        "heading": "What our guests say",
+        "source": "Google reviews · 145 reviews",
+        "stars": "5 out of 5 stars"
       }
     },
     "cookies": {
@@ -653,7 +670,13 @@
         "webinarLive": "Live on {date}",
         "webinarOnDemand": "On demand",
         "webinars": "Your upcoming webinars",
-        "webinarsAll": "All my webinars"
+        "webinarsAll": "All my webinars",
+        "nextSession": "Your next session",
+        "readyTitle": "Ready to recharge?",
+        "readyBody": "Pick a day or night session in Europe's largest EESystem space.",
+        "bookNow": "Book your session",
+        "viewBooking": "View booking",
+        "bookAnother": "Book another session"
       },
       "install": {
         "body": "Open your bookings and balance straight from your home screen.",
@@ -673,6 +696,17 @@
       }
     },
     "public": {
+      "header": {
+        "account": "My account",
+        "book": "Book your session",
+        "hello": "Hi {name}"
+      },
+      "brand": {
+        "tagline": "Your energy. Your life.",
+        "blurb": "BEAM Vitality Center is an infrastructure for human energy. We create coherent environments designed to support regulation, recovery and sustained vitality.",
+        "backOffice": "Back office",
+        "quickLinks": "Quick links"
+      },
       "breadcrumb": {
         "home": "Home"
       },

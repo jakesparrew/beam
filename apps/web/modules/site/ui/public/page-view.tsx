@@ -30,8 +30,8 @@ export function PageView({ page, data, tr, now = new Date() }: { page: ResolvedP
   return (
     <article data-page={page.slug} data-kind={page.kind} className="pb-12">
       {heroIsH1(page.blocks) ? null : (
-        <header className="mx-auto w-full max-w-5xl space-y-3 px-4 pt-10 pb-4 sm:px-6">
-          <h1 className="text-4xl font-bold tracking-tight">{page.title}</h1>
+        <header className="mx-auto w-full max-w-6xl space-y-3 px-4 pt-16 pb-2 sm:px-6 md:pt-24">
+          <h1 className="font-display text-5xl leading-[1.05] sm:text-6xl">{page.title}</h1>
           {page.kind === "post" && (page.firstPublishedAt ?? page.publishedAt) ? (
             <time dateTime={page.firstPublishedAt ?? page.publishedAt!} className="block text-sm text-muted-foreground">
               {formatDate(page.firstPublishedAt ?? page.publishedAt!, locale, "long")}

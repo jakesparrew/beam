@@ -13,13 +13,18 @@
  * BEAM writes the real texts (proposal section 2); these are placeholders.
  */
 import { createHash } from "node:crypto";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { eq } from "drizzle-orm";
-import { DEFAULT_SITE_SETTINGS, type Block, type NavItem, type PageKind, type PageSeo, type RichBlockNode } from "@beam/core/site";
+import { DEFAULT_SITE_SETTINGS, imageSize, type Block, type Link, type NavItem, type PageKind, type PageSeo, type RichBlockNode, type RichDoc, type RichTextNode } from "@beam/core/site";
 import type { DbOrTx } from "../client";
-import { settings } from "../schema/platform";
-import { navMenus, pageRoutes, pages, pageVersions } from "../schema/site";
+import { files, settings } from "../schema/platform";
+import { mediaAssets, navMenus, pageRoutes, pages, pageVersions } from "../schema/site";
 import type { Locale, LocalizedText } from "../schema/_shared";
 import type { DefaultSeed } from "./run";
+import { BEAM_SKUS } from "./commerce";
+import { products } from "../schema/commerce";
 
 type L3 = [nl: string, fr: string, en: string];
 const LOCALES: readonly Locale[] = ["nl-BE", "fr-BE", "en"];
@@ -45,6 +50,8 @@ type SeedPage = {
   sections: Section[];
   extra?: "hero" | "events" | "posts" | "contact" | "legal" | "booking";
   noindex?: boolean;
+  /** Full block list per locale; when set, `sections` and `extra` are not used. */
+  build?: Builder;
 };
 
 const PLACEHOLDER: L3 = [
@@ -54,9 +61,9 @@ const PLACEHOLDER: L3 = [
 ];
 
 const desc = (subject: L3): L3 => [
-  `${subject[0]} bij BEAM Vitality Center: rust, warmte en water in het hart van de stad.`,
-  `${subject[1]} au BEAM Vitality Center : repos, chaleur et eau au cœur de la ville.`,
-  `${subject[2]} at BEAM Vitality Center: rest, warmth and water in the heart of the city.`,
+  `${subject[0]} bij BEAM Vitality Center in Sint-Martens-Latem, een omgeving voor rust, herstel en energie.`,
+  `${subject[1]} au BEAM Vitality Center à Sint-Martens-Latem, un environnement de repos, de récupération et d'énergie.`,
+  `${subject[2]} at BEAM Vitality Center in Sint-Martens-Latem, an environment for rest, recovery and energy.`,
 ];
 
 /** Rule 62: the chapters of the terms, as `h2` sections. */
@@ -83,16 +90,476 @@ const TERMS_CHAPTERS: Section[] = [
   { h: ["Voorwaarden lidmaatschap", "Conditions d'abonnement", "Membership conditions"], p: [PLACEHOLDER] },
 ];
 
+// ---------------------------------------------------------------------------
+// Content of beam.be (captured 2026-11-15, docs/research/beam-be/), rebuilt as blocks. Prices are
+// shown as text here because the demo catalogue (commerce seed) still carries placeholder prices.
+// Testimonials quote public Google reviews; BEAM confirms consent before go-live (rule 21).
+// ---------------------------------------------------------------------------
+
+/** What a page builder gets: stable block ids, links to other seeded pages, catalogue product ids by SKU and media ids by key. */
+type BuildCtx = { id: (part: string) => string; page: (slug: string) => Link; product: (sku: string) => string | undefined; media: (key: MediaKey) => string | undefined };
+
+// ---------------------------------------------------------------------------
+// Media: photos of beam.be (packages/db/src/seed/assets/beam/), public images in the media library.
+// ---------------------------------------------------------------------------
+
+const SITE_MEDIA = {
+  hero: { file: "1920x800a.webp", alt: ["De BEAM-ruimte overdag: bedden, zetels en de EESystem-schermen voor grote ramen", "L'espace BEAM de jour : lits, fauteuils et écrans EESystem devant de grandes baies vitrées", "The BEAM space by day: beds, armchairs and the EESystem screens in front of large windows"] },
+  day: { file: "16.-Onze-ruimte-480x500-2.webp", alt: ["Gasten rusten in zetels tijdens een dagsessie", "Des hôtes se reposent dans des fauteuils pendant une séance de jour", "Guests resting in armchairs during a day session"] },
+  night: { file: "480x600-1.webp", alt: ["De BEAM-ruimte in warm avondlicht met meditatiekussens", "L'espace BEAM dans la lumière chaude du soir avec des coussins de méditation", "The BEAM space in warm evening light with meditation cushions"] },
+  reception: { file: "Sessies-Hoe-haal-je-het-600-x-400.webp", alt: ["Gasten worden ontvangen aan het onthaal van BEAM", "Des hôtes accueillis à la réception de BEAM", "Guests welcomed at the BEAM reception"] },
+  relax: { file: "Sessies-Tarieven-600-x-400.webp", alt: ["Een gast rust onder een deken naast de EESystem-schermen", "Une hôte se repose sous une couverture près des écrans EESystem", "A guest resting under a blanket next to the EESystem screens"] },
+  room: { file: "13.-Onze-ruimte-480x250-1.webp", alt: ["Gasten in zetels in de BEAM-ruimte", "Des hôtes dans des fauteuils dans l'espace BEAM", "Guests in armchairs in the BEAM space"] },
+  beds: { file: "15.-Onze-ruimte-360x500-1.webp", alt: ["Een rij bedden met warme dekens in de BEAM-ruimte", "Une rangée de lits avec des couvertures chaudes dans l'espace BEAM", "A row of beds with warm blankets in the BEAM space"] },
+  founders: { file: "Technology-De-BEAM-installatie-500-x-600.webp", alt: ["De oprichters van BEAM in de ruimte", "Les fondateurs de BEAM dans l'espace", "The founders of BEAM in the space"] },
+  community: { file: "De-waarde-van-dit-480x500px.webp", alt: ["De BEAM-community samen buiten", "La communauté BEAM réunie dehors", "The BEAM community together outside"] },
+  events: { file: "group-meditation.webp", alt: ["Groepsmeditatie tijdens een BEAM-event", "Méditation de groupe lors d'un événement BEAM", "Group meditation at a BEAM event"] },
+  corporate: { file: "Moderne-organisaties-opereren-600x400-1.webp", alt: ["Een team onder hoge druk op kantoor", "Une équipe sous forte pression au bureau", "A team under high pressure at the office"] },
+  portrait: { file: "BEAM-dwingt-500-x-600.webp", alt: ["Een vrouw met gesloten ogen voor de EESystem-schermen", "Une femme les yeux fermés devant les écrans EESystem", "A woman with her eyes closed in front of the EESystem screens"] },
+  location: { file: "6.-Onze-locatie-530x400-1.webp", alt: ["Het Latem Business Park, waar BEAM gevestigd is", "Le Latem Business Park, où se trouve BEAM", "The Latem Business Park, home of BEAM"] },
+  cell: { file: "3-1.webp", alt: ["Illustratie van cellulaire elektriciteit over het celmembraan", "Illustration de l'électricité cellulaire à travers la membrane", "Illustration of cellular electricity across the cell membrane"] },
+} as const satisfies Record<string, { file: string; alt: L3 }>;
+type MediaKey = keyof typeof SITE_MEDIA;
+
+/** Stores the seed photos as public image files and media assets (once: matched by sha256); returns media ids by key. */
+async function seedSiteMedia(db: DbOrTx): Promise<(key: MediaKey) => string | undefined> {
+  const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), "assets", "beam");
+  const out = new Map<MediaKey, string>();
+  for (const [key, m] of Object.entries(SITE_MEDIA) as [MediaKey, (typeof SITE_MEDIA)[MediaKey]][]) {
+    let bytes: Buffer;
+    try {
+      bytes = await readFile(path.join(dir, m.file));
+    } catch {
+      continue; // a missing photo leaves the block without an image
+    }
+    const sha256 = createHash("sha256").update(bytes).digest("hex");
+    const [existing] = await db.select({ id: mediaAssets.id }).from(mediaAssets).innerJoin(files, eq(files.id, mediaAssets.fileId)).where(eq(files.sha256, sha256));
+    if (existing) {
+      out.set(key, existing.id);
+      continue;
+    }
+    const size = imageSize(new Uint8Array(bytes));
+    if (!size) continue;
+    const [file] = await db.insert(files).values({ kind: "image", name: m.file, mime: "image/webp", sizeBytes: bytes.length, bytes, sha256, isPublic: true }).returning({ id: files.id });
+    const [asset] = await db.insert(mediaAssets).values({ fileId: file!.id, alt: txt(m.alt as unknown as L3), width: size.width, height: size.height, credit: "beam.be", source: "upload" }).returning({ id: mediaAssets.id });
+    out.set(key, asset!.id);
+  }
+  return (key) => out.get(key);
+}
+
+/** A `pricing_table` of catalogue products, or null when one of them is not in the catalogue (then the page shows text). */
+function priceCards(i: number, c: BuildCtx, key: string, heading: L3, skus: string[]): Block | null {
+  const ids = skus.map((s) => c.product(s));
+  if (ids.some((x) => !x)) return null;
+  return { id: c.id(key), type: "pricing_table", heading: heading[i]!, productIds: ids as string[], showMemberPrice: false };
+}
+type Builder = (i: number, c: BuildCtx) => Block[];
+
+/** Inline text with `**bold**` spans. */
+function inline(s: string): RichTextNode[] {
+  return s
+    .split(/(\*\*[^*]+\*\*)/)
+    .filter(Boolean)
+    .map((part) => (part.startsWith("**") ? { type: "text" as const, text: part.slice(2, -2), marks: [{ type: "bold" as const }] } : { type: "text" as const, text: part }));
+}
+
+/** A rich-text part: an optional `h2` (or `h3`), paragraphs and a bullet list. */
+type Part = { h?: L3; h3?: L3; p?: L3[]; list?: L3[] };
+
+function doc(i: number, parts: Part[]): RichDoc {
+  const content: RichBlockNode[] = [];
+  for (const part of parts) {
+    if (part.h) content.push({ type: "heading", attrs: { level: 2 }, content: inline(part.h[i]!) });
+    if (part.h3) content.push({ type: "heading", attrs: { level: 3 }, content: inline(part.h3[i]!) });
+    for (const p of part.p ?? []) content.push({ type: "paragraph", content: inline(p[i]!) });
+    if (part.list?.length) content.push({ type: "bulletList", content: part.list.map((li) => ({ type: "listItem", content: [{ type: "paragraph", content: inline(li[i]!) }] })) });
+  }
+  return { type: "doc", content };
+}
+
+const rt = (i: number, c: BuildCtx, key: string, parts: Part[]): Block => ({ id: c.id(key), type: "rich_text", doc: doc(i, parts) });
+const portal = (route: "book_day" | "book_night" | "home" | "membership" | "packages" | "bookings"): Link => ({ kind: "portal", route });
+const hero = (i: number, c: BuildCtx, heading: L3, sub: L3, cta?: { label: L3; link: Link }, img?: MediaKey): Block => {
+  const mediaId = img ? c.media(img) : undefined;
+  return {
+    id: c.id("hero"),
+    type: "hero",
+    heading: heading[i]!,
+    subheading: sub[i]!,
+    ...(mediaId ? { mediaId } : {}),
+    ...(cta ? { cta: { label: cta.label[i]!, link: cta.link } } : {}),
+  };
+};
+type CardSeed = { h: L3; t: L3; link?: Link; img?: MediaKey };
+const cards = (i: number, c: BuildCtx, key: string, heading: L3 | null, list: CardSeed[], layout?: "cards" | "list" | "split"): Block => ({
+  id: c.id(key),
+  type: "card_grid",
+  ...(heading ? { heading: heading[i]! } : {}),
+  ...(layout ? { layout } : {}),
+  cards: list.map((x) => {
+    const mediaId = x.img ? c.media(x.img) : undefined;
+    return { heading: x.h[i]!, text: x.t[i]!, ...(mediaId ? { mediaId } : {}), ...(x.link ? { link: x.link } : {}) };
+  }),
+});
+const book = (i: number, c: BuildCtx, key: string, label: L3, target: { kind: "book_day" } | { kind: "book_night" } | { kind: "gift" }, note?: L3): Block => ({
+  id: c.id(key),
+  type: "booking_cta",
+  label: label[i]!,
+  ...(note ? { note: note[i]! } : {}),
+  target,
+});
+/** Text beside a photo; plain rich text when the photo is not in the media library. */
+const imageText = (i: number, c: BuildCtx, key: string, img: MediaKey, side: "left" | "right", parts: Part[]): Block => {
+  const mediaId = c.media(img);
+  return mediaId ? { id: c.id(key), type: "image_text", mediaId, imageSide: side, doc: doc(i, parts) } : rt(i, c, key, parts);
+};
+const cta = (i: number, c: BuildCtx, key: string, heading: L3, body: L3, label: L3, link: Link): Block => ({ id: c.id(key), type: "cta", heading: heading[i]!, text: body[i]!, button: { label: label[i]!, link } });
+const faq = (i: number, c: BuildCtx, key: string, heading: L3, items: { q: L3; a: L3[] }[]): Block => ({
+  id: c.id(key),
+  type: "faq",
+  heading: heading[i]!,
+  items: items.map((x) => ({ question: x.q[i]!, answer: doc(i, [{ p: x.a }]) })),
+});
+/**
+ * Real Google reviews of BEAM (5 stars, captured from beam.be's Trustindex widget on 2026-11-15),
+ * quoted verbatim in their own language on every locale. BEAM confirms consent before go-live (rule 21).
+ */
+const GOOGLE_REVIEWS: { q: string; a: string; date: L3 }[] = [
+  {
+    q: "Zodra je het Beam Vitality Center binnenstapt, kom je terecht in een bad vol liefde. Alles ademt er zachtheid, licht, liefde en heel fijne energie... Een spirituele quote, een zacht dekentje, de mandala’s, prachtige mineralen... zorgen voor een warme sfeer. Maar vooral de hartelijke ontvangst en de passie van Sanne, Christophe en Jonathan maken van ieder bezoek een bijzondere ervaring. Tijdens een meditatie op een zitkussen of een sessie in een comfortabele zetel kan je in alle stilte en rust genieten van de helende frequenties die je in een heel diepe ontspanning brengen. Een ware boost voor ‘My energy. My life.’ Achteraf kan je bij een heerlijk theetje nog even napraten met andere bezoekers om daarna opgeladen met vernieuwde energie terug naar buiten te stappen. Een voorrecht om hiervan te mogen genieten. Zalig!",
+    a: "Hilde Desmet",
+    date: ["29 juni 2026", "29 juin 2026", "29 June 2026"],
+  },
+  {
+    q: "💛BEAM staat voor mij gelijk aan thuiskomen. Opnieuw voeling krijgen met wie ik in wezen ben, op adem komen, rust vinden en energie tanken. In de ratrace van het leven een welgekomen oase.💛",
+    a: "Sara Verhasselt",
+    date: ["14 juli 2026", "14 juillet 2026", "14 July 2026"],
+  },
+  {
+    q: "Every time I visit my body goes into a deep state of rest and relaxation. Sanne, Christophe and Jonathan are super nice and always make everyone feel at home. Just give it a try and feel for yourself what it does.",
+    a: "George",
+    date: ["2 juli 2026", "2 juillet 2026", "2 July 2026"],
+  },
+  {
+    q: "Wat een inspirerende en rustgevende plek. Ik had alweer het genoegen om een intense babbel met Christophe te hebben. Ik hield tonnen energie én een mantra (die ik elke dag herhaal) over aan mijn bezoek.",
+    a: "Jits Van Belle",
+    date: ["11 augustus 2026", "11 août 2026", "11 August 2026"],
+  },
+];
+
+/** Consecutive testimonial blocks render as one Google-review section. */
+const reviews = (i: number, c: BuildCtx, key: string, count = GOOGLE_REVIEWS.length): Block[] =>
+  GOOGLE_REVIEWS.slice(0, count).map((r, n) => ({ id: c.id(`${key}-${n}`), type: "testimonial", quote: r.q, authorName: r.a, authorDetail: r.date[i]!, consentConfirmed: true }));
+
+const BOOK: L3 = ["Boek je sessie", "Réservez votre séance", "Book your session"];
+const L_DAY: L3 = ["Dagsessie boeken", "Réserver une séance de jour", "Book a day session"];
+const L_NIGHT: L3 = ["Nachtsessie boeken", "Réserver une séance de nuit", "Book a night session"];
+const L_GIFT: L3 = ["Cadeaubon geven", "Offrir un bon cadeau", "Give a gift voucher"];
+
+const SCHEDULE: Part = {
+  h: ["Dagsessies", "Séances de jour", "Day sessions"],
+  p: [["Elke dag drie sessies van **2 uur**, behalve op dinsdag en woensdag:", "Chaque jour trois séances de **2 heures**, sauf le mardi et le mercredi :", "Three **2-hour** sessions every day, except Tuesday and Wednesday:"]],
+  list: [
+    ["Van 10 tot 12 uur", "De 10 h à 12 h", "10:00 to 12:00"],
+    ["Van 13 tot 15 uur (zaterdag: kindersessie)", "De 13 h à 15 h (samedi : séance enfants)", "13:00 to 15:00 (Saturday: children's session)"],
+    ["Van 16 tot 18 uur (maandag: huisdieren welkom)", "De 16 h à 18 h (lundi : animaux bienvenus)", "16:00 to 18:00 (Monday: pets welcome)"],
+  ],
+};
+
+const FAQ_SESSIONS = [
+  { q: ["Hoe lang duurt een sessie?", "Combien de temps dure une séance ?", "How long does a session last?"] as L3, a: [["Een standaardsessie duurt 2 uur. Nachtsessies duren 12 uur, van 20 tot 8 uur.", "Une séance standard dure 2 heures. Les séances de nuit durent 12 heures, de 20 h à 8 h.", "A standard session lasts 2 hours. Night sessions last 12 hours, from 20:00 to 08:00."] as L3] },
+  { q: ["Hoeveel mensen zijn er aanwezig?", "Combien de personnes sont présentes ?", "How many people take part?"] as L3, a: [["Aan dagsessies nemen tot 14 personen deel. Nachtsessies zijn beperkt tot 8 personen voor het comfort.", "Jusqu'à 14 personnes participent aux séances de jour. Les séances de nuit sont limitées à 8 personnes pour le confort.", "Up to 14 people join a day session. Night sessions are limited to 8 people for comfort."] as L3] },
+  { q: ["Dag- of nachtsessie?", "Séance de jour ou de nuit ?", "Day or night session?"] as L3, a: [["Beide gebruiken dezelfde ruimte. Dagsessies zijn toegankelijker voor een eerste bezoek; 's nachts blijf je langer ononderbroken in de ruimte terwijl je lichaam rust.", "Les deux utilisent le même espace. Les séances de jour sont plus accessibles pour une première visite ; la nuit, vous restez plus longtemps sans interruption pendant que votre corps se repose.", "Both use the same space. Day sessions are easier for a first visit; at night you stay longer without interruption while your body rests."] as L3] },
+  { q: ["Mag ik mijn pakket delen?", "Puis-je partager mon forfait ?", "Can I share my package?"] as L3, a: [["Ja, pakketten kunnen met maximaal vijf personen worden gedeeld en blijven 18 maanden geldig.", "Oui, les forfaits se partagent avec cinq personnes maximum et restent valables 18 mois.", "Yes, packages can be shared by up to five people and stay valid for 18 months."] as L3] },
+];
+
+const FAQ_PRACTICAL = [
+  { q: ["Welke kledij raden jullie aan?", "Quelle tenue recommandez-vous ?", "What should I wear?"] as L3, a: [["Comfortabele kleding. Het doel is dat je lichaam volledig kan ontspannen.", "Des vêtements confortables. Le but est que votre corps puisse se détendre complètement.", "Comfortable clothing. The aim is to let your body relax completely."] as L3] },
+  { q: ["Hoe bereid ik me voor?", "Comment me préparer ?", "How do I prepare?"] as L3, a: [["Kom indien mogelijk uitgerust aan en drink voldoende water. Een specifieke voorbereiding is niet nodig.", "Arrivez reposé si possible et buvez suffisamment d'eau. Aucune préparation particulière n'est nécessaire.", "Arrive rested if you can and drink enough water. No specific preparation is needed."] as L3] },
+  { q: ["Wat doe ik na een sessie?", "Que faire après une séance ?", "What do I do after a session?"] as L3, a: [["Neem tijd voor rust en herstel en denk aan een zoutbad. Voldoende drinken en een rustig tempo ondersteunen je ervaring.", "Prenez le temps de vous reposer et pensez à un bain de sel. Boire suffisamment et garder un rythme calme prolongent l'expérience.", "Take time to rest and consider a salt bath. Drinking enough water and keeping a calm pace support the experience."] as L3] },
+  { q: ["Mag ik mijn kind of huisdier meenemen?", "Puis-je venir avec mon enfant ou mon animal ?", "Can I bring my child or pet?"] as L3, a: [["Kinderen zijn welkom op zaterdag van 13 tot 15 uur, huisdieren op maandag van 16 tot 18 uur. Laat het ons vooraf weten.", "Les enfants sont les bienvenus le samedi de 13 h à 15 h, les animaux le lundi de 16 h à 18 h. Prévenez-nous à l'avance.", "Children are welcome on Saturdays from 13:00 to 15:00, pets on Mondays from 16:00 to 18:00. Please let us know in advance."] as L3] },
+  { q: ["Is er parking en is de ruimte toegankelijk?", "Y a-t-il un parking et l'espace est-il accessible ?", "Is there parking and is the space accessible?"] as L3, a: [["Er zijn enkele parkeerplaatsen op het terrein en gratis openbare parkeerplaatsen vlakbij. De ruimte is rolstoelvriendelijk; neem vooraf contact op.", "Quelques places de parking sur le site et un parking public gratuit à proximité. L'espace est accessible en fauteuil roulant ; contactez-nous à l'avance.", "There are a few parking spaces on site and free public parking nearby. The space is wheelchair friendly; please contact us in advance."] as L3] },
+];
+
+const FAQ_TECH = [
+  { q: ["Wat is het Energy Enhancement System™?", "Qu'est-ce que l'Energy Enhancement System™ ?", "What is the Energy Enhancement System™?"] as L3, a: [["Een niet-invasieve technologie die in de BEAM-ruimte is geïntegreerd en bijdraagt aan stabiele, coherente omgevingscondities.", "Une technologie non invasive intégrée à l'espace BEAM qui contribue à des conditions ambiantes stables et cohérentes.", "A non-invasive technology built into the BEAM space that contributes to stable, coherent environmental conditions."] as L3] },
+  { q: ["Hoeveel units staan er bij BEAM?", "Combien d'unités compte BEAM ?", "How many units does BEAM have?"] as L3, a: [["48 gesynchroniseerde units: een van de grootste coherente EESystem-omgevingen in Europa.", "48 unités synchronisées : l'un des plus grands environnements EESystem cohérents d'Europe.", "48 synchronised units: one of the largest coherent EESystem environments in Europe."] as L3] },
+  { q: ["Is dit een vervanging voor medische zorg?", "Est-ce un substitut aux soins médicaux ?", "Does this replace medical care?"] as L3, a: [["Nee. BEAM stelt geen diagnoses, behandelt niet en vervangt geen medische zorg.", "Non. BEAM ne pose pas de diagnostic, ne traite pas et ne remplace pas les soins médicaux.", "No. BEAM does not diagnose, treat or replace medical care."] as L3] },
+  { q: ["Moet ik erin geloven?", "Faut-il y croire ?", "Do I have to believe in it?"] as L3, a: [["Nee, de omgeving functioneert onafhankelijk van persoonlijke overtuigingen.", "Non, l'environnement fonctionne indépendamment des convictions personnelles.", "No, the environment works regardless of personal beliefs."] as L3] },
+];
+
+const DAY_NOTE: L3 = ["2 uur · €120", "2 heures · 120 €", "2 hours · €120"];
+const NIGHT_NOTE: L3 = ["12 uur · €420", "12 heures · 420 €", "12 hours · €420"];
+const GIFT_NOTE: L3 = ["Vanaf €25 · 2 jaar geldig", "Dès 25 € · valable 2 ans", "From €25 · valid 2 years"];
+
+const HOME: Builder = (i, c) => [
+  hero(i, c, ["BEAM is een fundament voor menselijke energie", "BEAM, une fondation pour l'énergie humaine", "BEAM is a foundation for human energy"], [
+    "Een omgeving doelbewust ontworpen voor rust, herstel en balans. Europa's grootste 48-unit EESystem-installatie, in Sint-Martens-Latem bij Gent.",
+    "Un environnement conçu pour le repos, la récupération et l'équilibre. La plus grande installation EESystem de 48 unités d'Europe, à Sint-Martens-Latem près de Gand.",
+    "An environment designed on purpose for rest, recovery and balance. Europe's largest 48-unit EESystem installation, in Sint-Martens-Latem near Ghent.",
+  ], { label: BOOK, link: portal("book_day") }, "hero"),
+  book(i, c, "quick-day", L_DAY, { kind: "book_day" }, DAY_NOTE),
+  book(i, c, "quick-night", L_NIGHT, { kind: "book_night" }, NIGHT_NOTE),
+  book(i, c, "quick-gift", L_GIFT, { kind: "gift" }, GIFT_NOTE),
+  imageText(i, c, "intro", "portrait", "right", [{
+    h: ["**Menselijke energie** is structureel uitgeput", "L'**énergie humaine** est structurellement épuisée", "**Human energy** is structurally depleted"],
+    p: [
+      ["Je kent het wel. Vermoeidheid die je niet weg kunt slapen. De moeite die het kost om na een lange dag nog helder te denken. Het gevoel dat je wel functioneert, maar niet helemaal op jouw niveau.", "Vous connaissez ça. Une fatigue que le sommeil n'efface pas. L'effort qu'il faut pour penser clairement après une longue journée. Le sentiment de fonctionner, mais pas tout à fait à votre niveau.", "You know the feeling. Tiredness you can't sleep off. The effort it takes to think clearly after a long day. The sense that you function, but not quite at your level."],
+      ["Dit is geen zwakte. Het is wat er gebeurt wanneer de eisen aan het menselijk systeem structureel groter zijn dan het vermogen om te herstellen. BEAM werkt aan de bron, **op het niveau waar capaciteit ontstaat**.", "Ce n'est pas une faiblesse. C'est ce qui arrive quand les exigences imposées au système humain dépassent durablement sa capacité de récupération. BEAM agit à la source, **là où naît la capacité**.", "This is not weakness. It is what happens when the demands on the human system are structurally greater than its capacity to recover. BEAM works at the source, **where capacity is created**."],
+    ],
+  }]),
+  cards(i, c, "day-night", ["Overdag of 's nachts", "De jour ou de nuit", "By day or by night"], [
+    { h: ["Dagsessies", "Séances de jour", "Day sessions"], t: ["Drie sessies van 2 uur: 10-12, 13-15 en 16-18 uur. Elke dag behalve dinsdag en woensdag. €120 per sessie.", "Trois séances de 2 heures : 10-12 h, 13-15 h et 16-18 h. Tous les jours sauf mardi et mercredi. 120 € la séance.", "Three 2-hour sessions: 10-12, 13-15 and 16-18. Every day except Tuesday and Wednesday. €120 per session."], link: c.page("day-sessions"), img: "day" },
+    { h: ["Nachtsessies", "Séances de nuit", "Night sessions"], t: ["12 uur in de ruimte, van 20 tot 8 uur. Woensdag tot zondag, maximaal 8 gasten. €420 per nacht.", "12 heures dans l'espace, de 20 h à 8 h. Du mercredi au dimanche, 8 hôtes maximum. 420 € la nuit.", "12 hours in the space, from 20:00 to 08:00. Wednesday to Sunday, up to 8 guests. €420 per night."], link: c.page("nights"), img: "night" },
+  ], "split"),
+  { id: c.id("availability-day"), type: "availability_preview", kind: "day", days: 7 },
+  { id: c.id("availability-night"), type: "availability_preview", kind: "night", days: 7 },
+  cards(i, c, "principles", ["BEAM is geen behandeling. Het is een omgeving.", "BEAM n'est pas un traitement. C'est un environnement.", "BEAM is not a treatment. It is an environment."], [
+    { h: ["Energy Enhancement System™", "Energy Enhancement System™", "Energy Enhancement System™"], t: ["Geïntegreerd in een zorgvuldig vormgegeven setting die fysiologische stabiliteit ondersteunt.", "Intégré dans un cadre soigneusement conçu qui soutient la stabilité physiologique.", "Built into a carefully designed setting that supports physiological stability."], link: c.page("technology") },
+    { h: ["Technologie ten dienste van de omgeving", "La technologie au service de l'environnement", "Technology serving the environment"], t: ["Niet andersom. In plaats van in te grijpen op het lichaam, draagt de technologie bij aan de omstandigheden eromheen.", "Et non l'inverse. Plutôt que d'agir sur le corps, la technologie contribue aux conditions qui l'entourent.", "Not the other way round. Instead of acting on the body, the technology contributes to the conditions around it."], link: c.page("environment") },
+    { h: ["Energie eerst", "L'énergie d'abord", "Energy first"], t: ["BEAM ondersteunt energie op het niveau waar menselijk functioneren begint: vóór prestatie, gedrag of output.", "BEAM soutient l'énergie là où commence le fonctionnement humain : avant la performance, le comportement ou le résultat.", "BEAM supports energy where human functioning begins: before performance, behaviour or output."], link: c.page("about") },
+  ], "list"),
+  cards(i, c, "more", ["Meer van BEAM", "Plus de BEAM", "More from BEAM"], [
+    { h: ["Pakketten & prijzen", "Forfaits & tarifs", "Packages & prices"], t: ["Van 10 tot 100 uur, te delen met vijf personen en 18 maanden geldig.", "De 10 à 100 heures, à partager à cinq, valables 18 mois.", "From 10 to 100 hours, shareable with five people, valid 18 months."], link: c.page("pricing"), img: "relax" },
+    { h: ["Membership", "Membership", "Membership"], t: ["€396 per jaar: een gratis nacht, tot 20% korting en events voor leden.", "396 € par an : une nuit offerte, jusqu'à 20 % de réduction et des rencontres membres.", "€396 a year: a free night, up to 20% off and members-only gatherings."], link: c.page("memberships"), img: "community" },
+    { h: ["Voor bedrijven", "Pour les entreprises", "For organisations"], t: ["Discovery Experience, Corporate Reset Day of de hele ruimte voor je team.", "Discovery Experience, Corporate Reset Day ou l'espace entier pour votre équipe.", "Discovery Experience, Corporate Reset Day or the whole space for your team."], link: c.page("corporate"), img: "reception" },
+  ]),
+  ...reviews(i, c, "review"),
+  { id: c.id("events"), type: "events_list", heading: ["Komende events", "Événements à venir", "Upcoming events"][i]!, limit: 3, showFull: true },
+  cta(i, c, "cta", ["Klaar om op te laden?", "Prêt à vous ressourcer ?", "Ready to recharge?"], ["Kom tot rust in de grootste EESystem-ruimte van Europa.", "Venez vous ressourcer dans le plus grand espace EESystem d'Europe.", "Come and recharge in Europe's largest EESystem space."], BOOK, portal("book_day")),
+];
+
+const DAY_INTRO: Part = { p: [["Een sessie bij BEAM duurt **2 uur**. Je komt tot rust in een stille, coherente ruimte. Er wordt niets van je verwacht: je kunt rusten, lezen of gewoon zijn.", "Une séance chez BEAM dure **2 heures**. Vous vous détendez dans un espace calme et cohérent. Rien n'est attendu de vous : vous pouvez vous reposer, lire ou simplement être.", "A session at BEAM lasts **2 hours**. You unwind in a quiet, coherent space. Nothing is expected of you: rest, read or simply be."]] };
+const KIDS_NOTE: L3 = ["Kinderen onder 12 jaar komen gratis mee met een ouder. Twee opeenvolgende sessies? Het uur ertussen is gratis.", "Les enfants de moins de 12 ans viennent gratuitement avec un parent. Deux séances consécutives ? L'heure entre les deux est offerte.", "Children under 12 come free with a parent. Two sessions in a row? The hour in between is free."];
+const L_SINGLE: L3 = ["Losse sessies", "Séances à l'unité", "Single sessions"];
+const L_HOURS: L3 = ["Urenpakketten", "Forfaits d'heures", "Hour packages"];
+const L_NIGHTS: L3 = ["Nachtpakketten", "Forfaits de nuits", "Night packages"];
+
+const DAY_SESSIONS: Builder = (i, c) => {
+  const cards = priceCards(i, c, "prices", L_SINGLE, [BEAM_SKUS.dayAdult, BEAM_SKUS.dayYouth]);
+  const packs = priceCards(i, c, "packages", L_HOURS, [BEAM_SKUS.hours10, BEAM_SKUS.hours20, BEAM_SKUS.hours30]);
+  if (cards && packs) {
+    return [
+      rt(i, c, "text", [DAY_INTRO, SCHEDULE, { p: [KIDS_NOTE] }]),
+      cards,
+      packs,
+      book(i, c, "book", L_DAY, { kind: "book_day" }),
+      { id: c.id("availability"), type: "availability_preview", kind: "day", days: 7 },
+      faq(i, c, "faq", ["Goed om te weten", "Bon à savoir", "Good to know"], FAQ_SESSIONS),
+    ];
+  }
+  return DAY_SESSIONS_TEXT(i, c);
+};
+
+const DAY_SESSIONS_TEXT: Builder = (i, c) => [
+  rt(i, c, "text", [
+    DAY_INTRO,
+    SCHEDULE,
+    {
+      h: ["Prijzen", "Tarifs", "Prices"],
+      list: [
+        ["Volwassenen: **€120** per sessie (€60 per uur)", "Adultes : **120 €** par séance (60 € de l'heure)", "Adults: **€120** per session (€60 an hour)"],
+        ["Jongeren 12-18 jaar, samen met een volwassene: **€60**", "Jeunes de 12 à 18 ans, avec un adulte : **60 €**", "Young people aged 12-18, with an adult: **€60**"],
+        ["Kinderen onder 12 jaar, samen met een ouder: **gratis**", "Enfants de moins de 12 ans, avec un parent : **gratuit**", "Children under 12, with a parent: **free**"],
+        ["Huisdier (maandag 16-18 uur): **€20**", "Animal (lundi 16 h-18 h) : **20 €**", "Pet (Monday 16:00-18:00): **€20**"],
+      ],
+      p: [["Twee opeenvolgende sessies? Het uur ertussen is gratis.", "Deux séances consécutives ? L'heure entre les deux est offerte.", "Two sessions in a row? The hour in between is free."]],
+    },
+  ]),
+  book(i, c, "book", L_DAY, { kind: "book_day" }),
+  { id: c.id("availability"), type: "availability_preview", kind: "day", days: 7 },
+  faq(i, c, "faq", ["Goed om te weten", "Bon à savoir", "Good to know"], FAQ_SESSIONS),
+];
+
+const NIGHT_INTRO: Part = { p: [["Van woensdag tot en met zondag verblijf je **12 uur** in de BEAM-ruimte, van 20 uur tot 8 uur. Je rust in een kalme, premium setting terwijl de stabiele en coherente omgevingscondities de hele nacht behouden blijven. Nachtsessies zijn beperkt tot 8 personen.", "Du mercredi au dimanche, vous passez **12 heures** dans l'espace BEAM, de 20 h à 8 h. Vous vous reposez dans un cadre calme et premium, tandis que les conditions stables et cohérentes sont maintenues toute la nuit. Les séances de nuit sont limitées à 8 personnes.", "Wednesday to Sunday you stay **12 hours** in the BEAM space, from 20:00 to 08:00. You rest in a calm, premium setting while the stable, coherent conditions are kept all night. Night sessions are limited to 8 people."]] };
+
+const NIGHTS: Builder = (i, c) => {
+  const cards = priceCards(i, c, "prices", L_SINGLE, [BEAM_SKUS.nightAdult, BEAM_SKUS.nightYouth]);
+  const packs = priceCards(i, c, "packages", L_NIGHTS, [BEAM_SKUS.nights3, BEAM_SKUS.nights5, BEAM_SKUS.nights10]);
+  if (cards && packs) {
+    return [
+      rt(i, c, "text", [NIGHT_INTRO]),
+      cards,
+      packs,
+      book(i, c, "book", L_NIGHT, { kind: "book_night" }),
+      { id: c.id("availability"), type: "availability_preview", kind: "night", days: 14 },
+    ];
+  }
+  return NIGHTS_TEXT(i, c);
+};
+
+const NIGHTS_TEXT: Builder = (i, c) => [
+  rt(i, c, "text", [
+    NIGHT_INTRO,
+    {
+      h: ["Prijzen", "Tarifs", "Prices"],
+      list: [
+        ["Volwassenen: **€420** per nacht (€35 per uur)", "Adultes : **420 €** par nuit (35 € de l'heure)", "Adults: **€420** per night (€35 an hour)"],
+        ["Jongeren 12-18 jaar: **€210**", "Jeunes de 12 à 18 ans : **210 €**", "Young people aged 12-18: **€210**"],
+        ["Kinderen onder 12 jaar: **gratis**", "Enfants de moins de 12 ans : **gratuit**", "Children under 12: **free**"],
+        ["Pakket 3 nachten: **€1260** · 5 nachten: **€1860** · 10 nachten: **€3240**", "Forfait 3 nuits : **1260 €** · 5 nuits : **1860 €** · 10 nuits : **3240 €**", "Package of 3 nights: **€1260** · 5 nights: **€1860** · 10 nights: **€3240**"],
+      ],
+      p: [["Nachtsessies zijn beperkt tot 8 personen.", "Les séances de nuit sont limitées à 8 personnes.", "Night sessions are limited to 8 people."]],
+    },
+  ]),
+  book(i, c, "book", L_NIGHT, { kind: "book_night" }),
+  { id: c.id("availability"), type: "availability_preview", kind: "night", days: 14 },
+];
+
+const MEMBERSHIP: Builder = (i, c) => [
+  imageText(i, c, "text", "community", "left", [
+    { h: ["BEAM Membership: **€396 per jaar**", "BEAM Membership : **396 € par an**", "BEAM Membership: **€396 a year**"], p: [["Voor wie regelmatig komt opladen. Je krijgt een genummerde fysieke ledenkaart en:", "Pour ceux qui viennent se ressourcer régulièrement. Vous recevez une carte de membre numérotée et :", "For those who come to recharge regularly. You get a numbered physical member card and:"]], list: [
+      ["Eén gratis nachtsessie of vier dagsessies (waarde €420)", "Une séance de nuit offerte ou quatre séances de jour (valeur 420 €)", "One free night session or four day sessions (worth €420)"],
+      ["Tot **20% korting** op sessies en pakketten", "Jusqu'à **20 % de réduction** sur les séances et forfaits", "Up to **20% off** sessions and packages"],
+      ["15% korting op producten en events", "15 % de réduction sur les produits et événements", "15% off products and events"],
+      ["30% korting op detoxzout", "30 % de réduction sur le sel détox", "30% off detox salt"],
+      ["Twee bijeenkomsten per jaar enkel voor leden", "Deux rencontres par an réservées aux membres", "Two members-only gatherings a year"],
+      ["Maandelijkse trekking van een gratis nachtsessie", "Tirage mensuel d'une séance de nuit offerte", "A monthly draw for a free night session"],
+    ] },
+  ]),
+  ...[priceCards(i, c, "price", ["Lidmaatschap", "Adhésion", "Membership"], [BEAM_SKUS.membershipYear])].filter((b): b is Block => !!b),
+  cta(i, c, "cta", ["Word lid van BEAM", "Devenez membre de BEAM", "Become a BEAM member"], ["Je lidmaatschap beheer je in je account, samen met je boekingen en pakketten.", "Vous gérez votre adhésion dans votre compte, avec vos réservations et forfaits.", "You manage your membership in your account, together with your bookings and packages."], ["Lid worden", "Devenir membre", "Join now"], portal("membership")),
+];
+
+const PRICING: Builder = (i, c) => {
+  const single = priceCards(i, c, "single", L_SINGLE, [BEAM_SKUS.dayAdult, BEAM_SKUS.dayYouth, BEAM_SKUS.nightAdult, BEAM_SKUS.nightYouth]);
+  const hoursCards = priceCards(i, c, "hours", L_HOURS, [BEAM_SKUS.hours10, BEAM_SKUS.hours20, BEAM_SKUS.hours30, BEAM_SKUS.hours50, BEAM_SKUS.hours100]);
+  const nightCards = priceCards(i, c, "nights", L_NIGHTS, [BEAM_SKUS.nights3, BEAM_SKUS.nights5, BEAM_SKUS.nights10]);
+  const member = priceCards(i, c, "membership", ["Membership", "Membership", "Membership"], [BEAM_SKUS.membershipYear]);
+  if (single && hoursCards && nightCards && member) {
+    return [
+      rt(i, c, "intro", [{ p: [["Alle prijzen zijn inclusief btw. Pakketten deel je met maximaal **vijf personen** en blijven **18 maanden** geldig. Kinderen onder 12 jaar komen gratis mee.", "Tous les prix TVA comprise. Les forfaits se partagent avec **cinq personnes** maximum et restent valables **18 mois**. Les enfants de moins de 12 ans viennent gratuitement.", "All prices include VAT. Packages can be shared by up to **five people** and stay valid for **18 months**. Children under 12 come free."]] }]),
+      single,
+      hoursCards,
+      nightCards,
+      member,
+      book(i, c, "book-day", L_DAY, { kind: "book_day" }),
+      book(i, c, "book-night", L_NIGHT, { kind: "book_night" }),
+      book(i, c, "gift", L_GIFT, { kind: "gift" }),
+    ];
+  }
+  return PRICING_TEXT(i, c);
+};
+
+const PRICING_TEXT: Builder = (i, c) => [
+  rt(i, c, "text", [
+    { p: [["Alle prijzen zijn inclusief btw. Het basistarief is **€60 per uur**; een sessie duurt 2 uur. Pakketten kunnen met maximaal **vijf personen** gedeeld worden en blijven **18 maanden** geldig.", "Tous les prix s'entendent TVA comprise. Le tarif de base est de **60 € de l'heure** ; une séance dure 2 heures. Les forfaits se partagent avec **cinq personnes** maximum et restent valables **18 mois**.", "All prices include VAT. The base rate is **€60 an hour**; a session lasts 2 hours. Packages can be shared by up to **five people** and stay valid for **18 months**."]] },
+    { h: ["Urenpakketten (dagsessies)", "Forfaits d'heures (séances de jour)", "Hour packages (day sessions)"], list: [
+      ["10 uur (5 sessies): **€495** · €49,50 per uur", "10 heures (5 séances) : **495 €** · 49,50 € de l'heure", "10 hours (5 sessions): **€495** · €49.50 an hour"],
+      ["20 uur: **€890** · €44,50 per uur (populair)", "20 heures : **890 €** · 44,50 € de l'heure (populaire)", "20 hours: **€890** · €44.50 an hour (popular)"],
+      ["30 uur: **€1260** · €42 per uur", "30 heures : **1260 €** · 42 € de l'heure", "30 hours: **€1260** · €42 an hour"],
+      ["50 uur: **€1850** · €37 per uur", "50 heures : **1850 €** · 37 € de l'heure", "50 hours: **€1850** · €37 an hour"],
+      ["100 uur: **€3300** · €33 per uur", "100 heures : **3300 €** · 33 € de l'heure", "100 hours: **€3300** · €33 an hour"],
+    ] },
+    { h: ["Nachtpakketten", "Forfaits de nuits", "Night packages"], list: [
+      ["3 nachten: **€1260** · €35 per uur", "3 nuits : **1260 €** · 35 € de l'heure", "3 nights: **€1260** · €35 an hour"],
+      ["5 nachten: **€1860** · €31 per uur (populair)", "5 nuits : **1860 €** · 31 € de l'heure (populaire)", "5 nights: **€1860** · €31 an hour (popular)"],
+      ["10 nachten: **€3240** · €27 per uur", "10 nuits : **3240 €** · 27 € de l'heure", "10 nights: **€3240** · €27 an hour"],
+    ] },
+    { h: ["Losse sessies", "Séances à l'unité", "Single sessions"], list: [
+      ["Dagsessie volwassene: **€120** · jongere 12-18: **€60** · kind onder 12: gratis", "Séance de jour adulte : **120 €** · jeune 12-18 : **60 €** · enfant de moins de 12 ans : gratuit", "Day session adult: **€120** · young person 12-18: **€60** · child under 12: free"],
+      ["Nachtsessie volwassene: **€420** · jongere 12-18: **€210** · kind onder 12: gratis", "Séance de nuit adulte : **420 €** · jeune 12-18 : **210 €** · enfant de moins de 12 ans : gratuit", "Night session adult: **€420** · young person 12-18: **€210** · child under 12: free"],
+    ] },
+  ]),
+  book(i, c, "book-day", L_DAY, { kind: "book_day" }),
+  book(i, c, "book-night", L_NIGHT, { kind: "book_night" }),
+  book(i, c, "gift", L_GIFT, { kind: "gift" }),
+];
+
+const ABOUT: Builder = (i, c) => [
+  rt(i, c, "text", [
+    { h: ["Wanneer energie verandert, **verandert alles**", "Quand l'énergie change, **tout change**", "When energy changes, **everything changes**"], p: [
+      ["Het moderne leven vraagt constant aandacht, belast ons zenuwstelsel en put onze mentale capaciteit uit. Ondanks ongeziene investeringen in welzijn blijven burn-out en stressgerelateerd verzuim toenemen. Het probleem is niet een gebrek aan inspanning: de meeste benaderingen pakken energie niet aan **op het niveau waar het werkelijk speelt**.", "La vie moderne exige une attention constante, sollicite notre système nerveux et épuise nos capacités mentales. Malgré des investissements sans précédent dans le bien-être, le burn-out et l'absentéisme lié au stress continuent d'augmenter. Le problème n'est pas un manque d'effort : la plupart des approches ne traitent pas l'énergie **là où elle se joue vraiment**.", "Modern life demands constant attention, strains our nervous system and drains our mental capacity. Despite unprecedented investment in wellbeing, burnout and stress-related absence keep rising. The problem is not a lack of effort: most approaches don't address energy **at the level where it really plays out**."],
+    ] },
+    { h: ["BEAM keert terug naar de basis: **energie zelf**", "BEAM revient à l'essentiel : **l'énergie elle-même**", "BEAM returns to the basis: **energy itself**"], p: [
+      ["Wij creëren ruimtes die coherentie, regulatie en herstel bevorderen, zodat lichaam en zenuwstelsel kunnen doen waartoe ze van nature in staat zijn. Wanneer de regulatie zich stabiliseert, volgt herstel vanzelf. En vanuit herstel keert de capaciteit terug.", "Nous créons des espaces qui favorisent la cohérence, la régulation et la récupération, pour que le corps et le système nerveux puissent faire ce dont ils sont naturellement capables. Quand la régulation se stabilise, la récupération suit. Et avec elle, la capacité revient.", "We create spaces that support coherence, regulation and recovery, so the body and nervous system can do what they are naturally capable of. When regulation stabilises, recovery follows. And from recovery, capacity returns."],
+    ], list: [
+      ["BEAM is geen wellness-extraatje.", "BEAM n'est pas un supplément bien-être.", "BEAM is not a wellness extra."],
+      ["BEAM is geen productiviteitstool.", "BEAM n'est pas un outil de productivité.", "BEAM is not a productivity tool."],
+      ["BEAM is geen therapie of coaching.", "BEAM n'est ni une thérapie ni du coaching.", "BEAM is not therapy or coaching."],
+    ] },
+  ]),
+  imageText(i, c, "founders", "founders", "left", [
+    { h: ["De **oprichters**", "Les **fondateurs**", "The **founders**"], list: [
+      ["**Jonathan Bossaer**: oprichter van BRANDEPIC, verantwoordelijk voor strategie, investeerders- en zakelijke relaties en merkidentiteit.", "**Jonathan Bossaer** : fondateur de BRANDEPIC, responsable de la stratégie, des relations avec les investisseurs et partenaires et de l'identité de marque.", "**Jonathan Bossaer**: founder of BRANDEPIC, responsible for strategy, investor and business relations, and brand identity."],
+      ["**Sanne de Regt**: gastprogramma's, contact met de community en de verfijning van de ervaring.", "**Sanne de Regt** : programmes pour les hôtes, lien avec la communauté et raffinement de l'expérience.", "**Sanne de Regt**: guest programmes, community contact and refining the experience."],
+      ["**Christophe Haddad**: ontwerp en realisatie van de BEAM-omgeving, met een achtergrond in operations en mensgericht ontwerp.", "**Christophe Haddad** : conception et réalisation de l'environnement BEAM, avec une expérience en opérations et en design centré sur l'humain.", "**Christophe Haddad**: design and build of the BEAM environment, with a background in operations and human-centred design."],
+    ] },
+  ]),
+  cta(i, c, "cta", ["Ervaar het zelf", "Faites-en l'expérience", "Experience it yourself"], ["De beste manier om BEAM te begrijpen is er te zijn.", "La meilleure façon de comprendre BEAM, c'est d'y être.", "The best way to understand BEAM is to be there."], BOOK, portal("book_day")),
+];
+
+const ENVIRONMENT: Builder = (i, c) => [
+  imageText(i, c, "text", "beds", "right", [
+    { h: ["Menselijke systemen herstellen wanneer **de omgeving** het toelaat", "Les systèmes humains récupèrent quand **l'environnement** le permet", "Human systems recover when **the environment** allows it"], p: [
+      ["Het lichaam reageert voortdurend op de omstandigheden waarin het zich bevindt. Wanneer die stabiel, coherent en rustig zijn, kan het zenuwstelsel efficiënter reguleren. Daardoor wordt herstel mogelijk, en vanuit herstel ontstaat opnieuw vitaliteit.", "Le corps réagit en permanence aux conditions dans lesquelles il se trouve. Quand elles sont stables, cohérentes et calmes, le système nerveux se régule plus efficacement. La récupération devient possible, et avec elle la vitalité.", "The body constantly responds to the conditions it is in. When they are stable, coherent and calm, the nervous system regulates more efficiently. That makes recovery possible, and from recovery vitality returns."],
+      ["Licht reguleert het circadiane ritme. Geluid beïnvloedt de hersenactiviteit. Temperatuur en zintuiglijke prikkels beïnvloeden stress en herstel. Onderzoek naar natuurlijke omgevingen toont een meetbare afname van stressmarkers en een verbeterde hartslagvariabiliteit.", "La lumière règle le rythme circadien. Le son influence l'activité cérébrale. La température et les stimuli sensoriels influencent le stress et la récupération. Les recherches sur les environnements naturels montrent une baisse mesurable des marqueurs de stress et une meilleure variabilité cardiaque.", "Light regulates the circadian rhythm. Sound shapes brain activity. Temperature and sensory input affect stress and recovery. Research on natural environments shows a measurable drop in stress markers and improved heart rate variability."],
+    ] },
+    { h: ["**Coherentie** is de basis", "La **cohérence** est la base", "**Coherence** is the foundation"], p: [["Bij BEAM richten we ons op de omgeving, niet op het individu. Elke ontwerpkeuze, van licht en materialen tot rust en geluid, is erop gericht dat het lichaam geen verstoringen hoeft te compenseren.", "Chez BEAM, nous agissons sur l'environnement, pas sur l'individu. Chaque choix de conception, de la lumière aux matériaux, du calme au son, vise à ce que le corps n'ait plus à compenser de perturbations.", "At BEAM we focus on the environment, not the individual. Every design choice, from light and materials to quiet and sound, aims to spare the body from compensating for disturbances."]] },
+  ]),
+  cta(i, c, "cta", ["Ontdek de technologie", "Découvrez la technologie", "Discover the technology"], ["48 gesynchroniseerde EESystem-units, geïntegreerd in de ruimte.", "48 unités EESystem synchronisées, intégrées à l'espace.", "48 synchronised EESystem units, built into the space."], ["Meer over de technologie", "En savoir plus", "More about the technology"], c.page("technology")),
+];
+
+const TECHNOLOGY: Builder = (i, c) => [
+  imageText(i, c, "text", "cell", "right", [
+    { h: ["Een systeem **geïntegreerd in de ruimte**", "Un système **intégré à l'espace**", "A system **built into the space**"], p: [["Het Energy Enhancement System™ is een niet-invasieve technologie die in de BEAM-omgeving is geïntegreerd. Niet om in te grijpen op het lichaam, maar om bij te dragen aan de stabiliteit en coherentie van de ruimte waarin het lichaam zich bevindt.", "L'Energy Enhancement System™ est une technologie non invasive intégrée à l'environnement BEAM. Non pas pour agir sur le corps, mais pour contribuer à la stabilité et à la cohérence de l'espace où il se trouve.", "The Energy Enhancement System™ is a non-invasive technology built into the BEAM environment. Not to act on the body, but to contribute to the stability and coherence of the space the body is in."]] },
+    { h: ["**48 gesynchroniseerde units**", "**48 unités synchronisées**", "**48 synchronised units**"], p: [["De BEAM-installatie behoort tot de grootste coherente EESystem-omgevingen in Europa. Elke unit is zo gepositioneerd en gekalibreerd dat de signalen als één coherent geheel samenwerken. Grotere systemen zorgen voor meer ruimtelijke symmetrie, een gelijkmatiger signaalverdeling en een stabiele omgeving, waar je ook zit.", "L'installation BEAM compte parmi les plus grands environnements EESystem cohérents d'Europe. Chaque unité est positionnée et calibrée pour que les signaux fonctionnent comme un tout cohérent. Un système plus grand offre plus de symétrie, une répartition plus homogène et un environnement stable, où que vous soyez.", "The BEAM installation is among the largest coherent EESystem environments in Europe. Each unit is positioned and calibrated so the signals work together as one coherent whole. Larger systems give more spatial symmetry, a more even signal spread and a stable environment wherever you sit."]] },
+    { h: ["Wetenschappelijke context", "Contexte scientifique", "Scientific context"], p: [["De concepten achter het EESystem worden onderzocht binnen systeembiologie, bio-elektriciteit en cellulaire regulatie, neurowetenschap en stressfysiologie, en fotobiomodulatie. Het EESystem is **geen behandeling** en vervangt geen medische zorg: het maakt deel uit van een omgevingsarchitectuur waarin het lichaam zichzelf kan reguleren.", "Les concepts derrière l'EESystem sont étudiés en biologie des systèmes, bioélectricité et régulation cellulaire, neurosciences et physiologie du stress, et photobiomodulation. L'EESystem **n'est pas un traitement** et ne remplace pas les soins médicaux : il fait partie d'une architecture environnementale où le corps peut se réguler.", "The concepts behind the EESystem are studied in systems biology, bioelectricity and cellular regulation, neuroscience and stress physiology, and photobiomodulation. The EESystem is **not a treatment** and does not replace medical care: it is part of an environmental architecture in which the body can regulate itself."]] },
+  ]),
+  faq(i, c, "faq", ["Vragen over de technologie", "Questions sur la technologie", "Questions about the technology"], FAQ_TECH),
+];
+
+const EXPERIENCES: Builder = (i, c) => [
+  rt(i, c, "intro", [{ p: [["Mensen beschrijven hun ervaring op verschillende manieren: diepere ontspanning, betere slaap, meer helderheid en focus, een stabieler energieniveau. **145 vijfsterrenrecensies** op Google.", "Chacun décrit son expérience à sa manière : une détente plus profonde, un meilleur sommeil, plus de clarté et de concentration, une énergie plus stable. **145 avis cinq étoiles** sur Google.", "People describe their experience in different ways: deeper relaxation, better sleep, more clarity and focus, more stable energy. **145 five-star reviews** on Google."]] }]),
+  ...reviews(i, c, "review"),
+  cta(i, c, "cta", ["Voel het zelf", "Ressentez-le vous-même", "Feel it for yourself"], ["Boek je eerste sessie van 2 uur.", "Réservez votre première séance de 2 heures.", "Book your first 2-hour session."], BOOK, portal("book_day")),
+];
+
+const CORPORATE: Builder = (i, c) => [
+  imageText(i, c, "text", "corporate", "right", [{ h: ["Menselijke energie is **even essentieel** als kapitaal, talent of strategie", "L'énergie humaine est **aussi essentielle** que le capital, le talent ou la stratégie", "Human energy is **as essential** as capital, talent or strategy"], p: [["BEAM werkt met organisaties die beseffen dat duurzame prestaties energie vereisen in plaats van extra druk. Voor privé-sessies, incentives of groepservaringen op maat bekijken we samen wat het best aansluit.", "BEAM travaille avec des organisations qui savent que la performance durable demande de l'énergie plutôt que davantage de pression. Pour des séances privées, des incentives ou des expériences de groupe sur mesure, nous cherchons ensemble la meilleure formule.", "BEAM works with organisations that understand sustainable performance needs energy rather than more pressure. For private sessions, incentives or tailored group experiences, we look together at what fits best."]] }]),
+  cards(i, c, "formats", ["Formules voor teams", "Formules pour les équipes", "Formats for teams"], [
+    { h: ["BEAM Discovery Experience", "BEAM Discovery Experience", "BEAM Discovery Experience"], t: ["Een eerste kennismaking voor je team met de BEAM-ruimte en wat energie voor je organisatie betekent.", "Une première découverte de l'espace BEAM pour votre équipe et de ce que l'énergie signifie pour votre organisation.", "A first introduction for your team to the BEAM space and what energy means for your organisation."] },
+    { h: ["Corporate Reset Day", "Corporate Reset Day", "Corporate Reset Day"], t: ["Vijf uur in de BEAM-ruimte met lezingen van Marina Riemslagh en Jonathan Bossaer, een workshop, ontbijt en lunch.", "Cinq heures dans l'espace BEAM avec des conférences de Marina Riemslagh et Jonathan Bossaer, un atelier, petit-déjeuner et déjeuner.", "Five hours in the BEAM space with talks by Marina Riemslagh and Jonathan Bossaer, a workshop, breakfast and lunch."] },
+    { h: ["BEAM Corporate Venue", "BEAM Corporate Venue", "BEAM Corporate Venue"], t: ["Exclusieve huur voor teamdagen, offsites, keynotes en HR-events, met projectie en geluidsinstallatie.", "Location exclusive pour journées d'équipe, offsites, keynotes et événements RH, avec projection et sonorisation.", "Exclusive hire for team days, offsites, keynotes and HR events, with projection and sound."] },
+  ], "list"),
+  cta(i, c, "cta", ["Plan een kennismakingsgesprek", "Planifiez un appel de découverte", "Book an intro call"], ["Prijzen op aanvraag. We bespreken graag wat je team nodig heeft.", "Prix sur demande. Parlons de ce dont votre équipe a besoin.", "Prices on request. We'd love to discuss what your team needs."], ["Vraag een gesprek aan", "Demander un appel", "Request a call"], { kind: "url", href: "https://calendly.com/brandepicbv/beam-intro-call" }),
+];
+
+const FAQ_PAGE: Builder = (i, c) => [
+  faq(i, c, "sessions", ["BEAM & sessies", "BEAM & séances", "BEAM & sessions"], FAQ_SESSIONS),
+  faq(i, c, "practical", ["Praktische informatie", "Informations pratiques", "Practical information"], FAQ_PRACTICAL),
+  faq(i, c, "tech", ["De technologie", "La technologie", "The technology"], FAQ_TECH),
+  cta(i, c, "cta", ["Niet gevonden wat je zocht?", "Vous n'avez pas trouvé ?", "Didn't find what you were looking for?"], ["Neem gerust contact op, we helpen je graag verder.", "Contactez-nous, nous vous aidons volontiers.", "Get in touch, we're happy to help."], ["Contact", "Contact", "Contact"], c.page("contact")),
+];
+
+const CONTACT: Builder = (i, c) => [
+  imageText(i, c, "text", "location", "right", [
+    { p: [["We antwoorden binnen 48 uur. Je vindt ons in het Latem Business Park, eerste verdieping: vanuit Gent het tweede blok, helemaal achteraan. Neem de lift en bel aan bij \"BEAM Vitality Center\".", "Nous répondons sous 48 heures. Vous nous trouvez au Latem Business Park, premier étage : en venant de Gand, le deuxième bloc, tout au fond. Prenez l'ascenseur et sonnez chez « BEAM Vitality Center ».", "We reply within 48 hours. You'll find us in the Latem Business Park, first floor: coming from Ghent, the second block at the very back. Take the lift and ring \"BEAM Vitality Center\"."]] },
+    { list: [
+      ["Xavier de Cocklaan 70, bus 7, 9831 Sint-Martens-Latem", "Xavier de Cocklaan 70, boîte 7, 9831 Sint-Martens-Latem", "Xavier de Cocklaan 70, box 7, 9831 Sint-Martens-Latem, Belgium"],
+      ["welcome@beam.be", "welcome@beam.be", "welcome@beam.be"],
+      ["+32 9 39 12 422 (9 tot 19 uur) · WhatsApp +32 469 41 31 11", "+32 9 39 12 422 (9 h à 19 h) · WhatsApp +32 469 41 31 11", "+32 9 39 12 422 (9:00 to 19:00) · WhatsApp +32 469 41 31 11"],
+    ] },
+  ]),
+  { id: c.id("form"), type: "form_embed", formSlug: "contact" },
+  { id: c.id("contact"), type: "contact_details", showAddress: false, showPhone: false, showEmail: false, showOpeningHours: true },
+];
+
 export const SITE_SEED_PAGES: readonly SeedPage[] = [
-  { slug: "home", kind: "home", title: ["Welkom bij BEAM", "Bienvenue chez BEAM", "Welcome to BEAM"], path: ["", "", ""], description: desc(["Dagsessies en nachten", "Journées et nuits", "Day sessions and nights"]), sections: [{ h: ["Rust in de stad", "Le calme en ville", "Calm in the city"], p: [PLACEHOLDER] }], extra: "hero" },
-  { slug: "about", kind: "standard", title: ["Over ons", "À propos", "About us"], path: ["over-ons", "a-propos", "about"], description: desc(["Ons verhaal", "Notre histoire", "Our story"]), sections: [{ h: ["Ons verhaal", "Notre histoire", "Our story"], p: [PLACEHOLDER] }] },
-  { slug: "day-sessions", kind: "offer", title: ["Dagsessies", "Sessions de jour", "Day sessions"], path: ["dagsessies", "sessions-de-jour", "day-sessions"], description: desc(["Een dag rust", "Une journée de repos", "A day of rest"]), sections: [{ h: ["Een dag bij BEAM", "Une journée chez BEAM", "A day at BEAM"], p: [PLACEHOLDER] }], extra: "booking" },
-  { slug: "nights", kind: "offer", title: ["Nachten", "Nuits", "Nights"], path: ["nachten", "nuits", "nights"], description: desc(["Avonden en nachten", "Soirées et nuits", "Evenings and nights"]), sections: [{ h: ["De nacht", "La nuit", "The night"], p: [PLACEHOLDER] }] },
-  { slug: "memberships", kind: "offer", title: ["Lidmaatschappen", "Abonnements", "Memberships"], path: ["lidmaatschappen", "abonnements", "memberships"], description: desc(["Lid worden", "Devenir membre", "Becoming a member"]), sections: [{ h: ["Lid worden", "Devenir membre", "Become a member"], p: [PLACEHOLDER] }] },
-  { slug: "pricing", kind: "pricing", title: ["Prijzen", "Tarifs", "Pricing"], path: ["prijzen", "tarifs", "pricing"], description: desc(["Onze prijzen", "Nos tarifs", "Our prices"]), sections: [{ h: ["Onze prijzen", "Nos tarifs", "Our prices"], p: [PLACEHOLDER] }] },
-  { slug: "events", kind: "events_index", title: ["Evenementen", "Événements", "Events"], path: ["evenementen", "evenements", "events"], description: desc(["Evenementen", "Les événements", "Events"]), sections: [], extra: "events" },
-  { slug: "blog", kind: "blog_index", title: ["Nieuws", "Actualités", "News"], path: ["blog", "blog", "blog"], description: desc(["Nieuws", "Les actualités", "News"]), sections: [], extra: "posts" },
-  { slug: "contact", kind: "contact", title: ["Contact", "Contact", "Contact"], path: ["contact", "contact", "contact"], description: desc(["Contact en openingsuren", "Contact et horaires", "Contact and opening hours"]), sections: [], extra: "contact" },
+  { slug: "home", kind: "home", title: ["BEAM Vitality Center", "BEAM Vitality Center", "BEAM Vitality Center"], path: ["", "", ""], description: ["BEAM Vitality Center bij Gent: Europa's grootste 48-unit EESystem-installatie in Sint-Martens-Latem. Dagsessies, nachtsessies en pakketten.", "BEAM Vitality Center près de Gand : la plus grande installation EESystem de 48 unités d'Europe à Sint-Martens-Latem. Séances de jour, de nuit et forfaits.", "BEAM Vitality Center near Ghent: Europe's largest 48-unit EESystem installation in Sint-Martens-Latem. Day sessions, night sessions and packages."], sections: [], build: HOME },
+  { slug: "about", kind: "standard", title: ["Over BEAM", "À propos de BEAM", "About BEAM"], path: ["beam", "beam", "beam"], description: desc(["Wie we zijn en waarom we BEAM bouwden", "Qui nous sommes et pourquoi BEAM", "Who we are and why we built BEAM"]), sections: [], build: ABOUT },
+  { slug: "environment", kind: "standard", title: ["De BEAM-omgeving", "L'environnement BEAM", "The BEAM environment"], path: ["omgeving", "environnement", "environment"], description: desc(["Een ruimte ontworpen voor herstel", "Un espace conçu pour la récupération", "A space designed for recovery"]), sections: [], build: ENVIRONMENT },
+  { slug: "technology", kind: "standard", title: ["De technologie", "La technologie", "The technology"], path: ["technologie", "technologie", "technology"], description: desc(["Het Energy Enhancement System met 48 units", "L'Energy Enhancement System de 48 unités", "The 48-unit Energy Enhancement System"]), sections: [], build: TECHNOLOGY },
+  { slug: "day-sessions", kind: "offer", title: ["Dagsessies", "Séances de jour", "Day sessions"], path: ["sessies", "seances", "sessions"], description: desc(["Dagsessies van 2 uur", "Des séances de jour de 2 heures", "2-hour day sessions"]), sections: [], build: DAY_SESSIONS },
+  { slug: "nights", kind: "offer", title: ["Nachtsessies", "Séances de nuit", "Night sessions"], path: ["nachtsessies", "seances-de-nuit", "night-sessions"], description: desc(["Nachtsessies van 12 uur", "Des séances de nuit de 12 heures", "12-hour night sessions"]), sections: [], build: NIGHTS },
+  { slug: "memberships", kind: "offer", title: ["Membership", "Membership", "Membership"], path: ["membership", "membership", "membership"], description: desc(["Het BEAM-lidmaatschap", "L'adhésion BEAM", "The BEAM membership"]), sections: [], build: MEMBERSHIP },
+  { slug: "pricing", kind: "pricing", title: ["Pakketten & prijzen", "Forfaits & tarifs", "Packages & prices"], path: ["prijzen", "tarifs", "prices"], description: desc(["Alle prijzen en pakketten", "Tous les tarifs et forfaits", "All prices and packages"]), sections: [], build: PRICING },
+  { slug: "experiences", kind: "standard", title: ["Ervaringen", "Témoignages", "Experiences"], path: ["ervaringen", "temoignages", "experiences"], description: desc(["Wat gasten over BEAM zeggen", "Ce que disent nos hôtes", "What guests say about BEAM"]), sections: [], build: EXPERIENCES },
+  { slug: "corporate", kind: "standard", title: ["Voor bedrijven", "Pour les entreprises", "For organisations"], path: ["bedrijven", "entreprises", "corporates"], description: desc(["BEAM voor teams en organisaties", "BEAM pour les équipes et organisations", "BEAM for teams and organisations"]), sections: [], build: CORPORATE },
+  { slug: "faq", kind: "standard", title: ["Veelgestelde vragen", "Questions fréquentes", "Frequently asked questions"], path: ["faq", "faq", "faq"], description: desc(["Antwoorden op je vragen", "Les réponses à vos questions", "Answers to your questions"]), sections: [], build: FAQ_PAGE },
+  { slug: "events", kind: "events_index", title: ["Events", "Événements", "Events"], path: ["evenementen", "evenements", "events"], description: desc(["Concerten, lezingen en webinars", "Concerts, conférences et webinaires", "Concerts, talks and webinars"]), sections: [], extra: "events" },
+  { slug: "blog", kind: "blog_index", title: ["Blog", "Blog", "Blog"], path: ["blog", "blog", "blog"], description: desc(["Nieuws en inzichten", "Actualités et réflexions", "News and insights"]), sections: [], extra: "posts" },
+  { slug: "contact", kind: "contact", title: ["Contact", "Contact", "Contact"], path: ["contact", "contact", "contact"], description: desc(["Contact, adres en openingsuren", "Contact, adresse et horaires", "Contact, address and opening hours"]), sections: [], build: CONTACT },
   {
     slug: "privacy",
     kind: "legal",
@@ -123,9 +590,16 @@ export const SITE_SEED_PAGES: readonly SeedPage[] = [
 
 const text = (t: string) => [{ type: "text" as const, text: t }];
 
-/** The blocks of a seeded page in one locale. */
-function blocksOf(page: SeedPage, i: number): Block[] {
+/** The blocks of a seeded page in one locale; `pageLink` resolves another seeded page by slug, `product` a catalogue SKU. */
+function blocksOf(
+  page: SeedPage,
+  i: number,
+  pageLink: (slug: string) => Link,
+  product: (sku: string) => string | undefined = () => undefined,
+  media: (key: MediaKey) => string | undefined = () => undefined,
+): Block[] {
   const id = (part: string) => seedUuid(`${page.slug}:${i}:${part}`);
+  if (page.build) return page.build(i, { id, page: pageLink, product, media });
   const out: Block[] = [];
   if (page.extra === "hero") out.push({ id: id("hero"), type: "hero", heading: page.title[i]!, subheading: page.description[i]! });
   const doc: RichBlockNode[] = [];
@@ -142,9 +616,21 @@ function blocksOf(page: SeedPage, i: number): Block[] {
   return out;
 }
 
+/** Header sub-items per top-level slug (depth 2): five items on top, the rest in dropdowns. */
+const HEADER_CHILDREN: Record<string, { slug: string; label?: L3 }[]> = {
+  about: [{ slug: "about", label: ["Ons verhaal", "Notre histoire", "Our story"] }, { slug: "environment" }, { slug: "technology" }, { slug: "experiences" }],
+  "day-sessions": [{ slug: "day-sessions" }, { slug: "nights" }, { slug: "pricing" }, { slug: "memberships" }],
+};
+/** Shorter top-level labels than the page titles. */
+const HEADER_LABELS: Record<string, L3> = {
+  about: ["Over BEAM", "À propos", "About"],
+  "day-sessions": ["Sessies", "Séances", "Sessions"],
+  corporate: ["Bedrijven", "Entreprises", "Organisations"],
+};
+
 const MENUS: { key: "header" | "footer" | "legal"; slugs: string[] }[] = [
-  { key: "header", slugs: ["day-sessions", "nights", "memberships", "pricing", "events", "blog", "about", "contact"] },
-  { key: "footer", slugs: ["about", "events", "blog", "contact"] },
+  { key: "header", slugs: ["about", "day-sessions", "events", "corporate", "contact"] },
+  { key: "footer", slugs: ["nights", "memberships", "pricing", "faq", "blog", "corporate"] },
   { key: "legal", slugs: ["privacy", "terms", "cookies", "accessibility", "guardian-consent"] },
 ];
 
@@ -161,14 +647,29 @@ export async function seedSiteContent(db: DbOrTx, opts: { now?: Date } = {}): Pr
   const now = opts.now ?? new Date();
   await db.insert(settings).values({ key: "site", value: DEFAULT_SITE_SETTINGS }).onConflictDoNothing({ target: settings.key });
 
-  const created: string[] = [];
+  // Pass 1: the page rows, so pass 2 can link pages to each other by id.
+  const fresh: { page: SeedPage; id: string }[] = [];
   for (const page of SITE_SEED_PAGES) {
     const [row] = await db
       .insert(pages)
       .values({ kind: page.kind, slug: page.slug, legalKey: page.legalKey ?? null, status: "draft" })
       .onConflictDoNothing()
       .returning({ id: pages.id });
-    if (!row) continue;
+    if (row) fresh.push({ page, id: row.id });
+  }
+  const pageIds = new Map((await db.select({ id: pages.id, slug: pages.slug }).from(pages)).map((p) => [p.slug, p.id]));
+  const pageLink = (slug: string): Link => {
+    const pageId = pageIds.get(slug);
+    if (!pageId) throw new Error(`site seed: unknown page slug ${slug}`);
+    return { kind: "page", pageId };
+  };
+  const product = await catalogueLookup(db);
+  const media = fresh.length ? await seedSiteMedia(db) : () => undefined;
+
+  // Pass 2: a published version 1 and live routes for every page this run created.
+  const created: string[] = [];
+  for (const { page, id } of fresh) {
+    const row = { id };
     const seo = per<PageSeo>((i) => ({ title: page.title[i]!.slice(0, 70), description: page.description[i]!, ...(page.noindex ? { noindex: true } : {}) }));
     const [version] = await db
       .insert(pageVersions)
@@ -178,7 +679,7 @@ export async function seedSiteContent(db: DbOrTx, opts: { now?: Date } = {}): Pr
         state: "published",
         title: txt(page.title),
         paths: txt(page.path),
-        blocks: per((i) => blocksOf(page, i)),
+        blocks: per((i) => blocksOf(page, i, pageLink, product, media)),
         seo,
         locales: [...LOCALES],
         createdBy: "user",
@@ -194,13 +695,28 @@ export async function seedSiteContent(db: DbOrTx, opts: { now?: Date } = {}): Pr
     created.push(page.slug);
   }
 
-  const ids = new Map((await db.select({ id: pages.id, slug: pages.slug }).from(pages)).map((p) => [p.slug, p.id]));
+  const ids = pageIds;
   for (const menu of MENUS) {
     const items: NavItem[] = menu.slugs
       .filter((s) => ids.has(s))
       .map((s) => {
         const p = SITE_SEED_PAGES.find((x) => x.slug === s)!;
-        return { id: seedUuid(`menu:${menu.key}:${s}`), label: txt(p.title), target: { kind: "page", pageId: ids.get(s)! } };
+        const isHeader = menu.key === "header";
+        const children = isHeader
+          ? (HEADER_CHILDREN[s] ?? [])
+              .filter((ch) => ids.has(ch.slug))
+              .map((ch) => ({
+                id: seedUuid(`menu:header:${s}:${ch.slug}`),
+                label: txt(ch.label ?? SITE_SEED_PAGES.find((x) => x.slug === ch.slug)!.title),
+                target: { kind: "page" as const, pageId: ids.get(ch.slug)! },
+              }))
+          : [];
+        return {
+          id: seedUuid(`menu:${menu.key}:${s}`),
+          label: txt((isHeader && HEADER_LABELS[s]) || p.title),
+          target: { kind: "page", pageId: ids.get(s)! },
+          ...(children.length ? { children } : {}),
+        };
       });
     await db.insert(navMenus).values({ key: menu.key, items }).onConflictDoNothing({ target: navMenus.key });
   }
@@ -215,6 +731,58 @@ export const seed: DefaultSeed = {
   },
 };
 
+/** Active catalogue products by SKU (empty before commerce's demo catalogue ran). */
+async function catalogueLookup(db: DbOrTx): Promise<(sku: string) => string | undefined> {
+  const rows = await db.select({ id: products.id, sku: products.sku, isActive: products.isActive }).from(products);
+  const bySku = new Map(rows.filter((r) => r.isActive).map((r) => [r.sku, r.id]));
+  return (sku) => bySku.get(sku);
+}
+
+/** Versions written by this seed (anything else was edited by staff and is never replaced). */
+const SEED_SUMMARIES = new Set(["Seed placeholder content", "Seed: catalogue prices"]);
+
+/** JSON with sorted object keys: jsonb reorders keys, so plain `JSON.stringify` never matches a stored value. */
+function stableJson(value: unknown): string {
+  return JSON.stringify(value, (_key, v: unknown) =>
+    v && typeof v === "object" && !Array.isArray(v) ? Object.fromEntries(Object.entries(v as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b))) : v,
+  );
+}
+
+/**
+ * Seeded pages whose builder shows catalogue prices (`pricing_table`) once the demo catalogue
+ * exists: when the live version is still a seed version and the rebuilt blocks differ, it publishes
+ * the next version with them (routes follow). Pages staff edited are left alone. Idempotent.
+ */
+export async function refreshSeededCataloguePages(db: DbOrTx, now: Date): Promise<string[]> {
+  const product = await catalogueLookup(db);
+  const media = await seedSiteMedia(db);
+  const pageIds = new Map((await db.select({ id: pages.id, slug: pages.slug }).from(pages)).map((p) => [p.slug, p.id]));
+  const pageLink = (slug: string): Link => ({ kind: "page", pageId: pageIds.get(slug)! });
+  const refreshed: string[] = [];
+  for (const page of SITE_SEED_PAGES) {
+    const pageId = pageIds.get(page.slug);
+    if (!page.build || !pageId) continue;
+    const [live] = await db
+      .select({ id: pageVersions.id, version: pageVersions.version, blocks: pageVersions.blocks, title: pageVersions.title, paths: pageVersions.paths, seo: pageVersions.seo, changeSummary: pageVersions.changeSummary })
+      .from(pageVersions)
+      .innerJoin(pages, eq(pages.currentVersionId, pageVersions.id))
+      .where(eq(pages.id, pageId));
+    if (!live || !SEED_SUMMARIES.has(live.changeSummary ?? "")) continue;
+    const blocks = per((i) => blocksOf(page, i, pageLink, product, media));
+    if (stableJson(blocks) === stableJson(live.blocks)) continue;
+    const [version] = await db
+      .insert(pageVersions)
+      .values({ pageId, version: live.version + 1, state: "published", title: live.title, paths: live.paths, blocks, seo: live.seo, locales: [...LOCALES], createdBy: "user", changeSummary: "Seed: catalogue prices", basedOnVersionId: live.id, publishedAt: now })
+      .onConflictDoNothing()
+      .returning({ id: pageVersions.id });
+    if (!version) continue;
+    await db.update(pages).set({ currentVersionId: version.id, updatedAt: now }).where(eq(pages.id, pageId));
+    await db.update(pageRoutes).set({ versionId: version.id }).where(eq(pageRoutes.pageId, pageId));
+    refreshed.push(page.slug);
+  }
+  return refreshed;
+}
+
 /** The demo blog post (`demo` profile helper, called by `apps/web/modules/site/seed.ts`). */
 export const DEMO_POST_SLUG = "welcome-to-beam";
 
@@ -225,6 +793,7 @@ export const DEMO_POST_SLUG = "welcome-to-beam";
 export async function seedSiteDemo(db: DbOrTx, opts: { now?: Date } = {}): Promise<{ postCreated: boolean }> {
   const now = opts.now ?? new Date();
   await seedSiteContent(db, { now });
+  await refreshSeededCataloguePages(db, now);
   const [row] = await db.insert(pages).values({ kind: "post", slug: DEMO_POST_SLUG, status: "draft" }).onConflictDoNothing().returning({ id: pages.id });
   if (!row) return { postCreated: false };
   const title: L3 = ["BEAM opent de deuren", "BEAM ouvre ses portes", "BEAM opens its doors"];

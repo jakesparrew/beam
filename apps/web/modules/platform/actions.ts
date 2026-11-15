@@ -71,7 +71,7 @@ import {
   writeMfaSecrets,
   type SessionInfo,
 } from "@/lib/auth";
-import { MAGIC_LINK_MINUTES } from "@/lib/auth-config";
+import { devSkipMfa, MAGIC_LINK_MINUTES } from "@/lib/auth-config";
 import { AppError, ConflictError, NotFoundError, and, eq, inArray, ne, sql, writeDurably, type Ctx } from "@/lib/ctx";
 import { writeAuditRow } from "@/lib/audit";
 import { notifySlack } from "@/lib/alerts";
@@ -135,7 +135,7 @@ export const staffSignIn = action(
     audit: false,
     rateLimit: (i, { ip }) => ({ route: "login", ip, email: i.email }),
   },
-  async (ctx, input): Promise<{ next: "/admin/mfa/verify" | "/admin/mfa/setup" }> => {
+  async (ctx, input): Promise<{ next: "/admin" | "/admin/mfa/verify" | "/admin/mfa/setup" }> => {
     const user = await findUserByEmail(ctx, input.email);
     if (!user || user.audience !== "staff" || user.status !== "active") {
       // PL-7: the same argon2 work as a real account, so timing does not reveal the account.
@@ -153,8 +153,14 @@ export const staffSignIn = action(
       await ctx.tx.update(users).set({ passwordHash: await hashPassword(input.password) }).where(eq(users.id, user.id));
     }
     const meta = await requestMeta();
-    const { token, expires } = await createAuthSession(ctx.tx, { userId: user.id, audience: "staff", roleKey: user.roleKey, now: ctx.now, ip: ctx.ip, userAgent: meta.userAgent });
+    // Local demo: the session is MFA-complete at once (an enrolled user only, so requireStaff passes).
+    const skipMfa = devSkipMfa() && !!user.mfaEnrolledAt;
+    const { token, expires } = await createAuthSession(ctx.tx, { userId: user.id, audience: "staff", roleKey: user.roleKey, now: ctx.now, ip: ctx.ip, userAgent: meta.userAgent, mfaAt: skipMfa ? ctx.now : null });
     await setSessionCookie(token, expires);
+    if (skipMfa) {
+      await recordSuccessfulLogin(ctx.tx, user.id, ctx.now);
+      return { next: "/admin" };
+    }
     return { next: user.mfaEnrolledAt ? "/admin/mfa/verify" : "/admin/mfa/setup" };
   },
 );

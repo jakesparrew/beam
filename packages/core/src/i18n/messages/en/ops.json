@@ -125,6 +125,23 @@
           "empty": "Nothing needs attention today",
           "row": "{kind}, due {date}"
         }
+      },
+      "overview": {
+        "this_month": "This month",
+        "more_figures": "All figures",
+        "vs_last_month": "vs last month",
+        "today_sessions": "Today on the floor",
+        "no_sessions": "No sessions today.",
+        "booked_of": "{booked} of {capacity} places booked",
+        "kind_day": "Day",
+        "kind_night": "Night",
+        "kind_event": "Event",
+        "to_do": "To do",
+        "nothing_needed": "Nothing needed:",
+        "greeting_morning": "Good morning, {name}",
+        "greeting_afternoon": "Good afternoon, {name}",
+        "greeting_evening": "Good evening, {name}",
+        "open_bookings": "All bookings"
       }
     },
     "period": {

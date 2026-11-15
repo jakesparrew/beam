@@ -9,15 +9,18 @@
  *   `upsertWebinarSession` gives them their event session; drafts while it is not available) and
  *   `demo-webinar-on-demand` (published, no session). Slugs are fixed, so a second run adds
  *   nothing.
+ * - Registrations of a few demo customers and leads for the two upcoming demo webinars
+ *   (`registerPerson`, source `admin`, no access email); an existing registration is kept.
  */
 import type { Tx } from "@beam/db";
-import { users, webinarCtas, webinarPolls, webinars } from "@beam/db/schema";
+import { persons, users, webinarCtas, webinarPolls, webinars } from "@beam/db/schema";
 import { seedWebinarRows } from "@beam/db/seed/webinar";
 import { NotImplementedError } from "@beam/core/errors";
 import { and, asc, eq, inArray } from "@/lib/ctx";
 import type { SeedCtx } from "@/scripts/seed-demo";
 import { seedTemplate } from "@/modules/email/api";
 import { upsertWebinarSession } from "@/modules/booking/api";
+import { registerPerson } from "./server/registration";
 
 /** Valid 11-character ids that are not real broadcasts. */
 const DEMO_VIDEO_ID = "beamDemo001";
@@ -94,11 +97,28 @@ async function seedDemoWebinars(s: SeedCtx): Promise<void> {
   }
 }
 
+/** `DemoIds` keys of the people registered for the live and simulive demo webinars. */
+const DEMO_REGISTRANTS = ["platform.person.customer1", "platform.person.customer3", "crm.customer.julie-moreau", "crm.customer.lena-hermans", "crm.customer.wout-goossens", "crm.customer.ella-wright"];
+
+async function seedDemoRegistrations(s: SeedCtx): Promise<void> {
+  const tx = s.db as Tx;
+  const open = await tx.select({ id: webinars.id }).from(webinars).where(and(inArray(webinars.slug, ["demo-webinar-live", "demo-webinar-simulive"]), eq(webinars.status, "published")));
+  for (const w of open) {
+    for (const key of DEMO_REGISTRANTS) {
+      const personId = s.ids.get(key);
+      const [person] = personId ? await tx.select({ locale: persons.locale }).from(persons).where(eq(persons.id, personId)) : [];
+      if (!personId || !person) continue;
+      await registerPerson(tx, s.ctx, { webinarId: w.id, personId, source: "admin", locale: person.locale, utm: {}, sendAccessEmail: false });
+    }
+  }
+}
+
 export const seed = {
   after: ["ops"],
   run: async (s: SeedCtx): Promise<void> => {
     await seedWebinarRows(s.db, { seedTemplate: (db, input) => seedTemplate(db as Tx, input) });
     if (process.env.VERCEL_ENV === "production") return;
     await seedDemoWebinars(s);
+    await seedDemoRegistrations(s);
   },
 };

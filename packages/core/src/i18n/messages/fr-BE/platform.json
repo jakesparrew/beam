@@ -65,7 +65,9 @@
       "home_title": "Bienvenue chez BEAM",
       "home_intro": "Choisissez un élément dans le menu pour commencer.",
       "go_live_incomplete": "La liste de mise en production n’est pas complète. Les imports et l’exploitation réelle restent bloqués.",
-      "open_go_live": "Ouvrir la liste de mise en production"
+      "open_go_live": "Ouvrir la liste de mise en production",
+      "more": "Plus",
+      "website": "Vers le site"
     },
     "permissions": {
       "settings_write": "Modifier les paramètres de la plateforme et des modules",
@@ -133,7 +135,7 @@
     },
     "nav": {
       "settings": "Paramètres",
-      "users": "Collaborateurs",
+      "users": "Équipe",
       "flags": "Fonctionnalités",
       "system": "Système",
       "ai": "Utilisation de l’IA",
@@ -151,6 +153,7 @@
       "reports": "Rapports mensuels",
       "my_support": "Mes problèmes signalés",
       "with_badge": "{label} ({count})",
+      "section_daily": "Au quotidien",
       "section_account": "Compte",
       "section_booking": "Réservations",
       "section_customers": "Clients",

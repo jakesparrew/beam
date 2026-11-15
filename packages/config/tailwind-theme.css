@@ -5,42 +5,43 @@
  * same custom properties under `.dark`.
  */
 
+/* BEAM house style: navy #212842, gold #d1a64a, cream #fffaef (as on beam.be). */
 :root {
-  --radius: 0.625rem;
-  --background: oklch(0.99 0.004 95);
-  --foreground: oklch(0.2 0.02 250);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.2 0.02 250);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.2 0.02 250);
-  --primary: oklch(0.45 0.09 165);
-  --primary-foreground: oklch(0.98 0.01 165);
-  --secondary: oklch(0.95 0.015 95);
-  --secondary-foreground: oklch(0.25 0.02 250);
-  --muted: oklch(0.96 0.008 95);
-  --muted-foreground: oklch(0.5 0.02 250);
-  --accent: oklch(0.93 0.03 165);
-  --accent-foreground: oklch(0.25 0.04 165);
-  --destructive: oklch(0.58 0.22 27);
+  --radius: 0.875rem;
+  --background: #f6f2ea;
+  --foreground: #212842;
+  --card: #ffffff;
+  --card-foreground: #212842;
+  --popover: #ffffff;
+  --popover-foreground: #212842;
+  --primary: #212842;
+  --primary-foreground: #fffaef;
+  --secondary: #efe8d8;
+  --secondary-foreground: #212842;
+  --muted: #f1ece1;
+  --muted-foreground: #646a7d;
+  --accent: #f4ead3;
+  --accent-foreground: #212842;
+  --destructive: oklch(0.58 0.2 27);
   --destructive-foreground: oklch(0.98 0.01 27);
-  --success: oklch(0.6 0.15 150);
-  --warning: oklch(0.78 0.15 80);
-  --border: oklch(0.9 0.01 95);
-  --input: oklch(0.9 0.01 95);
-  --ring: oklch(0.45 0.09 165);
-  --chart-1: oklch(0.55 0.12 165);
-  --chart-2: oklch(0.65 0.13 80);
-  --chart-3: oklch(0.55 0.13 250);
-  --chart-4: oklch(0.6 0.15 27);
-  --chart-5: oklch(0.6 0.1 310);
-  --sidebar: oklch(0.97 0.006 95);
-  --sidebar-foreground: oklch(0.2 0.02 250);
-  --sidebar-primary: oklch(0.45 0.09 165);
-  --sidebar-primary-foreground: oklch(0.98 0.01 165);
-  --sidebar-accent: oklch(0.93 0.03 165);
-  --sidebar-accent-foreground: oklch(0.25 0.04 165);
-  --sidebar-border: oklch(0.9 0.01 95);
-  --sidebar-ring: oklch(0.45 0.09 165);
+  --success: oklch(0.6 0.13 150);
+  --warning: oklch(0.8 0.14 80);
+  --border: #e7e0d0;
+  --input: #ddd4c1;
+  --ring: #c8963e;
+  --chart-1: #212842;
+  --chart-2: #d1a64a;
+  --chart-3: #6f8f7a;
+  --chart-4: #c0714f;
+  --chart-5: #8a86b8;
+  --sidebar: #1c2238;
+  --sidebar-foreground: rgb(255 250 239 / 0.74);
+  --sidebar-primary: #e8c26a;
+  --sidebar-primary-foreground: #212842;
+  --sidebar-accent: rgb(255 250 239 / 0.07);
+  --sidebar-accent-foreground: #fffaef;
+  --sidebar-border: rgb(255 250 239 / 0.1);
+  --sidebar-ring: #e8c26a;
 }
 
 .dark {
@@ -76,7 +77,8 @@
 }
 
 @theme inline {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-poppins), "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-rufina), Georgia, serif;
   --font-mono: ui-monospace, "SFMono-Regular", monospace;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);

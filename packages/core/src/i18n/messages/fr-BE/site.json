@@ -514,7 +514,14 @@
       "availability": {
         "book": "Réserver",
         "none": "Aucune séance prévue sur cette période.",
-        "title": "Disponibilités des prochains jours"
+        "title": "Disponibilités des prochains jours",
+        "titleDay": "Séances de jour disponibles",
+        "titleNight": "Séances de nuit disponibles",
+        "kindDay": "De jour",
+        "kindNight": "De nuit",
+        "prevWeek": "Semaine précédente",
+        "nextWeek": "Semaine suivante",
+        "closed": "Fermé"
       },
       "contact": {
         "address": "Adresse",
@@ -552,7 +559,8 @@
         "salesEnded": "La vente est terminée",
         "salesFrom": "En vente à partir du {date}",
         "soldOut": "Épuisé",
-        "tickets": "Billets"
+        "tickets": "Billets",
+        "register": "S'inscrire"
       },
       "gift": {
         "cta": "Offrir un bon cadeau"
@@ -574,6 +582,10 @@
         "buy": "Acheter",
         "from": "À partir de {amount}",
         "members": "Membres : {amount}",
+        "nights": "{count, plural, one {# nuit} other {# nuits}}",
+        "perNight": "{amount} par nuit",
+        "perSession": "{amount} par séance",
+        "validityMonths": "{months, plural, one {Valable # mois} other {Valable # mois}}",
         "sessions": "{count, plural, one {# séance} other {# séances}}",
         "validity": "{days, plural, one {Valable # jour} other {Valable # jours}}",
         "vatIncluded": "TVA comprise"
@@ -582,6 +594,11 @@
         "consentNote": "La vidéo se charge depuis YouTube lorsque vous appuyez sur lecture.",
         "openOnYoutube": "Regarder sur YouTube",
         "play": "Lire la vidéo : {title}"
+      },
+      "reviews": {
+        "heading": "Ce que disent nos hôtes",
+        "source": "Avis Google · 145 avis",
+        "stars": "5 étoiles sur 5"
       }
     },
     "cookies": {
@@ -653,7 +670,13 @@
         "webinarLive": "En direct le {date}",
         "webinarOnDemand": "À la demande",
         "webinars": "Vos prochains webinaires",
-        "webinarsAll": "Tous mes webinaires"
+        "webinarsAll": "Tous mes webinaires",
+        "nextSession": "Votre prochaine séance",
+        "readyTitle": "Prêt à vous ressourcer ?",
+        "readyBody": "Choisissez une séance de jour ou de nuit dans le plus grand espace EESystem d'Europe.",
+        "bookNow": "Réservez votre séance",
+        "viewBooking": "Voir la réservation",
+        "bookAnother": "Réserver une autre séance"
       },
       "install": {
         "body": "Accédez à vos réservations et à votre solde depuis votre écran d'accueil.",
@@ -673,6 +696,17 @@
       }
     },
     "public": {
+      "header": {
+        "account": "Mon compte",
+        "book": "Réservez votre séance",
+        "hello": "Bonjour {name}"
+      },
+      "brand": {
+        "tagline": "Votre énergie. Votre vie.",
+        "blurb": "BEAM Vitality Center est une infrastructure pour l'énergie humaine. Nous créons des espaces cohérents qui soutiennent la régulation, la récupération et une vitalité durable.",
+        "backOffice": "Back-office",
+        "quickLinks": "Accès rapide"
+      },
       "breadcrumb": {
         "home": "Accueil"
       },

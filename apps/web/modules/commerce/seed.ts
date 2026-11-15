@@ -17,11 +17,14 @@
  *
  * ops-P10 request: paid orders for crm's non-tester demo customers (`seedDemoCustomerOrders`),
  * through the real order and paid-transaction code, found again on a rerun by their `client_key`.
+ * `seedDemoPackageOrders` adds the packages and memberships the booking demo books with, and one
+ * order whose card was declined at the desk.
  */
 import { createHash } from "node:crypto";
 import type { Tx } from "@beam/db";
 import { files, lightspeedImports, lightspeedSales, orders, payments, persons, products, users } from "@beam/db/schema";
-import { DEMO_SKUS, seedCommerceCatalogue } from "@beam/db/seed/commerce";
+import { BEAM_SKUS, DEMO_SKUS, seedCommerceCatalogue } from "@beam/db/seed/commerce";
+import { refreshSeededCataloguePages } from "@beam/db/seed/site";
 import { businessDayRange, parseLightspeedCsv } from "@beam/core/commerce";
 import { and, asc, createCtx, eq } from "@/lib/ctx";
 import { storeFile } from "@/lib/files";
@@ -142,42 +145,99 @@ export function demoUuid(name: string): string {
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-${((parseInt(h.slice(16, 17), 16) & 0x3) | 0x8).toString(16)}${h.slice(17, 20)}-${h.slice(20, 32)}`;
 }
 
-export async function seedDemoCustomerOrders(s: Pick<SeedCtx, "db" | "now" | "ids">): Promise<{ created: number; skipped: number }> {
+/**
+ * One paid order through the real path: `createOrder` (channel `admin`) at `at`, a paid desk
+ * payment, then the paid transaction (`finalizePaidOrder`: credits or the membership through
+ * credits, the invoice through finance); `declined` leaves the order unpaid with a failed
+ * payment. Null when the person or product is missing or the `clientKey` already names an
+ * order (a rerun).
+ */
+async function placePaidOrder(
+  s: Pick<SeedCtx, "db">,
+  o: { personId: string | undefined; sku: string; quantity: number; at: Date; method: string; clientKey: string; declined?: boolean },
+): Promise<string | null> {
   const tx = s.db as Tx;
+  const [product] = await tx.select({ id: products.id }).from(products).where(eq(products.sku, o.sku));
+  const [person] = o.personId ? await tx.select({ locale: persons.locale }).from(persons).where(eq(persons.id, o.personId)) : [];
+  if (!o.personId || !product || !person) return null;
+  const ctx = createCtx({ tx, actor: { kind: "system", jobId: "seed:commerce" }, requestId: "seed:commerce", now: o.at, durableMode: "immediate" });
+  const order = await createOrder(tx, ctx, { personId: o.personId, channel: "admin", items: [{ productId: product.id, quantity: o.quantity }], clientKey: o.clientKey, locale: person.locale });
+  if (order.status !== "pending_payment") return null;
+  await tx.update(orders).set({ createdAt: new Date(o.at.getTime() - 5 * 60_000) }).where(eq(orders.id, order.orderId));
+  if (o.declined) {
+    // A card declined at the desk terminal: the order stays unpaid (and expires).
+    await tx.insert(payments).values({ orderId: order.orderId, provider: "terminal", method: o.method, status: "failed", amountCents: order.totalCents, createdAt: o.at, updatedAt: o.at });
+    return order.orderId;
+  }
+  const [payment] = await tx
+    .insert(payments)
+    .values({ orderId: order.orderId, provider: o.method === "cash" ? "cash" : "terminal", method: o.method, status: "paid", amountCents: order.totalCents, paidAt: o.at })
+    .returning({ id: payments.id });
+  await finalizePaidOrder(tx, ctx, order.orderId, { paymentId: payment!.id });
+  return order.orderId;
+}
+
+export async function seedDemoCustomerOrders(s: Pick<SeedCtx, "db" | "now" | "ids">): Promise<{ created: number; skipped: number }> {
   let created = 0;
   let skipped = 0;
   for (const [i, o] of DEMO_CUSTOMER_ORDERS.entries()) {
-    const personId = s.ids.get(`crm.customer.${o.customer}`);
-    const [product] = await tx.select({ id: products.id }).from(products).where(eq(products.sku, o.sku));
-    const [person] = personId ? await tx.select({ locale: persons.locale }).from(persons).where(eq(persons.id, personId)) : [];
-    if (!personId || !product || !person) {
-      skipped++;
-      continue;
-    }
     // 11:00 Brussels-ish on the order's day (the seed's `now` is the start of a Brussels day).
     const at = new Date(s.now.getTime() - o.daysAgo * DAY + 10 * HOUR);
-    const ctx = createCtx({ tx, actor: { kind: "system", jobId: "seed:commerce" }, requestId: "seed:commerce", now: at, durableMode: "immediate" });
-    const order = await createOrder(tx, ctx, {
-      personId,
-      channel: "admin",
-      items: [{ productId: product.id, quantity: o.quantity }],
-      clientKey: demoUuid(`order:${o.customer}:${i + 1}`),
-      locale: person.locale,
-    });
-    if (order.status !== "pending_payment") {
+    const orderId = await placePaidOrder(s, { personId: s.ids.get(`crm.customer.${o.customer}`), sku: o.sku, quantity: o.quantity, at, method: o.method, clientKey: demoUuid(`order:${o.customer}:${i + 1}`) });
+    if (!orderId) {
       skipped++;
       continue;
     }
-    await tx.update(orders).set({ createdAt: new Date(at.getTime() - 5 * 60_000) }).where(eq(orders.id, order.orderId));
-    const [payment] = await tx
-      .insert(payments)
-      .values({ orderId: order.orderId, provider: o.method === "cash" ? "cash" : "terminal", method: o.method, status: "paid", amountCents: order.totalCents, paidAt: at })
-      .returning({ id: payments.id });
-    await finalizePaidOrder(tx, ctx, order.orderId, { paymentId: payment!.id });
-    s.ids.set(`commerce.order.${o.customer}.${i + 1}`, order.orderId);
+    s.ids.set(`commerce.order.${o.customer}.${i + 1}`, orderId);
     created++;
   }
   return { created, skipped };
+}
+
+/**
+ * Packages and memberships of the portal demo customers (`platform.person.customer1..15`, the
+ * first five sign in at `/account`) and crm's `DEMO_REGULARS`, so booking's demo seed can book
+ * their visits with credits. Lotte's 20-hour package is the one credits shares with Jonas.
+ * `person` is the `DemoIds` key; the client key is `order:<person>:<sku>`.
+ */
+export const DEMO_PACKAGE_ORDERS: readonly { person: string; sku: string; daysAgo: number; method: string }[] = [
+  { person: "platform.person.customer1", sku: BEAM_SKUS.hours20, daysAgo: 70, method: "bancontact" },
+  { person: "platform.person.customer2", sku: DEMO_SKUS.package2Nights, daysAgo: 50, method: "creditcard" },
+  { person: "platform.person.customer3", sku: DEMO_SKUS.package5Days, daysAgo: 60, method: "bancontact" },
+  { person: "platform.person.customer4", sku: DEMO_SKUS.package5Days, daysAgo: 40, method: "bancontact" },
+  { person: "platform.person.customer4", sku: BEAM_SKUS.membershipYear, daysAgo: 30, method: "creditcard" },
+  { person: "platform.person.customer5", sku: DEMO_SKUS.package10Days, daysAgo: 90, method: "bancontact" },
+  // Top-ups: Lotte, Jonas and Noah bought a new package last week.
+  { person: "platform.person.customer1", sku: BEAM_SKUS.hours10, daysAgo: 6, method: "bancontact" },
+  { person: "platform.person.customer2", sku: DEMO_SKUS.package5Days, daysAgo: 8, method: "bancontact" },
+  { person: "platform.person.customer4", sku: BEAM_SKUS.hours10, daysAgo: 3, method: "creditcard" },
+  ...[6, 7, 8, 9, 10, 11, 12, 13, 14, 15].map((n) => ({ person: `platform.person.customer${n}`, sku: DEMO_SKUS.package5Days, daysAgo: 20 + (n - 6) * 4, method: n % 3 ? "bancontact" : "cash" })),
+  ...[17, 18, 19].map((n) => ({ person: `platform.person.customer${n}`, sku: DEMO_SKUS.package5Days, daysAgo: 12 + (n - 17) * 6, method: "bancontact" })),
+  { person: "crm.customer.lies-vermeulen", sku: BEAM_SKUS.hours10, daysAgo: 80, method: "bancontact" },
+  { person: "crm.customer.tom-claes", sku: DEMO_SKUS.package10Days, daysAgo: 100, method: "bancontact" },
+  { person: "crm.customer.tom-claes", sku: BEAM_SKUS.hours20, daysAgo: 28, method: "creditcard" },
+  { person: "crm.customer.nora-dumont", sku: BEAM_SKUS.membershipYear, daysAgo: 22, method: "creditcard" },
+  { person: "crm.customer.nora-dumont", sku: DEMO_SKUS.package5Days, daysAgo: 21, method: "creditcard" },
+  { person: "crm.customer.pieter-de-backer", sku: BEAM_SKUS.hours50, daysAgo: 110, method: "creditcard" },
+  { person: "crm.customer.pieter-de-backer", sku: BEAM_SKUS.membershipYear, daysAgo: 108, method: "creditcard" },
+  { person: "crm.customer.geert-lemmens", sku: BEAM_SKUS.hours10, daysAgo: 85, method: "bancontact" },
+  { person: "crm.customer.sophie-laurent", sku: DEMO_SKUS.package5Days, daysAgo: 50, method: "bancontact" },
+  { person: "crm.customer.james-cooper", sku: BEAM_SKUS.nights3, daysAgo: 35, method: "creditcard" },
+  { person: "crm.customer.james-cooper", sku: DEMO_SKUS.package5Days, daysAgo: 34, method: "creditcard" },
+];
+
+export async function seedDemoPackageOrders(s: Pick<SeedCtx, "db" | "now" | "ids">): Promise<{ created: number; skipped: number }> {
+  let created = 0;
+  for (const o of DEMO_PACKAGE_ORDERS) {
+    const at = new Date(s.now.getTime() - o.daysAgo * DAY + 11 * HOUR);
+    if (await placePaidOrder(s, { personId: s.ids.get(o.person), sku: o.sku, quantity: 1, at, method: o.method, clientKey: demoUuid(`order:${o.person}:${o.sku}`) })) created++;
+  }
+  // James's card was declined at the desk two days ago (the dashboard's failed payments).
+  const declined = demoUuid("order:declined:crm.customer.james-cooper");
+  const [known] = await s.db.select({ id: orders.id }).from(orders).where(eq(orders.clientKey, declined));
+  const at = new Date(s.now.getTime() - 2 * DAY + 15 * HOUR);
+  if (!known && (await placePaidOrder(s, { personId: s.ids.get("crm.customer.james-cooper"), sku: BEAM_SKUS.hours20, quantity: 1, at, method: "creditcard", clientKey: declined, declined: true }))) created++;
+  return { created, skipped: DEMO_PACKAGE_ORDERS.length + 1 - created };
 }
 
 export const seed = {
@@ -186,7 +246,10 @@ export const seed = {
     const result = await seedCommerceCatalogue(s.db, { now: s.now, staffUserId: await staffAuthor(s) });
     for (const [sku, id] of Object.entries(result.productIds)) s.ids.set(`commerce.product.${sku}`, id);
     for (const [code, id] of Object.entries(result.promotionIds)) s.ids.set(`commerce.promotion.${code}`, id);
+    // The site's seeded pricing pages switch from text to catalogue price cards now that BEAM's products exist.
+    await refreshSeededCataloguePages(s.db, s.now);
     await seedLightspeedDemo(s, await staffAuthor(s));
     await seedDemoCustomerOrders(s);
+    await seedDemoPackageOrders(s);
   },
 };

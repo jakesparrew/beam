@@ -30,6 +30,15 @@ export const SESSION_COOKIE_SECURE = SESSION_COOKIE.startsWith("__Secure-");
 /** The Auth.js id of the Email provider; its callback is `/api/auth/callback/email`. */
 export const EMAIL_PROVIDER_ID = "email";
 
+/**
+ * Local demo only: `DEV_SKIP_MFA=1` with `APP_ENV=local` (set explicitly, not the default) and outside
+ * a production build lets a staff password sign-in skip the TOTP step. Never honoured on Vercel;
+ * `configProblems` reports the flag in production.
+ */
+export function devSkipMfa(env: Env = process.env): boolean {
+  return env.DEV_SKIP_MFA === "1" && env.APP_ENV === "local" && env.NODE_ENV !== "production" && !env.VERCEL;
+}
+
 /** Magic links are valid 15 minutes (PL-11). */
 export const MAGIC_LINK_MINUTES = 15;
 

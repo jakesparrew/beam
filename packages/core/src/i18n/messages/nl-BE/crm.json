@@ -1,7 +1,7 @@
 {
   "crm": {
     "nav": {
-      "persons": "Personen",
+      "persons": "Klanten",
       "segments": "Segmenten",
       "tasks": "Taken",
       "companies": "Bedrijven",
@@ -307,7 +307,7 @@
     },
     "persons": {
       "list": {
-        "title": "Personen",
+        "title": "Klanten",
         "search_placeholder": "Klantnummer, e-mail, telefoon of naam",
         "filter_status": "Status",
         "filter_tag": "Tag",

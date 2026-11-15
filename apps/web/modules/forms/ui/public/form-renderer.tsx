@@ -483,7 +483,7 @@ export function FormRenderer(p: FormRendererProps) {
             </p>
           ) : null}
           {def.settings.showProgress ? (
-            <div>
+            <div data-form-progress>
               <p className="text-sm text-muted-foreground">{l("progress").replace("{n}", String(step)).replace("{total}", String(total))}</p>
               <div className="mt-1 h-1.5 w-full rounded bg-muted" aria-hidden="true">
                 <div className="h-1.5 rounded bg-primary" style={{ width: `${Math.round((step / total) * 100)}%` }} />

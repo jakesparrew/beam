@@ -10,8 +10,8 @@
       "promotions": "Promoties",
       "orders": "Bestellingen",
       "attention": "Betalingen opvolgen",
-      "pos": "Onthaal",
-      "pos_day": "Dagafsluiting onthaal",
+      "pos": "Kassa",
+      "pos_day": "Dagafsluiting kassa",
       "lightspeed": "Lightspeed-import"
     },
     "common": {

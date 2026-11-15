@@ -16,6 +16,7 @@ import { SiteFooter } from "@/modules/site/ui/public/site-footer";
 import { SiteHeader } from "@/modules/site/ui/public/site-header";
 import { SwRegister } from "@/modules/site/ui/public/sw-register";
 import { UtmCapture } from "@/modules/site/ui/public/utm-capture";
+import { poppins, rufina } from "../../fonts";
 
 /**
  * The public site chrome (site-P2, consent and PWA by site-P5): skip link, header with the
@@ -29,6 +30,7 @@ import { UtmCapture } from "@/modules/site/ui/public/utm-capture";
  * script loads on a page whose URL carries a credential (claim, preference centre, payment link,
  * form result link; `analyticsAllowedOnPath`), nor when the requested path is unknown.
  */
+
 async function safe<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
   try {
     return await fn();
@@ -94,7 +96,7 @@ export default async function SiteLayout({ children, params }: { children: React
       gaMeasurementId={tags.gaId}
       labels={consentLabels(tr)}
     >
-      <div className="flex min-h-dvh flex-col">
+      <div className={`site-theme ${poppins.variable} ${rufina.variable} flex min-h-dvh flex-col`}>
         <a
           href="#main-content"
           className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-background focus:px-4 focus:py-2 focus:shadow"

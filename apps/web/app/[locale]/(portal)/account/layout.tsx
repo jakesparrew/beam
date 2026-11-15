@@ -39,10 +39,19 @@ export default async function PortalLayout({ children, params }: { children: Rea
         nav={nav}
         locale={locale}
         currentPath={pathname}
-        labels={{ skipToContent: tr("platform.shell.skip_to_content"), navigation: tr("platform.shell.portal_navigation"), brand: tr("platform.shell.brand") }}
+        logoSrc="/brand/beam-logo-header.png"
+        homeHref={`/${seg}/account`}
+        websiteHref={`/${seg}`}
+        labels={{
+          skipToContent: tr("platform.shell.skip_to_content"),
+          navigation: tr("platform.shell.portal_navigation"),
+          brand: tr("platform.shell.brand"),
+          more: tr("platform.shell.more"),
+          website: tr("platform.shell.website"),
+        }}
         localeSwitch={{
           label: tr("platform.shell.language"),
-          options: LOCALES.map((l) => ({ locale: l, label: tr(`platform.shell.locale_${URL_SEGMENT[l]}`), href: `/${URL_SEGMENT[l]}${rest}` })),
+          options: LOCALES.map((l) => ({ locale: l, label: URL_SEGMENT[l].toUpperCase(), href: `/${URL_SEGMENT[l]}${rest}` })),
         }}
       >
         {children}

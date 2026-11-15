@@ -125,6 +125,23 @@
           "empty": "Rien ne demande votre attention aujourd’hui",
           "row": "{kind}, échéance le {date}"
         }
+      },
+      "overview": {
+        "this_month": "Ce mois-ci",
+        "more_figures": "Tous les chiffres",
+        "vs_last_month": "vs le mois dernier",
+        "today_sessions": "Aujourd'hui sur place",
+        "no_sessions": "Aucune séance aujourd'hui.",
+        "booked_of": "{booked} places réservées sur {capacity}",
+        "kind_day": "Jour",
+        "kind_night": "Nuit",
+        "kind_event": "Événement",
+        "to_do": "À faire",
+        "nothing_needed": "Rien à faire :",
+        "greeting_morning": "Bonjour, {name}",
+        "greeting_afternoon": "Bon après-midi, {name}",
+        "greeting_evening": "Bonsoir, {name}",
+        "open_bookings": "Toutes les réservations"
       }
     },
     "period": {

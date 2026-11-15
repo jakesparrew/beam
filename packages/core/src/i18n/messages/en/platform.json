@@ -65,7 +65,9 @@
       "home_title": "Welcome to BEAM",
       "home_intro": "Choose an item in the menu to start.",
       "go_live_incomplete": "The go-live gate is not complete. Imports and live operation stay blocked.",
-      "open_go_live": "Open the go-live gate"
+      "open_go_live": "Open the go-live gate",
+      "more": "More",
+      "website": "To the website"
     },
     "permissions": {
       "settings_write": "Change platform and module settings",
@@ -133,7 +135,7 @@
     },
     "nav": {
       "settings": "Settings",
-      "users": "Staff users",
+      "users": "Team",
       "flags": "Feature flags",
       "system": "System",
       "ai": "AI usage",
@@ -151,6 +153,7 @@
       "reports": "Monthly reports",
       "my_support": "My reported problems",
       "with_badge": "{label} ({count})",
+      "section_daily": "Daily",
       "section_account": "Account",
       "section_booking": "Bookings",
       "section_customers": "Customers",

@@ -65,7 +65,97 @@ export const DEMO_SKUS = {
   waterBottle: "MERCH-BOTTLE",
 } as const;
 
+/** BEAM's real catalogue from beam.be (captured 2026-11-15), next to the spec's demo products. */
+export const BEAM_SKUS = {
+  dayAdult: "BEAM-DAY-ADULT",
+  dayYouth: "BEAM-DAY-YOUTH",
+  nightAdult: "BEAM-NIGHT-ADULT",
+  nightYouth: "BEAM-NIGHT-YOUTH",
+  hours10: "BEAM-HOURS-10",
+  hours20: "BEAM-HOURS-20",
+  hours30: "BEAM-HOURS-30",
+  hours50: "BEAM-HOURS-50",
+  hours100: "BEAM-HOURS-100",
+  nights3: "BEAM-NIGHTS-3",
+  nights5: "BEAM-NIGHTS-5",
+  nights10: "BEAM-NIGHTS-10",
+  membershipYear: "BEAM-MEMBER-YEAR",
+} as const;
+
+/** 18 months, the validity of every BEAM package. */
+const EIGHTEEN_MONTHS = 548;
+
+function beamProducts(from: Date): DemoProduct[] {
+  const shared = "Te delen met maximaal vijf personen, 18 maanden geldig.";
+  const sharedFr = "À partager avec cinq personnes maximum, valable 18 mois.";
+  const sharedEn = "Shareable with up to five people, valid for 18 months.";
+  const hours = (sku: string, h: number, cents: number, order: number): DemoProduct => ({
+    kind: "package",
+    sku,
+    name: text(`${h} uur`, `${h} heures`, `${h} hours`),
+    description: text(`${h / 2} dagsessies van 2 uur. ${shared}`, `${h / 2} séances de jour de 2 heures. ${sharedFr}`, `${h / 2} two-hour day sessions. ${sharedEn}`),
+    vatRatePct: "21.00",
+    creditKind: "day",
+    creditUnits: h / 2,
+    validityDays: EIGHTEEN_MONTHS,
+    isSharingAllowed: true,
+    isShopVisible: true,
+    sortOrder: order,
+    prices: [{ amountCents: cents, validFromAt: from }],
+  });
+  const nights = (sku: string, n: number, cents: number, order: number): DemoProduct => ({
+    kind: "package",
+    sku,
+    name: text(`${n} nachten`, `${n} nuits`, `${n} nights`),
+    description: text(`${n} nachtsessies van 12 uur. ${shared}`, `${n} séances de nuit de 12 heures. ${sharedFr}`, `${n} twelve-hour night sessions. ${sharedEn}`),
+    vatRatePct: "6.00",
+    creditKind: "night",
+    creditUnits: n,
+    validityDays: EIGHTEEN_MONTHS,
+    isSharingAllowed: true,
+    isShopVisible: true,
+    sortOrder: order,
+    prices: [{ amountCents: cents, validFromAt: from }],
+  });
+  return [
+    { kind: "session", sku: BEAM_SKUS.dayAdult, name: text("Dagsessie", "Séance de jour", "Day session"), description: text("2 uur, volwassenen.", "2 heures, adultes.", "2 hours, adults."), vatRatePct: "21.00", isShopVisible: false, sortOrder: 100, prices: [{ amountCents: 12_000, validFromAt: from }] },
+    { kind: "session", sku: BEAM_SKUS.dayYouth, name: text("Dagsessie jongeren", "Séance de jour jeunes", "Day session youth"), description: text("2 uur, 12 tot 18 jaar, samen met een volwassene.", "2 heures, de 12 à 18 ans, avec un adulte.", "2 hours, aged 12 to 18, with an adult."), vatRatePct: "21.00", isShopVisible: false, sortOrder: 101, prices: [{ amountCents: 6_000, validFromAt: from }] },
+    { kind: "night", sku: BEAM_SKUS.nightAdult, name: text("Nachtsessie", "Séance de nuit", "Night session"), description: text("12 uur, van 20 tot 8 uur, volwassenen.", "12 heures, de 20 h à 8 h, adultes.", "12 hours, 20:00 to 08:00, adults."), vatRatePct: "6.00", isShopVisible: false, sortOrder: 102, prices: [{ amountCents: 42_000, validFromAt: from }] },
+    { kind: "night", sku: BEAM_SKUS.nightYouth, name: text("Nachtsessie jongeren", "Séance de nuit jeunes", "Night session youth"), description: text("12 uur, 12 tot 18 jaar.", "12 heures, de 12 à 18 ans.", "12 hours, aged 12 to 18."), vatRatePct: "6.00", isShopVisible: false, sortOrder: 103, prices: [{ amountCents: 21_000, validFromAt: from }] },
+    hours(BEAM_SKUS.hours10, 10, 49_500, 110),
+    hours(BEAM_SKUS.hours20, 20, 89_000, 111),
+    hours(BEAM_SKUS.hours30, 30, 126_000, 112),
+    hours(BEAM_SKUS.hours50, 50, 185_000, 113),
+    hours(BEAM_SKUS.hours100, 100, 330_000, 114),
+    nights(BEAM_SKUS.nights3, 3, 126_000, 120),
+    nights(BEAM_SKUS.nights5, 5, 186_000, 121),
+    nights(BEAM_SKUS.nights10, 10, 324_000, 122),
+    {
+      kind: "membership",
+      sku: BEAM_SKUS.membershipYear,
+      name: text("BEAM Membership", "BEAM Membership", "BEAM Membership"),
+      description: text(
+        "Een gratis nachtsessie, tot 20% korting op sessies en pakketten, 15% op producten en events.",
+        "Une séance de nuit offerte, jusqu'à 20 % sur les séances et forfaits, 15 % sur les produits et événements.",
+        "One free night session, up to 20% off sessions and packages, 15% off products and events.",
+      ),
+      vatRatePct: "21.00",
+      recurringInterval: "year",
+      includedCreditKind: "night",
+      includedCreditUnits: 1,
+      memberDiscountPct: "20.00",
+      isShopVisible: true,
+      sortOrder: 130,
+      prices: [{ amountCents: 39_600, validFromAt: from }],
+    },
+  ];
+}
+
 function demoProducts(now: Date): DemoProduct[] {
+  return [...specDemoProducts(now), ...beamProducts(new Date(now.getTime() - 120 * DAY))];
+}
+
+function specDemoProducts(now: Date): DemoProduct[] {
   const historyStart = new Date(now.getTime() - 120 * DAY);
   // The 10-day package cost €360 until 1 October and €380 since (two versions in the history).
   const year = now.getUTCMonth() >= 9 ? now.getUTCFullYear() : now.getUTCFullYear() - 1;

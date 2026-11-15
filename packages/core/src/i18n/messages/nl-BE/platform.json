@@ -65,7 +65,9 @@
       "home_title": "Welkom bij BEAM",
       "home_intro": "Kies een onderdeel in het menu om te beginnen.",
       "go_live_incomplete": "De go-live-checklist is niet volledig. Imports en live gebruik blijven geblokkeerd.",
-      "open_go_live": "Open de go-live-checklist"
+      "open_go_live": "Open de go-live-checklist",
+      "more": "Meer",
+      "website": "Naar de website"
     },
     "permissions": {
       "settings_write": "Instellingen van het platform en de modules wijzigen",
@@ -133,7 +135,7 @@
     },
     "nav": {
       "settings": "Instellingen",
-      "users": "Medewerkers",
+      "users": "Team",
       "flags": "Functievlaggen",
       "system": "Systeem",
       "ai": "AI-gebruik",
@@ -151,6 +153,7 @@
       "reports": "Maandrapporten",
       "my_support": "Mijn gemelde problemen",
       "with_badge": "{label} ({count})",
+      "section_daily": "Dagelijks",
       "section_account": "Account",
       "section_booking": "Boekingen",
       "section_customers": "Klanten",

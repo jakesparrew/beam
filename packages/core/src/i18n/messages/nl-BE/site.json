@@ -514,7 +514,14 @@
       "availability": {
         "book": "Boeken",
         "none": "Geen sessies gepland in deze periode.",
-        "title": "Beschikbaarheid de komende dagen"
+        "title": "Beschikbaarheid de komende dagen",
+        "titleDay": "Beschikbare dagsessies",
+        "titleNight": "Beschikbare nachtsessies",
+        "kindDay": "Overdag",
+        "kindNight": "'s Nachts",
+        "prevWeek": "Vorige week",
+        "nextWeek": "Volgende week",
+        "closed": "Gesloten"
       },
       "contact": {
         "address": "Adres",
@@ -552,7 +559,8 @@
         "salesEnded": "De verkoop is afgelopen",
         "salesFrom": "Te koop vanaf {date}",
         "soldOut": "Uitverkocht",
-        "tickets": "Tickets"
+        "tickets": "Tickets",
+        "register": "Inschrijven"
       },
       "gift": {
         "cta": "Geef een cadeaubon"
@@ -574,6 +582,10 @@
         "buy": "Kopen",
         "from": "Vanaf {amount}",
         "members": "Leden: {amount}",
+        "nights": "{count, plural, one {# nacht} other {# nachten}}",
+        "perNight": "{amount} per nacht",
+        "perSession": "{amount} per sessie",
+        "validityMonths": "{months, plural, one {# maand geldig} other {# maanden geldig}}",
         "sessions": "{count, plural, one {# sessie} other {# sessies}}",
         "validity": "{days, plural, one {# dag geldig} other {# dagen geldig}}",
         "vatIncluded": "Btw inbegrepen"
@@ -582,6 +594,11 @@
         "consentNote": "De video wordt van YouTube geladen wanneer je op afspelen drukt.",
         "openOnYoutube": "Bekijk op YouTube",
         "play": "Video afspelen: {title}"
+      },
+      "reviews": {
+        "heading": "Wat onze gasten zeggen",
+        "source": "Google-reviews · 145 recensies",
+        "stars": "5 van 5 sterren"
       }
     },
     "cookies": {
@@ -653,7 +670,13 @@
         "webinarLive": "Live op {date}",
         "webinarOnDemand": "Op aanvraag",
         "webinars": "Je komende webinars",
-        "webinarsAll": "Al mijn webinars"
+        "webinarsAll": "Al mijn webinars",
+        "nextSession": "Je volgende sessie",
+        "readyTitle": "Klaar om op te laden?",
+        "readyBody": "Kies een dag- of nachtsessie in de grootste EESystem-ruimte van Europa.",
+        "bookNow": "Boek je sessie",
+        "viewBooking": "Bekijk boeking",
+        "bookAnother": "Nog een sessie boeken"
       },
       "install": {
         "body": "Open je boekingen en saldo rechtstreeks vanaf je startscherm.",
@@ -673,6 +696,17 @@
       }
     },
     "public": {
+      "header": {
+        "account": "Mijn account",
+        "book": "Boek je sessie",
+        "hello": "Hallo {name}"
+      },
+      "brand": {
+        "tagline": "Jouw energie. Jouw leven.",
+        "blurb": "BEAM Vitality Center is een fundament voor menselijke energie. Wij creëren coherente ruimtes die regulatie, herstel en duurzame vitaliteit ondersteunen.",
+        "backOffice": "Back-office",
+        "quickLinks": "Snel naar"
+      },
       "breadcrumb": {
         "home": "Home"
       },

@@ -12,7 +12,7 @@ export default async function AdminLoginPage({ searchParams }: { searchParams: P
   return (
     <>
       <header className="grid gap-2">
-        <h1 className="text-2xl font-semibold">{tr("platform.login.title")}</h1>
+        <h1 className="font-display text-4xl">{tr("platform.login.title")}</h1>
         <p className="text-sm text-muted-foreground">{tr("platform.login.intro")}</p>
       </header>
       <LoginForm

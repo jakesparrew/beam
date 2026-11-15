@@ -48,11 +48,15 @@ export const ImageTextBlock = z
   .object({ id: uuid, type: z.literal("image_text"), mediaId: uuid, doc: RichDocSchema, imageSide: z.enum(["left", "right"]) })
   .strict();
 export const CtaBlock = z.object({ id: uuid, type: z.literal("cta"), heading: line(120), text: optLine(500), button: Button }).strict();
+/** How a card grid is laid out: image cards, a numbered editorial list, or two large side-by-side panels (day/night). */
+export const CARD_GRID_LAYOUTS = ["cards", "list", "split"] as const;
+
 export const CardGridBlock = z
   .object({
     id: uuid,
     type: z.literal("card_grid"),
     heading: optLine(120),
+    layout: z.enum(CARD_GRID_LAYOUTS).optional(),
     cards: z.array(z.object({ heading: line(120), text: z.string().trim().max(500), mediaId: uuid.optional(), link: LinkSchema.optional() }).strict()).min(1).max(12),
   })
   .strict();
@@ -86,7 +90,7 @@ export const BookingCtaTarget = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("buy_product"), productId: uuid }).strict(),
   z.object({ kind: z.literal("gift") }).strict(),
 ]);
-export const BookingCtaBlock = z.object({ id: uuid, type: z.literal("booking_cta"), label: line(60), target: BookingCtaTarget }).strict();
+export const BookingCtaBlock = z.object({ id: uuid, type: z.literal("booking_cta"), label: line(60), note: optLine(80), target: BookingCtaTarget }).strict();
 export const VideoBlock = z
   .object({ id: uuid, type: z.literal("video"), youtubeId: z.string().regex(/^[A-Za-z0-9_-]{11}$/), title: line(200), posterMediaId: uuid })
   .strict();
@@ -151,14 +155,14 @@ export type Block =
   | (Base & { type: "image"; mediaId: string; caption?: string })
   | (Base & { type: "image_text"; mediaId: string; doc: RichDoc; imageSide: "left" | "right" })
   | (Base & { type: "cta"; heading: string; text?: string; button: { label: string; link: Link } })
-  | (Base & { type: "card_grid"; heading?: string; cards: { heading: string; text: string; mediaId?: string; link?: Link }[] })
+  | (Base & { type: "card_grid"; heading?: string; layout?: (typeof CARD_GRID_LAYOUTS)[number]; cards: { heading: string; text: string; mediaId?: string; link?: Link }[] })
   | (Base & { type: "faq"; heading?: string; items: { question: string; answer: RichDoc }[] })
   | (Base & { type: "pricing_table"; heading?: string; productIds: string[]; showMemberPrice: boolean })
   | (Base & { type: "events_list"; heading?: string; limit: number; showFull: boolean })
   | (Base & { type: "availability_preview"; kind: "day" | "night"; days: number })
   | (Base & { type: "posts_list"; heading?: string; limit: number; paginate: boolean })
   | (Base & { type: "form_embed"; formSlug: string })
-  | (Base & { type: "booking_cta"; label: string; target: BookingCtaTargetValue })
+  | (Base & { type: "booking_cta"; label: string; note?: string; target: BookingCtaTargetValue })
   | (Base & { type: "video"; youtubeId: string; title: string; posterMediaId: string })
   | (Base & { type: "testimonial"; quote: string; authorName: string; authorDetail?: string; consentConfirmed: true })
   | (Base & { type: "contact_details"; showAddress: boolean; showPhone: boolean; showEmail: boolean; showOpeningHours: boolean })

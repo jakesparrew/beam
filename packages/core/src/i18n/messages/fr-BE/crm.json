@@ -1,7 +1,7 @@
 {
   "crm": {
     "nav": {
-      "persons": "Personnes",
+      "persons": "Clients",
       "segments": "Segments",
       "tasks": "Tâches",
       "companies": "Entreprises",
@@ -307,7 +307,7 @@
     },
     "persons": {
       "list": {
-        "title": "Personnes",
+        "title": "Clients",
         "search_placeholder": "Numéro de client, e-mail, téléphone ou nom",
         "filter_status": "Statut",
         "filter_tag": "Tag",

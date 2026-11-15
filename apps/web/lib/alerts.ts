@@ -216,6 +216,7 @@ export function configProblems(env: Env, currentKeyVersion: number): string[] {
   if (!key || Buffer.from(key, "base64").length !== 32) problems.push(`SENSITIVE_DATA_KEY_V${currentKeyVersion} missing`);
   if (env.EMAIL_SINK) problems.push("EMAIL_SINK set");
   if (env.PAYMENTS_FAKE === "1") problems.push("PAYMENTS_FAKE=1");
+  if (env.DEV_SKIP_MFA) problems.push("DEV_SKIP_MFA set");
   if (env.INTEGRATIONS === "fake") problems.push("INTEGRATIONS=fake");
   if (env.MOLLIE_API_KEY?.startsWith("test_")) problems.push("MOLLIE_API_KEY is a test key");
   if (!env.DATABASE_URL || !/[?&]sslmode=require\b/.test(env.DATABASE_URL)) problems.push("DATABASE_URL without sslmode=require");

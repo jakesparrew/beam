@@ -143,7 +143,63 @@ export const DEMO_CUSTOMERS: readonly {
   { slug: "hannah-clarke", firstName: "Hannah", lastName: "Clarke", locale: "en", source: "social_media", createdDaysAgo: 45 },
 ];
 
+/**
+ * More ordinary demo customers (same shape and `crm.customer.<slug>` ids as `DEMO_CUSTOMERS`):
+ * commerce sells them packages and memberships, credits imports a legacy package and a legacy
+ * membership, booking books their visits, so the dashboard queues and the reports show people.
+ */
+export const DEMO_REGULARS: typeof DEMO_CUSTOMERS = [
+  { slug: "lies-vermeulen", firstName: "Lies", lastName: "Vermeulen", locale: "nl-BE", source: "website", createdDaysAgo: 92 },
+  { slug: "tom-claes", firstName: "Tom", lastName: "Claes", locale: "nl-BE", source: "organic_search", createdDaysAgo: 115 },
+  { slug: "nora-dumont", firstName: "Nora", lastName: "Dumont", locale: "fr-BE", source: "social_media", createdDaysAgo: 40 },
+  { slug: "pieter-de-backer", firstName: "Pieter", lastName: "De Backer", locale: "nl-BE", source: "referral", createdDaysAgo: 118 },
+  { slug: "eline-wouters", firstName: "Eline", lastName: "Wouters", locale: "nl-BE", source: "walk_in", createdDaysAgo: 210 },
+  { slug: "geert-lemmens", firstName: "Geert", lastName: "Lemmens", locale: "nl-BE", source: "import", createdDaysAgo: 400 },
+  { slug: "sophie-laurent", firstName: "Sophie", lastName: "Laurent", locale: "fr-BE", source: "paid_meta", campaign: "autumn-recovery", createdDaysAgo: 55 },
+  { slug: "james-cooper", firstName: "James", lastName: "Cooper", locale: "en", source: "website", createdDaysAgo: 38 },
+];
+
+/** New leads of the last two weeks (no booking, no task): the dashboard's "follow up new leads". */
+export const DEMO_LEADS: typeof DEMO_CUSTOMERS = [
+  { slug: "lena-hermans", firstName: "Lena", lastName: "Hermans", locale: "nl-BE", source: "landing_page", campaign: "sleep-guide", createdDaysAgo: 3 },
+  { slug: "mathis-lejeune", firstName: "Mathis", lastName: "Lejeune", locale: "fr-BE", source: "paid_meta", campaign: "autumn-recovery", createdDaysAgo: 5 },
+  { slug: "ella-wright", firstName: "Ella", lastName: "Wright", locale: "en", source: "organic_search", createdDaysAgo: 8 },
+  { slug: "wout-goossens", firstName: "Wout", lastName: "Goossens", locale: "nl-BE", source: "webinar", createdDaysAgo: 10 },
+  { slug: "camille-renard", firstName: "Camille", lastName: "Renard", locale: "fr-BE", source: "website", createdDaysAgo: 12 },
+];
+
 export const demoCustomerEmail = (slug: string): string => `${slug.replace("-", ".")}@demo.beam.be`;
+
+/** More B2B opportunities over the pipeline stages (by company and title, so a rerun adds none). */
+export const DEMO_OPPORTUNITIES: readonly {
+  company: (typeof DEMO_COMPANIES)[number]["slug"];
+  title: string;
+  stage: (typeof opportunities.$inferInsert)["stage"] & string;
+  valueCents: number;
+  probabilityPct: number;
+  contact: number | null;
+  enteredDaysAgo: number;
+  closesInDays: number;
+  /** Days until the next action; negative = overdue. */
+  nextInDays: number | null;
+  lostReason?: string;
+}[] = [
+  { company: "zorgpunt", title: "Team recovery days spring 2027", stage: "negotiation", valueCents: 320_000, probabilityPct: 70, contact: 2, enteredDaysAgo: 9, closesInDays: 14, nextInDays: -1 },
+  { company: "atelier-lumiere", title: "Wellness vouchers for staff", stage: "qualified", valueCents: 150_000, probabilityPct: 30, contact: 20, enteredDaysAgo: 4, closesInDays: 45, nextInDays: 2 },
+  { company: "hotel-de-linde", title: "Guest recovery partnership", stage: "outreach", valueCents: 90_000, probabilityPct: 15, contact: null, enteredDaysAgo: 12, closesInDays: 60, nextInDays: 0 },
+  { company: "kine-plus", title: "Patient referral programme 2027", stage: "won", valueCents: 60_000, probabilityPct: 100, contact: 5, enteredDaysAgo: 12, closesInDays: -12, nextInDays: null },
+  { company: "hotel-de-linde", title: "Corporate overnight package", stage: "lost", valueCents: 210_000, probabilityPct: 0, contact: null, enteredDaysAgo: 25, closesInDays: -25, nextInDays: null, lostReason: "Budget frozen for 2026" },
+];
+
+/** Open follow-up tasks on the ordinary demo customers and the pipeline (`demo:task:activity:<n>`). */
+const DEMO_ACTIVITY_TASKS: readonly { title: string; kind: (typeof tasks.$inferInsert)["kind"]; role: string; customer?: string; company?: string; dueInDays: number; priority: "low" | "normal" | "high" }[] = [
+  { title: "Call about the membership renewal", kind: "call", role: "customer_service", customer: "geert-lemmens", dueInDays: 2, priority: "high" },
+  { title: "Offer a new package before the last session", kind: "follow_up", role: "customer_service", customer: "lies-vermeulen", dueInDays: 0, priority: "normal" },
+  { title: "Welcome call after the first night", kind: "follow_up", role: "reception", customer: "hannah-clarke", dueInDays: -1, priority: "normal" },
+  { title: "Remind about credits that expire soon", kind: "follow_up", role: "customer_service", customer: "eline-wouters", dueInDays: 1, priority: "normal" },
+  { title: "Invite back for a first visit with the 50-hour package", kind: "call", role: "sales", customer: "pieter-de-backer", dueInDays: 4, priority: "high" },
+  { title: "Send the negotiated proposal", kind: "proposal", role: "sales", company: "zorgpunt", dueInDays: -3, priority: "high" },
+];
 
 /** ops-P10 request: one open B2B opportunity of a demo company (by title, so a rerun adds none). */
 export const DEMO_OPPORTUNITY = {
@@ -169,7 +225,7 @@ export async function runCrmDemoCustomersSeed(s: Pick<SeedCtx, "db" | "now" | "i
   let skipped = 0;
   const owner = await staffOwner(db, ids, "sales");
   if (!owner) return { created, skipped: DEMO_CUSTOMERS.length + 1 };
-  for (const c of DEMO_CUSTOMERS) {
+  for (const c of [...DEMO_CUSTOMERS, ...DEMO_REGULARS, ...DEMO_LEADS]) {
     const email = demoCustomerEmail(c.slug);
     const [existing] = await db.select({ id: persons.id }).from(persons).where(sql`lower(${persons.email}) = ${email}`);
     let id = existing?.id;
@@ -224,6 +280,73 @@ export async function runCrmDemoCustomersSeed(s: Pick<SeedCtx, "db" | "now" | "i
     .returning({ id: opportunities.id });
   ids.set("crm.opportunity.demo", row!.id);
   return { created: created + 1, skipped };
+}
+
+/**
+ * `DEMO_OPPORTUNITIES` and `DEMO_ACTIVITY_TASKS` (after `runCrmDemoCustomersSeed`, which records
+ * the customers). Idempotent: opportunities by company and title, tasks by `dedupe_key`.
+ */
+export async function runCrmDemoPipelineSeed(s: Pick<SeedCtx, "db" | "now" | "ids">): Promise<{ created: number; skipped: number }> {
+  const { db, now, ids } = s;
+  let created = 0;
+  let skipped = 0;
+  const at = (days: number, hour = 10) => new Date(now.getTime() + days * DAY + hour * 60 * 60 * 1000);
+  const sales = await staffOwner(db, ids, "sales");
+  if (!sales) return { created, skipped: DEMO_OPPORTUNITIES.length + DEMO_ACTIVITY_TASKS.length };
+  for (const o of DEMO_OPPORTUNITIES) {
+    const companyId = ids.get(`crm.company.${o.company}`);
+    if (!companyId) {
+      skipped++;
+      continue;
+    }
+    const [known] = await db.select({ id: opportunities.id }).from(opportunities).where(and(eq(opportunities.companyId, companyId), eq(opportunities.title, o.title)));
+    if (known) {
+      skipped++;
+      continue;
+    }
+    const entered = at(-o.enteredDaysAgo, 9);
+    await db.insert(opportunities).values({
+      companyId,
+      title: o.title,
+      primaryContactPersonId: o.contact ? (ids.get(`crm.person.demo${o.contact}`) ?? null) : null,
+      stage: o.stage,
+      stageEnteredAt: entered,
+      valueCents: o.valueCents,
+      probabilityPct: o.probabilityPct,
+      expectedCloseOn: brusselsDay(at(o.closesInDays, 12)),
+      ownerUserId: sales,
+      nextAction: o.nextInDays === null ? null : "Follow up with the contact",
+      nextActionAt: o.nextInDays === null ? null : at(o.nextInDays),
+      wonAt: o.stage === "won" ? entered : null,
+      lostAt: o.stage === "lost" ? entered : null,
+      lostReason: o.lostReason ?? null,
+      source: "demo",
+      createdAt: at(-o.enteredDaysAgo - 21, 9),
+    });
+    created++;
+  }
+  for (const [i, t] of DEMO_ACTIVITY_TASKS.entries()) {
+    const owner = await staffOwner(db, ids, t.role);
+    const rows = await db
+      .insert(tasks)
+      .values({
+        ownerUserId: owner ?? sales,
+        title: t.title,
+        kind: t.kind,
+        priority: t.priority,
+        dueAt: at(t.dueInDays),
+        personId: t.customer ? (ids.get(`crm.customer.${t.customer}`) ?? null) : null,
+        companyId: t.company ? (ids.get(`crm.company.${t.company}`) ?? null) : null,
+        source: "manual",
+        createdBy: SYSTEM,
+        dedupeKey: `demo:task:activity:${i + 1}`,
+      })
+      .onConflictDoNothing({ target: tasks.dedupeKey })
+      .returning({ id: tasks.id });
+    if (rows.length) created++;
+    else skipped++;
+  }
+  return { created, skipped };
 }
 
 async function backfillIdentity(db: DbOrTx): Promise<number> {
@@ -413,7 +536,11 @@ export const seed = {
   run: async (s: SeedCtx) => {
     const main = await runCrmDemoSeed(s);
     const customers = await runCrmDemoCustomersSeed(s);
+    const pipeline = await runCrmDemoPipelineSeed(s);
     const articles = await seedDemoKnowledgeArticles(s.db);
-    return { created: main.created + customers.created + articles.created, skipped: main.skipped + customers.skipped + articles.skipped };
+    return {
+      created: main.created + customers.created + pipeline.created + articles.created,
+      skipped: main.skipped + customers.skipped + pipeline.skipped + articles.skipped,
+    };
   },
 };

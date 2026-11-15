@@ -125,6 +125,23 @@
           "empty": "Vandaag vraagt niets aandacht",
           "row": "{kind}, uiterlijk {date}"
         }
+      },
+      "overview": {
+        "this_month": "Deze maand",
+        "more_figures": "Alle cijfers",
+        "vs_last_month": "t.o.v. vorige maand",
+        "today_sessions": "Vandaag op de vloer",
+        "no_sessions": "Vandaag zijn er geen sessies.",
+        "booked_of": "{booked} van {capacity} plaatsen geboekt",
+        "kind_day": "Dag",
+        "kind_night": "Nacht",
+        "kind_event": "Event",
+        "to_do": "Te doen",
+        "nothing_needed": "Geen actie nodig:",
+        "greeting_morning": "Goedemorgen, {name}",
+        "greeting_afternoon": "Goedemiddag, {name}",
+        "greeting_evening": "Goedenavond, {name}",
+        "open_bookings": "Alle boekingen"
       }
     },
     "period": {

@@ -16,6 +16,7 @@ export default defineConfig(
       resolve: {
         alias: [
           { find: /^server-only$/, replacement: path.resolve(here, "../../packages/config/src/server-only-stub.ts") },
+          { find: /^next\/font\/google$/, replacement: path.resolve(here, "test/next-font-google-stub.ts") },
           { find: /^@\//, replacement: `${here}/` },
         ],
       },

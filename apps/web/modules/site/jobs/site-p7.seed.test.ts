@@ -8,7 +8,7 @@ import type { DbHandle } from "@beam/db";
 import { pages, pageVersions } from "@beam/db/schema";
 import { createTestDb } from "@beam/db/testing";
 import { seedDefaults } from "@beam/db/seed";
-import { DEMO_POST_SLUG } from "@beam/db/seed/site";
+import { DEMO_POST_SLUG, SITE_SEED_PAGES } from "@beam/db/seed/site";
 
 vi.mock("next/cache", () => ({ revalidateTag: () => undefined, unstable_cache: (fn: (...a: unknown[]) => unknown) => fn }));
 vi.mock("next/server", () => ({ after: () => undefined }));
@@ -41,7 +41,7 @@ describe("site seed content", () => {
 
   it("seeds pages that pass the publish checks", async () => {
     const rows = await h.db.select({ page: pages, version: pageVersions }).from(pages).innerJoin(pageVersions, eq(pageVersions.id, pages.currentVersionId));
-    expect(rows.length).toBe(14);
+    expect(rows.length).toBe(SITE_SEED_PAGES.length);
     for (const { page, version } of rows) {
       const issues = await checkVersion(h.db, page, version);
       expect(issues, page.slug).toEqual([]);

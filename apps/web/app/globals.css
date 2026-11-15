@@ -3,3 +3,215 @@
 @import "tailwindcss";
 @import "@beam/ui/tokens.css";
 @source "../../../packages/ui/src";
+
+/*
+ * Public site theme (BEAM brand: navy #212842, gold #D1A64A, cream #FFFAEF; Poppins and Rufina).
+ * Scoped to `.site-theme` (the public layout) so the back-office keeps the shared tokens.
+ * `.site-on-dark` re-points the same tokens for navy surfaces (footer, CTA bands).
+ */
+.site-theme,
+.site-on-light {
+  --background: #fffaef;
+  --foreground: #212842;
+  --card: #ffffff;
+  --card-foreground: #212842;
+  --popover: #ffffff;
+  --popover-foreground: #212842;
+  --primary: #212842;
+  --primary-foreground: #fffaef;
+  --secondary: #f4ead3;
+  --secondary-foreground: #212842;
+  --muted: #f6efdf;
+  --muted-foreground: #4c5268;
+  --accent: #f4ead3;
+  --accent-foreground: #212842;
+  --border: #eadfc6;
+  --input: #e2d5b8;
+  --ring: #a0621e;
+  color: var(--foreground);
+}
+
+/* Brand colours, available everywhere (the gold button is used in the portal too). */
+:root {
+  --site-navy: #212842;
+  --site-gold: #d1a64a;
+  --site-gold-light: #ffd76a;
+  --site-sand: #f4ead3;
+  --site-gold-gradient: linear-gradient(90deg, #a65c14 0%, #f7cc78 25%, #e0b86a 45%, #fcefbf 65%, #f8d589 75%, #b57627 100%);
+}
+
+.site-theme {
+  --radius: 1rem;
+  background-color: var(--background);
+  font-family: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+}
+
+.site-on-dark {
+  --background: #212842;
+  --foreground: #fffaef;
+  --card: #2b3354;
+  --card-foreground: #fffaef;
+  --primary: #fffaef;
+  --primary-foreground: #212842;
+  --muted: #2b3354;
+  --muted-foreground: rgb(255 250 239 / 0.72);
+  --border: rgb(255 250 239 / 0.16);
+  --ring: #ffd76a;
+  color: var(--foreground);
+}
+
+/* The gold pill: BEAM's gradient, a slow light sweep and a soft glow on hover. */
+.site-gold {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background-image: var(--site-gold-gradient);
+  background-size: 200% 100%;
+  background-position: 0% 50%;
+  box-shadow: 0 1px 0 rgb(255 255 255 / 0.45) inset, 0 10px 24px -12px rgb(166 92 20 / 0.7);
+  transition: background-position 0.8s ease, box-shadow 0.3s ease, transform 0.3s ease;
+}
+.site-gold::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(110deg, transparent 30%, rgb(255 255 255 / 0.55) 50%, transparent 70%);
+  transform: translateX(-120%);
+  animation: site-gold-sweep 4.5s ease-in-out infinite;
+}
+.site-gold:hover {
+  background-position: 100% 50%;
+  box-shadow: 0 1px 0 rgb(255 255 255 / 0.5) inset, 0 14px 32px -10px rgb(209 166 74 / 0.85);
+  transform: translateY(-1px);
+}
+.site-gold:hover .site-arrow {
+  transform: translateX(3px);
+}
+.site-arrow {
+  transition: transform 0.3s ease;
+}
+@keyframes site-gold-sweep {
+  0%,
+  55% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(120%);
+  }
+}
+
+/* The footer newsletter: a compact form (no progress bar, smaller gaps, gold submit pill). */
+.site-newsletter [data-form-progress] {
+  display: none;
+}
+.site-newsletter form {
+  gap: 0.75rem;
+}
+.site-newsletter form > * + * {
+  margin-top: 0.75rem;
+}
+.site-newsletter label {
+  font-size: 0.875rem;
+}
+.site-newsletter input[type="email"],
+.site-newsletter input[type="text"] {
+  border-radius: 9999px;
+  padding-inline: 1rem;
+  min-height: 2.75rem;
+}
+.site-newsletter button[type="submit"] {
+  border-radius: 9999px;
+  background-image: var(--site-gold-gradient);
+  color: #212842;
+  padding-inline: 1.5rem;
+}
+
+/* Slow zoom on hover for image panels and cards. */
+.site-zoom img {
+  transition: transform 1.2s cubic-bezier(0.2, 0.6, 0.2, 1);
+}
+.site-zoom:hover img {
+  transform: scale(1.05);
+}
+
+.site-theme .font-display {
+  font-family: var(--font-rufina), Georgia, serif;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/* Rich text inside page blocks: brand headings and readable measure. */
+.site-theme [data-block="rich_text"] h2,
+.site-theme [data-block="image_text"] h2 {
+  font-family: var(--font-rufina), Georgia, serif;
+  font-weight: 600;
+  font-size: clamp(1.75rem, 1.2rem + 2vw, 2.75rem);
+  line-height: 1.15;
+  margin-top: 1.5rem;
+}
+.site-theme [data-block="rich_text"] h3,
+.site-theme [data-block="image_text"] h3 {
+  font-size: 1.35rem;
+  font-weight: 600;
+  margin-top: 1rem;
+}
+.site-theme [data-block="rich_text"] > div,
+.site-theme [data-block="image_text"] [class*="space-y"] {
+  max-width: 46rem;
+  font-size: 1.0625rem;
+  line-height: 1.8;
+}
+.site-theme [data-block="rich_text"] strong {
+  color: #a0621e;
+}
+
+/* ------------------------------------------------------------------------------------------
+ * Back-office in the BEAM house style: Rufina page titles, soft floating cards, pill buttons,
+ * rounded fields and tables on white cards. Scoped to the admin shell so the site keeps its own.
+ * ---------------------------------------------------------------------------------------- */
+.font-display {
+  font-family: var(--font-rufina), Georgia, serif;
+}
+[data-slot="admin-shell"] main h1 {
+  font-family: var(--font-rufina), Georgia, serif;
+  font-weight: 700;
+  font-size: clamp(1.75rem, 1.4rem + 1vw, 2.25rem);
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+}
+[data-slot="admin-shell"] [data-slot="card"] {
+  border-color: transparent;
+  border-radius: 1.25rem;
+  box-shadow: 0 1px 2px rgb(33 40 66 / 0.04), 0 12px 32px -18px rgb(33 40 66 / 0.22);
+}
+[data-slot="admin-shell"] [data-slot="button"] {
+  border-radius: 9999px;
+}
+[data-slot="admin-shell"] [data-slot="input"],
+[data-slot="admin-shell"] [data-slot="select-trigger"],
+[data-slot="admin-shell"] main select,
+[data-slot="admin-shell"] main textarea,
+[data-slot="admin-shell"] main input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]) {
+  border-radius: 0.75rem;
+  background-color: var(--card);
+}
+[data-slot="admin-shell"] [data-slot="table-container"] {
+  background: var(--card);
+  border-radius: 1.25rem;
+  padding: 0.25rem 0.75rem;
+  box-shadow: 0 1px 2px rgb(33 40 66 / 0.04), 0 12px 32px -18px rgb(33 40 66 / 0.22);
+}
+[data-slot="admin-shell"] [data-slot="table-head"] {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+[data-slot="admin-shell"] [data-slot="table"] tbody tr {
+  transition: background-color 0.15s;
+}
+[data-slot="admin-shell"] [data-slot="table"] tbody tr:hover {
+  background-color: #fbf8f1;
+}

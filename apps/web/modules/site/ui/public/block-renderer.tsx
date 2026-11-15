@@ -11,7 +11,7 @@ import type { Locale, MessageParams } from "@beam/core/i18n";
 import type { Block } from "@beam/core/site";
 import type { RenderData } from "../../server/render-data";
 import { AvailabilityPreviewBlockView } from "./blocks/availability-preview";
-import { BookingCtaBlockView } from "./blocks/booking-cta";
+import { BookingCtaBlockView, BookingCtaGroupView } from "./blocks/booking-cta";
 import { CardGridBlockView } from "./blocks/card-grid";
 import { ContactDetailsBlockView } from "./blocks/contact-details";
 import { CtaBlockView } from "./blocks/cta";
@@ -26,7 +26,7 @@ import { MapBlockView } from "./blocks/map";
 import { PostsListBlockView } from "./blocks/posts-list";
 import { PricingTableBlockView } from "./blocks/pricing-table";
 import { RichTextBlockView } from "./blocks/rich-text";
-import { TestimonialBlockView } from "./blocks/testimonial";
+import { ReviewsView, TestimonialBlockView } from "./blocks/testimonial";
 import { VideoBlockView } from "./blocks/video";
 import { WebinarSignupBlockView } from "./event-facts";
 
@@ -37,11 +37,27 @@ export type BlockContext = { locale: Locale; tr: Tr; data: RenderData };
 
 export type BlockOf<T extends Block["type"]> = Extract<Block, { type: T }>;
 
-/** Shared button-like link style (tokens from `packages/ui`). */
-export const buttonClass =
-  "inline-flex items-center justify-center rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
-export const secondaryButtonClass =
-  "inline-flex items-center justify-center rounded-md border border-border px-5 py-2.5 text-sm font-semibold hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
+const focusRing = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
+
+/** Shared button-like link styles (pill shapes; colours from the site tokens). */
+export const buttonClass = `inline-flex items-center justify-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition hover:opacity-90 ${focusRing}`;
+export const secondaryButtonClass = `inline-flex items-center justify-center gap-2 rounded-full border border-primary/25 bg-card px-6 py-3 text-sm font-semibold text-card-foreground transition hover:border-primary ${focusRing}`;
+/** The BEAM gold-gradient pill, for the main booking action (sweep and glow in globals.css `.site-gold`). */
+export const goldButtonClass = `site-gold inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-semibold tracking-wide text-[#212842] ${focusRing}`;
+/** Section headings (h2) of every block. */
+export const sectionHeadingClass = "font-display text-3xl leading-tight text-foreground sm:text-4xl md:text-5xl";
+
+/** The round arrow badge at the end of pills and cards. */
+export function ArrowBadge({ dark = false }: { dark?: boolean }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={`site-arrow inline-flex size-8 shrink-0 items-center justify-center rounded-full text-base leading-none ${dark ? "bg-[#212842] text-[#fffaef]" : "bg-[#fffaef] text-[#212842]"}`}
+    >
+      →
+    </span>
+  );
+}
 
 function renderBlock(block: Block, ctx: BlockContext, index: number): ReactNode {
   switch (block.type) {
@@ -100,14 +116,54 @@ function renderBlock(block: Block, ctx: BlockContext, index: number): ReactNode 
   }
 }
 
+const SECTION_CLASS: Partial<Record<Block["type"], string>> = {
+  hero: "w-full px-3 pt-3 sm:px-4",
+};
+const DEFAULT_SECTION_CLASS = "mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 md:py-16";
+
+/** Consecutive `booking_cta` blocks render as one row of quick-action tiles, consecutive testimonials as one review section. */
+type Group = { first: number; blocks: Block[] };
+const GROUPED: ReadonlySet<Block["type"]> = new Set(["booking_cta", "testimonial"]);
+
+function groupBlocks(blocks: readonly Block[]): Group[] {
+  const groups: Group[] = [];
+  blocks.forEach((block, i) => {
+    const last = groups.at(-1);
+    if (GROUPED.has(block.type) && last && last.blocks.at(-1)?.type === block.type) last.blocks.push(block);
+    else groups.push({ first: i, blocks: [block] });
+  });
+  return groups;
+}
+
 export function BlockRenderer({ blocks, ctx }: { blocks: readonly Block[]; ctx: BlockContext }) {
   return (
     <>
-      {blocks.map((block, i) => (
-        <section key={block.id} data-block={block.type} className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6">
-          {renderBlock(block, ctx, i)}
-        </section>
-      ))}
+      {groupBlocks(blocks).map(({ first, blocks: group }) => {
+        const block = group[0]!;
+        const afterHero = first > 0 && blocks[first - 1]?.type === "hero";
+        if (block.type === "testimonial") {
+          return (
+            <section key={block.id} data-block="testimonial" className={DEFAULT_SECTION_CLASS}>
+              <ReviewsView blocks={group as BlockOf<"testimonial">[]} tr={ctx.tr} />
+            </section>
+          );
+        }
+        if (group.length > 1) {
+          // Quick actions right under the hero overlap its lower edge.
+          const cls = afterHero ? "relative z-10 mx-auto -mt-24 w-full max-w-6xl px-4 pb-10 sm:px-6 md:-mt-28" : DEFAULT_SECTION_CLASS;
+          return (
+            <section key={block.id} data-block="booking_cta" className={cls}>
+              <BookingCtaGroupView blocks={group as BlockOf<"booking_cta">[]} ctx={ctx} />
+            </section>
+          );
+        }
+        const wide = block.type === "card_grid" && block.layout === "split";
+        return (
+          <section key={block.id} data-block={block.type} className={wide ? "mx-auto w-full max-w-7xl px-3 py-10 sm:px-4 md:py-16" : (SECTION_CLASS[block.type] ?? DEFAULT_SECTION_CLASS)}>
+            {renderBlock(block, ctx, first)}
+          </section>
+        );
+      })}
     </>
   );
 }

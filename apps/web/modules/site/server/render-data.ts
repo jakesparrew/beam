@@ -150,11 +150,13 @@ export async function loadRenderData(page: ResolvedPage, searchParams?: SearchPa
     safe("hrefs", () => pageHrefs(db, blockPageIds(blocks), locale)).then((v) => void (data.hrefs = v ?? {})),
     safe("skus", () => getProductSkus(buyIds)).then((v) => void (data.skus = v ?? {})),
   ];
+  // The availability block pages through whole weeks, so it loads four of them whatever its `days`.
+  const AVAILABILITY_WEEKS = 4;
   for (const b of blocks) {
     if (b.type === "pricing_table") tasks.push(safe("pricing", () => getPricingRows(b.productIds, locale)).then((v) => void (data.pricing[b.id] = v)));
     if (b.type === "events_list") tasks.push(safe("events", () => listPublicEventsForSite(locale, { page: pageNo, limit: b.limit, showFull: b.showFull })).then((v) => void (data.events[b.id] = v)));
     if (b.type === "posts_list") tasks.push(safe("posts", () => listPosts(locale, { page: b.paginate ? pageNo : 1, limit: b.limit })).then((v) => void (data.posts[b.id] = v)));
-    if (b.type === "availability_preview") tasks.push(safe("availability", () => getAvailabilityPreviewForSite(b.kind, b.days)).then((v) => void (data.availability[b.id] = v)));
+    if (b.type === "availability_preview") tasks.push(safe("availability", () => getAvailabilityPreviewForSite(b.kind, AVAILABILITY_WEEKS * 7)).then((v) => void (data.availability[b.id] = v)));
   }
   const needsHours = page.kind === "home" || blocks.some((b) => b.type === "contact_details" && b.showOpeningHours);
   if (needsHours) tasks.push(safe("opening_hours", () => getOpeningHours(locale)).then((v) => void (data.openingHours = v)));

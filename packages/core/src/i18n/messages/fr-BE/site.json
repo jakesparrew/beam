@@ -798,7 +798,11 @@
           "empty": "Pas encore assez de check-ins pour un profil.",
           "vsBefore": "14 derniers jours",
           "chart": "Bien-être sur 60 jours",
-          "privacy": "Données sensibles : scores uniquement, les notes du client restent privées. Pas d'usage marketing sans consentement explicite."
+          "privacy": "Données sensibles : scores uniquement, les notes du client restent privées. Pas d'usage marketing sans consentement explicite.",
+          "visit": "Visite",
+          "noShow": "Absent",
+          "noCheckin": "pas de check-in",
+          "visitHint": "Survolez une visite pour voir les scores avant et après."
         }
       }
     },

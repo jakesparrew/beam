@@ -1,7 +1,9 @@
 /**
  * The wellbeing profile on the staff person page: the guest's check-ins over 60 days as four lines
  * (energy, sleep, calm, mood), for each score whether the last 14 days went up or down against
- * the 46 days before, the average change a visit brings, and visits and hours. The guest's notes
+ * the 46 days before, the average change a visit brings, and visits and hours. Each visit of the
+ * period is a marker on the chart (hover: its before and after scores), so the lines can be read
+ * against the bookings; a no-show is a dashed marker. The guest's notes
  * stay private (never shown here). Shown to staff with `persons.sensitive_read` only.
  */
 import type { WellbeingJourney } from "../../api";
@@ -32,6 +34,15 @@ export function WellbeingProfile({ journey, tr, now = new Date() }: { journey: W
     return { recent, delta: recent != null && before != null ? Math.round((recent - before) * 10) / 10 : null };
   };
   const months = [0, 30, 60].map((d) => new Date(start + d * DAY));
+  const byVisit = new Map(journey.checkins.filter((c) => c.bookingId).map((c) => [`${c.bookingId}:${c.moment}`, c]));
+  const visitLabel = (v: WellbeingJourney["visitDays"][number]) => {
+    const date = new Date(`${v.onDate}T12:00:00Z`).toLocaleDateString("nl-BE", { day: "numeric", month: "short" });
+    if (v.noShow) return `${date} · ${tr("site.portal.wellbeing.staff.noShow")}`;
+    const b = byVisit.get(`${v.bookingId}:before`);
+    const a = byVisit.get(`${v.bookingId}:after`);
+    const change = b && a ? (["energy", "calm", "mood"] as const).map((k) => `${tr(`site.portal.wellbeing.scale.${k}`).toLowerCase()} ${b[k]}→${a[k]}`).join(" · ") : tr("site.portal.wellbeing.staff.noCheckin");
+    return `${date} · ${tr("site.portal.wellbeing.staff.visit")} · ${change}`;
+  };
   const signed = (n: number) => `${n > 0 ? "+" : ""}${n.toFixed(1).replace(".", ",")}`;
 
   return (
@@ -83,6 +94,14 @@ export function WellbeingProfile({ journey, tr, now = new Date() }: { journey: W
                   {m.toLocaleDateString("nl-BE", { day: "numeric", month: "short" })}
                 </text>
               ))}
+              {journey.visitDays.map((v) => (
+                <g key={v.bookingId} data-testid="wellbeing-visit">
+                  <title>{visitLabel(v)}</title>
+                  <line x1={x(v.onDate)} x2={x(v.onDate)} y1={y(5) - 6} y2={y(1)} stroke={v.noShow ? "#a03d2a" : "#212842"} strokeOpacity={v.noShow ? 0.45 : 0.22} strokeDasharray={v.noShow ? "3 3" : undefined} />
+                  <circle cx={x(v.onDate)} cy={y(5) - 6} r="4" fill={v.noShow ? "#fff" : "#b58322"} stroke={v.noShow ? "#a03d2a" : "#b58322"} strokeWidth="1.5" />
+                  <rect x={x(v.onDate) - 6} y={y(5) - 12} width="12" height={y(1) - y(5) + 12} fill="transparent" />
+                </g>
+              ))}
               {KEYS.map((k) => {
                 const raw = points.filter((p) => p[k] != null);
                 if (raw.length < 2) return null;
@@ -99,6 +118,19 @@ export function WellbeingProfile({ journey, tr, now = new Date() }: { journey: W
                 return <path key={k} d={d} fill="none" stroke={COLOR[k]} strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" opacity="0.9" />;
               })}
             </svg>
+            <figcaption className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1.5">
+                <span className="size-2 rounded-full bg-[#b58322]" />
+                {tr("site.portal.wellbeing.staff.visit")}
+              </span>
+              {journey.visitDays.some((v) => v.noShow) ? (
+                <span className="flex items-center gap-1.5">
+                  <span className="size-2 rounded-full border-[1.5px] border-[#a03d2a]" />
+                  {tr("site.portal.wellbeing.staff.noShow")}
+                </span>
+              ) : null}
+              <span>{tr("site.portal.wellbeing.staff.visitHint")}</span>
+            </figcaption>
           </figure>
         </>
       )}

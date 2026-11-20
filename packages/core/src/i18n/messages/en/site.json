@@ -798,7 +798,11 @@
           "empty": "Not enough check-ins for a profile yet.",
           "vsBefore": "last 14 days",
           "chart": "Wellbeing over 60 days",
-          "privacy": "Sensitive data: scores only, the guest's notes stay private. Not for marketing without explicit consent."
+          "privacy": "Sensitive data: scores only, the guest's notes stay private. Not for marketing without explicit consent.",
+          "visit": "Visit",
+          "noShow": "No-show",
+          "noCheckin": "no check-in",
+          "visitHint": "Hover a visit to see the scores before and after."
         }
       }
     },

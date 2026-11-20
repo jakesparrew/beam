@@ -798,7 +798,11 @@
           "empty": "Nog te weinig check-ins voor een profiel.",
           "vsBefore": "laatste 14 dagen",
           "chart": "Welzijn over 60 dagen",
-          "privacy": "Gevoelige gegevens: alleen scores, de notities van de klant blijven privé. Niet gebruiken voor marketing zonder uitdrukkelijke toestemming."
+          "privacy": "Gevoelige gegevens: alleen scores, de notities van de klant blijven privé. Niet gebruiken voor marketing zonder uitdrukkelijke toestemming.",
+          "visit": "Bezoek",
+          "noShow": "Niet opgedaagd",
+          "noCheckin": "geen check-in",
+          "visitHint": "Beweeg over een bezoek voor de scores voor en na."
         }
       }
     },

@@ -18,6 +18,8 @@ export type WellbeingJourney = {
   /** Average after-minus-before per score over visits with both check-ins. */
   visitEffect: { visits: number; energy: number; calm: number; mood: number } | null;
   visits: number;
+  /** Past visits of the last 60 days (attended or no-show), oldest first, for the staff chart. */
+  visitDays: { bookingId: string; onDate: string; noShow: boolean }[];
   hours: number;
   nights: number;
   firstVisitOn: string | null;
@@ -72,6 +74,21 @@ export async function getWellbeingJourney(db: DbOrTx, personId: string, now: Dat
     .innerJoin(sessions, eq(sessions.id, bookings.sessionId))
     .where(and(eq(bookings.personId, personId), inArray(bookings.status, [...LIVE]), sql`${sessions.endsAt} < ${now}`, sql`${sessions.kind} in ('day', 'night')`));
 
+  const recentVisits = await db
+    .select({ bookingId: bookings.id, onDate: sql<string>`(${sessions.startsAt} at time zone 'Europe/Brussels')::date::text`, status: bookings.status })
+    .from(bookings)
+    .innerJoin(sessions, eq(sessions.id, bookings.sessionId))
+    .where(
+      and(
+        eq(bookings.personId, personId),
+        inArray(bookings.status, [...LIVE, "no_show"]),
+        sql`${sessions.kind} in ('day', 'night')`,
+        sql`${sessions.endsAt} < ${now}`,
+        sql`${sessions.startsAt} >= ${new Date(now.getTime() - 60 * 86_400_000)}`,
+      ),
+    )
+    .orderBy(asc(sessions.startsAt));
+
   // What to ask now: before the next visit (within a day), after a recent one, else the daily one.
   const done = new Set(rows.filter((r) => r.bookingId).map((r) => `${r.bookingId}:${r.moment}`));
   const doneAll = await db
@@ -103,6 +120,7 @@ export async function getWellbeingJourney(db: DbOrTx, personId: string, now: Dat
     checkins,
     visitEffect,
     visits: stats?.visits ?? 0,
+    visitDays: recentVisits.map((v) => ({ bookingId: v.bookingId, onDate: v.onDate, noShow: v.status === "no_show" })),
     hours: Math.round((stats?.minutes ?? 0) / 60),
     nights: stats?.nights ?? 0,
     firstVisitOn: stats?.first ?? null,

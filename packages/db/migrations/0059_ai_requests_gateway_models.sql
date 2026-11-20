@@ -1,0 +1,2 @@
+ALTER TABLE "ai_requests" DROP CONSTRAINT "ai_requests_model_ck";--> statement-breakpoint
+ALTER TABLE "ai_requests" ADD CONSTRAINT "ai_requests_model_ck" CHECK ("ai_requests"."model" in ('claude-opus-5-5', 'claude-haiku-5-5') or "ai_requests"."model" ~ '^[a-z0-9-]+/[a-z0-9._-]{2,100}$');

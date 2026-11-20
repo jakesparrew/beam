@@ -1,0 +1,373 @@
+{
+  "assistant": {
+    "nav": {
+      "section": "AI-assistent",
+      "overview": "Overzicht",
+      "conversations": "Gesprekken",
+      "eval": "Evaluatie",
+      "settings": "Instellingen"
+    },
+    "permissions": {
+      "assistant_read": "Gesprekken van de AI-assistent bekijken en overnemen",
+      "assistant_manage": "De AI-assistent instellen"
+    },
+    "widget": {
+      "launcher": "Vraag het BEAM",
+      "launcherCoach": "Je coach",
+      "guideTitle": "BEAM-gids",
+      "guideSubtitle": "Digitale assistent · antwoordt meteen",
+      "coachTitle": "Je coach",
+      "coachSubtitle": "Persoonlijk, met je eigen gegevens",
+      "greetingGuide": "Hallo, ik ben de digitale gids van BEAM. Vraag me gerust wat BEAM is, wanneer er plaats is of wat een sessie kost.",
+      "greetingCoach": "Dag {name}, ik ben je coach. Vraag me wanneer je best terugkomt, wat je nog tegoed hebt of hoe je je voorbereidt.",
+      "starter": {
+        "g1": "Wat is BEAM?",
+        "g2": "Wanneer is er plaats?",
+        "g3": "Wat kost een sessie?",
+        "g4": "Dag of nacht: wat kies ik?",
+        "c1": "Wanneer kom ik best terug?",
+        "c2": "Hoeveel tegoed heb ik nog?",
+        "c3": "Hoe bereid ik een nacht voor?"
+      },
+      "placeholder": "Stel je vraag…",
+      "send": "Versturen",
+      "close": "Sluiten",
+      "open": "Chat openen",
+      "newChat": "Nieuw gesprek",
+      "disclaimer": "AI-assistent · kan zich vergissen · een collega kan overnemen",
+      "thinking": "Even kijken…",
+      "relayed": "Een collega van BEAM volgt dit gesprek en antwoordt je hier.",
+      "staff": "BEAM-team",
+      "helpful": "Nuttig",
+      "notHelpful": "Niet nuttig",
+      "book": "Boek",
+      "free": "{count, plural, one {# plaats vrij} other {# plaatsen vrij}}",
+      "contact": {
+        "title": "Laat je gegevens achter",
+        "body": "Een collega van BEAM neemt persoonlijk contact met je op.",
+        "firstName": "Voornaam",
+        "email": "E-mailadres",
+        "phone": "Telefoon (optioneel)",
+        "newsletter": "Ik ontvang graag de nieuwsbrief van BEAM",
+        "submit": "Versturen",
+        "privacy": "We gebruiken je gegevens alleen om je verder te helpen.",
+        "error": "Dat lukte niet. Kijk je e-mailadres na en probeer opnieuw."
+      },
+      "handoff": "Een collega is verwittigd en antwoordt je zo snel mogelijk.",
+      "error": "Er liep iets mis. Probeer het opnieuw.",
+      "checkins": {
+        "label": "Mijn check-ins gebruiken",
+        "hint": "Je coach mag je scores voor energie, slaap, spanning en stemming gebruiken. Je notities blijven privé. Je kan dit altijd uitzetten."
+      }
+    },
+    "admin": {
+      "overview": {
+        "title": "AI-assistent",
+        "subtitle": "Wat de gids, de coach en de analist doen, wat het oplevert en wat het kost.",
+        "on": "Actief op de website",
+        "off": "Uitgeschakeld"
+      },
+      "kpi": {
+        "today": "Gesprekken vandaag",
+        "week": "Gesprekken, 7 dagen",
+        "coach": "Coachgesprekken, 7 dagen",
+        "answered": "Zelf beantwoord",
+        "leads": "Nieuwe leads, 7 dagen",
+        "qualified": "Gekwalificeerd",
+        "handoffs": "Wacht op een collega",
+        "bookings": "Boekingen na een gesprek, 30 dagen",
+        "avgCost": "Gemiddeld per gesprek"
+      },
+      "spend": {
+        "title": "Kosten",
+        "today": "Vandaag",
+        "month": "Deze maand",
+        "of": "van {cap}",
+        "note": "Bij het plafond toont de chat het contactformulier in plaats van een AI-antwoord."
+      },
+      "models": {
+        "title": "Modellen"
+      },
+      "role": {
+        "guide": "Gids",
+        "coach": "Coach",
+        "analyst": "Analist"
+      },
+      "unanswered": {
+        "title": "Vragen zonder antwoord",
+        "empty": "Geen open vragen. De kennisbank dekt alles.",
+        "write": "Antwoord toevoegen in de kennisbank"
+      },
+      "log": {
+        "title": "Wat de agent deed",
+        "empty": "Nog geen acties.",
+        "anonymous": "Anonieme bezoeker"
+      },
+      "action": {
+        "contact_saved": "Contactgegevens opgeslagen",
+        "consent_recorded": "Toestemming vastgelegd",
+        "tags_applied": "Labels toegekend",
+        "analysed": "Gesprek geanalyseerd",
+        "lead_qualified": "Lead gekwalificeerd",
+        "handoff_opened": "Collega gevraagd",
+        "task_created": "Taak aangemaakt",
+        "unanswered": "Vraag zonder antwoord",
+        "contact_offered": "Contactformulier getoond",
+        "booking_link_clicked": "Boekknop geklikt",
+        "taken_over": "Overgenomen door een collega",
+        "released": "Teruggegeven aan de agent",
+        "closed": "Gesprek gesloten",
+        "budget_reached": "Budget bereikt",
+        "profile_advice": "Profieladvies gemaakt",
+        "automation_enrolled": "In traject geplaatst"
+      },
+      "conversations": {
+        "title": "Gesprekken",
+        "empty": "Nog geen gesprekken in deze lijst.",
+        "anonymous": "Anonieme bezoeker",
+        "messages": "{count, plural, one {# bericht} other {# berichten}}"
+      },
+      "filter": {
+        "all": "Alle",
+        "handoff": "Wil een collega",
+        "unknown": "Wist het niet",
+        "leads": "Leads",
+        "coach": "Coach"
+      },
+      "status": {
+        "open": "Open",
+        "handoff": "Wil een collega",
+        "closed": "Gesloten",
+        "takenOver": "Overgenomen"
+      },
+      "detail": {
+        "back": "Alle gesprekken",
+        "transcript": "Gesprek",
+        "analysis": "Analyse",
+        "noAnalysis": "Nog niet geanalyseerd. De analist leest een gesprek tien minuten na het laatste bericht, of meteen na een contactformulier.",
+        "score": "Leadscore",
+        "summary": "Samenvatting",
+        "intent": "Intentie",
+        "interests": "Interesses",
+        "objections": "Bezwaren",
+        "urgency": "Urgentie",
+        "tags": "Labels in CRM",
+        "quotes": "Waarop gebaseerd (letterlijk)",
+        "trace": "Tools",
+        "usage": "{input} in · {output} uit · {cached} uit cache · {ms} ms",
+        "reply": "Antwoord als collega",
+        "replyHint": "Je antwoord verschijnt meteen in de chat. Vanaf je eerste antwoord zwijgt de agent in dit gesprek.",
+        "send": "Versturen",
+        "takenOver": "Overgenomen door {name}. De agent zwijgt in dit gesprek.",
+        "release": "Teruggeven aan de agent",
+        "close": "Gesprek sluiten",
+        "visitor": "Bezoeker",
+        "assistant": "Assistent",
+        "staff": "Collega",
+        "person": "Klantfiche",
+        "page": "Pagina",
+        "cost": "Kost",
+        "log": "Agentlogboek",
+        "cards": "Getoond: {cards}"
+      },
+      "settings": {
+        "title": "Instellingen van de assistent",
+        "subtitle": "Een wijziging geldt vanaf het volgende bericht.",
+        "switches": "Aan en uit",
+        "enabled": "Gids op de website",
+        "coachEnabled": "Coach in het klantportaal",
+        "roles": "Modellen per rol",
+        "model": "Model",
+        "fallback": "Reservemodel",
+        "none": "Geen",
+        "effort": "Denkdiepte",
+        "effort_none": "Uit",
+        "effort_low": "Laag",
+        "effort_medium": "Gemiddeld",
+        "effort_high": "Hoog",
+        "maxTokens": "Maximale lengte (tokens)",
+        "budget": "Budget",
+        "daily": "Dagplafond (cent)",
+        "monthly": "Maandplafond (cent)",
+        "limits": "Limieten tegen misbruik",
+        "perMinute": "Berichten per bezoeker per minuut",
+        "perDay": "Berichten per bezoeker per dag",
+        "perConversation": "Berichten per gesprek",
+        "perIp": "Berichten per IP-adres per minuut",
+        "sales": "Verkoop en toon",
+        "contactAfter": "Contactformulier aanbieden vanaf bericht",
+        "tone": "Toon van de gids en de coach",
+        "prices": "Prijslijst (cent per miljoen tokens)",
+        "in": "Invoer",
+        "out": "Uitvoer",
+        "cacheRead": "Uit cache",
+        "cacheWrite": "Naar cache",
+        "save": "Bewaren",
+        "saved": "Bewaard",
+        "error": "Niet bewaard: kijk de velden na.",
+        "register": "Wat de agent mag en ziet",
+        "registerIntro": "De agent leest en verwijst door; hij kan nooit zelf boeken, annuleren of betalen. Elke toolaanroep staat in het gesprek, met wat hij terugkreeg.",
+        "adviceTitle": "Advies op klantprofielen",
+        "autoApply": "De agent plaatst zelf in trajecten en kent labels toe (taken blijven een klik van een collega)",
+        "adviceFlows": "Trajecten die de agent mag gebruiken (één slug per regel)"
+      },
+      "tool": {
+        "get_availability": "Beschikbaarheid: vrije plaatsen per sessie, met prijs",
+        "get_offer": "Aanbod: producten en prijzen",
+        "booking_link": "Boekknop naar de boekingsflow",
+        "offer_contact_form": "Contactformulier tonen (gids)",
+        "handoff": "Een collega vragen (taak + melding)",
+        "note_unanswered": "Vraag zonder antwoord noteren",
+        "my_bookings": "Eigen boekingen (coach)",
+        "my_balance": "Eigen tegoed en lidmaatschap (coach)",
+        "my_checkins": "Eigen check-ins, alleen met toestemming (coach)"
+      },
+      "eval": {
+        "title": "Evaluatie",
+        "intro": "Echte vragen met wat een goed antwoord moet doen. Test ze op een of meer modellen voor je wisselt: kwaliteit, kost per antwoord en snelheid naast elkaar.",
+        "cases": "Vragen",
+        "question": "Vraag",
+        "expectation": "Een goed antwoord…",
+        "add": "Vraag toevoegen",
+        "delete": "Verwijderen",
+        "run": "Testen",
+        "runHint": "Kies tot vier modellen. De test loopt op de achtergrond; vernieuw de pagina na een minuut.",
+        "started": "Test gestart",
+        "results": "Resultaten",
+        "passRate": "{passed} van {total} goed",
+        "avgCost": "Gem. kost",
+        "avgMs": "Gem. tijd",
+        "empty": "Nog geen testen."
+      },
+      "panel": {
+        "title": "AI-assistent",
+        "empty": "Geen gesprekken met de assistent.",
+        "best": "Hoogste leadscore",
+        "open": "Gesprek openen"
+      },
+      "behaviour": {
+        "title": "Gedrag en advies",
+        "privacy": "Op basis van boekingen, tegoed en aankopen. Geen gezondheids- of welzijnsgegevens.",
+        "visits": "Bezoeken",
+        "visits90": "{n} in de laatste 90 dagen",
+        "lastVisit": "Laatste bezoek",
+        "daysAgo": "{count, plural, =0 {vandaag} one {# dag geleden} other {# dagen geleden}}",
+        "never": "nog niet",
+        "rhythm": "Ritme",
+        "rhythmValue": "om de {days} dagen",
+        "preference": "Voorkeur",
+        "next": "Volgende boeking",
+        "none": "geen",
+        "leadTime": "boekt {days} dagen vooraf",
+        "reliability": "No-shows en late annuleringen",
+        "credits": "Tegoed",
+        "creditLine": "{remaining} × {kind}, tot {date}",
+        "spend": "Besteed",
+        "orders": "{count, plural, one {# bestelling} other {# bestellingen}}",
+        "newsletter": "Nieuwsbrief",
+        "yes": "toestemming",
+        "no": "geen toestemming",
+        "kind": {
+          "day": "dagsessies",
+          "night": "nachten",
+          "event": "events"
+        },
+        "daypart": {
+          "morning": "ochtend",
+          "afternoon": "middag",
+          "evening": "avond"
+        },
+        "weekday": {
+          "1": "maandag",
+          "2": "dinsdag",
+          "3": "woensdag",
+          "4": "donderdag",
+          "5": "vrijdag",
+          "6": "zaterdag",
+          "7": "zondag"
+        },
+        "signal": {
+          "never_visited": "Nog nooit geweest",
+          "new_visitor": "Eén bezoek",
+          "regular": "Komt geregeld",
+          "loyal": "Trouwe bezoeker",
+          "lapsing": "Dreigt af te haken",
+          "lost": "Meer dan 6 maanden weg",
+          "night_fan": "Kiest vooral nachten",
+          "no_show_risk": "Vaak afwezig of laat geannuleerd",
+          "credits_expiring": "Tegoed vervalt binnen 45 dagen",
+          "credits_unused": "Tegoed, maar geen boeking",
+          "no_newsletter": "Geen nieuwsbrief-toestemming",
+          "has_upcoming": "Heeft een boeking staan"
+        },
+        "advice": {
+          "title": "Advies van de lead-agent",
+          "none": "Nog geen advies. Laat de agent dit profiel bekijken.",
+          "empty": "De agent ziet nu geen zinvolle volgende stap.",
+          "analyse": "Laat de agent kijken",
+          "again": "Opnieuw bekijken",
+          "queued": "De agent is bezig. De pagina ververst zo meteen.",
+          "apply": "Voer uit",
+          "done": "Uitgevoerd",
+          "skipped": "Niet uitgevoerd",
+          "type": {
+            "enrol": "Traject",
+            "tag": "Label",
+            "task": "Taak"
+          },
+          "result": {
+            "enrolled": "geplaatst in het traject",
+            "skipped_unreachable": "geen toestemming of niet bereikbaar",
+            "re_entry": "zat al eerder in dit traject",
+            "audience": "past niet in de doelgroep van het traject",
+            "skipped_exclusive": "zit al in een ander traject van deze groep",
+            "inactive": "het traject staat uit",
+            "anchor_missing": "het traject mist een startmoment",
+            "applied": "label toegekend",
+            "already": "had dit label al",
+            "task_created": "taak aangemaakt voor sales",
+            "task_exists": "deze taak bestond al"
+          }
+        }
+      },
+      "activity": {
+        "title": "Bezoeken en interacties",
+        "perWeek": "Per week",
+        "perMonth": "Per maand, laatste 12 maanden",
+        "visits": "Bezoeken",
+        "interactions": "Interacties",
+        "when": "Wanneer komt deze persoon",
+        "table": "Toon als tabel",
+        "total": "Totaal",
+        "noVisits": "Nog geen bezoeken.",
+        "noInteractions": "Nog geen interacties.",
+        "visitsUnit": "bezoeken",
+        "series": {
+          "day": "Dag",
+          "night": "Nacht",
+          "event": "Event",
+          "missed": "Niet gekomen",
+          "bookings": "Boekingen",
+          "emails": "E-mails",
+          "purchases": "Aankopen",
+          "chat": "Chat en berichten",
+          "events": "Webinars en formulieren"
+        },
+        "weekday": {
+          "1": "ma",
+          "2": "di",
+          "3": "wo",
+          "4": "do",
+          "5": "vr",
+          "6": "za",
+          "7": "zo"
+        },
+        "daypart": {
+          "morning": "Ochtend",
+          "afternoon": "Middag",
+          "evening": "Avond"
+        }
+      }
+    }
+  }
+}

@@ -38,7 +38,7 @@ import {
   type RoleKey,
 } from "@beam/db/schema";
 import { sendTransactional } from "@/modules/email/api";
-import { setPersonTester } from "@/modules/crm/api";
+import { findOrCreatePersonByEmail, setPersonTester } from "@/modules/crm/api";
 import { isDpiaApproved } from "@/modules/ops/api";
 import { FLAGS } from "@/registry/flags.generated";
 import { PERMISSIONS } from "@/registry/permissions.generated";
@@ -330,6 +330,52 @@ export const customerPasswordSignIn = action(
     const { token, expires } = await createAuthSession(ctx.tx, { userId: user.id, audience: "customer", roleKey: null, now: ctx.now, ip: ctx.ip, userAgent: meta.userAgent });
     await recordSuccessfulLogin(ctx.tx, user.id, ctx.now);
     await ctx.recordEvent({ kind: "platform.signed_in", personId: user.personId!, data: { method: "password" }, dedupeKey: signedInKey(user.id, ctx.now) });
+    await setSessionCookie(token, expires);
+    return { next: safeReturnTo(input.returnTo, `/${URL_SEGMENT[input.locale]}/account`) };
+  },
+);
+
+/**
+ * The last step of the public booking flow: a new customer creates an account with a password and
+ * is signed in at once, so booking never starts behind a login (fewer drop-offs). An address that
+ * already has an account gets `account_exists` (the flow then offers the normal sign-in); a staff
+ * address is refused the same way, so the answer reveals nothing more than the login form would.
+ */
+export const customerSignUp = action(
+  {
+    name: "auth.customer_sign_up",
+    audience: "public",
+    input: z.object({
+      email: Email,
+      firstName: z.string().trim().min(1).max(100),
+      lastName: z.string().trim().min(1).max(100),
+      password: Password,
+      locale: LocaleInput,
+      returnTo: ReturnTo,
+    }),
+    audit: false,
+    rateLimit: (i, { ip }) => ({ route: "login", ip, email: i.email }),
+  },
+  async (ctx, input): Promise<{ next: string }> => {
+    if (await findUserByEmail(ctx, input.email)) throw new AppError("conflict", "account_exists");
+    await assertPolicy(input.password, "customer", input.email);
+    const { personId } = await findOrCreatePersonByEmail(ctx.tx, ctx, {
+      email: input.email,
+      firstName: input.firstName,
+      lastName: input.lastName,
+      locale: input.locale,
+      acquisition: { source: "website", medium: "booking_flow" },
+    });
+    const [taken] = await ctx.tx.select({ id: users.id }).from(users).where(and(eq(users.personId, personId), eq(users.audience, "customer")));
+    if (taken) throw new AppError("conflict", "account_exists");
+    const [user] = await ctx.tx
+      .insert(users)
+      .values({ audience: "customer", email: input.email, personId, locale: input.locale, passwordHash: await hashPassword(input.password), passwordChangedAt: ctx.now })
+      .returning({ id: users.id });
+    await ctx.recordEvent({ kind: "platform.account_created", personId, data: { user_id: user!.id, method: "booking_flow" }, dedupeKey: `account:${user!.id}` });
+    const meta = await requestMeta();
+    const { token, expires } = await createAuthSession(ctx.tx, { userId: user!.id, audience: "customer", roleKey: null, now: ctx.now, ip: ctx.ip, userAgent: meta.userAgent });
+    await recordSuccessfulLogin(ctx.tx, user!.id, ctx.now);
     await setSessionCookie(token, expires);
     return { next: safeReturnTo(input.returnTo, `/${URL_SEGMENT[input.locale]}/account`) };
   },

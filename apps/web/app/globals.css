@@ -215,3 +215,32 @@
 [data-slot="admin-shell"] [data-slot="table"] tbody tr:hover {
   background-color: #fbf8f1;
 }
+
+/* Customer portal in the BEAM house style: Rufina titles, soft floating cards, pill buttons and
+ * rounded fields, so every portal page (booking, payment, profile) matches the home. */
+[data-slot="portal-shell"] main h1 {
+  font-family: var(--font-rufina), Georgia, serif;
+  font-weight: 700;
+  font-size: clamp(1.9rem, 1.5rem + 1.2vw, 2.6rem);
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+}
+[data-slot="portal-shell"] [data-slot="card"] {
+  border-color: transparent;
+  border-radius: 1.5rem;
+  box-shadow: 0 1px 2px rgb(33 40 66 / 0.04), 0 12px 32px -18px rgb(33 40 66 / 0.22);
+}
+[data-slot="portal-shell"] main button[type="submit"],
+[data-slot="portal-shell"] [data-slot="button"] {
+  border-radius: 9999px;
+  min-height: 2.75rem;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+}
+[data-slot="portal-shell"] main input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),
+[data-slot="portal-shell"] main select,
+[data-slot="portal-shell"] main textarea {
+  border-radius: 0.75rem;
+  background-color: var(--card);
+  min-height: 2.75rem;
+}

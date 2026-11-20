@@ -46,7 +46,7 @@ export default async function AccountCheckoutReturnPage({ params, searchParams }
       poll={poll}
       retryAction={order.status === "pending_payment" ? retry : null}
       links={[
-        { href: `/${seg}/account/book`, label: tr("commerce.return.go_bookings") },
+        { href: `/${seg}/account/bookings`, label: tr("commerce.return.go_bookings") },
         { href: `/${seg}/account/orders/${id}`, label: tr("commerce.return.go_orders") },
       ]}
     />

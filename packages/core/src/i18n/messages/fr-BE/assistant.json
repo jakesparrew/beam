@@ -1,0 +1,373 @@
+{
+  "assistant": {
+    "nav": {
+      "section": "Assistant IA",
+      "overview": "Aperçu",
+      "conversations": "Conversations",
+      "eval": "Évaluation",
+      "settings": "Paramètres"
+    },
+    "permissions": {
+      "assistant_read": "Voir et reprendre les conversations de l'assistant IA",
+      "assistant_manage": "Configurer l'assistant IA"
+    },
+    "widget": {
+      "launcher": "Demandez à BEAM",
+      "launcherCoach": "Votre coach",
+      "guideTitle": "Guide BEAM",
+      "guideSubtitle": "Assistant numérique · répond tout de suite",
+      "coachTitle": "Votre coach",
+      "coachSubtitle": "Personnel, avec vos propres données",
+      "greetingGuide": "Bonjour, je suis le guide numérique de BEAM. Demandez-moi ce qu'est BEAM, quand il y a de la place ou combien coûte une séance.",
+      "greetingCoach": "Bonjour {name}, je suis votre coach. Demandez-moi quand revenir, ce qu'il vous reste ou comment vous préparer.",
+      "starter": {
+        "g1": "Qu'est-ce que BEAM ?",
+        "g2": "Quand y a-t-il de la place ?",
+        "g3": "Combien coûte une séance ?",
+        "g4": "Jour ou nuit : que choisir ?",
+        "c1": "Quand revenir ?",
+        "c2": "Combien de crédit me reste-t-il ?",
+        "c3": "Comment préparer une nuit ?"
+      },
+      "placeholder": "Posez votre question…",
+      "send": "Envoyer",
+      "close": "Fermer",
+      "open": "Ouvrir le chat",
+      "newChat": "Nouvelle conversation",
+      "disclaimer": "Assistant IA · peut se tromper · un collègue peut reprendre",
+      "thinking": "Un instant…",
+      "relayed": "Un collègue de BEAM suit cette conversation et vous répond ici.",
+      "staff": "Équipe BEAM",
+      "helpful": "Utile",
+      "notHelpful": "Pas utile",
+      "book": "Réserver",
+      "free": "{count, plural, one {# place libre} other {# places libres}}",
+      "contact": {
+        "title": "Laissez vos coordonnées",
+        "body": "Un collègue de BEAM vous recontactera personnellement.",
+        "firstName": "Prénom",
+        "email": "Adresse e-mail",
+        "phone": "Téléphone (facultatif)",
+        "newsletter": "Je souhaite recevoir la newsletter de BEAM",
+        "submit": "Envoyer",
+        "privacy": "Nous utilisons vos données uniquement pour vous aider.",
+        "error": "Cela n'a pas fonctionné. Vérifiez votre adresse e-mail et réessayez."
+      },
+      "handoff": "Un collègue est prévenu et vous répondra au plus vite.",
+      "error": "Un problème est survenu. Réessayez.",
+      "checkins": {
+        "label": "Utiliser mes check-ins",
+        "hint": "Votre coach peut utiliser vos scores d'énergie, de sommeil, de tension et d'humeur. Vos notes restent privées. Vous pouvez désactiver ceci à tout moment."
+      }
+    },
+    "admin": {
+      "overview": {
+        "title": "Assistant IA",
+        "subtitle": "Ce que font le guide, le coach et l'analyste, ce que cela rapporte et ce que cela coûte.",
+        "on": "Actif sur le site",
+        "off": "Désactivé"
+      },
+      "kpi": {
+        "today": "Conversations aujourd'hui",
+        "week": "Conversations, 7 jours",
+        "coach": "Conversations coach, 7 jours",
+        "answered": "Répondu seul",
+        "leads": "Nouveaux leads, 7 jours",
+        "qualified": "Qualifiés",
+        "handoffs": "Attend un collègue",
+        "bookings": "Réservations après une conversation, 30 jours",
+        "avgCost": "Moyenne par conversation"
+      },
+      "spend": {
+        "title": "Coûts",
+        "today": "Aujourd'hui",
+        "month": "Ce mois-ci",
+        "of": "sur {cap}",
+        "note": "Au plafond, le chat affiche le formulaire de contact au lieu d'une réponse IA."
+      },
+      "models": {
+        "title": "Modèles"
+      },
+      "role": {
+        "guide": "Guide",
+        "coach": "Coach",
+        "analyst": "Analyste"
+      },
+      "unanswered": {
+        "title": "Questions sans réponse",
+        "empty": "Aucune question ouverte. La base de connaissances couvre tout.",
+        "write": "Ajouter la réponse à la base de connaissances"
+      },
+      "log": {
+        "title": "Ce que l'agent a fait",
+        "empty": "Aucune action pour l'instant.",
+        "anonymous": "Visiteur anonyme"
+      },
+      "action": {
+        "contact_saved": "Coordonnées enregistrées",
+        "consent_recorded": "Consentement enregistré",
+        "tags_applied": "Étiquettes ajoutées",
+        "analysed": "Conversation analysée",
+        "lead_qualified": "Lead qualifié",
+        "handoff_opened": "Collègue demandé",
+        "task_created": "Tâche créée",
+        "unanswered": "Question sans réponse",
+        "contact_offered": "Formulaire de contact affiché",
+        "booking_link_clicked": "Bouton de réservation cliqué",
+        "taken_over": "Repris par un collègue",
+        "released": "Rendu à l'agent",
+        "closed": "Conversation fermée",
+        "budget_reached": "Budget atteint",
+        "profile_advice": "Conseil de profil créé",
+        "automation_enrolled": "Placé dans un parcours"
+      },
+      "conversations": {
+        "title": "Conversations",
+        "empty": "Aucune conversation dans cette liste.",
+        "anonymous": "Visiteur anonyme",
+        "messages": "{count, plural, one {# message} other {# messages}}"
+      },
+      "filter": {
+        "all": "Toutes",
+        "handoff": "Veut un collègue",
+        "unknown": "Ne savait pas",
+        "leads": "Leads",
+        "coach": "Coach"
+      },
+      "status": {
+        "open": "Ouverte",
+        "handoff": "Veut un collègue",
+        "closed": "Fermée",
+        "takenOver": "Reprise"
+      },
+      "detail": {
+        "back": "Toutes les conversations",
+        "transcript": "Conversation",
+        "analysis": "Analyse",
+        "noAnalysis": "Pas encore analysée. L'analyste lit une conversation dix minutes après le dernier message, ou dès un formulaire de contact.",
+        "score": "Score du lead",
+        "summary": "Résumé",
+        "intent": "Intention",
+        "interests": "Intérêts",
+        "objections": "Objections",
+        "urgency": "Urgence",
+        "tags": "Étiquettes CRM",
+        "quotes": "Sur quoi c'est basé (citations)",
+        "trace": "Outils",
+        "usage": "{input} entrée · {output} sortie · {cached} en cache · {ms} ms",
+        "reply": "Répondre en tant que collègue",
+        "replyHint": "Votre réponse apparaît tout de suite dans le chat. Dès votre première réponse, l'agent se tait dans cette conversation.",
+        "send": "Envoyer",
+        "takenOver": "Reprise par {name}. L'agent se tait dans cette conversation.",
+        "release": "Rendre à l'agent",
+        "close": "Fermer la conversation",
+        "visitor": "Visiteur",
+        "assistant": "Assistant",
+        "staff": "Collègue",
+        "person": "Fiche client",
+        "page": "Page",
+        "cost": "Coût",
+        "log": "Journal de l'agent",
+        "cards": "Affiché : {cards}"
+      },
+      "settings": {
+        "title": "Paramètres de l'assistant",
+        "subtitle": "Un changement s'applique dès le message suivant.",
+        "switches": "Activation",
+        "enabled": "Guide sur le site",
+        "coachEnabled": "Coach dans l'espace client",
+        "roles": "Modèles par rôle",
+        "model": "Modèle",
+        "fallback": "Modèle de secours",
+        "none": "Aucun",
+        "effort": "Profondeur de réflexion",
+        "effort_none": "Désactivée",
+        "effort_low": "Faible",
+        "effort_medium": "Moyenne",
+        "effort_high": "Élevée",
+        "maxTokens": "Longueur maximale (tokens)",
+        "budget": "Budget",
+        "daily": "Plafond journalier (centimes)",
+        "monthly": "Plafond mensuel (centimes)",
+        "limits": "Limites anti-abus",
+        "perMinute": "Messages par visiteur par minute",
+        "perDay": "Messages par visiteur par jour",
+        "perConversation": "Messages par conversation",
+        "perIp": "Messages par adresse IP par minute",
+        "sales": "Vente et ton",
+        "contactAfter": "Proposer le formulaire de contact à partir du message",
+        "tone": "Ton du guide et du coach",
+        "prices": "Tarifs (centimes par million de tokens)",
+        "in": "Entrée",
+        "out": "Sortie",
+        "cacheRead": "Cache lu",
+        "cacheWrite": "Cache écrit",
+        "save": "Enregistrer",
+        "saved": "Enregistré",
+        "error": "Non enregistré : vérifiez les champs.",
+        "register": "Ce que l'agent peut faire et voir",
+        "registerIntro": "L'agent lit et redirige ; il ne peut jamais réserver, annuler ou payer lui-même. Chaque appel d'outil figure dans la conversation, avec sa réponse.",
+        "adviceTitle": "Conseils sur les profils clients",
+        "autoApply": "L'agent place lui-même dans les parcours et ajoute les étiquettes (les tâches restent à un clic d'un collègue)",
+        "adviceFlows": "Parcours que l'agent peut utiliser (un slug par ligne)"
+      },
+      "tool": {
+        "get_availability": "Disponibilités : places libres par séance, avec prix",
+        "get_offer": "Offre : produits et prix",
+        "booking_link": "Bouton vers le parcours de réservation",
+        "offer_contact_form": "Afficher le formulaire de contact (guide)",
+        "handoff": "Demander un collègue (tâche + alerte)",
+        "note_unanswered": "Noter une question sans réponse",
+        "my_bookings": "Ses réservations (coach)",
+        "my_balance": "Son crédit et abonnement (coach)",
+        "my_checkins": "Ses check-ins, avec consentement uniquement (coach)"
+      },
+      "eval": {
+        "title": "Évaluation",
+        "intro": "De vraies questions avec ce qu'une bonne réponse doit faire. Testez-les sur un ou plusieurs modèles avant de changer : qualité, coût par réponse et vitesse côte à côte.",
+        "cases": "Questions",
+        "question": "Question",
+        "expectation": "Une bonne réponse…",
+        "add": "Ajouter une question",
+        "delete": "Supprimer",
+        "run": "Tester",
+        "runHint": "Choisissez jusqu'à quatre modèles. Le test tourne en arrière-plan ; actualisez la page après une minute.",
+        "started": "Test lancé",
+        "results": "Résultats",
+        "passRate": "{passed} sur {total} réussies",
+        "avgCost": "Coût moyen",
+        "avgMs": "Temps moyen",
+        "empty": "Aucun test pour l'instant."
+      },
+      "panel": {
+        "title": "Assistant IA",
+        "empty": "Aucune conversation avec l'assistant.",
+        "best": "Meilleur score",
+        "open": "Ouvrir la conversation"
+      },
+      "behaviour": {
+        "title": "Comportement et conseil",
+        "privacy": "Basé sur les réservations, le crédit et les achats. Aucune donnée de santé ou de bien-être.",
+        "visits": "Visites",
+        "visits90": "{n} sur les 90 derniers jours",
+        "lastVisit": "Dernière visite",
+        "daysAgo": "{count, plural, =0 {aujourd'hui} one {il y a # jour} other {il y a # jours}}",
+        "never": "pas encore",
+        "rhythm": "Rythme",
+        "rhythmValue": "tous les {days} jours",
+        "preference": "Préférence",
+        "next": "Prochaine réservation",
+        "none": "aucune",
+        "leadTime": "réserve {days} jours à l'avance",
+        "reliability": "Absences et annulations tardives",
+        "credits": "Crédit",
+        "creditLine": "{remaining} × {kind}, jusqu'au {date}",
+        "spend": "Dépensé",
+        "orders": "{count, plural, one {# commande} other {# commandes}}",
+        "newsletter": "Newsletter",
+        "yes": "consentement",
+        "no": "pas de consentement",
+        "kind": {
+          "day": "séances de jour",
+          "night": "nuits",
+          "event": "événements"
+        },
+        "daypart": {
+          "morning": "matin",
+          "afternoon": "après-midi",
+          "evening": "soir"
+        },
+        "weekday": {
+          "1": "lundi",
+          "2": "mardi",
+          "3": "mercredi",
+          "4": "jeudi",
+          "5": "vendredi",
+          "6": "samedi",
+          "7": "dimanche"
+        },
+        "signal": {
+          "never_visited": "Jamais venu",
+          "new_visitor": "Une visite",
+          "regular": "Vient régulièrement",
+          "loyal": "Visiteur fidèle",
+          "lapsing": "Risque de décrocher",
+          "lost": "Absent depuis plus de 6 mois",
+          "night_fan": "Préfère les nuits",
+          "no_show_risk": "Souvent absent ou annulé tard",
+          "credits_expiring": "Crédit expire dans 45 jours",
+          "credits_unused": "Crédit sans réservation",
+          "no_newsletter": "Pas de consentement newsletter",
+          "has_upcoming": "A une réservation à venir"
+        },
+        "advice": {
+          "title": "Conseil de l'agent",
+          "none": "Pas encore de conseil. Demandez à l'agent d'examiner ce profil.",
+          "empty": "L'agent ne voit pas d'étape utile pour l'instant.",
+          "analyse": "Demander à l'agent",
+          "again": "Réexaminer",
+          "queued": "L'agent travaille. La page se rafraîchit dans un instant.",
+          "apply": "Exécuter",
+          "done": "Exécuté",
+          "skipped": "Non exécuté",
+          "type": {
+            "enrol": "Parcours",
+            "tag": "Étiquette",
+            "task": "Tâche"
+          },
+          "result": {
+            "enrolled": "placé dans le parcours",
+            "skipped_unreachable": "pas de consentement ou injoignable",
+            "re_entry": "a déjà suivi ce parcours",
+            "audience": "hors du public du parcours",
+            "skipped_exclusive": "déjà dans un autre parcours de ce groupe",
+            "inactive": "le parcours est désactivé",
+            "anchor_missing": "le parcours n'a pas de point de départ",
+            "applied": "étiquette ajoutée",
+            "already": "avait déjà cette étiquette",
+            "task_created": "tâche créée pour les ventes",
+            "task_exists": "cette tâche existait déjà"
+          }
+        }
+      },
+      "activity": {
+        "title": "Visites et interactions",
+        "perWeek": "Par semaine",
+        "perMonth": "Par mois, 12 derniers mois",
+        "visits": "Visites",
+        "interactions": "Interactions",
+        "when": "Quand cette personne vient",
+        "table": "Afficher en tableau",
+        "total": "Total",
+        "noVisits": "Pas encore de visites.",
+        "noInteractions": "Pas encore d'interactions.",
+        "visitsUnit": "visites",
+        "series": {
+          "day": "Jour",
+          "night": "Nuit",
+          "event": "Événement",
+          "missed": "Absent",
+          "bookings": "Réservations",
+          "emails": "E-mails",
+          "purchases": "Achats",
+          "chat": "Chat et messages",
+          "events": "Webinaires et formulaires"
+        },
+        "weekday": {
+          "1": "lun",
+          "2": "mar",
+          "3": "mer",
+          "4": "jeu",
+          "5": "ven",
+          "6": "sam",
+          "7": "dim"
+        },
+        "daypart": {
+          "morning": "Matin",
+          "afternoon": "Après-midi",
+          "evening": "Soir"
+        }
+      }
+    }
+  }
+}

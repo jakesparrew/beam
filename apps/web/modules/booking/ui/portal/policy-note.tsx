@@ -9,7 +9,7 @@ import { cn } from "@beam/ui";
 export function PolicyNote({ policy, notice, tone = "info" }: { policy: string; notice?: string | null; tone?: "info" | "warning" }) {
   return (
     <div
-      className={cn("rounded-md border p-3 text-sm", tone === "warning" ? "border-warning bg-warning/10" : "bg-muted/40")}
+      className={cn("rounded-2xl p-4 text-sm", tone === "warning" ? "bg-[#fdf3dc]" : "bg-[#f6efdf]")}
       data-testid="policy-note"
     >
       <p>{policy}</p>

@@ -42,6 +42,7 @@ const GROUPS: ReadonlyArray<{ key: string; label: string; icon: string; main: st
   { key: "booking", label: "platform.nav.section_booking", icon: "calendar-days", main: "booking.bookings", sections: ["booking", "webinar"] },
   { key: "sales", label: "platform.nav.section_sales", icon: "shopping-cart", main: "commerce.products", sections: ["sales"] },
   { key: "finance", label: "platform.nav.section_finance", icon: "receipt", main: "finance.invoices", sections: ["finance"] },
+  { key: "assistant", label: "assistant.nav.section", icon: "bot", main: "assistant.overview", sections: ["assistant"] },
   { key: "marketing", label: "platform.nav.section_marketing", icon: "megaphone", main: "email.overview", sections: ["email", "marketing"] },
   { key: "website", label: "platform.nav.section_website", icon: "globe", main: "site.website", sections: ["website"] },
   { key: "reports", label: "platform.nav.section_reports", icon: "chart-bar", main: "ops.reports", sections: ["reports"] },

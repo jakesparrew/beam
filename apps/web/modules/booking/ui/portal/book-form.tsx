@@ -16,7 +16,7 @@
  */
 import Link from "next/link";
 import type { Route } from "next";
-import { Button, Input, Label } from "@beam/ui";
+import { Input, Label } from "@beam/ui";
 import { GuestFields, type GuestFieldsLabels } from "./guest-fields";
 import { PolicyNote } from "./policy-note";
 
@@ -62,6 +62,11 @@ export type BookFormProps = {
   labels: BookFormLabels;
 };
 
+const LEGEND = "font-display mb-1 text-xl";
+/** A choice as a card: the checked one gets the navy ring. */
+const OPTION =
+  "flex min-h-11 cursor-pointer items-start gap-3 rounded-2xl border-2 border-border bg-card p-4 transition hover:border-[#212842]/40 has-[:checked]:border-[#212842] has-[:checked]:bg-[#fffaef]";
+
 export function BookForm(p: BookFormProps) {
   const errId = "book-form-error";
   const errFor = (f: NonNullable<BookFormProps["error"]>["field"]) => (p.error && p.error.field === f ? errId : undefined);
@@ -73,25 +78,25 @@ export function BookForm(p: BookFormProps) {
     );
   }
   return (
-    <form action={p.action} className="space-y-5" data-testid="book-form" noValidate={false}>
+    <form action={p.action} className="grid gap-8" data-testid="book-form" noValidate={false}>
       <input type="hidden" name="clientKey" value={p.clientKey} />
       {p.error ? (
-        <p id={errId} role="alert" className="rounded-md border border-destructive p-3 text-sm" data-testid="book-error">
+        <p id={errId} role="alert" className="rounded-2xl border border-destructive/40 bg-destructive/5 p-4 text-sm" data-testid="book-error">
           {p.error.message}
         </p>
       ) : null}
 
       {p.leadSeatNotice ? (
-        <p className="rounded-md border p-3 text-sm" data-testid="lead-seat-notice">
+        <p className="rounded-2xl bg-[#f4ead3] p-4 text-sm" data-testid="lead-seat-notice">
           {p.leadSeatNotice}
         </p>
       ) : null}
 
       {p.ticketTypes && p.ticketTypes.length > 0 ? (
-        <fieldset className="space-y-2" aria-describedby={errFor("ticket")} data-testid="ticket-types">
-          <legend className="font-medium">{p.labels.ticketType}</legend>
+        <fieldset className="grid gap-3" aria-describedby={errFor("ticket")} data-testid="ticket-types">
+          <legend className={LEGEND}>{p.labels.ticketType}</legend>
           {p.ticketTypes.map((t, i, all) => (
-            <label key={t.id} className={`flex min-h-11 items-start gap-3 rounded-md border p-3${t.disabled ? " opacity-60" : ""}`}>
+            <label key={t.id} className={`${OPTION}${t.disabled ? " opacity-60" : ""}`}>
               <input
                 type="radio"
                 name="ticketTypeId"
@@ -111,20 +116,20 @@ export function BookForm(p: BookFormProps) {
         </fieldset>
       ) : null}
 
-      <fieldset className="space-y-2" aria-describedby={errFor("payment")}>
-        <legend className="font-medium">{p.labels.payment}</legend>
+      <fieldset className="grid gap-3" aria-describedby={errFor("payment")}>
+        <legend className={LEGEND}>{p.labels.payment}</legend>
         {p.payOptions.map((o, i) => (
-          <label key={o.value} className="flex min-h-11 items-start gap-3 rounded-md border p-3">
-            <input type="radio" name="payWith" value={o.value} defaultChecked={i === 0} className="mt-1 size-5" data-testid={`pay-${o.value}`} />
+          <label key={o.value} className={OPTION}>
+            <input type="radio" name="payWith" value={o.value} defaultChecked={i === 0} className="mt-1 size-5 accent-[#212842]" data-testid={`pay-${o.value}`} />
             <span className="flex flex-col">
-              <span>{o.label}</span>
+              <span className="font-medium">{o.label}</span>
               {o.hint ? <span className="text-sm text-muted-foreground">{o.hint}</span> : null}
             </span>
           </label>
         ))}
         {p.showPromo ? (
-          <div className="grid gap-1 pt-1">
-            <Label htmlFor="promoCode">{p.labels.promoCode}</Label>
+          <div className="grid gap-1.5 pt-2">
+            <Label htmlFor="promoCode" className="text-muted-foreground">{p.labels.promoCode}</Label>
             <Input id="promoCode" name="promoCode" autoComplete="off" maxLength={64} className="max-w-xs" />
           </div>
         ) : null}
@@ -134,7 +139,7 @@ export function BookForm(p: BookFormProps) {
 
       {p.emergency ? (
         <fieldset className="grid gap-3 sm:grid-cols-2" aria-describedby={errFor("emergency")} data-testid="emergency-fields">
-          <legend className="font-medium sm:col-span-2">{p.labels.emergencyTitle}</legend>
+          <legend className={`${LEGEND} sm:col-span-2`}>{p.labels.emergencyTitle}</legend>
           <div className="grid gap-1">
             <Label htmlFor="ec-name">{p.labels.emergencyName}</Label>
             <Input id="ec-name" name="emergency.name" required autoComplete="off" maxLength={200} />
@@ -151,13 +156,16 @@ export function BookForm(p: BookFormProps) {
       ) : null}
 
       {p.health ? (
-        <p className="rounded-md border border-warning bg-warning/10 p-3 text-sm" data-testid="health-notice">
+        <p className="flex gap-3 rounded-2xl bg-[#fdf3dc] p-4 text-sm" data-testid="health-notice">
+          <span aria-hidden="true">♡</span>
+          <span>
           {p.health.message}{" "}
           {p.health.href ? (
             <Link href={p.health.href as Route} className="underline">
               {p.labels.healthLink}
             </Link>
           ) : null}
+          </span>
         </p>
       ) : null}
 
@@ -165,21 +173,28 @@ export function BookForm(p: BookFormProps) {
 
       {p.terms.required ? (
         <div className="space-y-1">
-          <label className="flex min-h-11 items-center gap-3">
-            <input type="checkbox" name="acceptTerms" required className="size-5" aria-describedby={errFor("terms")} data-testid="accept-terms" />
+          <label className="flex min-h-11 items-center gap-3 font-medium">
+            <input type="checkbox" name="acceptTerms" required className="size-5 accent-[#212842]" aria-describedby={errFor("terms")} data-testid="accept-terms" />
             <span>{p.labels.acceptTerms}</span>
           </label>
           {p.terms.href ? (
-            <a href={p.terms.href} target="_blank" rel="noreferrer" className="text-sm underline">
+            <a href={p.terms.href} target="_blank" rel="noreferrer" className="ml-8 text-sm text-muted-foreground underline underline-offset-4">
               {p.labels.readTerms}
             </a>
           ) : null}
         </div>
       ) : null}
 
-      <Button type="submit" className="min-h-11" data-testid="book-submit">
+      <button
+        type="submit"
+        data-testid="book-submit"
+        className="site-gold inline-flex h-14 w-full items-center justify-center gap-3 rounded-full px-8 text-base font-semibold text-[#212842] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+      >
         {p.labels.submit}
-      </Button>
+        <span aria-hidden="true" className="grid size-9 place-items-center rounded-full bg-[#212842] text-[#fffaef]">
+          →
+        </span>
+      </button>
     </form>
   );
 }

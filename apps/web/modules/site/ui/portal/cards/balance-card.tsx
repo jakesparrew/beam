@@ -25,7 +25,7 @@ export function BalanceCard({ locale, balances, tr }: { locale: Locale; balances
   return (
     <Card data-home-card="balance" role="region" aria-labelledby="home-balance-title">
       <CardHeader>
-        <h2 id="home-balance-title" className="text-lg font-semibold">
+        <h2 id="home-balance-title" className="font-display text-2xl">
           {tr("site.portal.home.balance")}
         </h2>
       </CardHeader>
@@ -40,13 +40,18 @@ export function BalanceCard({ locale, balances, tr }: { locale: Locale; balances
             </Link>
           </div>
         ) : (
-          <ul className="grid gap-2">
+          <ul className="grid gap-4">
             {balances.data.map((b) => (
-              <li key={b.kind} data-credit-kind={b.kind}>
-                <p className="font-medium">{remainingText(tr, locale, b)}</p>
-                {b.nextExpiresAt ? (
-                  <p className="text-sm text-muted-foreground">{tr("site.portal.home.expires", { date: formatDate(b.nextExpiresAt, locale) })}</p>
-                ) : null}
+              <li key={b.kind} data-credit-kind={b.kind} className="flex items-center gap-4">
+                <span className="grid size-14 shrink-0 place-items-center rounded-2xl bg-[#f4ead3] text-2xl font-semibold text-[#212842] tabular-nums">
+                  {b.kind === "euro" ? "€" : b.remainingUnits}
+                </span>
+                <span>
+                  <span className="block font-medium">{remainingText(tr, locale, b)}</span>
+                  {b.nextExpiresAt ? (
+                    <span className="block text-sm text-muted-foreground">{tr("site.portal.home.expires", { date: formatDate(b.nextExpiresAt, locale) })}</span>
+                  ) : null}
+                </span>
               </li>
             ))}
           </ul>

@@ -17,7 +17,7 @@ export function OffersCard({ locale, offers, tr }: { locale: Locale; offers: Res
   return (
     <Card data-home-card="offers" role="region" aria-labelledby="home-offers-title" className="border-primary">
       <CardHeader>
-        <h2 id="home-offers-title" className="text-lg font-semibold">
+        <h2 id="home-offers-title" className="font-display text-2xl">
           {tr("site.portal.home.offers")}
         </h2>
       </CardHeader>

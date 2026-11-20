@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Route } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { sessionTemplates } from "@beam/db/schema";
 import { addDays, brusselsDate, describeAvailability, type SessionKind, type SessionSummary } from "@beam/core/booking";
 import { URL_SEGMENT, formatDate, formatMoney, formatTime, localeFromSegment, pick, type Locale } from "@beam/core/i18n";
@@ -18,7 +18,7 @@ const STRIP_DAYS = 14;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-type Search = { tab?: string; day?: string; template?: string };
+type Search = { tab?: string; kind?: string; day?: string; template?: string };
 
 /**
  * `/[locale]/account/book` (booking spec 5.2): tabs Day / Night / Events, a date strip over the
@@ -35,6 +35,13 @@ export default async function BookPage({ params, searchParams }: { params: Promi
   const actor = await requireCustomer(locale);
   const tr = translator(locale);
   const sp = await searchParams;
+  // Day and night booking use the same guided flow as the website (week schedule, BEAM's
+  // explanation, overview); a signed-in customer skips its account step. Events and template
+  // links keep this list.
+  const wanted = sp.tab ?? sp.kind;
+  if (!sp.template && wanted !== "event") {
+    redirect(`/${URL_SEGMENT[locale]}/book${wanted === "day" || wanted === "night" ? `?kind=${wanted}` : ""}` as Route);
+  }
   const db = await getAppDb();
   const rules = await getSetting(db, "booking_rules");
   const base = `/${URL_SEGMENT[locale]}/account/book`;

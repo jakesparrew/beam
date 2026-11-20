@@ -21,3 +21,4 @@ export * from "./api/bookings";
 export * from "./api/waitlist";
 export * from "./api/webinar";
 export * from "./api/partner";
+export * from "./api/wellbeing";

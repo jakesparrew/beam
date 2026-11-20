@@ -676,7 +676,8 @@
         "readyBody": "Choisissez une séance de jour ou de nuit dans le plus grand espace EESystem d'Europe.",
         "bookNow": "Réservez votre séance",
         "viewBooking": "Voir la réservation",
-        "bookAnother": "Réserver une autre séance"
+        "bookAnother": "Réserver une autre séance",
+        "inDays": "{count, plural, =0 {Aujourd'hui} one {Demain} other {Dans # jours}}"
       },
       "install": {
         "body": "Accédez à vos réservations et à votre solde depuis votre écran d'accueil.",
@@ -693,6 +694,112 @@
         "banner": "Nous avons mis à jour nos conditions générales.",
         "newer": "De nouvelles conditions ont été publiées. Rechargez la page.",
         "read": "Lire les nouvelles conditions"
+      },
+      "wellbeing": {
+        "eyebrow": "Check-in",
+        "title": {
+          "before": "Comment vous sentez-vous avant votre séance ?",
+          "after": "Comment vous sentez-vous après votre séance ?",
+          "daily": "Comment allez-vous aujourd'hui ?"
+        },
+        "forVisit": "Pour votre visite de {when}. Vous verrez ce que BEAM vous apporte.",
+        "dailyIntro": "Une minute pour vous. Vous verrez évoluer votre énergie et votre calme.",
+        "scale": {
+          "energy": "Énergie",
+          "sleep": "Sommeil",
+          "calm": "Calme",
+          "mood": "Humeur"
+        },
+        "hint": {
+          "energy": "1 = épuisé · 5 = plein d'énergie",
+          "sleep": "la nuit dernière",
+          "calm": "1 = stressé · 5 = serein",
+          "mood": "1 = morose · 5 = joyeux"
+        },
+        "note": "Quelque chose à retenir ? (facultatif)",
+        "notePlaceholder": "Par exemple : dormi profondément, l'esprit plus léger…",
+        "private": "Vos notes restent privées.",
+        "save": "Enregistrer",
+        "saved": "Merci, votre check-in est enregistré",
+        "savedBody": "Vous le voyez tout de suite dans votre parcours.",
+        "journey": "Votre parcours",
+        "since": "Depuis le {date}",
+        "stat": {
+          "visits": "Visites",
+          "hours": "Heures chez BEAM",
+          "nights": "Nuits"
+        },
+        "effectTitle": "{count, plural, one {Après votre séance, en moyenne} other {Après vos séances, en moyenne}}",
+        "effectEmpty": "Faites un check-in avant et après votre prochaine séance pour voir ici ce qu'une visite vous apporte.",
+        "trend": "60 derniers jours",
+        "trendEmpty": "Après quelques check-ins, votre évolution apparaît ici.",
+        "milestone": "Prochaine étape : {count} visites",
+        "back": "Retour",
+        "start": "Commencer · 1 minute",
+        "finish": "Terminer",
+        "q": {
+          "energy": {
+            "title": "Quel est votre niveau d'énergie ?",
+            "titleAfter": "Et votre énergie maintenant, après la séance ?",
+            "o1": "À plat",
+            "o2": "Fatigué",
+            "o3": "Correct",
+            "o4": "Bien",
+            "o5": "Pétillant"
+          },
+          "sleep": {
+            "title": "Comment avez-vous dormi cette nuit ?",
+            "o1": "À peine",
+            "o2": "Agité",
+            "o3": "Moyen",
+            "o4": "Bien",
+            "o5": "Profondément"
+          },
+          "calm": {
+            "title": "Quelle tension ressentez-vous dans votre corps ?",
+            "hint": "Pensez à vos épaules, votre mâchoire et votre souffle.",
+            "o1": "Énormément",
+            "o2": "Beaucoup",
+            "o3": "Un peu",
+            "o4": "Peu",
+            "o5": "Aucune"
+          },
+          "mood": {
+            "title": "Quelle météo correspond à votre humeur ?",
+            "o1": "Pluie",
+            "o2": "Brouillard",
+            "o3": "Nuageux",
+            "o4": "Éclaircies",
+            "o5": "Soleil"
+          },
+          "note": {
+            "before": "En quoi espérez-vous que cette séance vous aide ?",
+            "after": "Que remarquez-vous après votre séance ?",
+            "daily": "Autre chose à noter ?",
+            "chips": {
+              "before1": "Mieux dormir",
+              "before2": "Me poser",
+              "before3": "Recharger",
+              "before4": "Esprit clair",
+              "after1": "Plus léger",
+              "after2": "Profondément détendu",
+              "after3": "Sensation de chaleur",
+              "after4": "Somnolent",
+              "daily1": "Journée chargée",
+              "daily2": "Mal de tête",
+              "daily3": "Bonne séance de sport",
+              "daily4": "Beaucoup dehors"
+            }
+          }
+        },
+        "staff": {
+          "title": "Profil de bien-être",
+          "summary": "{checkins} check-ins · {visits} visites · {hours} h",
+          "empty": "Pas encore assez de check-ins pour un profil.",
+          "vsBefore": "14 derniers jours",
+          "chart": "Bien-être sur 60 jours",
+          "privacy": "Données sensibles : scores uniquement, les notes du client restent privées. Pas d'usage marketing sans consentement explicite."
+        }
       }
     },
     "public": {
@@ -750,6 +857,124 @@
       "unavailable": {
         "body": "Vous pouvez la lire en :",
         "title": "Cette page n'est pas disponible en {language}"
+      }
+    },
+    "bookFlow": {
+      "steps": {
+        "experience": "Expérience",
+        "moment": "Moment",
+        "details": "Vos coordonnées",
+        "pay": "Paiement"
+      },
+      "stepOf": "Étape {n} sur 4",
+      "metaTitle": "Réservez votre séance",
+      "s1": {
+        "title": "Comment souhaitez-vous vivre BEAM ?",
+        "intro": "De jour ou de nuit : vous séjournez dans le même espace, la plus grande installation EESystem d'Europe. Vous n'avez rien à faire. Votre corps fait ce pour quoi il est conçu : récupérer."
+      },
+      "day": {
+        "title": "Séance de jour",
+        "meta": "2 heures · 120 €",
+        "times": "10–12 h, 13–15 h ou 16–18 h",
+        "b1": "Accueil avec une tasse de thé",
+        "b2": "Courte introduction à l'environnement BEAM",
+        "b3": "Deux heures de détente dans un fauteuil ou un lit",
+        "b4": "Retour et temps pour vos questions",
+        "tip": "Idéal pour une première visite"
+      },
+      "night": {
+        "title": "Séance de nuit",
+        "meta": "12 heures · 420 €",
+        "times": "De 20 h à 8 h, du mercredi au dimanche",
+        "b1": "Votre propre lit dans l'espace BEAM",
+        "b2": "8 invités maximum",
+        "b3": "Toute la nuit, un repos sans interruption",
+        "b4": "Selon l'inventrice Dr Sandra Rose Michael, la forme la plus efficace",
+        "tip": "Pour le repos le plus profond"
+      },
+      "choose": "Choisir cette formule",
+      "whatIs": {
+        "title": "Qu'est-ce que BEAM ?",
+        "body": "Un centre de vitalité à Sint-Martens-Latem, conçu pour soutenir la régulation, la récupération et une vitalité durable. Pas un traitement, un environnement."
+      },
+      "s2": {
+        "title": "Choisissez votre moment",
+        "intro": "Vert signifie : il reste de la place. Cliquez sur un horaire pour continuer.",
+        "change": "Autre formule"
+      },
+      "tips": {
+        "title": "Bon à savoir",
+        "day1": "Rester plus longtemps ? Réservez deux séances consécutives : l'heure entre les deux est offerte.",
+        "day2": "Les enfants sont les bienvenus le samedi de 13 à 15 h.",
+        "day3": "Les animaux sont les bienvenus le lundi de 16 à 18 h.",
+        "night1": "Vous avez votre propre lit et l'espace reste calme et stable toute la nuit.",
+        "night2": "Apportez des vêtements confortables pour dormir.",
+        "night3": "Première fois ? Beaucoup commencent par une séance de jour."
+      },
+      "bring": {
+        "title": "Que faut-il apporter ?",
+        "body": "Des vêtements confortables et une bouteille d'eau. Venez reposé si possible ; aucune préparation particulière n'est nécessaire."
+      },
+      "after": {
+        "title": "Après votre séance",
+        "body": "Prenez le temps de vous reposer, buvez suffisamment et prenez un bain de sel pour prolonger l'expérience."
+      },
+      "s3": {
+        "title": "Votre séance"
+      },
+      "summary": {
+        "when": "Quand",
+        "where": "Où",
+        "whereValue": "BEAM Vitality Center, Sint-Martens-Latem",
+        "price": "Prix",
+        "change": "Autre moment",
+        "total": "Total"
+      },
+      "package": {
+        "title": "Vous venez souvent ?",
+        "body": "Les forfaits de 10 à 100 heures sont plus avantageux, partageables avec cinq personnes et valables 18 mois. Vous avez déjà un forfait ? Connectez-vous pour réserver avec votre crédit.",
+        "link": "Voir les forfaits"
+      },
+      "account": {
+        "title": "Presque fini",
+        "intro": "Créez votre compte en une étape. Vous retrouverez toujours votre réservation, votre facture et vos prochaines séances.",
+        "new": "Nouveau chez BEAM",
+        "firstName": "Prénom",
+        "lastName": "Nom",
+        "email": "Adresse e-mail",
+        "password": "Choisissez un mot de passe",
+        "passwordHint": "Au moins 10 caractères.",
+        "submit": "Continuer vers le paiement",
+        "existing": "Déjà un compte ?",
+        "existingBody": "Connectez-vous et revenez directement à cette séance.",
+        "login": "Se connecter",
+        "signedIn": "Vous êtes connecté en tant que {name}.",
+        "continue": "Continuer vers le paiement"
+      },
+      "trust": {
+        "payLast": "Vous ne payez qu'à la dernière étape",
+        "methods": "Bancontact, carte ou avec votre forfait",
+        "reviews": "5,0 sur Google, 145 avis",
+        "secure": "Paiement sécurisé par Bancontact, carte ou Apple Pay",
+        "email": "Vous recevez immédiatement une confirmation et une facture par e-mail",
+        "help": "Des questions ? Appelez-nous au 0469 41 31 11 (9 h 30–18 h 30)"
+      },
+      "errors": {
+        "account_exists": "Un compte existe déjà avec cette adresse. Connectez-vous pour continuer.",
+        "password_policy": "Ce mot de passe est trop court ou trop facile à deviner. Choisissez au moins 10 caractères.",
+        "generic": "Une erreur s'est produite. Réessayez."
+      },
+      "full": "Cette séance est complète. Choisissez un autre moment.",
+      "none": "Aucun créneau libre dans les semaines à venir. Contactez-nous.",
+      "confirm": {
+        "eyebrow": "Confirmez votre réservation"
+      },
+      "pay": {
+        "eyebrow": "Paiement sécurisé",
+        "heldBody": "Personne d'autre ne peut prendre cette place pendant votre paiement.",
+        "secureNote": "Vous payez via notre partenaire de paiement agréé. Vos données sont chiffrées et nous ne conservons jamais vos données de carte.",
+        "methods": "Moyens de paiement",
+        "summary": "Votre commande"
       }
     }
   }

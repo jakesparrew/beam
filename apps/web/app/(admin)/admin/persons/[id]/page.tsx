@@ -3,14 +3,19 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { buttonVariants } from "@beam/ui";
 import { CONSENT_PURPOSES, MARKETING_PURPOSES, TIMELINE_CATEGORIES, type MarketingPurpose } from "@beam/core/crm";
-import { formatDate, formatMoney, type Locale } from "@beam/core/i18n";
+import { formatDate, formatMoney, type Locale, formatDateTime } from "@beam/core/i18n";
 import { SENSITIVE_FIELD_KEYS } from "@beam/core/privacy";
 import { hasPermission, requireStaff } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
 import { adminLocale, translator } from "@/lib/i18n";
 import { listPersonEnrolments } from "@/modules/automation/api";
 import { PersonAutomationsPanel } from "@/modules/automation/ui/person-automations-panel";
-import { listPersonBookings, listOpenOffersForPerson } from "@/modules/booking/api";
+import { getWellbeingJourney, listPersonBookings, listOpenOffersForPerson } from "@/modules/booking/api";
+import { WellbeingProfile } from "@/modules/booking/ui/admin/wellbeing-profile";
+import { getPersonActivity, getPersonAssistantPanel, getPersonBehaviourPanel } from "@/modules/assistant/api";
+import { ActivityPanel } from "@/modules/assistant/ui/admin/activity-panel";
+import { BehaviourPanel } from "@/modules/assistant/ui/admin/behaviour-panel";
+import { AssistantPersonPanel } from "@/modules/assistant/ui/admin/person-panel";
 import { listPersonOrders } from "@/modules/commerce/api";
 import { getMembershipSummary, getPersonCreditSummary } from "@/modules/credits/api";
 import { PersonEmailHistory } from "@/modules/email/ui/PersonEmailHistory";
@@ -94,6 +99,11 @@ export default async function Person360Page({ params }: { params: Promise<{ id: 
         return { rows: await toTimelineRows(db, page.items, locale), next: page.nextBefore ? { occurredAt: page.nextBefore.occurredAt.toISOString(), id: page.nextBefore.id } : null };
       }),
     ]);
+
+  const wellbeing = canSensitive ? await safePanel(() => getWellbeingJourney(db, person.id)) : null;
+  const assistantPanel = hasPermission(actor, "assistant.read") ? await safePanel(() => getPersonAssistantPanel(db, person.id)) : null;
+  const behaviour = hasPermission(actor, "assistant.read") ? await safePanel(() => getPersonBehaviourPanel(db, person.id)) : null;
+  const activity = hasPermission(actor, "assistant.read") ? await safePanel(() => getPersonActivity(db, person.id)) : null;
 
   const addr = person.address;
   const address = addr ? [[addr.street, addr.number, addr.box].filter(Boolean).join(" "), [addr.postal_code, addr.city].filter(Boolean).join(" "), addr.country].filter(Boolean).join(", ") : null;
@@ -242,6 +252,21 @@ export default async function Person360Page({ params }: { params: Promise<{ id: 
           </ActionBlock>
         </div>
       ) : null}
+
+      {activity?.ok ? <ActivityPanel data={activity.value} tr={tr} locale={locale} /> : null}
+      {behaviour?.ok && behaviour.value.facts ? (
+        <BehaviourPanel
+          personId={person.id}
+          facts={behaviour.value.facts}
+          advice={behaviour.value.advice}
+          canApply={hasPermission(actor, "automations.move_person")}
+          tr={tr}
+          formatDate={(d) => formatDate(d, locale)}
+          formatDateTime={(d) => formatDateTime(d, locale)}
+        />
+      ) : null}
+      {assistantPanel?.ok ? <AssistantPersonPanel panel={assistantPanel.value} tr={tr} formatDate={(d) => formatDateTime(d, locale)} /> : null}
+      {wellbeing?.ok ? <WellbeingProfile journey={wellbeing.value} tr={tr} /> : null}
 
       <PanelGrid>
         <ListPanel

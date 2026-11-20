@@ -132,15 +132,24 @@ export function ReturnPoller({
   }, [settled, poll, intervalMs, maxMs]);
 
   const text = phase === "paid" ? labels.paid : phase === "failed" ? labels.failed : phase === "expired" ? labels.expired : phase === "pending" ? labels.pending : labels.checking;
+  const tone =
+    phase === "paid"
+      ? { ring: "bg-[#e7f1ea] text-[#2f6d44]", icon: "✓" }
+      : phase === "failed" || phase === "expired"
+        ? { ring: "bg-[#fbe9e5] text-[#a03d2a]", icon: "!" }
+        : { ring: "bg-[#fdf3dc] text-[#a0621e]", icon: "" };
   return (
-    <div className="grid gap-4" data-return-phase={phase}>
-      <div aria-live="polite" role="status" className="rounded-md border p-4 text-base">
-        <p className="font-medium">{text}</p>
-        {phase === "paid" ? <p className="mt-1 text-sm">{labels.granted}</p> : null}
+    <div className="grid gap-5" data-return-phase={phase}>
+      <div aria-live="polite" role="status" className="grid justify-items-center gap-4 text-center">
+        <span aria-hidden="true" className={`grid size-20 place-items-center rounded-full text-4xl font-semibold ${tone.ring}`}>
+          {tone.icon || <span className="size-8 animate-spin rounded-full border-[3px] border-current border-t-transparent" />}
+        </span>
+        <p className="text-xl font-semibold">{text}</p>
+        {phase === "paid" ? <p className="max-w-md text-muted-foreground">{labels.granted}</p> : null}
       </div>
       {(phase === "failed" || phase === "pending") && retryAction ? (
-        <form action={retryAction}>
-          <button type="submit" className="min-h-11 rounded-md bg-primary px-5 font-medium text-primary-foreground">
+        <form action={retryAction} className="justify-self-center">
+          <button type="submit" className="site-gold inline-flex h-12 items-center rounded-full px-8 font-semibold text-[#212842]">
             {labels.retry}
           </button>
         </form>

@@ -676,7 +676,8 @@
         "readyBody": "Pick a day or night session in Europe's largest EESystem space.",
         "bookNow": "Book your session",
         "viewBooking": "View booking",
-        "bookAnother": "Book another session"
+        "bookAnother": "Book another session",
+        "inDays": "{count, plural, =0 {Today} one {Tomorrow} other {In # days}}"
       },
       "install": {
         "body": "Open your bookings and balance straight from your home screen.",
@@ -693,6 +694,112 @@
         "banner": "We have updated our terms and conditions.",
         "newer": "Newer terms have been published. Reload the page.",
         "read": "Read the new terms"
+      },
+      "wellbeing": {
+        "eyebrow": "Check-in",
+        "title": {
+          "before": "How do you feel before your session?",
+          "after": "How do you feel after your session?",
+          "daily": "How are you today?"
+        },
+        "forVisit": "For your visit on {when}, so you can see what BEAM does for you.",
+        "dailyIntro": "One minute for yourself. Watch your energy and calm evolve.",
+        "scale": {
+          "energy": "Energy",
+          "sleep": "Sleep",
+          "calm": "Calm",
+          "mood": "Mood"
+        },
+        "hint": {
+          "energy": "1 = drained · 5 = full of energy",
+          "sleep": "last night",
+          "calm": "1 = stressed · 5 = calm",
+          "mood": "1 = low · 5 = happy"
+        },
+        "note": "Anything to remember? (optional)",
+        "notePlaceholder": "For example: slept deeply, head feels lighter…",
+        "private": "Your notes stay private.",
+        "save": "Save check-in",
+        "saved": "Thank you, your check-in is saved",
+        "savedBody": "You can see it in your journey right away.",
+        "journey": "Your journey",
+        "since": "Since {date}",
+        "stat": {
+          "visits": "Visits",
+          "hours": "Hours at BEAM",
+          "nights": "Nights"
+        },
+        "effectTitle": "{count, plural, one {After your session, on average} other {After your sessions, on average}}",
+        "effectEmpty": "Check in before and after your next session to see here what a visit does for you.",
+        "trend": "Last 60 days",
+        "trendEmpty": "After a few check-ins your trend appears here.",
+        "milestone": "Next milestone: {count} visits",
+        "back": "Back",
+        "start": "Start · 1 minute",
+        "finish": "Done",
+        "q": {
+          "energy": {
+            "title": "How much energy do you have right now?",
+            "titleAfter": "And your energy now, after your session?",
+            "o1": "Drained",
+            "o2": "Tired",
+            "o3": "Okay",
+            "o4": "Good",
+            "o5": "Buzzing"
+          },
+          "sleep": {
+            "title": "How did you sleep last night?",
+            "o1": "Barely",
+            "o2": "Restless",
+            "o3": "So-so",
+            "o4": "Well",
+            "o5": "Deeply"
+          },
+          "calm": {
+            "title": "How much tension do you feel in your body?",
+            "hint": "Think of your shoulders, jaw and breath.",
+            "o1": "A lot",
+            "o2": "Quite some",
+            "o3": "Some",
+            "o4": "Little",
+            "o5": "None"
+          },
+          "mood": {
+            "title": "What weather matches your mood?",
+            "o1": "Rain",
+            "o2": "Fog",
+            "o3": "Cloudy",
+            "o4": "Bright spells",
+            "o5": "Sunshine"
+          },
+          "note": {
+            "before": "What do you hope this session helps you with?",
+            "after": "What do you notice after your session?",
+            "daily": "Anything else on your mind?",
+            "chips": {
+              "before1": "Sleep better",
+              "before2": "Wind down",
+              "before3": "Recharge",
+              "before4": "Clear head",
+              "after1": "Lighter",
+              "after2": "Deeply relaxed",
+              "after3": "Warm feeling",
+              "after4": "Sleepy",
+              "daily1": "Busy day",
+              "daily2": "Headache",
+              "daily3": "Good workout",
+              "daily4": "Spent time outside"
+            }
+          }
+        },
+        "staff": {
+          "title": "Wellbeing profile",
+          "summary": "{checkins} check-ins · {visits} visits · {hours} h",
+          "empty": "Not enough check-ins for a profile yet.",
+          "vsBefore": "last 14 days",
+          "chart": "Wellbeing over 60 days",
+          "privacy": "Sensitive data: scores only, the guest's notes stay private. Not for marketing without explicit consent."
+        }
       }
     },
     "public": {
@@ -750,6 +857,124 @@
       "unavailable": {
         "body": "You can read it in:",
         "title": "This page is not available in {language}"
+      }
+    },
+    "bookFlow": {
+      "steps": {
+        "experience": "Experience",
+        "moment": "Moment",
+        "details": "Your details",
+        "pay": "Payment"
+      },
+      "stepOf": "Step {n} of 4",
+      "metaTitle": "Book your session",
+      "s1": {
+        "title": "How would you like to experience BEAM?",
+        "intro": "Day or night, you stay in the same space: Europe's largest EESystem installation. There is nothing to do. Your body does what it was designed for: recover."
+      },
+      "day": {
+        "title": "Day session",
+        "meta": "2 hours · €120",
+        "times": "10–12, 13–15 or 16–18",
+        "b1": "Welcome with a cup of tea",
+        "b2": "A short introduction to the BEAM space",
+        "b3": "Two hours of rest in a chair or bed",
+        "b4": "A look back and time for questions",
+        "tip": "Ideal for your first visit"
+      },
+      "night": {
+        "title": "Night session",
+        "meta": "12 hours · €420",
+        "times": "From 8 pm to 8 am, Wednesday to Sunday",
+        "b1": "Your own bed in the BEAM space",
+        "b2": "At most 8 guests",
+        "b3": "Uninterrupted rest, all night long",
+        "b4": "According to inventor Dr Sandra Rose Michael, the most effective form",
+        "tip": "For the deepest rest"
+      },
+      "choose": "Choose this",
+      "whatIs": {
+        "title": "What is BEAM?",
+        "body": "A vitality centre in Sint-Martens-Latem, designed to support regulation, recovery and lasting vitality. Not a treatment, an environment."
+      },
+      "s2": {
+        "title": "Pick your moment",
+        "intro": "Green means there is room. Click a time to continue.",
+        "change": "Change experience"
+      },
+      "tips": {
+        "title": "Good to know",
+        "day1": "Staying longer? Book two sessions in a row: the hour in between is on us.",
+        "day2": "Children are welcome on Saturdays from 1 to 3 pm.",
+        "day3": "Pets are welcome on Mondays from 4 to 6 pm.",
+        "night1": "You have your own bed, and the space stays calm and stable all night.",
+        "night2": "Bring comfortable clothes to sleep in.",
+        "night3": "First time? Many guests start with a day session."
+      },
+      "bring": {
+        "title": "What to bring?",
+        "body": "Comfortable clothes and a bottle of water. Arrive rested if you can; no special preparation is needed."
+      },
+      "after": {
+        "title": "After your session",
+        "body": "Take time to rest, drink enough and take a salt bath to support your experience."
+      },
+      "s3": {
+        "title": "Your session"
+      },
+      "summary": {
+        "when": "When",
+        "where": "Where",
+        "whereValue": "BEAM Vitality Center, Sint-Martens-Latem",
+        "price": "Price",
+        "change": "Change time",
+        "total": "Total"
+      },
+      "package": {
+        "title": "Coming more often?",
+        "body": "Packages of 10 to 100 hours cost less, can be shared with up to five people and stay valid for 18 months. Already have one? Log in to book with your credit.",
+        "link": "See packages"
+      },
+      "account": {
+        "title": "Almost there",
+        "intro": "Create your account in one step, so your booking, invoice and next sessions are always at hand.",
+        "new": "New to BEAM",
+        "firstName": "First name",
+        "lastName": "Last name",
+        "email": "Email address",
+        "password": "Choose a password",
+        "passwordHint": "At least 10 characters.",
+        "submit": "Continue to payment",
+        "existing": "Already have an account?",
+        "existingBody": "Log in and you come straight back to this session.",
+        "login": "Log in",
+        "signedIn": "You are signed in as {name}.",
+        "continue": "Continue to payment"
+      },
+      "trust": {
+        "payLast": "You only pay in the last step",
+        "methods": "Bancontact, card or with your package",
+        "reviews": "5.0 on Google, 145 reviews",
+        "secure": "Secure payment with Bancontact, card or Apple Pay",
+        "email": "You get a confirmation and invoice by email right away",
+        "help": "Questions? Call us on +32 469 41 31 11 (9:30–18:30)"
+      },
+      "errors": {
+        "account_exists": "An account with this email already exists. Log in to continue.",
+        "password_policy": "This password is too short or too easy to guess. Use at least 10 characters.",
+        "generic": "Something went wrong. Please try again."
+      },
+      "full": "This session is full. Pick another time.",
+      "none": "No free times in the coming weeks. Please contact us.",
+      "confirm": {
+        "eyebrow": "Confirm your booking"
+      },
+      "pay": {
+        "eyebrow": "Secure checkout",
+        "heldBody": "Nobody else can take this place while you pay.",
+        "secureNote": "You pay through our licensed payment partner. Your details are encrypted and we never store your card details.",
+        "methods": "Payment methods",
+        "summary": "Your order"
       }
     }
   }

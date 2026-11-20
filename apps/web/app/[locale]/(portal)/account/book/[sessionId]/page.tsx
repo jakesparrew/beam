@@ -3,7 +3,7 @@ import Link from "next/link";
 import type { Route } from "next";
 import { notFound, redirect } from "next/navigation";
 import { freeCancelUntil } from "@beam/core/booking";
-import { URL_SEGMENT, formatDateTime, formatMoney, formatTime, localeFromSegment, pick } from "@beam/core/i18n";
+import { URL_SEGMENT, formatDate, formatDateTime, formatMoney, formatTime, localeFromSegment, pick } from "@beam/core/i18n";
 import { buttonVariants } from "@beam/ui";
 import { requireCustomer } from "@/lib/auth";
 import { NotFoundError, getAppDb } from "@/lib/ctx";
@@ -16,6 +16,7 @@ import { bookSession, joinWaitlist } from "@/modules/booking/actions";
 import { getBookableSession } from "@/modules/booking/queries";
 import { BookForm, type PayOption, type TicketTypeOption } from "@/modules/booking/ui/portal/book-form";
 import { PolicyNote } from "@/modules/booking/ui/portal/policy-note";
+import { BookSteps, SummaryAside } from "@/modules/site/ui/public/book-flow";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const FIELD_OF: Record<string, "terms" | "emergency" | "payment" | "ticket"> = {
@@ -214,15 +215,20 @@ export default async function BookSessionPage({
   const open = availability.reason === "ok";
 
   return (
-    <section aria-labelledby="session-title" className="space-y-5">
-      <Link href={`/${URL_SEGMENT[locale]}/account/book?tab=${session.kind}` as Route} className="text-sm underline">
-        {tr("booking.common.back")}
-      </Link>
-      <header className="space-y-1">
-        <h1 id="session-title" className="text-2xl font-semibold">
-          {title}
-        </h1>
-        <p>
+    <section aria-labelledby="session-title" className="mx-auto w-full max-w-6xl">
+      {session.kind === "event" ? null : <BookSteps current={4} tr={tr} />}
+      <div className="grid gap-8 lg:grid-cols-[1fr_24rem]">
+      <div className="grid content-start gap-6">
+      <header className="space-y-2">
+        <Link
+          href={(session.kind === "event" ? `/${URL_SEGMENT[locale]}/account/book?tab=event` : `/${URL_SEGMENT[locale]}/book?kind=${session.kind}`) as Route}
+          className="text-sm text-muted-foreground underline-offset-4 hover:underline"
+        >
+          ← {tr("booking.common.back")}
+        </Link>
+        <p className="text-xs font-semibold tracking-[0.25em] text-[#a0621e] uppercase">{tr("site.bookFlow.confirm.eyebrow")}</p>
+        <h1 id="session-title">{title}</h1>
+        <p className="first-letter:uppercase">
           <span className="sr-only">{tr("booking.portalSession.when")}: </span>
           {when}
         </p>
@@ -232,15 +238,16 @@ export default async function BookSessionPage({
             {session.location}
           </p>
         ) : null}
-        {description ? <p className="text-sm">{description}</p> : null}
+        {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
       </header>
 
       {joined ? (
-        <p role="status" className="rounded-md border p-3" data-testid="waitlist-joined">
+        <p role="status" className="rounded-2xl bg-[#e7f1ea] p-4" data-testid="waitlist-joined">
           {tr("booking.portalSession.waitlist_joined")}
         </p>
       ) : null}
 
+      <div className="rounded-[2rem] bg-card p-6 shadow-[0_1px_2px_rgb(33_40_66/0.04),0_24px_48px_-28px_rgb(33_40_66/0.3)] sm:p-10">
       {open ? (
         <BookForm
           action={book}
@@ -324,6 +331,18 @@ export default async function BookSessionPage({
           <PolicyNote policy={policy} />
         </div>
       )}
+      </div>
+      </div>
+      <SummaryAside
+        kind={session.kind === "night" ? "night" : "day"}
+        heading={tr("site.bookFlow.s3.title")}
+        title={title}
+        when={[formatDate(session.startsAt, locale, "full"), `${formatTime(session.startsAt, locale)} – ${formatTime(session.endsAt, locale)}`]}
+        lines={quote ? [{ label: tr("booking.portalSession.pay_single"), amount: formatMoney(quote.totalCents, locale) }] : []}
+        total={quote ? { label: tr("site.bookFlow.summary.total"), amount: formatMoney(quote.totalCents, locale) } : null}
+        trust={[policy, tr("site.bookFlow.trust.secure"), tr("site.bookFlow.trust.email"), tr("site.bookFlow.trust.help")]}
+      />
+      </div>
     </section>
   );
 }

@@ -6,7 +6,7 @@ describe("@beam/config", () => {
     const specifier = "../eslint.config.js";
     const eslint = (await import(specifier)) as { MODULE_IDS: string[] };
     expect(eslint.MODULE_IDS).toEqual([...MODULE_IDS]);
-    expect(MODULE_IDS).toHaveLength(12);
+    expect(MODULE_IDS).toHaveLength(13);
     expect(isModuleId("crm")).toBe(true);
     expect(isModuleId("billing")).toBe(false);
   });

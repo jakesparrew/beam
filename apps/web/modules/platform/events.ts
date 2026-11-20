@@ -9,7 +9,7 @@ export const events = [
   defineEvent({
     kind: "platform.account_created",
     subject: "person",
-    data: z.object({ user_id: z.string().uuid(), method: z.literal("magic_link") }),
+    data: z.object({ user_id: z.string().uuid(), method: z.enum(["magic_link", "booking_flow"]) }),
   }),
   defineEvent({
     kind: "platform.signed_in",

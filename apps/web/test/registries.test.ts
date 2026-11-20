@@ -58,6 +58,7 @@ const ARCHITECTURE_PERMISSIONS = [
   "reports.read", "reports.finance", "dashboards.manage",
   "site.edit", "site.publish", "webinars.host",
   "settings.write", "users.manage", "flags.manage", "system.jobs", "privacy.run", "ai.use", "partner.own",
+  "assistant.read", "assistant.manage",
 ];
 
 /** 02-data-model 5.4: every settings key and its owner. */
@@ -72,6 +73,7 @@ const SETTINGS_REGISTER: Record<string, string> = {
   retention_defaults: "ops", ads: "ops",
   site: "site",
   inbox: "crm",
+  assistant: "assistant",
 };
 
 /** 02-data-model 5.5: every flag and its owner; no other flag exists. */

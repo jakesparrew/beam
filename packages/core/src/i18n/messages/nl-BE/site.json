@@ -676,7 +676,8 @@
         "readyBody": "Kies een dag- of nachtsessie in de grootste EESystem-ruimte van Europa.",
         "bookNow": "Boek je sessie",
         "viewBooking": "Bekijk boeking",
-        "bookAnother": "Nog een sessie boeken"
+        "bookAnother": "Nog een sessie boeken",
+        "inDays": "{count, plural, =0 {Vandaag} one {Morgen} other {Over # dagen}}"
       },
       "install": {
         "body": "Open je boekingen en saldo rechtstreeks vanaf je startscherm.",
@@ -693,6 +694,112 @@
         "banner": "We hebben onze algemene voorwaarden bijgewerkt.",
         "newer": "Er zijn nieuwere voorwaarden gepubliceerd. Laad de pagina opnieuw.",
         "read": "Lees de nieuwe voorwaarden"
+      },
+      "wellbeing": {
+        "eyebrow": "Check-in",
+        "title": {
+          "before": "Hoe voel je je vóór je sessie?",
+          "after": "Hoe voel je je na je sessie?",
+          "daily": "Hoe gaat het vandaag?"
+        },
+        "forVisit": "Voor je bezoek van {when}. Zo zie je wat BEAM voor jou doet.",
+        "dailyIntro": "Een minuut voor jezelf. Je ziet je energie en rust evolueren.",
+        "scale": {
+          "energy": "Energie",
+          "sleep": "Slaap",
+          "calm": "Rust",
+          "mood": "Stemming"
+        },
+        "hint": {
+          "energy": "1 = uitgeput · 5 = vol energie",
+          "sleep": "afgelopen nacht",
+          "calm": "1 = gestresseerd · 5 = rustig",
+          "mood": "1 = somber · 5 = blij"
+        },
+        "note": "Iets dat je wil onthouden? (optioneel)",
+        "notePlaceholder": "Bijvoorbeeld: diep geslapen, lichter in mijn hoofd…",
+        "private": "Je notities blijven privé.",
+        "save": "Bewaar check-in",
+        "saved": "Dank je, je check-in is bewaard",
+        "savedBody": "Je ziet hem meteen in jouw reis.",
+        "journey": "Jouw reis",
+        "since": "Sinds {date}",
+        "stat": {
+          "visits": "Bezoeken",
+          "hours": "Uren in BEAM",
+          "nights": "Nachten"
+        },
+        "effectTitle": "{count, plural, one {Na je sessie, gemiddeld} other {Na je sessies, gemiddeld}}",
+        "effectEmpty": "Doe een check-in vóór en na je volgende sessie, dan zie je hier wat een bezoek met je doet.",
+        "trend": "Laatste 60 dagen",
+        "trendEmpty": "Na een paar check-ins verschijnt hier je verloop.",
+        "milestone": "Volgende mijlpaal: {count} bezoeken",
+        "back": "Terug",
+        "start": "Start · 1 minuut",
+        "finish": "Klaar",
+        "q": {
+          "energy": {
+            "title": "Hoeveel energie heb je nu?",
+            "titleAfter": "En je energie nu, na je sessie?",
+            "o1": "Leeg",
+            "o2": "Moe",
+            "o3": "Oké",
+            "o4": "Goed",
+            "o5": "Bruisend"
+          },
+          "sleep": {
+            "title": "Hoe heb je vannacht geslapen?",
+            "o1": "Nauwelijks",
+            "o2": "Onrustig",
+            "o3": "Gaat wel",
+            "o4": "Goed",
+            "o5": "Diep"
+          },
+          "calm": {
+            "title": "Hoeveel spanning voel je in je lichaam?",
+            "hint": "Denk aan je schouders, kaak en adem.",
+            "o1": "Heel veel",
+            "o2": "Veel",
+            "o3": "Wat",
+            "o4": "Weinig",
+            "o5": "Geen"
+          },
+          "mood": {
+            "title": "Welk weer past bij je stemming?",
+            "o1": "Regen",
+            "o2": "Mist",
+            "o3": "Bewolkt",
+            "o4": "Opklaringen",
+            "o5": "Zon"
+          },
+          "note": {
+            "before": "Waar hoop je dat deze sessie je bij helpt?",
+            "after": "Wat merk je op na je sessie?",
+            "daily": "Wil je nog iets kwijt?",
+            "chips": {
+              "before1": "Beter slapen",
+              "before2": "Tot rust komen",
+              "before3": "Opladen",
+              "before4": "Helder hoofd",
+              "after1": "Lichter",
+              "after2": "Diep ontspannen",
+              "after3": "Warm gevoel",
+              "after4": "Slaperig",
+              "daily1": "Drukke dag",
+              "daily2": "Hoofdpijn",
+              "daily3": "Goed gesport",
+              "daily4": "Veel buiten geweest"
+            }
+          }
+        },
+        "staff": {
+          "title": "Welzijnsprofiel",
+          "summary": "{checkins} check-ins · {visits} bezoeken · {hours} uur",
+          "empty": "Nog te weinig check-ins voor een profiel.",
+          "vsBefore": "laatste 14 dagen",
+          "chart": "Welzijn over 60 dagen",
+          "privacy": "Gevoelige gegevens: alleen scores, de notities van de klant blijven privé. Niet gebruiken voor marketing zonder uitdrukkelijke toestemming."
+        }
       }
     },
     "public": {
@@ -750,6 +857,124 @@
       "unavailable": {
         "body": "Je kunt ze lezen in:",
         "title": "Deze pagina is niet beschikbaar in het {language}"
+      }
+    },
+    "bookFlow": {
+      "steps": {
+        "experience": "Ervaring",
+        "moment": "Moment",
+        "details": "Jouw gegevens",
+        "pay": "Betalen"
+      },
+      "stepOf": "Stap {n} van 4",
+      "metaTitle": "Boek je sessie",
+      "s1": {
+        "title": "Hoe wil je BEAM ervaren?",
+        "intro": "Dag of nacht: je verblijft in dezelfde ruimte, Europa's grootste EESystem-installatie. Je hoeft niets te doen. Je lichaam doet waarvoor het ontworpen is: herstellen."
+      },
+      "day": {
+        "title": "Dagsessie",
+        "meta": "2 uur · €120",
+        "times": "10–12, 13–15 of 16–18 uur",
+        "b1": "Ontvangst met een kopje thee",
+        "b2": "Korte inleiding over de BEAM-omgeving",
+        "b3": "Twee uur ontspannen in een zetel of bed",
+        "b4": "Terugblik en ruimte voor vragen",
+        "tip": "Ideaal voor je eerste bezoek"
+      },
+      "night": {
+        "title": "Nachtsessie",
+        "meta": "12 uur · €420",
+        "times": "Van 20 tot 8 uur, woensdag tot zondag",
+        "b1": "Je eigen bed in de BEAM-ruimte",
+        "b2": "Maximaal 8 gasten",
+        "b3": "De hele nacht ononderbroken rust",
+        "b4": "Volgens uitvinder Dr. Sandra Rose Michael de meest effectieve vorm",
+        "tip": "Voor de diepste rust"
+      },
+      "choose": "Kies dit moment van de dag",
+      "whatIs": {
+        "title": "Wat is BEAM?",
+        "body": "Een vitaliteitscentrum in Sint-Martens-Latem, ontworpen om regulatie, herstel en duurzame vitaliteit te ondersteunen. Geen behandeling, maar een omgeving."
+      },
+      "s2": {
+        "title": "Kies je moment",
+        "intro": "Groen betekent: er is nog plaats. Klik op een tijdstip om verder te gaan.",
+        "change": "Andere ervaring"
+      },
+      "tips": {
+        "title": "Goed om te weten",
+        "day1": "Langer blijven? Boek twee opeenvolgende sessies: het uur ertussen krijg je cadeau.",
+        "day2": "Kinderen zijn welkom op zaterdag van 13 tot 15 uur.",
+        "day3": "Huisdieren zijn welkom op maandag van 16 tot 18 uur.",
+        "night1": "Je hebt een eigen bed en de ruimte blijft de hele nacht rustig en stabiel.",
+        "night2": "Neem comfortabele kleding mee om in te slapen.",
+        "night3": "Eerste keer? Veel gasten beginnen met een dagsessie."
+      },
+      "bring": {
+        "title": "Wat breng je mee?",
+        "body": "Comfortabele kleding en een fles water. Kom indien mogelijk uitgerust aan; een specifieke voorbereiding is niet nodig."
+      },
+      "after": {
+        "title": "Na je sessie",
+        "body": "Neem de tijd voor rust, drink voldoende en neem een zoutbad. Zo ondersteun je je ervaring verder."
+      },
+      "s3": {
+        "title": "Jouw sessie"
+      },
+      "summary": {
+        "when": "Wanneer",
+        "where": "Waar",
+        "whereValue": "BEAM Vitality Center, Sint-Martens-Latem",
+        "price": "Prijs",
+        "change": "Ander moment",
+        "total": "Totaal"
+      },
+      "package": {
+        "title": "Kom je vaker?",
+        "body": "Pakketten van 10 tot 100 uur zijn voordeliger, te delen met tot vijf personen en 18 maanden geldig. Heb je al een pakket? Log in, dan boek je met je tegoed.",
+        "link": "Bekijk pakketten"
+      },
+      "account": {
+        "title": "Bijna klaar",
+        "intro": "Maak in één stap je account aan. Zo vind je je boeking, factuur en volgende sessies altijd terug.",
+        "new": "Nieuw bij BEAM",
+        "firstName": "Voornaam",
+        "lastName": "Achternaam",
+        "email": "E-mailadres",
+        "password": "Kies een wachtwoord",
+        "passwordHint": "Minstens 10 tekens.",
+        "submit": "Verder naar betalen",
+        "existing": "Al een account?",
+        "existingBody": "Log in en je komt meteen terug bij deze sessie.",
+        "login": "Inloggen",
+        "signedIn": "Je bent ingelogd als {name}.",
+        "continue": "Verder naar betalen"
+      },
+      "trust": {
+        "payLast": "Je betaalt pas in de laatste stap",
+        "methods": "Bancontact, kaart of met je pakket",
+        "reviews": "5,0 op Google, 145 reviews",
+        "secure": "Veilig betalen met Bancontact, kaart of Apple Pay",
+        "email": "Je krijgt meteen een bevestiging en factuur per e-mail",
+        "help": "Vragen? Bel ons op 0469 41 31 11 (9u30–18u30)"
+      },
+      "errors": {
+        "account_exists": "Er bestaat al een account met dit e-mailadres. Log in om verder te gaan.",
+        "password_policy": "Dit wachtwoord is te kort of te makkelijk te raden. Kies minstens 10 tekens.",
+        "generic": "Er ging iets mis. Probeer het opnieuw."
+      },
+      "full": "Deze sessie is volzet. Kies een ander moment.",
+      "none": "Er zijn de komende weken geen vrije momenten. Neem contact met ons op.",
+      "confirm": {
+        "eyebrow": "Bevestig je boeking"
+      },
+      "pay": {
+        "eyebrow": "Veilig afrekenen",
+        "heldBody": "Niemand anders kan deze plaats nemen zolang je betaalt.",
+        "secureNote": "Je betaalt via onze erkende betaalpartner. Je gegevens worden versleuteld verstuurd en we bewaren nooit je kaartgegevens.",
+        "methods": "Betaalmethodes",
+        "summary": "Jouw bestelling"
       }
     }
   }

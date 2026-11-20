@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { localeFromSegment, type Locale } from "@beam/core/i18n";
 import { analyticsAllowedOnPath, CONSENT_COOKIE, gaIdFor, localePath, marketingTagIds, parseSiteSettings, type MarketingTagIds } from "@beam/core/site";
 import { getAppDb } from "@/lib/ctx";
+import { AssistantMount } from "@/modules/assistant/ui/mount";
 import { translator } from "@/lib/i18n";
 import { reportError } from "@/lib/logger";
 import { getSetting } from "@/lib/settings";
@@ -113,6 +114,7 @@ export default async function SiteLayout({ children, params }: { children: React
       <UtmCapture />
       <ReferralCapture />
       <SwRegister />
+      <AssistantMount role="guide" locale={locale} />
     </ConsentProvider>
   );
 }

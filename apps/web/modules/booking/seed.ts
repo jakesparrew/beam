@@ -16,7 +16,7 @@
  */
 import { randomUUID } from "node:crypto";
 import type { Tx } from "@beam/db";
-import { bookings, sessionTemplates, sessions, users, waitlistEntries } from "@beam/db/schema";
+import { bookings, sessionTemplates, sessions, users, waitlistEntries, wellbeingCheckins } from "@beam/db/schema";
 import { BookingConflictError, MATERIALISE_DAYS, addDays, bookingTransition, brusselsDate, zonedTimeToUtc, type BookingRules } from "@beam/core/booking";
 import { seedBookingDefaults, seedBookingDemo } from "@beam/db/seed/booking";
 import { ConflictError, and, asc, createCtx, eq, gt, gte, inArray, isNull, lt, lte, sql, type Actor, type Ctx, type Permission } from "@/lib/ctx";
@@ -274,9 +274,72 @@ export async function seedDemoVisits(s: SeedCtx, lectureSessionId: string): Prom
   return created;
 }
 
+/**
+ * A visitor without a package must be able to pay for one session: day templates sell BEAM's
+ * single day session, night templates its single night (commerce's catalogue seed creates them).
+ * Sessions already materialised without a product get it too. Idempotent; a missing SKU is skipped.
+ */
+export async function linkSingleSessionProducts(db: SeedCtx["db"]): Promise<void> {
+  for (const [kind, sku] of [["day", "BEAM-DAY-ADULT"], ["night", "BEAM-NIGHT-ADULT"]] as const) {
+    const product = sql`(select id from products where sku = ${sku})`;
+    await db.update(sessionTemplates).set({ productId: product }).where(and(eq(sessionTemplates.kind, kind), isNull(sessionTemplates.productId)));
+    await db.update(sessions).set({ productId: product }).where(and(eq(sessions.kind, kind), isNull(sessions.productId), isNull(sessions.webinarId)));
+  }
+}
+
+/** A stable 0..1 number for a seed key, so reruns write the same scores. */
+function unit(key: string): number {
+  let h = 2166136261;
+  for (const c of key) h = Math.imul(h ^ c.charCodeAt(0), 16777619);
+  return ((h >>> 0) % 1000) / 1000;
+}
+const clamp = (n: number) => Math.max(1, Math.min(5, Math.round(n)));
+
+/**
+ * Wellbeing check-ins for the portal demo customers (`customer1..5@example.com`): a before and an
+ * after check-in on each visit they attended (after is about 1 to 2 points better), and a daily
+ * check-in on some of the last 40 days with a slow upward trend. Idempotent (unique indexes).
+ */
+export async function seedDemoCheckins(s: SeedCtx): Promise<number> {
+  const people = await s.db
+    .select({ personId: users.personId, email: users.email })
+    .from(users)
+    .where(and(eq(users.audience, "customer"), inArray(users.email, [1, 2, 3, 4, 5].map((n) => `customer${n}@example.com`))));
+  let written = 0;
+  for (const p of people) {
+    if (!p.personId) continue;
+    const base = 2 + unit(p.email) * 0.8;
+    const visits = await s.db
+      .select({ id: bookings.id, startsAt: sessions.startsAt })
+      .from(bookings)
+      .innerJoin(sessions, eq(sessions.id, bookings.sessionId))
+      .where(and(eq(bookings.personId, p.personId), eq(bookings.status, "attended")));
+    const rows: (typeof wellbeingCheckins.$inferInsert)[] = [];
+    for (const v of visits) {
+      const onDate = brusselsDate(v.startsAt);
+      const r = (k: string) => unit(`${v.id}:${k}`);
+      rows.push({ personId: p.personId, bookingId: v.id, moment: "before", onDate, energy: clamp(base + r("e") - 0.3), sleep: clamp(base + r("s")), calm: clamp(base + r("c") - 0.5), mood: clamp(base + r("m")) });
+      rows.push({ personId: p.personId, bookingId: v.id, moment: "after", onDate, energy: clamp(base + 1.3 + r("e2")), calm: clamp(base + 1.8 + r("c2")), mood: clamp(base + 1.2 + r("m2")) });
+    }
+    const today = brusselsDate(s.now);
+    for (let d = 40; d >= 1; d--) {
+      if (unit(`${p.email}:day:${d}`) < 0.55) continue;
+      const lift = ((40 - d) / 40) * 1.2;
+      const r = (k: string) => unit(`${p.email}:${d}:${k}`) - 0.5;
+      rows.push({ personId: p.personId, moment: "daily", onDate: addDays(today, -d), energy: clamp(base + lift + r("e")), sleep: clamp(base + lift + r("s")), calm: clamp(base + lift + r("c")), mood: clamp(base + lift + 0.3 + r("m")) });
+    }
+    if (rows.length) {
+      const inserted = await s.db.insert(wellbeingCheckins).values(rows).onConflictDoNothing().returning({ id: wellbeingCheckins.id });
+      written += inserted.length;
+    }
+  }
+  return written;
+}
+
 export async function runBookingDemoSeed(s: SeedCtx): Promise<{ templates: number; inserted: number; visits: number }> {
   await seedBookingDefaults(s.db);
   const { templateIds, lectureSessionId } = await seedBookingDemo(s.db, { now: s.now });
+  await linkSingleSessionProducts(s.db);
   const today = brusselsDate(s.now);
   const { inserted } = await materialiseRange(s.db, today, addDays(today, MATERIALISE_DAYS), { notBefore: s.now, now: s.now });
   // The demo history: the templates ran since `DEMO_HISTORY_DAYS` ago, their past sessions published then.
@@ -287,6 +350,7 @@ export async function runBookingDemoSeed(s: SeedCtx): Promise<{ templates: numbe
     .where(and(inArray(sessionTemplates.id, templateIds), gt(sessionTemplates.activeFromOn, historyFrom)));
   const past = await materialiseRange(s.db, historyFrom, addDays(today, -1), { now: new Date(s.now.getTime() - (DEMO_HISTORY_DAYS + 14) * DAY) });
   const visits = await seedDemoVisits(s, lectureSessionId);
+  await seedDemoCheckins(s);
   return { templates: templateIds.length, inserted: inserted + past.inserted, visits };
 }
 

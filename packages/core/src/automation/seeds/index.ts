@@ -29,8 +29,13 @@ import { WAITLIST_SEEDS } from "./waitlist";
 import { WEBINAR_SEEDS } from "./webinar";
 
 export {
+  c,
+  DAY,
+  definition,
+  fromEnrolment,
   SEED_GROUPS,
   seedBlockId,
+  seedTemplate,
   type SeedAutomation,
   type SeedGroup,
   type SeedRelease,

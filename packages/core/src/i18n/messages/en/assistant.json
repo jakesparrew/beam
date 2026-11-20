@@ -1,0 +1,373 @@
+{
+  "assistant": {
+    "nav": {
+      "section": "AI assistant",
+      "overview": "Overview",
+      "conversations": "Conversations",
+      "eval": "Evaluation",
+      "settings": "Settings"
+    },
+    "permissions": {
+      "assistant_read": "View and take over the AI assistant's conversations",
+      "assistant_manage": "Configure the AI assistant"
+    },
+    "widget": {
+      "launcher": "Ask BEAM",
+      "launcherCoach": "Your coach",
+      "guideTitle": "BEAM guide",
+      "guideSubtitle": "Digital assistant · answers right away",
+      "coachTitle": "Your coach",
+      "coachSubtitle": "Personal, with your own details",
+      "greetingGuide": "Hi, I'm BEAM's digital guide. Ask me what BEAM is, when there is room or what a session costs.",
+      "greetingCoach": "Hi {name}, I'm your coach. Ask me when to come back, what you have left or how to prepare.",
+      "starter": {
+        "g1": "What is BEAM?",
+        "g2": "When is there room?",
+        "g3": "What does a session cost?",
+        "g4": "Day or night: which one?",
+        "c1": "When should I come back?",
+        "c2": "How much credit do I have left?",
+        "c3": "How do I prepare for a night?"
+      },
+      "placeholder": "Ask your question…",
+      "send": "Send",
+      "close": "Close",
+      "open": "Open chat",
+      "newChat": "New conversation",
+      "disclaimer": "AI assistant · can make mistakes · a colleague can take over",
+      "thinking": "One moment…",
+      "relayed": "A BEAM colleague is following this conversation and will answer here.",
+      "staff": "BEAM team",
+      "helpful": "Helpful",
+      "notHelpful": "Not helpful",
+      "book": "Book",
+      "free": "{count, plural, one {# place left} other {# places left}}",
+      "contact": {
+        "title": "Leave your details",
+        "body": "A BEAM colleague will get back to you personally.",
+        "firstName": "First name",
+        "email": "Email address",
+        "phone": "Phone (optional)",
+        "newsletter": "I'd like to receive BEAM's newsletter",
+        "submit": "Send",
+        "privacy": "We only use your details to help you further.",
+        "error": "That didn't work. Check your email address and try again."
+      },
+      "handoff": "A colleague has been notified and will answer as soon as possible.",
+      "error": "Something went wrong. Please try again.",
+      "checkins": {
+        "label": "Use my check-ins",
+        "hint": "Your coach may use your energy, sleep, tension and mood scores. Your notes stay private. You can switch this off at any time."
+      }
+    },
+    "admin": {
+      "overview": {
+        "title": "AI assistant",
+        "subtitle": "What the guide, the coach and the analyst do, what it brings in and what it costs.",
+        "on": "Live on the website",
+        "off": "Switched off"
+      },
+      "kpi": {
+        "today": "Conversations today",
+        "week": "Conversations, 7 days",
+        "coach": "Coach conversations, 7 days",
+        "answered": "Answered alone",
+        "leads": "New leads, 7 days",
+        "qualified": "Qualified",
+        "handoffs": "Waiting for a colleague",
+        "bookings": "Bookings after a conversation, 30 days",
+        "avgCost": "Average per conversation"
+      },
+      "spend": {
+        "title": "Cost",
+        "today": "Today",
+        "month": "This month",
+        "of": "of {cap}",
+        "note": "At the cap the chat shows the contact form instead of an AI answer."
+      },
+      "models": {
+        "title": "Models"
+      },
+      "role": {
+        "guide": "Guide",
+        "coach": "Coach",
+        "analyst": "Analyst"
+      },
+      "unanswered": {
+        "title": "Unanswered questions",
+        "empty": "No open questions. The knowledge base covers everything.",
+        "write": "Add the answer to the knowledge base"
+      },
+      "log": {
+        "title": "What the agent did",
+        "empty": "No actions yet.",
+        "anonymous": "Anonymous visitor"
+      },
+      "action": {
+        "contact_saved": "Contact details saved",
+        "consent_recorded": "Consent recorded",
+        "tags_applied": "Tags applied",
+        "analysed": "Conversation analysed",
+        "lead_qualified": "Lead qualified",
+        "handoff_opened": "Colleague requested",
+        "task_created": "Task created",
+        "unanswered": "Unanswered question",
+        "contact_offered": "Contact form shown",
+        "booking_link_clicked": "Booking button clicked",
+        "taken_over": "Taken over by a colleague",
+        "released": "Handed back to the agent",
+        "closed": "Conversation closed",
+        "budget_reached": "Budget reached",
+        "profile_advice": "Profile advice made",
+        "automation_enrolled": "Placed in a journey"
+      },
+      "conversations": {
+        "title": "Conversations",
+        "empty": "No conversations in this list yet.",
+        "anonymous": "Anonymous visitor",
+        "messages": "{count, plural, one {# message} other {# messages}}"
+      },
+      "filter": {
+        "all": "All",
+        "handoff": "Wants a colleague",
+        "unknown": "Didn't know",
+        "leads": "Leads",
+        "coach": "Coach"
+      },
+      "status": {
+        "open": "Open",
+        "handoff": "Wants a colleague",
+        "closed": "Closed",
+        "takenOver": "Taken over"
+      },
+      "detail": {
+        "back": "All conversations",
+        "transcript": "Conversation",
+        "analysis": "Analysis",
+        "noAnalysis": "Not analysed yet. The analyst reads a conversation ten minutes after the last message, or right after a contact form.",
+        "score": "Lead score",
+        "summary": "Summary",
+        "intent": "Intent",
+        "interests": "Interests",
+        "objections": "Objections",
+        "urgency": "Urgency",
+        "tags": "CRM tags",
+        "quotes": "What it is based on (quotes)",
+        "trace": "Tools",
+        "usage": "{input} in · {output} out · {cached} cached · {ms} ms",
+        "reply": "Reply as a colleague",
+        "replyHint": "Your reply shows up in the chat right away. From your first reply the agent stays silent in this conversation.",
+        "send": "Send",
+        "takenOver": "Taken over by {name}. The agent stays silent in this conversation.",
+        "release": "Hand back to the agent",
+        "close": "Close conversation",
+        "visitor": "Visitor",
+        "assistant": "Assistant",
+        "staff": "Colleague",
+        "person": "Customer record",
+        "page": "Page",
+        "cost": "Cost",
+        "log": "Agent log",
+        "cards": "Shown: {cards}"
+      },
+      "settings": {
+        "title": "Assistant settings",
+        "subtitle": "A change applies from the next message.",
+        "switches": "On and off",
+        "enabled": "Guide on the website",
+        "coachEnabled": "Coach in the customer portal",
+        "roles": "Models per role",
+        "model": "Model",
+        "fallback": "Fallback model",
+        "none": "None",
+        "effort": "Reasoning effort",
+        "effort_none": "Off",
+        "effort_low": "Low",
+        "effort_medium": "Medium",
+        "effort_high": "High",
+        "maxTokens": "Maximum length (tokens)",
+        "budget": "Budget",
+        "daily": "Daily cap (cents)",
+        "monthly": "Monthly cap (cents)",
+        "limits": "Abuse limits",
+        "perMinute": "Messages per visitor per minute",
+        "perDay": "Messages per visitor per day",
+        "perConversation": "Messages per conversation",
+        "perIp": "Messages per IP address per minute",
+        "sales": "Sales and tone",
+        "contactAfter": "Offer the contact form from message",
+        "tone": "Tone of the guide and the coach",
+        "prices": "Price list (cents per million tokens)",
+        "in": "Input",
+        "out": "Output",
+        "cacheRead": "Cache read",
+        "cacheWrite": "Cache write",
+        "save": "Save",
+        "saved": "Saved",
+        "error": "Not saved: check the fields.",
+        "register": "What the agent may do and see",
+        "registerIntro": "The agent reads and links; it can never book, cancel or pay itself. Every tool call is in the conversation, with what it returned.",
+        "adviceTitle": "Advice on customer profiles",
+        "autoApply": "The agent places people in journeys and applies tags itself (tasks stay one click by a colleague)",
+        "adviceFlows": "Journeys the agent may use (one slug per line)"
+      },
+      "tool": {
+        "get_availability": "Availability: free places per session, with price",
+        "get_offer": "Offer: products and prices",
+        "booking_link": "Button into the booking flow",
+        "offer_contact_form": "Show the contact form (guide)",
+        "handoff": "Ask a colleague (task + notice)",
+        "note_unanswered": "Note an unanswered question",
+        "my_bookings": "Own bookings (coach)",
+        "my_balance": "Own credit and membership (coach)",
+        "my_checkins": "Own check-ins, with consent only (coach)"
+      },
+      "eval": {
+        "title": "Evaluation",
+        "intro": "Real questions with what a good answer must do. Test them on one or more models before you switch: quality, cost per answer and speed side by side.",
+        "cases": "Questions",
+        "question": "Question",
+        "expectation": "A good answer…",
+        "add": "Add question",
+        "delete": "Delete",
+        "run": "Run",
+        "runHint": "Pick up to four models. The test runs in the background; refresh the page after a minute.",
+        "started": "Test started",
+        "results": "Results",
+        "passRate": "{passed} of {total} passed",
+        "avgCost": "Avg. cost",
+        "avgMs": "Avg. time",
+        "empty": "No runs yet."
+      },
+      "panel": {
+        "title": "AI assistant",
+        "empty": "No conversations with the assistant.",
+        "best": "Best lead score",
+        "open": "Open conversation"
+      },
+      "behaviour": {
+        "title": "Behaviour and advice",
+        "privacy": "Based on bookings, credit and purchases. No health or wellbeing data.",
+        "visits": "Visits",
+        "visits90": "{n} in the last 90 days",
+        "lastVisit": "Last visit",
+        "daysAgo": "{count, plural, =0 {today} one {# day ago} other {# days ago}}",
+        "never": "not yet",
+        "rhythm": "Rhythm",
+        "rhythmValue": "every {days} days",
+        "preference": "Preference",
+        "next": "Next booking",
+        "none": "none",
+        "leadTime": "books {days} days ahead",
+        "reliability": "No-shows and late cancellations",
+        "credits": "Credit",
+        "creditLine": "{remaining} × {kind}, until {date}",
+        "spend": "Spent",
+        "orders": "{count, plural, one {# order} other {# orders}}",
+        "newsletter": "Newsletter",
+        "yes": "consent",
+        "no": "no consent",
+        "kind": {
+          "day": "day sessions",
+          "night": "nights",
+          "event": "events"
+        },
+        "daypart": {
+          "morning": "morning",
+          "afternoon": "afternoon",
+          "evening": "evening"
+        },
+        "weekday": {
+          "1": "Monday",
+          "2": "Tuesday",
+          "3": "Wednesday",
+          "4": "Thursday",
+          "5": "Friday",
+          "6": "Saturday",
+          "7": "Sunday"
+        },
+        "signal": {
+          "never_visited": "Never visited",
+          "new_visitor": "One visit",
+          "regular": "Comes regularly",
+          "loyal": "Loyal visitor",
+          "lapsing": "Lapsing",
+          "lost": "Away for over 6 months",
+          "night_fan": "Prefers nights",
+          "no_show_risk": "Often absent or late to cancel",
+          "credits_expiring": "Credit expires within 45 days",
+          "credits_unused": "Credit but no booking",
+          "no_newsletter": "No newsletter consent",
+          "has_upcoming": "Has a booking ahead"
+        },
+        "advice": {
+          "title": "The lead agent's advice",
+          "none": "No advice yet. Ask the agent to look at this profile.",
+          "empty": "The agent sees no useful next step right now.",
+          "analyse": "Ask the agent",
+          "again": "Look again",
+          "queued": "The agent is working. The page refreshes in a moment.",
+          "apply": "Carry out",
+          "done": "Done",
+          "skipped": "Not carried out",
+          "type": {
+            "enrol": "Journey",
+            "tag": "Tag",
+            "task": "Task"
+          },
+          "result": {
+            "enrolled": "placed in the journey",
+            "skipped_unreachable": "no consent or not reachable",
+            "re_entry": "was in this journey before",
+            "audience": "outside the journey's audience",
+            "skipped_exclusive": "already in another journey of this group",
+            "inactive": "the journey is switched off",
+            "anchor_missing": "the journey lacks a start moment",
+            "applied": "tag applied",
+            "already": "already had this tag",
+            "task_created": "task created for sales",
+            "task_exists": "this task already existed"
+          }
+        }
+      },
+      "activity": {
+        "title": "Visits and interactions",
+        "perWeek": "Per week",
+        "perMonth": "Per month, last 12 months",
+        "visits": "Visits",
+        "interactions": "Interactions",
+        "when": "When this person comes",
+        "table": "Show as table",
+        "total": "Total",
+        "noVisits": "No visits yet.",
+        "noInteractions": "No interactions yet.",
+        "visitsUnit": "visits",
+        "series": {
+          "day": "Day",
+          "night": "Night",
+          "event": "Event",
+          "missed": "Did not come",
+          "bookings": "Bookings",
+          "emails": "Emails",
+          "purchases": "Purchases",
+          "chat": "Chat and messages",
+          "events": "Webinars and forms"
+        },
+        "weekday": {
+          "1": "Mon",
+          "2": "Tue",
+          "3": "Wed",
+          "4": "Thu",
+          "5": "Fri",
+          "6": "Sat",
+          "7": "Sun"
+        },
+        "daypart": {
+          "morning": "Morning",
+          "afternoon": "Afternoon",
+          "evening": "Evening"
+        }
+      }
+    }
+  }
+}

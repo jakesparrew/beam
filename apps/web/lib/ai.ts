@@ -107,7 +107,11 @@ function tallyDeferred(ctx: JobCtx, rows: readonly { status: string; costCents?:
   pendingUsage.set(ctx, tally);
 }
 
-/** Brussels-month spend (cents) and today's call count, from `ai_requests`. */
+/**
+ * Brussels-month spend (cents) and today's call count, from `ai_requests`. The assistant's rows
+ * (`assistant.*`) have their own caps in `settings.assistant`, so a busy public chat never starves
+ * the staff features and the other way round.
+ */
 export async function aiUsage(tx: DbOrTx): Promise<{ monthCents: number; todayCalls: number }> {
   const rows = rowsOf<{ month_cents: number | string | null; today_calls: number | string | null }>(
     await tx.execute(sql`
@@ -115,7 +119,8 @@ export async function aiUsage(tx: DbOrTx): Promise<{ monthCents: number; todayCa
         coalesce(sum(cost_cents) filter (where created_at >= (date_trunc('month', now() at time zone 'Europe/Brussels') at time zone 'Europe/Brussels')), 0)::float8 as month_cents,
         count(*) filter (where status <> 'budget_exceeded' and created_at >= (date_trunc('day', now() at time zone 'Europe/Brussels') at time zone 'Europe/Brussels'))::int as today_calls
       from ai_requests
-      where created_at >= (date_trunc('month', now() at time zone 'Europe/Brussels') at time zone 'Europe/Brussels') - interval '1 day'`),
+      where created_at >= (date_trunc('month', now() at time zone 'Europe/Brussels') at time zone 'Europe/Brussels') - interval '1 day'
+        and feature not like 'assistant.%'`),
   );
   return { monthCents: Number(rows[0]?.month_cents ?? 0), todayCalls: Number(rows[0]?.today_calls ?? 0) };
 }

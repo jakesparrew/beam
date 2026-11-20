@@ -173,7 +173,6 @@ export function PortalShell({
         <div className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4">
           <a href={homeHref ?? primary[0]?.href ?? "#"} className="flex shrink-0 items-center">
             {logoSrc ? (
-              // eslint-disable-next-line @next/next/no-img-element -- a static brand file
               <img src={logoSrc} alt="" className="h-8 w-auto" />
             ) : null}
             {text.brand ? (

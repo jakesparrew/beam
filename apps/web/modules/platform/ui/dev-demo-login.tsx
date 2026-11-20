@@ -13,14 +13,14 @@ async function signInAsDemo(form: FormData): Promise<void> {
   "use server";
   if (!devSkipMfa()) return;
   const db = await getAppDb();
-  const userId = String(form.get("userId") ?? "");
+  const userId = (form.get("userId") as string | null) ?? "";
   const [user] = await db.select({ id: users.id }).from(users).where(and(eq(users.id, userId), eq(users.audience, "customer"), eq(users.status, "active")));
   if (!user) return;
   const now = new Date();
   const { token, expires } = await createAuthSession(db, { userId: user.id, audience: "customer", roleKey: null, now });
   await recordSuccessfulLogin(db, user.id, now);
   await setSessionCookie(token, expires);
-  redirect(safeReturnTo(String(form.get("next") ?? ""), "/") as never);
+  redirect(safeReturnTo((form.get("next") as string | null) ?? "", "/") as never);
 }
 
 export async function DevDemoLogin({ next }: { next: string }) {

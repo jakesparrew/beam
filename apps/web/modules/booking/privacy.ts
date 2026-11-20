@@ -13,11 +13,12 @@
  *   session (R34); then every row of the person loses its free text, gets a fresh check-in code
  *   and loses its QR file; `booked_by_person_id` is cleared on other people's guest rows, which
  *   otherwise stay as they are. Rows linked to an order line are `retained_legal` (accounting).
+ * - Wellbeing check-ins (`booking/wellbeing.json`) are exported in full and deleted on erase.
  * - `sweep`: `booking.waitlist_entries` deletes, `booking.bookings_free_text` clears `notes` and
  *   `cancel_reason`, both for sessions that started before the cutoff, one batch per call.
  */
 import type { Tx } from "@beam/db";
-import { bookings, files, sessions, waitlistEntries } from "@beam/db/schema";
+import { bookings, files, sessions, waitlistEntries, wellbeingCheckins } from "@beam/db/schema";
 import { newCheckinCode } from "@beam/core/booking";
 import type { EraseReportRow, PrivacyRegistration, RetentionPolicySeed } from "@beam/core/privacy";
 import { BOOKING_RETENTION_POLICIES } from "@beam/db/seed/booking";
@@ -162,13 +163,29 @@ async function exportPerson(tx: Tx, personId: string): Promise<Record<string, un
     ended_reason: w.endedReason,
   }));
 
-  return { "booking/bookings.json": bookingsJson, "booking/waitlist.json": waitlistJson };
+  const checkins = await tx.select().from(wellbeingCheckins).where(eq(wellbeingCheckins.personId, personId)).orderBy(asc(wellbeingCheckins.onDate), asc(wellbeingCheckins.createdAt));
+  const wellbeingJson = checkins.map((c) => ({
+    on_date: c.onDate,
+    moment: c.moment,
+    booking_id: c.bookingId,
+    energy: c.energy,
+    sleep: c.sleep,
+    calm: c.calm,
+    mood: c.mood,
+    note: c.note,
+    created_at: iso(c.createdAt),
+  }));
+
+  return { "booking/bookings.json": bookingsJson, "booking/waitlist.json": waitlistJson, "booking/wellbeing.json": wellbeingJson };
 }
 
 async function erasePerson(tx: Tx, personId: string): Promise<EraseReportRow[]> {
   await allowRewrite(tx);
   const ctx = createCtx({ tx, actor: { kind: "system", jobId: "" }, requestId: "privacy:erase:booking" });
   const now = ctx.now;
+
+  // Wellbeing check-ins (self-reported wellbeing): deleted.
+  const deletedCheckins = await tx.delete(wellbeingCheckins).where(eq(wellbeingCheckins.personId, personId)).returning({ id: wellbeingCheckins.id });
 
   // Waitlist entries: deleted. A live offer of the person frees its seat, so the session offers on.
   const deletedEntries = await tx
@@ -223,6 +240,7 @@ async function erasePerson(tx: Tx, personId: string): Promise<EraseReportRow[]> 
   const legal = own.filter((b) => b.orderLineId !== null).length;
   return [
     { table: "waitlist_entries", rows: deletedEntries.length, action: "deleted" },
+    { table: "wellbeing_checkins", rows: deletedCheckins.length, action: "deleted" },
     { table: "bookings", rows: own.length - legal, action: "anonymised" },
     { table: "bookings", rows: legal, action: "retained_legal" },
     { table: "bookings", rows: unlinked.filter((u) => u.personId !== personId).length, action: "unlinked" },
@@ -230,7 +248,7 @@ async function erasePerson(tx: Tx, personId: string): Promise<EraseReportRow[]> 
 }
 
 export const privacy: PrivacyRegistration<Tx> = {
-  tables: ["bookings", "waitlist_entries"],
+  tables: ["bookings", "waitlist_entries", "wellbeing_checkins"],
   export: exportPerson,
   erase: erasePerson,
   sweep,

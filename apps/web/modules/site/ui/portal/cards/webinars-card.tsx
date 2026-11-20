@@ -36,7 +36,7 @@ export function WebinarsCard({ locale, webinars, tr }: { locale: Locale; webinar
   return (
     <Card data-home-card="webinars" role="region" aria-labelledby="home-webinars-title">
       <CardHeader>
-        <h2 id="home-webinars-title" className="text-lg font-semibold">
+        <h2 id="home-webinars-title" className="font-display text-2xl">
           {tr("site.portal.home.webinars")}
         </h2>
       </CardHeader>

@@ -276,12 +276,17 @@ export function OrderReturn({
 }) {
   const tr = translator(locale);
   return (
-    <section aria-labelledby="return-title" className="grid max-w-2xl gap-4">
-      <h1 id="return-title" className="text-2xl font-semibold">
-        {tr("commerce.return.title")}
-      </h1>
-      <p className="text-sm text-muted-foreground">{tr("commerce.pay_order.reference", { reference })}</p>
-      {payment === "unavailable" ? <p className="rounded-md border p-3">{tr("commerce.return.unavailable")}</p> : null}
+    <section
+      aria-labelledby="return-title"
+      className="mx-auto grid w-full max-w-2xl gap-6 rounded-[2rem] bg-card p-8 text-center shadow-[0_1px_2px_rgb(33_40_66/0.04),0_24px_48px_-28px_rgb(33_40_66/0.3)] sm:p-12"
+    >
+      <div className="grid gap-1">
+        <h1 id="return-title">
+          {tr("commerce.return.title")}
+        </h1>
+        <p className="text-sm text-muted-foreground">{tr("commerce.pay_order.reference", { reference })}</p>
+      </div>
+      {payment === "unavailable" ? <p className="rounded-2xl bg-[#fdf3dc] p-4">{tr("commerce.return.unavailable")}</p> : null}
       <ReturnPoller
         initial={initial}
         poll={poll}
@@ -297,10 +302,13 @@ export function OrderReturn({
           retry: tr("commerce.return.retry"),
         }}
       />
-      <ul className="flex flex-wrap gap-4">
-        {links.map((l) => (
+      <ul className="flex flex-wrap justify-center gap-3 border-t border-border pt-6">
+        {links.map((l, i) => (
           <li key={l.href}>
-            <a href={l.href} className="inline-flex min-h-11 items-center underline">
+            <a
+              href={l.href}
+              className={`inline-flex h-12 items-center rounded-full px-6 text-sm font-semibold ${i === 0 ? "bg-[#212842] text-[#fffaef] hover:bg-[#2b3354]" : "border border-border hover:bg-muted"}`}
+            >
               {l.label}
             </a>
           </li>

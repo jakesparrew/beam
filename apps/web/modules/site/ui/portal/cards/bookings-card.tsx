@@ -6,12 +6,15 @@
  */
 import Link from "next/link";
 import type { Route } from "next";
-import { formatDateTime, type Locale, type MessageParams } from "@beam/core/i18n";
+import type { Locale, MessageParams } from "@beam/core/i18n";
 import { portalPath } from "@beam/core/site";
 import { Badge, buttonVariants, Card, CardContent, CardHeader } from "@beam/ui";
 import type { PortalBookingRow, Result } from "../../../queries/portal";
 
 export type Tr = (key: string, params?: MessageParams) => string;
+
+/** One part of a date in Brussels time ("nov", "28", "zaterdag", "09:00"). */
+const part = (d: Date, locale: Locale, opts: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat(locale, { timeZone: "Europe/Brussels", ...opts }).format(d);
 
 /** The "Temporarily unavailable" line of a card whose module api failed. */
 export function CardUnavailable({ tr }: { tr: Tr }) {
@@ -27,7 +30,7 @@ export function BookingsCard({ locale, bookings, tr }: { locale: Locale; booking
   return (
     <Card data-home-card="bookings" role="region" aria-labelledby="home-bookings-title">
       <CardHeader>
-        <h2 id="home-bookings-title" className="text-lg font-semibold">
+        <h2 id="home-bookings-title" className="font-display text-2xl">
           {tr("site.portal.home.upcoming")}
         </h2>
       </CardHeader>
@@ -42,23 +45,35 @@ export function BookingsCard({ locale, bookings, tr }: { locale: Locale; booking
             </Link>
           </div>
         ) : (
-          <ul className="divide-y">
+          <ul className="grid gap-2">
             {bookings.data.map((b) => (
-              <li key={b.bookingId} className="flex flex-wrap items-center justify-between gap-2 py-3" data-booking-id={b.bookingId}>
-                <div className="min-w-0">
-                  <Link href={`${bookingsPath}/${b.bookingId}` as Route} className="font-medium underline-offset-4 hover:underline">
-                    {b.title[locale] ?? ""}
-                  </Link>
-                  <p className="text-sm text-muted-foreground">
-                    <time dateTime={b.startsAt.toISOString()}>{formatDateTime(b.startsAt, locale)}</time>
-                  </p>
-                </div>
-                {b.isGuest ? (
-                  <Badge variant="secondary" data-guest-marker>
-                    {tr("site.portal.home.guest")}
-                    {b.guestFirstName ? `: ${b.guestFirstName}` : ""}
-                  </Badge>
-                ) : null}
+              <li key={b.bookingId} data-booking-id={b.bookingId}>
+                <Link
+                  href={`${bookingsPath}/${b.bookingId}` as Route}
+                  className="group flex items-center gap-4 rounded-2xl p-2 transition hover:bg-[#f6efdf]"
+                >
+                  <span className="grid w-14 shrink-0 place-items-center rounded-xl bg-[#212842] py-2 text-[#fffaef]">
+                    <span className="text-[0.6rem] font-semibold tracking-widest text-[#e8c26a] uppercase">{part(b.startsAt, locale, { month: "short" })}</span>
+                    <span className="text-xl leading-none font-semibold">{part(b.startsAt, locale, { day: "numeric" })}</span>
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-medium">{b.title[locale] ?? ""}</span>
+                    <span className="block text-sm text-muted-foreground first-letter:uppercase">
+                      <time dateTime={b.startsAt.toISOString()}>
+                        {part(b.startsAt, locale, { weekday: "long" })} · {part(b.startsAt, locale, { hour: "2-digit", minute: "2-digit" })}
+                      </time>
+                    </span>
+                  </span>
+                  {b.isGuest ? (
+                    <Badge variant="secondary" data-guest-marker>
+                      {tr("site.portal.home.guest")}
+                      {b.guestFirstName ? `: ${b.guestFirstName}` : ""}
+                    </Badge>
+                  ) : null}
+                  <span aria-hidden="true" className="text-muted-foreground transition group-hover:translate-x-0.5">
+                    →
+                  </span>
+                </Link>
               </li>
             ))}
           </ul>

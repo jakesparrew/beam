@@ -6,7 +6,7 @@
  * rule 60 and a discreet back-office link for staff.
  */
 import type { Locale } from "@beam/core/i18n";
-import { portalPath } from "@beam/core/site";
+import { localePath } from "@beam/core/site";
 import type { CompanyFooterView, PublicNavItem } from "../../queries/public";
 import { ArrowBadge, goldButtonClass, type Tr } from "./block-renderer";
 import { formEmbedProps, SafeFormEmbed } from "./blocks/form-embed";
@@ -53,7 +53,7 @@ export function SiteFooter({
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
         <div className="flex flex-col items-start justify-between gap-6 border-b border-border py-12 md:flex-row md:items-center">
           <p className="font-display text-3xl text-[#fffaef] sm:text-4xl">{tr("site.public.brand.tagline")}</p>
-          <a href={portalPath(locale, "book_day")} className={`${goldButtonClass} py-2 pr-2 pl-6 text-base`}>
+          <a href={localePath(locale, "book")} className={`${goldButtonClass} py-2 pr-2 pl-6 text-base`}>
             {tr("site.public.header.book")}
             <ArrowBadge dark />
           </a>

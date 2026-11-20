@@ -6,6 +6,7 @@
  * style (navy). Each time links straight to that session's booking page.
  */
 import type { Locale } from "@beam/core/i18n";
+import type { AvailabilityBand } from "@beam/core/site";
 import { bookSessionPath, portalUrl } from "../../../server/urls";
 import { ArrowBadge, goldButtonClass, type BlockContext, type BlockOf } from "../block-renderer";
 import { AvailabilityWeeks, type Week, type WeekDay } from "./availability-week";
@@ -18,19 +19,17 @@ const fmt = (d: Date, locale: Locale, opts: Intl.DateTimeFormatOptions) => new I
 
 const DOT: Record<string, string> = { available: "bg-[#3f8f5a]", few: "bg-[#d1a64a]", full: "bg-[#9aa0b0]" };
 
-export function AvailabilityPreviewBlockView({ block, ctx }: { block: BlockOf<"availability_preview">; ctx: BlockContext }) {
-  const { tr, locale } = ctx;
-  const slots = ctx.data.availability[block.id] ?? [];
-  const night = block.kind === "night";
-  const bookHref = portalUrl(locale, night ? "book_night" : "book_day");
+type Slot = { sessionId: string; startsAt: string; band: string };
 
-  const byDay = new Map<string, typeof slots>();
+/** Whole weeks (seven days each, closed days included) from today up to the last slot. */
+export function buildWeeks(slots: Slot[], locale: Locale, tr: BlockContext["tr"], hrefOf: (sessionId: string) => string): Week[] {
+  const byDay = new Map<string, Slot[]>();
   for (const s of slots) byDay.set(dayKey(new Date(s.startsAt)), [...(byDay.get(dayKey(new Date(s.startsAt))) ?? []), s]);
   // Whole weeks from today up to the last loaded session (noon steps keep DST from skipping a day).
   const noon = new Date(`${dayKey(new Date())}T12:00:00Z`);
   const last = slots.length ? new Date(slots.at(-1)!.startsAt) : noon;
   const weekCount = Math.max(1, Math.ceil((last.getTime() - noon.getTime() + DAY_MS) / (7 * DAY_MS)));
-  const weeks: Week[] = Array.from({ length: weekCount }, (_, w) => {
+  return Array.from({ length: weekCount }, (_, w): Week => {
     const days: WeekDay[] = Array.from({ length: 7 }, (_, d) => {
       const date = new Date(noon.getTime() + (w * 7 + d) * DAY_MS);
       return {
@@ -43,8 +42,8 @@ export function AvailabilityPreviewBlockView({ block, ctx }: { block: BlockOf<"a
           startsAt: s.startsAt,
           time: fmt(new Date(s.startsAt), locale, { hour: "2-digit", minute: "2-digit" }),
           band: s.band,
-          bandLabel: bandLabel(s.band, tr),
-          href: bookSessionPath(locale, s.sessionId),
+          bandLabel: bandLabel(s.band as AvailabilityBand, tr),
+          href: hrefOf(s.sessionId),
         })),
       };
     });
@@ -52,6 +51,14 @@ export function AvailabilityPreviewBlockView({ block, ctx }: { block: BlockOf<"a
     const end = new Date(first.getTime() + 6 * DAY_MS);
     return { label: new Intl.DateTimeFormat(locale, { timeZone: TZ, day: "numeric", month: "long" }).formatRange(first, end), days };
   });
+}
+
+export function AvailabilityPreviewBlockView({ block, ctx }: { block: BlockOf<"availability_preview">; ctx: BlockContext }) {
+  const { tr, locale } = ctx;
+  const slots = ctx.data.availability[block.id] ?? [];
+  const night = block.kind === "night";
+  const bookHref = portalUrl(locale, night ? "book_night" : "book_day");
+  const weeks = buildWeeks(slots, locale, tr, (id) => bookSessionPath(locale, id));
 
   return (
     <div className={`relative overflow-hidden rounded-[2rem] p-6 sm:p-10 ${night ? "site-on-dark bg-[#212842]" : "border border-border bg-card"}`}>

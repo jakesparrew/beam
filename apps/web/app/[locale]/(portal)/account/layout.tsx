@@ -4,6 +4,7 @@ import { localeFromSegment, URL_SEGMENT, LOCALES } from "@beam/core/i18n";
 import { PortalShell } from "@beam/ui";
 import { requireCustomer } from "@/lib/auth";
 import { flag } from "@/lib/flags";
+import { AssistantMount } from "@/modules/assistant/ui/mount";
 import { softTranslator, translator } from "@/lib/i18n";
 import { visiblePortalEntries, type PortalNavEntry } from "@/modules/platform/portal-nav";
 import { PortalSiteChrome } from "@/modules/site/ui/portal/site-chrome";
@@ -56,6 +57,7 @@ export default async function PortalLayout({ children, params }: { children: Rea
       >
         {children}
       </PortalShell>
+      <AssistantMount role="coach" locale={locale} personId={actor.personId} />
     </PortalSiteChrome>
   );
 }

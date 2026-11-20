@@ -288,7 +288,6 @@ export function AdminShell({
   const logo = (
     <a href="/admin" className="flex items-center px-5 py-6">
       {logoSrc ? (
-        // eslint-disable-next-line @next/next/no-img-element -- a static brand file
         <img src={logoSrc} alt="" className="h-8 w-auto" />
       ) : null}
       <span className={logoSrc ? "sr-only" : "text-lg font-semibold text-sidebar-accent-foreground"}>{labels.brand}</span>

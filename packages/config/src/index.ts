@@ -4,7 +4,7 @@
  */
 import type { ViteUserConfig } from "vitest/config";
 
-/** The twelve module ids, in the order of architecture section 1. */
+/** The thirteen module ids, in the order of architecture section 1. */
 export const MODULE_IDS = [
   "platform",
   "crm",
@@ -18,6 +18,7 @@ export const MODULE_IDS = [
   "ops",
   "site",
   "webinar",
+  "assistant",
 ] as const;
 
 export type ModuleId = (typeof MODULE_IDS)[number];

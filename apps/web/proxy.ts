@@ -3,6 +3,8 @@
  * - negotiates the locale of site and portal paths (PL-65): the URL segment, then the
  *   `NEXT_LOCALE` cookie, then `Accept-Language`, then `nl-BE`; a bare path gets a 307 to the
  *   negotiated prefix;
+ * - sends `/:locale/account/book[/<id>]` without a session cookie to the public booking flow
+ *   `/:locale/book[/<id>]` (login comes last there);
  * - sends `/admin/*` and `/:locale/account/*` without a session cookie to their login page with
  *   a same-origin `returnTo` (presence only, no database call: the layouts run `requireStaff()`
  *   and `requireCustomer()`, runbook DR-11);
@@ -92,6 +94,14 @@ export function proxy(request: NextRequest): NextResponse {
     const rest = pathname.slice(firstSegment.length + 1);
     const isPortal = rest === "/account" || rest.startsWith("/account/");
     const isPortalLogin = /^\/account\/login(\/|$)/.test(rest);
+    // Booking never starts behind a login: a visitor without a session walks the public flow
+    // (`/:locale/book`, same session id and query) and signs in or signs up on its last step.
+    const book = /^\/account\/book(\/[^/]+)?\/?$/.exec(rest);
+    if (book && !hasSession) {
+      const url = request.nextUrl.clone();
+      url.pathname = `/${firstSegment}/book${book[1] ?? ""}`;
+      return withSecurityHeaders(NextResponse.redirect(url, 307), csp);
+    }
     if (isPortal && !isPortalLogin && !hasSession) {
       return withSecurityHeaders(redirectTo(request, `/${firstSegment}/account/login`, { returnTo }), csp);
     }

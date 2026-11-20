@@ -19,7 +19,7 @@ export function MembershipCard({ locale, membership, tr }: { locale: Locale; mem
   return (
     <Card data-home-card="membership" role="region" aria-labelledby="home-membership-title">
       <CardHeader>
-        <h2 id="home-membership-title" className="text-lg font-semibold">
+        <h2 id="home-membership-title" className="font-display text-2xl">
           {tr("site.portal.home.membership")}
         </h2>
       </CardHeader>

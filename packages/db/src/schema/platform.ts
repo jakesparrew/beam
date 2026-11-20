@@ -547,7 +547,8 @@ export const aiRequests = pgTable(
     index("ai_requests_person_idx").on(t.personId),
     check(
       "ai_requests_model_ck",
-      sql`${t.model} in ('claude-opus-5-5', 'claude-haiku-5-5')`,
+      // The two direct Claude models, or any Vercel AI Gateway model id (`provider/model`) the assistant uses.
+      sql`${t.model} in ('claude-opus-5-5', 'claude-haiku-5-5') or ${t.model} ~ '^[a-z0-9-]+/[a-z0-9._-]{2,100}$'`,
     ),
   ],
 );

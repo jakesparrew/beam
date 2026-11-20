@@ -66,7 +66,7 @@ export function SiteHeader({ locale, items, brand, tr }: { locale: Locale; items
             helloTemplate={tr("site.public.header.hello", { name: "{name}" })}
             className="hidden items-center gap-2 whitespace-nowrap rounded-full px-3 py-2 text-sm font-medium text-[#fffaef]/90 transition hover:bg-[#fffaef]/10 xl:inline-flex"
           />
-          <a href={portalPath(locale, "book_day")} className={`${goldButtonClass} whitespace-nowrap py-1.5 pr-1.5 pl-5 max-sm:hidden`}>
+          <a href={localePath(locale, "book")} className={`${goldButtonClass} whitespace-nowrap py-1.5 pr-1.5 pl-5 max-sm:hidden`}>
             {tr("site.public.header.book")}
             <ArrowBadge dark />
           </a>
@@ -80,7 +80,7 @@ export function SiteHeader({ locale, items, brand, tr }: { locale: Locale; items
                 className="inline-flex items-center gap-2 text-sm font-medium"
               />
             </div>
-            <a href={portalPath(locale, "book_day")} className={`${goldButtonClass} mt-4 w-full justify-between py-1.5 pr-1.5 pl-5`}>
+            <a href={localePath(locale, "book")} className={`${goldButtonClass} mt-4 w-full justify-between py-1.5 pr-1.5 pl-5`}>
               {tr("site.public.header.book")}
               <ArrowBadge dark />
             </a>

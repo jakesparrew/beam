@@ -419,3 +419,45 @@ export const waitlistEntries = pgTable(
     ),
   ],
 );
+
+// ---------------------------------------------------------------------------
+// wellbeing_checkins
+// ---------------------------------------------------------------------------
+
+export const wellbeingCheckinsMoment = pgEnum("wellbeing_checkins_moment", ["before", "after", "daily"]);
+
+/**
+ * A guest's own wellbeing check-in: before or after a visit (`booking_id` set) or a daily one.
+ * Energy, sleep, calm and mood on a 1-5 scale (5 is best; calm is the inverse of stress), and an
+ * optional short note. One check-in per booking and moment; one daily check-in per Brussels day.
+ */
+export const wellbeingCheckins = pgTable(
+  "wellbeing_checkins",
+  {
+    id: id(),
+    personId: uuid()
+      .notNull()
+      .references(() => persons.id),
+    bookingId: uuid().references(() => bookings.id),
+    moment: wellbeingCheckinsMoment().notNull(),
+    onDate: date().notNull(),
+    energy: smallint().notNull(),
+    sleep: smallint(),
+    calm: smallint().notNull(),
+    mood: smallint().notNull(),
+    note: text(),
+    ...timestamps(),
+  },
+  (t) => [
+    index("wellbeing_checkins_person_idx").on(t.personId, t.onDate),
+    uniqueIndex("wellbeing_checkins_booking_moment_uq")
+      .on(t.bookingId, t.moment)
+      .where(sql`${t.bookingId} is not null`),
+    uniqueIndex("wellbeing_checkins_daily_uq")
+      .on(t.personId, t.onDate)
+      .where(sql`${t.moment} = 'daily'`),
+    check("wellbeing_checkins_scale_ck", sql`${t.energy} between 1 and 5 and ${t.calm} between 1 and 5 and ${t.mood} between 1 and 5 and (${t.sleep} is null or ${t.sleep} between 1 and 5)`),
+    check("wellbeing_checkins_booking_ck", sql`(${t.moment} = 'daily') = (${t.bookingId} is null)`),
+    check("wellbeing_checkins_note_ck", sql`${t.note} is null or char_length(${t.note}) <= 500`),
+  ],
+);

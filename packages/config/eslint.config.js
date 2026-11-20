@@ -18,7 +18,7 @@ import tseslint from "typescript-eslint";
 /** Repository root (two levels above packages/config). */
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
-/** The twelve module ids (architecture section 1); kept equal to `@beam/config` MODULE_IDS by a test. */
+/** The thirteen module ids (architecture section 1); kept equal to `@beam/config` MODULE_IDS by a test. */
 export const MODULE_IDS = [
   "platform",
   "crm",
@@ -32,6 +32,7 @@ export const MODULE_IDS = [
   "ops",
   "site",
   "webinar",
+  "assistant",
 ];
 
 /** The rule every boundary uses (the typescript-eslint variant supports `allowTypeImports`). */

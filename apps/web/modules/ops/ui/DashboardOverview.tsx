@@ -33,7 +33,7 @@ async function todaySessions(ctx: OpsReadCtx): Promise<TodaySession[]> {
     order by s.starts_at`);
   return rowsOf<Record<string, unknown>>(rows).map((r) => ({
     id: String(r.id),
-    title: String(r.title ?? ""),
+    title: typeof r.title === "string" ? r.title : "",
     kind: String(r.kind),
     startsAt: new Date(r.starts_at as string),
     endsAt: new Date(r.ends_at as string),

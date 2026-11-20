@@ -33,6 +33,7 @@ export const COOKIE_INVENTORY = [
   { name: "authjs.callback-url", category: "necessary", provider: "BEAM", maxAgeDays: 0, purpose: "Returns you to the page you came from after sign-in (session cookie)", release: "V1" },
   { name: "_ga", category: "analytics", provider: "Google Analytics", maxAgeDays: 395, purpose: "Distinguishes visitors for statistics", release: "V1" },
   { name: "_ga_<id>", category: "analytics", provider: "Google Analytics", maxAgeDays: 395, purpose: "Keeps the state of a statistics session", release: "V1" },
+  { name: "beam_assistant_<role>", category: "necessary", provider: "BEAM", maxAgeDays: 0, purpose: "Local storage, only after you send a chat message: keeps your conversation with BEAM's assistant (a random token, no personal data)", release: "R4" },
   { name: "beam_ref", category: "marketing", provider: "BEAM", maxAgeDays: 30, purpose: "Remembers the referral code you arrived with", release: "R3" },
   { name: "_gcl_au", category: "marketing", provider: "Google Ads", maxAgeDays: 90, purpose: "Measures ad conversions", release: "R3" },
   { name: "_fbp", category: "marketing", provider: "Meta", maxAgeDays: 90, purpose: "Measures ad conversions", release: "R3" },

@@ -18,7 +18,7 @@ import { defineJob, PermanentError, RetryableError, type JobCtx } from "@/lib/jo
 import { createTask } from "@/modules/crm/api";
 import { sendTransactional } from "@/modules/email/api";
 import { notifySlack, storeFile } from "@/modules/platform/api";
-import { assertRenderableSeller, buildInvoiceDocumentModel, formatIban, MissingCompanySettingsError, renderInvoicePdf } from "./pdf/render";
+import { assertRenderableSeller, buildInvoiceDocumentModel, formatIban, MissingCompanySettingsError } from "@beam/core/finance";
 import { raiseAuthAlert } from "./service/billit-failure";
 import {
   brusselsDay,
@@ -101,6 +101,8 @@ export async function runRenderPdf(ctx: JobCtx, input: z.infer<typeof RenderPdfI
   try {
     assertRenderableSeller(doc.sellerSnapshot, process.env.APP_ENV);
     const original = doc.reversesInvoiceId ? await findInvoice(tx, doc.reversesInvoiceId) : null;
+    // Loaded on use: the PDF renderer is heavy and must not load with every request.
+    const { renderInvoicePdf } = await import("./pdf/render");
     bytes = await renderInvoicePdf(buildInvoiceDocumentModel(doc, original ? { number: original.number } : undefined));
   } catch (error) {
     await markPdfFailed(ctx, doc.id);

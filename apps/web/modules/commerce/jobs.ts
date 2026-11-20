@@ -45,7 +45,6 @@ import { markAbandoned, type MarkAbandonedResult } from "./server/checkouts";
 import { attributeRecoveries, type AttributeRecoveriesResult } from "./server/recovery";
 import { cancelProviderPayment, chargeRecurringPayment, refundLatePaidOnCancelledOrder } from "./server/recurring";
 import { eraseProviderCustomer, revokeMandateAtProvider } from "./server/mandates";
-import { loadReceiptInput, renderReceiptPdf } from "./ui/receipt-pdf";
 import { runProviderRefund, syncProviderRefunds } from "./server/refunds";
 import { CreatePayLinkInput, createPayLinkJob } from "./server/payment-links";
 import { expireVouchers, issueVoucherEmail } from "./server/vouchers";
@@ -179,6 +178,8 @@ export async function runRenderReceipt(ctx: JobCtx, input: z.infer<typeof Render
   const name = `receipt-${order.reference}.pdf`;
   const [existing] = await ctx.tx.select({ id: files.id }).from(files).where(and(eq(files.kind, "receipt"), eq(files.name, name)));
   let fileId = existing?.id ?? null;
+  // Loaded on use: the PDF renderer is heavy and must not load with every request.
+  const { loadReceiptInput, renderReceiptPdf } = await import("./ui/receipt-pdf");
   const receipt = await loadReceiptInput(ctx.tx, order.id);
   if (!receipt) throw new NotFoundError("order_not_found");
   if (!fileId) {

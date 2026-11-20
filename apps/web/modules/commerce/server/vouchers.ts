@@ -26,7 +26,6 @@ import type { JobCtx } from "@/lib/job-runner";
 import { rateLimit } from "@/lib/rate-limit";
 import { grantCredits } from "@/modules/credits/api";
 import { sendTransactional } from "@/modules/email/api";
-import { renderVoucherPdf } from "../ui/voucher-pdf";
 import { brusselsMidnight, commerceSettings } from "./paid";
 import { voidVouchers } from "./refunds";
 
@@ -158,6 +157,8 @@ export async function issueVoucherEmail(ctx: JobCtx | Ctx, input: { voucherId: s
   const [existing] = await tx.select({ id: files.id }).from(files).where(and(eq(files.kind, "receipt"), eq(files.name, name)));
   let fileId = existing?.id ?? null;
   if (!fileId) {
+    // Loaded on use: the PDF renderer is heavy and must not load with every request.
+    const { renderVoucherPdf } = await import("../ui/voucher-pdf");
     const bytes = await renderVoucherPdf({ locale, code, amountCents: voucher.amountCents, recipientName: voucher.recipientName, message: voucher.message, expiresAt: voucher.expiresAt, redeemUrl });
     fileId = (await storeFile(ctx, { kind: "receipt", name, mime: "application/pdf", bytes, ...(purchaserId ? { personId: purchaserId } : {}) })).fileId;
   }

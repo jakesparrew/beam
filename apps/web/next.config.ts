@@ -36,6 +36,10 @@ const nextConfig: NextConfig = {
   // Native or large server-only packages stay external; mjml is resolvable thanks to W0-0 (DR-17).
   serverExternalPackages: ["pg", "@electric-sql/pglite", "mjml"],
   outputFileTracingRoot: path.join(here, "../.."),
+  // pdfkit (under @react-pdf/renderer) loads its standard fonts by a computed path that file
+  // tracing cannot see: without them every PDF fails, and the failed font load crashed the
+  // server process on Vercel ("Cannot find module .../standard-fonts/Helvetica.cjs").
+  outputFileTracingIncludes: { "/**": ["../../node_modules/.pnpm/pdfkit@*/node_modules/pdfkit/js/standard-fonts/**", "../../node_modules/.pnpm/pdfkit@*/node_modules/pdfkit/js/data/**"] },
   typedRoutes: true,
   poweredByHeader: false,
   // ponytail: the in-build type check runs out of memory on Vercel's 8 GB build machine (exit 137);

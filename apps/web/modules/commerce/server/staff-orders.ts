@@ -25,7 +25,6 @@ import { storeFile } from "@/lib/files";
 import { sendTransactional } from "@/modules/email/api";
 import { setOrderBillingDetails } from "@/modules/finance/api";
 import { getCurrentLegalVersion } from "@/modules/site/api";
-import { loadReceiptInput, renderReceiptPdf } from "../ui/receipt-pdf";
 import { startBankTransfer } from "./bank-transfer";
 import { cancelOrderDetailed } from "./cancel";
 import { getQuote } from "./catalogue";
@@ -285,6 +284,8 @@ export async function emailReceipt(tx: Tx, ctx: Ctx, input: { orderId: string; e
     to = p?.email ?? null;
   }
   if (!to) throw new ValidationError("validation", { email: "required" });
+  // Loaded on use: the PDF renderer is heavy and must not load with every request.
+  const { loadReceiptInput, renderReceiptPdf } = await import("../ui/receipt-pdf");
   const receipt = await loadReceiptInput(tx, order.id);
   if (!receipt) throw new NotFoundError("order_not_found");
   const name = `receipt-${order.reference}.pdf`;

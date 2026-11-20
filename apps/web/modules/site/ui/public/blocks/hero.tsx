@@ -25,8 +25,8 @@ export function HeroBlockView({ block, ctx, isFirst }: { block: BlockOf<"hero">;
       )}
       <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,rgba(23,28,48,0.88)_0%,rgba(23,28,48,0.55)_45%,rgba(23,28,48,0.1)_100%),linear-gradient(0deg,rgba(23,28,48,0.75)_0%,transparent_45%)]" />
       <div className="mx-auto w-full max-w-6xl space-y-7 px-6 pt-44 pb-36 sm:px-10 md:pb-44">
-        <p className="text-xs font-semibold tracking-[0.35em] text-[#ffd76a] uppercase">BEAM Vitality Center</p>
-        <Heading className="font-display max-w-3xl text-5xl leading-[1.02] text-[#fffaef] sm:text-6xl md:text-7xl">{block.heading}</Heading>
+        <p className="text-xs font-semibold tracking-[0.35em] text-[#d1a64a] uppercase">BEAM Vitality Center</p>
+        <Heading className="font-display max-w-3xl text-4xl text-white sm:text-5xl md:text-[3.42rem]">{block.heading}</Heading>
         {block.subheading ? <p className="max-w-xl text-lg leading-relaxed text-[#fffaef]/85">{block.subheading}</p> : null}
         {block.cta && href ? (
           <a href={href} rel={externalLinkRel(href)} className={`${goldButtonClass} py-2 pr-2 pl-7 text-base`}>

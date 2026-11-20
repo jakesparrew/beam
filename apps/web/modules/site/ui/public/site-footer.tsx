@@ -21,7 +21,7 @@ function LinkList({ items, label }: { items: PublicNavItem[]; label: string }) {
       <ul className="space-y-2.5 text-sm">
         {items.map((item) => (
           <li key={item.id}>
-            <a href={item.href} rel={item.external ? "noopener" : undefined} className="text-muted-foreground transition hover:text-[#ffd76a]">
+            <a href={item.href} rel={item.external ? "noopener" : undefined} className="text-muted-foreground transition hover:text-[#d1a64a]">
               {item.label}
             </a>
           </li>
@@ -31,7 +31,7 @@ function LinkList({ items, label }: { items: PublicNavItem[]; label: string }) {
   );
 }
 
-const headingClass = "text-xs font-semibold tracking-[0.2em] text-[#ffd76a] uppercase";
+const headingClass = "text-xs font-semibold tracking-[0.2em] text-[#d1a64a] uppercase";
 
 export function SiteFooter({
   locale,
@@ -69,7 +69,7 @@ export function SiteFooter({
                 <ul className="flex flex-wrap gap-2 text-sm">
                   {company.social.map((s) => (
                     <li key={s.key}>
-                      <a href={s.href} rel="noopener" className="inline-flex rounded-full border border-border px-3 py-1 capitalize transition hover:border-[#ffd76a] hover:text-[#ffd76a]">
+                      <a href={s.href} rel="noopener" className="inline-flex rounded-full border border-border px-3 py-1 capitalize transition hover:border-[#d1a64a] hover:text-[#d1a64a]">
                         {s.key}
                       </a>
                     </li>
@@ -85,7 +85,7 @@ export function SiteFooter({
           <div className="space-y-4 md:col-span-3">
             <h2 className={headingClass}>{tr("site.public.footer.legal")}</h2>
             <LinkList items={legal} label={tr("site.public.footer.legal")} />
-            <button type="button" data-cookie-settings className="text-sm text-muted-foreground underline underline-offset-2 hover:text-[#ffd76a]">
+            <button type="button" data-cookie-settings className="text-sm text-muted-foreground underline underline-offset-2 hover:text-[#d1a64a]">
               {tr("site.public.footer.cookieSettings")}
             </button>
           </div>
@@ -96,7 +96,7 @@ export function SiteFooter({
         </div>
         <div className="flex flex-col gap-6 border-t border-border py-8 md:flex-row md:items-end md:justify-between">
           {company ? <CompanyFooter company={company} tr={tr} /> : <span />}
-          <a href="/admin" className="text-xs text-muted-foreground underline-offset-2 hover:text-[#ffd76a] hover:underline">
+          <a href="/admin" className="text-xs text-muted-foreground underline-offset-2 hover:text-[#d1a64a] hover:underline">
             {tr("site.public.brand.backOffice")}
           </a>
         </div>

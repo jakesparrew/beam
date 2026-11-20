@@ -34,7 +34,7 @@ export function EventsListBlockView({ block, ctx }: { block: BlockOf<"events_lis
             return (
               <li key={e.sessionId} className="group relative flex flex-col gap-5 rounded-[1.75rem] border border-border bg-card p-4 transition hover:-translate-y-0.5 hover:shadow-md sm:flex-row sm:items-center sm:p-5">
                 <time dateTime={e.startsAt} className="flex w-20 shrink-0 flex-col overflow-hidden rounded-2xl border border-border text-center shadow-sm" aria-hidden="true">
-                  <span className="bg-[#212842] py-1 text-[0.7rem] font-semibold tracking-[0.2em] text-[#ffd76a] uppercase">{dateBit(e.startsAt, locale, { month: "short" })}</span>
+                  <span className="bg-[#212842] py-1 text-[0.7rem] font-semibold tracking-[0.2em] text-[#d1a64a] uppercase">{dateBit(e.startsAt, locale, { month: "short" })}</span>
                   <span className="font-display bg-[#fffaef] pt-1 text-4xl leading-none">{dateBit(e.startsAt, locale, { day: "numeric" })}</span>
                   <span className="bg-[#fffaef] pb-2 text-[0.7rem] text-muted-foreground uppercase">{dateBit(e.startsAt, locale, { weekday: "short" })}</span>
                 </time>
@@ -48,7 +48,7 @@ export function EventsListBlockView({ block, ctx }: { block: BlockOf<"events_lis
                     <span className="sr-only">{formatDate(e.startsAt, locale, "full")}, </span>
                     {formatTime(e.startsAt, locale)}
                     {e.location ? <span> · {e.location}</span> : null}
-                    {e.band === "few" ? <span className="font-medium text-[#a0621e]"> · {bandLabel(e.band, tr)}</span> : null}
+                    {e.band === "few" ? <span className="font-medium text-[#d1a64a]"> · {bandLabel(e.band, tr)}</span> : null}
                   </p>
                   {e.priorityUntil ? (
                     <p className="text-sm" data-lead-window>

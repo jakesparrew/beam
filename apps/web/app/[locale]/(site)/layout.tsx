@@ -17,7 +17,7 @@ import { SiteFooter } from "@/modules/site/ui/public/site-footer";
 import { SiteHeader } from "@/modules/site/ui/public/site-header";
 import { SwRegister } from "@/modules/site/ui/public/sw-register";
 import { UtmCapture } from "@/modules/site/ui/public/utm-capture";
-import { poppins, rufina } from "../../fonts";
+import { lora, poppins, rufina } from "../../fonts";
 
 /**
  * The public site chrome (site-P2, consent and PWA by site-P5): skip link, header with the
@@ -97,7 +97,7 @@ export default async function SiteLayout({ children, params }: { children: React
       gaMeasurementId={tags.gaId}
       labels={consentLabels(tr)}
     >
-      <div className={`site-theme ${poppins.variable} ${rufina.variable} flex min-h-dvh flex-col`}>
+      <div className={`site-theme ${poppins.variable} ${rufina.variable} ${lora.variable} flex min-h-dvh flex-col`}>
         <a
           href="#main-content"
           className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-background focus:px-4 focus:py-2 focus:shadow"

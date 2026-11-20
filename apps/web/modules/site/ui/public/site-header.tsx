@@ -38,7 +38,7 @@ export function SiteHeader({ locale, items, brand, tr }: { locale: Locale; items
                     className="whitespace-nowrap rounded-full px-3 py-2 text-[#fffaef]/90 transition hover:bg-[#fffaef]/10 hover:text-[#fffaef] focus-visible:outline-2 focus-visible:outline-ring"
                   >
                     {item.label}
-                    {item.children.length ? <span aria-hidden="true" className="ml-1 text-xs text-[#ffd76a]">▾</span> : null}
+                    {item.children.length ? <span aria-hidden="true" className="ml-1 text-xs text-[#d1a64a]">▾</span> : null}
                   </a>
                   {item.children.length ? (
                     <ul className="site-on-light invisible absolute left-0 top-full z-40 mt-2 min-w-56 rounded-2xl border border-border bg-[#fffaef] p-2 text-[#212842] opacity-0 shadow-xl transition group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100">

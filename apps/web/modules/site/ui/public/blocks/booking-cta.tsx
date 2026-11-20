@@ -46,7 +46,7 @@ export function BookingCtaGroupView({ blocks, ctx }: { blocks: BlockOf<"booking_
               data-target={block.target.kind}
               className={`group relative flex h-full items-center gap-4 overflow-hidden rounded-[1.75rem] border p-5 shadow-[0_18px_40px_-24px_rgba(33,40,66,0.55)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_48px_-20px_rgba(33,40,66,0.6)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${tone}`}
             >
-              {night ? <span aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(1px_1px_at_20%_30%,#fffaef,transparent),radial-gradient(1px_1px_at_70%_20%,#ffd76a,transparent),radial-gradient(1.5px_1.5px_at_85%_70%,#fffaef,transparent),radial-gradient(1px_1px_at_40%_80%,#fffaef,transparent)] opacity-70" /> : null}
+              {night ? <span aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(1px_1px_at_20%_30%,#fffaef,transparent),radial-gradient(1px_1px_at_70%_20%,#d1a64a,transparent),radial-gradient(1.5px_1.5px_at_85%_70%,#fffaef,transparent),radial-gradient(1px_1px_at_40%_80%,#fffaef,transparent)] opacity-70" /> : null}
               <span className="site-gold relative inline-flex size-14 shrink-0 items-center justify-center rounded-2xl text-[#212842]">
                 <TargetIcon kind={block.target.kind} />
               </span>

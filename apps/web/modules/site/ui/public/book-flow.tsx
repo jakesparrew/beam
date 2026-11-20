@@ -11,7 +11,7 @@ export const BOOK_STEPS = ["experience", "moment", "details", "pay"] as const;
 export function BookSteps({ current, tr }: { current: 1 | 2 | 3 | 4; tr: Tr }) {
   return (
     <nav aria-label={tr("site.bookFlow.stepOf", { n: current })} className="mb-8">
-      <p className="mb-3 text-xs font-semibold tracking-[0.25em] text-[#a0621e] uppercase sm:hidden">{tr("site.bookFlow.stepOf", { n: current })}</p>
+      <p className="mb-3 text-xs font-semibold tracking-[0.25em] text-[#d1a64a] uppercase sm:hidden">{tr("site.bookFlow.stepOf", { n: current })}</p>
       <ol className="flex items-center gap-2 sm:gap-3">
         {BOOK_STEPS.map((step, i) => {
           const n = i + 1;
@@ -50,7 +50,7 @@ export function TrustStrip({ tr }: { tr: Tr }) {
     <ul className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
       {items.map((t) => (
         <li key={t} className="flex items-center gap-2">
-          <span aria-hidden="true" className="grid size-5 place-items-center rounded-full bg-[#d1a64a]/20 text-xs text-[#a0621e]">
+          <span aria-hidden="true" className="grid size-5 place-items-center rounded-full bg-[#d1a64a]/20 text-xs text-[#d1a64a]">
             ✓
           </span>
           {t}
@@ -104,7 +104,7 @@ export function SummaryAside({
           {/* eslint-disable-next-line @next/next/no-img-element -- static brand photo */}
           <img src={`/brand/book-${kind}.webp`} alt="" className="absolute inset-0 -z-20 h-full w-full object-cover" />
           <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,rgba(23,28,48,0.1),rgba(23,28,48,0.8))]" />
-          <p className="absolute bottom-4 left-6 text-xs font-semibold tracking-[0.25em] text-[#ffd76a] uppercase">{heading}</p>
+          <p className="absolute bottom-4 left-6 text-xs font-semibold tracking-[0.25em] text-[#d1a64a] uppercase">{heading}</p>
         </div>
         <div className="grid gap-5 p-6">
           <div>
@@ -149,7 +149,7 @@ export function KindTips({ kind, tr }: { kind: "day" | "night"; tr: Tr }) {
         <ul className="space-y-2">
           {tips.map((t) => (
             <li key={t} className="flex gap-2">
-              <span aria-hidden="true" className="text-[#a0621e]">
+              <span aria-hidden="true" className="text-[#d1a64a]">
                 ✦
               </span>
               <span className="text-[#212842]/80">{t}</span>

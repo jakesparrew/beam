@@ -54,9 +54,9 @@ function SplitPanel({ card, href, media, night }: { card: Card; href: string | n
         className={`absolute inset-0 -z-10 ${night ? "bg-[linear-gradient(0deg,rgba(23,28,48,0.95)_15%,rgba(33,40,66,0.75)_55%,rgba(33,40,66,0.55)_100%)]" : "bg-[linear-gradient(0deg,rgba(255,250,239,0.98)_35%,rgba(255,250,239,0.82)_62%,rgba(255,250,239,0.05)_100%)]"}`}
       />
       {night ? (
-        <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[radial-gradient(1px_1px_at_12%_18%,#fffaef,transparent),radial-gradient(1.5px_1.5px_at_32%_9%,#ffd76a,transparent),radial-gradient(1px_1px_at_58%_22%,#fffaef,transparent),radial-gradient(1px_1px_at_80%_12%,#fffaef,transparent),radial-gradient(1.5px_1.5px_at_90%_32%,#ffd76a,transparent),radial-gradient(1px_1px_at_45%_35%,#fffaef,transparent)]" />
+        <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[radial-gradient(1px_1px_at_12%_18%,#fffaef,transparent),radial-gradient(1.5px_1.5px_at_32%_9%,#d1a64a,transparent),radial-gradient(1px_1px_at_58%_22%,#fffaef,transparent),radial-gradient(1px_1px_at_80%_12%,#fffaef,transparent),radial-gradient(1.5px_1.5px_at_90%_32%,#d1a64a,transparent),radial-gradient(1px_1px_at_45%_35%,#fffaef,transparent)]" />
       ) : null}
-      <span className={`mb-auto inline-flex size-14 items-center justify-center rounded-full ${night ? "bg-[#fffaef]/10 text-[#ffd76a] ring-1 ring-[#ffd76a]/40" : "bg-[#fffaef] text-[#a0621e] shadow-sm"}`}>{night ? <MoonIcon /> : <SunIcon />}</span>
+      <span className={`mb-auto inline-flex size-14 items-center justify-center rounded-full ${night ? "bg-[#fffaef]/10 text-[#d1a64a] ring-1 ring-[#d1a64a]/40" : "bg-[#fffaef] text-[#d1a64a] shadow-sm"}`}>{night ? <MoonIcon /> : <SunIcon />}</span>
       <div className="mt-24 space-y-3">
         <h3 className={`font-display text-4xl sm:text-5xl ${night ? "text-[#fffaef]" : "text-[#212842]"}`}>
           <CardLink href={href}>{card.heading}</CardLink>
@@ -122,10 +122,10 @@ export function CardGridBlockView({ block, ctx }: { block: BlockOf<"card_grid">;
             const href = hrefOf(card);
             return (
               <li key={i} className="group relative grid grid-cols-[3.5rem_1fr_auto] items-start gap-4 py-7">
-                <span className="font-display text-3xl leading-none text-[#a0621e]">{String(i + 1).padStart(2, "0")}</span>
+                <span className="font-display text-3xl leading-none text-[#d1a64a]">{String(i + 1).padStart(2, "0")}</span>
                 <div className="space-y-2">
                   <h3 className="text-xl font-semibold">
-                    <CardLink href={href} className="group-hover:text-[#a0621e]">
+                    <CardLink href={href} className="group-hover:text-[#d1a64a]">
                       {card.heading}
                     </CardLink>
                   </h3>
@@ -148,7 +148,7 @@ export function CardGridBlockView({ block, ctx }: { block: BlockOf<"card_grid">;
           {block.cards.map((card, i) => {
             const href = hrefOf(card);
             return (
-              <li key={i} className="relative flex flex-col gap-4 rounded-[1.75rem] border border-border bg-card p-7 transition hover:-translate-y-0.5 hover:shadow-md">
+              <li key={i} className="relative flex flex-col gap-4 rounded-[1.25rem] border border-[#d1a64a]/45 bg-[#fffaef] p-7 transition hover:-translate-y-0.5 hover:shadow-md">
                 {card.icon ? (
                   // eslint-disable-next-line @next/next/no-img-element -- a static brand icon
                   <img src={`/brand/story/${card.icon}.svg`} alt="" width={64} height={64} loading="lazy" className="size-16" />

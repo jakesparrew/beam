@@ -46,13 +46,13 @@ export default async function PublicBookPage({ params, searchParams }: { params:
             className={`absolute inset-0 -z-10 ${night ? "bg-[linear-gradient(180deg,rgba(23,28,48,0.35)_0%,rgba(23,28,48,0.92)_62%)]" : "bg-[linear-gradient(180deg,rgba(33,40,66,0.05)_0%,rgba(33,40,66,0.88)_62%)]"}`}
           />
           <span className="absolute top-6 left-6 rounded-full bg-[#fffaef]/90 px-3 py-1 text-xs font-semibold text-[#212842]">{tr(`site.bookFlow.${k}.tip`)}</span>
-          <p className="text-xs font-semibold tracking-[0.25em] text-[#ffd76a] uppercase">{night ? "☾" : "☀"} {tr(`site.bookFlow.${k}.meta`)}</p>
+          <p className="text-xs font-semibold tracking-[0.25em] text-[#d1a64a] uppercase">{night ? "☾" : "☀"} {tr(`site.bookFlow.${k}.meta`)}</p>
           <h2 className="font-display mt-2 text-4xl">{tr(`site.bookFlow.${k}.title`)}</h2>
           <p className="mt-1 text-[#fffaef]/80">{tr(`site.bookFlow.${k}.times`)}</p>
           <ul className="mt-5 grid gap-2 text-sm text-[#fffaef]/90">
             {[1, 2, 3, 4].map((n) => (
               <li key={n} className="flex gap-2">
-                <span aria-hidden="true" className="text-[#ffd76a]">
+                <span aria-hidden="true" className="text-[#d1a64a]">
                   ✦
                 </span>
                 {tr(`site.bookFlow.${k}.b${n}`)}
@@ -99,7 +99,7 @@ export default async function PublicBookPage({ params, searchParams }: { params:
             <a href={base} className="text-sm text-muted-foreground underline-offset-4 hover:underline">
               ← {tr("site.bookFlow.s2.change")}
             </a>
-            <p className="text-xs font-semibold tracking-[0.25em] text-[#a0621e] uppercase">
+            <p className="text-xs font-semibold tracking-[0.25em] text-[#d1a64a] uppercase">
               {night ? "☾" : "☀"} {tr(`site.bookFlow.${kind}.title`)} · {tr(`site.bookFlow.${kind}.meta`)}
             </p>
             <h1 className="font-display text-4xl sm:text-5xl">{tr("site.bookFlow.s2.title")}</h1>

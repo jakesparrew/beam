@@ -63,11 +63,11 @@ export function AvailabilityPreviewBlockView({ block, ctx }: { block: BlockOf<"a
   return (
     <div className={`relative overflow-hidden rounded-[2rem] p-6 sm:p-10 ${night ? "site-on-dark bg-[#212842]" : "border border-border bg-card"}`}>
       {night ? (
-        <div aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(1px_1px_at_8%_15%,#fffaef,transparent),radial-gradient(1.5px_1.5px_at_28%_8%,#ffd76a,transparent),radial-gradient(1px_1px_at_62%_14%,#fffaef,transparent),radial-gradient(1px_1px_at_88%_10%,#fffaef,transparent)] opacity-80" />
+        <div aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(1px_1px_at_8%_15%,#fffaef,transparent),radial-gradient(1.5px_1.5px_at_28%_8%,#d1a64a,transparent),radial-gradient(1px_1px_at_62%_14%,#fffaef,transparent),radial-gradient(1px_1px_at_88%_10%,#fffaef,transparent)] opacity-80" />
       ) : null}
       <div className="relative flex flex-col justify-between gap-6 md:flex-row md:items-end">
         <div className="space-y-2">
-          <p className={`text-xs font-semibold tracking-[0.3em] uppercase ${night ? "text-[#ffd76a]" : "text-[#a0621e]"}`}>{night ? "☾" : "☀"} {tr(night ? "site.blocks.availability.kindNight" : "site.blocks.availability.kindDay")}</p>
+          <p className={`text-xs font-semibold tracking-[0.3em] uppercase ${night ? "text-[#d1a64a]" : "text-[#d1a64a]"}`}>{night ? "☾" : "☀"} {tr(night ? "site.blocks.availability.kindNight" : "site.blocks.availability.kindDay")}</p>
           <h2 className="font-display text-3xl sm:text-4xl">{tr(night ? "site.blocks.availability.titleNight" : "site.blocks.availability.titleDay")}</h2>
           <ul className="flex flex-wrap gap-4 pt-1 text-xs text-muted-foreground">
             {(["available", "few", "full"] as const).map((b) => (

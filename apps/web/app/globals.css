@@ -42,6 +42,8 @@
 
 .site-theme {
   --radius: 1rem;
+  --background: #ffffff;
+  --muted-foreground: #6b6b6b;
   background-color: var(--background);
   font-family: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
 }
@@ -136,83 +138,147 @@
 }
 
 /*
- * Headings in the house style of beam.be: Poppins, regular weight with bold accents
- * ("**Ontdek BEAM** in minder dan 1 minuut") and a short gold bar under story headings.
- * One place to change: swap the family back to var(--font-rufina) for serif headings.
+ * The public site in the type and colours of beam.be (measured on beam.be, 2026-11-20):
+ * - headings Poppins 500 in navy, bold words 700; on navy the bold words are gold #D1A64A;
+ *   h2 2.8rem, line height 1.5, a 92px gold gradient bar under story headings;
+ * - the small label of a section ("Voor wie BEAM bedoeld is") gold Poppins 500 1.3rem, above the heading;
+ * - statement lines in Rufina gold, the line after it in Poppins 500 navy, on cream with the gold wave;
+ * - small card titles in Lora 600; body text black Poppins 400 1.1rem, line height 1.75;
+ * - buttons navy with gold text (gold with navy text on navy), 15px corners, no arrow.
  */
 .site-theme .font-display {
   font-family: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+  font-weight: 500;
+  line-height: 1.5;
+  letter-spacing: normal;
+}
+.site-theme h1.font-display {
   font-weight: 600;
-  letter-spacing: -0.02em;
+}
+
+/* Body text in black, as on beam.be (dark surfaces keep their light text). */
+.site-theme main :is(p, li):not(.site-on-dark, .site-on-dark *) {
+  color: #000;
 }
 
 /* Rich text inside page blocks: brand headings and readable measure. */
-.site-theme [data-block="rich_text"] h2,
-.site-theme [data-block="image_text"] h2,
-.site-theme .site-story h2 {
+.site-theme :is([data-block="rich_text"], [data-block="image_text"], [data-block="video"], .site-story) h2 {
   font-family: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
-  font-weight: 400;
-  font-size: clamp(1.9rem, 1.2rem + 2.4vw, 3.1rem);
-  line-height: 1.12;
-  letter-spacing: -0.02em;
+  font-weight: 500;
+  font-size: clamp(1.9rem, 1.2rem + 2vw, 2.8rem);
+  line-height: 1.5;
+  letter-spacing: normal;
+  color: var(--site-navy);
   text-wrap: balance;
 }
-.site-theme [data-block="rich_text"] h2 strong,
-.site-theme [data-block="image_text"] h2 strong,
-.site-theme .site-story h2 strong {
+.site-theme :is([data-block="rich_text"], [data-block="image_text"], [data-block="video"], .site-story) h2 strong {
   font-weight: 700;
   color: inherit;
 }
-.site-theme [data-block="rich_text"] h2::after,
-.site-theme [data-block="image_text"] h2::after,
-.site-theme .site-story h2::after {
+.site-theme .site-on-dark h2 strong {
+  color: var(--site-gold);
+}
+.site-theme :is([data-block="rich_text"], [data-block="image_text"], [data-block="video"], .site-story) h2::after {
   content: "";
   display: block;
-  width: 4.5rem;
+  width: 5.75rem;
   height: 3px;
   margin-top: 1.25rem;
-  border-radius: 9999px;
   background: var(--site-gold-gradient);
 }
-.site-theme [data-block="rich_text"] h3,
-.site-theme [data-block="image_text"] h3,
-.site-theme .site-story h3 {
+.site-theme :is([data-block="rich_text"], [data-block="image_text"], [data-block="video"], .site-story) h3 {
   font-size: 1.35rem;
-  line-height: 1.35;
+  line-height: 1.5;
   font-weight: 600;
   margin-top: 1rem;
+}
+/* The small label of a section: an h3 right after the h2 shows above it, in gold. */
+.site-theme :is([data-block="rich_text"], [data-block="image_text"], [data-block="video"]) div:has(> h2 + h3) {
+  display: flex;
+  flex-direction: column;
+}
+.site-theme :is([data-block="rich_text"], [data-block="image_text"], [data-block="video"]) h2 + h3 {
+  order: -1;
+  margin-top: 0;
+  font-size: 1.3rem;
+  font-weight: 500;
+  color: var(--site-gold);
+}
+.site-theme [data-block="rich_text"]:not([data-variant]) > div,
+.site-theme [data-block="image_text"] [class*="space-y"],
+.site-theme .site-story {
+  font-size: 1.1rem;
+  line-height: 1.75;
 }
 .site-theme [data-block="rich_text"]:not([data-variant]) > div,
 .site-theme [data-block="image_text"] [class*="space-y"] {
   max-width: 46rem;
-  font-size: 1.0625rem;
-  line-height: 1.8;
 }
-.site-theme .site-story {
-  font-size: 1.0625rem;
-  line-height: 1.8;
-}
-/* A chapter's heading stands in a narrow column: a size down, so long headings stay short. */
-.site-theme .site-story-side h2 {
-  font-size: clamp(1.7rem, 1.1rem + 1.7vw, 2.5rem);
-  line-height: 1.16;
-}
-.site-theme [data-block="rich_text"] strong,
-.site-theme .site-story strong {
-  color: #a0621e;
+.site-theme :is([data-block="rich_text"], .site-story) strong {
+  font-weight: 700;
 }
 
-/* Statement band: one or two big lines on navy, bold words in light gold. */
+/* Statement band: the first line in Rufina gold, the next in Poppins 500 navy. */
 .site-theme .site-statement {
-  font-size: clamp(1.6rem, 1rem + 2.6vw, 3rem);
-  line-height: 1.2;
-  letter-spacing: -0.02em;
-  font-weight: 400;
   text-wrap: balance;
 }
+.site-theme .site-statement > p:first-child {
+  font-family: var(--font-rufina), Georgia, serif;
+  font-weight: 700;
+  font-size: clamp(1.75rem, 1.1rem + 2.4vw, 3rem);
+  line-height: 1.5;
+  color: var(--site-gold);
+}
+.site-theme .site-statement > p + p {
+  font-family: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+  font-weight: 500;
+  font-size: clamp(1.35rem, 1rem + 1.4vw, 2.16rem);
+  line-height: 1.5;
+  color: var(--site-navy);
+}
 .site-theme .site-statement strong {
+  font-weight: 700;
+  color: var(--site-gold);
+}
+.site-theme .site-statement > p:first-child strong {
+  color: inherit;
+}
+
+/* Small card titles in Lora; on navy cards they are gold. */
+.site-theme [data-block="card_grid"] li:not(.site-on-dark) h3:not(.font-display) {
+  font-family: var(--font-lora), Georgia, serif;
   font-weight: 600;
-  color: #ffd76a;
+  font-size: 1.1rem;
+  line-height: 1.5;
+  color: var(--site-navy);
+}
+.site-theme [data-block="card_grid"] li.site-on-dark:not(.site-zoom) h3 {
+  color: var(--site-gold);
+}
+
+/* Buttons: navy with gold text, gold with navy text on navy; 15px corners, no arrow. */
+.site-theme :is(a, button).site-gold {
+  background: var(--site-navy);
+  color: var(--site-gold);
+  border-radius: 15px;
+  padding: 1.1rem 1.75rem;
+  font-size: 1.1rem;
+  font-weight: 500;
+  letter-spacing: normal;
+  box-shadow: none;
+  transform: none;
+}
+.site-theme .site-on-dark :is(a, button).site-gold,
+.site-theme :is(a, button).site-gold.site-on-dark {
+  background: var(--site-gold);
+  color: var(--site-navy);
+}
+.site-theme :is(a, button).site-gold::after,
+.site-theme :is(a, button).site-gold .site-arrow {
+  display: none;
+}
+.site-theme :is(a, button).site-gold:hover {
+  opacity: 0.9;
 }
 
 /* ------------------------------------------------------------------------------------------

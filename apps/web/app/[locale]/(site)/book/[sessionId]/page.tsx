@@ -84,7 +84,7 @@ export default async function PublicBookSessionPage({
             {/* eslint-disable-next-line @next/next/no-img-element -- static brand photo */}
             <img src={`/brand/book-${kind}.webp`} alt="" className="absolute inset-0 -z-20 h-full w-full object-cover" />
             <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[linear-gradient(110deg,rgba(23,28,48,0.94)_0%,rgba(23,28,48,0.78)_55%,rgba(23,28,48,0.35)_100%)]" />
-            <p className="text-xs font-semibold tracking-[0.25em] text-[#ffd76a] uppercase">{tr("site.bookFlow.s3.title")}</p>
+            <p className="text-xs font-semibold tracking-[0.25em] text-[#d1a64a] uppercase">{tr("site.bookFlow.s3.title")}</p>
             <h1 id="session-title" className="font-display mt-2 text-4xl sm:text-5xl">
               {card.title}
             </h1>

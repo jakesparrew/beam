@@ -39,7 +39,7 @@ export function PricingTableBlockView({ block, ctx }: { block: BlockOf<"pricing_
                 {formatMoney(row.publicCents, locale)}
               </p>
               {perUnit !== null ? (
-                <p className="mt-2 text-sm font-medium text-[#a0621e]">
+                <p className="mt-2 text-sm font-medium text-[#d1a64a]">
                   {tr(night ? "site.blocks.pricing.perNight" : "site.blocks.pricing.perSession", { amount: formatMoney(perUnit, locale) })}
                 </p>
               ) : null}

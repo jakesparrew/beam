@@ -5,7 +5,7 @@
  * - `chapter`: long story text. The opening heading (and the `h3` lines right under it) stand on
  *   the left and stay in view; the text runs on the right. The first two parts show, the rest
  *   opens with "Read more" (a native `<details>`, so all of it stays in the page for search).
- * - `statement`: one or two big lines on a navy band with the gold wave of beam.be.
+ * - `statement`: a cream band with the gold wave of beam.be: the first line in Rufina gold, the next in Poppins navy.
  */
 import type { RichBlockNode } from "@beam/core/site";
 import type { BlockOf, Tr } from "../block-renderer";
@@ -54,9 +54,9 @@ function ChapterView({ nodes, tr }: { nodes: RichBlockNode[]; tr: Tr }) {
 
 function StatementView({ nodes }: { nodes: RichBlockNode[] }) {
   return (
-    <div className="site-on-dark relative isolate overflow-hidden rounded-[2rem] bg-[#212842] px-6 py-16 text-center sm:px-12 md:py-24">
+    <div className="relative isolate overflow-hidden rounded-[2rem] bg-[#fffaef] px-6 py-14 text-center sm:px-12 md:py-20">
       {/* eslint-disable-next-line @next/next/no-img-element -- a static, decorative brand file */}
-      <img src="/brand/story/wave.webp" alt="" aria-hidden="true" loading="lazy" className="absolute inset-0 -z-10 h-full w-full object-cover opacity-70" />
+      <img src="/brand/story/gold-wave.webp" alt="" aria-hidden="true" loading="lazy" className="absolute inset-0 -z-10 h-full w-full object-cover opacity-35 mix-blend-multiply" />
       <RichText doc={docOf(nodes)} className="site-statement mx-auto max-w-4xl space-y-2" />
     </div>
   );

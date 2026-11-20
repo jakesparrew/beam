@@ -41,12 +41,12 @@ export type BlockOf<T extends Block["type"]> = Extract<Block, { type: T }>;
 const focusRing = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
 
 /** Shared button-like link styles (pill shapes; colours from the site tokens). */
-export const buttonClass = `inline-flex items-center justify-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition hover:opacity-90 ${focusRing}`;
-export const secondaryButtonClass = `inline-flex items-center justify-center gap-2 rounded-full border border-primary/25 bg-card px-6 py-3 text-sm font-semibold text-card-foreground transition hover:border-primary ${focusRing}`;
+export const buttonClass = `inline-flex items-center justify-center gap-2 rounded-[15px] bg-[#212842] px-7 py-4 text-[1.1rem] font-medium text-[#d1a64a] transition hover:opacity-90 ${focusRing}`;
+export const secondaryButtonClass = `inline-flex items-center justify-center gap-2 rounded-[15px] bg-[#d1a64a] px-7 py-4 text-[1.1rem] font-medium text-[#212842] transition hover:opacity-90 ${focusRing}`;
 /** The BEAM gold-gradient pill, for the main booking action (sweep and glow in globals.css `.site-gold`). */
 export const goldButtonClass = `site-gold inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-semibold tracking-wide text-[#212842] ${focusRing}`;
 /** Section headings (h2) of every block. */
-export const sectionHeadingClass = "font-display text-3xl leading-tight text-foreground sm:text-4xl md:text-5xl";
+export const sectionHeadingClass = "font-display text-3xl text-foreground sm:text-4xl md:text-[2.8rem]";
 
 /** The round arrow badge at the end of pills and cards. */
 export function ArrowBadge({ dark = false }: { dark?: boolean }) {

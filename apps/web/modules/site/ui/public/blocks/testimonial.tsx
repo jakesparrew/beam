@@ -45,8 +45,8 @@ export function ReviewsView({ blocks, tr }: { blocks: BlockOf<"testimonial">[]; 
     <div className="space-y-10">
       <div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-end">
         <div className="max-w-2xl space-y-4">
-          <p className="text-xs font-semibold tracking-[0.3em] text-[#a0621e] uppercase">{tr("site.blocks.reviews.eyebrow")}</p>
-          <h2 className="font-display text-3xl leading-tight sm:text-4xl md:text-5xl">{tr("site.blocks.reviews.heading")}</h2>
+          <p className="text-xs font-semibold tracking-[0.3em] text-[#d1a64a] uppercase">{tr("site.blocks.reviews.eyebrow")}</p>
+          <h2 className="font-display text-3xl sm:text-4xl md:text-[2.8rem]">{tr("site.blocks.reviews.heading")}</h2>
           <p className="text-lg leading-relaxed text-muted-foreground">{tr("site.blocks.reviews.intro")}</p>
         </div>
         <div className="flex items-center gap-4 rounded-full border border-border bg-card px-5 py-3 shadow-sm">
@@ -72,7 +72,7 @@ export function ReviewsView({ blocks, tr }: { blocks: BlockOf<"testimonial">[]; 
                 <p>{b.quote}</p>
               </blockquote>
               <figcaption className="flex items-center gap-3 border-t border-border pt-4">
-                <span aria-hidden="true" className="inline-flex size-10 items-center justify-center rounded-full bg-[#212842] font-semibold text-[#ffd76a]">
+                <span aria-hidden="true" className="inline-flex size-10 items-center justify-center rounded-full bg-[#212842] font-semibold text-[#d1a64a]">
                   {b.authorName.charAt(0).toUpperCase()}
                 </span>
                 <span className="leading-tight">

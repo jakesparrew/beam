@@ -26,7 +26,7 @@ export function AccountLink({ accountHref, label, helloTemplate, className }: { 
     <a href={href} className={className} data-signed-in={me ? "true" : undefined}>
       {me ? (
         <>
-          <span aria-hidden="true" className="inline-flex size-7 items-center justify-center rounded-full bg-[#ffd76a] text-xs font-semibold text-[#212842]">
+          <span aria-hidden="true" className="inline-flex size-7 items-center justify-center rounded-full bg-[#d1a64a] text-xs font-semibold text-[#212842]">
             {me.firstName.charAt(0).toUpperCase()}
           </span>
           {helloTemplate.replace("{name}", me.firstName)}

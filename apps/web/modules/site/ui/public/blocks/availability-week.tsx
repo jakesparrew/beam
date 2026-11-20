@@ -16,7 +16,7 @@ export function AvailabilityWeeks({ weeks, night, labels }: { weeks: Week[]; nig
   const [i, setI] = useState(0);
   const week = weeks[i]!;
   const navBtn = `grid size-10 place-items-center rounded-full border transition disabled:opacity-30 ${night ? "border-[#fffaef]/20 hover:bg-[#fffaef]/10" : "border-border hover:bg-[#f4ead3]"}`;
-  const accent = night ? "text-[#ffd76a]" : "text-[#a0621e]";
+  const accent = night ? "text-[#d1a64a]" : "text-[#d1a64a]";
   return (
     <div className="relative mt-8">
       <div className="mb-4 flex items-center justify-between gap-3">

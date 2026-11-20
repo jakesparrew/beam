@@ -38,6 +38,9 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: path.join(here, "../.."),
   typedRoutes: true,
   poweredByHeader: false,
+  // ponytail: the in-build type check runs out of memory on Vercel's 8 GB build machine (exit 137);
+  // `pnpm typecheck` covers it before every push. Drop this on a larger build machine.
+  typescript: { ignoreBuildErrors: true },
   experimental: {
     // 3 MB: forms' `uploadImportCsv` takes a CSV of 1 to 2 MB; the 1 MB default rejects it.
     serverActions: { allowedOrigins: host ? [host] : [], bodySizeLimit: "3mb" },

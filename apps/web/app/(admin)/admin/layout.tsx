@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import type { RoleKey } from "@beam/db/schema";
 import { Alert, AlertDescription, type NavSection } from "@beam/ui";
 import { RECOVERY_CODES_LOW } from "@beam/core/platform";
+import { LOCALES, URL_SEGMENT } from "@beam/core/i18n";
 import { getSession, hasPermission, readMfaSecrets, requireStaff, unusedCodeCount } from "@/lib/auth";
 import { devSkipMfa } from "@/lib/auth-config";
 import { getAppDb, type Actor, type DbOrTx } from "@/lib/ctx";
@@ -12,6 +13,7 @@ import { reportProblemLabels, softTranslator, translator } from "@/lib/i18n";
 import { appEnv } from "@/lib/integrations";
 import { getSetting } from "@/lib/settings";
 import { isGoLiveGateComplete } from "@/modules/platform/api";
+import { AdminLocaleSwitch } from "@/modules/platform/ui/locale-switch";
 import { AdminFrame } from "@/modules/platform/ui/support-form";
 import { NAV } from "@/registry/nav.generated";
 import type { FlagKey, Permission } from "@/registry/types.generated";
@@ -136,6 +138,14 @@ export default async function AdminLayout({ children }: { children: ReactNode })
       user={{ name: session.user.name ?? session.user.email, email: session.user.email, isTester: session.user.isTester, ...(roleLabel.startsWith("platform.") ? {} : { roleLabel }) }}
       banner={banners.length ? <div className="grid gap-2">{banners}</div> : undefined}
       currentPath={pathname}
+      headerSlot={
+        <AdminLocaleSwitch
+          name={session.user.name ?? session.user.email}
+          locale={locale}
+          label={tr("platform.shell.language")}
+          locales={LOCALES.map((l) => ({ value: l, short: URL_SEGMENT[l].toUpperCase(), label: tr(`platform.shell.locale_${URL_SEGMENT[l]}`) }))}
+        />
+      }
       logoSrc="/brand/beam-logo-header.png"
       labels={{
         skipToContent: tr("platform.shell.skip_to_content"),

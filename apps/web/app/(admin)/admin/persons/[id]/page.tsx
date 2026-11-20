@@ -266,7 +266,7 @@ export default async function Person360Page({ params }: { params: Promise<{ id: 
         />
       ) : null}
       {assistantPanel?.ok ? <AssistantPersonPanel panel={assistantPanel.value} tr={tr} formatDate={(d) => formatDateTime(d, locale)} /> : null}
-      {wellbeing?.ok ? <WellbeingProfile journey={wellbeing.value} tr={tr} /> : null}
+      {wellbeing?.ok ? <WellbeingProfile journey={wellbeing.value} tr={tr} locale={locale} /> : null}
 
       <PanelGrid>
         <ListPanel

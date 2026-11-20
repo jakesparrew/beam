@@ -18,7 +18,7 @@ function average(values: number[]): number | null {
   return values.length ? values.reduce((a, b) => a + b, 0) / values.length : null;
 }
 
-export function WellbeingProfile({ journey, tr, now = new Date() }: { journey: WellbeingJourney; tr: Tr; now?: Date }) {
+export function WellbeingProfile({ journey, tr, locale = "nl-BE", now = new Date() }: { journey: WellbeingJourney; tr: Tr; locale?: string; now?: Date }) {
   // Before-visit check-ins describe the arrival state; the profile follows daily and after ones.
   const points = journey.checkins.filter((c) => c.moment !== "before");
   const W = 640;
@@ -36,7 +36,7 @@ export function WellbeingProfile({ journey, tr, now = new Date() }: { journey: W
   const months = [0, 30, 60].map((d) => new Date(start + d * DAY));
   const byVisit = new Map(journey.checkins.filter((c) => c.bookingId).map((c) => [`${c.bookingId}:${c.moment}`, c]));
   const visitLabel = (v: WellbeingJourney["visitDays"][number]) => {
-    const date = new Date(`${v.onDate}T12:00:00Z`).toLocaleDateString("nl-BE", { day: "numeric", month: "short" });
+    const date = new Date(`${v.onDate}T12:00:00Z`).toLocaleDateString(locale, { day: "numeric", month: "short" });
     if (v.noShow) return `${date} · ${tr("site.portal.wellbeing.staff.noShow")}`;
     const b = byVisit.get(`${v.bookingId}:before`);
     const a = byVisit.get(`${v.bookingId}:after`);
@@ -91,7 +91,7 @@ export function WellbeingProfile({ journey, tr, now = new Date() }: { journey: W
               ))}
               {months.map((m, i) => (
                 <text key={i} x={36 + (i / 2) * (W - 48)} y={H - 4} fontSize="10" textAnchor={i === 0 ? "start" : i === 2 ? "end" : "middle"} fill="currentColor" opacity="0.45">
-                  {m.toLocaleDateString("nl-BE", { day: "numeric", month: "short" })}
+                  {m.toLocaleDateString(locale, { day: "numeric", month: "short" })}
                 </text>
               ))}
               {journey.visitDays.map((v) => (

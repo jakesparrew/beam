@@ -6,6 +6,7 @@
  * - `split`: two large panels side by side; the first in day style (light, sun), the second in
  *   night style (navy, moon and stars), each over its photo.
  * - `list`: a numbered editorial list (01, 02, ...) without card chrome.
+ * - `icons`: white cards with a gold brand icon (`icon`, the line icons of beam.be) above the text.
  * A linked card is clickable as a whole (stretched link) with an arrow badge.
  */
 import { externalLinkRel } from "@beam/core/site";
@@ -50,7 +51,7 @@ function SplitPanel({ card, href, media, night }: { card: Card; href: string | n
       {media ? <MediaImage media={media} sizes="(min-width: 768px) 50vw, 100vw" className="absolute inset-0 -z-20 h-full w-full object-cover" /> : null}
       <div
         aria-hidden="true"
-        className={`absolute inset-0 -z-10 ${night ? "bg-[linear-gradient(0deg,rgba(23,28,48,0.95)_15%,rgba(33,40,66,0.75)_55%,rgba(33,40,66,0.55)_100%)]" : "bg-[linear-gradient(0deg,rgba(255,250,239,0.97)_20%,rgba(255,250,239,0.7)_55%,rgba(255,250,239,0.05)_100%)]"}`}
+        className={`absolute inset-0 -z-10 ${night ? "bg-[linear-gradient(0deg,rgba(23,28,48,0.95)_15%,rgba(33,40,66,0.75)_55%,rgba(33,40,66,0.55)_100%)]" : "bg-[linear-gradient(0deg,rgba(255,250,239,0.98)_35%,rgba(255,250,239,0.82)_62%,rgba(255,250,239,0.05)_100%)]"}`}
       />
       {night ? (
         <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[radial-gradient(1px_1px_at_12%_18%,#fffaef,transparent),radial-gradient(1.5px_1.5px_at_32%_9%,#ffd76a,transparent),radial-gradient(1px_1px_at_58%_22%,#fffaef,transparent),radial-gradient(1px_1px_at_80%_12%,#fffaef,transparent),radial-gradient(1.5px_1.5px_at_90%_32%,#ffd76a,transparent),radial-gradient(1px_1px_at_45%_35%,#fffaef,transparent)]" />
@@ -75,7 +76,7 @@ function PhotoCard({ card, href, media }: { card: Card; href: string | null; med
   return (
     <li className="site-zoom site-on-dark relative isolate flex min-h-[26rem] flex-col justify-end overflow-hidden rounded-[1.75rem] bg-[#212842] p-6">
       <MediaImage media={media} sizes="(min-width: 1024px) 380px, (min-width: 640px) 50vw, 100vw" className="absolute inset-0 -z-20 h-full w-full object-cover" />
-      <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[linear-gradient(0deg,rgba(23,28,48,0.92)_10%,rgba(23,28,48,0.35)_60%,rgba(23,28,48,0)_100%)]" />
+      <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[linear-gradient(0deg,rgba(23,28,48,0.95)_25%,rgba(23,28,48,0.6)_60%,rgba(23,28,48,0)_100%)]" />
       <div className="flex items-end justify-between gap-4">
         <div className="space-y-2">
           <h3 className="text-xl font-semibold text-[#fffaef]">
@@ -135,6 +136,36 @@ export function CardGridBlockView({ block, ctx }: { block: BlockOf<"card_grid">;
             );
           })}
         </ol>
+      </div>
+    );
+  }
+
+  if (layout === "icons") {
+    return (
+      <div className="space-y-10">
+        {block.heading ? <h2 className={`${sectionHeadingClass} max-w-3xl`}>{block.heading}</h2> : null}
+        <ul className={`grid gap-4 sm:grid-cols-2 ${block.cards.length % 4 === 0 ? "lg:grid-cols-4" : "lg:grid-cols-3"}`}>
+          {block.cards.map((card, i) => {
+            const href = hrefOf(card);
+            return (
+              <li key={i} className="relative flex flex-col gap-4 rounded-[1.75rem] border border-border bg-card p-7 transition hover:-translate-y-0.5 hover:shadow-md">
+                {card.icon ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- a static brand icon
+                  <img src={`/brand/story/${card.icon}.svg`} alt="" width={64} height={64} loading="lazy" className="size-16" />
+                ) : null}
+                <h3 className="text-xl leading-snug font-semibold">
+                  <CardLink href={href}>{card.heading}</CardLink>
+                </h3>
+                {card.text ? <p className="leading-relaxed text-muted-foreground">{card.text}</p> : null}
+                {href ? (
+                  <span className="mt-auto flex justify-end pt-2">
+                    <ArrowBadge dark />
+                  </span>
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
       </div>
     );
   }

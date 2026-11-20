@@ -26,6 +26,7 @@ import { MapBlockView } from "./blocks/map";
 import { PostsListBlockView } from "./blocks/posts-list";
 import { PricingTableBlockView } from "./blocks/pricing-table";
 import { RichTextBlockView } from "./blocks/rich-text";
+import { RichText } from "./rich-text";
 import { ReviewsView, TestimonialBlockView } from "./blocks/testimonial";
 import { VideoBlockView } from "./blocks/video";
 import { WebinarSignupBlockView } from "./event-facts";
@@ -64,7 +65,7 @@ function renderBlock(block: Block, ctx: BlockContext, index: number): ReactNode 
     case "hero":
       return <HeroBlockView block={block} ctx={ctx} isFirst={index === 0} />;
     case "rich_text":
-      return <RichTextBlockView block={block} />;
+      return <RichTextBlockView block={block} tr={ctx.tr} />;
     case "image":
       return <ImageBlockView block={block} ctx={ctx} />;
     case "image_text":
@@ -87,9 +88,9 @@ function renderBlock(block: Block, ctx: BlockContext, index: number): ReactNode 
       return <FormEmbedBlockView block={block} ctx={ctx} />;
     case "booking_cta":
       return <BookingCtaBlockView block={block} ctx={ctx} />;
-    case "video":
-      return (
-        <figure className="space-y-2">
+    case "video": {
+      const video = (
+        <figure className={`space-y-2 ${block.portrait ? "mx-auto w-full max-w-[19rem]" : ""}`}>
           <VideoBlockView
             youtubeId={block.youtubeId}
             title={block.title}
@@ -97,10 +98,21 @@ function renderBlock(block: Block, ctx: BlockContext, index: number): ReactNode 
             playLabel={ctx.tr("site.blocks.video.play", { title: block.title })}
             consentNote={ctx.tr("site.blocks.video.consentNote")}
             openLabel={ctx.tr("site.blocks.video.openOnYoutube")}
+            portrait={block.portrait ?? false}
           />
           <figcaption className="text-sm font-medium">{block.title}</figcaption>
         </figure>
       );
+      // With text: the story on the left, the video beside it (under it on a phone).
+      return block.doc ? (
+        <div className="grid items-center gap-10 md:grid-cols-12 md:gap-16">
+          <RichText doc={block.doc} className="site-story space-y-5 md:col-span-7" />
+          <div className="md:col-span-5">{video}</div>
+        </div>
+      ) : (
+        video
+      );
+    }
     case "testimonial":
       return <TestimonialBlockView block={block} />;
     case "contact_details":
@@ -157,9 +169,10 @@ export function BlockRenderer({ blocks, ctx }: { blocks: readonly Block[]; ctx: 
             </section>
           );
         }
-        const wide = block.type === "card_grid" && block.layout === "split";
+        const variant = block.type === "rich_text" ? block.variant : undefined;
+        const wide = (block.type === "card_grid" && block.layout === "split") || variant === "statement";
         return (
-          <section key={block.id} data-block={block.type} className={wide ? "mx-auto w-full max-w-7xl px-3 py-10 sm:px-4 md:py-16" : (SECTION_CLASS[block.type] ?? DEFAULT_SECTION_CLASS)}>
+          <section key={block.id} data-block={block.type} data-variant={variant} className={wide ? "mx-auto w-full max-w-7xl px-3 py-10 sm:px-4 md:py-16" : (SECTION_CLASS[block.type] ?? DEFAULT_SECTION_CLASS)}>
             {renderBlock(block, ctx, first)}
           </section>
         );

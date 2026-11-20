@@ -596,9 +596,15 @@
         "play": "Lire la vidéo : {title}"
       },
       "reviews": {
-        "heading": "Ce que disent nos hôtes",
+        "heading": "Une confiance profonde. Des expériences vécues.",
         "source": "Avis Google · 145 avis",
-        "stars": "5 étoiles sur 5"
+        "stars": "5 étoiles sur 5",
+        "eyebrow": "145 avis cinq étoiles",
+        "intro": "Chacun décrit son expérience à sa manière : une détente plus profonde, un meilleur sommeil, plus de clarté, de concentration et un niveau d'énergie plus stable."
+      },
+      "story": {
+        "more": "Lire la suite",
+        "less": "Réduire"
       }
     },
     "cookies": {

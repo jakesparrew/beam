@@ -596,9 +596,15 @@
         "play": "Video afspelen: {title}"
       },
       "reviews": {
-        "heading": "Wat onze gasten zeggen",
+        "heading": "Diep vertrouwen. Echte ervaringen.",
         "source": "Google-reviews · 145 recensies",
-        "stars": "5 van 5 sterren"
+        "stars": "5 van 5 sterren",
+        "eyebrow": "145 vijfsterren recensies",
+        "intro": "Mensen beschrijven hun ervaringen op verschillende manieren, van diepere ontspanning en een verbeterde slaap tot meer helderheid, focus en een stabieler energieniveau."
+      },
+      "story": {
+        "more": "Lees verder",
+        "less": "Minder tonen"
       }
     },
     "cookies": {

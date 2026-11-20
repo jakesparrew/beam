@@ -42,14 +42,18 @@ const Button = z.object({ label: line(60), link: LinkSchema }).strict();
 export const HeroBlock = z
   .object({ id: uuid, type: z.literal("hero"), heading: line(120), subheading: optLine(300), mediaId: uuid.optional(), cta: Button.optional() })
   .strict();
-export const RichTextBlock = z.object({ id: uuid, type: z.literal("rich_text"), doc: RichDocSchema }).strict();
+/** How a rich text block is presented: plain, a story chapter (heading beside the text, the rest behind "read more") or a statement band. */
+export const RICH_TEXT_VARIANTS = ["chapter", "statement"] as const;
+export const RichTextBlock = z.object({ id: uuid, type: z.literal("rich_text"), doc: RichDocSchema, variant: z.enum(RICH_TEXT_VARIANTS).optional() }).strict();
 export const ImageBlock = z.object({ id: uuid, type: z.literal("image"), mediaId: uuid, caption: optLine(300) }).strict();
 export const ImageTextBlock = z
   .object({ id: uuid, type: z.literal("image_text"), mediaId: uuid, doc: RichDocSchema, imageSide: z.enum(["left", "right"]) })
   .strict();
 export const CtaBlock = z.object({ id: uuid, type: z.literal("cta"), heading: line(120), text: optLine(500), button: Button }).strict();
-/** How a card grid is laid out: image cards, a numbered editorial list, or two large side-by-side panels (day/night). */
-export const CARD_GRID_LAYOUTS = ["cards", "list", "split"] as const;
+/** How a card grid is laid out: image cards, a numbered editorial list, two large side-by-side panels (day/night), or cards with a brand icon. */
+export const CARD_GRID_LAYOUTS = ["cards", "list", "split", "icons"] as const;
+/** The brand icons of the `icons` layout (files in `apps/web/public/brand/story/<icon>.svg`). */
+export const CARD_ICONS = ["ees", "technology", "energy_first", "individuals", "professionals", "leaders", "organisations"] as const;
 
 export const CardGridBlock = z
   .object({
@@ -57,7 +61,7 @@ export const CardGridBlock = z
     type: z.literal("card_grid"),
     heading: optLine(120),
     layout: z.enum(CARD_GRID_LAYOUTS).optional(),
-    cards: z.array(z.object({ heading: line(120), text: z.string().trim().max(500), mediaId: uuid.optional(), link: LinkSchema.optional() }).strict()).min(1).max(12),
+    cards: z.array(z.object({ heading: line(120), text: z.string().trim().max(500), mediaId: uuid.optional(), link: LinkSchema.optional(), icon: z.enum(CARD_ICONS).optional() }).strict()).min(1).max(12),
   })
   .strict();
 export const FaqBlock = z
@@ -92,7 +96,7 @@ export const BookingCtaTarget = z.discriminatedUnion("kind", [
 ]);
 export const BookingCtaBlock = z.object({ id: uuid, type: z.literal("booking_cta"), label: line(60), note: optLine(80), target: BookingCtaTarget }).strict();
 export const VideoBlock = z
-  .object({ id: uuid, type: z.literal("video"), youtubeId: z.string().regex(/^[A-Za-z0-9_-]{11}$/), title: line(200), posterMediaId: uuid })
+  .object({ id: uuid, type: z.literal("video"), youtubeId: z.string().regex(/^[A-Za-z0-9_-]{11}$/), title: line(200), posterMediaId: uuid, portrait: z.boolean().optional(), doc: RichDocSchema.optional() })
   .strict();
 export const TestimonialBlock = z
   .object({
@@ -151,11 +155,11 @@ export type BookingCtaTargetValue =
   | { kind: "gift" };
 export type Block =
   | (Base & { type: "hero"; heading: string; subheading?: string; mediaId?: string; cta?: { label: string; link: Link } })
-  | (Base & { type: "rich_text"; doc: RichDoc })
+  | (Base & { type: "rich_text"; doc: RichDoc; variant?: (typeof RICH_TEXT_VARIANTS)[number] })
   | (Base & { type: "image"; mediaId: string; caption?: string })
   | (Base & { type: "image_text"; mediaId: string; doc: RichDoc; imageSide: "left" | "right" })
   | (Base & { type: "cta"; heading: string; text?: string; button: { label: string; link: Link } })
-  | (Base & { type: "card_grid"; heading?: string; layout?: (typeof CARD_GRID_LAYOUTS)[number]; cards: { heading: string; text: string; mediaId?: string; link?: Link }[] })
+  | (Base & { type: "card_grid"; heading?: string; layout?: (typeof CARD_GRID_LAYOUTS)[number]; cards: { heading: string; text: string; mediaId?: string; link?: Link; icon?: (typeof CARD_ICONS)[number] }[] })
   | (Base & { type: "faq"; heading?: string; items: { question: string; answer: RichDoc }[] })
   | (Base & { type: "pricing_table"; heading?: string; productIds: string[]; showMemberPrice: boolean })
   | (Base & { type: "events_list"; heading?: string; limit: number; showFull: boolean })
@@ -163,7 +167,7 @@ export type Block =
   | (Base & { type: "posts_list"; heading?: string; limit: number; paginate: boolean })
   | (Base & { type: "form_embed"; formSlug: string })
   | (Base & { type: "booking_cta"; label: string; note?: string; target: BookingCtaTargetValue })
-  | (Base & { type: "video"; youtubeId: string; title: string; posterMediaId: string })
+  | (Base & { type: "video"; youtubeId: string; title: string; posterMediaId: string; portrait?: boolean; doc?: RichDoc })
   | (Base & { type: "testimonial"; quote: string; authorName: string; authorDetail?: string; consentConfirmed: true })
   | (Base & { type: "contact_details"; showAddress: boolean; showPhone: boolean; showEmail: boolean; showOpeningHours: boolean })
   | (Base & { type: "map"; mediaId: string; linkUrl: string })

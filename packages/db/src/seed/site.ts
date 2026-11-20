@@ -292,37 +292,153 @@ const DAY_NOTE: L3 = ["2 uur · €120", "2 heures · 120 €", "2 hours · €1
 const NIGHT_NOTE: L3 = ["12 uur · €420", "12 heures · 420 €", "12 hours · €420"];
 const GIFT_NOTE: L3 = ["Vanaf €25 · 2 jaar geldig", "Dès 25 € · valable 2 ans", "From €25 · valid 2 years"];
 
+/** Story text: the heading stands beside the text; long text continues behind "read more". */
+const chapter = (i: number, c: BuildCtx, key: string, parts: Part[]): Block => ({ id: c.id(key), type: "rich_text", variant: "chapter", doc: doc(i, parts) });
+/** One or two big lines on a navy band with the gold wave. */
+const statement = (i: number, c: BuildCtx, key: string, lines: L3[]): Block => ({ id: c.id(key), type: "rich_text", variant: "statement", doc: doc(i, [{ p: lines }]) });
+/** A vertical video (YouTube Short) beside its text; a story chapter when the poster photo is not in the media library. */
+const videoStory = (i: number, c: BuildCtx, key: string, youtubeId: string, title: L3, poster: MediaKey, parts: Part[]): Block => {
+  const posterMediaId = c.media(poster);
+  return posterMediaId ? { id: c.id(key), type: "video", youtubeId, title: title[i]!, posterMediaId, portrait: true, doc: doc(i, parts) } : chapter(i, c, key, parts);
+};
+type CardIcon = NonNullable<Extract<Block, { type: "card_grid" }>["cards"][number]["icon"]>;
+/** Cards with a gold brand icon of beam.be. */
+const iconCards = (i: number, c: BuildCtx, key: string, heading: L3 | null, list: { h: L3; t: L3; icon: CardIcon; link?: Link }[]): Block => ({
+  id: c.id(key),
+  type: "card_grid",
+  layout: "icons",
+  ...(heading ? { heading: heading[i]! } : {}),
+  cards: list.map((x) => ({ heading: x.h[i]!, text: x.t[i]!, icon: x.icon, ...(x.link ? { link: x.link } : {}) })),
+});
+
+/**
+ * The home page tells the whole story of beam.be's home (nl and en verbatim, fr translated; the
+ * coverage test `site.home-coverage.test.ts` fails when a line of it goes missing), presented as
+ * chapters, statement bands and icon cards, with the booking tiles, live availability and reviews
+ * of the platform around it.
+ */
 const HOME: Builder = (i, c) => [
-  hero(i, c, ["BEAM is een fundament voor menselijke energie", "BEAM, une fondation pour l'énergie humaine", "BEAM is a foundation for human energy"], [
+  hero(i, c, ["BEAM is een fundament voor menselijke energie", "BEAM, une fondation pour l'énergie humaine", "BEAM is an infrastructure for human energy"], [
     "Een omgeving doelbewust ontworpen voor rust, herstel en balans. Europa's grootste 48-unit EESystem-installatie, in Sint-Martens-Latem bij Gent.",
     "Un environnement conçu pour le repos, la récupération et l'équilibre. La plus grande installation EESystem de 48 unités d'Europe, à Sint-Martens-Latem près de Gand.",
-    "An environment designed on purpose for rest, recovery and balance. Europe's largest 48-unit EESystem installation, in Sint-Martens-Latem near Ghent.",
+    "An environment specifically created for rest, recovery and balance. Europe's largest 48-unit EESystem installation, in Sint-Martens-Latem near Ghent.",
   ], { label: BOOK, link: portal("book_day") }, "hero"),
   book(i, c, "quick-day", L_DAY, { kind: "book_day" }, DAY_NOTE),
   book(i, c, "quick-night", L_NIGHT, { kind: "book_night" }, NIGHT_NOTE),
   book(i, c, "quick-gift", L_GIFT, { kind: "gift" }, GIFT_NOTE),
+  videoStory(i, c, "discover", "N58VfO6zlRQ", ["BEAM Vitality Center in minder dan 1 minuut", "BEAM Vitality Center en moins d'une minute", "BEAM Vitality Center in less than 1 minute"], "night", [{
+    h: ["**Ontdek BEAM** in minder dan 1 minuut", "**Découvrez BEAM** en moins d'une minute", "**Discover BEAM** in less than 1 minute"],
+    p: [[
+      "In minder dan 1 minuut ontdek je de unieke omgeving die we hebben gecreëerd voor rust, herstel en balans. Een plek waar je loskomt van constante prikkels en druk en weer helemaal kan opladen.",
+      "En moins d'une minute, découvrez l'environnement unique que nous avons créé pour le repos, la récupération et l'équilibre. Un lieu où vous vous libérez des sollicitations et de la pression constantes pour vous recharger pleinement.",
+      "In less than a minute, you’ll discover the unique environment we’ve created for peace, recovery, and balance. A place where you can escape the constant stimuli and pressures and fully recharge.",
+    ]],
+  }]),
+  statement(i, c, "statement-energy", [
+    ["Je energie is je **grootste goed**.", "Votre énergie est votre **bien le plus précieux**.", "Your energy is your **greatest asset**."],
+    ["Alles in het leven hangt ervan af.", "Tout dans la vie en dépend.", "Everything in life depends on it."],
+  ]),
   imageText(i, c, "intro", "portrait", "right", [{
-    h: ["**Menselijke energie** is structureel uitgeput", "L'**énergie humaine** est structurellement épuisée", "**Human energy** is structurally depleted"],
+    h: ["**Menselijke energie** is structureel **uitgeput**", "L'**énergie humaine** est structurellement **épuisée**", "**Human energy** is structurally **depleted**"],
     p: [
-      ["Je kent het wel. Vermoeidheid die je niet weg kunt slapen. De moeite die het kost om na een lange dag nog helder te denken. Het gevoel dat je wel functioneert, maar niet helemaal op jouw niveau.", "Vous connaissez ça. Une fatigue que le sommeil n'efface pas. L'effort qu'il faut pour penser clairement après une longue journée. Le sentiment de fonctionner, mais pas tout à fait à votre niveau.", "You know the feeling. Tiredness you can't sleep off. The effort it takes to think clearly after a long day. The sense that you function, but not quite at your level."],
-      ["Dit is geen zwakte. Het is wat er gebeurt wanneer de eisen aan het menselijk systeem structureel groter zijn dan het vermogen om te herstellen. BEAM werkt aan de bron, **op het niveau waar capaciteit ontstaat**.", "Ce n'est pas une faiblesse. C'est ce qui arrive quand les exigences imposées au système humain dépassent durablement sa capacité de récupération. BEAM agit à la source, **là où naît la capacité**.", "This is not weakness. It is what happens when the demands on the human system are structurally greater than its capacity to recover. BEAM works at the source, **where capacity is created**."],
+      ["**BEAM werkt aan de bron, op het niveau waar capaciteit ontstaat.**", "**BEAM agit à la source, au niveau où naît la capacité.**", "**BEAM operates upstream, at the level where capacity begins.**"],
+      ["Je kent het wel. Vermoeidheid die je niet weg kunt slapen. De moeite die het kost om na een lange dag nog helder te denken. Het gevoel dat je wel functioneert, maar niet helemaal op jouw niveau.", "Vous connaissez ça. Une fatigue que le sommeil n'efface pas. L'effort qu'il faut pour penser clairement après une longue journée. Le sentiment de fonctionner, mais pas tout à fait à votre niveau.", "You know the feeling. The tiredness that sleep does not fix. The effort it takes to think clearly after a long day. The sense that you are functioning — but not quite at the level you know you are capable of."],
+      ["Dit is geen zwakte. Het is geen gebrek aan motivatie of discipline. Het is wat er gebeurt wanneer de eisen aan het menselijk systeem structureel groter zijn dan het vermogen om te herstellen.", "Ce n'est pas une faiblesse. Ce n'est pas un manque de motivation ou de discipline. C'est ce qui arrive quand les exigences imposées au système humain dépassent durablement sa capacité de récupération.", "This is not weakness. It is not a lack of motivation or discipline. It is what happens when the demands placed on the human system consistently outpace its capacity to restore itself."],
+      ["Het moderne leven is niet ontworpen met het oog op herstel. Het resultaat is een groeiende kloof tussen wat van mensen wordt gevraagd en wat ze werkelijk nog kunnen geven.", "La vie moderne n'a pas été conçue pour la récupération. Il en résulte un écart croissant entre ce que l'on demande aux gens et ce qu'ils peuvent réellement encore donner.", "Modern life was not designed with restoration in mind. The result is a growing gap between what people are asked to give and what they genuinely have available."],
     ],
   }]),
-  cards(i, c, "day-night", ["Overdag of 's nachts", "De jour ou de nuit", "By day or by night"], [
-    { h: ["Dagsessies", "Séances de jour", "Day sessions"], t: ["Drie sessies van 2 uur: 10-12, 13-15 en 16-18 uur. Elke dag behalve dinsdag en woensdag. €120 per sessie.", "Trois séances de 2 heures : 10-12 h, 13-15 h et 16-18 h. Tous les jours sauf mardi et mercredi. 120 € la séance.", "Three 2-hour sessions: 10-12, 13-15 and 16-18. Every day except Tuesday and Wednesday. €120 per session."], link: c.page("day-sessions"), img: "day" },
-    { h: ["Nachtsessies", "Séances de nuit", "Night sessions"], t: ["12 uur in de ruimte, van 20 tot 8 uur. Woensdag tot zondag, maximaal 8 gasten. €420 per nacht.", "12 heures dans l'espace, de 20 h à 8 h. Du mercredi au dimanche, 8 hôtes maximum. 420 € la nuit.", "12 hours in the space, from 20:00 to 08:00. Wednesday to Sunday, up to 8 guests. €420 per night."], link: c.page("nights"), img: "night" },
+  chapter(i, c, "condition", [{
+    h: ["Energie is geen **concept**. Het is een **voorwaarde** om te kunnen functioneren.", "L'énergie n'est pas un **concept**. C'est une **condition** pour fonctionner.", "Energy is not a **concept**. It is a **condition** for functioning."],
+    p: [
+      ["Energie is geen metafoor. Het is de basisvoorwaarde voor helderheid, veerkracht en effectief functioneren.", "L'énergie n'est pas une métaphore. C'est la condition de base de la clarté, de la résilience et d'un fonctionnement efficace.", "Energy is not a metaphor. It is the precondition for clarity, resilience, and effective functioning."],
+      ["Wanneer je energie weer op peil is, denk je helderder, herstel je beter en ben je stabieler.", "Quand votre énergie est restaurée, vous pensez plus clairement, vous récupérez mieux et vous êtes plus stable.", "When energy is restored, people think more clearly, recover more fully, and function more steadily."],
+    ],
+  }]),
+  chapter(i, c, "principle", [{
+    h: ["**BEAM is geen behandeling.** Het is een omgeving die ontworpen is om herstel mogelijk te maken.", "**BEAM n'est pas un traitement.** C'est un environnement conçu pour rendre la récupération possible.", "**BEAM is not a treatment.** It is an environment designed for restoration."],
+    p: [
+      ["**BEAM is gebaseerd op één principe: Menselijke systemen herstellen zich wanneer de omgeving dat toelaat.**", "**BEAM repose sur un principe : les systèmes humains se rétablissent lorsque l'environnement le permet.**", "**BEAM is built around one principle: Human systems restore when the environment allows them to.**"],
+      [
+        "Biologische systemen reageren voortdurend op hun omgeving. Wanneer die omgeving gefragmenteerd en belastend is, moet het lichaam blijven compenseren. Maar wanneer die omgeving rustiger en coherenter wordt, kan het zenuwstelsel zich anders beginnen gedragen. Regulatie wordt toegankelijker. Herstel wordt mogelijk. Dit proces verloopt via resonantie, de natuurlijke neiging van biologische systemen om zich af te stemmen op coherente externe signalen. Er is geen inspanning vereist. Het lichaam volgt vanzelf.",
+        "Les systèmes biologiques réagissent en permanence à leur environnement. Quand cet environnement est fragmenté et éprouvant, le corps doit sans cesse compenser. Mais quand il devient plus calme et plus cohérent, le système nerveux peut commencer à se comporter autrement. La régulation devient plus accessible. La récupération devient possible. Ce processus passe par la résonance, la tendance naturelle des systèmes biologiques à s'accorder à des signaux extérieurs cohérents. Aucun effort n'est requis. Le corps suit de lui-même.",
+        "Biological systems continuously respond to the environments they inhabit. When the environment becomes coherent and stable, the nervous system can regulate more efficiently. This process operates through resonance, the natural tendency of biological systems to attune to coherent external signals. No effort is required. The body simply follows.",
+      ],
+      [
+        "Bij BEAM creëren we omgevingen die deze voorwaarden ondersteunen. Rustig, intentioneel en coherent. Er wordt niets van je verwacht. Je hoeft geen methode toe te passen of techniek onder de knie te krijgen. Je betreedt gewoon een ruimte die is ontworpen om tot rust te komen en te herstellen.",
+        "Chez BEAM, nous créons des environnements qui soutiennent ces conditions. Calmes, intentionnels et cohérents. Rien n'est attendu de vous. Aucune méthode à appliquer, aucune technique à maîtriser. Vous entrez simplement dans un espace conçu pour se poser et récupérer.",
+        "We create calm, intentional and coherent environments that support regulation, recovery and sustained vitality. Nothing is required from you. There is no method to apply and no technique to master. You simply enter a space designed for restoration.",
+      ],
+    ],
+  }]),
+  iconCards(i, c, "principles", null, [
+    { icon: "ees", h: ["Energy Enhancement System™", "Energy Enhancement System™", "Energy Enhancement System™"], t: ["Geïntegreerd in een zorgvuldig vormgegeven setting die fysiologische stabiliteit ondersteunt.", "Intégré dans un cadre soigneusement conçu qui soutient la stabilité physiologique.", "Integrated as part of a carefully structured setting that supports physiological stability."], link: c.page("technology") },
+    { icon: "technology", h: ["Technologie ten dienste van de omgeving", "La technologie au service de l'environnement", "Technology in service of the environment"], t: ["Niet andersom. In plaats van in te grijpen op het lichaam, draagt de technologie bij aan de omstandigheden eromheen.", "Et non l'inverse. Plutôt que d'agir sur le corps, la technologie contribue aux conditions qui l'entourent.", "The technology does not act on the body. It contributes to the conditions surrounding it. Not the other way around."], link: c.page("environment") },
+    { icon: "energy_first", h: ["Energie eerst", "L'énergie d'abord", "Energy first"], t: ["BEAM ondersteunt energie op het niveau waar menselijk functioneren begint: vóór prestatie, gedrag of output.", "BEAM soutient l'énergie là où commence le fonctionnement humain : avant la performance, le comportement ou le résultat.", "BEAM supports energy at the level where human functioning begins — before performance, behaviour or output."], link: c.page("about") },
+  ]),
+  statement(i, c, "statement-foundation", [[
+    "BEAM legt het **fundament** voor je energie, zodat alles wat daarna komt **beter** functioneert.",
+    "BEAM pose les **fondations** de votre énergie, pour que tout ce qui suit fonctionne **mieux**.",
+    "BEAM **supports energy first**, so everything else can **function better**.",
+  ]]),
+  chapter(i, c, "audience", [{
+    h: ["Voor wie BEAM bedoeld is", "À qui s'adresse BEAM", "Who BEAM is for"],
+    p: [
+      ["BEAM is bedoeld voor mensen en organisaties die beseffen dat **energie de basis vormt van alles**.", "BEAM s'adresse aux personnes et aux organisations qui savent que **l'énergie est à la base de tout**.", "BEAM is for people and organisations who recognise that **energy is foundational**."],
+      ["BEAM is niet gebouwd voor snelle oplossingen of oppervlakkige optimalisatie. Het is bedoeld voor mensen die meer waarde hechten aan duurzaamheid dan aan intensiteit.", "BEAM n'est pas conçu pour les solutions rapides ni pour l'optimisation de surface. Il s'adresse à celles et ceux qui privilégient la durabilité à l'intensité.", "BEAM is not built for quick fixes or surface optimisation. It is built for those who value infrastructure over intensity."],
+    ],
+  }]),
+  iconCards(i, c, "audiences", null, [
+    { icon: "individuals", h: ["Particulieren", "Particuliers", "Individuals"], t: ["Zij beseffen dat uitputting de norm is geworden, en weten dat dit niet zo hoort te zijn.", "Ils constatent que l'épuisement est devenu la norme, et savent que cela ne devrait pas être le cas.", "Who recognise that exhaustion has become normal — and know it should not be."] },
+    { icon: "professionals", h: ["Professionals", "Professionnels", "Professionals"], t: ["Zij hebben te maken met langdurige verantwoordelijkheid en cognitieve belasting.", "Ils portent une responsabilité durable et une forte charge cognitive.", "Managing sustained responsibility and cognitive load."] },
+    { icon: "leaders", h: ["Leidinggevenden", "Dirigeants", "Leaders"], t: ["Zij begrijpen dat duurzame prestaties energie vereisen i.p.v. extra druk.", "Ils comprennent que la performance durable exige de l'énergie, pas davantage de pression.", "Who understand that long-term performance requires energy, not pressure."] },
+    { icon: "organisations", h: ["Organisaties", "Organisations", "Organisations"], t: ["Zij erkennen dat menselijke energie even essentieel is als kapitaal, talent of strategie.", "Elles reconnaissent que l'énergie humaine est aussi essentielle que le capital, le talent ou la stratégie.", "Recognising that human energy is as fundamental as capital, talent and strategy."] },
+  ]),
+  cards(i, c, "day-night", ["Ervaring & praktische informatie", "Expérience & informations pratiques", "Experience & practical information"], [
+    {
+      h: ["Dagsessies", "Séances de jour", "Day sessions"],
+      t: [
+        "Er zijn dagelijks drie sessies beschikbaar van telkens 2 uur tussen 10 en 18 uur (behalve op dinsdag en woensdag): van 10 tot 12 uur, van 13 tot 15 uur en van 16 tot 18 uur. Kinderen zijn welkom op zaterdag van 13 tot 15 uur. Huisdieren zijn welkom op maandag van 16 tot 18 uur.",
+        "Trois séances de 2 heures sont proposées chaque jour entre 10 h et 18 h (sauf le mardi et le mercredi) : de 10 h à 12 h, de 13 h à 15 h et de 16 h à 18 h. Les enfants sont les bienvenus le samedi de 13 h à 15 h. Les animaux sont les bienvenus le lundi de 16 h à 18 h.",
+        "Three 2-hour sessions are available daily (except Tuesday and Wednesday) between 10am and 6pm: from 10am to 12pm, from 1pm to 3pm and from 4pm to 6pm. Children are welcome on Saturday from 1pm to 3pm. Pets may join on Monday from 4pm to 6pm.",
+      ],
+      link: c.page("day-sessions"),
+      img: "day",
+    },
+    {
+      h: ["Nachtsessies", "Séances de nuit", "Night sessions"],
+      t: [
+        "Van woensdag tot en met zondag zijn er nachtsessies waarbij je 12 uur in onze ruimte vertoeft, van 20 uur tot 8 uur. Je komt tot rust in een kalme en premium setting in de BEAM-ruimte, terwijl de stabiele en coherente omgevingscondities de hele nacht behouden blijven.",
+        "Du mercredi au dimanche, des séances de nuit vous accueillent 12 heures dans notre espace, de 20 h à 8 h. Vous vous reposez dans un cadre calme et haut de gamme, tandis que des conditions stables et cohérentes sont maintenues toute la nuit.",
+        "Overnight sessions of 12 hours are available from Wednesday to Sunday, from 8pm to 8am. You rest in a calm, private setting within the BEAM environment while stable and coherent conditions are maintained throughout the night.",
+      ],
+      link: c.page("nights"),
+      img: "night",
+    },
   ], "split"),
   { id: c.id("availability-day"), type: "availability_preview", kind: "day", days: 7 },
   { id: c.id("availability-night"), type: "availability_preview", kind: "night", days: 7 },
-  cards(i, c, "principles", ["BEAM is geen behandeling. Het is een omgeving.", "BEAM n'est pas un traitement. C'est un environnement.", "BEAM is not a treatment. It is an environment."], [
-    { h: ["Energy Enhancement System™", "Energy Enhancement System™", "Energy Enhancement System™"], t: ["Geïntegreerd in een zorgvuldig vormgegeven setting die fysiologische stabiliteit ondersteunt.", "Intégré dans un cadre soigneusement conçu qui soutient la stabilité physiologique.", "Built into a carefully designed setting that supports physiological stability."], link: c.page("technology") },
-    { h: ["Technologie ten dienste van de omgeving", "La technologie au service de l'environnement", "Technology serving the environment"], t: ["Niet andersom. In plaats van in te grijpen op het lichaam, draagt de technologie bij aan de omstandigheden eromheen.", "Et non l'inverse. Plutôt que d'agir sur le corps, la technologie contribue aux conditions qui l'entourent.", "Not the other way round. Instead of acting on the body, the technology contributes to the conditions around it."], link: c.page("environment") },
-    { h: ["Energie eerst", "L'énergie d'abord", "Energy first"], t: ["BEAM ondersteunt energie op het niveau waar menselijk functioneren begint: vóór prestatie, gedrag of output.", "BEAM soutient l'énergie là où commence le fonctionnement humain : avant la performance, le comportement ou le résultat.", "BEAM supports energy where human functioning begins: before performance, behaviour or output."], link: c.page("about") },
-  ], "list"),
   cards(i, c, "more", ["Meer van BEAM", "Plus de BEAM", "More from BEAM"], [
-    { h: ["Pakketten & prijzen", "Forfaits & tarifs", "Packages & prices"], t: ["Van 10 tot 100 uur, te delen met vijf personen en 18 maanden geldig.", "De 10 à 100 heures, à partager à cinq, valables 18 mois.", "From 10 to 100 hours, shareable with five people, valid 18 months."], link: c.page("pricing"), img: "relax" },
+    {
+      h: ["Pakketten", "Forfaits", "Packages"],
+      t: [
+        "Voor iedereen die kiest voor duurzaam herstel bieden wij pakketten aan van 10 tot 100 uur tegen voordelige tarieven. Deze pakketten kunnen door maximaal vijf personen worden gedeeld en blijven 18 maanden geldig.",
+        "Pour celles et ceux qui choisissent une récupération durable, nous proposons des forfaits de 10 à 100 heures à des tarifs avantageux. Ils peuvent être partagés par cinq personnes au maximum et restent valables 18 mois.",
+        "For those committed to sustained restoration, we offer packages ranging from 10 to 100 hours at preferred rates. Packages may be shared by up to five people and remain valid for 18 months.",
+      ],
+      link: c.page("pricing"),
+      img: "relax",
+    },
     { h: ["Membership", "Membership", "Membership"], t: ["€396 per jaar: een gratis nacht, tot 20% korting en events voor leden.", "396 € par an : une nuit offerte, jusqu'à 20 % de réduction et des rencontres membres.", "€396 a year: a free night, up to 20% off and members-only gatherings."], link: c.page("memberships"), img: "community" },
-    { h: ["Voor bedrijven", "Pour les entreprises", "For organisations"], t: ["Discovery Experience, Corporate Reset Day of de hele ruimte voor je team.", "Discovery Experience, Corporate Reset Day ou l'espace entier pour votre équipe.", "Discovery Experience, Corporate Reset Day or the whole space for your team."], link: c.page("corporate"), img: "reception" },
+    {
+      h: ["Voor particulieren en bedrijven", "Pour les particuliers et les entreprises", "Private & corporate experiences"],
+      t: [
+        "Voor privé-sessies, incentives of groepservaringen op maat, kan je rechtstreeks met ons contact opnemen. We bekijken dan samen met jou wat het beste aansluit bij jouw wensen.",
+        "Pour des séances privées, des incentives ou des expériences de groupe sur mesure, contactez-nous directement. Nous verrons ensemble ce qui correspond le mieux à vos souhaits.",
+        "For private sessions, incentives, or tailored group experiences, please contact us directly. We are happy to explore what fits your needs.",
+      ],
+      link: c.page("corporate"),
+      img: "reception",
+    },
   ]),
   ...reviews(i, c, "review"),
   { id: c.id("events"), type: "events_list", heading: ["Komende events", "Événements à venir", "Upcoming events"][i]!, limit: 3, showFull: true },
@@ -826,4 +942,23 @@ export async function seedSiteDemo(db: DbOrTx, opts: { now?: Date } = {}): Promi
     .values(LOCALES.map((locale, i) => ({ pageId: row.id, locale, path: path[i]!, versionId: version!.id })))
     .onConflictDoNothing();
   return { postCreated: true };
+}
+
+/**
+ * Every text of a seeded page in one locale (block strings, rich-text runs), with stand-in ids for
+ * links, products and photos. For tests that compare a page with its source text.
+ */
+export function seedPageStrings(slug: string, i: number): string[] {
+  const page = SITE_SEED_PAGES.find((p) => p.slug === slug);
+  if (!page) throw new Error(`site seed: unknown page slug ${slug}`);
+  const stub = seedUuid("stub");
+  const STRUCTURAL = new Set(["id", "type", "marks", "attrs"]);
+  const out: string[] = [];
+  const walk = (v: unknown): void => {
+    if (typeof v === "string") out.push(v);
+    else if (Array.isArray(v)) v.forEach(walk);
+    else if (v && typeof v === "object") for (const [k, x] of Object.entries(v)) if (!STRUCTURAL.has(k)) walk(x); // marks and node types sit between the words of one sentence
+  };
+  walk(blocksOf(page, i, () => ({ kind: "page", pageId: stub }), () => stub, () => stub));
+  return out;
 }

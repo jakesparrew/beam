@@ -596,9 +596,15 @@
         "play": "Play video: {title}"
       },
       "reviews": {
-        "heading": "What our guests say",
+        "heading": "Deep trust. Real experiences.",
         "source": "Google reviews · 145 reviews",
-        "stars": "5 out of 5 stars"
+        "stars": "5 out of 5 stars",
+        "eyebrow": "145 five-star reviews",
+        "intro": "People describe their experience in different ways — from deeper relaxation and improved sleep to greater clarity, focus and a more stable level of energy."
+      },
+      "story": {
+        "more": "Read more",
+        "less": "Show less"
       }
     },
     "cookies": {

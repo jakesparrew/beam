@@ -135,35 +135,84 @@
   transform: scale(1.05);
 }
 
+/*
+ * Headings in the house style of beam.be: Poppins, regular weight with bold accents
+ * ("**Ontdek BEAM** in minder dan 1 minuut") and a short gold bar under story headings.
+ * One place to change: swap the family back to var(--font-rufina) for serif headings.
+ */
 .site-theme .font-display {
-  font-family: var(--font-rufina), Georgia, serif;
+  font-family: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
   font-weight: 600;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
 }
 
 /* Rich text inside page blocks: brand headings and readable measure. */
 .site-theme [data-block="rich_text"] h2,
-.site-theme [data-block="image_text"] h2 {
-  font-family: var(--font-rufina), Georgia, serif;
-  font-weight: 600;
-  font-size: clamp(1.75rem, 1.2rem + 2vw, 2.75rem);
-  line-height: 1.15;
-  margin-top: 1.5rem;
+.site-theme [data-block="image_text"] h2,
+.site-theme .site-story h2 {
+  font-family: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+  font-weight: 400;
+  font-size: clamp(1.9rem, 1.2rem + 2.4vw, 3.1rem);
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+.site-theme [data-block="rich_text"] h2 strong,
+.site-theme [data-block="image_text"] h2 strong,
+.site-theme .site-story h2 strong {
+  font-weight: 700;
+  color: inherit;
+}
+.site-theme [data-block="rich_text"] h2::after,
+.site-theme [data-block="image_text"] h2::after,
+.site-theme .site-story h2::after {
+  content: "";
+  display: block;
+  width: 4.5rem;
+  height: 3px;
+  margin-top: 1.25rem;
+  border-radius: 9999px;
+  background: var(--site-gold-gradient);
 }
 .site-theme [data-block="rich_text"] h3,
-.site-theme [data-block="image_text"] h3 {
+.site-theme [data-block="image_text"] h3,
+.site-theme .site-story h3 {
   font-size: 1.35rem;
+  line-height: 1.35;
   font-weight: 600;
   margin-top: 1rem;
 }
-.site-theme [data-block="rich_text"] > div,
+.site-theme [data-block="rich_text"]:not([data-variant]) > div,
 .site-theme [data-block="image_text"] [class*="space-y"] {
   max-width: 46rem;
   font-size: 1.0625rem;
   line-height: 1.8;
 }
-.site-theme [data-block="rich_text"] strong {
+.site-theme .site-story {
+  font-size: 1.0625rem;
+  line-height: 1.8;
+}
+/* A chapter's heading stands in a narrow column: a size down, so long headings stay short. */
+.site-theme .site-story-side h2 {
+  font-size: clamp(1.7rem, 1.1rem + 1.7vw, 2.5rem);
+  line-height: 1.16;
+}
+.site-theme [data-block="rich_text"] strong,
+.site-theme .site-story strong {
   color: #a0621e;
+}
+
+/* Statement band: one or two big lines on navy, bold words in light gold. */
+.site-theme .site-statement {
+  font-size: clamp(1.6rem, 1rem + 2.6vw, 3rem);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  font-weight: 400;
+  text-wrap: balance;
+}
+.site-theme .site-statement strong {
+  font-weight: 600;
+  color: #ffd76a;
 }
 
 /* ------------------------------------------------------------------------------------------

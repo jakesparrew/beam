@@ -35,6 +35,7 @@ export * from "./components/textarea";
 export * from "./components/tooltip";
 
 export * from "./admin-shell";
+export * from "./combobox";
 export * from "./data-table";
 export * from "./empty-state";
 export * from "./error-state";

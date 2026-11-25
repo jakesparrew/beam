@@ -9,16 +9,17 @@ import { adminLocale } from "@/lib/i18n";
 import { isDpiaApproved } from "@/modules/ops/api";
 import { automationLabels, canViewAutomations, getAutomation, listRuns, listSegmentOptions } from "@/modules/automation/queries";
 import { AutomationHeader, describeTrigger, StatTiles, StepList } from "@/modules/automation/ui/automation-table";
+import { AutomationFlowchart } from "@/modules/automation/ui/flowchart";
 import { fill } from "@/modules/automation/ui/outcome-badge";
 import { RunLog } from "@/modules/automation/ui/run-log";
 import { StatusControls } from "@/modules/automation/ui/status-controls";
 
-const LABEL_PREFIXES = ["detail", "controls", "status", "purpose", "editor", "outcome", "end_reason", "runs", "enrolments", "errors", "common", "list"] as const;
+const LABEL_PREFIXES = ["detail", "builder", "controls", "status", "purpose", "editor", "outcome", "end_reason", "runs", "enrolments", "errors", "common", "list"] as const;
 
 /**
  * `/admin/automations/[id]` (automation spec 5): status with Activate / Pause / Resume / Archive
- * and Enrol segment (`automations.publish`), the trigger in plain words, the published steps with
- * their offsets, stats tiles, the latest 20 runs (`persons.read`), the draft banners and the
+ * and Enrol segment (`automations.publish`), the trigger in plain words, the published steps as a
+ * flowchart (each box opens the visual builder on that step) and as a list with their offsets, stats tiles, the latest 20 runs (`persons.read`), the draft banners and the
  * read-only DPIA and flag gate badges. Activate is disabled with the reason while the DPIA gate
  * is closed (A-5a).
  */
@@ -116,7 +117,18 @@ export default async function AutomationPage({ params }: { params: Promise<{ id:
                   <dd className="font-mono text-xs">{published.exit_on.length ? published.exit_on.map((e) => (typeof e === "string" ? e : e.event)).join(", ") : l["detail.exit_none"]}</dd>
                 </dl>
                 <h3 className="font-semibold">{l["detail.steps"]}</h3>
-                <StepList steps={published.steps} l={l} />
+                <AutomationFlowchart
+                  definition={published}
+                  triggerText={describeTrigger(published, l, segmentNames)}
+                  l={l}
+                  builderHref={canWrite && a.status !== "archived" ? `/admin/automations/${a.id}/builder` : undefined}
+                />
+                <details className="text-sm">
+                  <summary className="cursor-pointer text-muted-foreground">{l["detail.flow_list"]}</summary>
+                  <div className="pt-2">
+                    <StepList steps={published.steps} l={l} />
+                  </div>
+                </details>
               </>
             ) : (
               <p className="text-sm text-muted-foreground">{l["detail.no_steps"]}</p>

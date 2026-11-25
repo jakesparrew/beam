@@ -223,7 +223,9 @@
       "type_webinar": "Webinar",
       "field_webinar_id": "Webinar id",
       "show_lead_window": "Show the lead window",
-      "show_lead_window_help": "During a Lead Magnet window, contacts who are not leads see \"Opens for you on ...\" instead of the booking button."
+      "show_lead_window_help": "During a Lead Magnet window, contacts who are not leads see \"Opens for you on ...\" instead of the booking button.",
+      "drop_here": "Drop a block here to add it at the end",
+      "canvas_hint": "Press a block in the email to edit it on the right. Drag blocks from the palette onto the email, or drag them up and down to reorder."
     },
     "preview": {
       "title": "Template preview",

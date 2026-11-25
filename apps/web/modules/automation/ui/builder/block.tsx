@@ -54,7 +54,7 @@ export function blockSummary(node: BuilderNode, l: Labels): string {
   }
 }
 
-const ACCENT: Record<BuilderBlock, string> = {
+export const ACCENT: Record<BuilderBlock, string> = {
   trigger: "border-l-primary",
   condition: "border-l-amber-500",
   branch: "border-l-amber-500",

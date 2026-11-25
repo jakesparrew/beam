@@ -223,7 +223,9 @@
       "type_webinar": "Webinaire",
       "field_webinar_id": "Identifiant du webinaire",
       "show_lead_window": "Afficher la fenêtre réservée aux leads",
-      "show_lead_window_help": "Pendant la fenêtre d'un Lead Magnet, les contacts qui ne sont pas des leads voient « Ouvert pour vous le ... » au lieu du bouton de réservation."
+      "show_lead_window_help": "Pendant la fenêtre d'un Lead Magnet, les contacts qui ne sont pas des leads voient « Ouvert pour vous le ... » au lieu du bouton de réservation.",
+      "drop_here": "Déposez un bloc ici pour l'ajouter à la fin",
+      "canvas_hint": "Cliquez sur un bloc de l'e-mail pour le modifier à droite. Glissez des blocs de la palette vers l'e-mail, ou faites-les glisser vers le haut ou le bas pour changer l'ordre."
     },
     "preview": {
       "title": "Aperçu du modèle",

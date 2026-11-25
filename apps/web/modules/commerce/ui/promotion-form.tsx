@@ -9,7 +9,7 @@
  */
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent, type ReactNode } from "react";
-import { Alert, AlertDescription, Button, Checkbox, FormField, Input, LocalizedInput } from "@beam/ui";
+import { Alert, AlertDescription, Badge, Button, Checkbox, Combobox, FormField, Input, LocalizedInput } from "@beam/ui";
 import { createPromotion, updatePromotion } from "../actions";
 
 type Locale = "nl-BE" | "fr-BE" | "en";
@@ -70,6 +70,47 @@ function CheckboxGroup({ legend, options, value, onChange, disabled, hint }: { l
             {o.label}
           </label>
         ))}
+      </div>
+      {disabled && hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
+    </fieldset>
+  );
+}
+
+/** A long list (products): the chosen entries as removable chips and a searchable picker to add more. */
+function MultiPicker({ legend, options, value, onChange, disabled, hint, l }: { legend: string; options: Option[]; value: string[]; onChange: (v: string[]) => void; disabled?: boolean; hint?: string; l: (k: string) => string }) {
+  const labelOf = (v: string) => options.find((o) => o.value === v)?.label ?? v;
+  return (
+    <fieldset className="grid gap-2" disabled={disabled} title={disabled ? hint : undefined}>
+      <legend className="mb-1 text-sm font-medium">{legend}</legend>
+      {value.length ? (
+        <ul className="flex flex-wrap gap-2" data-testid="promotion-products">
+          {value.map((v) => (
+            <li key={v}>
+              <Badge variant="secondary" className="gap-1 py-1">
+                {labelOf(v)}
+                <button
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => onChange(value.filter((x) => x !== v))}
+                  aria-label={l("remove_product").replace("{name}", labelOf(v))}
+                  className="rounded-sm px-1 hover:bg-muted disabled:opacity-50"
+                >
+                  ×
+                </button>
+              </Badge>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      <div className="max-w-md">
+        <Combobox
+          value=""
+          options={options.filter((o) => !value.includes(o.value))}
+          onChange={(v) => v && onChange([...value, v])}
+          disabled={disabled}
+          aria-label={`${legend}: ${l("field_products_add")}`}
+          labels={{ placeholder: l("field_products_add"), search: l("picker_search"), noMatch: l("picker_no_match"), more: l("picker_more") }}
+        />
       </div>
       {disabled && hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
     </fieldset>
@@ -187,20 +228,14 @@ export function PromotionForm({ initial, usesCount, options, labels }: { initial
         </div>
         {options.partners ? (
           <FormField label={l("field_partner")} hint={locked ? lockedHint : l("field_partner_hint")} error={fieldError("partnerCompanyId")}>
-            <select
+            <Combobox
               value={v.partnerCompanyId ?? ""}
-              onChange={(e) => set("partnerCompanyId", e.target.value)}
+              onChange={(x) => set("partnerCompanyId", x)}
               disabled={locked}
               title={locked ? lockedHint : undefined}
-              className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm disabled:opacity-60"
-            >
-              <option value="">{l("field_partner_none")}</option>
-              {options.partners.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
+              options={[{ value: "", label: l("field_partner_none") }, ...options.partners]}
+              labels={{ placeholder: l("field_partner_none"), search: l("picker_search"), noMatch: l("picker_no_match"), more: l("picker_more") }}
+            />
           </FormField>
         ) : null}
         <LocalizedInput
@@ -216,7 +251,7 @@ export function PromotionForm({ initial, usesCount, options, labels }: { initial
       <Section title={l("section_applies")}>
         <p className="text-sm text-muted-foreground">{l("field_applies_hint")}</p>
         <CheckboxGroup legend={l("field_kinds")} options={options.productKinds} value={v.productKinds} onChange={(x) => set("productKinds", x)} disabled={locked} hint={lockedHint} />
-        <CheckboxGroup legend={l("field_products")} options={options.products} value={v.productIds} onChange={(x) => set("productIds", x)} disabled={locked} hint={lockedHint} />
+        <MultiPicker legend={l("field_products")} options={options.products} value={v.productIds} onChange={(x) => set("productIds", x)} disabled={locked} hint={lockedHint} l={l} />
       </Section>
 
       <Section title={l("section_eligibility")}>

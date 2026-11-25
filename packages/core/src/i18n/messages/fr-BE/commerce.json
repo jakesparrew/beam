@@ -34,7 +34,10 @@
       "back": "Retour",
       "locale_nl": "Néerlandais",
       "locale_fr": "Français",
-      "locale_en": "Anglais"
+      "locale_en": "Anglais",
+      "picker_search": "Tapez pour rechercher",
+      "picker_no_match": "Aucun résultat",
+      "picker_more": "{count} de plus : tapez pour rechercher"
     },
     "product_kind": {
       "session": "Séance de jour",
@@ -254,7 +257,9 @@
       "field_partner_none": "Aucun partenaire",
       "field_partner_hint": "Les ventes avec ce code comptent comme apportées par le partenaire. Un code est requis.",
       "not_partner": "Cette entreprise n’est pas partenaire.",
-      "partner_needs_code": "Une promotion partenaire nécessite un code."
+      "partner_needs_code": "Une promotion partenaire nécessite un code.",
+      "field_products_add": "Ajouter un produit",
+      "remove_product": "Retirer {name}"
     },
     "errors": {
       "sold_out": "C’est complet.",
@@ -726,7 +731,6 @@
       "new_title": "Nouvelle commande",
       "new_intro": "Choisissez le client et les produits. La commande est enregistrée comme brouillon ; choisissez ensuite le mode de paiement.",
       "person_search": "Rechercher une personne",
-      "search_button": "Rechercher",
       "person": "Personne",
       "company_id": "Identifiant de l’entreprise (prix B2B, facultatif)",
       "product": "Produit",
@@ -736,7 +740,7 @@
       "create": "Créer la commande brouillon",
       "quote_title": "Prix",
       "choose_person": "Choisissez d’abord une personne.",
-      "no_match": "Aucune personne trouvée."
+      "person_search_hint": "Tapez un nom, une adresse e-mail ou un numéro de client"
     },
     "admin_refund": {
       "title": "Rembourser la commande {reference}",

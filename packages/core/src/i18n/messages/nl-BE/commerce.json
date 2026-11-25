@@ -34,7 +34,10 @@
       "back": "Terug",
       "locale_nl": "Nederlands",
       "locale_fr": "Frans",
-      "locale_en": "Engels"
+      "locale_en": "Engels",
+      "picker_search": "Typ om te zoeken",
+      "picker_no_match": "Niets gevonden",
+      "picker_more": "Nog {count}: typ om te zoeken"
     },
     "product_kind": {
       "session": "Dagsessie",
@@ -254,7 +257,9 @@
       "field_partner_none": "Geen partner",
       "field_partner_hint": "Verkopen met deze code tellen als doorverwezen door de partner. Vereist een code.",
       "not_partner": "Dit bedrijf is geen partner.",
-      "partner_needs_code": "Een partnerpromotie heeft een code nodig."
+      "partner_needs_code": "Een partnerpromotie heeft een code nodig.",
+      "field_products_add": "Product toevoegen",
+      "remove_product": "{name} verwijderen"
     },
     "errors": {
       "sold_out": "Dit is uitverkocht.",
@@ -726,7 +731,6 @@
       "new_title": "Nieuwe bestelling",
       "new_intro": "Kies de klant en de producten. De bestelling wordt als ontwerp bewaard; kies daarna hoe de klant betaalt.",
       "person_search": "Zoek een persoon",
-      "search_button": "Zoeken",
       "person": "Persoon",
       "company_id": "Bedrijfs-id (B2B-prijzen, optioneel)",
       "product": "Product",
@@ -736,7 +740,7 @@
       "create": "Ontwerpbestelling aanmaken",
       "quote_title": "Prijs",
       "choose_person": "Kies eerst een persoon.",
-      "no_match": "Geen persoon gevonden."
+      "person_search_hint": "Typ een naam, e-mailadres of klantnummer"
     },
     "admin_refund": {
       "title": "Bestelling {reference} terugbetalen",

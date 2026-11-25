@@ -128,7 +128,18 @@
       "exclusive": "Exclusive",
       "no_version": "Not published",
       "version_n": "v{version}",
-      "never": "Never"
+      "never": "Never",
+      "categories": "Categories",
+      "category_all": "All",
+      "category": {
+        "bookings": "Bookings",
+        "packages": "Packages & credits",
+        "memberships": "Memberships",
+        "leads": "Leads & webinars",
+        "reengagement": "Re-engagement",
+        "transactional": "Transactional",
+        "other": "Other"
+      }
     },
     "new": {
       "title": "New automation",
@@ -196,7 +207,12 @@
       "dpia_pending": "not approved",
       "flag_badge": "Runs only while flag {flag} is on",
       "gates": "Gates",
-      "tab_builder": "Builder"
+      "tab_builder": "Builder",
+      "flow_title": "Flowchart of the journey",
+      "flow_when": "When",
+      "flow_end": "End of the journey",
+      "flow_hint": "Click a box to edit it in the visual builder.",
+      "flow_list": "Show the steps as a list"
     },
     "controls": {
       "activate": "Activate",

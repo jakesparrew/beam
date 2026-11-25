@@ -128,7 +128,18 @@
       "exclusive": "Exclusif",
       "no_version": "Non publiée",
       "version_n": "v{version}",
-      "never": "Jamais"
+      "never": "Jamais",
+      "categories": "Catégories",
+      "category_all": "Toutes",
+      "category": {
+        "bookings": "Réservations",
+        "packages": "Forfaits & crédits",
+        "memberships": "Abonnements",
+        "leads": "Prospects & webinaires",
+        "reengagement": "Réengagement",
+        "transactional": "Transactionnel",
+        "other": "Autres"
+      }
     },
     "new": {
       "title": "Nouvelle automatisation",
@@ -196,7 +207,12 @@
       "dpia_pending": "non approuvée",
       "flag_badge": "Ne fonctionne que si le drapeau {flag} est activé",
       "gates": "Verrous",
-      "tab_builder": "Constructeur"
+      "tab_builder": "Constructeur",
+      "flow_title": "Organigramme du parcours",
+      "flow_when": "Quand",
+      "flow_end": "Fin du parcours",
+      "flow_hint": "Cliquez sur un bloc pour le modifier dans l'éditeur visuel.",
+      "flow_list": "Afficher les étapes sous forme de liste"
     },
     "controls": {
       "activate": "Activer",

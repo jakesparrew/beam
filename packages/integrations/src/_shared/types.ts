@@ -24,6 +24,7 @@ export const INTEGRATION_PROVIDERS = [
   "wordpress",
   "meta",
   "webhook",
+  "webinargeek",
 ] as const;
 
 export type IntegrationProvider = (typeof INTEGRATION_PROVIDERS)[number];

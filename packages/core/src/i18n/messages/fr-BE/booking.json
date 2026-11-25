@@ -18,7 +18,8 @@
       "book": "Réserver",
       "my_bookings": "Mes réservations",
       "my_waitlist": "Mes listes d’attente",
-      "partner_holds": "Mes places partenaire"
+      "partner_holds": "Mes places partenaire",
+      "events": "Événements & webinaires"
     },
     "common": {
       "save": "Enregistrer",
@@ -608,7 +609,10 @@
       "keep": "Garder ma réservation",
       "back": "Toutes mes réservations",
       "qr_label": "Code QR d’enregistrement",
-      "guest_note": "Un invité réservé via votre réservation."
+      "guest_note": "Un invité réservé via votre réservation.",
+      "webinar_intro": "Ce webinaire a lieu sur WebinarGeek. Utilisez ce bouton le moment venu.",
+      "webinar_join": "Accéder au webinaire",
+      "materials": "Présentations et supports"
     },
     "portalReschedule": {
       "title": "Déplacer ma réservation",
@@ -655,7 +659,9 @@
         "intro": "Votre réservation pour {title} le {date} est confirmée.",
         "pay_at_desk": "Paiement à l’accueil.",
         "qr": "Montrez ce code à l’accueil.",
-        "cta": "Voir ma réservation"
+        "cta": "Voir ma réservation",
+        "join": "Ce webinaire a lieu sur WebinarGeek. Le bouton ci-dessous vous mène à la page du webinaire.",
+        "join_cta": "Accéder au webinaire"
       },
       "booking_rescheduled": {
         "subject": "Votre réservation est déplacée au {date}",
@@ -787,6 +793,45 @@
       "error_name": "Donnez un nom au billet dans les trois langues avant de publier l'événement.",
       "error_window": "La fin des ventes doit suivre le début et précéder la fin de l'événement.",
       "error_capacity": "Les places de ce type ne peuvent pas dépasser la capacité de l'événement."
+    },
+    "event": {
+      "list_title": "Événements et webinaires",
+      "list_intro": "Les événements et webinaires sont indépendants du planning de jour et de nuit : créez-les à n'importe quelle date, avec leur propre lieu, prix et capacité.",
+      "new_event": "Nouvel événement",
+      "new_webinar": "Nouveau webinaire",
+      "filter": "Afficher",
+      "filter_all": "Tout",
+      "filter_events": "Événements",
+      "filter_webinars": "Webinaires",
+      "list_empty": "Aucun événement ni webinaire prévu pour l'instant.",
+      "booked_of": "{booked} sur {capacity} réservés",
+      "details": "Détails de l'événement",
+      "webinar_details": "Détails du webinaire",
+      "starts_at": "Début (date et heure)",
+      "ends_at": "Fin (date et heure)",
+      "price": "Prix du billet (EUR)",
+      "price_hint": "Laissez vide ou 0 pour un événement gratuit.",
+      "webinargeek_url": "Lien WebinarGeek",
+      "webinargeek_url_hint": "La page d'inscription ou de visionnage du webinaire sur WebinarGeek. Les participants reçoivent ce lien dans leur confirmation et dans leur compte.",
+      "webinargeek_id": "ID de diffusion WebinarGeek (facultatif)",
+      "webinargeek_id_hint": "À remplir uniquement si votre abonnement WebinarGeek inclut l'API : les participants sont alors inscrits automatiquement dans WebinarGeek.",
+      "webinargeek_link": "Lien vers WebinarGeek",
+      "webinargeek_intro": "La diffusion a lieu sur WebinarGeek. Ici, vous gérez les détails, le prix, l'image et les supports ; exportez les inscriptions en CSV pour les importer dans WebinarGeek.",
+      "export_csv": "Exporter les inscriptions (CSV)",
+      "artwork": "Image",
+      "artwork_hint": "PNG, JPG, WebP ou GIF, 10 Mo maximum. De préférence au format paysage (16:9).",
+      "artwork_alt": "Image de {title}",
+      "materials": "Présentations et supports",
+      "materials_hint": "Téléversez-les à l'avance. Les participants les voient dans leur compte dès que vous les partagez.",
+      "no_materials": "Aucun support pour l'instant.",
+      "upload": "Téléverser",
+      "uploading": "Téléversement…",
+      "materials_released": "Partagés avec les participants depuis le {date}.",
+      "materials_hidden": "Pas encore visibles pour les participants.",
+      "release_materials": "Partager avec les participants",
+      "hide_materials": "Masquer à nouveau",
+      "file_too_large": "Le fichier dépasse 10 Mo.",
+      "image_type": "Choisissez une image PNG, JPG, WebP ou GIF."
     }
   }
 }

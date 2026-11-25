@@ -27,6 +27,10 @@ import { SessionWaitlistTab } from "@/modules/booking/ui/session-waitlist-tab";
 import { LeadMagnetForm } from "@/modules/booking/ui/lead-magnet-form";
 import { TicketTypesForm } from "@/modules/booking/ui/ticket-types-form";
 import { listTicketTypesWithSold, readAvailabilityRow } from "@/modules/booking/server/book";
+import { EventDetailsForm, EventMediaPanel } from "@/modules/booking/ui/event-details";
+import { getProductPrice } from "@/modules/commerce/api";
+import { files } from "@beam/db/schema";
+import { inArray } from "@/lib/ctx";
 
 const show = (text: LocalizedText | null | undefined, locale: Locale) => text?.[locale] || text?.["nl-BE"] || text?.en || text?.["fr-BE"] || "";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -71,6 +75,14 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
     isEvent ? listTicketTypesWithSold(db, id, now) : Promise.resolve([]),
   ]);
   const ticketProducts = isEvent && ticketsOn && canOverride ? (await listProductOptions(db)).filter((p) => p.kind === "ticket") : [];
+  // Owner requirements 4 and 5: price, artwork and materials of an event or WebinarGeek webinar.
+  const price = isEvent && session.productId ? await getProductPrice(db, session.productId, "public").catch(() => null) : null;
+  const materialRows = session.materialFileIds.length
+    ? await db.select({ id: files.id, name: files.name }).from(files).where(inArray(files.id, session.materialFileIds))
+    : [];
+  const materials = session.materialFileIds.flatMap((fid) => materialRows.filter((m) => m.id === fid)).map((m) => ({ ...m, url: `/api/public/files/${m.id}` }));
+  const localeNames = { "nl-BE": tr("platform.shell.locale_nl"), "fr-BE": tr("platform.shell.locale_fr"), en: tr("platform.shell.locale_en") };
+  const localized = (field: string) => ({ field, locales: localeNames, missing: tr("platform.settings.locale_missing"), complete: tr("platform.settings.locale_complete") });
   const block = blocks.find((b) => b.id === id);
   const rows = attendees.map((a) => attendeeRow(a, session, rules, { now, locale, tr, canOverride }));
   const errors = bookingErrorLabels(tr);
@@ -122,6 +134,11 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
               {tr("booking.day.checkin_desk")}
             </Link>
           ) : null}
+          {isEvent ? (
+            <a href={`/admin/sessions/${id}/registrations.csv`} className={buttonVariants({ variant: "outline", size: "sm" })} data-testid="registrations-csv">
+              {tr("booking.event.export_csv")}
+            </a>
+          ) : null}
         </div>
       </div>
 
@@ -139,6 +156,83 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
           {stat(tr("booking.session.live_offers"), block.liveOffers)}
           {stat(tr("booking.session.waiting"), block.waiting)}
         </dl>
+      ) : null}
+
+      {isEvent ? (
+        <section aria-labelledby="event-details" className="grid gap-3" data-testid="event-details">
+          <h2 id="event-details" className="text-xl font-semibold">
+            {session.eventCategory === "webinar" ? tr("booking.event.webinar_details") : tr("booking.event.details")}
+          </h2>
+          {session.webinarGeekUrl ? (
+            <p className="text-sm">
+              {tr("booking.event.webinargeek_link")}:{" "}
+              <a href={session.webinarGeekUrl} target="_blank" rel="noreferrer" className="underline underline-offset-4">
+                {session.webinarGeekUrl}
+              </a>
+            </p>
+          ) : null}
+          {session.eventCategory === "webinar" ? <p className="text-sm text-muted-foreground">{tr("booking.event.webinargeek_intro")}</p> : null}
+          {canOverride && !cancelled ? (
+            <>
+              <EventDetailsForm
+                initial={{
+                  id,
+                  updatedAt: session.updatedAt.toISOString(),
+                  isWebinar: session.eventCategory === "webinar",
+                  title: session.title,
+                  description: session.description ?? {},
+                  startsLocal: localInput(session.startsAt),
+                  endsLocal: localInput(session.endsAt),
+                  capacity: session.capacitySeats ?? 0,
+                  location: session.location ?? "",
+                  price: price && price.amountCents > 0 ? (price.amountCents / 100).toFixed(2) : "",
+                  webinarGeekUrl: session.webinarGeekUrl ?? "",
+                  webinarGeekBroadcastId: session.webinarGeekBroadcastId ?? "",
+                }}
+                labels={{
+                  title: localized(tr("booking.templates.name")),
+                  description: localized(tr("booking.templates.description")),
+                  startsAt: tr("booking.event.starts_at"),
+                  endsAt: tr("booking.event.ends_at"),
+                  seats: tr("booking.templates.capacity_seats"),
+                  location: tr("booking.templates.location"),
+                  price: tr("booking.event.price"),
+                  priceHint: tr("booking.event.price_hint"),
+                  webinarGeekUrl: tr("booking.event.webinargeek_url"),
+                  webinarGeekUrlHint: tr("booking.event.webinargeek_url_hint"),
+                  webinarGeekId: tr("booking.event.webinargeek_id"),
+                  webinarGeekIdHint: tr("booking.event.webinargeek_id_hint"),
+                  save: tr("booking.common.save"),
+                  saving: tr("booking.common.saving"),
+                  saved: tr("booking.common.saved"),
+                  errors: { ...errors, validation: tr("platform.errors.validation") },
+                }}
+              />
+              <EventMediaPanel
+                sessionId={id}
+                imageUrl={session.imageFileId ? `/api/public/files/${session.imageFileId}` : null}
+                materials={materials}
+                releasedAt={session.materialsReleasedAt ? formatDateTime(session.materialsReleasedAt, locale) : null}
+                labels={{
+                  artwork: tr("booking.event.artwork"),
+                  artworkHint: tr("booking.event.artwork_hint"),
+                  artworkAlt: tr("booking.event.artwork_alt", { title: show(session.title, locale) }),
+                  materials: tr("booking.event.materials"),
+                  materialsHint: tr("booking.event.materials_hint"),
+                  noMaterials: tr("booking.event.no_materials"),
+                  upload: tr("booking.event.upload"),
+                  uploading: tr("booking.event.uploading"),
+                  remove: tr("booking.common.delete"),
+                  released: tr("booking.event.materials_released", { date: "{date}" }),
+                  notReleased: tr("booking.event.materials_hidden"),
+                  release: tr("booking.event.release_materials"),
+                  unrelease: tr("booking.event.hide_materials"),
+                  errors: { ...errors, validation: tr("platform.errors.validation"), file_too_large: tr("booking.event.file_too_large"), image_type_not_allowed: tr("booking.event.image_type"), svg_not_allowed: tr("booking.event.image_type") },
+                }}
+              />
+            </>
+          ) : null}
+        </section>
       ) : null}
 
       <section aria-labelledby="attendees" className="grid gap-3">

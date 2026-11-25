@@ -18,7 +18,8 @@
       "book": "Boeken",
       "my_bookings": "Mijn boekingen",
       "my_waitlist": "Mijn wachtlijsten",
-      "partner_holds": "Mijn partnerplaatsen"
+      "partner_holds": "Mijn partnerplaatsen",
+      "events": "Events & webinars"
     },
     "common": {
       "save": "Opslaan",
@@ -608,7 +609,10 @@
       "keep": "Mijn boeking behouden",
       "back": "Al mijn boekingen",
       "qr_label": "QR-code om in te checken",
-      "guest_note": "Een gast die via jouw boeking geboekt is."
+      "guest_note": "Een gast die via jouw boeking geboekt is.",
+      "webinar_intro": "Deze webinar loopt via WebinarGeek. Gebruik deze knop op het moment zelf.",
+      "webinar_join": "Naar de webinar",
+      "materials": "Presentaties en materialen"
     },
     "portalReschedule": {
       "title": "Mijn boeking verplaatsen",
@@ -655,7 +659,9 @@
         "intro": "Je boeking voor {title} op {date} is bevestigd.",
         "pay_at_desk": "Betaling aan het onthaal.",
         "qr": "Toon deze code aan het onthaal.",
-        "cta": "Mijn boeking bekijken"
+        "cta": "Mijn boeking bekijken",
+        "join": "Deze webinar loopt via WebinarGeek. Met de knop hieronder kom je op de webinarpagina.",
+        "join_cta": "Naar de webinar"
       },
       "booking_rescheduled": {
         "subject": "Je boeking is verplaatst naar {date}",
@@ -787,6 +793,45 @@
       "error_name": "Geef het ticket een naam in de drie talen voor het evenement gepubliceerd wordt.",
       "error_window": "Het einde van de verkoop moet na de start liggen en voor het einde van het evenement.",
       "error_capacity": "De plaatsen voor dit type mogen de capaciteit van het evenement niet overschrijden."
+    },
+    "event": {
+      "list_title": "Events en webinars",
+      "list_intro": "Events en webinars staan los van de dag- en nachtplanning: maak ze aan op elke datum, met een eigen locatie, prijs en capaciteit.",
+      "new_event": "Nieuw event",
+      "new_webinar": "Nieuwe webinar",
+      "filter": "Tonen",
+      "filter_all": "Alles",
+      "filter_events": "Events",
+      "filter_webinars": "Webinars",
+      "list_empty": "Nog geen events of webinars gepland.",
+      "booked_of": "{booked} van {capacity} geboekt",
+      "details": "Eventgegevens",
+      "webinar_details": "Webinargegevens",
+      "starts_at": "Begin (datum en uur)",
+      "ends_at": "Einde (datum en uur)",
+      "price": "Ticketprijs (EUR)",
+      "price_hint": "Laat leeg of 0 voor een gratis event.",
+      "webinargeek_url": "WebinarGeek-link",
+      "webinargeek_url_hint": "De registratie- of kijkpagina van de webinar op WebinarGeek. Deelnemers krijgen deze link in hun bevestiging en in hun account.",
+      "webinargeek_id": "WebinarGeek broadcast-ID (optioneel)",
+      "webinargeek_id_hint": "Alleen invullen als jullie WebinarGeek-abonnement de API bevat: dan worden deelnemers automatisch in WebinarGeek ingeschreven.",
+      "webinargeek_link": "Link naar WebinarGeek",
+      "webinargeek_intro": "De uitzending loopt op WebinarGeek. Hier beheer je de gegevens, prijs, afbeelding en materialen; de inschrijvingen exporteer je als CSV om in WebinarGeek te importeren.",
+      "export_csv": "Inschrijvingen exporteren (CSV)",
+      "artwork": "Afbeelding",
+      "artwork_hint": "PNG, JPG, WebP of GIF, maximaal 10 MB. Liefst liggend (16:9).",
+      "artwork_alt": "Afbeelding van {title}",
+      "materials": "Presentaties en materialen",
+      "materials_hint": "Upload ze vooraf. Deelnemers zien ze in hun account zodra je ze deelt.",
+      "no_materials": "Nog geen materialen.",
+      "upload": "Uploaden",
+      "uploading": "Bezig met uploaden…",
+      "materials_released": "Gedeeld met deelnemers sinds {date}.",
+      "materials_hidden": "Nog niet zichtbaar voor deelnemers.",
+      "release_materials": "Delen met deelnemers",
+      "hide_materials": "Weer verbergen",
+      "file_too_large": "Het bestand is groter dan 10 MB.",
+      "image_type": "Kies een PNG-, JPG-, WebP- of GIF-afbeelding."
     }
   }
 }

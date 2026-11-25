@@ -20,6 +20,8 @@ export const BookingConfirmedProps = z.object({
   /** The portal booking page. */
   url: z.string().url(),
   payAtDesk: z.boolean().default(false),
+  /** Owner requirement 5: the WebinarGeek link of a webinar (registration or watch page). */
+  joinUrl: z.string().url().optional(),
 });
 
 /** The QR block shared by the booking templates. */
@@ -32,13 +34,22 @@ export function CheckinQr({ caption }: { caption: string }) {
   );
 }
 
-export function BookingConfirmed({ url, payAtDesk, copy, locale }: TemplateComponentProps<typeof BookingConfirmedProps>) {
+export function BookingConfirmed({ url, payAtDesk, joinUrl, copy, locale }: TemplateComponentProps<typeof BookingConfirmedProps>) {
   return (
     <EmailLayout locale={locale} preheader={copy.intro}>
       <EmailHeading>{copy.heading}</EmailHeading>
       <EmailText>{copy.intro}</EmailText>
       {payAtDesk ? <EmailText>{copy.pay_at_desk}</EmailText> : null}
-      <CheckinQr caption={copy.qr ?? ""} />
+      {joinUrl ? (
+        <>
+          <EmailText>{copy.join}</EmailText>
+          <EmailButton href={joinUrl} locale={locale}>
+            {copy.join_cta}
+          </EmailButton>
+        </>
+      ) : (
+        <CheckinQr caption={copy.qr ?? ""} />
+      )}
       <EmailButton href={url} locale={locale}>
         {copy.cta}
       </EmailButton>

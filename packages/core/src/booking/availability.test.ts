@@ -94,6 +94,8 @@ describe("computeAvailability: blocking reasons", () => {
     expect(a.reason).toBe("not_open_yet");
     expect(a.opensAt).toEqual(inHours(24 * 1));
     expect(computeAvailability(row({ startsAt: inHours(24 * 60), endsAt: inHours(24 * 60 + 2) }), customer, NOW).reason).toBe("ok");
+    // Owner requirements 4 and 5: events and webinars sell from publication, whatever their date.
+    expect(computeAvailability(row({ kind: "event", startsAt: inHours(24 * 200), endsAt: inHours(24 * 200 + 2) }), customer, NOW).reason).toBe("ok");
   });
 
   it("closes at the per-kind booking cut-off (R7)", () => {

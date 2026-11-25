@@ -55,6 +55,9 @@ export default async function PublicBookSessionPage({
   const here = `${prefix}/book/${sessionId}`;
   const portalBook = `${prefix}/account/book/${sessionId}`;
   const kind = card.kind === "night" ? "night" : "day";
+  // Owner requirements 4 and 5: an event shows its own artwork; a free event says so; a webinar is online.
+  const heroImage = card.imageFileId ? `/api/public/files/${card.imageFileId}` : `/brand/book-${kind}.webp`;
+  const isFree = card.kind === "event" && !card.productId;
   const fmt = (opts: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat(locale, { timeZone: TZ, ...opts });
   const dateLine = fmt({ weekday: "long", day: "numeric", month: "long" }).format(card.startsAt);
   const timeLine = `${fmt({ hour: "2-digit", minute: "2-digit" }).format(card.startsAt)} – ${fmt({ hour: "2-digit", minute: "2-digit" }).format(card.endsAt)}`;
@@ -82,7 +85,7 @@ export default async function PublicBookSessionPage({
         <div className="space-y-8">
           <section aria-labelledby="session-title" className="relative isolate overflow-hidden rounded-[2rem] p-7 text-[#fffaef] sm:p-10">
             {/* eslint-disable-next-line @next/next/no-img-element -- static brand photo */}
-            <img src={`/brand/book-${kind}.webp`} alt="" className="absolute inset-0 -z-20 h-full w-full object-cover" />
+            <img src={heroImage} alt="" className="absolute inset-0 -z-20 h-full w-full object-cover" />
             <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[linear-gradient(110deg,rgba(23,28,48,0.94)_0%,rgba(23,28,48,0.78)_55%,rgba(23,28,48,0.35)_100%)]" />
             <p className="text-xs font-semibold tracking-[0.25em] text-[#d1a64a] uppercase">{tr("site.bookFlow.s3.title")}</p>
             <h1 id="session-title" className="font-display mt-2 text-4xl sm:text-5xl">
@@ -96,12 +99,17 @@ export default async function PublicBookSessionPage({
               </div>
               <div>
                 <dt className="text-xs tracking-widest text-[#fffaef]/60 uppercase">{tr("site.bookFlow.summary.where")}</dt>
-                <dd className="mt-1 font-medium">{card.location ?? tr("site.bookFlow.summary.whereValue")}</dd>
+                <dd className="mt-1 font-medium">{card.location ?? (card.eventCategory === "webinar" ? tr("site.bookFlow.summary.online") : tr("site.bookFlow.summary.whereValue"))}</dd>
               </div>
               {price ? (
                 <div>
                   <dt className="text-xs tracking-widest text-[#fffaef]/60 uppercase">{tr("site.bookFlow.summary.price")}</dt>
                   <dd className="mt-1 text-2xl font-semibold tabular-nums">{formatMoney(price.amountCents, locale)}</dd>
+                </div>
+              ) : isFree ? (
+                <div>
+                  <dt className="text-xs tracking-widest text-[#fffaef]/60 uppercase">{tr("site.bookFlow.summary.price")}</dt>
+                  <dd className="mt-1 text-2xl font-semibold">{tr("site.bookFlow.summary.free")}</dd>
                 </div>
               ) : null}
             </dl>

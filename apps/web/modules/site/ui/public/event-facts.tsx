@@ -101,6 +101,10 @@ export function EventFactsView({ facts: e, tr, locale, now = new Date() }: { fac
   const hasTypes = e.ticketTypes.length > 0;
   return (
     <div className="mx-auto w-full max-w-5xl space-y-4 px-4 sm:px-6" data-event={e.sessionId}>
+      {e.imageUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element -- event artwork from /api/public/files
+        <img src={e.imageUrl} alt="" className="aspect-[16/9] w-full rounded-[1.75rem] object-cover" data-event-artwork />
+      ) : null}
       {cancelled ? (
         <p role="status" className="rounded-lg bg-destructive/10 p-4 font-medium">
           {tr("site.blocks.events.cancelled")}
@@ -120,6 +124,11 @@ export function EventFactsView({ facts: e, tr, locale, now = new Date() }: { fac
         {!hasTypes && e.priceCents !== null ? (
           <li className="font-semibold" data-price="public">
             {formatMoney(e.priceCents, locale)}
+          </li>
+        ) : null}
+        {e.isFree ? (
+          <li className="font-semibold" data-price="free">
+            {tr("site.blocks.events.free")}
           </li>
         ) : null}
         {!hasTypes && e.priceCents !== null && e.memberPriceCents !== null ? (

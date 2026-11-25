@@ -560,7 +560,8 @@
         "salesFrom": "On sale from {date}",
         "soldOut": "Sold out",
         "tickets": "Tickets",
-        "register": "Register"
+        "register": "Register",
+        "free": "Free"
       },
       "gift": {
         "cta": "Give a gift voucher"
@@ -938,7 +939,9 @@
         "whereValue": "BEAM Vitality Center, Sint-Martens-Latem",
         "price": "Price",
         "change": "Change time",
-        "total": "Total"
+        "total": "Total",
+        "online": "Online (WebinarGeek)",
+        "free": "Free"
       },
       "package": {
         "title": "Coming more often?",

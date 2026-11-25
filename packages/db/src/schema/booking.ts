@@ -174,12 +174,27 @@ export const sessions = pgTable(
     webinarId: uuid(),
     location: text(),
     notes: text(),
+    /** Owner requirements 4 and 5: the event or webinar artwork (a public image in `files`). */
+    imageFileId: uuid().references(() => files.id),
+    /**
+     * Owner requirement 5: a webinar hosted on WebinarGeek (event category `webinar`). The link
+     * buyers get (registration or watch page) and, optionally, the WebinarGeek broadcast id used
+     * to register them through the WebinarGeek API (job `bookings.register_webinargeek`).
+     */
+    webinarGeekUrl: text(),
+    webinarGeekBroadcastId: text(),
+    /** Presentations and supporting materials (`files` of kind `material`), in upload order. */
+    materialFileIds: uuid().array().notNull().default(sql`'{}'::uuid[]`),
+    /** Set when staff release the materials to the people booked; null keeps them hidden. */
+    materialsReleasedAt: tstz(),
     cancelledAt: tstz(),
     cancelReason: text(),
     ...timestamps(),
   },
   (t) => [
     index("sessions_starts_at_idx").on(t.startsAt),
+    check("sessions_webinar_geek_url_ck", sql`${t.webinarGeekUrl} like 'https://%' and length(${t.webinarGeekUrl}) <= 2000`),
+    check("sessions_webinar_geek_broadcast_ck", sql`${t.webinarGeekBroadcastId} ~ '^[0-9]{1,20}$'`),
     index("sessions_open_kind_idx")
       .on(t.kind, t.startsAt)
       .where(sql`${t.status} = 'open'`),
@@ -316,6 +331,8 @@ export const bookings = pgTable(
       .$defaultFn(() => newCheckinCode()),
     qrFileId: uuid().references(() => files.id),
     reminderSentAt: tstz(),
+    /** The personal WebinarGeek watch link, once `bookings.register_webinargeek` registered the seat. */
+    webinarGeekWatchUrl: text(),
     cancelledAt: tstz(),
     cancelReasonCode: bookingsCancelReasonCode(),
     cancelReason: text(),

@@ -539,7 +539,9 @@
         "upcoming": "Prochainement",
         "on_demand": "À regarder quand vous voulez",
         "empty": "Aucun webinaire n’est prévu pour le moment.",
-        "open": "Voir et s’inscrire"
+        "open": "Voir et s’inscrire",
+        "register": "S'inscrire",
+        "full": "Complet : liste d'attente"
       },
       "card": {
         "on_demand": "À la demande",

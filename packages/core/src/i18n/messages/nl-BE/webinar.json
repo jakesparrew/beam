@@ -539,7 +539,9 @@
         "upcoming": "Binnenkort",
         "on_demand": "Altijd te bekijken",
         "empty": "Er zijn op dit moment geen webinars gepland.",
-        "open": "Bekijk en schrijf je in"
+        "open": "Bekijk en schrijf je in",
+        "register": "Inschrijven",
+        "full": "Volzet: op de wachtlijst"
       },
       "card": {
         "on_demand": "Op aanvraag",

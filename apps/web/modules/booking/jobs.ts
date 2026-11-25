@@ -16,11 +16,13 @@ import {
 } from "./jobs/bookings";
 import { MaterialiseInput, RegenerateDateInput, RegenerateTemplateInput, runMaterialise, runRegenerateDate, runRegenerateTemplate } from "./jobs/schedule";
 import { ExpireOffersInput, OfferNextInput, runExpireOffers, runOfferNext } from "./jobs/waitlist";
+import { RegisterWebinarGeekInput, runRegisterWebinarGeek } from "./jobs/webinargeek";
 
 export * from "./jobs/schedule";
 export * from "./jobs/bookings";
 export * from "./jobs/attendance";
 export * from "./jobs/waitlist";
+export * from "./jobs/webinargeek";
 
 export const jobs = [
   defineJob({ kind: "sessions.materialise", lane: "bulk", input: MaterialiseInput, maxAttempts: 6, run: runMaterialise }),
@@ -32,4 +34,5 @@ export const jobs = [
   defineJob({ kind: "bookings.send_reminders", lane: "fast", input: SendRemindersInput, maxAttempts: 6, run: runSendReminders }),
   defineJob({ kind: "waitlist.expire_offers", lane: "fast", input: ExpireOffersInput, maxAttempts: 6, run: runExpireOffers }),
   defineJob({ kind: "waitlist.offer_next", lane: "fast", priority: 1, input: OfferNextInput, maxAttempts: 6, run: runOfferNext }),
+  defineJob({ kind: "bookings.register_webinargeek", lane: "fast", input: RegisterWebinarGeekInput, maxAttempts: 6, run: runRegisterWebinarGeek }),
 ];

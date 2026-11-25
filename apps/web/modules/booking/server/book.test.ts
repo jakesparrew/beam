@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DbHandle } from "@beam/db";
-import { activityEvents, bookings, creditEntries, emailMessages, persons, waitlistEntries } from "@beam/db/schema";
+import { activityEvents, bookings, creditEntries, emailMessages, jobs, persons, waitlistEntries } from "@beam/db/schema";
 import { createTestDb, makePerson, makeUser } from "@beam/db/testing";
 import { makeCreditGrant } from "@beam/db/testing/credits-factories";
 import { and, asc, eq, type Actor } from "@/lib/ctx";
@@ -277,6 +277,26 @@ describe("eligibility", () => {
     const session = await openSession(h.db, { creditKind: null, creditCost: 0 });
     const person = await makePerson(h.db);
     await expect(book(customerActor(person.id), { sessionId: session.id, personId: person.id, payWith: "free" })).resolves.toMatchObject({ kind: "confirmed" });
+  });
+
+  it("owner requirement 5: a free WebinarGeek webinar mails its link (no QR) and enqueues the WebinarGeek registration", async () => {
+    const session = await openSession(h.db, {
+      kind: "event",
+      eventCategory: "webinar",
+      creditKind: null,
+      creditCost: 0,
+      startsAt: new Date(Date.now() + 200 * DAY),
+      webinarGeekUrl: "https://beam.webinargeek.com/ademwerk",
+      webinarGeekBroadcastId: "4242",
+    });
+    const person = await makePerson(h.db);
+    await book(customerActor(person.id), { sessionId: session.id, personId: person.id, payWith: "free" });
+    const [row] = await rowsOf(session.id);
+    const [mail] = await h.db.select().from(emailMessages).where(eq(emailMessages.idempotencyKey, `booking:${row!.id}:confirmed`));
+    expect(mail!.attachments).toEqual([]);
+    expect(mail!.props).toMatchObject({ joinUrl: "https://beam.webinargeek.com/ademwerk" });
+    const queued = await h.db.select().from(jobs).where(eq(jobs.idempotencyKey, `booking:${row!.id}:webinargeek`));
+    expect(queued).toMatchObject([{ kind: "bookings.register_webinargeek", payload: { bookingId: row!.id } }]);
   });
 
   it("member-only uses getMembershipForPerson().isMember; a staff status override without membership is refused", async () => {

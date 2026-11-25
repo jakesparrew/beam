@@ -7,3 +7,4 @@ export * from "./queries/bookings";
 export * from "./queries/attendance";
 export * from "./queries/waitlist";
 export * from "./queries/partner";
+export * from "./queries/event-registrations";

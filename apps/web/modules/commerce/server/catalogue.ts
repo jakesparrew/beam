@@ -266,6 +266,32 @@ export async function setProductActiveRecord(ctx: Ctx, input: z.output<typeof Se
   return { ok: true };
 }
 
+/**
+ * Owner requirement 4/5 (booking request): the ticket product behind an event or webinar price,
+ * so staff type a price on the event form instead of building a product first. The product of
+ * an event has its own SKU (`sku`): absent, an active `ticket` product is created (name filled in
+ * every locale from the first one given) with a public price; present, it is renamed, reactivated
+ * and gets a price version when the amount changed. Free events have no product (booking clears
+ * `product_id`).
+ */
+export async function upsertEventTicketProductRecord(ctx: Ctx, input: { sku: string; name: LocalizedText; amountCents: number }): Promise<{ productId: string }> {
+  const fallback = ALL_LOCALES.map((l) => input.name[l]?.trim()).find(Boolean) ?? input.sku;
+  const name = Object.fromEntries(ALL_LOCALES.map((l) => [l, input.name[l]?.trim() || fallback])) as LocalizedText;
+  const [existing] = await ctx.tx.select({ id: products.id }).from(products).where(eq(products.sku, input.sku));
+  let productId = existing?.id;
+  if (!productId) {
+    const values = productColumns("ticket", ProductFields.parse({ sku: input.sku, name, isPosVisible: false }));
+    const [row] = await ctx.tx.insert(products).values({ ...values, isActive: true }).returning({ id: products.id });
+    productId = row!.id;
+    await ctx.audit({ action: "product.created", entityType: "product", entityId: productId, newValue: { kind: "ticket", sku: values.sku } });
+  } else {
+    await ctx.tx.update(products).set({ name, isActive: true, updatedAt: sql`now()` }).where(eq(products.id, productId));
+  }
+  const current = await getProductPrice(ctx.tx, productId, "public", ctx.now);
+  if (current?.amountCents !== input.amountCents) await addPriceVersionRecord(ctx, { productId, audience: "public", amountCents: input.amountCents });
+  return { productId };
+}
+
 // ---------------------------------------------------------------------------
 // Price versions (append-only, rule 4) and person prices (rule 6)
 // ---------------------------------------------------------------------------

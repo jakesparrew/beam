@@ -12,6 +12,9 @@ export const nav = [
     labelKey: "webinar.nav.webinars",
     href: "/admin/webinars",
     permission: "webinars.host",
+    // Owner phase: webinars run on WebinarGeek (booking's "Events & webinars"); the native
+    // YouTube Live screens show only while the module is switched on.
+    flag: "ff_webinar_portal",
     icon: "video",
     order: 100,
   },

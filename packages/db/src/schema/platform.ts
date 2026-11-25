@@ -75,6 +75,8 @@ export const webhookEventsProvider = pgEnum("webhook_events_provider", [
   "billit",
   // R3 (platform-P9): crm's unified inbox (Messenger and Instagram webhooks).
   "meta",
+  // Stripe payments (commerce: the Stripe adapter replaces the V1 stub).
+  "stripe",
 ]);
 export const integrationCallsProvider = pgEnum("integration_calls_provider", [
   "mollie",

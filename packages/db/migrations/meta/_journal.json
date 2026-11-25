@@ -421,6 +421,13 @@
       "when": 1795101907059,
       "tag": "0059_ai_requests_gateway_models",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1795348049691,
+      "tag": "0060_webhook_provider_stripe",
+      "breakpoints": true
     }
   ]
 }

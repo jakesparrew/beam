@@ -42,8 +42,10 @@ function paymentsClient(ctx: Ctx & { integrations?: Integrations }): PaymentProv
   return (ctx.integrations ?? getIntegrations()).payments;
 }
 
-/** `settings.payment_provider_by_channel.recurring` (rule 29); Mollie when the key is unreadable. */
-async function recurringProvider(db: DbOrTx): Promise<OnlinePaymentProvider> {
+/** The real client that takes the debit, else `settings.payment_provider_by_channel.recurring` (rule 29); Mollie when unreadable. */
+async function recurringProvider(db: DbOrTx, client?: Pick<PaymentProvider, "name">): Promise<OnlinePaymentProvider> {
+  const name = client?.name;
+  if (name === "stripe" || name === "mollie" || name === "viva") return name;
   try {
     return (await getSetting(db, "payment_provider_by_channel")).recurring ?? "mollie";
   } catch {
@@ -177,7 +179,7 @@ export async function createRecurringCharge(
     .insert(payments)
     .values({
       orderId: order.id,
-      provider: await recurringProvider(tx),
+      provider: await recurringProvider(tx, paymentsClient(ctx)),
       sequenceType: "recurring",
       status: "open",
       amountCents: due,

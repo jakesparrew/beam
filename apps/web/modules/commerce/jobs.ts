@@ -39,7 +39,7 @@ import { defineWebhookHandler } from "@/lib/webhooks";
 import { sendTransactional } from "@/modules/email/api";
 import { refundOrderLine } from "./api";
 import { orderPageUrl } from "./server/paid";
-import { createProviderPayment, syncPayment, type SyncResult } from "./server/payments";
+import { createProviderPayment, stripeEventPaymentId, syncPayment, type SyncResult } from "./server/payments";
 import { scanExpired } from "./server/expiry";
 import { markAbandoned, type MarkAbandonedResult } from "./server/checkouts";
 import { attributeRecoveries, type AttributeRecoveriesResult } from "./server/recovery";
@@ -266,6 +266,19 @@ export const webhookHandlers = [
       const id = (event.payload as { id?: unknown } | null)?.id;
       if (typeof id !== "string") return;
       await afterSync(ctx, await syncPayment(ctx, id));
+    },
+  }),
+  /**
+   * The Stripe webhook: the inbox stored the ids the event names; the payment is fetched from
+   * Stripe and applied like a Mollie one. Events about payments that are not BEAM's are ignored.
+   */
+  defineWebhookHandler({
+    provider: "stripe",
+    handle: async (ctx, event) => {
+      const ref = (event.payload ?? {}) as { objectId?: string | null; paymentIntentId?: string | null; beamPaymentId?: string | null };
+      const providerPaymentId = await stripeEventPaymentId(ctx.tx, ref);
+      if (!providerPaymentId) return;
+      await afterSync(ctx, await syncPayment(ctx, providerPaymentId));
     },
   }),
 ];

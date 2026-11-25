@@ -92,8 +92,8 @@ function beamProducts(from: Date): DemoProduct[] {
   const hours = (sku: string, h: number, cents: number, order: number): DemoProduct => ({
     kind: "package",
     sku,
-    name: text(`${h} uur`, `${h} heures`, `${h} hours`),
-    description: text(`${h / 2} dagsessies van 2 uur. ${shared}`, `${h / 2} séances de jour de 2 heures. ${sharedFr}`, `${h / 2} two-hour day sessions. ${sharedEn}`),
+    name: text(`${h / 2} dagsessies`, `${h / 2} séances de jour`, `${h / 2} day sessions`),
+    description: text(`${h / 2} dagsessies van 2 uur, alleen voor dagsessies. ${shared}`, `${h / 2} séances de jour de 2 heures, uniquement pour les séances de jour. ${sharedFr}`, `${h / 2} two-hour day sessions, for day sessions only. ${sharedEn}`),
     vatRatePct: "21.00",
     creditKind: "day",
     creditUnits: h / 2,
@@ -106,8 +106,8 @@ function beamProducts(from: Date): DemoProduct[] {
   const nights = (sku: string, n: number, cents: number, order: number): DemoProduct => ({
     kind: "package",
     sku,
-    name: text(`${n} nachten`, `${n} nuits`, `${n} nights`),
-    description: text(`${n} nachtsessies van 12 uur. ${shared}`, `${n} séances de nuit de 12 heures. ${sharedFr}`, `${n} twelve-hour night sessions. ${sharedEn}`),
+    name: text(`${n} nachtsessies`, `${n} séances de nuit`, `${n} night sessions`),
+    description: text(`${n} nachtsessies van 12 uur, alleen voor nachtsessies. ${shared}`, `${n} séances de nuit de 12 heures, uniquement pour les séances de nuit. ${sharedFr}`, `${n} twelve-hour night sessions, for night sessions only. ${sharedEn}`),
     vatRatePct: "6.00",
     creditKind: "night",
     creditUnits: n,
@@ -119,9 +119,9 @@ function beamProducts(from: Date): DemoProduct[] {
   });
   return [
     { kind: "session", sku: BEAM_SKUS.dayAdult, name: text("Dagsessie", "Séance de jour", "Day session"), description: text("2 uur, volwassenen.", "2 heures, adultes.", "2 hours, adults."), vatRatePct: "21.00", isShopVisible: false, sortOrder: 100, prices: [{ amountCents: 12_000, validFromAt: from }] },
-    { kind: "session", sku: BEAM_SKUS.dayYouth, name: text("Dagsessie jongeren", "Séance de jour jeunes", "Day session youth"), description: text("2 uur, 12 tot 18 jaar, samen met een volwassene.", "2 heures, de 12 à 18 ans, avec un adulte.", "2 hours, aged 12 to 18, with an adult."), vatRatePct: "21.00", isShopVisible: false, sortOrder: 101, prices: [{ amountCents: 6_000, validFromAt: from }] },
+    { kind: "session", sku: BEAM_SKUS.dayYouth, name: text("Dagsessie jongeren", "Séance de jour jeunes", "Day session youth"), description: text("2 uur, 12 tot 17 jaar, op zaterdag van 13 tot 15 uur, samen met een betalende volwassene.", "2 heures, de 12 à 17 ans, le samedi de 13 h à 15 h, avec un adulte payant.", "2 hours, aged 12 to 17, Saturdays 13:00 to 15:00, with a paying adult."), vatRatePct: "21.00", isShopVisible: false, sortOrder: 101, prices: [{ amountCents: 6_000, validFromAt: from }] },
     { kind: "night", sku: BEAM_SKUS.nightAdult, name: text("Nachtsessie", "Séance de nuit", "Night session"), description: text("12 uur, van 20 tot 8 uur, volwassenen.", "12 heures, de 20 h à 8 h, adultes.", "12 hours, 20:00 to 08:00, adults."), vatRatePct: "6.00", isShopVisible: false, sortOrder: 102, prices: [{ amountCents: 42_000, validFromAt: from }] },
-    { kind: "night", sku: BEAM_SKUS.nightYouth, name: text("Nachtsessie jongeren", "Séance de nuit jeunes", "Night session youth"), description: text("12 uur, 12 tot 18 jaar.", "12 heures, de 12 à 18 ans.", "12 hours, aged 12 to 18."), vatRatePct: "6.00", isShopVisible: false, sortOrder: 103, prices: [{ amountCents: 21_000, validFromAt: from }] },
+    { kind: "night", sku: BEAM_SKUS.nightYouth, name: text("Nachtsessie jongeren", "Séance de nuit jeunes", "Night session youth"), description: text("12 uur, 12 tot 17 jaar, samen met een betalende volwassene.", "12 heures, de 12 à 17 ans, avec un adulte payant.", "12 hours, aged 12 to 17, with a paying adult."), vatRatePct: "6.00", isShopVisible: false, sortOrder: 103, prices: [{ amountCents: 21_000, validFromAt: from }] },
     hours(BEAM_SKUS.hours10, 10, 49_500, 110),
     hours(BEAM_SKUS.hours20, 20, 89_000, 111),
     hours(BEAM_SKUS.hours30, 30, 126_000, 112),
@@ -135,9 +135,9 @@ function beamProducts(from: Date): DemoProduct[] {
       sku: BEAM_SKUS.membershipYear,
       name: text("BEAM Membership", "BEAM Membership", "BEAM Membership"),
       description: text(
-        "Een gratis nachtsessie, tot 20% korting op sessies en pakketten, 15% op producten en events.",
-        "Une séance de nuit offerte, jusqu'à 20 % sur les séances et forfaits, 15 % sur les produits et événements.",
-        "One free night session, up to 20% off sessions and packages, 15% off products and events.",
+        "12 maanden: een gratis nachtsessie of vier gratis dagsessies, tot 20% korting op sessies en pakketten, 15% op producten en events, 30% op detoxzout, twee ledenavonden per jaar en een maandelijkse trekking van een gratis nacht.",
+        "12 mois : une séance de nuit ou quatre séances de jour offertes, jusqu'à 20 % sur les séances et forfaits, 15 % sur les produits et événements, 30 % sur le sel détox, deux soirées membres par an et un tirage mensuel d'une nuit offerte.",
+        "12 months: one free night session or four free day sessions, up to 20% off sessions and packages, 15% off products and events, 30% off detox salt, two members-only gatherings a year and a monthly draw for a free night.",
       ),
       vatRatePct: "21.00",
       recurringInterval: "year",

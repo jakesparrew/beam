@@ -9,7 +9,7 @@
  * visit through the real engine (`bookSeats` by a staff user at the booking moment, paid with
  * credits): past visits attended (the `booking.attended` change of the check-in action),
  * no-show (`markNoShowRow`) or cancelled (`cancelBookingRow`), upcoming ones confirmed, nights
- * on Fridays and Saturdays, a handful of busy day sessions this week (two of them full, with a
+ * (Wednesday to Sunday), a handful of busy day sessions this week (two of them full, with a
  * waiting list) and registrations for the demo lecture. A person is booked on a session only
  * once (any status), so a rerun the same day adds nothing; a refused booking (no credits left,
  * full) is skipped. Today's visits that already ended on the wall clock are checked in.
@@ -18,7 +18,7 @@ import { randomUUID } from "node:crypto";
 import type { Tx } from "@beam/db";
 import { bookings, sessionTemplates, sessions, users, waitlistEntries, wellbeingCheckins } from "@beam/db/schema";
 import { BookingConflictError, MATERIALISE_DAYS, addDays, bookingTransition, brusselsDate, zonedTimeToUtc, type BookingRules } from "@beam/core/booking";
-import { seedBookingDefaults, seedBookingDemo } from "@beam/db/seed/booking";
+import { DEMO_DAY_SLOTS, seedBookingDefaults, seedBookingDemo } from "@beam/db/seed/booking";
 import { ConflictError, and, asc, createCtx, eq, gt, gte, inArray, isNull, lt, lte, sql, type Actor, type Ctx, type Permission } from "@/lib/ctx";
 import { getSetting } from "@/lib/settings";
 import type { SeedCtx } from "@/scripts/seed-demo";
@@ -35,7 +35,7 @@ const DAY = 24 * HOUR;
 
 /** Days of schedule materialised behind today, so past visits have sessions. */
 export const DEMO_HISTORY_DAYS = 63;
-const SLOTS = ["09:00", "11:30", "14:00", "16:30"] as const;
+const SLOTS = DEMO_DAY_SLOTS;
 
 type Outcome = "attended" | "no_show" | "cancelled" | "late_cancelled";
 /** One planned visit: `person` is the `DemoIds` key, `day` the offset from today (the first matching session on or after it). */
@@ -62,7 +62,7 @@ const DAY_GUESTS: readonly (readonly [string, number, number])[] = [
   ["crm.customer.james-cooper", 32, 2],
 ];
 
-/** Night visits (Friday and Saturday nights): person, day offset, outcome of a past night. */
+/** Night visits (the first night from the day offset): person, day offset, outcome of a past night. */
 const NIGHT_VISITS: readonly (readonly [string, number, Outcome | null])[] = [
   ["platform.person.customer2", -44, "attended"],
   ["platform.person.customer2", 4, null],
@@ -78,14 +78,14 @@ const NIGHT_VISITS: readonly (readonly [string, number, Outcome | null])[] = [
   ["crm.customer.nora-dumont", 11, null],
 ];
 
-/** Busy day sessions this week, filled from `FILL_POOL` up to `seats` (12 = full). */
+/** Busy day sessions this week, filled from `FILL_POOL` up to `seats` (14 = full). */
 export const BUSY_SESSIONS: readonly { day: number; at: string; seats: number; waitlist?: readonly string[] }[] = [
-  { day: 0, at: "11:30", seats: 7 },
-  { day: 0, at: "14:00", seats: 9 },
-  { day: 2, at: "11:30", seats: 12, waitlist: ["crm.customer.marc-gerard", "platform.person.customer16"] },
-  { day: 3, at: "16:30", seats: 10 },
-  { day: 4, at: "09:00", seats: 11 },
-  { day: 6, at: "14:00", seats: 10 },
+  { day: 0, at: "13:00", seats: 8 },
+  { day: 0, at: "16:00", seats: 10 },
+  { day: 2, at: "13:00", seats: 14, waitlist: ["crm.customer.marc-gerard", "platform.person.customer16"] },
+  { day: 3, at: "16:00", seats: 12 },
+  { day: 4, at: "10:00", seats: 13 },
+  { day: 6, at: "13:00", seats: 11 },
 ];
 
 /** Day-credit holders who fill the busy sessions: not the five portal customers (they keep a balance), Lies or Sarah. */

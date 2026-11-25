@@ -6,7 +6,8 @@
  *   all `on conflict (key) do nothing`. The retention rows are written only once ops has created
  *   `retention_policies`.
  * - `seedBookingDemo` (the `demo` profile helper): the demo schedule (four day blocks Tue-Sun
- *   09:00/11:30/14:00/16:30, 120 minutes, 12 seats; a night Fri-Sat 21:00, 720 minutes, 6 beds)
+ *   of the owner's requirements: three day blocks Mon, Thu-Sun 10:00/13:00/16:00, 120 minutes,
+ *   14 seats; a night Wed-Sun 20:00-08:00, 720 minutes, 8 beds)
  *   and one published `lecture` event. booking's demo seed (`apps/web/modules/booking/seed.ts`)
  *   calls it and then materialises the next 90 days; it never runs in the `defaults` profile.
  */
@@ -85,17 +86,21 @@ const LECTURE_DESCRIPTION = {
 /** Marks the demo lecture so a second seed run finds it. */
 export const DEMO_LECTURE_NOTE = "demo:booking:lecture";
 
+/** The owner's schedule (requirements review, November 2026): day blocks and the night start. */
+export const DEMO_DAY_SLOTS = ["10:00", "13:00", "16:00"] as const;
+export const DEMO_NIGHT_START = "20:00";
+
 type DemoTemplate = Omit<typeof sessionTemplates.$inferInsert, "activeFromOn">;
 
 const DEMO_TEMPLATES: DemoTemplate[] = [
-  ...["09:00", "11:30", "14:00", "16:30"].map((startTime) => ({
+  ...DEMO_DAY_SLOTS.map((startTime) => ({
     kind: "day" as const,
     name: DAY_NAME,
     description: DAY_DESCRIPTION,
-    weekdays: [2, 3, 4, 5, 6, 7],
+    weekdays: [1, 4, 5, 6, 7],
     startTime,
     durationMinutes: 120,
-    capacitySeats: 12,
+    capacitySeats: 14,
     creditKind: "day" as const,
     creditCost: 1,
     location: "Warmteruimte",
@@ -103,10 +108,10 @@ const DEMO_TEMPLATES: DemoTemplate[] = [
   {
     kind: "night",
     name: NIGHT_NAME,
-    weekdays: [5, 6],
-    startTime: "21:00",
+    weekdays: [3, 4, 5, 6, 7],
+    startTime: DEMO_NIGHT_START,
     durationMinutes: 720,
-    capacityBeds: 6,
+    capacityBeds: 8,
     creditKind: "night",
     creditCost: 1,
     location: "Slaapzaal",

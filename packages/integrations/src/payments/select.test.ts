@@ -40,9 +40,29 @@ describe("selectProvider", () => {
     expect(isProviderConfigured("viva", { VIVA_CLIENT_ID: "id", VIVA_CLIENT_SECRET: "s" })).toBe(true);
   });
 
-  it("a configured stub is selected and still refuses every call", async () => {
-    const p = selectProvider("site", mixed, { ...live, STRIPE_API_KEY: "sk_test_x" });
-    await expect(p.getPayment("x")).rejects.toMatchObject({ provider: "stripe", message: "not_configured" });
+  it("with STRIPE_API_KEY the real Stripe adapter is selected", async () => {
+    const urls: string[] = [];
+    const p = selectProvider(
+      "site",
+      mixed,
+      { ...live, STRIPE_API_KEY: "sk_test_x" },
+      {
+        fetch: (url) => {
+          urls.push(String(url));
+          return Promise.resolve(new Response(JSON.stringify({ error: { message: "No such payment_intent" } }), { status: 404 }));
+        },
+      },
+    );
+    expect(p.name).toBe("stripe");
+    await expect(p.getPayment("pi_unknown")).rejects.toMatchObject({ provider: "stripe", statusCode: 404, retryable: false });
+    expect(urls).toEqual(["https://api.stripe.com/v1/payment_intents/pi_unknown?expand[]=latest_charge"]);
+  });
+
+  it("a Stripe key alone makes payments real; INTEGRATIONS_REAL=payments keeps them real under INTEGRATIONS=fake", () => {
+    expect(paymentsMode({ STRIPE_API_KEY: "sk_test_x" })).toBe("real");
+    expect(paymentsMode({ STRIPE_API_KEY: "sk_test_x", INTEGRATIONS: "fake" })).toBe("fake");
+    expect(paymentsMode({ STRIPE_API_KEY: "sk_test_x", INTEGRATIONS: "fake", INTEGRATIONS_REAL: "gateway, payments" })).toBe("real");
+    expect(paymentsMode({ STRIPE_API_KEY: "sk_test_x", INTEGRATIONS_REAL: "payments", PAYMENTS_FAKE: "1" })).toBe("fake");
   });
 
   it("without a Mollie key outside production the payments fake serves; in production Mollie is refused", () => {

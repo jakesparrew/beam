@@ -16,7 +16,7 @@ import type { IntegrationCallEntry, OnCall } from "@beam/integrations/_shared";
 import { createClaudeClient, createClaudeFake, type ClaudeClient, type ClaudeFake } from "@beam/integrations/anthropic";
 import { createBetterstackClient, createBetterstackFake, type BetterstackClient, type BetterstackFake } from "@beam/integrations/betterstack";
 import { createBillitClient, createBillitFake, type BillitApi, type BillitFake } from "@beam/integrations/billit";
-import { createMollieProvider, createPaymentsFake, type PaymentProvider, type PaymentsFake } from "@beam/integrations/payments";
+import { createMollieProvider, createPaymentsFake, createStripeProvider, type PaymentProvider, type PaymentsFake } from "@beam/integrations/payments";
 import { createResendClient, createResendFake, type ResendClient, type ResendFake } from "@beam/integrations/resend";
 import { createSlackClient, createSlackFake, type SlackClient, type SlackFake } from "@beam/integrations/slack";
 
@@ -48,16 +48,26 @@ export function appEnv(env: Env = process.env): AppEnv {
   return v === "preview" || v === "staging" || v === "production" ? v : "local";
 }
 
-/** The rule of runbook section 1.5, for one provider. */
+/**
+ * The rule of runbook section 1.5, for one provider. `INTEGRATIONS_REAL` (a comma list such as
+ * `payments`) keeps the listed providers real under `INTEGRATIONS=fake`: a local test against a
+ * provider's test mode while everything else stays fake. Production and staging are always real.
+ */
 export function integrationMode(provider: string, keyEnv: string, env: Env = process.env): "real" | "fake" {
   const mode = appEnv(env);
   if (mode === "production" || mode === "staging") return "real";
-  if (env.INTEGRATIONS === "fake") return "fake";
   if (provider === "payments" && env.PAYMENTS_FAKE === "1") return "fake";
+  const forcedReal = (env.INTEGRATIONS_REAL ?? "").split(",").map((s) => s.trim()).includes(provider);
+  if (env.INTEGRATIONS === "fake" && !forcedReal) return "fake";
   return env[keyEnv] ? "real" : "fake";
 }
 
-/** The env key that switches each shared provider to its real client. */
+/** Payments use Stripe when `STRIPE_API_KEY` is set, else Mollie. */
+export function paymentsKeyEnv(env: Env = process.env): "STRIPE_API_KEY" | "MOLLIE_API_KEY" {
+  return env.STRIPE_API_KEY ? "STRIPE_API_KEY" : "MOLLIE_API_KEY";
+}
+
+/** The env key that switches each shared provider to its real client (payments: see `paymentsKeyEnv`). */
 export const PROVIDER_KEYS = {
   payments: "MOLLIE_API_KEY",
   resend: "RESEND_API_KEY",
@@ -118,13 +128,21 @@ export function buildIntegrations(env: Env = process.env): Integrations {
     let made: FakeIntegrations | undefined;
     return () => (made ??= createFakeIntegrations({ onCall, isolatedPayments: false }));
   })();
-  const real = (p: keyof Integrations) => integrationMode(p, PROVIDER_KEYS[p], env) === "real";
-  const key = (p: keyof Integrations) => env[PROVIDER_KEYS[p]];
+  const keyEnv = (p: keyof Integrations) => (p === "payments" ? paymentsKeyEnv(env) : PROVIDER_KEYS[p]);
+  const real = (p: keyof Integrations) => integrationMode(p, keyEnv(p), env) === "real";
+  const key = (p: keyof Integrations) => env[keyEnv(p)];
 
   return {
     payments: !real("payments")
       ? fakes().payments
-      : key("payments")
+      : env.STRIPE_API_KEY
+        ? createStripeProvider({
+            apiKey: env.STRIPE_API_KEY,
+            appBaseUrl: env.APP_URL ?? "http://localhost:3000",
+            ...(env.STRIPE_WEBHOOK_SECRET ? { webhookSecret: env.STRIPE_WEBHOOK_SECRET } : {}),
+            onCall,
+          })
+        : key("payments")
         ? createMollieProvider({
             apiKey: key("payments")!,
             webhookBaseUrl: env.APP_URL ?? "http://localhost:3000",

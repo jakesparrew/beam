@@ -1,0 +1,1 @@
+ALTER TYPE "public"."webhook_events_provider" ADD VALUE 'stripe';

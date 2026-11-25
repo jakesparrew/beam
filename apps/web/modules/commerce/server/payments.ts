@@ -23,7 +23,7 @@ import { formatMoney, t, URL_SEGMENT, type Locale } from "@beam/core/i18n";
 import { IntegrationError } from "@beam/integrations/_shared";
 import type { PaymentProvider } from "@beam/integrations/payments";
 import { appUrl } from "@/lib/auth";
-import { and, eq, inArray, notInArray, sql, AppError, ConflictError, NotFoundError, type Ctx, type DbOrTx, type Tx } from "@/lib/ctx";
+import { and, eq, inArray, notInArray, or, sql, AppError, ConflictError, NotFoundError, type Ctx, type DbOrTx, type Tx } from "@/lib/ctx";
 import { getIntegrations, type Integrations } from "@/lib/integrations";
 import { runJobInline, type JobCtx } from "@/lib/job-runner";
 import { getSetting } from "@/lib/settings";
@@ -73,8 +73,18 @@ function withQuery(url: string, key: string, value: string): string {
   return u.toString();
 }
 
-/** `settings.payment_provider_by_channel[channel]` (rule 29); Mollie when the key is unreadable. */
-async function providerFor(db: DbOrTx, channel: OrderRow["channel"]): Promise<OnlinePaymentProvider> {
+/** The provider a real client is (`stripe`, `mollie`, `viva`); `null` for the payments fake. */
+export function realProviderName(client: Pick<PaymentProvider, "name">): OnlinePaymentProvider | null {
+  return client.name === "stripe" || client.name === "mollie" || client.name === "viva" ? client.name : null;
+}
+
+/**
+ * The provider a new payment is recorded with: the real client that will take it, else (the
+ * payments fake) `settings.payment_provider_by_channel[channel]` (rule 29); Mollie when unreadable.
+ */
+async function providerFor(db: DbOrTx, channel: OrderRow["channel"], client?: Pick<PaymentProvider, "name">): Promise<OnlinePaymentProvider> {
+  const real = client ? realProviderName(client) : null;
+  if (real) return real;
   try {
     const value = await getSetting(db, "payment_provider_by_channel");
     return value[channel] ?? "mollie";
@@ -144,7 +154,7 @@ export async function startPayment(tx: Tx, ctx: Ctx, input: { orderId: string; r
       .insert(payments)
       .values({
         orderId: order.id,
-        provider: await providerFor(tx, order.channel),
+        provider: await providerFor(tx, order.channel, paymentsClient(ctx)),
         sequenceType: membershipLine && order.personId && !order.renewalMembershipId ? "first" : "oneoff",
         status: "open",
         amountCents: due,
@@ -179,17 +189,18 @@ export async function startPayment(tx: Tx, ctx: Ctx, input: { orderId: string; r
   }
 }
 
-/** The person's provider customer (Mollie recurring needs one for a `first` payment), created once. */
+/** The person's provider customer (recurring needs one for a `first` payment), created once per provider. */
 async function ensureProviderCustomer(ctx: JobCtx, personId: string, provider: PaymentProvider, locale: Locale): Promise<string> {
+  const providerName = realProviderName(provider) ?? "mollie";
   const [existing] = await ctx.tx
     .select()
     .from(providerCustomers)
-    .where(and(eq(providerCustomers.personId, personId), eq(providerCustomers.provider, "mollie")));
+    .where(and(eq(providerCustomers.personId, personId), eq(providerCustomers.provider, providerName)));
   if (existing) return existing.providerCustomerId;
   const [person] = await ctx.tx.select({ firstName: persons.firstName, lastName: persons.lastName, email: persons.email }).from(persons).where(eq(persons.id, personId));
   const name = [person?.firstName, person?.lastName].filter(Boolean).join(" ") || "BEAM customer";
   const { customerId } = await provider.createCustomer({ name, email: person?.email ?? "", locale, idempotencyKey: `customer:${personId}` });
-  await ctx.tx.insert(providerCustomers).values({ personId, provider: "mollie", providerCustomerId: customerId }).onConflictDoNothing();
+  await ctx.tx.insert(providerCustomers).values({ personId, provider: providerName, providerCustomerId: customerId }).onConflictDoNothing();
   return customerId;
 }
 
@@ -412,19 +423,50 @@ async function onPaymentEnded(tx: Tx, ctx: Ctx, payment: PaymentRow, status: Pay
 // syncPayment (payments.sync and the Mollie webhook)
 // ---------------------------------------------------------------------------
 
+/** A provider payment id: Mollie `tr_...`, Stripe Checkout Session `cs_...` or PaymentIntent `pi_...`. */
+export const PROVIDER_PAYMENT_ID = /^(tr|cs|pi)_[A-Za-z0-9_]+$/;
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * The stored provider payment id a Stripe event concerns: through BEAM's payment id in the
+ * metadata, the Checkout Session id, or the PaymentIntent (the id itself for recurring debits,
+ * else the `paymentIntentId` kept in `payments.raw` for checkout payments). `null`: not ours.
+ */
+export async function stripeEventPaymentId(
+  tx: DbOrTx,
+  ref: { objectId?: string | null; paymentIntentId?: string | null; beamPaymentId?: string | null },
+): Promise<string | null> {
+  if (ref.beamPaymentId && UUID.test(ref.beamPaymentId)) {
+    const [row] = await tx.select({ id: payments.providerPaymentId }).from(payments).where(eq(payments.id, ref.beamPaymentId));
+    if (row?.id) return row.id;
+  }
+  if (ref.objectId?.startsWith("cs_")) return ref.objectId;
+  const pi = ref.paymentIntentId;
+  if (pi && PROVIDER_PAYMENT_ID.test(pi)) {
+    const [row] = await tx
+      .select({ id: payments.providerPaymentId })
+      .from(payments)
+      .where(or(eq(payments.providerPaymentId, pi), sql`${payments.raw}->>'paymentIntentId' = ${pi}`))
+      .limit(1);
+    if (row?.id) return row.id;
+  }
+  return null;
+}
+
 export type SyncResult =
   | { ignored: true; reason: "not_a_payment_id" | "unknown" }
   | { ignored: false; paymentId: string; status: PaymentStatus; changed: boolean; becamePaid: boolean };
 
 /**
- * Fetches `providerPaymentId` from the provider and applies it. Ids that are not Mollie payment
- * ids (`tr_...`) and ids the provider does not know are ignored. An id the provider knows but
+ * Fetches `providerPaymentId` from the provider and applies it. Ids that are not provider payment
+ * ids (Mollie `tr_...`, Stripe `cs_...` and `pi_...`) and ids the provider does not know are ignored. An id the provider knows but
  * this database does not yet hold (the webhook raced the order transaction) throws
  * `RetryableError`, so the job's backoff resolves it (platform edge case 8). Also syncs
  * chargebacks (rule 35). Runs in the job's transaction; the payment row is locked first.
  */
 export async function syncPayment(ctx: Ctx & { integrations?: Integrations }, providerPaymentId: string): Promise<SyncResult> {
-  if (!/^tr_[A-Za-z0-9_]+$/.test(providerPaymentId)) return { ignored: true, reason: "not_a_payment_id" };
+  if (!PROVIDER_PAYMENT_ID.test(providerPaymentId)) return { ignored: true, reason: "not_a_payment_id" };
   const tx = ctx.tx;
   const [row] = await tx.select().from(payments).where(eq(payments.providerPaymentId, providerPaymentId)).for("update");
   let reported: Awaited<ReturnType<PaymentProvider["getPayment"]>>;

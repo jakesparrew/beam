@@ -34,7 +34,10 @@
       "back": "Back",
       "locale_nl": "Dutch",
       "locale_fr": "French",
-      "locale_en": "English"
+      "locale_en": "English",
+      "picker_search": "Type to search",
+      "picker_no_match": "Nothing found",
+      "picker_more": "{count} more: type to search"
     },
     "product_kind": {
       "session": "Day session",
@@ -254,7 +257,9 @@
       "field_partner_none": "No partner",
       "field_partner_hint": "Sales with this code count as referred by the partner. Needs a code.",
       "not_partner": "This company is not a partner.",
-      "partner_needs_code": "A partner promotion needs a code."
+      "partner_needs_code": "A partner promotion needs a code.",
+      "field_products_add": "Add a product",
+      "remove_product": "Remove {name}"
     },
     "errors": {
       "sold_out": "This is sold out.",
@@ -726,7 +731,6 @@
       "new_title": "New staff order",
       "new_intro": "Pick the customer and the products. The order is saved as a draft; then choose how the customer pays.",
       "person_search": "Find a person",
-      "search_button": "Search",
       "person": "Person",
       "company_id": "Company id (B2B prices, optional)",
       "product": "Product",
@@ -736,7 +740,7 @@
       "create": "Create draft order",
       "quote_title": "Price",
       "choose_person": "Choose a person first.",
-      "no_match": "No person found."
+      "person_search_hint": "Type a name, email or customer number"
     },
     "admin_refund": {
       "title": "Refund order {reference}",

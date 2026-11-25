@@ -1,8 +1,9 @@
 "use client";
 /**
- * The three-pane block editor of `/admin/templates/[id]` (email spec section 5): the block
- * palette, the canvas per locale tab with a completeness badge, and the inspector of the selected
- * block; subject and preheader per locale; the token and merge-field picker; accessibility and
+ * The three-pane visual block editor of `/admin/templates/[id]` and the campaign editor (email
+ * spec section 5; owner's review, section 10): the block palette (press or drag), the visual
+ * canvas per locale tab with a completeness badge and a desktop/mobile width toggle, and the
+ * inspector of the selected block as the side panel; subject and preheader per locale; the token and merge-field picker; accessibility and
  * card warnings per block; autosave every 10 seconds; publish (`email.send`) with the validation
  * list (`locale: path: problem`, scrolled into view); live preview as Lead, Customer or Member;
  * test send. A stale draft answers `conflict` and the editor offers a reload.
@@ -73,6 +74,7 @@ export function BlockEditor(props: BlockEditorProps) {
   const [preview, setPreview] = useState<PreviewData | null>(null);
   const [previewing, setPreviewing] = useState(false);
   const [hasDraft, setHasDraft] = useState(props.initial.hasDraft);
+  const [canvasWidth, setCanvasWidth] = useState<600 | 375>(600);
   const problemsRef = useRef<HTMLDivElement>(null);
 
   const blocks = doc.locales[locale] ?? [];
@@ -144,9 +146,11 @@ export function BlockEditor(props: BlockEditorProps) {
     }
   }
 
-  const addTop = (type: BlockType) => {
+  /** A new top-level block before `beforeId` (a palette drop on the canvas), else at the end. */
+  const addTop = (type: BlockType, beforeId: string | null = null) => {
     const b = newBlock(type);
-    setBlocks([...blocks, b]);
+    const at = beforeId ? blocks.findIndex((x) => x.id === beforeId) : -1;
+    setBlocks(at === -1 ? [...blocks, b] : [...blocks.slice(0, at), b, ...blocks.slice(at)]);
     setSelectedId(b.id);
   };
   const copyFrom = (from: Locale) => setBlocks((doc.locales[from] ?? []).map((b) => cloneWithNewIds(b)));
@@ -244,12 +248,32 @@ export function BlockEditor(props: BlockEditorProps) {
           </div>
         ))}
       </div>
-      <div className="grid gap-4 lg:grid-cols-[12rem_1fr_20rem]">
+      <div className="grid gap-4 lg:grid-cols-[10rem_minmax(0,1fr)_18rem]">
         <aside>
-          <BlockPalette onAdd={addTop} labels={labels} disabled={disabled} />
+          <BlockPalette onAdd={(type) => addTop(type)} labels={labels} disabled={disabled} />
         </aside>
-        <section className="grid content-start gap-3">
-          <BlockCanvas blocks={blocks} selectedId={selectedId} onSelect={setSelectedId} onChange={setBlocks} warnedIds={warnedIds} labels={labels} disabled={disabled} />
+        <section className="grid min-w-0 content-start gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs text-muted-foreground">{lab(labels, "canvas_hint")}</p>
+            <div className="flex gap-1" role="group" aria-label={lab(labels, "width")}>
+              {([600, 375] as const).map((w) => (
+                <Button key={w} type="button" size="sm" variant={canvasWidth === w ? "default" : "outline"} aria-pressed={canvasWidth === w} onClick={() => setCanvasWidth(w)} data-testid={`canvas-width-${w}`}>
+                  {lab(labels, w === 600 ? "desktop" : "mobile")}
+                </Button>
+              ))}
+            </div>
+          </div>
+          <BlockCanvas
+            blocks={blocks}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+            onChange={setBlocks}
+            onInsert={addTop}
+            warnedIds={warnedIds}
+            labels={labels}
+            disabled={disabled}
+            width={canvasWidth}
+          />
           {!blocks.length ? (
             <div className="flex flex-wrap gap-2">
               {LOCALES.filter((l) => l !== locale && (doc.locales[l]?.length ?? 0) > 0).map((l) => (

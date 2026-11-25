@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ROLE_KEYS } from "@beam/db/schema";
 import { Alert, AlertDescription } from "@beam/ui";
-import { definitionToGraph, type Definition } from "@beam/core/automation";
+import { definitionToGraph, graphStepKeys, stepNodeIds, type Definition } from "@beam/core/automation";
 import { hasPermission, requireStaff } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
 import { adminLocale } from "@/lib/i18n";
@@ -33,11 +33,13 @@ function isFlowShaped(d: unknown): d is Definition {
  * `/admin/automations/[id]/builder` (R4, automation-P10; `automations.write`, Publish needs
  * `automations.publish`), automation spec 5: the visual workflow builder over the same draft as
  * the form editor. A draft that is not flow-shaped (broken JSON saved in the JSON tab) shows a
- * link back to the form editor instead; an archived automation opens read-only.
+ * link back to the form editor instead; an archived automation opens read-only. `?step=<key>`
+ * (a box of the overview's flowchart) opens with that block selected.
  */
-export default async function AutomationBuilderPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function AutomationBuilderPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ step?: string }> }) {
   const actor = await requireStaff({ permission: "automations.write" });
   const { id } = await params;
+  const { step } = await searchParams;
   const db = await getAppDb();
   const detail = await getAutomation(db, { id });
   if (!detail) notFound();
@@ -53,6 +55,7 @@ export default async function AutomationBuilderPage({ params }: { params: Promis
   ]);
   const archived = a.status === "archived";
   const draft: unknown = a.draftDefinition ?? detail.currentVersion?.definition ?? null;
+  const graph = isFlowShaped(draft) ? definitionToGraph(draft) : null;
   return (
     <div className="grid gap-6">
       <AutomationHeader id={a.id} name={a.name} slug={a.slug} status={a.status} current="builder" l={l} />
@@ -60,10 +63,11 @@ export default async function AutomationBuilderPage({ params }: { params: Promis
         <h2 className="text-lg font-semibold">{l["builder.title"]}</h2>
         <p className="text-sm text-muted-foreground">{l["builder.intro"]}</p>
       </div>
-      {isFlowShaped(draft) ? (
+      {graph ? (
         <BuilderCanvas
           automation={{ id: a.id, slug: a.slug, name: a.name }}
-          initialGraph={definitionToGraph(draft)}
+          initialGraph={graph}
+          initialSelected={step ? stepNodeIds(graph)[graphStepKeys(graph).indexOf(step)] : undefined}
           savedIssues={detail.draftIssues}
           options={{
             tags,

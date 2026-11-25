@@ -7,7 +7,7 @@
 import Link from "next/link";
 import { Badge, Card, CardContent, CardHeader, CardTitle, EmptyState, Input, Label, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@beam/ui";
 import { formatDateTime, type Locale } from "@beam/core/i18n";
-import type { At, Definition, Filter, Step } from "@beam/core/automation";
+import { AUTOMATION_CATEGORIES, type AutomationCategory, type At, type Definition, type Filter, type Step } from "@beam/core/automation";
 import { AutomationStatusBadge, fill, type Labels } from "./outcome-badge";
 
 export type AutomationTableRow = {
@@ -25,6 +25,7 @@ export type AutomationTableRow = {
   skipped7d: number;
   failed7d: number;
   lastRunAt: Date | null;
+  category: AutomationCategory;
 };
 
 const STATUSES = ["draft", "active", "paused", "archived"] as const;
@@ -37,11 +38,12 @@ export function AutomationFilters({
 }: {
   l: Labels;
   groups: { key: string; name: string }[];
-  value: { status?: string; group?: string; q?: string };
+  value: { status?: string; group?: string; q?: string; category?: string };
 }) {
   const selectClass = "h-9 rounded-md border border-input bg-background px-3 text-sm";
   return (
     <form data-auto-filter="" method="get" action="/admin/automations" className="flex flex-wrap items-end gap-3" data-testid="automation-filters">
+      {value.category ? <input type="hidden" name="category" value={value.category} /> : null}
       <div className="grid gap-1">
         <Label htmlFor="automation-filter-status">{l["list.filter_status"]}</Label>
         <select id="automation-filter-status" name="status" defaultValue={value.status ?? ""} className={selectClass}>
@@ -72,8 +74,42 @@ export function AutomationFilters({
   );
 }
 
-/** The list: name, slug, group (exclusive badge), status, version, counts of the last 7 days, last run. */
-export function AutomationTable({ rows, l, locale, emptyAction, filtered }: { rows: AutomationTableRow[]; l: Labels; locale: Locale; emptyAction?: React.ReactNode; filtered: boolean }) {
+/**
+ * The categories as tabs with their counts (owner's review, section 10): a link per category keeps
+ * the other filters; "All" lists every category, grouped under a heading row.
+ */
+export function CategoryTabs({ l, counts, current, query }: { l: Labels; counts: Record<AutomationCategory, number>; current?: AutomationCategory; query: Record<string, string | undefined> }) {
+  const href = (category?: AutomationCategory) => {
+    const entries: [string, string | undefined][] = Object.entries({ ...query, category });
+    const q = new URLSearchParams(entries.filter((e): e is [string, string] => !!e[1]));
+    const s = q.toString();
+    return s ? `/admin/automations?${s}` : "/admin/automations";
+  };
+  const total = Object.values(counts).reduce((a, b) => a + b, 0);
+  const tabs: { key?: AutomationCategory; label: string; count: number }[] = [
+    { label: l["list.category_all"] ?? "", count: total },
+    ...AUTOMATION_CATEGORIES.filter((c) => counts[c] > 0 || c === current).map((c) => ({ key: c, label: l[`list.category.${c}`] ?? c, count: counts[c] })),
+  ];
+  return (
+    <nav aria-label={l["list.categories"]} className="flex flex-wrap gap-2" data-testid="automation-categories">
+      {tabs.map((t) => (
+        <Link
+          key={t.key ?? "all"}
+          href={href(t.key) as never}
+          aria-current={t.key === current ? "page" : undefined}
+          data-category={t.key ?? "all"}
+          className={`rounded-full border px-3 py-1 text-sm ${t.key === current ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+        >
+          {t.label} <span className="tabular-nums opacity-80">{t.count}</span>
+        </Link>
+      ))}
+    </nav>
+  );
+}
+
+/** The list: name, slug, group (exclusive badge), status, version, counts of the last 7 days, last run; grouped by category when `grouped`. */
+export function AutomationTable({ rows, l, locale, emptyAction, filtered, grouped }: { rows: AutomationTableRow[]; l: Labels; locale: Locale; emptyAction?: React.ReactNode; filtered: boolean; grouped?: boolean }) {
+  const ordered = grouped ? AUTOMATION_CATEGORIES.flatMap((c) => rows.filter((r) => r.category === c)) : rows;
   if (rows.length === 0) return <EmptyState title={filtered ? l["list.empty_filtered"] : l["list.empty"]} action={filtered ? undefined : emptyAction} />;
   return (
     <Table data-testid="automation-table">
@@ -93,7 +129,14 @@ export function AutomationTable({ rows, l, locale, emptyAction, filtered }: { ro
         </TableRow>
       </TableHeader>
       <TableBody>
-        {rows.map((r) => (
+        {ordered.map((r, i) => [
+          grouped && r.category !== ordered[i - 1]?.category ? (
+            <TableRow key={`category-${r.category}`} data-category-heading={r.category} className="bg-muted/40 hover:bg-muted/40">
+              <TableCell colSpan={11} className="font-semibold">
+                {l[`list.category.${r.category}`] ?? r.category}
+              </TableCell>
+            </TableRow>
+          ) : null,
           <TableRow key={r.id} data-slug={r.slug}>
             <TableCell>
               <Link className="font-medium underline-offset-2 hover:underline" href={`/admin/automations/${r.id}`}>
@@ -121,8 +164,8 @@ export function AutomationTable({ rows, l, locale, emptyAction, filtered }: { ro
               {r.failed7d}
             </TableCell>
             <TableCell>{r.lastRunAt ? formatDateTime(r.lastRunAt, locale) : l["list.never"]}</TableCell>
-          </TableRow>
-        ))}
+          </TableRow>,
+        ])}
       </TableBody>
     </Table>
   );

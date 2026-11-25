@@ -1,24 +1,28 @@
 import { randomUUID } from "node:crypto";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { Button, Input, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@beam/ui";
+import { Button, Combobox, Input, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@beam/ui";
 import type { CartItem, Quote } from "@beam/core/commerce";
 import { formatMoney, t, type LocalizedText } from "@beam/core/i18n";
 import { hasPermission, requireStaff } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
 import { adminLocale, translator } from "@/lib/i18n";
-import { createStaffOrder } from "@/modules/commerce/actions";
+import { createStaffOrder, findOrderPersons } from "@/modules/commerce/actions";
 import { getQuote } from "@/modules/commerce/api";
 import { listProductOptions } from "@/modules/commerce/queries";
-import { searchPersons } from "@/modules/crm/api";
+import { getPerson } from "@/modules/crm/api";
 
-const selectClass = "h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 const ROWS = [0, 1, 2] as const;
 const UUID = /^[0-9a-f-]{36}$/i;
 /** Staff orders sell what has no session: sessions, nights and tickets are booked in booking's screens. */
 const STAFF_KINDS = new Set(["package", "membership", "voucher", "item"]);
 
 type Search = Record<string, string | undefined>;
+
+/** "Ann Peeters · ann@example.com" for the person picker. */
+function personLabel(p: { name?: string | null; firstName?: string | null; lastName?: string | null; email: string | null }): string {
+  return [p.name ?? [p.firstName, p.lastName].filter(Boolean).join(" "), p.email].filter(Boolean).join(" · ");
+}
 
 function itemsFrom(get: (key: string) => string | undefined): CartItem[] {
   const items: CartItem[] = [];
@@ -46,9 +50,8 @@ export default async function NewOrderPage({ searchParams }: { searchParams: Pro
   const c = (k: string, p?: Record<string, string | number>) => tr(`commerce.admin_orders.${k}`, p);
   const errorText = (code: string) => (t.has(locale, `commerce.errors.${code}`) ? tr(`commerce.errors.${code}`) : tr("commerce.common.error"));
   const db = await getAppDb();
-  const q = sp.q?.trim().slice(0, 100) ?? "";
-  const matches = q.length >= 2 ? await searchPersons(db, { q, limit: 8 }) : [];
   const personId = sp.personId && UUID.test(sp.personId) ? sp.personId : undefined;
+  const person = personId ? await getPerson(db, personId) : null;
   const companyId = sp.companyId && UUID.test(sp.companyId) ? sp.companyId : undefined;
   const products = (await listProductOptions(db)).filter((p) => p.isActive && STAFF_KINDS.has(p.kind));
   const items = itemsFrom((k) => sp[k]);
@@ -57,10 +60,26 @@ export default async function NewOrderPage({ searchParams }: { searchParams: Pro
   if ((personId || companyId) && items.length) {
     quote = await getQuote(db, { personId: personId ?? null, companyId: companyId ?? null, items, promoCode: promo, channel: "admin" }).catch(() => null);
   }
-  const nameOf = (id: string) => {
+  const pickerLabels = (placeholder: string) => ({
+    placeholder,
+    search: tr("commerce.common.picker_search"),
+    noMatch: tr("commerce.common.picker_no_match"),
+    more: tr("commerce.common.picker_more", { count: "{count}" }),
+  });
+  const none = { value: "", label: tr("commerce.common.none") };
+  const productOptions = [none, ...products.map((p) => ({ value: p.id, label: nameOf(p.id), hint: p.sku }))];
+
+  /** The person picker searches as staff type (up to 8 matches, `commerce.find_order_persons`). */
+  async function searchPeople(term: string) {
+    "use server";
+    const r = await findOrderPersons({ q: term });
+    return r.ok ? r.data.map((p) => ({ value: p.id, label: personLabel(p), hint: p.customerNumber })) : [];
+  }
+
+  function nameOf(id: string) {
     const p = products.find((x) => x.id === id);
     return p ? (p.name as LocalizedText)[locale]?.trim() || p.sku : id;
-  };
+  }
 
   async function onCreate(form: FormData) {
     "use server";
@@ -95,49 +114,29 @@ export default async function NewOrderPage({ searchParams }: { searchParams: Pro
         {sp.error ? <p className="rounded-md border border-destructive p-3 text-sm">{c("failed", { message: errorText(sp.error) })}</p> : null}
       </div>
 
-      <form method="get" className="flex flex-wrap items-end gap-2" role="search">
-        <label className="grid gap-1 text-sm">
-          <span>{c("person_search")}</span>
-          <Input name="q" defaultValue={q} className="w-64" />
-        </label>
-        <Button type="submit" variant="outline">
-          {c("search_button")}
-        </Button>
-      </form>
-
       <form method="get" className="grid gap-4">
-        <input type="hidden" name="q" value={q} />
         <input type="hidden" name="clientKey" value={sp.clientKey && UUID.test(sp.clientKey) ? sp.clientKey : randomUUID()} />
-        <label className="grid gap-1 text-sm">
-          <span>{c("person")}</span>
-          <select name="personId" defaultValue={personId ?? ""} className={selectClass}>
-            <option value="">{tr("commerce.common.none")}</option>
-            {personId && !matches.some((m) => m.personId === personId) ? <option value={personId}>{personId}</option> : null}
-            {matches.map((m) => (
-              <option key={m.personId} value={m.personId}>
-                {[m.name, m.email].filter(Boolean).join(" · ")}
-              </option>
-            ))}
-          </select>
-          {q.length >= 2 && matches.length === 0 ? <span className="text-muted-foreground">{c("no_match")}</span> : null}
-        </label>
+        <div className="grid w-96 max-w-full gap-1 text-sm">
+          <span id="order-person-label">{c("person")}</span>
+          <Combobox
+            name="personId"
+            defaultValue={personId ?? ""}
+            options={person ? [{ value: person.id, label: personLabel(person), hint: person.customerNumber }] : []}
+            onSearch={searchPeople}
+            labels={{ ...pickerLabels(c("person_search")), search: c("person_search_hint") }}
+            aria-labelledby="order-person-label"
+          />
+        </div>
         <label className="grid gap-1 text-sm">
           <span>{c("company_id")}</span>
           <Input name="companyId" defaultValue={companyId ?? ""} className="w-96" />
         </label>
         {ROWS.map((i) => (
           <div key={i} className="flex flex-wrap items-end gap-2">
-            <label className="grid gap-1 text-sm">
-              <span>{c("product")}</span>
-              <select name={`product_${i}`} defaultValue={sp[`product_${i}`] ?? ""} className={selectClass}>
-                <option value="">{tr("commerce.common.none")}</option>
-                {products.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {nameOf(p.id)} ({p.sku})
-                  </option>
-                ))}
-              </select>
-            </label>
+            <div className="grid w-96 max-w-full gap-1 text-sm">
+              <span id={`order-product-${i}`}>{c("product")}</span>
+              <Combobox name={`product_${i}`} defaultValue={sp[`product_${i}`] ?? ""} options={productOptions} labels={pickerLabels(tr("commerce.common.none"))} aria-labelledby={`order-product-${i}`} />
+            </div>
             <label className="grid gap-1 text-sm">
               <span>{c("quantity")}</span>
               <Input type="number" name={`qty_${i}`} min={1} max={50} defaultValue={sp[`qty_${i}`] ?? "1"} className="w-20" />

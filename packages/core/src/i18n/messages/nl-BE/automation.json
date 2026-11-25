@@ -128,7 +128,18 @@
       "exclusive": "Exclusief",
       "no_version": "Niet gepubliceerd",
       "version_n": "v{version}",
-      "never": "Nooit"
+      "never": "Nooit",
+      "categories": "Categorieën",
+      "category_all": "Alle",
+      "category": {
+        "bookings": "Reservaties",
+        "packages": "Pakketten & tegoed",
+        "memberships": "Lidmaatschappen",
+        "leads": "Leads & webinars",
+        "reengagement": "Opnieuw activeren",
+        "transactional": "Transactioneel",
+        "other": "Overige"
+      }
     },
     "new": {
       "title": "Nieuwe automatisering",
@@ -196,7 +207,12 @@
       "dpia_pending": "niet goedgekeurd",
       "flag_badge": "Loopt alleen als vlag {flag} aan staat",
       "gates": "Poorten",
-      "tab_builder": "Bouwer"
+      "tab_builder": "Bouwer",
+      "flow_title": "Stroomschema van de journey",
+      "flow_when": "Wanneer",
+      "flow_end": "Einde van de journey",
+      "flow_hint": "Klik op een blok om het te bewerken in de visuele builder.",
+      "flow_list": "Toon de stappen als lijst"
     },
     "controls": {
       "activate": "Activeren",

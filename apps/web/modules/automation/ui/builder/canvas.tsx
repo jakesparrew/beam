@@ -82,6 +82,7 @@ const rebase = (i: IssueLike): IssueLike => ({ ...i, path: i.path.replace(/^step
 export function BuilderCanvas({
   automation,
   initialGraph,
+  initialSelected,
   savedIssues,
   options,
   migratableCount,
@@ -91,6 +92,8 @@ export function BuilderCanvas({
 }: {
   automation: { id: string; slug: string; name: string };
   initialGraph: BuilderGraph;
+  /** The node selected on open (a flowchart box links here with `?step=`); the Trigger otherwise. */
+  initialSelected?: string;
   /** Issues of the saved draft (step paths in the step list of `initialGraph`). */
   savedIssues: DefinitionIssue[];
   options: EditorOptions;
@@ -102,7 +105,7 @@ export function BuilderCanvas({
   const router = useRouter();
   const readOnly = !canEdit;
   const [graph, setGraph] = useState<BuilderGraph>(initialGraph);
-  const [selected, setSelected] = useState<string | null>(TRIGGER);
+  const [selected, setSelected] = useState<string | null>(initialSelected ?? TRIGGER);
   const [activeLane, setActiveLane] = useState<LanePath>([]);
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(false);

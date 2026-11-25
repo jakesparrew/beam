@@ -68,6 +68,14 @@ describe("automation-P5 queries", () => {
     expect((await q.listAutomations(handle.db, { q: "LIST-ACT" })).map((r) => r.slug)).toEqual(["q-list-active"]);
   });
 
+  it("listAutomations derives the category from the published trigger, else the draft's", async () => {
+    const group = await makeGroup(handle.db);
+    await makeAutomation(handle.db, { slug: "q-cat-booking", group, definition: def({ trigger: { event: "booking.confirmed" } }) });
+    await makeAutomation(handle.db, { slug: "q-cat-draft", group, unpublished: true, draftDefinition: def({ trigger: { event: "membership.started" } }) });
+    const rows = await q.listAutomations(handle.db, { groupKey: group.key });
+    expect(Object.fromEntries(rows.map((r) => [r.slug, r.category]))).toEqual({ "q-cat-booking": "bookings", "q-cat-draft": "memberships" });
+  });
+
   it("getAutomation returns draft issues and whether the draft differs from the published version", async () => {
     // A version row is immutable, so it is written once with the real hash of its definition.
     const a = await makeAutomation(handle.db, { unpublished: true, draftDefinition: emailDef(0) });

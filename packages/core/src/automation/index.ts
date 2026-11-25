@@ -13,3 +13,4 @@ export * from "./diff";
 export * from "./webhook";
 export * from "./frequency";
 export * from "./builder";
+export * from "./category";

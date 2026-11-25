@@ -30,6 +30,7 @@ import {
   vPersonStatus,
 } from "@beam/db/schema";
 import {
+  automationCategory,
   canonicalJson,
   diffDefinitions,
   enrolTargets,
@@ -37,6 +38,7 @@ import {
   parseDefinition,
   referencedTemplates,
   validateDefinition,
+  type AutomationCategory,
   type AutomationPurpose,
   type AutomationRunOutcome,
   type AutomationTimelineItem,
@@ -184,12 +186,14 @@ export type AutomationListRow = {
   groupName: string;
   groupIsExclusive: boolean;
   currentVersion: number | null;
+  /** Derived from the trigger of the published version, else of the draft (`automationCategory`). */
+  category: AutomationCategory;
 } & AutomationStats;
 
-/** The list screen: automations with group and `v_automation_stats`, by group priority, priority and slug. */
+/** The list screen: automations with group, category and `v_automation_stats`, by group priority, priority and slug. */
 export async function listAutomations(db: DbOrTx, input: { status?: AutomationStatus; groupKey?: string; q?: string } = {}): Promise<AutomationListRow[]> {
   const term = input.q?.trim();
-  return db
+  const rows = await db
     .select({
       id: automations.id,
       slug: automations.slug,
@@ -202,6 +206,7 @@ export async function listAutomations(db: DbOrTx, input: { status?: AutomationSt
       groupName: automationGroups.name,
       groupIsExclusive: automationGroups.isExclusive,
       currentVersion: automationVersions.version,
+      trigger: sql<unknown>`coalesce(${automationVersions.definition}, ${automations.draftDefinition})->'trigger'`,
       ...statsColumns,
     })
     .from(automations)
@@ -216,6 +221,7 @@ export async function listAutomations(db: DbOrTx, input: { status?: AutomationSt
       ),
     )
     .orderBy(asc(automationGroups.priority), asc(automations.priority), asc(automations.slug));
+  return rows.map(({ trigger, ...r }) => ({ ...r, category: automationCategory(trigger) }));
 }
 
 export type AutomationDetail = {

@@ -1,21 +1,23 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Button } from "@beam/ui";
+import { AUTOMATION_CATEGORIES, type AutomationCategory } from "@beam/core/automation";
 import { hasPermission, requireStaff } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
 import { adminLocale } from "@/lib/i18n";
 import { automationLabels, canViewAutomations, listAutomations, listGroupOptions, type AutomationStatus } from "@/modules/automation/queries";
-import { AutomationFilters, AutomationTable } from "@/modules/automation/ui/automation-table";
+import { AutomationFilters, AutomationTable, CategoryTabs } from "@/modules/automation/ui/automation-table";
 
 const STATUSES: readonly string[] = ["draft", "active", "paused", "archived"];
 
 /**
  * `/admin/automations` (automation spec 5; `automations.write` or `reports.read`, New needs
  * `automations.write`): every automation with group, status, version and the last 7 days from
- * `v_automation_stats`; filters status, group and search. Links to the groups, and with
+ * `v_automation_stats`; filters status, group and search, and category tabs (derived from the
+ * trigger; "All" groups the table by category). Links to the groups, and with
  * `automations.publish` to the frequency rules and the conflict report.
  */
-export default async function AutomationsPage({ searchParams }: { searchParams: Promise<{ status?: string; group?: string; q?: string }> }) {
+export default async function AutomationsPage({ searchParams }: { searchParams: Promise<{ status?: string; group?: string; q?: string; category?: string }> }) {
   const actor = await requireStaff();
   if (!canViewAutomations(actor)) notFound();
   const sp = await searchParams;
@@ -23,7 +25,10 @@ export default async function AutomationsPage({ searchParams }: { searchParams: 
   const l = automationLabels(locale, ["list", "status", "common"]);
   const db = await getAppDb();
   const status = sp.status && STATUSES.includes(sp.status) ? (sp.status as AutomationStatus) : undefined;
-  const [rows, groups] = await Promise.all([listAutomations(db, { status, groupKey: sp.group || undefined, q: sp.q || undefined }), listGroupOptions(db)]);
+  const category = (AUTOMATION_CATEGORIES as readonly string[]).includes(sp.category ?? "") ? (sp.category as AutomationCategory) : undefined;
+  const [all, groups] = await Promise.all([listAutomations(db, { status, groupKey: sp.group || undefined, q: sp.q || undefined }), listGroupOptions(db)]);
+  const counts = Object.fromEntries(AUTOMATION_CATEGORIES.map((c) => [c, all.filter((r) => r.category === c).length])) as Record<AutomationCategory, number>;
+  const rows = category ? all.filter((r) => r.category === category) : all;
   const canWrite = hasPermission(actor, "automations.write");
   // The rules (A-32) and conflict report (A-37) screens need `automations.publish`.
   const canPublish = hasPermission(actor, "automations.publish");
@@ -56,8 +61,9 @@ export default async function AutomationsPage({ searchParams }: { searchParams: 
           {newButton}
         </div>
       </div>
-      <AutomationFilters l={l} groups={groups} value={{ status, group: sp.group, q: sp.q }} />
-      <AutomationTable rows={rows} l={l} locale={locale} emptyAction={newButton} filtered={!!(status || sp.group || sp.q)} />
+      <CategoryTabs l={l} counts={counts} current={category} query={{ status, group: sp.group, q: sp.q }} />
+      <AutomationFilters l={l} groups={groups} value={{ status, group: sp.group, q: sp.q, category }} />
+      <AutomationTable rows={rows} l={l} locale={locale} emptyAction={newButton} filtered={!!(status || sp.group || sp.q || category)} grouped={!category} />
     </div>
   );
 }

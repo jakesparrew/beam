@@ -6,7 +6,7 @@
 export { listPersons, searchPersons, type PersonListRow } from "./persons/queries";
 export { listTags, type TagRow } from "./tags/queries";
 export { getPreferenceState, listConsentWordings, type PreferenceState } from "./consent/queries";
-export { getMyPreferences, getMyProfile, type MyPreferences, type MyProfile } from "./portal/queries";
+export { getMyOnboarding, getMyOnboardingProgress, getMyPreferences, getMyProfile, type MyOnboarding, type MyPreferences, type MyProfile } from "./portal/queries";
 export { listPersonDeclarations, type DeclarationRow } from "./declarations/queries";
 export { listDuplicateCandidates, type DuplicateCandidateRow } from "./duplicates/queries";
 export { getMergePreview, type MergePreview } from "./merge/queries";

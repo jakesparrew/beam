@@ -18,6 +18,8 @@ export type PersonListRow = {
   status: PersonStatus;
   isOverridden: boolean;
   isMember: boolean;
+  /** A current contact of a company with a VAT number (gave one in the portal onboarding, or linked by staff). */
+  isCorporate: boolean;
   tags: string[];
   lastActivityAt: Date | null;
   createdAt: Date;
@@ -32,15 +34,20 @@ type RawRow = {
   status: string | null;
   status_override: string | null;
   is_member: boolean | null;
+  is_corporate: boolean | null;
   tags: string[] | null;
   last_activity_at: string | Date | null;
   created_at: string | Date;
 };
 
+/** Corporate client: a current company contact of a company with a VAT number (owner requirements item 10). */
+const CORPORATE = sql`exists (select 1 from company_contacts cc join companies c on c.id = cc.company_id where cc.person_id = p.id and cc.ended_on is null and c.vat_number is not null)`;
+
 const SELECT = sql`
   select p.id::text as id, p.customer_number, p.first_name, p.last_name, p.email,
          coalesce(s.status, p.status_override::text, 'lead') as status, p.status_override::text as status_override,
          coalesce(s.is_member, false) as is_member,
+         ${CORPORATE} as is_corporate,
          coalesce((select array_agg(t.key order by t.key) from person_tags pt join tags t on t.id = pt.tag_id where pt.person_id = p.id), '{}') as tags,
          (select max(e.occurred_at) from activity_events e where e.person_id = p.id) as last_activity_at,
          p.created_at
@@ -64,6 +71,7 @@ function toRow(r: RawRow): PersonListRow {
     status: (r.status ?? "lead") as PersonStatus,
     isOverridden: r.status_override !== null,
     isMember: !!r.is_member,
+    isCorporate: !!r.is_corporate,
     tags: r.tags ?? [],
     lastActivityAt: r.last_activity_at ? new Date(r.last_activity_at) : null,
     createdAt: new Date(r.created_at),
@@ -140,6 +148,7 @@ export async function listPersons(
     locale?: Locale;
     source?: AcquisitionSource;
     isTester?: boolean;
+    isCorporate?: boolean;
     page: number;
     pageSize: number;
     sort: "created_at" | "last_name" | "last_activity_at";
@@ -160,6 +169,7 @@ export async function listPersons(
   if (input.locale) where.push(sql`p.locale = ${input.locale}`);
   if (input.source) where.push(sql`p.acquisition->>'source' = ${input.source}`);
   if (input.isTester !== undefined) where.push(sql`p.is_tester = ${input.isTester}`);
+  if (input.isCorporate !== undefined) where.push(input.isCorporate ? CORPORATE : sql`not ${CORPORATE}`);
   const filter = sql.join(where, sql` and `);
   const pageSize = Math.min(100, Math.max(1, Math.floor(input.pageSize)));
   const page = Math.max(1, Math.floor(input.page));

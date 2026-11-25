@@ -171,6 +171,45 @@ export async function addCompanyContact(
   return { contactId: row.id, created: true };
 }
 
+/**
+ * Portal onboarding (owner requirements item 10): a client who gives a VAT number for company
+ * invoices becomes a contact of that company, which makes them a corporate client. An existing
+ * company with the VAT number is linked as it is (a client never edits a company record); a new
+ * one is created with status `customer`. `ValidationError('vat_invalid')` on a malformed number.
+ */
+export async function linkCustomerCompany(
+  tx: Tx,
+  ctx: EventCtx,
+  input: { personId: string; vatNumber: string; name: string; address?: PostalAddress },
+): Promise<{ companyId: string; created: boolean }> {
+  const vat = vatOrNull(input.vatNumber);
+  if (!vat) throw new ValidationError("vat_invalid", { vatNumber: "vat_invalid" });
+  await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`company_vat:${vat}`}))`);
+  let company = await companyByVat(tx, vat);
+  const created = !company;
+  if (!company) {
+    [company] = (await tx
+      .insert(companies)
+      .values({ name: input.name.trim().slice(0, 200), vatNumber: vat, address: input.address ?? null, status: "customer" })
+      .returning()) as [CompanyRecord];
+    await ctx.recordEvent({ kind: "company.created", companyId: company.id, data: { name: company.name }, ref: { type: "company", id: company.id } });
+  }
+  await addCompanyContact(tx, ctx, { companyId: company.id, personId: input.personId, relationship: "invoicing" });
+  return { companyId: company.id, created };
+}
+
+/** The first current company with a VAT number the person is a contact of: what makes them a corporate client. */
+export async function getCorporateCompany(tx: DbOrTx, personId: string): Promise<{ id: string; name: string; vatNumber: string; address: PostalAddress | null } | null> {
+  const [row] = await tx
+    .select({ id: companies.id, name: companies.name, vatNumber: companies.vatNumber, address: companies.address })
+    .from(companyContacts)
+    .innerJoin(companies, eq(companies.id, companyContacts.companyId))
+    .where(and(eq(companyContacts.personId, personId), isNull(companyContacts.endedOn), sql`${companies.vatNumber} is not null`))
+    .orderBy(asc(companyContacts.createdAt))
+    .limit(1);
+  return row ? { ...row, vatNumber: row.vatNumber!, address: row.address ?? null } : null;
+}
+
 async function recordLinked(ctx: EventCtx, row: ContactRecord): Promise<void> {
   await ctx.recordEvent({
     kind: "company.contact_linked",

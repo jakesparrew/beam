@@ -15,6 +15,7 @@ import { CheckinCard, JourneyCard } from "./wellbeing";
 import { BookingsCard, type Tr } from "./cards/bookings-card";
 import { MembershipCard } from "./cards/membership-card";
 import { OffersCard } from "./cards/offers-card";
+import { OnboardingCard, type OnboardingCardData } from "./cards/onboarding-card";
 import { QuickActions } from "./cards/quick-actions";
 import { WebinarsCard } from "./cards/webinars-card";
 import { InstallPrompt, type InstallPromptLabels } from "./install-prompt";
@@ -113,16 +114,20 @@ export function AccountHome({
   home,
   tr,
   wellbeing,
+  onboarding,
 }: {
   locale: Locale;
   home: AccountHomeData;
   tr: Tr;
   /** The journey and check-in form (from booking); absent in tests and when booking fails. */
   wellbeing?: { journey: WellbeingJourney; action: (fd: FormData) => Promise<void>; saved: boolean } | null;
+  /** "Complete your profile (2 of 4)" while the onboarding is open; absent when done, hidden or failing. */
+  onboarding?: OnboardingCardData | null;
 }) {
   return (
     <div className="grid gap-8" data-account-home>
       <Hero locale={locale} home={home} tr={tr} />
+      {onboarding ? <OnboardingCard data={onboarding} tr={tr} /> : null}
       <OffersCard locale={locale} offers={home.offers} tr={tr} />
       {wellbeing ? (
         <div className="grid gap-6 lg:grid-cols-[1.15fr_1fr]">

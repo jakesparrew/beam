@@ -77,7 +77,7 @@ export async function exportPerson(tx: Tx, personId: string): Promise<PrivacyExp
   const personsRows = await rows(
     tx,
     sql`select id, customer_number, email, phone, phone_e164, first_name, last_name, locale, address, birth_on, preferred_channel, linkedin_url,
-          emergency_contact, status_override, status_override_reason, status_override_at, acquisition, partner_company_id, external_ids,
+          emergency_contact, onboarding, status_override, status_override_reason, status_override_at, acquisition, partner_company_id, external_ids,
           is_tester, processing_restricted_at, merged_into_person_id, erased_at, created_at, updated_at
         from persons where id in ${inIds} order by created_at, id`,
   );
@@ -185,7 +185,7 @@ export async function erasePerson(tx: Tx, personId: string): Promise<EraseReport
     "persons",
     "anonymised",
     sql`update persons set first_name = 'Deleted', last_name = 'person', email = null, email_hash = null, phone = null, phone_e164 = null,
-          address = null, birth_on = null, linkedin_url = null, emergency_contact = null,
+          address = null, birth_on = null, linkedin_url = null, emergency_contact = null, onboarding = null,
           status_override = null, status_override_reason = null, status_override_by_user_id = null, status_override_at = null,
           external_ids = '{}'::jsonb,
           acquisition = jsonb_strip_nulls(jsonb_build_object('source', acquisition->'source', 'campaign', acquisition->'campaign', 'medium', acquisition->'medium')),

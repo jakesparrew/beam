@@ -811,6 +811,12 @@
           "noCheckin": "geen check-in",
           "visitHint": "Beweeg over een bezoek voor de scores voor en na."
         }
+      },
+      "onboarding": {
+        "title": "Vervolledig je profiel ({answered} van {total})",
+        "body": "Een paar korte, vrijblijvende vragen: een noodcontact, waarover je van ons wilt horen en facturen op bedrijfsnaam.",
+        "continue": "Verder",
+        "dismiss": "Verbergen"
       }
     },
     "public": {

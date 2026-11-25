@@ -811,6 +811,12 @@
           "noCheckin": "pas de check-in",
           "visitHint": "Survolez une visite pour voir les scores avant et après."
         }
+      },
+      "onboarding": {
+        "title": "Complétez votre profil ({answered} sur {total})",
+        "body": "Quelques questions courtes et facultatives : un contact d'urgence, ce que vous souhaitez recevoir de notre part et les factures d'entreprise.",
+        "continue": "Continuer",
+        "dismiss": "Masquer"
       }
     },
     "public": {

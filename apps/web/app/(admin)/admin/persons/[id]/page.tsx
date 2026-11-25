@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { buttonVariants } from "@beam/ui";
-import { CONSENT_PURPOSES, MARKETING_PURPOSES, TIMELINE_CATEGORIES, type MarketingPurpose } from "@beam/core/crm";
+import { CONSENT_PURPOSES, MARKETING_PURPOSES, onboardingProgress, TIMELINE_CATEGORIES, type MarketingPurpose } from "@beam/core/crm";
 import { formatDate, formatMoney, type Locale, formatDateTime } from "@beam/core/i18n";
 import { SENSITIVE_FIELD_KEYS } from "@beam/core/privacy";
 import { hasPermission, requireStaff } from "@/lib/auth";
@@ -110,6 +110,12 @@ export default async function Person360Page({ params }: { params: Promise<{ id: 
   const acq = person.acquisition as { source?: string; campaign?: string; captured_at?: string };
   const banners = [person.erasedAt ? tr("crm.person360.banners.erased") : null, person.processingRestrictedAt ? tr("crm.person360.banners.restricted") : null].filter((b): b is string => !!b);
   const reception = receptionCardLabels(tr);
+  const onboarding = person.onboarding ? onboardingProgress(person.onboarding) : null;
+  const onboardingLabel = !onboarding
+    ? null
+    : person.onboarding?.dismissed_at && onboarding.next
+      ? h("onboarding_dismissed", { answered: onboarding.answered, total: onboarding.total })
+      : h("onboarding_progress", { answered: onboarding.answered, total: onboarding.total });
 
   const stat = stats.ok ? stats.value : null;
   const kpis = stat
@@ -157,11 +163,14 @@ export default async function Person360Page({ params }: { params: Promise<{ id: 
           overrideLabel: status.override ? h("status_override", { status: statusLabel(status.override) }) : null,
           isMember: status.isMember,
           isTester: person.isTester,
+          isCorporate: data.isCorporate,
           localeLabel: tr(`crm.enums.locale.${person.locale.replace("-", "_")}`),
           email: person.email,
           phone: person.phone,
           address,
           birthOn: date(person.birthOn),
+          preferredChannel: person.preferredChannel ? tr(`crm.enums.preferred_channel.${person.preferredChannel}`) : null,
+          onboarding: onboardingLabel,
           acquisition: {
             source: acq.source ? tr(`crm.enums.acquisition_source.${acq.source}`) : null,
             campaign: acq.campaign ?? null,
@@ -177,6 +186,9 @@ export default async function Person360Page({ params }: { params: Promise<{ id: 
         labels={{
           member: h("member"),
           tester: tr("crm.person360.header.tester"),
+          corporate: h("corporate"),
+          preferredChannel: h("preferred_channel"),
+          onboarding: h("onboarding"),
           locale: h("locale"),
           contact: h("contact"),
           acquisition: h("acquisition"),

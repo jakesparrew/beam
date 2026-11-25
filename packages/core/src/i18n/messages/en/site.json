@@ -810,6 +810,12 @@
           "noCheckin": "no check-in",
           "visitHint": "Hover a visit to see the scores before and after."
         }
+      },
+      "onboarding": {
+        "title": "Complete your profile ({answered} of {total})",
+        "body": "A few short, optional questions: an emergency contact, what you want to hear from us and company invoices.",
+        "continue": "Continue",
+        "dismiss": "Hide"
       }
     },
     "public": {

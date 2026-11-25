@@ -334,7 +334,9 @@
         "empty_create": "Créer une personne",
         "empty_import": "Importer une liste",
         "empty_filtered": "Personne ne correspond à ces filtres.",
-        "bulk_changed": "{count} personnes modifiées"
+        "bulk_changed": "{count} personnes modifiées",
+        "filter_corporate": "Clients professionnels",
+        "corporate": "Professionnel"
       },
       "new": {
         "title": "Nouvelle personne",
@@ -390,7 +392,12 @@
         "no_emergency_contact": "Pas de contact d’urgence",
         "minor": "Mineur",
         "tester": "Testeur",
-        "birth_on": "Date de naissance"
+        "birth_on": "Date de naissance",
+        "corporate": "Client professionnel",
+        "preferred_channel": "Canal préféré",
+        "onboarding": "Accueil",
+        "onboarding_progress": "{answered} sur {total} répondues",
+        "onboarding_dismissed": "{answered} sur {total} répondues, masqué par le client"
       },
       "banners": {
         "override_conflict": "Le statut manuel {override} diffère du statut calculé {derived}",
@@ -982,6 +989,41 @@
         "suppressed": "Cette adresse ne reçoit plus d’e-mails marketing (rebond ou plainte). Contactez-nous.",
         "minor": "Un parent ou tuteur doit donner ce consentement.",
         "confirm_sent": "Consultez votre boîte mail : nous vous avons envoyé un e-mail de confirmation."
+      },
+      "onboarding": {
+        "title": "Bienvenue chez BEAM",
+        "intro": "Quelques questions rapides pour bien prendre soin de vous. Tout est facultatif.",
+        "progress": "Question {step} sur {total}",
+        "continue": "Continuer",
+        "skip": "Passer",
+        "later": "Plus tard",
+        "saving": "Enregistrement…",
+        "error": "Cela n'a pas fonctionné. Veuillez réessayer.",
+        "enter_hint": "ou appuyez sur Entrée",
+        "emergency_title": "Qui pouvons-nous appeler en cas d'urgence ?",
+        "emergency_body": "Nous ne l'utilisons que si quelque chose se passe pendant votre visite, par exemple pendant une nuitée.",
+        "emergency_relation": "Lien (par exemple partenaire ou ami)",
+        "emergency_incomplete": "Indiquez un nom et un numéro de téléphone, ou passez cette question.",
+        "communication_title": "De quoi voulez-vous entendre parler ?",
+        "communication_body": "Cochez ce qui vous intéresse. Vous pouvez le modifier à tout moment dans Préférences de communication.",
+        "communication_always": "Les confirmations de réservation et les rappels arrivent toujours, quel que soit votre choix ici.",
+        "channel": "Comment vous joindre au mieux ?",
+        "confirm_sent": "Nous vous avons envoyé un e-mail pour confirmer votre inscription.",
+        "suppressed": "Votre adresse est désinscrite de tout marketing. Contactez-nous si vous souhaitez changer cela.",
+        "company_title": "Avez-vous besoin de factures au nom d'une entreprise ?",
+        "company_body": "Seulement si vous voulez des factures pour votre entreprise. Sinon, passez simplement cette question.",
+        "vat": "Numéro de TVA",
+        "vat_hint": "Par exemple BE0123456789",
+        "vat_invalid": "Ce numéro de TVA ne semble pas valide (par exemple BE0123456789).",
+        "company_name": "Nom de l'entreprise",
+        "company_name_required": "Indiquez le nom de l'entreprise.",
+        "company_linked": "Les factures peuvent être adressées à {name} ({vat}).",
+        "about_title": "Un peu sur vous",
+        "about_body": "Votre date de naissance nous aide à vous conseiller au mieux. Nous vous écrivons dans la langue de votre choix.",
+        "done_title": "Merci !",
+        "done_body": "Vos données sont enregistrées. Vous pouvez les modifier à tout moment dans Mes données.",
+        "done_home": "Vers mon compte",
+        "done_profile": "Mes données"
       }
     },
     "preferences": {

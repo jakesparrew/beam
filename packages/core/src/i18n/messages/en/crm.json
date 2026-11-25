@@ -334,7 +334,9 @@
         "empty_create": "Create a person",
         "empty_import": "Import a list",
         "empty_filtered": "Nobody matches these filters.",
-        "bulk_changed": "{count} persons changed"
+        "bulk_changed": "{count} persons changed",
+        "filter_corporate": "Corporate clients",
+        "corporate": "Corporate"
       },
       "new": {
         "title": "New person",
@@ -390,7 +392,12 @@
         "no_emergency_contact": "No emergency contact",
         "minor": "Minor",
         "tester": "Tester",
-        "birth_on": "Date of birth"
+        "birth_on": "Date of birth",
+        "corporate": "Corporate client",
+        "preferred_channel": "Preferred channel",
+        "onboarding": "Onboarding",
+        "onboarding_progress": "{answered} of {total} answered",
+        "onboarding_dismissed": "{answered} of {total} answered, hidden by the client"
       },
       "banners": {
         "override_conflict": "Manual status {override} differs from calculated {derived}",
@@ -982,6 +989,41 @@
         "suppressed": "This address no longer receives marketing email (bounce or complaint). Contact us.",
         "minor": "A parent or guardian must give this consent.",
         "confirm_sent": "Check your inbox: we sent an email to confirm."
+      },
+      "onboarding": {
+        "title": "Welcome to BEAM",
+        "intro": "A few quick questions so we can look after you well. Everything is optional.",
+        "progress": "Question {step} of {total}",
+        "continue": "Continue",
+        "skip": "Skip",
+        "later": "Later",
+        "saving": "Saving…",
+        "error": "That did not work. Please try again.",
+        "enter_hint": "or press Enter",
+        "emergency_title": "Who should we call in an emergency?",
+        "emergency_body": "We only use this if something happens during your visit, for example during an overnight stay.",
+        "emergency_relation": "Relation (for example partner or friend)",
+        "emergency_incomplete": "Please fill in a name and a phone number, or skip this question.",
+        "communication_title": "What would you like to hear from us?",
+        "communication_body": "Tick what interests you. You can change this any time under Communication preferences.",
+        "communication_always": "Booking confirmations and reminders always arrive, whatever you choose here.",
+        "channel": "How do we best reach you?",
+        "confirm_sent": "We sent you an email to confirm your subscription.",
+        "suppressed": "Your address is unsubscribed from all marketing. Contact us if you want to change this.",
+        "company_title": "Do you need invoices in a company name?",
+        "company_body": "Only if you want invoices for your company. Otherwise, just skip this question.",
+        "vat": "VAT number",
+        "vat_hint": "For example BE0123456789",
+        "vat_invalid": "This does not look like a valid VAT number (for example BE0123456789).",
+        "company_name": "Company name",
+        "company_name_required": "Please enter the company name.",
+        "company_linked": "Invoices can go to {name} ({vat}).",
+        "about_title": "A little about you",
+        "about_body": "Your date of birth helps us give advice that suits you. We write to you in the language you choose.",
+        "done_title": "Thank you!",
+        "done_body": "Your details are saved. You can change them any time under My details.",
+        "done_home": "Go to my account",
+        "done_profile": "My details"
       }
     },
     "preferences": {

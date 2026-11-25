@@ -10,6 +10,8 @@ import { localeFromSegment } from "@beam/core/i18n";
 import { requireCustomer } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
 import { saveCheckin } from "@/modules/booking/actions";
+import { markMyOnboarding } from "@/modules/crm/actions";
+import { getMyOnboardingProgress } from "@/modules/crm/queries";
 import { getWellbeingJourney } from "@/modules/booking/api";
 import { translator } from "@/lib/i18n";
 import { getAccountHome } from "@/modules/site/queries";
@@ -27,9 +29,18 @@ export default async function AccountHomePage({ params, searchParams }: { params
   const locale = localeFromSegment(segment);
   if (!locale) notFound();
   const actor = await requireCustomer(locale);
+  const here = `/${segment}/account`;
+  // First visit after the first sign-in (also a former guest who came in through the magic link):
+  // open the onboarding once. A failing read never blocks the home.
+  const onboarding = await getMyOnboardingProgress(await getAppDb(), actor.personId).catch(() => null);
+  if (onboarding?.unseen) redirect(`${here}/welcome` as never);
   const home = await getAccountHome(actor.personId, locale);
   const journey = await getWellbeingJourney(await getAppDb(), actor.personId).catch(() => null);
-  const here = `/${segment}/account`;
+  async function dismissOnboarding() {
+    "use server";
+    await markMyOnboarding({ event: "dismissed" });
+    redirect(here);
+  }
   async function saveWellbeing(fd: FormData) {
     "use server";
     const num = (k: string) => {
@@ -55,6 +66,7 @@ export default async function AccountHomePage({ params, searchParams }: { params
       home={home}
       tr={translator(locale)}
       wellbeing={journey ? { journey, action: saveWellbeing, saved: checkin === "saved" } : null}
+      onboarding={onboarding && !onboarding.done ? { answered: onboarding.answered, total: onboarding.total, href: `${here}/welcome`, dismiss: dismissOnboarding } : null}
     />
   );
 }

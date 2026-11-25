@@ -22,11 +22,15 @@ export type PersonHeaderView = {
   overrideLabel: string | null;
   isMember: boolean;
   isTester: boolean;
+  isCorporate: boolean;
   localeLabel: string;
   email: string | null;
   phone: string | null;
   address: string | null;
   birthOn: string | null;
+  preferredChannel: string | null;
+  /** "2 of 4 answered", "Dismissed" ...; `null` hides the row (never shown to the client). */
+  onboarding: string | null;
   acquisition: { source: string | null; campaign: string | null; date: string | null };
   partner: { id: string; name: string } | null;
   companies: Array<{ id: string; name: string; position: string | null }>;
@@ -39,6 +43,9 @@ export type PersonHeaderView = {
 export type PersonHeaderLabels = {
   member: string;
   tester: string;
+  corporate: string;
+  preferredChannel: string;
+  onboarding: string;
   locale: string;
   contact: string;
   acquisition: string;
@@ -73,6 +80,7 @@ export function PersonHeader({ view, labels }: { view: PersonHeaderView; labels:
           </Badge>
           {view.isMember ? <Badge variant="success">{labels.member}</Badge> : null}
           {view.isTester ? <Badge variant="secondary">{labels.tester}</Badge> : null}
+          {view.isCorporate ? <Badge variant="secondary" data-testid="person-corporate">{labels.corporate}</Badge> : null}
         </div>
         {view.overrideLabel || view.derivedLabel ? (
           <p className="text-sm text-muted-foreground">{[view.overrideLabel, view.derivedLabel].filter(Boolean).join(" · ")}</p>
@@ -95,6 +103,7 @@ export function PersonHeader({ view, labels }: { view: PersonHeaderView; labels:
           <Row label={labels.contact}>{[view.email, view.phone, view.address].filter(Boolean).join(" · ") || "—"}</Row>
           <Row label={labels.locale}>{view.localeLabel}</Row>
           {view.birthOn ? <Row label={labels.birthOn}>{view.birthOn}</Row> : null}
+          {view.preferredChannel ? <Row label={labels.preferredChannel}>{view.preferredChannel}</Row> : null}
           <Row label={labels.acquisition}>{[view.acquisition.source, view.acquisition.campaign ? `${labels.campaign}: ${view.acquisition.campaign}` : null, view.acquisition.date].filter(Boolean).join(" · ") || "—"}</Row>
           {view.partner ? (
             <Row label={labels.partner}>
@@ -119,6 +128,7 @@ export function PersonHeader({ view, labels }: { view: PersonHeaderView; labels:
           <Row label={labels.emergencyContact}>
             {view.emergencyContact ? [view.emergencyContact.name, view.emergencyContact.phone, view.emergencyContact.relation].filter(Boolean).join(" · ") : labels.noEmergencyContact}
           </Row>
+          {view.onboarding ? <Row label={labels.onboarding}>{view.onboarding}</Row> : null}
         </dl>
       </div>
       <ReceptionCard card={view.reception} labels={labels.reception} compact />

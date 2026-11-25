@@ -8,7 +8,7 @@
 export { confirmStatusOverride, createPerson, fillAcquisition, setStatusOverride, updatePerson } from "./persons/actions";
 export { createTag, deleteTag, tagPersons, untagPersons, updateTag } from "./tags/actions";
 export { addManualSuppression, publishConsentWording, recordStaffConsent, updatePreferencesByToken } from "./consent/actions";
-export { updateMyPreferences, updateMyProfile } from "./portal/actions";
+export { markMyOnboarding, saveMyOnboardingStep, updateMyPreferences, updateMyProfile } from "./portal/actions";
 export { recordDeclaration, revokeDeclaration } from "./declarations/actions";
 export { dismissDuplicate } from "./duplicates/actions";
 export { mergePersons } from "./merge/actions";

@@ -334,7 +334,9 @@
         "empty_create": "Persoon aanmaken",
         "empty_import": "Lijst importeren",
         "empty_filtered": "Niemand voldoet aan deze filters.",
-        "bulk_changed": "{count} personen gewijzigd"
+        "bulk_changed": "{count} personen gewijzigd",
+        "filter_corporate": "Zakelijke klanten",
+        "corporate": "Zakelijk"
       },
       "new": {
         "title": "Nieuwe persoon",
@@ -390,7 +392,12 @@
         "no_emergency_contact": "Geen noodcontact",
         "minor": "Minderjarig",
         "tester": "Tester",
-        "birth_on": "Geboortedatum"
+        "birth_on": "Geboortedatum",
+        "corporate": "Zakelijke klant",
+        "preferred_channel": "Voorkeurskanaal",
+        "onboarding": "Onboarding",
+        "onboarding_progress": "{answered} van {total} beantwoord",
+        "onboarding_dismissed": "{answered} van {total} beantwoord, verborgen door de klant"
       },
       "banners": {
         "override_conflict": "Manuele status {override} verschilt van berekende {derived}",
@@ -982,6 +989,41 @@
         "suppressed": "Dit adres ontvangt geen marketingmails meer (bounce of klacht). Neem contact met ons op.",
         "minor": "Een ouder of voogd moet deze toestemming geven.",
         "confirm_sent": "Kijk in je mailbox: we stuurden een e-mail om te bevestigen."
+      },
+      "onboarding": {
+        "title": "Welkom bij BEAM",
+        "intro": "Een paar korte vragen zodat we goed voor je kunnen zorgen. Alles is vrijblijvend.",
+        "progress": "Vraag {step} van {total}",
+        "continue": "Verder",
+        "skip": "Overslaan",
+        "later": "Later",
+        "saving": "Bezig met opslaan…",
+        "error": "Dat lukte niet. Probeer het opnieuw.",
+        "enter_hint": "of druk op Enter",
+        "emergency_title": "Wie mogen we bellen in een noodgeval?",
+        "emergency_body": "We gebruiken dit enkel als er iets gebeurt tijdens je bezoek, bijvoorbeeld tijdens een overnachting.",
+        "emergency_relation": "Relatie (bijvoorbeeld partner of vriend)",
+        "emergency_incomplete": "Vul een naam en een telefoonnummer in, of sla deze vraag over.",
+        "communication_title": "Waarover wil je van ons horen?",
+        "communication_body": "Vink aan wat je interesseert. Je kunt dit altijd aanpassen onder Communicatievoorkeuren.",
+        "communication_always": "Boekingsbevestigingen en herinneringen krijg je altijd, wat je hier ook kiest.",
+        "channel": "Hoe bereiken we je het best?",
+        "confirm_sent": "We hebben je een e-mail gestuurd om je inschrijving te bevestigen.",
+        "suppressed": "Je adres is uitgeschreven voor alle marketing. Neem contact met ons op als je dit wilt wijzigen.",
+        "company_title": "Heb je facturen op naam van een bedrijf nodig?",
+        "company_body": "Enkel als je facturen voor je bedrijf wilt. Anders sla je deze vraag gewoon over.",
+        "vat": "Btw-nummer",
+        "vat_hint": "Bijvoorbeeld BE0123456789",
+        "vat_invalid": "Dit lijkt geen geldig btw-nummer (bijvoorbeeld BE0123456789).",
+        "company_name": "Bedrijfsnaam",
+        "company_name_required": "Vul de bedrijfsnaam in.",
+        "company_linked": "Facturen kunnen naar {name} ({vat}).",
+        "about_title": "Iets over jou",
+        "about_body": "Met je geboortedatum kunnen we je advies op maat geven. We schrijven je in de taal die je kiest.",
+        "done_title": "Bedankt!",
+        "done_body": "Je gegevens zijn opgeslagen. Je kunt ze altijd aanpassen onder Mijn gegevens.",
+        "done_home": "Naar mijn account",
+        "done_profile": "Mijn gegevens"
       }
     },
     "preferences": {

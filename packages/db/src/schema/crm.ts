@@ -239,6 +239,18 @@ export type EmergencyContactJson = {
   relation?: string;
 };
 
+/**
+ * `persons.onboarding` (owner requirements item 10): the portal's first-sign-in onboarding.
+ * `null` until the flow was first shown. `steps` holds each answered or skipped step (the keys of
+ * `ONBOARDING_STEPS` in `@beam/core/crm`); the answers themselves live in their own places
+ * (person columns, consent records, company contacts). Holds no personal data.
+ */
+export type OnboardingJson = {
+  seen_at?: string;
+  dismissed_at?: string;
+  steps?: Partial<Record<string, "answered" | "skipped">>;
+};
+
 /** `persons.external_ids` (D13's seven import sources plus R3 `meta_psid`). */
 export type ExternalIdsJson = Partial<
   Record<
@@ -288,6 +300,7 @@ export const persons = pgTable(
     preferredChannel: personsPreferredChannel(),
     linkedinUrl: text(),
     emergencyContact: jsonb().$type<EmergencyContactJson>(),
+    onboarding: jsonb().$type<OnboardingJson>(),
     statusOverride: personsStatusOverride(),
     statusOverrideReason: text(),
     statusOverrideByUserId: uuid().references((): AnyPgColumn => users.id),

@@ -1,7 +1,7 @@
 "use client";
 /**
  * `/admin/persons` list (crm spec 5.1): search box (customer number, email, phone, name), filters
- * (status, tag, segment, locale, acquisition source, tester), the columns of the spec, row
+ * (status, tag, segment, locale, acquisition source, tester, corporate client), the columns of the spec, row
  * selection with bulk tag and untag (at most 5000), and the empty state. Filters live in the URL
  * (a GET form); the page is numbered (`page`). Every string is a prop.
  */
@@ -20,6 +20,7 @@ export type PersonRowView = {
   status: PersonStatus;
   isOverridden: boolean;
   isMember: boolean;
+  isCorporate: boolean;
   tags: string[];
   lastActivityAt: string | null;
   createdAt: string;
@@ -36,6 +37,9 @@ export type PersonsTableLabels = {
   filterLocale: string;
   filterSource: string;
   filterTester: string;
+  filterCorporate: string;
+  /** The "Corporate" badge beside the name of a corporate client. */
+  corporate: string;
   all: string;
   yes: string;
   no: string;
@@ -110,7 +114,16 @@ export function PersonsTable({
         ]
       : []),
     { key: "number", header: labels.columns.number, className: "font-mono text-xs", cell: (r) => r.customerNumber },
-    { key: "name", header: labels.columns.name, cell: (r) => <Link href={`/admin/persons/${r.id}` as never}>{r.name}</Link> },
+    {
+      key: "name",
+      header: labels.columns.name,
+      cell: (r) => (
+        <span className="flex flex-wrap items-center gap-2">
+          <Link href={`/admin/persons/${r.id}` as never}>{r.name}</Link>
+          {r.isCorporate ? <Badge variant="secondary">{labels.corporate}</Badge> : null}
+        </span>
+      ),
+    },
     { key: "email", header: labels.columns.email, cell: (r) => r.email ?? "" },
     { key: "status", header: labels.columns.status, cell: (r) => <StatusBadge status={r.status} isOverridden={r.isOverridden} labels={labels.status} /> },
     { key: "member", header: labels.columns.member, cell: (r) => (r.isMember ? labels.yes : labels.no) },
@@ -140,6 +153,10 @@ export function PersonsTable({
     select("locale", labels.filterLocale, options.locales),
     select("source", labels.filterSource, options.sources),
     select("tester", labels.filterTester, [
+      { value: "yes", label: labels.yes },
+      { value: "no", label: labels.no },
+    ]),
+    select("corporate", labels.filterCorporate, [
       { value: "yes", label: labels.yes },
       { value: "no", label: labels.no },
     ]),

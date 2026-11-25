@@ -201,6 +201,12 @@ export async function signInStaff(page: Page, role: DemoRole, opts: { returnTo?:
  */
 export async function signInCustomer(page: Page, email: string, locale: "nl" | "fr" | "en" = "nl"): Promise<void> {
   const digest = createHash("sha256").update(email.trim().toLowerCase()).digest("hex");
+  // The portal home opens the first-sign-in onboarding once: marked as seen before (an existing
+  // person lands on the home as before) and after the sign-in (a person the sign-in created), so
+  // later visits of the home show the home. `crm-onboarding.spec.ts` tests the flow itself.
+  const markOnboardingSeen = () =>
+    e2eRows(sql`update persons set onboarding = jsonb_build_object('seen_at', now()) where lower(email) = ${email.trim().toLowerCase()} and onboarding is null`);
+  await markOnboardingSeen();
   // Demo customers (customer1@example.com, ...) are shared by specs on both workers: two sign-ins
   // of one address at the same moment can open the same link, and the second use lands on
   // error=Verification. Then a fresh link is requested, up to three times.
@@ -220,7 +226,10 @@ export async function signInCustomer(page: Page, email: string, locale: "nl" | "
     await page.goto(`${url.pathname}${url.search}`);
     await page.locator('form button[type="submit"]').click();
     await page.waitForURL((u) => (u.pathname.startsWith(`/${locale}/account`) && !u.pathname.includes("/login")) || u.pathname.endsWith("/account/login/error"));
-    if (!new URL(page.url()).pathname.endsWith("/account/login/error")) return;
+    if (!new URL(page.url()).pathname.endsWith("/account/login/error")) {
+      await markOnboardingSeen();
+      return;
+    }
     if (attempt >= 3) throw new Error(`Magic-link sign-in of ${email} failed ${attempt} times: ${page.url()}`);
   }
 }

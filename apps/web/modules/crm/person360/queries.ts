@@ -16,13 +16,14 @@ import {
   segments,
   tags,
   type AcquisitionJson,
+  type OnboardingJson,
   type PostalAddressJson,
 } from "@beam/db/schema";
 import { formatCustomerNumber, type PersonStatus } from "@beam/core/crm";
 import type { Locale } from "@beam/core/i18n";
 import type { SensitiveFieldKey } from "@beam/core/privacy";
 import { and, asc, desc, eq, gte } from "@/lib/ctx";
-import { listPersonCompanies } from "../companies/api";
+import { getCorporateCompany, listPersonCompanies } from "../companies/api";
 import { getPersonStatus } from "../persons/api";
 import { getReceptionCard, personName, type ReceptionCardData } from "./api";
 
@@ -44,6 +45,8 @@ export type Person360 = {
     preferredChannel: "email" | "phone" | "whatsapp" | null;
     linkedinUrl: string | null;
     emergencyContact: { name: string; phone: string; relation?: string } | null;
+    /** The portal onboarding progress (owner requirements item 10); `null` until it was first shown. */
+    onboarding: OnboardingJson | null;
     acquisition: AcquisitionJson;
     partnerCompany: { id: string; name: string } | null;
     isTester: boolean;
@@ -63,6 +66,8 @@ export type Person360 = {
   };
   tags: Array<{ id: string; key: string; name: Record<string, string | undefined>; color: string }>;
   companies: Array<{ companyId: string; name: string; position: string | null; decisionRole: string | null }>;
+  /** A current contact of a company with a VAT number: a corporate client. */
+  isCorporate: boolean;
   reception: ReceptionCardData;
   sensitiveKeys: Array<{ key: SensitiveFieldKey; updatedAt: Date }>;
 };
@@ -107,7 +112,7 @@ export async function getPerson360(tx: DbOrTx, personId: string, now: Date = new
 }
 
 async function build(tx: DbOrTx, p: typeof persons.$inferSelect, now: Date): Promise<Person360> {
-  const [status, tagRows, companyRows, reception, sensitive, partner] = await Promise.all([
+  const [status, tagRows, companyRows, reception, sensitive, partner, corporate] = await Promise.all([
     getPersonStatus(tx, p.id),
     tx
       .select({ id: tags.id, key: tags.key, name: tags.name, color: tags.color })
@@ -125,6 +130,7 @@ async function build(tx: DbOrTx, p: typeof persons.$inferSelect, now: Date): Pro
     p.partnerCompanyId
       ? tx.select({ id: companies.id, name: companies.name }).from(companies).where(eq(companies.id, p.partnerCompanyId))
       : Promise.resolve([] as Array<{ id: string; name: string }>),
+    getCorporateCompany(tx, p.id),
   ]);
   const conflict = status.override !== null && status.override !== status.derivedStatus;
   const showConflictBanner = conflict && !(await overrideConfirmed(tx, p.id, status.override!, status.derivedStatus, p.statusOverrideAt));
@@ -145,6 +151,7 @@ async function build(tx: DbOrTx, p: typeof persons.$inferSelect, now: Date): Pro
       preferredChannel: p.preferredChannel ?? null,
       linkedinUrl: p.linkedinUrl ?? null,
       emergencyContact: p.emergencyContact ?? null,
+      onboarding: p.onboarding ?? null,
       acquisition: p.acquisition,
       partnerCompany: partner[0] ?? null,
       isTester: p.isTester,
@@ -163,6 +170,7 @@ async function build(tx: DbOrTx, p: typeof persons.$inferSelect, now: Date): Pro
     },
     tags: tagRows.map((t) => ({ ...t, name: t.name })),
     companies: companyRows,
+    isCorporate: corporate !== null,
     reception,
     sensitiveKeys: sensitive.map((s) => ({ key: s.key, updatedAt: s.updatedAt })),
   };

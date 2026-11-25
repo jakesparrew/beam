@@ -9,7 +9,7 @@ import { listPersons, listSegments, listTags } from "@/modules/crm/queries";
 import { PersonsTable } from "@/modules/crm/ui/person-search";
 import { localeOptions, sourceOptions, statusBadgeLabels } from "@/modules/crm/ui/status-badge";
 
-type Search = { q?: string; status?: string; tag?: string; segment?: string; locale?: string; source?: string; tester?: string; page?: string; sort?: string };
+type Search = { q?: string; status?: string; tag?: string; segment?: string; locale?: string; source?: string; tester?: string; corporate?: string; page?: string; sort?: string };
 
 const PAGE_SIZE = 50;
 const SORTS = ["created_at", "last_name", "last_activity_at"] as const;
@@ -39,6 +39,7 @@ export default async function PersonsPage({ searchParams }: { searchParams: Prom
     ...(personLocale ? { locale: personLocale } : {}),
     ...(source ? { source } : {}),
     ...(sp.tester === "yes" ? { isTester: true } : sp.tester === "no" ? { isTester: false } : {}),
+    ...(sp.corporate === "yes" ? { isCorporate: true } : sp.corporate === "no" ? { isCorporate: false } : {}),
     page,
     pageSize: PAGE_SIZE,
     sort,
@@ -68,7 +69,7 @@ export default async function PersonsPage({ searchParams }: { searchParams: Prom
         total={total}
         page={page}
         pageSize={PAGE_SIZE}
-        searchParams={{ q: sp.q, status: sp.status, tag: sp.tag, segment: sp.segment, locale: sp.locale, source: sp.source, tester: sp.tester, sort: sp.sort }}
+        searchParams={{ q: sp.q, status: sp.status, tag: sp.tag, segment: sp.segment, locale: sp.locale, source: sp.source, tester: sp.tester, corporate: sp.corporate, sort: sp.sort }}
         options={{
           statuses: PERSON_STATUSES.map((s) => ({ value: s, label: tr(`crm.enums.person_status.${s}`) })),
           tags: tags.map((t) => ({ value: t.id, label: tagLabel(t) })),
@@ -88,6 +89,8 @@ export default async function PersonsPage({ searchParams }: { searchParams: Prom
           filterLocale: l("filter_locale"),
           filterSource: l("filter_source"),
           filterTester: l("filter_tester"),
+          filterCorporate: l("filter_corporate"),
+          corporate: l("corporate"),
           all: tr("crm.common.all"),
           yes: tr("crm.common.yes"),
           no: tr("crm.common.no"),

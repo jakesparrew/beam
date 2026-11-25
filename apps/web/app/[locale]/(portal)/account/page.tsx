@@ -39,7 +39,7 @@ export default async function AccountHomePage({ params, searchParams }: { params
   async function dismissOnboarding() {
     "use server";
     await markMyOnboarding({ event: "dismissed" });
-    redirect(here);
+    redirect(here as never);
   }
   async function saveWellbeing(fd: FormData) {
     "use server";

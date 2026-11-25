@@ -129,7 +129,7 @@ export function OnboardingFlow({ start, homeHref, profileHref, prefill, purposes
 
   async function later() {
     await seen.current;
-    router.push(homeHref);
+    router.push(homeHref as never);
   }
 
   function submit(e: FormEvent<HTMLFormElement>) {

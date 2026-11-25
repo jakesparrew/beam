@@ -11,10 +11,10 @@
  */
 import type { DbOrTx, Tx } from "@beam/db";
 import { segments } from "@beam/db/schema";
-import { actorJson, and, asc, eq, isNotNull, NotFoundError, sql, type SQL } from "@/lib/ctx";
+import { actorJson, and, asc, eq, isNotNull, NotFoundError, sql, type Ctx, type SQL } from "@/lib/ctx";
 import { rowsOf } from "@/lib/sensitive";
 import type { EventCtx } from "../api";
-import { ruleAudienceSql, storedAudienceSql } from "./sql";
+import { ruleAudienceSql, storedAudienceSql, uuidArray } from "./sql";
 
 export type RefreshReason = "schedule" | "save" | "campaign" | "manual";
 export type RefreshResult = { count: number; entered: number; left: number };
@@ -133,6 +133,34 @@ export async function refreshSegmentInTx(tx: Tx, ctx: Pick<EventCtx, "actor" | "
 
 export function refreshSegment(tx: Tx, ctx: EventCtx, segmentId: string, reason: "campaign" | "manual" | "save"): Promise<{ count: number; entered: number; left: number }> {
   return refreshSegmentInTx(tx, ctx, segmentId, reason);
+}
+
+/**
+ * A new static segment with `personIds` as its manual members (ops' "fill this session" draft):
+ * the same rows, events, count and audit line as `saveSegment` plus `setStaticMembers`. Erased
+ * and merged persons are left out.
+ */
+export async function createStaticSegment(tx: Tx, ctx: Ctx, input: { name: string; description?: string; personIds: readonly string[] }): Promise<{ segmentId: string; count: number }> {
+  const values = { name: input.name.slice(0, 200), description: input.description?.slice(0, 1000) ?? null, kind: "static" as const };
+  const [row] = await tx
+    .insert(segments)
+    .values({ ...values, createdByUserId: ctx.actor.kind === "staff" ? ctx.actor.userId : null })
+    .returning({ id: segments.id });
+  const segmentId = row!.id;
+  const added = input.personIds.length
+    ? rowsOf<{ person_id: string }>(
+        await tx.execute(sql`
+          insert into segment_members (segment_id, person_id, source, computed_at)
+          select ${segmentId}::uuid, p.id, 'manual', ${ctx.now.toISOString()}::timestamptz
+          from persons p where p.id = any(${uuidArray([...new Set(input.personIds)])}) and p.erased_at is null and p.merged_into_person_id is null
+          returning person_id`),
+      ).map((r) => r.person_id)
+    : [];
+  await writeMembershipEvents(tx, ctx, segmentId, "enter", added);
+  const count = await countAudience(tx, segmentId);
+  await tx.update(segments).set({ lastCount: count, lastCountedAt: ctx.now }).where(eq(segments.id, segmentId));
+  await ctx.audit({ action: "segment.save", entityType: "segment", entityId: segmentId, newValue: { ...values, members: added.length } });
+  return { segmentId, count };
 }
 
 /** Whether the person (or the person a merged id now points to) is in the segment's audience. */

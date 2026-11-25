@@ -8,16 +8,20 @@ import { getSession } from "@/lib/auth";
 import { translator } from "@/lib/i18n";
 import { getActionDashboard, type ActionCard as ActionCardData, type ActionCardRow } from "@/modules/ops/dashboard/queries";
 import { DASHBOARD_PERMISSIONS } from "@/modules/ops/dashboard/cards";
+import { dailyAccess, parseDay, shiftDay } from "@/modules/ops/dashboard/daily";
 import { staffReadCtx } from "@/modules/ops/reports/queries";
+import { brusselsDate } from "@/modules/ops/reports/revenue";
 import { holdsAny } from "@/modules/ops/reports/registry";
 import { ActionCard, type ActionCardRowView } from "@/modules/ops/ui/ActionCard";
-import { DashboardOverview } from "@/modules/ops/ui/DashboardOverview";
+import { DailyDashboard } from "@/modules/ops/ui/DailyDashboard";
 
 /**
- * `/admin/dashboard` (ops spec 5, rules 22a-33): one card per list with its count, the first
- * rows and "Create task" per row. `?view=week` widens the date horizons (rule 22b); `?card=<key>`
- * opens one card's list (50 rows). `reports.read` or `tasks.all`; cards are filtered by their
- * own permission.
+ * `/admin/dashboard`: first the day (owner requirements 6, `?day=YYYY-MM-DD`, today by default):
+ * capacity per session, who is coming, sessions to fill and the day's revenue (`DailyDashboard`);
+ * then "To do", the action cards (ops spec 5, rules 22a-33): one card per list with its count,
+ * the first rows and "Create task" per row. `?view=week` widens the card horizons (rule 22b);
+ * `?card=<key>` opens one card's list (50 rows). `reports.read` or `tasks.all`; blocks and cards
+ * are filtered by their own permission.
  */
 export const dynamic = "force-dynamic";
 
@@ -58,7 +62,7 @@ function rowHref(card: ActionCardKey, row: ActionCardRow): Route | null {
   return row.personId ? (`/admin/persons/${row.personId}` as Route) : null;
 }
 
-export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ view?: string; card?: string }> }) {
+export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ view?: string; card?: string; day?: string }> }) {
   const ctx = await staffReadCtx();
   if (!holdsAny(ctx.actor, ...DASHBOARD_PERMISSIONS)) notFound();
   const sp = await searchParams;
@@ -67,51 +71,68 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const tr = translator(ctx.locale);
   const session = await getSession();
   const firstName = (session?.user.name ?? "").split(" ")[0] || "";
+  const day = parseDay(sp.day, ctx.now);
+  const today = brusselsDate(ctx.now);
   const cards = await getActionDashboard(ctx, { view, expand });
+  const errors = Object.fromEntries(["unauthorized", "forbidden", "validation", "not_found", "conflict", "rate_limited"].map((c) => [c, tr(`platform.errors.${c}`)]));
   // Awaited here (not rendered as an async child) so the page renders in one pass.
-  const overview = expand ? null : await DashboardOverview({ ctx, tr });
+  const daily = expand ? null : await DailyDashboard({ ctx, tr, day, access: dailyAccess(ctx.actor), errors });
   const shown: ActionCardData[] = expand ? cards.filter((c) => c.key === expand) : cards;
   // Lists that ask for something come first; the empty ones are only named, not drawn as cards.
   const busy = shown.filter((c) => c.count > 0);
   const quiet = shown.filter((c) => c.count === 0);
-  const errors = Object.fromEntries(["unauthorized", "forbidden", "validation", "not_found", "conflict", "rate_limited"].map((c) => [c, tr(`platform.errors.${c}`)]));
+  const dayQuery = (d: string) => ({ ...(d === today ? {} : { day: d }), ...(view === "week" ? { view } : {}) });
+  const viewQuery = (v: "today" | "week") => ({ ...(day === today ? {} : { day }), ...(v === "week" ? { view: v } : {}) });
+  const pill = "rounded-full px-3 py-1.5 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
 
   return (
     <div className="grid gap-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-sm text-muted-foreground first-letter:uppercase">
-            {new Intl.DateTimeFormat(ctx.locale, { timeZone: "Europe/Brussels", weekday: "long", day: "numeric", month: "long" }).format(ctx.now)}
+          <p className="text-sm text-muted-foreground first-letter:uppercase" data-testid="dashboard-day" data-day={day}>
+            {formatDate(day, ctx.locale, "full")}
           </p>
           <h1>{expand ? tr("ops.dashboard.title") : tr(`ops.dashboard.overview.greeting_${dayPart(ctx.now)}`, { name: firstName })}</h1>
         </div>
-        <nav aria-label={tr("ops.nav.dashboard")} className="flex gap-1 rounded-full bg-card p-1 shadow-sm" data-testid="dashboard-view">
-          {(["today", "week"] as const).map((v) => (
-            <Link
-              key={v}
-              href={{ pathname: "/admin/dashboard", query: v === "week" ? { view: v } : {} }}
-              aria-current={v === view ? "page" : undefined}
-              className={cn(
-                "rounded-full px-4 py-1.5 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
-                v === view ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {tr(`ops.dashboard.view.${v}`)}
+        {expand ? null : (
+          <nav aria-label={tr("ops.dashboard.daily.day_switch")} className="flex items-center gap-1 rounded-full bg-card p-1 shadow-sm" data-testid="dashboard-day-switch">
+            <Link href={{ pathname: "/admin/dashboard", query: dayQuery(shiftDay(day, -1)) }} className={cn(pill, "text-muted-foreground hover:text-foreground")} aria-label={tr("ops.dashboard.daily.day_previous")}>
+              ←
             </Link>
-          ))}
-        </nav>
+            <Link
+              href={{ pathname: "/admin/dashboard", query: dayQuery(today) }}
+              aria-current={day === today ? "date" : undefined}
+              className={cn(pill, day === today ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}
+            >
+              {tr("ops.dashboard.view.today")}
+            </Link>
+            <Link href={{ pathname: "/admin/dashboard", query: dayQuery(shiftDay(day, 1)) }} className={cn(pill, "text-muted-foreground hover:text-foreground")} aria-label={tr("ops.dashboard.daily.day_next")}>
+              →
+            </Link>
+          </nav>
+        )}
       </div>
       {expand ? (
         <Link href={{ pathname: "/admin/dashboard", query: view === "week" ? { view } : {} }} className="text-sm underline-offset-4 hover:underline">
           {tr("ops.nav.dashboard")}
         </Link>
       ) : null}
-      {overview}
-      {expand ? null : (
-        <h2 className="text-lg font-semibold">
-          {tr("ops.dashboard.overview.to_do")}
-        </h2>
-      )}
+      {daily}
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        {expand ? <span /> : <h2 className="text-lg font-semibold">{tr("ops.dashboard.overview.to_do")}</h2>}
+        <nav aria-label={tr("ops.nav.dashboard")} className="flex gap-1 rounded-full bg-card p-1 shadow-sm" data-testid="dashboard-view">
+          {(["today", "week"] as const).map((v) => (
+            <Link
+              key={v}
+              href={{ pathname: "/admin/dashboard", query: viewQuery(v) }}
+              aria-current={v === view ? "page" : undefined}
+              className={cn(pill, "px-4", v === view ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}
+            >
+              {tr(`ops.dashboard.view.${v}`)}
+            </Link>
+          ))}
+        </nav>
+      </div>
       <div className={cn("grid gap-4", expand ? "" : "md:grid-cols-2 xl:grid-cols-3")}>
         {[...busy, ...(expand ? quiet : [])].map((card) => {
           const rows: ActionCardRowView[] = card.rows.map((row) => ({

@@ -174,6 +174,10 @@ export type QuoteWarningCode =
   | "pending_exists";
 export type QuoteWarning = { code: QuoteWarningCode; productId?: string };
 
+/** One member discount of a plan: a category of products or (`product`) one product. */
+export type MemberDiscountScope = "sessions" | "packages" | "products" | "events" | "product";
+export type MemberDiscountRule = { scope: MemberDiscountScope; productId: string | null; pct: number };
+
 export type QuoteInput = {
   items: Array<CartItem & { product: QuoteProduct; prices: PriceVersionRow[] }>;
   /** `b2b` when the order has a company, else `public` (rule 7); `member` is treated as `public`. */
@@ -181,8 +185,10 @@ export type QuoteInput = {
   personStatus: "lead" | "customer" | "member" | null;
   /** `credits.getMembershipForPerson(...).isMember` (rule 8). */
   isMember: boolean;
-  /** The membership's default discount, used when the product has none. */
+  /** The membership's default discount, used when the product has none and the plan has no rules. */
   memberDiscountPct: number | null;
+  /** The plan's discount per category or product (`credits.getMembershipForPerson(...).discountRules`). */
+  memberDiscountRules?: MemberDiscountRule[];
   personPrices: PersonPriceRow[];
   /** Eligibility (rule 17) is decided by the caller and passed in per promotion. */
   promotions: Array<PromotionRow & { isEligible: boolean }>;

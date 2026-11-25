@@ -16,11 +16,28 @@ const KINDS = ["included_units", "discount", "member_only_access", "event_access
 type BenefitKind = (typeof KINDS)[number];
 const selectClass = "h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
-export type BenefitRow = { id: string; kind: BenefitKind; text: Partial<Record<Locale, string>>; sortOrder: number; isActive: boolean };
+const SCOPES = ["sessions", "packages", "products", "events", "product"] as const;
+type Scope = (typeof SCOPES)[number];
 
-function BenefitForm({ productId, benefit, locale, labels: l, onDone }: { productId: string; benefit?: BenefitRow; locale: Locale; labels: Labels; onDone: () => void }) {
+export type BenefitRow = {
+  id: string;
+  kind: BenefitKind;
+  text: Partial<Record<Locale, string>>;
+  sortOrder: number;
+  isActive: boolean;
+  discountScope: Scope | null;
+  discountPct: number | null;
+  scopeProductId: string | null;
+};
+export type ScopeProduct = { productId: string; name: string };
+
+type FormProps = { productId: string; benefit?: BenefitRow; locale: Locale; labels: Labels; products: ScopeProduct[]; onDone: () => void };
+
+function BenefitForm({ productId, benefit, locale, labels: l, products, onDone }: FormProps) {
   const router = useRouter();
   const [text, setText] = useState<Partial<Record<Locale, string>>>(benefit?.text ?? {});
+  const [kind, setKind] = useState<BenefitKind>(benefit?.kind ?? "other");
+  const [scope, setScope] = useState<Scope | "">(benefit?.discountScope ?? "");
   const [state, setState] = useState<{ error?: string; fields?: Record<string, string> }>({});
   const [busy, setBusy] = useState(false);
   const p = (k: string) => l[`admin.plans.${k}`] ?? k;
@@ -30,14 +47,18 @@ function BenefitForm({ productId, benefit, locale, labels: l, onDone }: { produc
     const f = new FormData(e.currentTarget);
     setBusy(true);
     setState({});
+    const discountScope = kind === "discount" && scope !== "" ? scope : null;
     try {
       const r = await setPlanBenefit({
         productId,
         ...(benefit ? { benefitId: benefit.id } : {}),
-        kind: str(f, "kind", "other"),
+        kind,
         text,
         sortOrder: Number(f.get("sortOrder") ?? 0),
         isActive: f.get("isActive") === "on",
+        discountScope,
+        discountPct: discountScope ? Number(str(f, "discountPct", "").replace(",", ".")) : null,
+        scopeProductId: discountScope === "product" ? str(f, "scopeProductId", "") || null : null,
       });
       if (r.ok) {
         onDone();
@@ -60,7 +81,7 @@ function BenefitForm({ productId, benefit, locale, labels: l, onDone }: { produc
       ) : null}
       <div className="flex flex-wrap gap-3">
         <FormField label={p("benefit_kind")} error={state.fields?.kind ?? null}>
-          <select name="kind" defaultValue={benefit?.kind ?? "other"} className={selectClass}>
+          <select name="kind" value={kind} onChange={(e) => setKind(e.target.value as BenefitKind)} className={selectClass}>
             {KINDS.map((k) => (
               <option key={k} value={k}>
                 {l[`enum.benefit_kind.${k}`]}
@@ -76,6 +97,39 @@ function BenefitForm({ productId, benefit, locale, labels: l, onDone }: { produc
           {p("active")}
         </label>
       </div>
+      {kind === "discount" ? (
+        <div className="flex flex-wrap gap-3">
+          <FormField label={p("discount_scope")} error={state.fields?.discountScope ?? null}>
+            <select name="discountScope" value={scope} onChange={(e) => setScope(e.target.value as Scope | "")} className={selectClass}>
+              <option value="">{p("discount_scope_none")}</option>
+              {SCOPES.map((s) => (
+                <option key={s} value={s}>
+                  {l[`enum.discount_scope.${s}`]}
+                </option>
+              ))}
+            </select>
+          </FormField>
+          {scope !== "" ? (
+            <FormField label={p("discount_pct")} error={state.fields?.discountPct ?? null}>
+              <Input name="discountPct" type="number" min={0} max={100} step="0.01" defaultValue={benefit?.discountPct ?? ""} className="w-28" inputMode="decimal" required />
+            </FormField>
+          ) : null}
+          {scope === "product" ? (
+            <FormField label={p("discount_product")} error={state.fields?.scopeProductId ?? null}>
+              <select name="scopeProductId" defaultValue={benefit?.scopeProductId ?? ""} className={selectClass} required>
+                <option value="" disabled>
+                  —
+                </option>
+                {products.map((o) => (
+                  <option key={o.productId} value={o.productId}>
+                    {o.name}
+                  </option>
+                ))}
+              </select>
+            </FormField>
+          ) : null}
+        </div>
+      ) : null}
       <LocalizedInput
         name="text"
         value={text}
@@ -101,7 +155,14 @@ function BenefitForm({ productId, benefit, locale, labels: l, onDone }: { produc
   );
 }
 
-export function PlanBenefits({ productId, benefits, locale, labels: l }: { productId: string; benefits: BenefitRow[]; locale: Locale; labels: Labels }) {
+/** "20 % on Sessions (day and night)", or the product's name for a one-product discount. */
+function ruleText(b: BenefitRow, l: Labels, products: ScopeProduct[]): string | null {
+  if (!b.discountScope || b.discountPct === null) return null;
+  const scope = b.discountScope === "product" ? (products.find((o) => o.productId === b.scopeProductId)?.name ?? "") : (l[`enum.discount_scope.${b.discountScope}`] ?? b.discountScope);
+  return (l["admin.plans.discount_rule"] ?? "{pct} % {scope}").replace("{pct}", String(b.discountPct)).replace("{scope}", scope);
+}
+
+export function PlanBenefits({ productId, benefits, locale, labels: l, products }: { productId: string; benefits: BenefitRow[]; locale: Locale; labels: Labels; products: ScopeProduct[] }) {
   const router = useRouter();
   const [editing, setEditing] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -126,12 +187,13 @@ export function PlanBenefits({ productId, benefits, locale, labels: l }: { produ
         {benefits.map((b) =>
           editing === b.id ? (
             <li key={b.id}>
-              <BenefitForm productId={productId} benefit={b} locale={locale} labels={l} onDone={() => setEditing(null)} />
+              <BenefitForm productId={productId} benefit={b} locale={locale} labels={l} products={products} onDone={() => setEditing(null)} />
             </li>
           ) : (
             <li key={b.id} className="flex flex-wrap items-center gap-2 text-sm">
               <Badge variant="outline">{l[`enum.benefit_kind.${b.kind}`]}</Badge>
               <span className={b.isActive ? "" : "text-muted-foreground line-through"}>{b.text[locale] ?? b.text.en}</span>
+              {ruleText(b, l, products) ? <Badge variant="secondary">{ruleText(b, l, products)}</Badge> : null}
               <Button type="button" variant="ghost" size="sm" onClick={() => setEditing(b.id)}>
                 {p("edit_benefit")}
               </Button>
@@ -143,7 +205,7 @@ export function PlanBenefits({ productId, benefits, locale, labels: l }: { produ
         )}
       </ul>
       {editing === "new" ? (
-        <BenefitForm productId={productId} locale={locale} labels={l} onDone={() => setEditing(null)} />
+        <BenefitForm productId={productId} locale={locale} labels={l} products={products} onDone={() => setEditing(null)} />
       ) : (
         <div>
           <Button type="button" variant="outline" size="sm" onClick={() => setEditing("new")}>

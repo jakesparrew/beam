@@ -3,7 +3,7 @@ import { Alert, AlertDescription, Badge, buttonVariants, Card, CardContent, Card
 import { requireStaff } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
 import { adminLocale, translator } from "@/lib/i18n";
-import { creditsLabels, listPlans } from "@/modules/credits/queries";
+import { creditsLabels, listDiscountableProducts, listPlans } from "@/modules/credits/queries";
 import { PlanBenefits, type BenefitRow } from "@/modules/credits/ui/plan-benefits";
 import { PlanInclusions } from "@/modules/credits/ui/plan-inclusions";
 
@@ -17,8 +17,10 @@ export default async function PlansPage() {
   const locale = await adminLocale();
   const tr = translator(locale);
   const p = (k: string, params?: Record<string, string | number>) => tr(`credits.admin.plans.${k}`, params);
-  const plans = await listPlans(await getAppDb());
-  const labels = creditsLabels(locale, ["admin.common", "admin.plans", "errors", "enum.kind", "enum.benefit_kind"]);
+  const db = await getAppDb();
+  const plans = await listPlans(db);
+  const scopeProducts = (await listDiscountableProducts(db)).map((o) => ({ productId: o.productId, name: o.name[locale] ?? o.sku }));
+  const labels = creditsLabels(locale, ["admin.common", "admin.plans", "errors", "enum.kind", "enum.benefit_kind", "enum.discount_scope"]);
   return (
     <div className="grid gap-6">
       <header className="grid gap-2">
@@ -66,6 +68,7 @@ export default async function PlansPage() {
                 <div>
                   <dt className="text-sm text-muted-foreground">{p("discount")}</dt>
                   <dd className="font-medium">{p("discount_value", { pct: plan.memberDiscountPct })}</dd>
+                  <dd className="text-xs text-muted-foreground">{p("discount_hint")}</dd>
                 </div>
               </dl>
               <section className="grid gap-2">
@@ -75,7 +78,7 @@ export default async function PlansPage() {
                   primaryKind={plan.includedCreditKind}
                   inclusions={plan.inclusions
                     .filter((i) => i.creditKind !== "euro")
-                    .map((i) => ({ kind: i.creditKind as "day" | "night", unitsPerPeriod: i.unitsPerPeriod, isActive: i.isActive }))}
+                    .map((i) => ({ kind: i.creditKind as "day" | "night", unitsPerPeriod: i.unitsPerPeriod, isActive: i.isActive, isAlternative: i.isAlternative }))}
                   labels={labels}
                 />
               </section>
@@ -84,7 +87,19 @@ export default async function PlansPage() {
                 <PlanBenefits
                   productId={plan.productId}
                   locale={locale}
-                  benefits={plan.benefits.map((b): BenefitRow => ({ id: b.id, kind: b.kind, text: b.text, sortOrder: b.sortOrder, isActive: b.isActive }))}
+                  benefits={plan.benefits.map(
+                    (b): BenefitRow => ({
+                      id: b.id,
+                      kind: b.kind,
+                      text: b.text,
+                      sortOrder: b.sortOrder,
+                      isActive: b.isActive,
+                      discountScope: b.discountScope,
+                      discountPct: b.discountPct === null ? null : Number(b.discountPct),
+                      scopeProductId: b.scopeProductId,
+                    }),
+                  )}
+                  products={scopeProducts}
                   labels={labels}
                 />
               </section>

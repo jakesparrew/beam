@@ -225,7 +225,8 @@
         "resumed": "Resumed",
         "cancelled": "Cancelled",
         "expired": "Expired",
-        "period_extended": "Period extended"
+        "period_extended": "Period extended",
+        "draw_won": "Won the monthly draw"
       },
       "attribution_status": {
         "pending": "Pending",
@@ -244,6 +245,13 @@
         "approved": "Approved",
         "paid": "Paid",
         "void": "Void"
+      },
+      "discount_scope": {
+        "sessions": "Sessions (day and night)",
+        "packages": "Packages",
+        "products": "Products",
+        "events": "Events",
+        "product": "One product"
       }
     },
     "errors": {
@@ -270,7 +278,8 @@
       "not_a_partner": "This company is not marked as a partner.",
       "already_attributed": "This person was already referred (first referral counts).",
       "attribution_not_pending": "Only a pending referral can be rejected.",
-      "referrer_required": "Choose who referred this person."
+      "referrer_required": "Choose who referred this person.",
+      "no_active_members": "There are no active members to draw from."
     },
     "admin": {
       "common": {
@@ -579,7 +588,7 @@
         "units_per_period": "Units per period (1 to 62)",
         "active": "Active",
         "save_inclusion": "Save inclusion",
-        "discount": "Member discount",
+        "discount": "Default member discount",
         "discount_value": "{pct} %",
         "members": "{count, plural, one {# active member} other {# active members}}",
         "benefits": "Benefits",
@@ -591,7 +600,15 @@
         "save_benefit": "Save benefit",
         "edit_benefit": "Edit",
         "remove_benefit": "Remove",
-        "mixed_vat": "Mixed VAT services: confirm with the accountant."
+        "mixed_vat": "Mixed VAT services: confirm with the accountant.",
+        "discount_hint": "Used only when the plan has no category discounts below.",
+        "discount_scope": "Discount at checkout on",
+        "discount_scope_none": "Display only (no discount at checkout)",
+        "discount_pct": "Discount (%)",
+        "discount_product": "Product",
+        "discount_rule": "{pct} % on {scope}",
+        "alternative": "Either/or with the primary inclusion (the first use decides)",
+        "alternative_badge": "either/or"
       },
       "panel": {
         "title": "Packages and store credit",
@@ -767,6 +784,21 @@
         "code_uses": "{count, plural, one {used # time} other {used # times}}",
         "code_inactive": "inactive",
         "codes_empty": "No code yet. Ask BEAM for one."
+      },
+      "draw": {
+        "title": "Monthly draw",
+        "description": "Draw one active member at random for a free night session. One draw per month; the winner gets the night on their account right away.",
+        "this_month": "This month ({month})",
+        "not_drawn": "Not drawn yet.",
+        "winner": "Winner: {name}",
+        "draw": "Draw this month's winner",
+        "drawing": "One moment…",
+        "drawn": "{name} wins the free night of {month}.",
+        "history": "Earlier draws",
+        "history_empty": "No draws yet.",
+        "col_month": "Month",
+        "col_winner": "Winner",
+        "grant_label": "Monthly draw {month}: free night"
       }
     },
     "units": {
@@ -908,7 +940,22 @@
         "pay_due": "Your last payment did not go through. Pay now to keep your membership.",
         "pay_link_due": "Your renewal is ready to pay.",
         "change_plan": "Change plan",
-        "change_plan_hint": "Cancel at the end of this period, then choose a new plan in the shop. It starts on {date}."
+        "change_plan_hint": "Cancel at the end of this period, then choose a new plan in the shop. It starts on {date}.",
+        "free_sessions": "Free with your membership",
+        "choice_open": "Your choice: {options}. The first free session you book decides; the other option then lapses.",
+        "choice_or": "or",
+        "choice_chosen": "You chose {option}. The other option has lapsed.",
+        "discounts": "Your member discounts",
+        "discount_sessions": "{pct} % off day and night sessions",
+        "discount_packages": "{pct} % off packages",
+        "discount_products": "{pct} % off products",
+        "discount_events": "{pct} % off events",
+        "discount_product": "{pct} % off {product}",
+        "gatherings": "Members-only gatherings",
+        "gatherings_empty": "No gathering planned yet. We will let you know.",
+        "gatherings_book": "Sign up",
+        "option_day": "{count, plural, one {# free day session} other {# free day sessions}}",
+        "option_night": "{count, plural, one {# free night session} other {# free night sessions}}"
       },
       "summary": {
         "title": "Packages and membership",

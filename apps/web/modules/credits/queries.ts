@@ -34,8 +34,8 @@ import {
   vPackageCycles,
   vouchers,
 } from "@beam/db/schema";
-import { brusselsMonthWindow } from "./server/ledger";
-import type { CreditKind } from "@beam/core/credits";
+import { brusselsMonthWindow, planChoiceKinds } from "./server/ledger";
+import type { CreditKind, PlanDiscountScope } from "@beam/core/credits";
 import { messagesFor, type Locale, type LocalizedText } from "@beam/core/i18n";
 import { and, asc, desc, eq, gte, inArray, lt, NotFoundError, sql, ValidationError, type SQL } from "@/lib/ctx";
 import { previewBulkExtension as previewBulk, type BulkExtensionFilter } from "./server/bulk-extend";
@@ -449,6 +449,27 @@ export async function listPlans(db: DbOrTx) {
       mixedVat: kinds.has("day") && kinds.has("night"),
     };
   });
+}
+
+/** The products a plan discount can name (`scope = product`): every product except memberships and vouchers. */
+export async function listDiscountableProducts(db: DbOrTx): Promise<{ productId: string; name: LocalizedText; sku: string }[]> {
+  return db
+    .select({ productId: products.id, name: products.name, sku: products.sku })
+    .from(products)
+    .where(sql`${products.kind} not in ('membership', 'voucher')`)
+    .orderBy(asc(products.sortOrder), asc(products.sku));
+}
+
+/** The monthly members' draws, newest first (`membership.draw_won` events with the winner's name). */
+export async function listMonthlyDraws(db: DbOrTx, opts: { limit?: number } = {}): Promise<{ month: string; personId: string; personName: string; occurredAt: Date }[]> {
+  const rows = await db
+    .select({ data: activityEvents.data, personId: activityEvents.personId, occurredAt: activityEvents.occurredAt, personName })
+    .from(activityEvents)
+    .innerJoin(persons, eq(persons.id, activityEvents.personId))
+    .where(eq(activityEvents.kind, "membership.draw_won"))
+    .orderBy(desc(activityEvents.occurredAt))
+    .limit(Math.min(24, Math.max(1, opts.limit ?? 12)));
+  return rows.map((r) => ({ month: String((r.data as { month?: string }).month ?? ""), personId: r.personId!, personName: r.personName, occurredAt: r.occurredAt }));
 }
 
 export type MembershipListRow = {
@@ -940,7 +961,12 @@ export type MyMembership = {
   renewalAmountCents: number | null;
   paymentMethod: { method: string; summary: string | null; status: string } | null;
   discountPct: number;
-  included: { grantId: string; kind: CreditKind; remainingUnits: number; baseUnits: number; expiresAt: Date | null }[];
+  /** The plan's checkout discounts per category or product; empty = `discountPct` on everything. */
+  discounts: { scope: PlanDiscountScope; pct: number; productName: LocalizedText | null }[];
+  /** `isChoice`: one of the plan's either/or inclusions (see `complimentaryChoice`). */
+  included: { grantId: string; kind: CreditKind; remainingUnits: number; baseUnits: number; expiresAt: Date | null; status: GrantStatus; isChoice: boolean }[];
+  /** The either/or inclusions of this period: still open, or the kind the member chose. */
+  choice: ComplimentaryChoice;
   benefits: { benefitId: string; kind: string; text: LocalizedText }[];
   periods: { periodStartAt: Date; periodEndAt: Date; source: string; amountCents: number | null }[];
   /** `payMyRenewal` applies: `past_due`, or a link renewal with an open renewal order. */
@@ -952,6 +978,22 @@ export type MyMembership = {
 };
 
 const LIVE_MEMBERSHIP: MembershipStatus[] = ["active", "past_due"];
+
+export type ComplimentaryChoice = { state: "open"; kinds: CreditKind[] } | { state: "chosen"; kind: CreditKind } | null;
+
+/**
+ * The either/or inclusions of a period ("1 night OR 4 day sessions"): `open` while none is used,
+ * `chosen` once one is used (the others are then revoked by the ledger); null when the plan has no
+ * alternatives or every option is gone (a refunded membership).
+ */
+export function complimentaryChoice(included: readonly { kind: CreditKind; status: GrantStatus; remainingUnits: number; baseUnits: number; isChoice: boolean }[]): ComplimentaryChoice {
+  const options = included.filter((g) => g.isChoice);
+  if (options.length < 2) return null;
+  const forfeited = options.some((g) => g.status === "revoked");
+  const chosen = options.find((g) => g.status !== "revoked" && (forfeited || g.remainingUnits < g.baseUnits));
+  if (chosen) return { state: "chosen", kind: chosen.kind };
+  return forfeited ? null : { state: "open", kinds: options.map((g) => g.kind) };
+}
 
 /** `payMyRenewal` applies (spec section 4): `past_due`, or `active` paid by link, with an open renewal order. */
 export function canPayRenewal(m: { status: MembershipStatus; renewalOrderStatus: string | null; hasValidMandate: boolean }): boolean {
@@ -989,6 +1031,7 @@ export async function getMyMembership(db: DbOrTx, personId: string, opts: { now?
       remainingUnits: vCreditGrantBalances.remainingUnits,
       baseUnits: vCreditGrantBalances.baseUnits,
       expiresAt: vCreditGrantBalances.expiresAt,
+      status: vCreditGrantBalances.status,
     })
     .from(vCreditGrantBalances)
     .where(
@@ -999,11 +1042,26 @@ export async function getMyMembership(db: DbOrTx, personId: string, opts: { now?
       ),
     )
     .orderBy(asc(vCreditGrantBalances.creditKind));
-  const benefits = await db
-    .select({ benefitId: membershipPlanBenefits.id, kind: membershipPlanBenefits.kind, text: membershipPlanBenefits.text })
+  const choiceKinds = await planChoiceKinds(db, m.productId);
+  const benefitRows = await db
+    .select({
+      benefitId: membershipPlanBenefits.id,
+      kind: membershipPlanBenefits.kind,
+      text: membershipPlanBenefits.text,
+      scope: membershipPlanBenefits.discountScope,
+      pct: membershipPlanBenefits.discountPct,
+      scopeProductId: membershipPlanBenefits.scopeProductId,
+    })
     .from(membershipPlanBenefits)
     .where(and(eq(membershipPlanBenefits.productId, m.productId), eq(membershipPlanBenefits.isActive, true)))
     .orderBy(asc(membershipPlanBenefits.sortOrder), asc(membershipPlanBenefits.id));
+  const scopeIds = benefitRows.flatMap((b) => (b.scopeProductId ? [b.scopeProductId] : []));
+  const scopeNames = new Map(
+    (scopeIds.length ? await db.select({ id: products.id, name: products.name }).from(products).where(inArray(products.id, scopeIds)) : []).map((p) => [p.id, p.name]),
+  );
+  const benefits = benefitRows.map(({ benefitId, kind, text }) => ({ benefitId, kind, text }));
+  const discounts = benefitRows.flatMap((b) => (b.scope ? [{ scope: b.scope, pct: Number(b.pct), productName: b.scopeProductId ? (scopeNames.get(b.scopeProductId) ?? null) : null }] : []));
+  const includedRows = included.map((g) => ({ ...g, remainingUnits: Number(g.remainingUnits), baseUnits: Number(g.baseUnits), isChoice: choiceKinds.includes(g.kind) }));
   const periods = await db
     .select({ periodStartAt: membershipPeriods.periodStartAt, periodEndAt: membershipPeriods.periodEndAt, source: membershipPeriods.source, amountCents: membershipPeriods.amountCents })
     .from(membershipPeriods)
@@ -1036,7 +1094,9 @@ export async function getMyMembership(db: DbOrTx, personId: string, opts: { now?
     renewalAmountCents: renewalOpen ? renewal.totalCents : lastPaid,
     paymentMethod: mandate ? { method: mandate.method, summary: mandate.summary, status: mandate.status } : null,
     discountPct: Number(m.discountPct),
-    included: included.map((g) => ({ ...g, remainingUnits: Number(g.remainingUnits), baseUnits: Number(g.baseUnits) })),
+    discounts,
+    included: includedRows,
+    choice: complimentaryChoice(includedRows),
     benefits,
     periods,
     canPay: canPayRenewal({ status: m.status, renewalOrderStatus: renewal?.status ?? null, hasValidMandate: mandate?.status === "valid" }),

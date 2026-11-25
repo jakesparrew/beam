@@ -9,11 +9,13 @@
  * `email.sendTransactional`; alerts through platform's `notifySlack`. Reached only through
  * `api.ts`, `jobs.ts` and (credits-P6, P7) `actions.ts`.
  */
+import { randomInt } from "node:crypto";
 import type { DbOrTx, Tx } from "@beam/db";
 import {
   activityEvents,
   creditGrants,
   membershipPeriods,
+  membershipPlanBenefits,
   membershipPlanInclusions,
   memberships,
   orderLines,
@@ -40,14 +42,15 @@ import {
   type CreditsSettings,
   type MembershipEndReason,
   type MembershipStatus,
+  type PlanDiscountScope,
 } from "@beam/core/credits";
-import type { Locale, LocalizedText } from "@beam/core/i18n";
+import { t, type Locale, type LocalizedText } from "@beam/core/i18n";
 import { and, asc, ConflictError, desc, eq, gte, inArray, isNotNull, lt, lte, NotFoundError, or, sql, ValidationError, type Ctx } from "@/lib/ctx";
 import { notifySlack } from "@/lib/alerts";
 import { cancelRenewalOrder, createRecurringCharge, createRenewalLinkOrder, getActiveMandate, getPayLinkForOrder } from "@/modules/commerce/api";
 import { createTask } from "@/modules/crm/api";
 import { sendTransactional } from "@/modules/email/api";
-import { balanceOf, creditsSettings, entryByKey, extend, lockGrants, setGrantStatus, writeEntry } from "./ledger";
+import { balanceOf, creditsSettings, entryByKey, extend, grantCredits, lockGrants, setGrantStatus, writeEntry } from "./ledger";
 
 export type MembershipRow = typeof memberships.$inferSelect;
 type Interval = MembershipRow["interval"];
@@ -461,6 +464,18 @@ async function activatePending(tx: DbOrTx, ctx: Ctx, m: MembershipRow): Promise<
 // Reads (rules 44, 59; site account home)
 // ---------------------------------------------------------------------------
 
+export type MemberDiscountRule = { scope: PlanDiscountScope; productId: string | null; pct: number };
+
+/** The checkout discounts of a plan: its active `discount` benefits with a scope (empty = the flat `discount_pct`). */
+export async function planDiscountRules(db: DbOrTx, planProductId: string): Promise<MemberDiscountRule[]> {
+  const rows = await db
+    .select({ scope: membershipPlanBenefits.discountScope, productId: membershipPlanBenefits.scopeProductId, pct: membershipPlanBenefits.discountPct })
+    .from(membershipPlanBenefits)
+    .where(and(eq(membershipPlanBenefits.productId, planProductId), eq(membershipPlanBenefits.isActive, true), isNotNull(membershipPlanBenefits.discountScope)))
+    .orderBy(asc(membershipPlanBenefits.sortOrder), asc(membershipPlanBenefits.id));
+  return rows.map((r) => ({ scope: r.scope!, productId: r.productId, pct: Number(r.pct) }));
+}
+
 /** The live membership that drives member pricing and member-only access (rule 59). */
 export async function getMembershipForPerson(
   db: DbOrTx,
@@ -470,11 +485,13 @@ export async function getMembershipForPerson(
   membershipId: string | null;
   planProductId: string | null;
   discountPct: number;
+  /** The plan's discount per category or product; empty = `discountPct` on everything. */
+  discountRules: MemberDiscountRule[];
   status: "active" | "past_due" | null;
   periodEndAt: Date | null;
   cancelAt: Date | null;
 }> {
-  const none = { isMember: false, membershipId: null, planProductId: null, discountPct: 0, status: null, periodEndAt: null, cancelAt: null };
+  const none = { isMember: false, membershipId: null, planProductId: null, discountPct: 0, discountRules: [], status: null, periodEndAt: null, cancelAt: null };
   if (!UUID_RE.test(personId)) return none;
   const [m] = await db
     .select()
@@ -488,6 +505,7 @@ export async function getMembershipForPerson(
     membershipId: m.id,
     planProductId: m.productId,
     discountPct: Number(m.discountPct),
+    discountRules: await planDiscountRules(db, m.productId),
     status: m.status as "active" | "past_due",
     periodEndAt: m.currentPeriodEndAt,
     cancelAt: m.cancelAt,
@@ -1079,6 +1097,70 @@ export async function extendPeriod(
     newValue: { current_period_end_at: newEnd.toISOString(), days: input.days, reason, also_extend_inclusions: input.alsoExtendInclusions },
   });
   return { created: true, periodEndAt: newEnd };
+}
+
+// ---------------------------------------------------------------------------
+// The monthly members' draw (owner's membership benefit: a free night every month)
+// ---------------------------------------------------------------------------
+
+/** How long the free night won in the draw stays valid. */
+export const DRAW_VALIDITY_DAYS = 180;
+
+/** `YYYY-MM` of the Brussels month of `at`. */
+export const drawMonthOf = (at: Date) => dateKey(at).slice(0, 7);
+
+/**
+ * The monthly draw: picks one person with an `active` membership at random, grants one free night
+ * (source `bonus`, valid `DRAW_VALIDITY_DAYS`, key `grant:membership_draw:<YYYY-MM>`), records
+ * `membership.draw_won` on the winner's timeline and audit `memberships.draw`. One draw per
+ * Brussels month: a second call returns the month's winner with `created: false`.
+ * `ConflictError('no_active_members')` when nobody can win.
+ */
+export async function drawMonthlyNight(
+  tx: DbOrTx,
+  ctx: Ctx,
+  opts: { pick?: (count: number) => number } = {},
+): Promise<{ month: string; personId: string; grantId: string; created: boolean }> {
+  const month = drawMonthOf(ctx.now);
+  const key = `grant:membership_draw:${month}`;
+  await lockKey(tx, key);
+  const prior = await entryByKey(tx, key);
+  if (prior) return { month, personId: prior.personId, grantId: prior.grantId, created: false };
+  const candidates = await tx
+    .select({ id: memberships.id, personId: memberships.personId })
+    .from(memberships)
+    .where(eq(memberships.status, "active"))
+    .orderBy(asc(memberships.id));
+  if (candidates.length === 0) throw new ConflictError("no_active_members");
+  const winner = candidates[(opts.pick ?? randomInt)(candidates.length)]!;
+  const tr = (l: Locale) => t(l, "credits.admin.draw.grant_label", { month });
+  const { grantId } = await grantCredits(tx, ctx, {
+    personId: winner.personId,
+    kind: "night",
+    units: 1,
+    source: "bonus",
+    label: { "nl-BE": tr("nl-BE"), "fr-BE": tr("fr-BE"), en: tr("en") },
+    reason: `Monthly member draw ${month}`,
+    expiresAt: addBrusselsDays(ctx.now, DRAW_VALIDITY_DAYS),
+    key,
+  });
+  await ctx.recordEvent({
+    kind: "membership.draw_won",
+    personId: winner.personId,
+    ref: membershipRef(winner.id),
+    occurredAt: ctx.now,
+    dedupeKey: `membership_draw:${month}`,
+    data: { membership_id: winner.id, month, grant_id: grantId },
+  });
+  await ctx.audit({
+    action: "memberships.draw",
+    entityType: "membership",
+    entityId: winner.id,
+    personId: winner.personId,
+    oldValue: null,
+    newValue: { month, grant_id: grantId, candidates: candidates.length },
+  });
+  return { month, personId: winner.personId, grantId, created: true };
 }
 
 // ---------------------------------------------------------------------------

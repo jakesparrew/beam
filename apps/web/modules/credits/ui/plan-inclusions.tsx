@@ -9,9 +9,9 @@ import { Alert, AlertDescription, Button, FormField, Input } from "@beam/ui";
 import { setPlanInclusion } from "../actions";
 import { errorMessage, type Labels } from "./adjust-dialog";
 
-export type InclusionRow = { kind: "day" | "night"; unitsPerPeriod: number; isActive: boolean };
+export type InclusionRow = { kind: "day" | "night"; unitsPerPeriod: number; isActive: boolean; isAlternative: boolean };
 
-function InclusionForm({ productId, kind, current, labels: l }: { productId: string; kind: "day" | "night"; current?: InclusionRow; labels: Labels }) {
+function InclusionForm({ productId, kind, current, hasPrimary, labels: l }: { productId: string; kind: "day" | "night"; current?: InclusionRow; hasPrimary: boolean; labels: Labels }) {
   const router = useRouter();
   const [state, setState] = useState<{ error?: string; fields?: Record<string, string>; saved?: boolean }>({});
   const [busy, setBusy] = useState(false);
@@ -23,7 +23,13 @@ function InclusionForm({ productId, kind, current, labels: l }: { productId: str
     setBusy(true);
     setState({});
     try {
-      const r = await setPlanInclusion({ productId, kind, unitsPerPeriod: Number(f.get("unitsPerPeriod")), isActive: f.get("isActive") === "on" });
+      const r = await setPlanInclusion({
+        productId,
+        kind,
+        unitsPerPeriod: Number(f.get("unitsPerPeriod")),
+        isAlternative: f.get("isAlternative") === "on",
+        isActive: f.get("isActive") === "on",
+      });
       if (r.ok) {
         setState({ saved: true });
         router.refresh();
@@ -45,6 +51,12 @@ function InclusionForm({ productId, kind, current, labels: l }: { productId: str
         <input type="checkbox" name="isActive" defaultChecked={current?.isActive ?? true} />
         {p("active")}
       </label>
+      {hasPrimary ? (
+        <label className="flex items-center gap-2 pb-2 text-sm">
+          <input type="checkbox" name="isAlternative" defaultChecked={current?.isAlternative ?? false} />
+          {p("alternative")}
+        </label>
+      ) : null}
       <Button type="submit" variant="outline" disabled={busy}>
         {busy ? l["admin.common.saving"] : p("save_inclusion")}
       </Button>
@@ -68,7 +80,7 @@ export function PlanInclusions({ productId, primaryKind, inclusions, labels: l }
   return (
     <div className="grid gap-3">
       {kinds.map((k) => (
-        <InclusionForm key={k} productId={productId} kind={k} current={inclusions.find((i) => i.kind === k)} labels={l} />
+        <InclusionForm key={k} productId={productId} kind={k} current={inclusions.find((i) => i.kind === k)} hasPrimary={primaryKind !== null} labels={l} />
       ))}
     </div>
   );

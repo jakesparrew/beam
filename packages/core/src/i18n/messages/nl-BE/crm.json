@@ -545,7 +545,8 @@
       "opportunity_stage_changed": "Opportuniteit verplaatst van {fromStage} naar {toStage}",
       "opportunity_won": "Opportuniteit gewonnen",
       "opportunity_lost": "Opportuniteit verloren",
-      "opportunity_reopened": "Opportuniteit heropend in fase {toStage}"
+      "opportunity_reopened": "Opportuniteit heropend in fase {toStage}",
+      "membership_draw_won": "Wint de maandelijkse trekking: gratis nacht"
     },
     "duplicates": {
       "title": "Mogelijke dubbels",

@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Badge, buttonVariants, DataTable, EmptyState } from "@beam/ui";
-import { MEMBERSHIP_STATUSES } from "@beam/core/credits";
+import { brusselsDateKey, MEMBERSHIP_STATUSES } from "@beam/core/credits";
 import { formatDate } from "@beam/core/i18n";
 import { hasPermission, requireStaff } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
 import { adminLocale, translator } from "@/lib/i18n";
-import { listMemberships, listPlans, type MembershipListRow, type MembershipStatus } from "@/modules/credits/queries";
+import { creditsLabels, listMemberships, listMonthlyDraws, listPlans, type MembershipListRow, type MembershipStatus } from "@/modules/credits/queries";
+import { MonthlyDrawCard } from "@/modules/credits/ui/monthly-draw";
 
 type Search = { q?: string; status?: string; plan?: string; renewing?: string; cursor?: string };
 
@@ -21,10 +22,12 @@ export default async function MembershipsPage({ searchParams }: { searchParams: 
   const db = await getAppDb();
   const status = (MEMBERSHIP_STATUSES as readonly string[]).includes(sp.status ?? "") ? (sp.status as MembershipStatus) : undefined;
   const renewing = sp.renewing === "30" ? 30 : undefined;
-  const [plans, list] = await Promise.all([
+  const [plans, list, draws] = await Promise.all([
     listPlans(db),
     listMemberships(db, { q: sp.q?.trim() || undefined, status, plan: sp.plan, renewingWithinDays: renewing, cursor: sp.cursor ?? null }),
+    listMonthlyDraws(db),
   ]);
+  const canWrite = hasPermission(actor, "memberships.write");
   const filtered = !!(sp.q || status || sp.plan || renewing);
   const date = (d: Date | null) => (d ? formatDate(d, locale, "medium") : tr("credits.admin.common.none"));
   const variant = (s: string) => (s === "active" ? "success" : s === "past_due" ? "destructive" : s === "pending" ? "outline" : "secondary");
@@ -33,12 +36,18 @@ export default async function MembershipsPage({ searchParams }: { searchParams: 
     <div className="grid gap-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">{m("title")}</h1>
-        {hasPermission(actor, "memberships.write") ? (
+        {canWrite ? (
           <Link href="/admin/memberships/plans" className={buttonVariants({ variant: "outline" })}>
             {m("plans")}
           </Link>
         ) : null}
       </header>
+      <MonthlyDrawCard
+        month={brusselsDateKey(new Date()).slice(0, 7)}
+        draws={draws.map(({ month, personId, personName }) => ({ month, personId, personName }))}
+        canDraw={canWrite}
+        labels={creditsLabels(locale, ["admin.draw", "errors"])}
+      />
       <DataTable<MembershipListRow>
         rows={list.rows}
         nextCursor={list.nextCursor}

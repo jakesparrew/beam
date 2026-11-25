@@ -23,7 +23,7 @@ import {
 import { createTestDb, makePerson, makeProduct, makeUser } from "../testing";
 import { makeOrder } from "../testing/commerce-factories";
 import { makeCreditGrant, makeEntry, makeMembership } from "../testing/credits-factories";
-import { CREDITS_RETENTION_POLICIES, CREDITS_SETTINGS_DEFAULT, seed, seedCreditsDefaults, seedCreditsDemo } from "../seed/credits";
+import { BEAM_MEMBERSHIP_DISCOUNTS, CREDITS_RETENTION_POLICIES, CREDITS_SETTINGS_DEFAULT, seed, seedBeamMembershipPlan, seedCreditsDefaults, seedCreditsDemo } from "../seed/credits";
 import { DEFAULT_SEEDS } from "../seed/index.generated";
 import { settings } from "./platform";
 import { vPersonCredits, vPersonStatus } from "./credits.views";
@@ -384,7 +384,45 @@ describe("plans, shares, bulk extensions and reconciliation runs", () => {
       .insert(membershipPlanBenefits)
       .values({ productId: plan.id, kind: "event_access", text: { "nl-BE": "Toegang", "fr-BE": "Accès", en: "Access" } })
       .returning();
-    expect(b).toMatchObject({ sortOrder: 0, isActive: true });
+    expect(b).toMatchObject({ sortOrder: 0, isActive: true, discountScope: null, discountPct: null });
+  });
+
+  it("plan benefit discounts: a scope needs a pct and kind discount; scope product needs the product", async () => {
+    const plan = await makeProduct(h.db, { kind: "membership" });
+    const salt = await makeProduct(h.db, { kind: "item", itemCategory: "wellness_product" });
+    const text = { "nl-BE": "x", "fr-BE": "x", en: "x" };
+    const base = { productId: plan.id, kind: "discount" as const, text };
+    await rejectsCheck(h.db.insert(membershipPlanBenefits).values({ ...base, discountScope: "sessions" }), "membership_plan_benefits_discount_ck");
+    await rejectsCheck(h.db.insert(membershipPlanBenefits).values({ ...base, kind: "other", discountScope: "sessions", discountPct: "20.00" }), "membership_plan_benefits_discount_ck");
+    await rejectsCheck(h.db.insert(membershipPlanBenefits).values({ ...base, discountScope: "events", discountPct: "120.00" }), "membership_plan_benefits_discount_pct_ck");
+    await rejectsCheck(h.db.insert(membershipPlanBenefits).values({ ...base, discountScope: "product", discountPct: "30.00" }), "membership_plan_benefits_scope_product_ck");
+    await rejectsCheck(h.db.insert(membershipPlanBenefits).values({ ...base, discountScope: "products", discountPct: "15.00", scopeProductId: salt.id }), "membership_plan_benefits_scope_product_ck");
+    await h.db.insert(membershipPlanBenefits).values({ ...base, discountScope: "product", discountPct: "30.00", scopeProductId: salt.id });
+  });
+
+  it("seedBeamMembershipPlan: the 4-day alternative and the owner's discounts, once", async () => {
+    const plan = await makeProduct(h.db, { kind: "membership", recurringInterval: "year", includedCreditKind: "night", includedCreditUnits: 1 });
+    const salt = await makeProduct(h.db, { kind: "item", itemCategory: "wellness_product" });
+    const first = await seedBeamMembershipPlan(h.db, { planProductId: plan.id, detoxSaltProductId: salt.id });
+    const second = await seedBeamMembershipPlan(h.db, { planProductId: plan.id, detoxSaltProductId: salt.id });
+    expect(second.created).toBe(0);
+    expect(first.created).toBeGreaterThan(0);
+    const inc = await h.db.select().from(membershipPlanInclusions).where(sql`${membershipPlanInclusions.productId} = ${plan.id}`);
+    expect(inc).toMatchObject([{ creditKind: "day", unitsPerPeriod: 4, isAlternative: true }]);
+    const benefits = await h.db.select().from(membershipPlanBenefits).where(sql`${membershipPlanBenefits.productId} = ${plan.id}`);
+    const scoped = benefits
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .filter((b) => b.discountScope)
+      .map((b) => [b.discountScope, Number(b.discountPct), b.scopeProductId]);
+    expect(scoped).toEqual([
+      ["sessions", BEAM_MEMBERSHIP_DISCOUNTS.sessions, null],
+      ["packages", BEAM_MEMBERSHIP_DISCOUNTS.packages, null],
+      ["products", BEAM_MEMBERSHIP_DISCOUNTS.products, null],
+      ["events", BEAM_MEMBERSHIP_DISCOUNTS.events, null],
+      ["product", BEAM_MEMBERSHIP_DISCOUNTS.detoxSalt, salt.id],
+    ]);
+    expect(benefits.some((b) => b.kind === "member_only_access")).toBe(true);
+    for (const b of benefits) expect(Object.keys(b.text).sort()).toEqual(["en", "fr-BE", "nl-BE"]);
   });
 
   it("package shares: one creator, positive max_units, one active share per grant and person", async () => {

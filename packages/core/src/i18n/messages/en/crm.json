@@ -545,7 +545,8 @@
       "opportunity_stage_changed": "Opportunity moved from {fromStage} to {toStage}",
       "opportunity_won": "Opportunity won",
       "opportunity_lost": "Opportunity lost",
-      "opportunity_reopened": "Opportunity reopened in stage {toStage}"
+      "opportunity_reopened": "Opportunity reopened in stage {toStage}",
+      "membership_draw_won": "Won the monthly draw: free night"
     },
     "duplicates": {
       "title": "Possible duplicates",

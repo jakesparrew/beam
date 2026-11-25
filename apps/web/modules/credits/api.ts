@@ -152,6 +152,8 @@ export function getMembershipForPerson(
   membershipId: string | null;
   planProductId: string | null;
   discountPct: number;
+  /** The plan's discount per category (`sessions`, `packages`, `products`, `events`) or `product`; empty = `discountPct` on everything. */
+  discountRules?: { scope: "sessions" | "packages" | "products" | "events" | "product"; productId: string | null; pct: number }[];
   status: "active" | "past_due" | null;
   periodEndAt: Date | null;
   cancelAt: Date | null;

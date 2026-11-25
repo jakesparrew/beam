@@ -10,7 +10,7 @@ import { formatDate, formatMoney, type Locale } from "@beam/core/i18n";
 import { translator } from "@/lib/i18n";
 import { creditsLabels, type MembershipStatus, type MyMembership } from "../queries";
 import { CancelMembershipDialog, PayRenewalButton, ResumeMembershipButton, type MembershipActionLabels } from "./cancel-membership-dialog";
-import { UnitsProgress, unitsOfText, unitsText } from "./package-card";
+import { MembershipUsage } from "./membership-usage";
 
 type Tr = ReturnType<typeof translator>;
 
@@ -106,32 +106,8 @@ export function MembershipCard({ membership: m, locale, shopHref }: { membership
           ) : null}
           {m.endedAt ? <Row label={tr("credits.portal.membership.status_label")}>{tr("credits.portal.membership.ended_on", { date: formatDate(m.endedAt, locale) })}</Row> : null}
           {live ? <Row label={tr("credits.portal.membership.payment_method")}>{paymentMethodText(m, tr)}</Row> : null}
-          {m.discountPct > 0 ? (
-            <Row label={tr("credits.portal.membership.discount")}>{tr("credits.portal.membership.discount_value", { pct: new Intl.NumberFormat(locale).format(m.discountPct) })}</Row>
-          ) : null}
         </dl>
-        {live ? (
-          <section aria-labelledby="membership-included" className="grid gap-3">
-            <h2 id="membership-included" className="text-base font-semibold">
-              {tr("credits.portal.membership.included")}
-            </h2>
-            {m.included.length === 0 ? (
-              <p className="text-sm text-muted-foreground">{tr("credits.portal.membership.included_none")}</p>
-            ) : (
-              m.included.map((g) => (
-                <div key={g.grantId} className="grid gap-1">
-                  <p className="text-sm font-medium">{unitsText(g.kind, g.remainingUnits, locale, tr)}</p>
-                  <UnitsProgress
-                    label={tr("credits.portal.packages.progress", { name: tr(`credits.labels.${g.kind}`) })}
-                    remaining={g.remainingUnits}
-                    total={g.baseUnits}
-                    valueText={unitsOfText(g.kind, g.remainingUnits, g.baseUnits, locale, tr)}
-                  />
-                </div>
-              ))
-            )}
-          </section>
-        ) : null}
+        {live ? <MembershipUsage membership={m} locale={locale} /> : null}
         {m.upcoming ? (
           <p className="text-sm">{tr("credits.portal.membership.upcoming", { plan: m.upcoming.planName?.[locale] ?? "", date: formatDate(m.upcoming.startsAt, locale) })}</p>
         ) : null}

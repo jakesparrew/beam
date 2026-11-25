@@ -225,7 +225,8 @@
         "resumed": "Hervat",
         "cancelled": "Opgezegd",
         "expired": "Vervallen",
-        "period_extended": "Periode verlengd"
+        "period_extended": "Periode verlengd",
+        "draw_won": "Gewonnen in de maandelijkse trekking"
       },
       "attribution_status": {
         "pending": "In afwachting",
@@ -244,6 +245,13 @@
         "approved": "Goedgekeurd",
         "paid": "Uitbetaald",
         "void": "Vervallen"
+      },
+      "discount_scope": {
+        "sessions": "Sessies (dag en nacht)",
+        "packages": "Pakketten",
+        "products": "Producten",
+        "events": "Events",
+        "product": "Eén product"
       }
     },
     "errors": {
@@ -270,7 +278,8 @@
       "not_a_partner": "Dit bedrijf is niet als partner aangeduid.",
       "already_attributed": "Deze persoon werd al doorverwezen (de eerste doorverwijzing telt).",
       "attribution_not_pending": "Alleen een doorverwijzing in afwachting kan worden afgewezen.",
-      "referrer_required": "Kies wie deze persoon doorverwees."
+      "referrer_required": "Kies wie deze persoon doorverwees.",
+      "no_active_members": "Er zijn geen actieve leden om uit te loten."
     },
     "admin": {
       "common": {
@@ -579,7 +588,7 @@
         "units_per_period": "Eenheden per periode (1 tot 62)",
         "active": "Actief",
         "save_inclusion": "Inclusie opslaan",
-        "discount": "Ledenkorting",
+        "discount": "Standaard ledenkorting",
         "discount_value": "{pct} %",
         "members": "{count, plural, one {# actief lid} other {# actieve leden}}",
         "benefits": "Voordelen",
@@ -591,7 +600,15 @@
         "save_benefit": "Voordeel opslaan",
         "edit_benefit": "Bewerken",
         "remove_benefit": "Verwijderen",
-        "mixed_vat": "Diensten met verschillende btw: bevestig met de boekhouder."
+        "mixed_vat": "Diensten met verschillende btw: bevestig met de boekhouder.",
+        "discount_hint": "Geldt alleen als het plan hieronder geen korting per categorie heeft.",
+        "discount_scope": "Korting bij het afrekenen op",
+        "discount_scope_none": "Alleen tonen (geen korting bij het afrekenen)",
+        "discount_pct": "Korting (%)",
+        "discount_product": "Product",
+        "discount_rule": "{pct} % op {scope}",
+        "alternative": "Of-of met de hoofdinclusie (het eerste gebruik beslist)",
+        "alternative_badge": "of-of"
       },
       "panel": {
         "title": "Pakketten en tegoed",
@@ -767,6 +784,21 @@
         "code_uses": "{count, plural, one {# keer gebruikt} other {# keer gebruikt}}",
         "code_inactive": "inactief",
         "codes_empty": "Nog geen code. Vraag er een aan BEAM."
+      },
+      "draw": {
+        "title": "Maandelijkse trekking",
+        "description": "Lot één actief lid uit voor een gratis nachtsessie. Eén trekking per maand; de winnaar krijgt de nacht meteen op zijn account.",
+        "this_month": "Deze maand ({month})",
+        "not_drawn": "Nog niet geloot.",
+        "winner": "Winnaar: {name}",
+        "draw": "Winnaar van deze maand loten",
+        "drawing": "Even geduld…",
+        "drawn": "{name} wint de gratis nacht van {month}.",
+        "history": "Vorige trekkingen",
+        "history_empty": "Nog geen trekkingen.",
+        "col_month": "Maand",
+        "col_winner": "Winnaar",
+        "grant_label": "Maandelijkse trekking {month}: gratis nacht"
       }
     },
     "units": {
@@ -908,7 +940,22 @@
         "pay_due": "Je laatste betaling is niet gelukt. Betaal nu om lid te blijven.",
         "pay_link_due": "Je verlenging staat klaar om te betalen.",
         "change_plan": "Formule wijzigen",
-        "change_plan_hint": "Zeg op tegen het einde van deze periode en kies daarna een nieuwe formule in de shop. Die start op {date}."
+        "change_plan_hint": "Zeg op tegen het einde van deze periode en kies daarna een nieuwe formule in de shop. Die start op {date}.",
+        "free_sessions": "Gratis bij je lidmaatschap",
+        "choice_open": "Je kiest zelf: {options}. De eerste gratis sessie die je boekt, beslist; de andere keuze vervalt dan.",
+        "choice_or": "of",
+        "choice_chosen": "Je koos {option}. De andere keuze is vervallen.",
+        "discounts": "Je ledenkorting",
+        "discount_sessions": "{pct} % korting op dag- en nachtsessies",
+        "discount_packages": "{pct} % korting op pakketten",
+        "discount_products": "{pct} % korting op producten",
+        "discount_events": "{pct} % korting op events",
+        "discount_product": "{pct} % korting op {product}",
+        "gatherings": "Bijeenkomsten alleen voor leden",
+        "gatherings_empty": "Er staat nog geen bijeenkomst gepland. We laten het je weten.",
+        "gatherings_book": "Inschrijven",
+        "option_day": "{count, plural, one {# gratis dagsessie} other {# gratis dagsessies}}",
+        "option_night": "{count, plural, one {# gratis nachtsessie} other {# gratis nachtsessies}}"
       },
       "summary": {
         "title": "Pakketten en lidmaatschap",

@@ -16,6 +16,7 @@ import {
   creditGrants,
   membershipPeriods,
   membershipPlanBenefits,
+  membershipPlanInclusions,
   memberships,
 } from "../schema/credits";
 import { settings } from "../schema/platform";
@@ -144,6 +145,62 @@ const BENEFITS: { kind: (typeof membershipPlanBenefits.$inferInsert)["kind"]; te
     text: { "nl-BE": "Voorrang bij evenementen", "fr-BE": "Priorité pour les événements", en: "Priority access to events" },
   },
 ];
+
+type BenefitInsert = typeof membershipPlanBenefits.$inferInsert;
+const t3 = (nl: string, fr: string, en: string): LocalizedText => ({ "nl-BE": nl, "fr-BE": fr, en });
+
+/**
+ * The owner's BEAM membership (EUR 396 a year, document of November 2026): its member discounts
+ * per category, the defaults staff can change on `/admin/memberships/plans`.
+ */
+export const BEAM_MEMBERSHIP_DISCOUNTS = { sessions: 20, packages: 20, products: 15, events: 15, detoxSalt: 30 } as const;
+
+function beamMembershipBenefits(detoxSaltProductId: string | null): Omit<BenefitInsert, "productId" | "sortOrder">[] {
+  const d = BEAM_MEMBERSHIP_DISCOUNTS;
+  const rows: Omit<BenefitInsert, "productId" | "sortOrder">[] = [
+    { kind: "included_units", text: t3("1 gratis nachtsessie of 4 gratis dagsessies", "1 séance de nuit ou 4 séances de jour offertes", "1 free night session or 4 free day sessions") },
+    { kind: "discount", text: t3(`${d.sessions}% korting op dag- en nachtsessies`, `${d.sessions} % sur les séances de jour et de nuit`, `${d.sessions}% off day and night sessions`), discountScope: "sessions", discountPct: d.sessions.toFixed(2) },
+    { kind: "discount", text: t3(`${d.packages}% korting op pakketten`, `${d.packages} % sur les forfaits`, `${d.packages}% off packages`), discountScope: "packages", discountPct: d.packages.toFixed(2) },
+    { kind: "discount", text: t3(`${d.products}% korting op producten`, `${d.products} % sur les produits`, `${d.products}% off products`), discountScope: "products", discountPct: d.products.toFixed(2) },
+    { kind: "discount", text: t3(`${d.events}% korting op events`, `${d.events} % sur les événements`, `${d.events}% off events`), discountScope: "events", discountPct: d.events.toFixed(2) },
+  ];
+  if (detoxSaltProductId) {
+    rows.push({
+      kind: "discount",
+      text: t3(`${d.detoxSalt}% korting op detoxzout`, `${d.detoxSalt} % sur le sel détox`, `${d.detoxSalt}% off detox salt`),
+      discountScope: "product",
+      discountPct: d.detoxSalt.toFixed(2),
+      scopeProductId: detoxSaltProductId,
+    });
+  }
+  rows.push(
+    { kind: "member_only_access", text: t3("Twee exclusieve bijeenkomsten per jaar, alleen voor leden", "Deux rencontres exclusives par an, réservées aux membres", "Two exclusive members-only gatherings a year") },
+    { kind: "other", text: t3("Elke maand een trekking van een gratis nachtsessie", "Chaque mois, un tirage au sort d’une séance de nuit offerte", "A monthly draw for a free night session") },
+  );
+  return rows;
+}
+
+/**
+ * The BEAM membership plan's either/or inclusion (the product's 1 night OR 4 day sessions) and its
+ * benefits with the category discounts. Idempotent: the inclusion is unique per plan and kind,
+ * and the benefits are written only when the plan has none yet (staff edits are kept).
+ */
+export async function seedBeamMembershipPlan(db: DbOrTx, input: { planProductId: string; detoxSaltProductId: string | null }): Promise<{ created: number }> {
+  let created = 0;
+  const inc = await db
+    .insert(membershipPlanInclusions)
+    .values({ productId: input.planProductId, creditKind: "day", unitsPerPeriod: 4, isAlternative: true })
+    .onConflictDoNothing()
+    .returning({ id: membershipPlanInclusions.id });
+  created += inc.length;
+  const known = await db.select({ id: membershipPlanBenefits.id }).from(membershipPlanBenefits).where(eq(membershipPlanBenefits.productId, input.planProductId));
+  if (known.length === 0) {
+    const rows = beamMembershipBenefits(input.detoxSaltProductId).map((b, i) => ({ ...b, productId: input.planProductId, sortOrder: i }));
+    await db.insert(membershipPlanBenefits).values(rows);
+    created += rows.length;
+  }
+  return { created };
+}
 
 /** Inserts a grant and its first entry under `key`, unless an entry with that key exists. */
 async function demoGrant(db: DbOrTx, key: string, values: typeof creditGrants.$inferInsert): Promise<string> {

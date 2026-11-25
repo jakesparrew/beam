@@ -80,6 +80,7 @@ export const BEAM_SKUS = {
   nights5: "BEAM-NIGHTS-5",
   nights10: "BEAM-NIGHTS-10",
   membershipYear: "BEAM-MEMBER-YEAR",
+  detoxSalt: "BEAM-DETOX-SALT",
 } as const;
 
 /** 18 months, the validity of every BEAM package. */
@@ -147,6 +148,21 @@ function beamProducts(from: Date): DemoProduct[] {
       isShopVisible: true,
       sortOrder: 130,
       prices: [{ amountCents: 39_600, validFromAt: from }],
+    },
+    {
+      kind: "item",
+      sku: BEAM_SKUS.detoxSalt,
+      name: text("Detoxzout", "Sel détox", "Detox salt"),
+      description: text(
+        "Badzout voor thuis, om het herstel na een sessie verder te zetten. Leden krijgen 30% korting.",
+        "Sel de bain pour la maison, pour prolonger la récupération après une séance. Les membres ont 30 % de réduction.",
+        "Bath salt for at home, to carry on the recovery after a session. Members get 30% off.",
+      ),
+      vatRatePct: "21.00",
+      itemCategory: "wellness_product",
+      isShopVisible: true,
+      sortOrder: 140,
+      prices: [{ amountCents: 2_500, validFromAt: from }],
     },
   ];
 }

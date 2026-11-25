@@ -263,22 +263,24 @@ export const setPlanInclusion = action(
       .select()
       .from(membershipPlanInclusions)
       .where(and(eq(membershipPlanInclusions.productId, plan.id), eq(membershipPlanInclusions.creditKind, input.kind)));
+    if (input.isAlternative && !plan.includedCreditKind) throw new ValidationError("validation", { isAlternative: "needs_primary_inclusion" });
+    const values = { unitsPerPeriod: input.unitsPerPeriod, isAlternative: input.isAlternative, isActive: input.isActive };
     const [row] = old
       ? await ctx.tx
           .update(membershipPlanInclusions)
-          .set({ unitsPerPeriod: input.unitsPerPeriod, isActive: input.isActive, updatedAt: ctx.now })
+          .set({ ...values, updatedAt: ctx.now })
           .where(eq(membershipPlanInclusions.id, old.id))
           .returning()
       : await ctx.tx
           .insert(membershipPlanInclusions)
-          .values({ productId: plan.id, creditKind: input.kind, unitsPerPeriod: input.unitsPerPeriod, isActive: input.isActive })
+          .values({ productId: plan.id, creditKind: input.kind, ...values })
           .returning();
     await ctx.audit({
       action: "memberships.inclusion_changed",
       entityType: "product",
       entityId: plan.id,
-      oldValue: old ? { kind: old.creditKind, units_per_period: old.unitsPerPeriod, is_active: old.isActive } : null,
-      newValue: { kind: input.kind, units_per_period: input.unitsPerPeriod, is_active: input.isActive },
+      oldValue: old ? { kind: old.creditKind, units_per_period: old.unitsPerPeriod, is_alternative: old.isAlternative, is_active: old.isActive } : null,
+      newValue: { kind: input.kind, units_per_period: input.unitsPerPeriod, is_alternative: input.isAlternative, is_active: input.isActive },
     });
     return { inclusionId: row!.id };
   },
@@ -301,16 +303,32 @@ export const setPlanBenefit = action(
         .where(and(eq(membershipPlanBenefits.productId, plan.id), eq(membershipPlanBenefits.isActive, true)));
       if (Number(n?.n ?? 0) >= MAX_ACTIVE_BENEFITS) throw new ConflictError("too_many_benefits");
     }
-    const values = { kind: input.kind, text: input.text, sortOrder: input.sortOrder, isActive: input.isActive };
+    const scope = input.kind === "discount" ? input.discountScope : null;
+    const scopeProductId = scope === "product" ? input.scopeProductId : null;
+    if (scopeProductId) {
+      const [target] = await ctx.tx.select({ kind: products.kind }).from(products).where(eq(products.id, scopeProductId));
+      if (!target || target.kind === "membership" || target.kind === "voucher") throw new ValidationError("validation", { scopeProductId: "not_found" });
+    }
+    const values = {
+      kind: input.kind,
+      text: input.text,
+      sortOrder: input.sortOrder,
+      isActive: input.isActive,
+      discountScope: scope,
+      discountPct: scope ? input.discountPct!.toFixed(2) : null,
+      scopeProductId,
+    };
     const [row] = old
       ? await ctx.tx.update(membershipPlanBenefits).set({ ...values, updatedAt: ctx.now }).where(eq(membershipPlanBenefits.id, old.id)).returning()
       : await ctx.tx.insert(membershipPlanBenefits).values({ productId: plan.id, ...values }).returning();
+    const discount = (b: { discountScope: string | null; discountPct: string | null; scopeProductId: string | null }) =>
+      b.discountScope ? { scope: b.discountScope, pct: Number(b.discountPct), product_id: b.scopeProductId } : null;
     await ctx.audit({
       action: "memberships.benefit_changed",
       entityType: "membership_plan_benefit",
       entityId: row!.id,
-      oldValue: old ? { kind: old.kind, text: old.text, sort_order: old.sortOrder, is_active: old.isActive } : null,
-      newValue: { product_id: plan.id, kind: input.kind, text: input.text, sort_order: input.sortOrder, is_active: input.isActive },
+      oldValue: old ? { kind: old.kind, text: old.text, sort_order: old.sortOrder, is_active: old.isActive, discount: discount(old) } : null,
+      newValue: { product_id: plan.id, kind: input.kind, text: input.text, sort_order: input.sortOrder, is_active: input.isActive, discount: discount(values) },
     });
     return { benefitId: row!.id };
   },
@@ -332,6 +350,12 @@ export const removePlanBenefit = action(
     });
     return { removed: true };
   },
+);
+
+/** The monthly members' draw: one winner per Brussels month, a second click returns that winner. */
+export const drawMonthlyWinner = action(
+  { name: "memberships.draw", audience: "staff", permission: "memberships.write", input: z.object({}), audit: false },
+  (ctx) => membershipService.drawMonthlyNight(ctx.tx, ctx),
 );
 
 // ---------------------------------------------------------------------------

@@ -1,0 +1,9 @@
+CREATE TYPE "public"."membership_plan_benefits_discount_scope" AS ENUM('sessions', 'packages', 'products', 'events', 'product');--> statement-breakpoint
+ALTER TABLE "membership_plan_benefits" ADD COLUMN "discount_scope" "membership_plan_benefits_discount_scope";--> statement-breakpoint
+ALTER TABLE "membership_plan_benefits" ADD COLUMN "discount_pct" numeric(5, 2);--> statement-breakpoint
+ALTER TABLE "membership_plan_benefits" ADD COLUMN "scope_product_id" uuid;--> statement-breakpoint
+ALTER TABLE "membership_plan_inclusions" ADD COLUMN "is_alternative" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+ALTER TABLE "membership_plan_benefits" ADD CONSTRAINT "membership_plan_benefits_scope_product_id_products_id_fk" FOREIGN KEY ("scope_product_id") REFERENCES "public"."products"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "membership_plan_benefits" ADD CONSTRAINT "membership_plan_benefits_discount_ck" CHECK (("membership_plan_benefits"."discount_scope" is null) = ("membership_plan_benefits"."discount_pct" is null) and ("membership_plan_benefits"."discount_scope" is null or "membership_plan_benefits"."kind" = 'discount'));--> statement-breakpoint
+ALTER TABLE "membership_plan_benefits" ADD CONSTRAINT "membership_plan_benefits_discount_pct_ck" CHECK ("membership_plan_benefits"."discount_pct" is null or "membership_plan_benefits"."discount_pct" between 0 and 100);--> statement-breakpoint
+ALTER TABLE "membership_plan_benefits" ADD CONSTRAINT "membership_plan_benefits_scope_product_ck" CHECK (("membership_plan_benefits"."scope_product_id" is not null) = coalesce("membership_plan_benefits"."discount_scope" = 'product', false));

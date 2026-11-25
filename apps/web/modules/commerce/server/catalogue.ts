@@ -523,12 +523,14 @@ export async function getQuote(
 
   let isMember = false;
   let memberDiscountPct: number | null = null;
+  let memberDiscountRules: QuoteInput["memberDiscountRules"] = [];
   let personStatus: QuoteInput["personStatus"] = null;
   let personPriceRows: PersonPriceRow[] = [];
   if (personId) {
     const membership = await getMembershipForPerson(db, personId);
     isMember = membership.isMember;
     memberDiscountPct = membership.isMember && membership.discountPct > 0 ? membership.discountPct : null;
+    memberDiscountRules = membership.isMember ? (membership.discountRules ?? []) : [];
     personStatus = (await getPersonStatus(db, personId)).status;
     if (ids.length) {
       const pp = await db
@@ -551,6 +553,7 @@ export async function getQuote(
     personStatus,
     isMember,
     memberDiscountPct,
+    memberDiscountRules,
     personPrices: personPriceRows,
     promotions,
     promoCode: args.promoCode ?? null,

@@ -225,7 +225,8 @@
         "resumed": "Repris",
         "cancelled": "Résilié",
         "expired": "Expiré",
-        "period_extended": "Période prolongée"
+        "period_extended": "Période prolongée",
+        "draw_won": "Gagné au tirage mensuel"
       },
       "attribution_status": {
         "pending": "En attente",
@@ -244,6 +245,13 @@
         "approved": "Approuvée",
         "paid": "Payée",
         "void": "Annulée"
+      },
+      "discount_scope": {
+        "sessions": "Séances (jour et nuit)",
+        "packages": "Forfaits",
+        "products": "Produits",
+        "events": "Événements",
+        "product": "Un produit"
       }
     },
     "errors": {
@@ -270,7 +278,8 @@
       "not_a_partner": "Cette entreprise n'est pas indiquée comme partenaire.",
       "already_attributed": "Cette personne a déjà été parrainée (le premier parrainage compte).",
       "attribution_not_pending": "Seul un parrainage en attente peut être refusé.",
-      "referrer_required": "Choisissez qui a parrainé cette personne."
+      "referrer_required": "Choisissez qui a parrainé cette personne.",
+      "no_active_members": "Il n’y a aucun membre actif à tirer au sort."
     },
     "admin": {
       "common": {
@@ -579,7 +588,7 @@
         "units_per_period": "Unités par période (1 à 62)",
         "active": "Actif",
         "save_inclusion": "Enregistrer l'inclusion",
-        "discount": "Réduction membre",
+        "discount": "Réduction membre par défaut",
         "discount_value": "{pct} %",
         "members": "{count, plural, one {# membre actif} other {# membres actifs}}",
         "benefits": "Avantages",
@@ -591,7 +600,15 @@
         "save_benefit": "Enregistrer l'avantage",
         "edit_benefit": "Modifier",
         "remove_benefit": "Supprimer",
-        "mixed_vat": "Services à TVA mixte : à confirmer avec le comptable."
+        "mixed_vat": "Services à TVA mixte : à confirmer avec le comptable.",
+        "discount_hint": "S’applique uniquement si le plan n’a pas de réduction par catégorie ci-dessous.",
+        "discount_scope": "Réduction au paiement sur",
+        "discount_scope_none": "Affichage seulement (pas de réduction au paiement)",
+        "discount_pct": "Réduction (%)",
+        "discount_product": "Produit",
+        "discount_rule": "{pct} % sur {scope}",
+        "alternative": "Au choix avec l’inclusion principale (la première utilisation décide)",
+        "alternative_badge": "au choix"
       },
       "panel": {
         "title": "Forfaits et avoirs",
@@ -767,6 +784,21 @@
         "code_uses": "{count, plural, one {utilisé # fois} other {utilisé # fois}}",
         "code_inactive": "inactif",
         "codes_empty": "Pas encore de code. Demandez-en un à BEAM."
+      },
+      "draw": {
+        "title": "Tirage mensuel",
+        "description": "Tirez au sort un membre actif pour une séance de nuit offerte. Un tirage par mois ; le gagnant reçoit la nuit directement sur son compte.",
+        "this_month": "Ce mois-ci ({month})",
+        "not_drawn": "Pas encore tiré.",
+        "winner": "Gagnant : {name}",
+        "draw": "Tirer le gagnant du mois",
+        "drawing": "Un instant…",
+        "drawn": "{name} gagne la nuit offerte de {month}.",
+        "history": "Tirages précédents",
+        "history_empty": "Aucun tirage pour l’instant.",
+        "col_month": "Mois",
+        "col_winner": "Gagnant",
+        "grant_label": "Tirage mensuel {month} : nuit offerte"
       }
     },
     "units": {
@@ -908,7 +940,22 @@
         "pay_due": "Votre dernier paiement n’a pas abouti. Payez maintenant pour rester membre.",
         "pay_link_due": "Votre renouvellement est prêt à être payé.",
         "change_plan": "Changer de formule",
-        "change_plan_hint": "Résiliez à la fin de cette période, puis choisissez une nouvelle formule dans la boutique. Elle commence le {date}."
+        "change_plan_hint": "Résiliez à la fin de cette période, puis choisissez une nouvelle formule dans la boutique. Elle commence le {date}.",
+        "free_sessions": "Offert avec votre abonnement",
+        "choice_open": "Au choix : {options}. La première séance offerte que vous réservez décide ; l’autre option expire alors.",
+        "choice_or": "ou",
+        "choice_chosen": "Vous avez choisi {option}. L’autre option a expiré.",
+        "discounts": "Vos réductions membre",
+        "discount_sessions": "{pct} % sur les séances de jour et de nuit",
+        "discount_packages": "{pct} % sur les forfaits",
+        "discount_products": "{pct} % sur les produits",
+        "discount_events": "{pct} % sur les événements",
+        "discount_product": "{pct} % sur {product}",
+        "gatherings": "Rencontres réservées aux membres",
+        "gatherings_empty": "Aucune rencontre prévue pour l’instant. Nous vous tiendrons au courant.",
+        "gatherings_book": "S’inscrire",
+        "option_day": "{count, plural, one {# séance de jour offerte} other {# séances de jour offertes}}",
+        "option_night": "{count, plural, one {# séance de nuit offerte} other {# séances de nuit offertes}}"
       },
       "summary": {
         "title": "Forfaits et abonnement",

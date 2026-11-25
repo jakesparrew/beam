@@ -97,6 +97,17 @@ export const membershipPlanBenefitsKind = pgEnum("membership_plan_benefits_kind"
   "event_discount",
   "other",
 ]);
+/**
+ * What a `discount` benefit applies to at checkout: day and night sessions, packages, shop items,
+ * event tickets, or one named product (`scope_product_id`, e.g. detox salt).
+ */
+export const membershipPlanBenefitsDiscountScope = pgEnum("membership_plan_benefits_discount_scope", [
+  "sessions",
+  "packages",
+  "products",
+  "events",
+  "product",
+]);
 export const creditBulkExtensionsStatus = pgEnum("credit_bulk_extensions_status", ["pending", "running", "done", "failed"]);
 export const membershipPeriodsSource = pgEnum("membership_periods_source", [
   "purchase",
@@ -282,6 +293,11 @@ export const membershipPlanInclusions = pgTable(
       .references(() => products.id),
     creditKind: creditGrantsCreditKind().notNull(),
     unitsPerPeriod: integer().notNull(),
+    /**
+     * An either/or alternative to the product's primary inclusion: the member uses one option, and
+     * the first use of any option in a period forfeits the others (e.g. 1 night OR 4 day sessions).
+     */
+    isAlternative: boolean().notNull().default(false),
     isActive: boolean().notNull().default(true),
     ...timestamps(),
   },
@@ -292,7 +308,11 @@ export const membershipPlanInclusions = pgTable(
   ],
 );
 
-/** NO_PII. The benefits list shown in the shop, the portal and the plan screen (display only). */
+/**
+ * NO_PII. The benefits list shown in the shop, the portal and the plan screen. An active
+ * `discount` benefit with a `discount_scope` is also the member discount of that scope at checkout
+ * (commerce's quote); without a scope it is display only.
+ */
 export const membershipPlanBenefits = pgTable(
   "membership_plan_benefits",
   {
@@ -304,9 +324,24 @@ export const membershipPlanBenefits = pgTable(
     text: localized().notNull(),
     sortOrder: smallint().notNull().default(0),
     isActive: boolean().notNull().default(true),
+    discountScope: membershipPlanBenefitsDiscountScope(),
+    discountPct: numeric({ precision: 5, scale: 2 }),
+    /** Scope `product` only: the one product the discount applies to. */
+    scopeProductId: uuid().references(() => products.id),
     ...timestamps(),
   },
-  (t) => [index("membership_plan_benefits_product_sort_idx").on(t.productId, t.sortOrder)],
+  (t) => [
+    index("membership_plan_benefits_product_sort_idx").on(t.productId, t.sortOrder),
+    check(
+      "membership_plan_benefits_discount_ck",
+      sql`(${t.discountScope} is null) = (${t.discountPct} is null) and (${t.discountScope} is null or ${t.kind} = 'discount')`,
+    ),
+    check("membership_plan_benefits_discount_pct_ck", sql`${t.discountPct} is null or ${t.discountPct} between 0 and 100`),
+    check(
+      "membership_plan_benefits_scope_product_ck",
+      sql`(${t.scopeProductId} is not null) = coalesce(${t.discountScope} = 'product', false)`,
+    ),
+  ],
 );
 
 // ---------------------------------------------------------------------------

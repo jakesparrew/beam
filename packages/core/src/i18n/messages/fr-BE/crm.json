@@ -545,7 +545,8 @@
       "opportunity_stage_changed": "Opportunité déplacée de {fromStage} vers {toStage}",
       "opportunity_won": "Opportunité gagnée",
       "opportunity_lost": "Opportunité perdue",
-      "opportunity_reopened": "Opportunité rouverte à l'étape {toStage}"
+      "opportunity_reopened": "Opportunité rouverte à l'étape {toStage}",
+      "membership_draw_won": "Gagne le tirage mensuel : nuit offerte"
     },
     "duplicates": {
       "title": "Doublons possibles",

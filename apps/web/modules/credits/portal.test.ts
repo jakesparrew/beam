@@ -303,7 +303,7 @@ describe("customer membership actions", () => {
 });
 
 describe("portal wording (rule 36)", () => {
-  const SAMPLE = { count: 2, remaining: 3, total: 10, amount: "€ 35,00", date: "31/12/2026", name: "Anna D.", from: "1/1/2026", to: "31/1/2026", plan: "Plan", pct: "10", method: "SEPA" };
+  const SAMPLE = { count: 2, remaining: 3, total: 10, amount: "€ 35,00", date: "31/12/2026", name: "Anna D.", from: "1/1/2026", to: "31/1/2026", plan: "Plan", pct: "10", method: "SEPA", option: "1 night", options: "1 night or 4 days", product: "Detox salt" };
 
   function strings(node: unknown, path: string, out: [string, string][]) {
     if (typeof node === "string") out.push([path, node]);

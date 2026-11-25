@@ -10,12 +10,14 @@
  * (`grant:demo:<slug>:bonus`), and a rerun returns the existing grant.
  */
 import type { Tx } from "@beam/db";
-import { creditGrants, memberships, packageShares, persons, products, users } from "@beam/db/schema";
+import { creditGrants, memberships, packageShares, persons, products, sessions, users, vCreditGrantBalances } from "@beam/db/schema";
+import { addDays, brusselsDate, zonedTimeToUtc } from "@beam/core/booking";
 import { BEAM_SKUS, DEMO_SKUS } from "@beam/db/seed/commerce";
-import { and, asc, eq, inArray } from "@/lib/ctx";
+import { seedBeamMembershipPlan } from "@beam/db/seed/credits";
+import { and, asc, eq, inArray, sql } from "@/lib/ctx";
 import type { SeedCtx } from "@/scripts/seed-demo";
 import { grantCredits, importGrant } from "./server/ledger";
-import { importMembership } from "./server/memberships";
+import { grantInclusions, importMembership } from "./server/memberships";
 import { addShare } from "./server/sharing";
 
 const DAY = 86_400_000;
@@ -143,11 +145,75 @@ export async function runCreditsDemoActivitySeed(s: Pick<SeedCtx, "db" | "ctx" |
   return { created, skipped };
 }
 
+/** The two members-only gatherings of the demo (`sessions.notes` is the idempotency key). */
+export const DEMO_MEMBER_GATHERINGS = [
+  { note: "demo:members-gathering:spring", inDays: 40, title: { "nl-BE": "Ledenavond: ademwerk en klank", "fr-BE": "Soirée des membres : respiration et sons", en: "Members' evening: breathwork and sound" } },
+  { note: "demo:members-gathering:autumn", inDays: 220, title: { "nl-BE": "Ledenavond: herfstritueel", "fr-BE": "Soirée des membres : rituel d’automne", en: "Members' evening: autumn ritual" } },
+] as const;
+
+/**
+ * The owner's BEAM membership on the demo: the yearly plan's either/or inclusion (1 night OR 4
+ * day sessions) and its benefits with the category discounts (`seedBeamMembershipPlan`); the live
+ * yearly members of commerce's demo orders get this period's 4-day alternative, unless they
+ * already used a free session; and two members-only gatherings (free events only members can book).
+ */
+export async function runMembershipPlanSeed(s: Pick<SeedCtx, "db" | "ctx" | "now">): Promise<{ created: number; skipped: number }> {
+  const tx = s.db as Tx;
+  const productId = async (sku: string) => (await tx.select({ id: products.id }).from(products).where(eq(products.sku, sku)))[0]?.id;
+  const yearly = await productId(BEAM_SKUS.membershipYear);
+  if (!yearly) return { created: 0, skipped: 1 };
+  let { created } = await seedBeamMembershipPlan(tx, { planProductId: yearly, detoxSaltProductId: (await productId(BEAM_SKUS.detoxSalt)) ?? null });
+  let skipped = 0;
+
+  const live = await tx.select().from(memberships).where(and(eq(memberships.productId, yearly), inArray(memberships.status, ["active", "past_due"])));
+  for (const m of live) {
+    const used = await tx
+      .select({ id: vCreditGrantBalances.grantId })
+      .from(vCreditGrantBalances)
+      .where(and(eq(vCreditGrantBalances.membershipId, m.id), eq(vCreditGrantBalances.startsAt, m.currentPeriodStartAt), sql`${vCreditGrantBalances.remainingUnits} < ${vCreditGrantBalances.baseUnits}`))
+      .limit(1);
+    if (used.length) {
+      skipped++;
+      continue;
+    }
+    const had = await tx.select({ id: creditGrants.id }).from(creditGrants).where(and(eq(creditGrants.membershipId, m.id), eq(creditGrants.startsAt, m.currentPeriodStartAt)));
+    created += (await grantInclusions(tx, s.ctx, m, m.currentPeriodStartAt, m.currentPeriodEndAt)).length - had.length;
+  }
+
+  const today = brusselsDate(s.now);
+  for (const g of DEMO_MEMBER_GATHERINGS) {
+    const [known] = await tx.select({ id: sessions.id }).from(sessions).where(eq(sessions.notes, g.note));
+    if (known) {
+      skipped++;
+      continue;
+    }
+    const startsAt = zonedTimeToUtc(addDays(today, g.inDays), "19:30");
+    await tx.insert(sessions).values({
+      kind: "event",
+      eventCategory: "member_event",
+      title: { ...g.title },
+      startsAt,
+      endsAt: new Date(startsAt.getTime() + 150 * 60_000),
+      capacitySeats: 30,
+      creditKind: null,
+      creditCost: 0,
+      isMemberOnly: true,
+      location: "Grote zaal",
+      notes: g.note,
+      hasManualChanges: true,
+      publishedAt: s.now,
+    });
+    created++;
+  }
+  return { created, skipped };
+}
+
 export const seed = {
   after: ["commerce"],
   run: async (s: SeedCtx) => {
+    const p = await runMembershipPlanSeed(s);
     const a = await runCreditsDemoSeed(s);
     const b = await runCreditsDemoActivitySeed(s);
-    return { created: a.created + b.created, skipped: a.skipped + b.skipped };
+    return { created: p.created + a.created + b.created, skipped: p.skipped + a.skipped + b.skipped };
   },
 };

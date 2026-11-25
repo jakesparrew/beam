@@ -482,3 +482,42 @@ describe("multi-ticket carts: several ticket types of one event (R2, commerce-P8
     expect(ticketCartSession([{}])).toEqual({ sessionId: null, problem: null });
   });
 });
+
+describe("member discount per plan category (owner's membership, item 4)", () => {
+  const RULES: NonNullable<QuoteInput["memberDiscountRules"]> = [
+    { scope: "sessions", productId: null, pct: 20 },
+    { scope: "packages", productId: null, pct: 20 },
+    { scope: "products", productId: null, pct: 15 },
+    { scope: "events", productId: null, pct: 15 },
+  ];
+  const lineTotal = (p: QuoteProduct, cents: number, over: Partial<QuoteInput> = {}) =>
+    quote(input([{ product: p, prices: [price(p, "public", cents)] }], { isMember: true, memberDiscountPct: 20, ...over })).lines[0]!.lineTotalCents;
+
+  it("applies the category rule: 20% on sessions, nights and packages, 15% on items and tickets", () => {
+    expect(lineTotal(product("session"), 12_000, { memberDiscountRules: RULES })).toBe(9_600);
+    expect(lineTotal(product("night"), 42_000, { memberDiscountRules: RULES })).toBe(33_600);
+    expect(lineTotal(product("package"), 49_500, { memberDiscountRules: RULES })).toBe(39_600);
+    expect(lineTotal(product("item"), 2_000, { memberDiscountRules: RULES })).toBe(1_700);
+    expect(lineTotal(product("ticket"), 2_500, { memberDiscountRules: RULES })).toBe(2_125);
+  });
+
+  it("a rule for one product (detox salt 30%) beats its category and the product's own discount", () => {
+    const salt = product("item", { memberDiscountPct: 10 });
+    const rules = [...RULES, { scope: "product" as const, productId: salt.id, pct: 30 }];
+    expect(lineTotal(salt, 2_000, { memberDiscountRules: rules })).toBe(1_400);
+  });
+
+  it("a category without a rule gets no member discount; memberships never do", () => {
+    expect(lineTotal(product("ticket"), 2_500, { memberDiscountRules: [{ scope: "sessions", productId: null, pct: 20 }] })).toBe(2_500);
+    expect(lineTotal(product("membership"), 39_600, { memberDiscountRules: RULES })).toBe(39_600);
+  });
+
+  it("a plan without rules keeps the membership's single discount (existing members)", () => {
+    expect(lineTotal(product("ticket"), 2_500, { memberDiscountPct: 10 })).toBe(2_250);
+    expect(lineTotal(product("ticket"), 2_500, { memberDiscountPct: 10, memberDiscountRules: [] })).toBe(2_250);
+  });
+
+  it("non-members pay the base price", () => {
+    expect(lineTotal(product("session"), 12_000, { isMember: false, memberDiscountRules: RULES })).toBe(12_000);
+  });
+});

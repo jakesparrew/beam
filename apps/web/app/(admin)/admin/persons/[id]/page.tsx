@@ -17,7 +17,8 @@ import { ActivityPanel } from "@/modules/assistant/ui/admin/activity-panel";
 import { BehaviourPanel } from "@/modules/assistant/ui/admin/behaviour-panel";
 import { AssistantPersonPanel } from "@/modules/assistant/ui/admin/person-panel";
 import { listPersonOrders } from "@/modules/commerce/api";
-import { getMembershipSummary, getPersonCreditSummary } from "@/modules/credits/api";
+import { getPersonCreditSummary } from "@/modules/credits/api";
+import { PersonMembershipPanel } from "@/modules/credits/ui/person-membership-panel";
 import { PersonEmailHistory } from "@/modules/email/ui/PersonEmailHistory";
 import { listInvoicesForPerson } from "@/modules/finance/api";
 import { getPersonStats } from "@/modules/ops/api";
@@ -76,10 +77,9 @@ export default async function Person360Page({ params }: { params: Promise<{ id: 
   const date = (d: Date | string | null | undefined) => (d ? formatDate(d, locale) : null);
   const money = (cents: number) => formatMoney(cents, locale);
 
-  const [credits, membership, bookings, offers, orders, invoices, stats, enrolments, emails, automationsNode, segmentsOfPerson, tasks, staff, consent, declarations, guardianVersion, timeline] =
+  const [credits, bookings, offers, orders, invoices, stats, enrolments, emails, automationsNode, segmentsOfPerson, tasks, staff, consent, declarations, guardianVersion, timeline] =
     await Promise.all([
       safePanel(() => getPersonCreditSummary(db, person.id)),
-      safePanel(() => getMembershipSummary(db, person.id)),
       safePanel(() => listPersonBookings(db, person.id, { limit: 20 })),
       safePanel(() => listOpenOffersForPerson(db, person.id)),
       safePanel(() => listPersonOrders(db, person.id, { limit: 20 })),
@@ -276,13 +276,7 @@ export default async function Person360Page({ params }: { params: Promise<{ id: 
           empty={tr("crm.common.none")}
           notAvailable={na}
         />
-        <ListPanel
-          title={pl("membership")}
-          testId="panel-membership"
-          rows={membership.ok ? (membership.value ? [{ id: "membership", primary: textOf(membership.value.productName, locale), secondary: date(membership.value.currentPeriodEndAt), badge: membership.value.status }] : []) : null}
-          empty={tr("crm.common.none")}
-          notAvailable={na}
-        />
+        <PersonMembershipPanel personId={person.id} locale={locale} />
         <ListPanel
           title={pl("bookings")}
           testId="panel-bookings"

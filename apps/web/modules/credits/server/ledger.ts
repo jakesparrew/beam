@@ -10,6 +10,7 @@ import type { DbOrTx } from "@beam/db";
 import {
   creditEntries,
   creditGrants,
+  membershipPlanInclusions,
   memberships,
   orderLines,
   packageShares,
@@ -534,6 +535,62 @@ function ownRemaining(alloc: readonly AllocGrant[], payer: string, validAt: Date
 }
 
 // ---------------------------------------------------------------------------
+// Either/or inclusions of a membership plan ("1 night OR 4 day sessions")
+// ---------------------------------------------------------------------------
+
+/**
+ * The credit kinds of a plan that are either/or: the product's primary inclusion plus its active
+ * inclusions marked `is_alternative`. Empty when the plan has no alternative.
+ */
+export async function planChoiceKinds(db: DbOrTx, planProductId: string): Promise<CreditKind[]> {
+  const [p] = await db.select({ primary: products.includedCreditKind }).from(products).where(eq(products.id, planProductId));
+  if (!p?.primary || p.primary === "euro") return [];
+  const alts = await db
+    .select({ kind: membershipPlanInclusions.creditKind })
+    .from(membershipPlanInclusions)
+    .where(and(eq(membershipPlanInclusions.productId, planProductId), eq(membershipPlanInclusions.isActive, true), eq(membershipPlanInclusions.isAlternative, true)));
+  const kinds = alts.map((a) => a.kind).filter((k) => k !== "euro" && k !== p.primary);
+  return kinds.length ? [p.primary, ...kinds] : [];
+}
+
+/**
+ * The first use of an either/or inclusion decides: after a consume on a membership grant whose
+ * kind is one of the plan's choice kinds, the period's other choice grants are revoked (key
+ * `revoke:membership_choice:<grant_id>`). A release later gives the used units back to the chosen
+ * grant only; the choice stays made. Returns the revoked grant ids.
+ */
+async function forfeitAlternatives(tx: DbOrTx, ctx: Ctx, used: GrantRow): Promise<string[]> {
+  if (used.source !== "membership" || !used.membershipId || !used.productId) return [];
+  const kinds = await planChoiceKinds(tx, used.productId);
+  if (!kinds.includes(used.creditKind)) return [];
+  const siblings = await tx
+    .select({ id: creditGrants.id })
+    .from(creditGrants)
+    .where(
+      and(
+        eq(creditGrants.membershipId, used.membershipId),
+        eq(creditGrants.source, "membership"),
+        eq(creditGrants.startsAt, used.startsAt),
+        eq(creditGrants.status, "active"),
+        inArray(creditGrants.creditKind, kinds),
+        sql`${creditGrants.id} <> ${used.id}`,
+      ),
+    );
+  const revoked: string[] = [];
+  for (const g of await lockGrants(tx, siblings.map((s) => s.id))) {
+    if (g.status !== "active") continue;
+    const units = await revokeLocked(tx, ctx, g, {
+      key: `revoke:membership_choice:${g.id}`,
+      reason: `complimentary choice: ${used.creditKind}`,
+      refType: "membership",
+      refId: used.membershipId,
+    });
+    if (units > 0) revoked.push(g.id);
+  }
+  return revoked;
+}
+
+// ---------------------------------------------------------------------------
 // Consume, release, check (rules 13 to 26)
 // ---------------------------------------------------------------------------
 
@@ -601,6 +658,7 @@ export async function consumeCredits(
     taken.set(grant.id, part.units);
     const after = before - part.units;
     await followBalance(tx, ctx, grant, after);
+    await forfeitAlternatives(tx, ctx, grant);
 
     await ctx.recordEvent({
       kind: "credits.consumed",

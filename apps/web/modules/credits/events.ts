@@ -177,6 +177,12 @@ export const events = [
     subject: "person",
     data: z.object({ membership_id: uuid, days: z.number().int().min(1).max(90), period_end_on: dateOn }),
   }),
+  // The monthly members' draw: one winner per Brussels month, dedupe `membership_draw:<YYYY-MM>`.
+  defineEvent({
+    kind: "membership.draw_won",
+    subject: "person",
+    data: z.object({ membership_id: uuid, month: z.string().regex(/^\d{4}-\d{2}$/), grant_id: uuid }),
+  }),
   // R3 (credits-P9): on the referred person's timeline (`rewarded` also on the referrer's), ref
   // `referral_attribution`, dedupe `referral:<attribution_id>:<suffix>`.
   defineEvent({

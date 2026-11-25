@@ -14,6 +14,9 @@ export const CREDIT_KINDS = ["day", "night", "euro"] as const;
 export const GRANT_SOURCES = ["purchase", "voucher", "membership", "bonus", "import", "manual", "referral", "transfer"] as const;
 export const VAT_RATES = [0, 6, 12, 21] as const;
 export const PLAN_BENEFIT_KINDS = ["included_units", "discount", "member_only_access", "event_access", "event_discount", "other"] as const;
+/** What a plan's `discount` benefit applies to at checkout (`product` = one named product). */
+export const PLAN_DISCOUNT_SCOPES = ["sessions", "packages", "products", "events", "product"] as const;
+export type PlanDiscountScope = (typeof PLAN_DISCOUNT_SCOPES)[number];
 
 export const CreditKindSchema = z.enum(CREDIT_KINDS);
 export const GrantSourceSchema = z.enum(GRANT_SOURCES);
@@ -279,6 +282,15 @@ export const PlanBenefitInput = z.object({
   text: completeLocalizedText(),
   sortOrder: z.number().int().min(0).max(99).default(0),
   isActive: z.boolean().default(true),
+  /** `discount` only: the checkout scope with its percentage; none = display only. */
+  discountScope: z.enum(PLAN_DISCOUNT_SCOPES).nullable().default(null),
+  discountPct: z.number().min(0).max(100).nullable().default(null),
+  scopeProductId: uuid().nullable().default(null),
+}).superRefine((v, ctx) => {
+  if (v.discountScope === null) return;
+  if (v.kind !== "discount") ctx.addIssue({ code: "custom", path: ["discountScope"], message: "discount_only" });
+  if (v.discountPct === null) ctx.addIssue({ code: "custom", path: ["discountPct"], message: "required" });
+  if (v.discountScope === "product" && v.scopeProductId === null) ctx.addIssue({ code: "custom", path: ["scopeProductId"], message: "required" });
 });
 export type PlanBenefitInput = z.infer<typeof PlanBenefitInput>;
 
@@ -291,6 +303,8 @@ export const PlanInclusionInput = z.object({
   productId: uuid(),
   kind: z.enum(["day", "night"]),
   unitsPerPeriod: z.number().int().min(1).max(62),
+  /** Either/or with the primary inclusion (the first use decides). */
+  isAlternative: z.boolean().default(false),
   isActive: z.boolean().default(true),
 });
 export type PlanInclusionInput = z.infer<typeof PlanInclusionInput>;

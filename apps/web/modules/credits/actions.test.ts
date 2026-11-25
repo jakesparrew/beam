@@ -278,6 +278,24 @@ describe("plan actions", () => {
     expect(a).toHaveLength(3);
     expect(a.filter((r) => r.newValue === null)).toHaveLength(1);
   });
+
+  it("setPlanBenefit stores a checkout discount per scope; setPlanInclusion marks an either/or alternative", async () => {
+    const plan = await makeProduct(handle.db, { kind: "membership", includedCreditKind: "night", includedCreditUnits: 1 });
+    const salt = await makeProduct(handle.db, { kind: "item", itemCategory: "wellness_product" });
+    const base = { productId: plan.id, kind: "discount" as const, text, sortOrder: 1, isActive: true };
+    expect(await actions.setPlanBenefit({ ...base, discountScope: "sessions" })).toMatchObject({ ok: false, error: { code: "validation" } });
+    expect(await actions.setPlanBenefit({ ...base, discountScope: "product", discountPct: 30 })).toMatchObject({ ok: false, error: { code: "validation" } });
+    ok(await actions.setPlanBenefit({ ...base, discountScope: "product", discountPct: 30, scopeProductId: salt.id }));
+    // A non-discount kind never keeps a scope.
+    ok(await actions.setPlanBenefit({ ...base, kind: "other", sortOrder: 2 }));
+    const rows = await handle.db.select().from(membershipPlanBenefits).where(eq(membershipPlanBenefits.productId, plan.id));
+    expect(rows.sort((x, y) => x.sortOrder - y.sortOrder)).toMatchObject([
+      { kind: "discount", discountScope: "product", discountPct: "30.00", scopeProductId: salt.id },
+      { kind: "other", discountScope: null, discountPct: null, scopeProductId: null },
+    ]);
+    ok(await actions.setPlanInclusion({ productId: plan.id, kind: "day", unitsPerPeriod: 4, isAlternative: true, isActive: true }));
+    expect(await handle.db.select().from(membershipPlanInclusions).where(eq(membershipPlanInclusions.productId, plan.id))).toMatchObject([{ creditKind: "day", isAlternative: true }]);
+  });
 });
 
 describe("membership actions", () => {

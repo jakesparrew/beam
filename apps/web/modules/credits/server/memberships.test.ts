@@ -4,10 +4,12 @@ import type { DbHandle, DbOrTx, Tx } from "@beam/db";
 import {
   activityEvents,
   auditLog,
+  creditEntries,
   creditGrants,
   jobs as jobsTable,
   mandates,
   membershipPeriods,
+  membershipPlanBenefits,
   membershipPlanInclusions,
   memberships,
   orders,
@@ -38,6 +40,7 @@ import {
   cancelMembershipForRefund,
   cancelNow,
   chargeRenewal,
+  drawMonthlyNight,
   extendPeriod,
   getMembershipForPerson,
   getMembershipSummary,
@@ -50,6 +53,7 @@ import {
   type MembershipRow,
 } from "./memberships";
 import { creditsSettings } from "./ledger";
+import { complimentaryChoice } from "../queries";
 
 const fx = vi.hoisted(() => ({
   sendTransactional: vi.fn(),
@@ -930,6 +934,7 @@ describe("getMembershipForPerson and getMembershipSummary", () => {
       membershipId: active.m.id,
       planProductId: active.plan.product.id,
       discountPct: 10,
+      discountRules: [],
       status: "active",
       periodEndAt: active.m.currentPeriodEndAt,
       cancelAt: null,
@@ -944,6 +949,7 @@ describe("getMembershipForPerson and getMembershipSummary", () => {
       membershipId: null,
       planProductId: null,
       discountPct: 0,
+      discountRules: [],
       status: null,
       periodEndAt: null,
       cancelAt: null,
@@ -1055,6 +1061,121 @@ describe("locks and jobs", () => {
     const { m } = await start();
     const [g] = await grantsOf(m.id);
     expect(await balanceOf(h.db, g!.g.id)).toBe(4);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The owner's BEAM membership: either/or inclusions, category discounts, monthly draw
+// ---------------------------------------------------------------------------
+
+/** The BEAM yearly plan: 1 night (primary) OR 4 day sessions (alternative), with category discounts. */
+async function makeBeamPlan() {
+  const product = await makeProduct(h.db, { kind: "membership", recurringInterval: "year", includedCreditKind: "night", includedCreditUnits: 1, memberDiscountPct: "20.00", priceCents: 39_600 });
+  await h.db.insert(membershipPlanInclusions).values({ productId: product.id, creditKind: "day", unitsPerPeriod: 4, isAlternative: true });
+  const salt = await makeProduct(h.db, { kind: "item", itemCategory: "wellness_product", priceCents: 2_500 });
+  await h.db.insert(membershipPlanBenefits).values([
+    { productId: product.id, kind: "discount", text: { en: "20% sessions" }, discountScope: "sessions", discountPct: "20.00", sortOrder: 1 },
+    { productId: product.id, kind: "discount", text: { en: "15% events" }, discountScope: "events", discountPct: "15.00", sortOrder: 2 },
+    { productId: product.id, kind: "discount", text: { en: "30% salt" }, discountScope: "product", discountPct: "30.00", scopeProductId: salt.id, sortOrder: 3 },
+    { productId: product.id, kind: "discount", text: { en: "display only" }, sortOrder: 4 },
+    { productId: product.id, kind: "discount", text: { en: "inactive" }, discountScope: "packages", discountPct: "50.00", isActive: false, sortOrder: 5 },
+  ]);
+  const [pv] = await h.db.select().from(priceVersions).where(eq(priceVersions.productId, product.id));
+  return { product, priceVersionId: pv!.id, saltId: salt.id };
+}
+
+const book = (m: MembershipRow, kind: "day" | "night", at: Date) =>
+  consumeCredits(tx(), ctxAt(at), { personId: m.personId, beneficiaryPersonId: m.personId, kind, units: 1, ref: { type: "booking", id: randomUUID() }, validAt: at });
+
+describe("either/or inclusions (1 night OR 4 day sessions)", () => {
+  it("grants both options; the first free day session locks in the days and forfeits the night", async () => {
+    const plan = await makeBeamPlan();
+    const { m } = await start({ plan, interval: "year" });
+    expect((await grantsOf(m.id)).map((g) => [g.g.creditKind, g.remaining, g.g.status])).toEqual([
+      ["day", 4, "active"],
+      ["night", 1, "active"],
+    ]);
+    await book(m, "day", days(2));
+    expect((await grantsOf(m.id)).map((g) => [g.g.creditKind, g.remaining, g.g.status])).toEqual([
+      ["day", 3, "active"],
+      ["night", 0, "revoked"],
+    ]);
+    // A second day session does not touch anything else; the night stays gone.
+    await book(m, "day", days(3));
+    await expect(book(m, "night", days(4))).rejects.toThrow(/insufficient/);
+  });
+
+  it("a free night first forfeits the four day sessions", async () => {
+    const plan = await makeBeamPlan();
+    const { m } = await start({ plan, interval: "year" });
+    await book(m, "night", days(5));
+    expect((await grantsOf(m.id)).map((g) => [g.g.creditKind, g.remaining, g.g.status])).toEqual([
+      ["day", 0, "revoked"],
+      ["night", 0, "exhausted"],
+    ]);
+    const revoke = await h.db.select().from(creditEntries).where(eq(creditEntries.idempotencyKey, `revoke:membership_choice:${(await grantsOf(m.id))[0]!.g.id}`));
+    expect(revoke).toMatchObject([{ kind: "revoke", quantity: -4, refType: "membership", refId: m.id }]);
+  });
+
+  it("a plan without alternatives keeps every inclusion (monthly plan with an extra night)", async () => {
+    const { m } = await start({ extraNight: 1 });
+    await book(m, "day", days(1));
+    expect((await grantsOf(m.id)).map((g) => [g.g.creditKind, g.remaining, g.g.status])).toEqual([
+      ["day", 3, "active"],
+      ["night", 1, "active"],
+    ]);
+  });
+
+  it("complimentaryChoice: open, chosen, or none", () => {
+    const g = (kind: "day" | "night", remainingUnits: number, baseUnits: number, status: "active" | "exhausted" | "revoked", isChoice = true) => ({ kind, remainingUnits, baseUnits, status, isChoice });
+    expect(complimentaryChoice([g("day", 4, 4, "active"), g("night", 1, 1, "active")])).toEqual({ state: "open", kinds: ["day", "night"] });
+    expect(complimentaryChoice([g("day", 3, 4, "active"), g("night", 0, 1, "revoked")])).toEqual({ state: "chosen", kind: "day" });
+    expect(complimentaryChoice([g("day", 0, 4, "revoked"), g("night", 1, 1, "active")])).toEqual({ state: "chosen", kind: "night" });
+    expect(complimentaryChoice([g("day", 0, 4, "revoked"), g("night", 0, 1, "revoked")])).toBeNull();
+    expect(complimentaryChoice([g("day", 4, 4, "active", false)])).toBeNull();
+  });
+});
+
+describe("member discounts per category (getMembershipForPerson)", () => {
+  it("returns the plan's active scoped discounts, not display-only or inactive ones", async () => {
+    const plan = await makeBeamPlan();
+    const { personId } = await start({ plan, interval: "year" });
+    const r = await getMembershipForPerson(h.db, personId);
+    expect(r.discountPct).toBe(20);
+    expect(r.discountRules).toEqual([
+      { scope: "sessions", productId: null, pct: 20 },
+      { scope: "events", productId: null, pct: 15 },
+      { scope: "product", productId: plan.saltId, pct: 30 },
+    ]);
+  });
+
+  it("a plan without scoped discounts has no rules (the flat discount applies)", async () => {
+    const { personId } = await start();
+    expect((await getMembershipForPerson(h.db, personId)).discountRules).toEqual([]);
+  });
+});
+
+describe("drawMonthlyNight (monthly members' draw)", () => {
+  it("draws one active member, grants a free night and records the draw once per Brussels month", async () => {
+    const { m } = await start({ now: T0 });
+    const at = new Date("2026-05-31T22:30:00.000Z"); // 1 June 00:30 in Brussels
+    const ids = (await h.db.select({ id: memberships.id, personId: memberships.personId }).from(memberships).where(eq(memberships.status, "active")).orderBy(asc(memberships.id)));
+    const mine = ids.findIndex((r) => r.id === m.id);
+    const first = await inTx(at, (t, ctx) => drawMonthlyNight(t, ctx, { pick: () => mine }));
+    expect(first).toMatchObject({ month: "2026-06", personId: m.personId, created: true });
+    const [grant] = await h.db.select().from(creditGrants).where(eq(creditGrants.id, first.grantId));
+    expect(grant).toMatchObject({ personId: m.personId, creditKind: "night", unitsGranted: 1, source: "bonus", status: "active" });
+    expect(grant!.expiresAt).toEqual(addBrusselsDays(at, 180));
+    const [event] = await h.db.select().from(activityEvents).where(eq(activityEvents.dedupeKey, "membership_draw:2026-06"));
+    expect(event).toMatchObject({ kind: "membership.draw_won", personId: m.personId, refId: m.id, data: { membership_id: m.id, month: "2026-06", grant_id: first.grantId } });
+
+    const again = await inTx(new Date("2026-06-20T10:00:00.000Z"), (t, ctx) => drawMonthlyNight(t, ctx, { pick: () => 0 }));
+    expect(again).toEqual({ month: "2026-06", personId: m.personId, grantId: first.grantId, created: false });
+    expect(await h.db.select().from(creditGrants).where(eq(creditGrants.id, first.grantId))).toHaveLength(1);
+
+    const july = await inTx(new Date("2026-07-02T10:00:00.000Z"), (t, ctx) => drawMonthlyNight(t, ctx, { pick: () => 0 }));
+    expect(july).toMatchObject({ month: "2026-07", created: true });
+    expect(july.grantId).not.toBe(first.grantId);
   });
 });
 

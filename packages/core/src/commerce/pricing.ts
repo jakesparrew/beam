@@ -17,6 +17,8 @@
 import type { Audience, ProductKind } from "./types";
 import type {
   CartItem,
+  MemberDiscountRule,
+  MemberDiscountScope,
   PricingCandidateSource,
   PersonPriceRow,
   PriceVersionRow,
@@ -66,6 +68,34 @@ export function personPriceAt(rows: readonly PersonPriceRow[], productId: string
     if (best === null || r.validFromAt.getTime() > best.validFromAt.getTime()) best = r;
   }
   return best;
+}
+
+/** The plan discount category of each product kind (vouchers and memberships have none). */
+export const MEMBER_DISCOUNT_SCOPE_OF_KIND: Partial<Record<ProductKind, MemberDiscountScope>> = {
+  session: "sessions",
+  night: "sessions",
+  package: "packages",
+  item: "products",
+  ticket: "events",
+};
+
+/**
+ * The member discount percentage of one product: the plan's rule for this very product (e.g.
+ * detox salt), else the product's own `member_discount_pct`, else the plan's rule for the
+ * product's category. A plan without any rule keeps the membership's single `discount_pct`
+ * (memberships from before per-category discounts). Null = no member discount.
+ */
+export function memberDiscountPctFor(
+  product: Pick<QuoteProduct, "id" | "kind" | "memberDiscountPct">,
+  rules: readonly MemberDiscountRule[],
+  flatPct: number | null,
+): number | null {
+  const own = rules.find((r) => r.scope === "product" && r.productId === product.id);
+  if (own) return own.pct;
+  if (product.memberDiscountPct !== null) return product.memberDiscountPct;
+  if (rules.length === 0) return flatPct;
+  const scope = MEMBER_DISCOUNT_SCOPE_OF_KIND[product.kind];
+  return rules.find((r) => r.scope === scope)?.pct ?? null;
 }
 
 /** Whether a promotion reaches a product (`applies_to`, rule 12). */
@@ -192,7 +222,7 @@ function quoteDetailed(input: QuoteInput): { quote: Quote; itemIndex: number[] }
           reason: "member_price_version",
         });
       }
-      const pct = product.memberDiscountPct ?? input.memberDiscountPct;
+      const pct = memberDiscountPctFor(product, input.memberDiscountRules ?? [], input.memberDiscountPct);
       if (baseAudience !== "b2b" && pct !== null && Number(pct) > 0) {
         candidates.push({
           key: "member_discount",

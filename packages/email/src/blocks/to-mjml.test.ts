@@ -143,18 +143,18 @@ describe("blocksToMjml", () => {
     ];
     expect(blocksToMjml(newsletter, { locale: "en" })).toMatchInlineSnapshot(`
       "<mj-section background-color="#ffffff" padding="0"><mj-column>
-      <mj-text padding="8px 24px"><h1 style="margin:0;color:#1c1c1c;font-size:26px;line-height:1.3;font-weight:700">BEAM winter newsletter</h1></mj-text>
-      <mj-text padding="8px 24px"><p style="margin:0 0 16px">Dear {{first_name|member}},</p>
+      <mj-text padding="8px 40px"><h1 style="margin:0;color:#111111;font-family:Poppins, 'Helvetica Neue', Helvetica, Arial, sans-serif;font-size:26px;line-height:1.3;font-weight:500">BEAM winter newsletter</h1></mj-text>
+      <mj-text padding="8px 40px"><p style="margin:0 0 16px">Dear {{first_name|member}},</p>
       <p style="margin:0 0 16px">The <strong>new season</strong> starts on 1 December.</p></mj-text>
-      <mj-button href="https://beam.be/en/programme" background-color="#1f3a2e" color="#ffffff" font-size="16px" font-weight="600" border-radius="6px" inner-padding="12px 24px" padding="12px 24px">Discover the programme</mj-button>
-      <mj-divider border-color="#e5e1d8" border-width="1px" padding="16px 24px" />
+      <mj-button href="https://beam.be/en/programme" background-color="#d1a64a" color="#000000" font-size="16px" font-weight="600" border-radius="15px" inner-padding="14px 30px" padding="12px 40px">Discover the programme</mj-button>
+      <mj-divider border-color="#eadfc4" border-width="1px" padding="16px 40px" />
       </mj-column></mj-section>
       <mj-section background-color="#ffffff" padding="0">
       <mj-column width="50%">
-      <mj-text padding="8px 24px"><h2 style="margin:0;color:#1c1c1c;font-size:21px;line-height:1.3;font-weight:700">Yoga</h2></mj-text>
+      <mj-text padding="8px 40px"><h2 style="margin:0;color:#111111;font-family:Poppins, 'Helvetica Neue', Helvetica, Arial, sans-serif;font-size:21px;line-height:1.3;font-weight:500">Yoga</h2></mj-text>
       </mj-column>
       <mj-column width="50%">
-      <mj-text padding="8px 24px"><h2 style="margin:0;color:#1c1c1c;font-size:21px;line-height:1.3;font-weight:700">Sauna</h2></mj-text>
+      <mj-text padding="8px 40px"><h2 style="margin:0;color:#111111;font-family:Poppins, 'Helvetica Neue', Helvetica, Arial, sans-serif;font-size:21px;line-height:1.3;font-weight:500">Sauna</h2></mj-text>
       </mj-column>
       </mj-section>"
     `);

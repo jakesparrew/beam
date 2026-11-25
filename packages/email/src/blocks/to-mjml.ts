@@ -100,15 +100,15 @@ type LeafCtx = { locale: Locale; brand: Brand; cards: ResolvedCards; imageBaseUr
 
 function headingMjml(level: 1 | 2 | 3, text: string, brand: Brand): string {
   const size = level === 1 ? 26 : level === 2 ? 21 : 18;
-  return `<mj-text padding="8px 24px"><h${level} style="margin:0;color:${brand.text};font-size:${size}px;line-height:1.3;font-weight:700">${escapeKeepingTokens(text)}</h${level}></mj-text>`;
+  return `<mj-text padding="8px 40px"><h${level} style="margin:0;color:${brand.text};font-family:${brand.headingFont};font-size:${size}px;line-height:1.3;font-weight:500">${escapeKeepingTokens(text)}</h${level}></mj-text>`;
 }
 
 function buttonMjml(label: string, href: string, style: ButtonBlock["style"], brand: Brand): string {
   const colours =
     style === "primary"
-      ? `background-color="${brand.color}" color="${brand.buttonText}"`
-      : `background-color="${brand.surface}" color="${brand.color}" border="2px solid ${brand.color}"`;
-  return `<mj-button href="${attr(href)}" ${colours} font-size="${brand.bodySize}px" font-weight="600" border-radius="6px" inner-padding="12px 24px" padding="12px 24px">${escapeKeepingTokens(label)}</mj-button>`;
+      ? `background-color="${brand.button}" color="${brand.buttonText}"`
+      : `background-color="${brand.surface}" color="${brand.text}" border="2px solid ${brand.text}"`;
+  return `<mj-button href="${attr(href)}" ${colours} font-size="${brand.bodySize}px" font-weight="600" border-radius="15px" inner-padding="14px 30px" padding="12px 40px">${escapeKeepingTokens(label)}</mj-button>`;
 }
 
 function leafMjml(block: LeafBlock, ctx: LeafCtx): string {
@@ -117,16 +117,16 @@ function leafMjml(block: LeafBlock, ctx: LeafCtx): string {
     case "heading":
       return headingMjml(block.level, block.text, brand);
     case "text":
-      return `<mj-text padding="8px 24px">${markdownToHtml(block.markdown, { linkColor: brand.color })}</mj-text>`;
+      return `<mj-text padding="8px 40px">${markdownToHtml(block.markdown, { linkColor: brand.color })}</mj-text>`;
     case "image": {
       const width = block.width ? ` width="${block.width}px"` : "";
       const href = block.href ? ` href="${attr(block.href)}"` : "";
-      return `<mj-image src="${attr(ctx.imageBaseUrl + block.fileId)}" alt="${attr(block.alt ?? "")}"${width}${href} padding="8px 24px" />`;
+      return `<mj-image src="${attr(ctx.imageBaseUrl + block.fileId)}" alt="${attr(block.alt ?? "")}"${width}${href} padding="8px 40px" />`;
     }
     case "button":
       return buttonMjml(block.label, block.href, block.style, brand);
     case "divider":
-      return `<mj-divider border-color="${brand.border}" border-width="1px" padding="16px 24px" />`;
+      return `<mj-divider border-color="${brand.border}" border-width="1px" padding="16px 40px" />`;
     case "spacer":
       return `<mj-spacer height="${block.height}px" />`;
     case "product": {
@@ -138,7 +138,7 @@ function leafMjml(block: LeafBlock, ctx: LeafCtx): string {
       const url = `${SHOP_BASE_URL}/${URL_SEGMENT[locale]}/account/shop/${encodeURIComponent(card.sku)}`;
       const price = block.showPrice && card.priceCents !== null ? `<p style="margin:4px 0 0;color:${brand.text}">${formatMoney(card.priceCents, locale)}</p>` : "";
       return [
-        `<mj-text padding="8px 24px"><p style="margin:0;font-weight:700;color:${brand.text}">${escapeKeepingTokens(card.name)}</p>${price}</mj-text>`,
+        `<mj-text padding="8px 40px"><p style="margin:0;font-weight:700;color:${brand.text}">${escapeKeepingTokens(card.name)}</p>${price}</mj-text>`,
         buttonMjml(block.ctaLabel, url, "primary", brand),
       ].join("\n");
     }
@@ -152,9 +152,9 @@ function leafMjml(block: LeafBlock, ctx: LeafCtx): string {
       const opensAt = leadWindowOpensAt(block, card, ctx.choice);
       if (opensAt) {
         const notice = `<p style="margin:8px 0 0;color:${brand.text};font-weight:600">${escapeKeepingTokens(opensForYouText(opensAt, locale))}</p>`;
-        return [`<mj-text padding="8px 24px">${head}${notice}</mj-text>`, buttonMjml(t(locale, "email.blocks.event_view"), card.url, "secondary", brand)].join("\n");
+        return [`<mj-text padding="8px 40px">${head}${notice}</mj-text>`, buttonMjml(t(locale, "email.blocks.event_view"), card.url, "secondary", brand)].join("\n");
       }
-      return [`<mj-text padding="8px 24px">${head}</mj-text>`, buttonMjml(block.ctaLabel, card.url, "primary", brand)].join("\n");
+      return [`<mj-text padding="8px 40px">${head}</mj-text>`, buttonMjml(block.ctaLabel, card.url, "primary", brand)].join("\n");
     }
     case "webinar": {
       const card = webinarCardOf(block, ctx.cards);
@@ -164,7 +164,7 @@ function leafMjml(block: LeafBlock, ctx: LeafCtx): string {
       }
       const when = card.startsAt ? `<p style="margin:4px 0 0;color:${brand.text}">${formatDateTime(card.startsAt, locale, "long")}</p>` : "";
       return [
-        `<mj-text padding="8px 24px"><p style="margin:0;font-weight:700;color:${brand.text}">${escapeKeepingTokens(card.title)}</p>${when}</mj-text>`,
+        `<mj-text padding="8px 40px"><p style="margin:0;font-weight:700;color:${brand.text}">${escapeKeepingTokens(card.title)}</p>${when}</mj-text>`,
         buttonMjml(block.ctaLabel, card.landingUrl, "primary", brand),
       ].join("\n");
     }

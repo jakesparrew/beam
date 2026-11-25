@@ -4,7 +4,7 @@
  */
 import { z } from "zod";
 import { formatDate, t } from "@beam/core/i18n";
-import { EmailButton, EmailHeading, EmailLayout, EmailText } from "../../layout";
+import { detailLabel, EmailButton, EmailDetails, EmailHeading, EmailLayout, EmailText } from "../../layout";
 import type { TemplateComponentProps } from "../define";
 
 export const MembershipCancelConfirmedProps = z.object({
@@ -23,7 +23,7 @@ export const membershipCancelConfirmedSample: z.infer<typeof MembershipCancelCon
   accountUrl: "https://beam.example.com/nl-BE/account/membership",
 };
 
-export function MembershipCancelConfirmed({ immediate, endsOn, accountUrl, copy, locale }: TemplateComponentProps<typeof MembershipCancelConfirmedProps>) {
+export function MembershipCancelConfirmed({ planName, immediate, endsOn, accountUrl, copy, locale }: TemplateComponentProps<typeof MembershipCancelConfirmedProps>) {
   const date = formatDate(endsOn, locale, "long");
   return (
     <EmailLayout locale={locale} preheader={copy.preheader}>
@@ -34,6 +34,7 @@ export function MembershipCancelConfirmed({ immediate, endsOn, accountUrl, copy,
           : t(locale, "credits.email.membership_cancel_confirmed.ends_on", { date })}
       </EmailText>
       <EmailText>{copy.body}</EmailText>
+      <EmailDetails rows={[{ label: detailLabel(locale, "plan"), value: planName, strong: true }]} />
       <EmailButton href={accountUrl} locale={locale}>
         {copy.cta}
       </EmailButton>

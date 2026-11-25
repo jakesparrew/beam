@@ -4,7 +4,7 @@
  * `booking:<id>:confirmed`.
  */
 import { z } from "zod";
-import { EmailButton, EmailHeading, EmailLayout, EmailText } from "../../layout";
+import { detailLabel, EmailButton, EmailDetails, EmailHeading, EmailLayout, EmailText } from "../../layout";
 import type { TemplateComponentProps } from "../define";
 import { CheckinQr } from "./booking-confirmed";
 
@@ -15,11 +15,12 @@ export const SeatClaimedProps = z.object({
   url: z.string().url(),
 });
 
-export function SeatClaimed({ url, copy, locale }: TemplateComponentProps<typeof SeatClaimedProps>) {
+export function SeatClaimed({ title, date, url, copy, locale }: TemplateComponentProps<typeof SeatClaimedProps>) {
   return (
-    <EmailLayout locale={locale} preheader={copy.intro}>
+    <EmailLayout locale={locale} preheader={copy.intro} hero={"space"}>
       <EmailHeading>{copy.heading}</EmailHeading>
       <EmailText>{copy.intro}</EmailText>
+      <EmailDetails rows={[{ label: detailLabel(locale, "session"), value: title }, { label: detailLabel(locale, "when"), value: date, strong: true }]} />
       <CheckinQr caption={copy.qr ?? ""} />
       <EmailButton href={url} locale={locale}>
         {copy.cta}

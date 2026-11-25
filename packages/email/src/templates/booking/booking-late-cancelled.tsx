@@ -4,7 +4,7 @@
  * rules release it).
  */
 import { z } from "zod";
-import { EmailButton, EmailHeading, EmailLayout, EmailText } from "../../layout";
+import { detailLabel, EmailButton, EmailDetails, EmailHeading, EmailLayout, EmailText } from "../../layout";
 import type { TemplateComponentProps } from "../define";
 
 export const BookingLateCancelledProps = z.object({
@@ -13,11 +13,12 @@ export const BookingLateCancelledProps = z.object({
   url: z.string().url(),
 });
 
-export function BookingLateCancelled({ url, copy, locale }: TemplateComponentProps<typeof BookingLateCancelledProps>) {
+export function BookingLateCancelled({ title, date, url, copy, locale }: TemplateComponentProps<typeof BookingLateCancelledProps>) {
   return (
     <EmailLayout locale={locale} preheader={copy.intro}>
       <EmailHeading>{copy.heading}</EmailHeading>
       <EmailText>{copy.intro}</EmailText>
+      <EmailDetails rows={[{ label: detailLabel(locale, "session"), value: title }, { label: detailLabel(locale, "when"), value: date, strong: true }]} />
       <EmailButton href={url} locale={locale}>
         {copy.cta}
       </EmailButton>

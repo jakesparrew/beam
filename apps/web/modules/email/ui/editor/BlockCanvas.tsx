@@ -146,7 +146,7 @@ export const BLOCK_DRAG = "application/x-beam-email-block";
 export const PALETTE_DRAG = "application/x-beam-email-palette";
 
 /** BEAM email colours, mirroring `BRAND` of `packages/email/src/layout/brand.ts` (the client cannot import that package). */
-const PAPER = { color: "#1f3a2e", text: "#1c1c1c", muted: "#5c5c5c", background: "#f4f2ee", surface: "#ffffff", border: "#e5e1d8", font: "Helvetica, Arial, sans-serif" };
+const PAPER = { color: "#8a5a14", button: "#d1a64a", buttonText: "#000000", text: "#111111", muted: "#5c5c5c", background: "#f4ead3", surface: "#ffffff", border: "#eadfc4", font: "Poppins, 'Helvetica Neue', Helvetica, Arial, sans-serif" };
 /** The placeholder id of a new image, product, event or webinar block. */
 const PLACEHOLDER_ID = "00000000-0000-4000-8000-000000000000";
 
@@ -185,7 +185,7 @@ function CardPreview({ title, cta, labels }: { title: string; cta: string; label
   return (
     <span className="block rounded border p-3" style={{ borderColor: PAPER.border }}>
       <span className="block font-bold">{title}</span>
-      <span className="mt-2 inline-block rounded-md px-4 py-2 text-sm font-semibold" style={{ background: PAPER.color, color: PAPER.surface }}>
+      <span className="mt-2 inline-block rounded-md px-4 py-2 text-sm font-semibold" style={{ background: PAPER.button, color: PAPER.buttonText, borderRadius: 15 }}>
         {cta || lab(labels, "empty_text")}
       </span>
     </span>
@@ -215,7 +215,7 @@ function LeafPreview({ block, labels }: { block: Block; labels: EditorLabels }) 
         <span className="block text-center">
           <span
             className="inline-block rounded-md px-6 py-3 font-semibold"
-            style={block.style === "primary" ? { background: PAPER.color, color: PAPER.surface } : { background: PAPER.surface, color: PAPER.color, border: `2px solid ${PAPER.color}` }}
+            style={block.style === "primary" ? { background: PAPER.button, color: PAPER.buttonText, borderRadius: 15 } : { background: PAPER.surface, color: PAPER.text, border: `2px solid ${PAPER.text}`, borderRadius: 15 }}
           >
             {block.label || lab(labels, "empty_text")}
           </span>

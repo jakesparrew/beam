@@ -5,7 +5,7 @@
  * magic link to the same address.
  */
 import { z } from "zod";
-import { EmailButton, EmailHeading, EmailLayout, EmailText } from "../../layout";
+import { detailLabel, EmailButton, EmailDetails, EmailHeading, EmailLayout, EmailText } from "../../layout";
 import type { TemplateComponentProps } from "../define";
 
 export const PortalInvitationProps = z.object({
@@ -19,11 +19,12 @@ export const portalInvitationSample: z.infer<typeof PortalInvitationProps> = {
   url: "https://beam.example.com/nl/account/login",
 };
 
-export function PortalInvitation({ url, copy, locale }: TemplateComponentProps<typeof PortalInvitationProps>) {
+export function PortalInvitation({ reference, url, copy, locale }: TemplateComponentProps<typeof PortalInvitationProps>) {
   return (
     <EmailLayout locale={locale} preheader={copy.preheader}>
       <EmailHeading>{copy.heading}</EmailHeading>
       <EmailText>{copy.body}</EmailText>
+      <EmailDetails rows={[{ label: detailLabel(locale, "reference"), value: reference }]} />
       <EmailButton href={url} locale={locale}>
         {copy.cta}
       </EmailButton>

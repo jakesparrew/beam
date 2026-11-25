@@ -4,7 +4,7 @@
  */
 import { z } from "zod";
 import { formatDate, t } from "@beam/core/i18n";
-import { EmailButton, EmailHeading, EmailLayout, EmailText } from "../../layout";
+import { detailLabel, EmailButton, EmailDetails, EmailHeading, EmailLayout, EmailText } from "../../layout";
 import type { TemplateComponentProps } from "../define";
 
 const dateOn = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
@@ -27,11 +27,12 @@ export const membershipRenewedSample: z.infer<typeof MembershipRenewedProps> = {
   accountUrl: "https://beam.example.com/nl-BE/account/membership",
 };
 
-export function MembershipRenewed({ late, periodStartOn, periodEndOn, accountUrl, copy, locale }: TemplateComponentProps<typeof MembershipRenewedProps>) {
+export function MembershipRenewed({ planName, late, periodStartOn, periodEndOn, accountUrl, copy, locale }: TemplateComponentProps<typeof MembershipRenewedProps>) {
   return (
-    <EmailLayout locale={locale} preheader={copy.preheader}>
+    <EmailLayout locale={locale} preheader={copy.preheader} hero="welcome">
       <EmailHeading>{copy.heading}</EmailHeading>
       <EmailText>{copy.body}</EmailText>
+      <EmailDetails rows={[{ label: detailLabel(locale, "plan"), value: planName, strong: true }, { label: detailLabel(locale, "period"), value: `${formatDate(periodStartOn, locale, "long")} – ${formatDate(periodEndOn, locale, "long")}` }]} />
       {late ? <EmailText>{t(locale, "credits.email.membership_renewed.late")}</EmailText> : null}
       <EmailText>
         {t(locale, "credits.email.membership_renewed.period", {

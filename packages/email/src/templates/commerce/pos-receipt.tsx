@@ -5,10 +5,8 @@
  * `order:<order_id>:receipt:<n>`), always with the receipt PDF attached. POS sales carry no
  * withdrawal right (rule 54), so the email has no withdrawal notice.
  */
-import { Section } from "react-email";
 import { z } from "zod";
-import { t } from "@beam/core/i18n";
-import { EmailButton, EmailHeading, EmailLayout, EmailText } from "../../layout";
+import { detailLabel, EmailButton, EmailHeading, EmailLayout, EmailLines, EmailText } from "../../layout";
 import type { TemplateComponentProps } from "../define";
 
 export const PosReceiptProps = z.object({
@@ -31,17 +29,12 @@ export const posReceiptSample: z.infer<typeof PosReceiptProps> = {
   orderUrl: "https://beam.example.com/nl/account/orders/6f1c1f9e-0b7a-4c39-9a51-0d2b6f6f3a11",
 };
 
-export function PosReceipt({ total, lines, orderUrl, copy, locale }: TemplateComponentProps<typeof PosReceiptProps>) {
+export function PosReceipt({ reference, total, lines, orderUrl, copy, locale }: TemplateComponentProps<typeof PosReceiptProps>) {
   return (
     <EmailLayout locale={locale} preheader={copy.preheader}>
       <EmailHeading>{copy.heading}</EmailHeading>
       <EmailText>{copy.body}</EmailText>
-      <Section style={{ margin: "8px 0 16px" }}>
-        {lines.map((l, i) => (
-          <EmailText key={i}>{`${l.quantity} × ${l.description}: ${l.amount}`}</EmailText>
-        ))}
-        <EmailText>{t(locale, "commerce.email.pos_receipt.total", { total })}</EmailText>
-      </Section>
+      <EmailLines title={`${detailLabel(locale, "reference")} ${reference}`} lines={lines} totalLabel={detailLabel(locale, "total_paid")} total={total} />
       <EmailButton href={orderUrl} locale={locale}>
         {copy.cta}
       </EmailButton>

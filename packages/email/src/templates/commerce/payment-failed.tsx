@@ -4,7 +4,7 @@
  * renewal orders (credits sends its own reminder) and not for POS sales.
  */
 import { z } from "zod";
-import { EmailButton, EmailHeading, EmailLayout, EmailText } from "../../layout";
+import { detailLabel, EmailButton, EmailDetails, EmailHeading, EmailLayout, EmailText } from "../../layout";
 import type { TemplateComponentProps } from "../define";
 
 export const PaymentFailedProps = z.object({
@@ -21,11 +21,12 @@ export const paymentFailedSample: z.infer<typeof PaymentFailedProps> = {
   retryUrl: "https://beam.example.com/nl/account/checkout/6f1c1f9e-0b7a-4c39-9a51-0d2b6f6f3a11",
 };
 
-export function PaymentFailed({ retryUrl, copy, locale }: TemplateComponentProps<typeof PaymentFailedProps>) {
+export function PaymentFailed({ reference, amount, retryUrl, copy, locale }: TemplateComponentProps<typeof PaymentFailedProps>) {
   return (
     <EmailLayout locale={locale} preheader={copy.preheader}>
       <EmailHeading>{copy.heading}</EmailHeading>
       <EmailText>{copy.body}</EmailText>
+      <EmailDetails rows={[{ label: detailLabel(locale, "reference"), value: reference }, { label: detailLabel(locale, "amount"), value: amount, strong: true }]} />
       <EmailButton href={retryUrl} locale={locale}>
         {copy.cta}
       </EmailButton>

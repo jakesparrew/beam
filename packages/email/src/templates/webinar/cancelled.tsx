@@ -4,7 +4,7 @@
  * person can pick another date. The staff reason is internal and is not included.
  */
 import { z } from "zod";
-import { EmailButton, EmailHeading, EmailLayout, EmailText } from "../../layout";
+import { detailLabel, EmailButton, EmailDetails, EmailHeading, EmailLayout, EmailText } from "../../layout";
 import type { TemplateComponentProps } from "../define";
 
 export const CancelledProps = z.object({
@@ -16,11 +16,12 @@ export const CancelledProps = z.object({
   url: z.string().url(),
 });
 
-export function Cancelled({ url, copy, locale }: TemplateComponentProps<typeof CancelledProps>) {
+export function Cancelled({ title, date, url, copy, locale }: TemplateComponentProps<typeof CancelledProps>) {
   return (
     <EmailLayout locale={locale} preheader={copy.intro}>
       <EmailHeading>{copy.heading}</EmailHeading>
       <EmailText>{copy.intro}</EmailText>
+      <EmailDetails rows={[{ label: detailLabel(locale, "webinar"), value: title }, date ? { label: detailLabel(locale, "when"), value: <s>{date}</s> } : null]} />
       <EmailText>{copy.apology}</EmailText>
       <EmailButton href={url} locale={locale}>
         {copy.cta}

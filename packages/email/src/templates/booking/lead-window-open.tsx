@@ -5,7 +5,7 @@
  * send time. Key `waitlist:<entry_id>:offer:<offers_count>`.
  */
 import { z } from "zod";
-import { EmailButton, EmailHeading, EmailLayout, EmailText } from "../../layout";
+import { detailLabel, EmailButton, EmailDetails, EmailHeading, EmailLayout, EmailText } from "../../layout";
 import type { TemplateComponentProps } from "../define";
 
 export const LeadWindowOpenProps = z.object({
@@ -17,11 +17,12 @@ export const LeadWindowOpenProps = z.object({
   url: z.string().url(),
 });
 
-export function LeadWindowOpen({ url, copy, locale }: TemplateComponentProps<typeof LeadWindowOpenProps>) {
+export function LeadWindowOpen({ title, date, expiresAt, url, copy, locale }: TemplateComponentProps<typeof LeadWindowOpenProps>) {
   return (
-    <EmailLayout locale={locale} preheader={copy.intro}>
+    <EmailLayout locale={locale} preheader={copy.intro} hero={"event"}>
       <EmailHeading>{copy.heading}</EmailHeading>
       <EmailText>{copy.intro}</EmailText>
+      <EmailDetails rows={[{ label: detailLabel(locale, "session"), value: title }, { label: detailLabel(locale, "when"), value: date, strong: true }, { label: detailLabel(locale, "hold_until"), value: expiresAt }]} />
       <EmailButton href={url} locale={locale}>
         {copy.cta}
       </EmailButton>

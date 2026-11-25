@@ -4,10 +4,9 @@
  * `commerce.render_receipt`, with the receipt PDF attached. Online orders with a package,
  * membership or voucher line carry the 14-day withdrawal notice and the link to the form (rule 54).
  */
-import { Section } from "react-email";
 import { z } from "zod";
 import { t } from "@beam/core/i18n";
-import { EmailButton, EmailHeading, EmailLayout, EmailText } from "../../layout";
+import { detailLabel, EmailButton, EmailHeading, EmailLayout, EmailLines, EmailNote, EmailText } from "../../layout";
 import type { TemplateComponentProps } from "../define";
 
 export const OrderConfirmationProps = z.object({
@@ -32,22 +31,17 @@ export const orderConfirmationSample: z.infer<typeof OrderConfirmationProps> = {
   withdrawalUrl: "https://beam.example.com/nl/account/orders/6f1c1f9e-0b7a-4c39-9a51-0d2b6f6f3a11#withdrawal",
 };
 
-export function OrderConfirmation({ total, lines, orderUrl, withdrawalUntil, withdrawalUrl, copy, locale }: TemplateComponentProps<typeof OrderConfirmationProps>) {
+export function OrderConfirmation({ reference, total, lines, orderUrl, withdrawalUntil, withdrawalUrl, copy, locale }: TemplateComponentProps<typeof OrderConfirmationProps>) {
   return (
     <EmailLayout locale={locale} preheader={copy.preheader}>
       <EmailHeading>{copy.heading}</EmailHeading>
       <EmailText>{copy.body}</EmailText>
-      <Section style={{ margin: "8px 0 16px" }}>
-        {lines.map((l, i) => (
-          <EmailText key={i}>{`${l.quantity} × ${l.description}: ${l.amount}`}</EmailText>
-        ))}
-        <EmailText>{t(locale, "commerce.email.order_confirmation.total", { total })}</EmailText>
-      </Section>
+      <EmailLines title={`${detailLabel(locale, "reference")} ${reference}`} lines={lines} totalLabel={detailLabel(locale, "total_paid")} total={total} />
       {withdrawalUntil ? (
-        <EmailText muted>
+        <EmailNote>
           {t(locale, "commerce.email.order_confirmation.withdrawal", { date: withdrawalUntil })}
           {withdrawalUrl ? ` ${withdrawalUrl}` : ""}
-        </EmailText>
+        </EmailNote>
       ) : null}
       <EmailButton href={orderUrl} locale={locale}>
         {copy.cta}

@@ -7,8 +7,7 @@
  * from `commerce.getCheckoutRecoveryProps` (A-31a). The copy slots select on `variant`.
  */
 import { z } from "zod";
-import { t } from "@beam/core/i18n";
-import { EmailButton, EmailHeading, EmailLayout, EmailText } from "../../layout";
+import { detailLabel, EmailButton, EmailHeading, EmailLayout, EmailLines, EmailText } from "../../layout";
 import type { TemplateComponentProps } from "../define";
 
 export const RECOVERY_VARIANTS = ["first", "second"] as const;
@@ -47,10 +46,7 @@ export function CheckoutRecovery({ items, total, resumeUrl, copy, locale }: Temp
     <EmailLayout locale={locale} preheader={copy.preheader}>
       <EmailHeading>{copy.heading}</EmailHeading>
       <EmailText>{copy.body}</EmailText>
-      {items.map((item, i) => (
-        <EmailText key={`${i}-${item.name}`}>{t(locale, "commerce.email.checkout_recovery.line", { name: item.name, quantity: item.quantity })}</EmailText>
-      ))}
-      <EmailText>{t(locale, "commerce.email.checkout_recovery.total", { total })}</EmailText>
+      <EmailLines lines={items.map((item) => ({ description: item.name, quantity: item.quantity }))} totalLabel={detailLabel(locale, "basket_total")} total={total} />
       <EmailButton href={resumeUrl} locale={locale}>
         {copy.cta}
       </EmailButton>

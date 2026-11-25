@@ -8,7 +8,7 @@
  * calendar entry.
  */
 import { z } from "zod";
-import { EmailButton, EmailHeading, EmailLayout, EmailText } from "../../layout";
+import { BRAND, detailLabel, EmailButton, EmailDetails, EmailHeading, EmailLayout, EmailText } from "../../layout";
 import type { TemplateComponentProps } from "../define";
 
 export const AccessProps = z.object({
@@ -32,11 +32,12 @@ export const AccessProps = z.object({
 });
 export type AccessProps = z.infer<typeof AccessProps>;
 
-export function Access({ date, accessUrl, icsUrl, copy, locale }: TemplateComponentProps<typeof AccessProps>) {
+export function Access({ title, date, accessUrl, icsUrl, copy, locale }: TemplateComponentProps<typeof AccessProps>) {
   return (
-    <EmailLayout locale={locale} preheader={copy.preheader}>
+    <EmailLayout locale={locale} preheader={copy.preheader} hero="event">
       <EmailHeading>{copy.heading}</EmailHeading>
       <EmailText>{date ? copy.intro : copy.intro_on_demand}</EmailText>
+      <EmailDetails rows={[{ label: detailLabel(locale, "webinar"), value: title }, date ? { label: detailLabel(locale, "when"), value: date, strong: true } : null]} />
       <EmailText>{copy.language}</EmailText>
       <EmailButton href={accessUrl} locale={locale}>
         {copy.cta}
@@ -44,7 +45,7 @@ export function Access({ date, accessUrl, icsUrl, copy, locale }: TemplateCompon
       <EmailText muted>{copy.personal}</EmailText>
       {icsUrl ? (
         <EmailText>
-          <a href={icsUrl}>{copy.calendar}</a>
+          <a href={icsUrl} style={{ color: BRAND.color }}>{copy.calendar}</a>
         </EmailText>
       ) : null}
     </EmailLayout>

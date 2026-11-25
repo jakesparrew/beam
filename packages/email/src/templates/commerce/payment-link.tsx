@@ -4,8 +4,7 @@
  * send a payment link. The link stays the same while it is valid.
  */
 import { z } from "zod";
-import { t } from "@beam/core/i18n";
-import { EmailButton, EmailHeading, EmailLayout, EmailText } from "../../layout";
+import { detailLabel, EmailButton, EmailDetails, EmailHeading, EmailLayout, EmailText } from "../../layout";
 import type { TemplateComponentProps } from "../define";
 
 export const PaymentLinkProps = z.object({
@@ -26,15 +25,15 @@ export const paymentLinkSample: z.infer<typeof PaymentLinkProps> = {
   validUntil: "18 november 2026",
 };
 
-export function PaymentLink({ payUrl, validUntil, copy, locale }: TemplateComponentProps<typeof PaymentLinkProps>) {
+export function PaymentLink({ reference, amount, payUrl, validUntil, copy, locale }: TemplateComponentProps<typeof PaymentLinkProps>) {
   return (
     <EmailLayout locale={locale} preheader={copy.preheader}>
       <EmailHeading>{copy.heading}</EmailHeading>
       <EmailText>{copy.body}</EmailText>
+      <EmailDetails rows={[{ label: detailLabel(locale, "reference"), value: reference }, { label: detailLabel(locale, "amount"), value: amount, strong: true }, { label: detailLabel(locale, "valid_until"), value: validUntil }]} />
       <EmailButton href={payUrl} locale={locale}>
         {copy.cta}
       </EmailButton>
-      <EmailText muted>{t(locale, "commerce.email.payment_link.valid_until", { date: validUntil })}</EmailText>
     </EmailLayout>
   );
 }

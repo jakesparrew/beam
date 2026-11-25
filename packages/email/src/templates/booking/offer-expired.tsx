@@ -3,7 +3,7 @@
  * to the next person. Key `waitlist:<entry_id>:expired:<offers_count>`.
  */
 import { z } from "zod";
-import { EmailButton, EmailHeading, EmailLayout, EmailText } from "../../layout";
+import { detailLabel, EmailButton, EmailDetails, EmailHeading, EmailLayout, EmailText } from "../../layout";
 import type { TemplateComponentProps } from "../define";
 
 export const OfferExpiredProps = z.object({
@@ -13,11 +13,12 @@ export const OfferExpiredProps = z.object({
   url: z.string().url(),
 });
 
-export function OfferExpired({ url, copy, locale }: TemplateComponentProps<typeof OfferExpiredProps>) {
+export function OfferExpired({ title, date, url, copy, locale }: TemplateComponentProps<typeof OfferExpiredProps>) {
   return (
     <EmailLayout locale={locale} preheader={copy.intro}>
       <EmailHeading>{copy.heading}</EmailHeading>
       <EmailText>{copy.intro}</EmailText>
+      <EmailDetails rows={[{ label: detailLabel(locale, "session"), value: title }, { label: detailLabel(locale, "when"), value: date, strong: true }]} />
       <EmailButton href={url} locale={locale}>
         {copy.cta}
       </EmailButton>

@@ -6,7 +6,7 @@
  * The copy slots select on `variant` (ICU `select`), so one set of slots covers the three steps.
  */
 import { z } from "zod";
-import { EmailButton, EmailHeading, EmailLayout, EmailText } from "../../layout";
+import { detailLabel, EmailButton, EmailDetails, EmailHeading, EmailLayout, EmailText } from "../../layout";
 import type { TemplateComponentProps } from "../define";
 
 export const REMINDER_VARIANTS = ["d7", "d3", "h3"] as const;
@@ -27,11 +27,12 @@ export const ReminderProps = z.object({
 });
 export type ReminderProps = z.infer<typeof ReminderProps>;
 
-export function Reminder({ accessUrl, copy, locale }: TemplateComponentProps<typeof ReminderProps>) {
+export function Reminder({ title, date, accessUrl, copy, locale }: TemplateComponentProps<typeof ReminderProps>) {
   return (
-    <EmailLayout locale={locale} preheader={copy.intro}>
+    <EmailLayout locale={locale} preheader={copy.intro} hero="event">
       <EmailHeading>{copy.heading}</EmailHeading>
       <EmailText>{copy.intro}</EmailText>
+      <EmailDetails rows={[{ label: detailLabel(locale, "webinar"), value: title }, { label: detailLabel(locale, "when"), value: date, strong: true }]} />
       <EmailText>{copy.language}</EmailText>
       <EmailButton href={accessUrl} locale={locale}>
         {copy.cta}

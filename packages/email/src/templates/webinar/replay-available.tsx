@@ -5,7 +5,7 @@
  * builds the personal access link from `context.registration_id` and reads `replay_until_at`.
  */
 import { z } from "zod";
-import { EmailButton, EmailHeading, EmailLayout, EmailText } from "../../layout";
+import { detailLabel, EmailButton, EmailDetails, EmailHeading, EmailLayout, EmailText } from "../../layout";
 import type { TemplateComponentProps } from "../define";
 
 export const ReplayAvailableProps = z.object({
@@ -20,11 +20,12 @@ export const ReplayAvailableProps = z.object({
 });
 export type ReplayAvailableProps = z.infer<typeof ReplayAvailableProps>;
 
-export function ReplayAvailable({ accessUrl, until, copy, locale }: TemplateComponentProps<typeof ReplayAvailableProps>) {
+export function ReplayAvailable({ title, accessUrl, until, copy, locale }: TemplateComponentProps<typeof ReplayAvailableProps>) {
   return (
-    <EmailLayout locale={locale} preheader={copy.intro}>
+    <EmailLayout locale={locale} preheader={copy.intro} hero="event">
       <EmailHeading>{copy.heading}</EmailHeading>
       <EmailText>{copy.intro}</EmailText>
+      <EmailDetails rows={[{ label: detailLabel(locale, "webinar"), value: title, strong: true }]} />
       {until ? <EmailText>{copy.until}</EmailText> : null}
       <EmailButton href={accessUrl} locale={locale}>
         {copy.cta}

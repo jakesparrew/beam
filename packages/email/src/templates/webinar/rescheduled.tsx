@@ -5,7 +5,7 @@
  * registration and the personal access link stay valid.
  */
 import { z } from "zod";
-import { EmailButton, EmailHeading, EmailLayout, EmailText } from "../../layout";
+import { detailLabel, EmailButton, EmailDetails, EmailHeading, EmailLayout, EmailText } from "../../layout";
 import type { TemplateComponentProps } from "../define";
 
 export const RescheduledProps = z.object({
@@ -19,11 +19,12 @@ export const RescheduledProps = z.object({
   url: z.string().url(),
 });
 
-export function Rescheduled({ url, copy, locale }: TemplateComponentProps<typeof RescheduledProps>) {
+export function Rescheduled({ title, date, oldDate, url, copy, locale }: TemplateComponentProps<typeof RescheduledProps>) {
   return (
-    <EmailLayout locale={locale} preheader={copy.intro}>
+    <EmailLayout locale={locale} preheader={copy.intro} hero="event">
       <EmailHeading>{copy.heading}</EmailHeading>
       <EmailText>{copy.intro}</EmailText>
+      <EmailDetails rows={[{ label: detailLabel(locale, "webinar"), value: title }, { label: detailLabel(locale, "new"), value: date, strong: true }, { label: detailLabel(locale, "was"), value: <s>{oldDate}</s> }]} />
       <EmailText>{copy.link_valid}</EmailText>
       <EmailButton href={url} locale={locale}>
         {copy.cta}

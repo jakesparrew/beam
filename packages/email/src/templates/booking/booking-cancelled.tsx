@@ -4,7 +4,7 @@
  * the unpaid seat was released.
  */
 import { z } from "zod";
-import { EmailButton, EmailHeading, EmailLayout, EmailText } from "../../layout";
+import { detailLabel, EmailButton, EmailDetails, EmailHeading, EmailLayout, EmailText } from "../../layout";
 import type { TemplateComponentProps } from "../define";
 
 export const BookingCancelledProps = z.object({
@@ -15,11 +15,12 @@ export const BookingCancelledProps = z.object({
   reason: z.enum(["cancelled", "payment_expired"]).default("cancelled"),
 });
 
-export function BookingCancelled({ url, reason, copy, locale }: TemplateComponentProps<typeof BookingCancelledProps>) {
+export function BookingCancelled({ title, date, url, reason, copy, locale }: TemplateComponentProps<typeof BookingCancelledProps>) {
   return (
     <EmailLayout locale={locale} preheader={copy.intro}>
       <EmailHeading>{copy.heading}</EmailHeading>
       <EmailText>{copy.intro}</EmailText>
+      <EmailDetails rows={[{ label: detailLabel(locale, "session"), value: title }, { label: detailLabel(locale, "when"), value: date, strong: true }]} />
       {reason === "payment_expired" ? <EmailText>{copy.payment_expired}</EmailText> : null}
       <EmailButton href={url} locale={locale}>
         {copy.cta}

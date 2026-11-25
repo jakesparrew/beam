@@ -3,7 +3,7 @@
  * adds the refund line (a paid order line), `creditReleased` the "back in your package" line.
  */
 import { z } from "zod";
-import { EmailButton, EmailHeading, EmailLayout, EmailText } from "../../layout";
+import { detailLabel, EmailButton, EmailDetails, EmailHeading, EmailLayout, EmailText } from "../../layout";
 import type { TemplateComponentProps } from "../define";
 
 export const SessionCancelledProps = z.object({
@@ -14,11 +14,12 @@ export const SessionCancelledProps = z.object({
   creditReleased: z.boolean().default(false),
 });
 
-export function SessionCancelled({ url, refunded, creditReleased, copy, locale }: TemplateComponentProps<typeof SessionCancelledProps>) {
+export function SessionCancelled({ title, date, url, refunded, creditReleased, copy, locale }: TemplateComponentProps<typeof SessionCancelledProps>) {
   return (
     <EmailLayout locale={locale} preheader={copy.intro}>
       <EmailHeading>{copy.heading}</EmailHeading>
       <EmailText>{copy.intro}</EmailText>
+      <EmailDetails rows={[{ label: detailLabel(locale, "session"), value: title }, { label: detailLabel(locale, "when"), value: date, strong: true }]} />
       {refunded ? <EmailText>{copy.refunded}</EmailText> : null}
       {creditReleased ? <EmailText>{copy.credit_released}</EmailText> : null}
       <EmailButton href={url} locale={locale}>

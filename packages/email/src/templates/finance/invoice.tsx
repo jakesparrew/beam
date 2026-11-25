@@ -6,7 +6,7 @@
  */
 import { z } from "zod";
 import { t, type Locale } from "@beam/core/i18n";
-import { EmailButton, EmailHeading, EmailLayout, EmailText } from "../../layout";
+import { detailLabel, EmailButton, EmailDetails, EmailHeading, EmailLayout, EmailText } from "../../layout";
 import type { TemplateComponentProps } from "../define";
 
 /** The finance templates' `data` (finance spec section 8). `dueOn` is a formatted date in the message locale. */
@@ -41,9 +41,15 @@ export const invoiceSample: FinanceEmailData = {
 export function PaymentLines({ name, data, locale }: { name: "invoice" | "invoice_reminder"; data: FinanceEmailData; locale: Locale }) {
   return (
     <>
-      {data.dueOn ? <EmailText>{t(locale, `finance.email.${name}.due`, { dueOn: data.dueOn })}</EmailText> : null}
-      {data.paymentReference ? <EmailText>{t(locale, `finance.email.${name}.payment_reference`, { paymentReference: data.paymentReference })}</EmailText> : null}
-      {data.iban ? <EmailText>{t(locale, `finance.email.${name}.iban`, { iban: data.iban })}</EmailText> : null}
+      <EmailDetails
+        rows={[
+          { label: detailLabel(locale, "invoice"), value: data.number },
+          { label: detailLabel(locale, "total"), value: data.totalFormatted, strong: true },
+          data.dueOn ? { label: detailLabel(locale, "due"), value: data.dueOn } : null,
+          data.paymentReference ? { label: detailLabel(locale, "payment_reference"), value: data.paymentReference } : null,
+          data.iban ? { label: detailLabel(locale, "iban"), value: data.iban } : null,
+        ]}
+      />
       {data.isCourtesyCopy ? <EmailText muted>{t(locale, `finance.email.${name}.courtesy_copy`)}</EmailText> : null}
     </>
   );

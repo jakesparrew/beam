@@ -6,7 +6,7 @@
  */
 import type { Locale } from "@beam/core/i18n";
 import { escapeKeepingTokens } from "../blocks/markdown";
-import { BRAND, type Brand } from "./brand";
+import { BRAND, EMAIL_IMAGES, type Brand } from "./brand";
 
 export type MarketingShellInput = {
   locale: Locale;
@@ -23,9 +23,16 @@ export type MarketingShellInput = {
 
 function header(brand: Brand): string {
   const content = brand.logoUrl
-    ? `<mj-image src="${escapeKeepingTokens(brand.logoUrl)}" alt="${escapeKeepingTokens(brand.name)}" width="140px" align="left" padding="24px 24px 8px" />`
-    : `<mj-text padding="24px 24px 8px"><p style="margin:0;color:${brand.color};font-size:20px;font-weight:700;letter-spacing:0.04em">${escapeKeepingTokens(brand.name)}</p></mj-text>`;
-  return `<mj-section background-color="${brand.surface}" padding="0"><mj-column>\n${content}\n</mj-column></mj-section>`;
+    ? `<mj-image src="${escapeKeepingTokens(brand.logoUrl)}" alt="${escapeKeepingTokens(brand.name)}" width="220px" align="center" padding="30px 24px 26px" />`
+    : `<mj-text align="center" padding="30px 24px 26px"><p style="margin:0;color:#ffffff;font-size:22px;font-weight:600;letter-spacing:0.08em">${escapeKeepingTokens(brand.name)}</p></mj-text>`;
+  return `<mj-section background-color="${brand.header}" padding="0" border-radius="16px 16px 0 0"><mj-column>
+${content}
+</mj-column></mj-section>
+<mj-section padding="0"><mj-column><mj-image src="${EMAIL_IMAGES.goldLine}" alt="" height="4px" padding="0" /></mj-column></mj-section>`;
+}
+
+function footerLogo(): string {
+  return `<mj-image src="${EMAIL_IMAGES.logoFooter}" alt="BEAM Vitality Center" width="88px" align="center" padding="28px 24px 14px" />`;
 }
 
 export function marketingShell(input: MarketingShellInput): string {
@@ -38,19 +45,23 @@ ${title}
 ${preview}
 <mj-attributes>
 <mj-all font-family="${brand.font}" />
+<mj-button background-color="${brand.button}" color="${brand.buttonText}" border-radius="15px" font-weight="600" />
 <mj-text color="${brand.text}" font-size="${brand.bodySize}px" line-height="1.5" />
 </mj-attributes>
+<mj-font name="Poppins" href="https://fonts.googleapis.com/css2?family=Lora:wght@600&family=Poppins:wght@400;500;600&display=swap" />
 <mj-style>a { color: ${brand.color}; } p { margin: 0 0 16px; }</mj-style>
 </mj-head>
 <mj-body background-color="${brand.background}" width="${brand.width}px">
-<mj-wrapper padding="24px 0">
+<mj-wrapper padding="32px 0 8px">
 ${header(brand)}
+<mj-section background-color="${brand.surface}" padding="20px 0 0"><mj-column></mj-column></mj-section>
 ${input.body}
-<mj-section background-color="${brand.surface}" padding="8px 0 24px"><mj-column>
-<mj-divider border-color="${brand.border}" border-width="1px" padding="16px 24px" />
-<mj-text padding="0 24px" font-size="${brand.footerSize}px" color="${brand.muted}" line-height="18px">${input.footerHtml}</mj-text>
-</mj-column></mj-section>
+<mj-section background-color="${brand.surface}" padding="8px 0 16px" border-radius="0 0 16px 16px"><mj-column></mj-column></mj-section>
 </mj-wrapper>
+<mj-section padding="0 0 24px"><mj-column>
+${footerLogo()}
+<mj-text align="center" padding="0 32px" font-size="${brand.footerSize}px" color="${brand.muted}" line-height="18px">${input.footerHtml}</mj-text>
+</mj-column></mj-section>
 </mj-body>
 </mjml>`;
 }

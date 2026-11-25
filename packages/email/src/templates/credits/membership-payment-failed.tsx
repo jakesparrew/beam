@@ -5,7 +5,7 @@
  */
 import { z } from "zod";
 import { formatDate, t } from "@beam/core/i18n";
-import { EmailButton, EmailHeading, EmailLayout, EmailText } from "../../layout";
+import { detailLabel, EmailButton, EmailDetails, EmailHeading, EmailLayout, EmailText } from "../../layout";
 import type { TemplateComponentProps } from "../define";
 
 export const MembershipPaymentFailedProps = z.object({
@@ -28,11 +28,12 @@ export const membershipPaymentFailedSample: z.infer<typeof MembershipPaymentFail
   accountUrl: "https://beam.example.com/nl-BE/account/membership",
 };
 
-export function MembershipPaymentFailed({ payUrl, expiresOn, copy, locale }: TemplateComponentProps<typeof MembershipPaymentFailedProps>) {
+export function MembershipPaymentFailed({ planName, payUrl, expiresOn, copy, locale }: TemplateComponentProps<typeof MembershipPaymentFailedProps>) {
   return (
     <EmailLayout locale={locale} preheader={copy.preheader}>
       <EmailHeading>{copy.heading}</EmailHeading>
       <EmailText>{copy.body}</EmailText>
+      <EmailDetails rows={[{ label: detailLabel(locale, "plan"), value: planName, strong: true }]} />
       <EmailText>{t(locale, "credits.email.membership_payment_failed.deadline", { date: formatDate(expiresOn, locale, "long") })}</EmailText>
       <EmailButton href={payUrl} locale={locale}>
         {copy.cta}

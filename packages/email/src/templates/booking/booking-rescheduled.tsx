@@ -4,7 +4,7 @@
  * reschedule sends no cancellation email (one email per reschedule).
  */
 import { z } from "zod";
-import { EmailButton, EmailHeading, EmailLayout, EmailText } from "../../layout";
+import { detailLabel, EmailButton, EmailDetails, EmailHeading, EmailLayout, EmailText } from "../../layout";
 import type { TemplateComponentProps } from "../define";
 import { CheckinQr } from "./booking-confirmed";
 
@@ -19,11 +19,12 @@ export const BookingRescheduledProps = z.object({
   url: z.string().url(),
 });
 
-export function BookingRescheduled({ url, copy, locale }: TemplateComponentProps<typeof BookingRescheduledProps>) {
+export function BookingRescheduled({ title, date, oldDate, url, copy, locale }: TemplateComponentProps<typeof BookingRescheduledProps>) {
   return (
-    <EmailLayout locale={locale} preheader={copy.intro}>
+    <EmailLayout locale={locale} preheader={copy.intro} hero={"space"}>
       <EmailHeading>{copy.heading}</EmailHeading>
       <EmailText>{copy.intro}</EmailText>
+      <EmailDetails rows={[{ label: detailLabel(locale, "session"), value: title }, { label: detailLabel(locale, "new"), value: date, strong: true }, { label: detailLabel(locale, "was"), value: <s>{oldDate}</s> }]} />
       <CheckinQr caption={copy.qr ?? ""} />
       <EmailButton href={url} locale={locale}>
         {copy.cta}

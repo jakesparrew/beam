@@ -3,7 +3,7 @@
  * waiting list. Key `waitlist:<entry_id>:joined:<rejoin_count>`.
  */
 import { z } from "zod";
-import { EmailButton, EmailHeading, EmailLayout, EmailText } from "../../layout";
+import { detailLabel, EmailButton, EmailDetails, EmailHeading, EmailLayout, EmailText } from "../../layout";
 import type { TemplateComponentProps } from "../define";
 
 export const WaitlistJoinedProps = z.object({
@@ -15,11 +15,12 @@ export const WaitlistJoinedProps = z.object({
   url: z.string().url(),
 });
 
-export function WaitlistJoined({ url, copy, locale }: TemplateComponentProps<typeof WaitlistJoinedProps>) {
+export function WaitlistJoined({ title, date, url, copy, locale }: TemplateComponentProps<typeof WaitlistJoinedProps>) {
   return (
     <EmailLayout locale={locale} preheader={copy.intro}>
       <EmailHeading>{copy.heading}</EmailHeading>
       <EmailText>{copy.intro}</EmailText>
+      <EmailDetails rows={[{ label: detailLabel(locale, "session"), value: title }, { label: detailLabel(locale, "when"), value: date, strong: true }]} />
       <EmailButton href={url} locale={locale}>
         {copy.cta}
       </EmailButton>

@@ -5,7 +5,7 @@
  */
 import { z } from "zod";
 import { formatDate, formatMoney, t } from "@beam/core/i18n";
-import { EmailButton, EmailHeading, EmailLayout, EmailText } from "../../layout";
+import { detailLabel, EmailButton, EmailDetails, EmailHeading, EmailLayout, EmailText } from "../../layout";
 import type { TemplateComponentProps } from "../define";
 
 export const MembershipRenewalReminderProps = z.object({
@@ -32,12 +32,13 @@ export const membershipRenewalReminderSample: z.infer<typeof MembershipRenewalRe
   accountUrl: "https://beam.example.com/nl-BE/account/membership",
 };
 
-export function MembershipRenewalReminder({ variant, periodEndOn, amountCents, payUrl, accountUrl, copy, locale }: TemplateComponentProps<typeof MembershipRenewalReminderProps>) {
+export function MembershipRenewalReminder({ planName, variant, periodEndOn, amountCents, payUrl, accountUrl, copy, locale }: TemplateComponentProps<typeof MembershipRenewalReminderProps>) {
   const date = formatDate(periodEndOn, locale, "long");
   return (
     <EmailLayout locale={locale} preheader={copy.preheader}>
       <EmailHeading>{copy.heading}</EmailHeading>
       <EmailText>{copy.body}</EmailText>
+      <EmailDetails rows={[{ label: detailLabel(locale, "plan"), value: planName, strong: true }]} />
       <EmailText>
         {variant === "ends"
           ? t(locale, "credits.email.membership_renewal_reminder.ends_on", { date })

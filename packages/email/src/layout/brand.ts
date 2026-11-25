@@ -35,23 +35,66 @@ export type Brand = {
   width: number;
   /** Absolute logo URL, or null to show the name as text. */
   logoUrl: string | null;
+  /** Primary button background (beam.be gold); `buttonText` sits on it. */
+  button: string;
+  /** Background of the header band behind the logo. */
+  header: string;
+  /** Heading font stack (beam.be: Poppins 500). */
+  headingFont: string;
+  /** Serif stack for card titles (beam.be: Lora 600). */
+  serifFont: string;
+  /** Tinted panel behind detail cards and notes. */
+  panel: string;
 };
 
+/**
+ * Where email images live: the public `brand/email/` folder of the web app. Mail clients fetch
+ * them from the internet, so this must be a public https origin (never localhost). Set
+ * `EMAIL_ASSET_BASE_URL` to https://beam.be at go-live.
+ */
+export const EMAIL_ASSET_BASE_URL = (process.env.EMAIL_ASSET_BASE_URL || "https://beam-web-ruddy.vercel.app").replace(/\/+$/, "");
+
+/** The absolute URL of a file in `apps/web/public/brand/email/`. */
+export function emailAsset(file: string): string {
+  return `${EMAIL_ASSET_BASE_URL}/brand/email/${file}`;
+}
+
+/** The images of the layout and the hero photos (beam.be's own pictures, 1200 x 480). */
+export const EMAIL_IMAGES = {
+  logoHeader: emailAsset("logo-header.png"),
+  logoFooter: emailAsset("logo-footer-dark.png"),
+  goldLine: emailAsset("gold-line.png"),
+  hero: {
+    space: emailAsset("hero-space.jpg"),
+    night: emailAsset("hero-night.jpg"),
+    event: emailAsset("hero-event.jpg"),
+    welcome: emailAsset("hero-welcome.jpg"),
+  },
+} as const;
+
+export type EmailHero = keyof typeof EMAIL_IMAGES.hero;
+
+/** beam.be's look: black text, gold accents and buttons, sand and cream surfaces, Poppins. */
 export const BRAND = {
   name: "BEAM",
-  color: "#1f3a2e",
-  accent: "#c8a24a",
-  text: "#1c1c1c",
+  color: "#8a5a14",
+  accent: "#d1a64a",
+  text: "#111111",
   muted: "#5c5c5c",
-  background: "#f4f2ee",
+  background: "#f4ead3",
   surface: "#ffffff",
-  buttonText: "#ffffff",
-  border: "#e5e1d8",
-  font: "Helvetica, Arial, sans-serif",
+  buttonText: "#000000",
+  border: "#eadfc4",
+  font: "Poppins, 'Helvetica Neue', Helvetica, Arial, sans-serif",
   bodySize: 16,
   footerSize: 12,
   width: 600,
-  logoUrl: null,
+  logoUrl: EMAIL_IMAGES.logoHeader,
+  button: "#d1a64a",
+  header: "#000000",
+  headingFont: "Poppins, 'Helvetica Neue', Helvetica, Arial, sans-serif",
+  serifFont: "Lora, Georgia, 'Times New Roman', serif",
+  panel: "#fbf6ea",
 } as const satisfies Brand;
 
 /** The minimum contrast ratio for text (WCAG 2.1 AA, normal text). */
@@ -94,7 +137,9 @@ export function brandContrastReport(brand: Brand = BRAND): ContrastCheck[] {
     ["muted on surface", brand.muted, brand.surface],
     ["muted on background", brand.muted, brand.background],
     ["link on surface", brand.color, brand.surface],
-    ["primary button", brand.buttonText, brand.color],
+    ["primary button", brand.buttonText, brand.button],
+    ["text on panel", brand.text, brand.panel],
+    ["muted on panel", brand.muted, brand.panel],
     ["secondary button", brand.color, brand.surface],
   ];
   return pairs.map(([pair, foreground, background]) => {

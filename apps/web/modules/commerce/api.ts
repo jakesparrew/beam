@@ -215,6 +215,11 @@ export function listPersonOrders(tx: DbOrTx, personId: string, opts: { limit: nu
   return orderService().then((m) => m.listPersonOrders(tx, personId, opts));
 }
 
+/** Booking: the ticket product behind an event price (create, or rename and re-price). */
+export function upsertEventTicketProduct(tx: Tx, ctx: Ctx, input: { sku: string; name: LocalizedText; amountCents: number }): Promise<{ productId: string }> {
+  return catalogueService().then((m) => m.upsertEventTicketProductRecord({ ...ctx, tx }, input));
+}
+
 export function getProductPrice(db: DbOrTx, productId: string, audience: Audience, at?: Date): Promise<{ priceVersionId: string; amountCents: number } | null> {
   return catalogueService().then((m) => m.getProductPrice(db, productId, audience, at));
 }

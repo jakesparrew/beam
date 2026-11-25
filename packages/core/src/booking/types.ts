@@ -176,6 +176,9 @@ export type SessionCard = {
   bookUrl: string;
   /** Lead window end when phase `lead` and no general seat is left; null until booking-P7. */
   opensForCustomersAt: Date | null;
+  /** Owner requirements 4 and 5: the event artwork (public image file) and the event category. */
+  imageFileId?: string | null;
+  eventCategory?: EventCategory | null;
 };
 
 /** A booking row on crm's person page. */

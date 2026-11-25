@@ -11,7 +11,7 @@ import { NotFoundError, eq, getAppDb } from "@/lib/ctx";
 import { softTranslator, translator } from "@/lib/i18n";
 import { getSetting } from "@/lib/settings";
 import { addMyGuest, cancelMyBooking } from "@/modules/booking/actions";
-import { getMyBooking } from "@/modules/booking/queries";
+import { getEventAccess, getMyBooking } from "@/modules/booking/queries";
 import { GuestFields } from "@/modules/booking/ui/portal/guest-fields";
 import { PolicyNote } from "@/modules/booking/ui/portal/policy-note";
 import { QrCard } from "@/modules/booking/ui/portal/qr-card";
@@ -54,6 +54,8 @@ export default async function MyBookingPage({
   });
   if (!b) notFound();
   const rules = await getSetting(db, "booking_rules");
+  // Owner requirement 5: the WebinarGeek link and the released materials of an event or webinar.
+  const access = b.kind === "event" ? await getEventAccess(db, id) : { joinUrl: null, materials: [] };
   const now = new Date();
   const here = `/${URL_SEGMENT[locale]}/account/bookings/${id}`;
 
@@ -177,6 +179,33 @@ export default async function MyBookingPage({
           labels={{ qrLabel: tr("booking.portalBooking.qr_label"), hint: tr("booking.portalBooking.qr_hint"), addToCalendar: tr("booking.portalBooking.add_to_calendar") }}
         />
       </div>
+
+      {access.joinUrl || access.materials.length ? (
+        <div className="space-y-3 rounded-md border p-4" data-testid="event-access">
+          {access.joinUrl ? (
+            <div className="space-y-2">
+              <p>{tr("booking.portalBooking.webinar_intro")}</p>
+              <a href={access.joinUrl} target="_blank" rel="noreferrer" className={cn(buttonVariants({}), "min-h-11")}>
+                {tr("booking.portalBooking.webinar_join")}
+              </a>
+            </div>
+          ) : null}
+          {access.materials.length ? (
+            <div className="space-y-2">
+              <h2 className="font-semibold">{tr("booking.portalBooking.materials")}</h2>
+              <ul className="space-y-1">
+                {access.materials.map((m) => (
+                  <li key={m.url}>
+                    <a href={m.url} className="underline underline-offset-4">
+                      {m.name}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       {b.status === "cancelled" || b.status === "late_cancelled" ? (
         <p className="rounded-md border p-3" data-testid="booking-cancelled">

@@ -8,3 +8,4 @@ export * from "./queries/attendance";
 export * from "./queries/waitlist";
 export * from "./queries/partner";
 export * from "./queries/package-offers";
+export * from "./queries/event-registrations";

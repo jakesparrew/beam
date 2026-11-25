@@ -539,7 +539,9 @@
         "upcoming": "Upcoming",
         "on_demand": "Watch any time",
         "empty": "No webinars planned right now.",
-        "open": "View and register"
+        "open": "View and register",
+        "register": "Register",
+        "full": "Full: join the waiting list"
       },
       "card": {
         "on_demand": "On demand",

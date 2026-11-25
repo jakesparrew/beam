@@ -103,6 +103,8 @@ export const integrationCallsProvider = pgEnum("integration_calls_provider", [
   "meta",
   // automation's `automation.call_webhook` step (automation spec section 6, request of automation-P3).
   "webhook",
+  // booking's `bookings.register_webinargeek` (owner requirement 5: webinars on WebinarGeek).
+  "webinargeek",
 ]);
 export const featureFlagsState = pgEnum("feature_flags_state", [
   "off",
@@ -119,6 +121,9 @@ export const filesKind = pgEnum("files_kind", [
   // Staff documents (request of ops-P6): DPIA register PDFs and other compliance papers, no expiry,
   // downloaded by `settings.write` staff only (`KIND_PERMISSION` in apps/web/lib/files.ts).
   "staff_document",
+  // Event and webinar materials (owner requirement 5): staff read them with `bookings.read`;
+  // people booked download them through a signed link once staff release them.
+  "material",
 ]);
 export const aiRequestsStatus = pgEnum("ai_requests_status", [
   "ok",

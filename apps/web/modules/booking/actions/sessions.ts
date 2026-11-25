@@ -14,11 +14,16 @@ import { BookingConflictError, InvalidTransitionError, SessionFullError, localDa
 import { LocalizedTextSchema, missingLocales, type LocalizedText } from "@beam/core/i18n";
 import { action } from "@/lib/action";
 import { NotFoundError, ValidationError, actorHasPermission, and, eq, gt, inArray, or, sql, type Ctx } from "@/lib/ctx";
+import { upsertEventTicketProduct } from "@/modules/commerce/api";
 import { locationOverlaps } from "../queries/schedule";
 import { assertTicketTypesPublishable, lockSession, readAvailabilityRow, type SessionRow } from "../server/book";
 
 const localDateTime = z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/);
 const EventCategory = z.enum(["lecture", "concert", "member_event", "experience", "webinar", "special_activity", "partner_event"]);
+/** Owner requirements 4 and 5: an event or webinar price typed on the form (0 = free), in cents. */
+const PriceCents = z.number().int().min(0).max(10_000_000);
+const WebinarGeekUrl = z.url({ protocol: /^https$/ }).max(2000);
+const WebinarGeekBroadcastId = z.string().trim().regex(/^[0-9]{1,20}$/);
 
 const CreateSessionInput = z.object({
   kind: z.enum(["day", "night", "event"]),
@@ -27,7 +32,9 @@ const CreateSessionInput = z.object({
   title: LocalizedTextSchema,
   description: LocalizedTextSchema.optional(),
   startsAt: localDateTime,
-  durationMinutes: z.number().int().min(15).max(2880),
+  /** The length, or the end (`endsAt`, Brussels wall clock) for events; one of the two. */
+  durationMinutes: z.number().int().min(15).max(2880).optional(),
+  endsAt: localDateTime.optional(),
   capacitySeats: z.number().int().min(0).optional(),
   capacityBeds: z.number().int().min(0).optional(),
   creditKind: z.enum(["day", "night"]).nullish(),
@@ -37,6 +44,10 @@ const CreateSessionInput = z.object({
   location: z.string().trim().max(200).optional(),
   notes: z.string().trim().max(5000).optional(),
   claimWindowMinutes: z.number().int().min(10).max(2880).optional(),
+  /** Events only: sets the session product (0 = free, no product); see `applyEventPrice`. */
+  priceCents: PriceCents.optional(),
+  webinarGeekUrl: WebinarGeekUrl.optional(),
+  webinarGeekBroadcastId: WebinarGeekBroadcastId.optional(),
   publish: z.boolean().default(false),
 });
 
@@ -49,6 +60,7 @@ const UpdateSessionInput = z.object({
   description: LocalizedTextSchema.nullish(),
   startsAt: localDateTime.optional(),
   durationMinutes: z.number().int().min(15).max(2880).optional(),
+  endsAt: localDateTime.optional(),
   capacitySeats: z.number().int().min(0).optional(),
   capacityBeds: z.number().int().min(0).optional(),
   creditKind: z.enum(["day", "night"]).nullish(),
@@ -58,6 +70,9 @@ const UpdateSessionInput = z.object({
   location: z.string().trim().max(200).nullish(),
   notes: z.string().trim().max(5000).nullish(),
   claimWindowMinutes: z.number().int().min(10).max(2880).optional(),
+  priceCents: PriceCents.optional(),
+  webinarGeekUrl: WebinarGeekUrl.nullish(),
+  webinarGeekBroadcastId: WebinarGeekBroadcastId.nullish(),
 });
 
 const IdInput = z.object({ id: z.uuid() });
@@ -96,6 +111,32 @@ function assertSessionShape(v: { kind: string; eventCategory: string | null; par
   if (Object.keys(fields).length) throw new ValidationError("validation", fields);
 }
 
+/** The end of a session: `endsAt` (Brussels wall clock, after the start) or start + duration (`validation` when neither). */
+function endOf(startsAt: Date, input: { endsAt?: string | undefined; durationMinutes?: number | undefined }, currentMinutes?: number): Date {
+  if (input.endsAt) {
+    const end = localDateTimeToUtc(input.endsAt);
+    if (end.getTime() <= startsAt.getTime()) throw new ValidationError("validation", { endsAt: "after_start" });
+    return end;
+  }
+  const minutes = input.durationMinutes ?? currentMinutes;
+  if (minutes === undefined) throw new ValidationError("validation", { endsAt: "required" });
+  return new Date(startsAt.getTime() + minutes * 60_000);
+}
+
+/** The own ticket product SKU of an event (`EVT-` and 28 hex digits of the session id). */
+const eventSku = (sessionId: string): string => `EVT-${sessionId.replace(/-/g, "").slice(0, 28).toUpperCase()}`;
+
+/**
+ * Owner requirements 4 and 5: the product behind an event price typed on the form. 0 = free (no
+ * product, so the booking is `free`); otherwise the event's own ticket product, created or
+ * re-priced through commerce, so payment runs through the normal order and Stripe checkout.
+ */
+async function eventProductId(ctx: Ctx, sessionId: string, title: LocalizedText, priceCents: number): Promise<string | null> {
+  if (priceCents === 0) return null;
+  const { productId } = await upsertEventTicketProduct(ctx.tx, ctx, { sku: eventSku(sessionId), name: title, amountCents: priceCents });
+  return productId;
+}
+
 /** R34: `waitlist.offer_next` for the session, keyed by what freed the capacity. */
 async function offerNext(ctx: Ctx, sessionId: string, trigger: string): Promise<void> {
   await ctx.enqueue({ kind: "waitlist.offer_next", payload: { sessionId, trigger }, key: `waitlist:${sessionId}:offer_next:${trigger}` });
@@ -127,14 +168,17 @@ export const createSession = action(
     const description = isFilled(input.description) ? input.description! : null;
     if (input.publish) assertPublishable(input.title, description);
     const startsAt = localDateTimeToUtc(input.startsAt);
-    const [row] = await ctx.tx
+    const isEvent = input.kind === "event";
+    const [inserted] = await ctx.tx
       .insert(sessions)
       .values({
         ...values,
         title: input.title,
         description,
         startsAt,
-        endsAt: new Date(startsAt.getTime() + input.durationMinutes * 60_000),
+        endsAt: endOf(startsAt, input),
+        webinarGeekUrl: isEvent ? (input.webinarGeekUrl ?? null) : null,
+        webinarGeekBroadcastId: isEvent ? (input.webinarGeekBroadcastId ?? null) : null,
         creditKind: input.creditKind ?? null,
         creditCost: input.creditCost,
         productId: input.productId ?? null,
@@ -147,7 +191,12 @@ export const createSession = action(
         hasManualChanges: true,
       })
       .returning();
-    return { sessionId: row!.id, warnings: await overlapWarnings(ctx, row!) };
+    let row = inserted!;
+    if (isEvent && input.priceCents !== undefined) {
+      const productId = await eventProductId(ctx, row.id, input.title, input.priceCents);
+      [row] = (await ctx.tx.update(sessions).set({ productId }).where(eq(sessions.id, row.id)).returning()) as [typeof row];
+    }
+    return { sessionId: row.id, warnings: await overlapWarnings(ctx, row) };
   },
 );
 
@@ -163,23 +212,32 @@ export const updateSession = action(
     if (current.updatedAt.getTime() !== new Date(input.expectedUpdatedAt).getTime()) throw new BookingConflictError("stale_version");
     if (current.status === "cancelled") throw new InvalidTransitionError("cancelled", "cancelled", { entity: "session", reason: "cancelled_session_is_read_only" });
     const startsAt = input.startsAt ? localDateTimeToUtc(input.startsAt) : current.startsAt;
-    const duration = input.durationMinutes ?? Math.round((current.endsAt.getTime() - current.startsAt.getTime()) / 60_000);
+    const duration = Math.round((current.endsAt.getTime() - current.startsAt.getTime()) / 60_000);
+    const isEvent = current.kind === "event";
+    const title = (input.title ?? current.title) as LocalizedText;
     const next = {
       eventCategory: input.eventCategory ?? current.eventCategory,
       partnerCompanyId: input.partnerCompanyId === undefined ? current.partnerCompanyId : input.partnerCompanyId,
-      title: (input.title ?? current.title) as LocalizedText,
+      title,
       description: input.description === undefined ? (current.description) : isFilled(input.description) ? input.description : null,
       startsAt,
-      endsAt: new Date(startsAt.getTime() + duration * 60_000),
+      endsAt: endOf(startsAt, input, duration),
       capacitySeats: input.capacitySeats ?? current.capacitySeats,
       capacityBeds: input.capacityBeds ?? current.capacityBeds,
       creditKind: input.creditKind === undefined ? current.creditKind : input.creditKind,
       creditCost: input.creditCost ?? current.creditCost,
-      productId: input.productId === undefined ? current.productId : input.productId,
+      productId:
+        isEvent && input.priceCents !== undefined
+          ? await eventProductId(ctx, current.id, title, input.priceCents)
+          : input.productId === undefined
+            ? current.productId
+            : input.productId,
       isMemberOnly: input.isMemberOnly ?? current.isMemberOnly,
       location: input.location === undefined ? current.location : input.location || null,
       notes: input.notes === undefined ? current.notes : input.notes || null,
       claimWindowMinutes: input.claimWindowMinutes ?? current.claimWindowMinutes,
+      webinarGeekUrl: !isEvent || input.webinarGeekUrl === undefined ? current.webinarGeekUrl : input.webinarGeekUrl,
+      webinarGeekBroadcastId: !isEvent || input.webinarGeekBroadcastId === undefined ? current.webinarGeekBroadcastId : input.webinarGeekBroadcastId,
     };
     assertSessionShape({ kind: current.kind, ...next });
     if (current.publishedAt) assertPublishable(next.title, next.description);

@@ -12,3 +12,4 @@ export * from "./actions/lead";
 export * from "./actions/tickets";
 export * from "./actions/partner";
 export * from "./actions/wellbeing";
+export * from "./actions/event-media";

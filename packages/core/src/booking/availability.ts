@@ -55,8 +55,10 @@ export function computeAvailability(
   if (row.status === "cancelled") return blocked("cancelled");
   if (row.startsAt.getTime() <= now.getTime()) return blocked("past");
   if (!row.publishedAt || row.publishedAt.getTime() > now.getTime()) return blocked("not_open_yet");
+  // Owner requirements 4 and 5: an event or webinar sells from publication, on any date; the
+  // rolling booking horizon is for the day and night schedules.
   const horizonOpensAt = new Date(row.startsAt.getTime() - rules.booking_horizon_days * DAY_MS);
-  if (horizonOpensAt.getTime() > now.getTime()) return blocked("not_open_yet", horizonOpensAt);
+  if (row.kind !== "event" && horizonOpensAt.getTime() > now.getTime()) return blocked("not_open_yet", horizonOpensAt);
   if (row.status === "closed") return blocked("closed");
   const cutoff = row.startsAt.getTime() - rules.book_until_minutes_before_start[row.kind] * MINUTE_MS;
   if (cutoff <= now.getTime()) return blocked("closed");

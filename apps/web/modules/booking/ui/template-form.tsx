@@ -248,20 +248,39 @@ export type SessionFormLabels = Omit<TemplateFormLabels, "weekdays" | "weekdayNa
   /** "Translate the title into {locales} before publishing." with `{locales}` left in. */
   missingLocales: string;
   localeNames: Record<Locale, string>;
+  /** Owner requirements 4 and 5: the event fields (end instead of duration, price, WebinarGeek). */
+  endsAt: string;
+  price: string;
+  priceHint: string;
+  webinarGeekUrl: string;
+  webinarGeekUrlHint: string;
+  webinarGeekId: string;
+  webinarGeekIdHint: string;
 };
+
+/** A price typed in euro ("12,50", "12.5", "") as cents; empty is free. NaN for anything else. */
+export function eurosToCents(text: string): number {
+  const t = text.trim().replace(",", ".");
+  if (t === "") return 0;
+  return /^\d+(\.\d{1,2})?$/.test(t) ? Math.round(Number(t) * 100) : Number.NaN;
+}
 
 export function SessionForm({
   products,
   companies,
   labels,
+  initialCategory = "lecture",
 }: {
   products: Array<{ id: string; label: string }>;
   companies: Array<{ id: string; label: string }>;
   labels: SessionFormLabels;
+  initialCategory?: EventCategory;
 }) {
   const router = useRouter();
   const [kind, setKind] = useState<TemplateFormValues["kind"]>("event");
-  const [category, setCategory] = useState<EventCategory>("lecture");
+  const [category, setCategory] = useState<EventCategory>(initialCategory);
+  const isEvent = kind === "event";
+  const isWebinar = isEvent && category === "webinar";
   const [title, setTitle] = useState<LocalizedValue<Locale>>({});
   const [description, setDescription] = useState<LocalizedValue<Locale>>({});
   const [pending, setPending] = useState(false);
@@ -273,21 +292,36 @@ export function SessionForm({
     const text = (k: string) => str(f.get(k)).trim();
     const capacity = text("capacity") === "" ? undefined : Number(text("capacity"));
     const desc = LOCALES.some((l) => (description[l] ?? "").trim()) ? description : undefined;
+    const priceCents = eurosToCents(text("price"));
+    if (isEvent && Number.isNaN(priceCents)) {
+      setError(`${labels.errors.validation ?? "validation"} (${labels.price})`);
+      return;
+    }
     setPending(true);
     setError(null);
     try {
       const res = await createSession({
         kind,
-        ...(kind === "event" ? { eventCategory: category } : {}),
-        ...(kind === "event" && category === "partner_event" && text("partnerCompanyId") ? { partnerCompanyId: text("partnerCompanyId") } : {}),
+        ...(isEvent ? { eventCategory: category } : {}),
+        ...(isEvent && category === "partner_event" && text("partnerCompanyId") ? { partnerCompanyId: text("partnerCompanyId") } : {}),
         title,
         ...(desc ? { description: desc } : {}),
         startsAt: text("startsAt"),
-        durationMinutes: Number(text("durationMinutes")),
+        ...(isEvent ? { endsAt: text("endsAt") } : { durationMinutes: Number(text("durationMinutes")) }),
         ...(kind === "night" ? { capacityBeds: capacity } : { capacitySeats: capacity }),
-        creditKind: text("creditKind") === "" ? null : text("creditKind"),
-        creditCost: Number(text("creditCost") || 0),
-        ...(text("productId") ? { productId: text("productId") } : {}),
+        ...(isEvent
+          ? {
+              creditKind: null,
+              creditCost: 0,
+              priceCents,
+              ...(isWebinar && text("webinarGeekUrl") ? { webinarGeekUrl: text("webinarGeekUrl") } : {}),
+              ...(isWebinar && text("webinarGeekBroadcastId") ? { webinarGeekBroadcastId: text("webinarGeekBroadcastId") } : {}),
+            }
+          : {
+              creditKind: text("creditKind") === "" ? null : (text("creditKind") as "day" | "night"),
+              creditCost: Number(text("creditCost") || 0),
+              ...(text("productId") ? { productId: text("productId") } : {}),
+            }),
         ...(kind === "event" && category === "member_event" ? {} : { isMemberOnly: f.get("isMemberOnly") === "on" }),
         ...(text("location") ? { location: text("location") } : {}),
         publish,
@@ -298,7 +332,8 @@ export function SessionForm({
         setError((labels.errors[reason] ?? labels.errors.validation ?? reason) + fields);
         return;
       }
-      router.push(`/admin/sessions/day/${text("startsAt").slice(0, 10)}` as Route);
+      // Events open on their page, where staff add the artwork and the materials.
+      router.push((isEvent ? `/admin/sessions/${res.data.sessionId}` : `/admin/sessions/day/${text("startsAt").slice(0, 10)}`) as Route);
     } finally {
       setPending(false);
     }
@@ -357,32 +392,46 @@ export function SessionForm({
         <FormField label={labels.startsAt} required>
           <Input name="startsAt" type="datetime-local" required />
         </FormField>
-        <FormField label={labels.duration} required>
-          <Input name="durationMinutes" type="number" min={15} max={2880} defaultValue={120} required />
-        </FormField>
+        {isEvent ? (
+          <FormField label={labels.endsAt} required>
+            <Input name="endsAt" type="datetime-local" required />
+          </FormField>
+        ) : (
+          <FormField label={labels.duration} required>
+            <Input name="durationMinutes" type="number" min={15} max={2880} defaultValue={120} required />
+          </FormField>
+        )}
         <FormField label={kind === "night" ? labels.beds : labels.seats} required>
-          <Input key={`cap-${kind}`} name="capacity" type="number" min={0} defaultValue={kind === "night" ? 6 : 12} required />
+          <Input key={`cap-${kind}-${isWebinar}`} name="capacity" type="number" min={0} defaultValue={kind === "night" ? 6 : isWebinar ? 100 : 12} required />
         </FormField>
-        <FormField label={labels.creditKind}>
-          <select key={`ck-${kind}`} name="creditKind" defaultValue={kind === "event" ? "" : kind} className={selectClass}>
-            <option value="">{labels.none}</option>
-            <option value="day">{labels.kinds.day}</option>
-            <option value="night">{labels.kinds.night}</option>
-          </select>
-        </FormField>
-        <FormField label={labels.creditCost}>
-          <Input key={`cost-${kind}`} name="creditCost" type="number" min={0} max={10} defaultValue={kind === "event" ? 0 : 1} />
-        </FormField>
-        <FormField label={labels.product}>
-          <select name="productId" defaultValue="" className={selectClass}>
-            <option value="">{labels.none}</option>
-            {products.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.label}
-              </option>
-            ))}
-          </select>
-        </FormField>
+        {isEvent ? (
+          <FormField label={labels.price} hint={labels.priceHint}>
+            <Input name="price" inputMode="decimal" placeholder="0" />
+          </FormField>
+        ) : (
+          <>
+            <FormField label={labels.creditKind}>
+              <select key={`ck-${kind}`} name="creditKind" defaultValue={kind} className={selectClass}>
+                <option value="">{labels.none}</option>
+                <option value="day">{labels.kinds.day}</option>
+                <option value="night">{labels.kinds.night}</option>
+              </select>
+            </FormField>
+            <FormField label={labels.creditCost}>
+              <Input key={`cost-${kind}`} name="creditCost" type="number" min={0} max={10} defaultValue={1} />
+            </FormField>
+            <FormField label={labels.product}>
+              <select name="productId" defaultValue="" className={selectClass}>
+                <option value="">{labels.none}</option>
+                {products.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.label}
+                  </option>
+                ))}
+              </select>
+            </FormField>
+          </>
+        )}
         <FormField label={labels.location}>
           <Input name="location" maxLength={200} />
         </FormField>
@@ -391,6 +440,16 @@ export function SessionForm({
           {labels.memberOnly}
         </Label>
       </div>
+      {isWebinar ? (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <FormField label={labels.webinarGeekUrl} hint={labels.webinarGeekUrlHint}>
+            <Input name="webinarGeekUrl" type="url" inputMode="url" placeholder="https://" maxLength={2000} />
+          </FormField>
+          <FormField label={labels.webinarGeekId} hint={labels.webinarGeekIdHint}>
+            <Input name="webinarGeekBroadcastId" inputMode="numeric" maxLength={20} />
+          </FormField>
+        </div>
+      ) : null}
       {missing.length ? <p className="text-sm text-muted-foreground">{labels.missingLocales.replace("{locales}", missing.map((l) => labels.localeNames[l]).join(", "))}</p> : null}
       <div className="flex flex-wrap gap-2">
         <Button type="submit" name="intent" value="draft" variant="outline" disabled={pending}>

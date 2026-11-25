@@ -14,8 +14,10 @@ const CATEGORIES = ["lecture", "concert", "member_event", "experience", "webinar
  * event, created as a draft or published at once; publishing stays disabled while the title
  * misses a locale.
  */
-export default async function NewSessionPage() {
+export default async function NewSessionPage({ searchParams }: { searchParams: Promise<{ category?: string }> }) {
   await requireStaff({ permission: "bookings.override" });
+  const wanted = (await searchParams).category;
+  const initialCategory = (CATEGORIES as readonly string[]).includes(wanted ?? "") ? (wanted as (typeof CATEGORIES)[number]) : "lecture";
   const locale = await adminLocale();
   const tr = translator(locale);
   const db = await getAppDb();
@@ -48,6 +50,13 @@ export default async function NewSessionPage() {
     missingLocales: tr("booking.session.publish_missing_locales", { locales: "{locales}" }),
     localeNames,
     warningOverlap: tr("booking.session.warning_location_overlap"),
+    endsAt: tr("booking.event.ends_at"),
+    price: tr("booking.event.price"),
+    priceHint: tr("booking.event.price_hint"),
+    webinarGeekUrl: tr("booking.event.webinargeek_url"),
+    webinarGeekUrlHint: tr("booking.event.webinargeek_url_hint"),
+    webinarGeekId: tr("booking.event.webinargeek_id"),
+    webinarGeekIdHint: tr("booking.event.webinargeek_id_hint"),
     errors: {
       ...Object.fromEntries(BOOKING_CONFLICT_REASONS.map((r) => [r, tr(`booking.errors.${r}`)])),
       validation: tr("platform.errors.validation"),
@@ -63,6 +72,7 @@ export default async function NewSessionPage() {
         products={products.map((p) => ({ id: p.id, label: `${show(p.name, locale)} (${p.sku})` }))}
         companies={companies.map((c) => ({ id: c.id, label: c.name }))}
         labels={labels}
+        initialCategory={initialCategory}
       />
     </div>
   );

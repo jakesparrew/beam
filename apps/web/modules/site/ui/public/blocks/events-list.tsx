@@ -33,6 +33,10 @@ export function EventsListBlockView({ block, ctx }: { block: BlockOf<"events_lis
             const full = e.band === "full";
             return (
               <li key={e.sessionId} className="group relative flex flex-col gap-5 rounded-[1.75rem] border border-border bg-card p-4 transition hover:-translate-y-0.5 hover:shadow-md sm:flex-row sm:items-center sm:p-5">
+                {e.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- event artwork from /api/public/files
+                  <img src={e.imageUrl} alt="" className="aspect-[4/3] w-full shrink-0 rounded-2xl object-cover sm:w-36" data-event-artwork />
+                ) : null}
                 <time dateTime={e.startsAt} className="flex w-20 shrink-0 flex-col overflow-hidden rounded-2xl border border-border text-center shadow-sm" aria-hidden="true">
                   <span className="bg-[#212842] py-1 text-[0.7rem] font-semibold tracking-[0.2em] text-[#d1a64a] uppercase">{dateBit(e.startsAt, locale, { month: "short" })}</span>
                   <span className="font-display bg-[#fffaef] pt-1 text-4xl leading-none">{dateBit(e.startsAt, locale, { day: "numeric" })}</span>

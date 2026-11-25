@@ -269,19 +269,34 @@ function isUniqueViolation(error: unknown): boolean {
   return e?.code === "23505" || e?.cause?.code === "23505";
 }
 
-/** R59: `booking.booking_confirmed` (owner) or `booking.guest_invited` (guest), QR inline, key `booking:<id>:confirmed`. */
-export async function sendConfirmationEmail(ctx: Ctx, booking: BookingRow, session: Pick<SessionRow, "title" | "startsAt">, opts: { payAtDesk?: boolean } = {}): Promise<boolean> {
+/**
+ * R59: `booking.booking_confirmed` (owner) or `booking.guest_invited` (guest), QR inline, key
+ * `booking:<id>:confirmed`. Owner requirement 5: a WebinarGeek webinar adds its link to the email,
+ * and a confirmed seat with a broadcast id enqueues `bookings.register_webinargeek` (same transaction).
+ */
+export async function sendConfirmationEmail(
+  ctx: Ctx,
+  booking: BookingRow,
+  session: Pick<SessionRow, "title" | "startsAt"> & Partial<Pick<SessionRow, "webinarGeekUrl" | "webinarGeekBroadcastId">>,
+  opts: { payAtDesk?: boolean } = {},
+): Promise<boolean> {
+  if (booking.status === "confirmed" && session.webinarGeekBroadcastId) {
+    await ctx.enqueue({ kind: "bookings.register_webinargeek", payload: { bookingId: booking.id }, key: `booking:${booking.id}:webinargeek` });
+  }
   const [person] = await ctx.tx.select({ email: persons.email, locale: persons.locale }).from(persons).where(eq(persons.id, booking.personId));
   if (!person?.email) return false;
   const locale = person.locale;
-  const fileId = await renderCheckinQr(ctx, booking);
+  // A WebinarGeek webinar has no reception check-in: its email carries the webinar link instead of
+  // the QR (the guest template keeps its QR).
+  const joinUrl = booking.guestOfBookingId ? null : (session.webinarGeekUrl ?? null);
+  const fileId = joinUrl ? null : await renderCheckinQr(ctx, booking);
   const base = {
     title: pick(session.title, locale, "session title"),
     date: formatDateTime(session.startsAt, locale, "full"),
     url: appUrl(`/${URL_SEGMENT[locale]}/account/bookings/${booking.id}`),
   };
   let template = "booking.booking_confirmed";
-  let data: Record<string, unknown> = { ...base, payAtDesk: opts.payAtDesk ?? false };
+  let data: Record<string, unknown> = { ...base, payAtDesk: opts.payAtDesk ?? false, ...(joinUrl ? { joinUrl } : {}) };
   if (booking.guestOfBookingId) {
     const [owner] = await ctx.tx
       .select({ firstName: persons.firstName })
@@ -291,7 +306,7 @@ export async function sendConfirmationEmail(ctx: Ctx, booking: BookingRow, sessi
     template = "booking.guest_invited";
     data = { ...base, ownerFirstName: owner?.firstName?.trim() || "BEAM" };
   }
-  await sendTransactional(ctx, { template, personId: booking.personId, locale, data, key: `booking:${booking.id}:confirmed`, attachments: [qrAttachment(fileId)] });
+  await sendTransactional(ctx, { template, personId: booking.personId, locale, data, key: `booking:${booking.id}:confirmed`, attachments: fileId ? [qrAttachment(fileId)] : [] });
   return true;
 }
 

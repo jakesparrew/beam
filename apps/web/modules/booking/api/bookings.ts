@@ -160,6 +160,8 @@ export async function listPublicEvents(
     location: string | null;
     productId: string | null;
     availabilityBand: AvailabilityBand;
+    /** Owner requirements 4 and 5: the artwork (public image file), null without one. */
+    imageFileId?: string | null;
   }>
 > {
   const rows = await db
@@ -188,6 +190,7 @@ export async function listPublicEvents(
     location: s.location,
     productId: s.productId,
     availabilityBand: s.webinarId ? "available" : publicBand(s.status, general),
+    imageFileId: s.imageFileId,
   }));
 }
 
@@ -228,6 +231,8 @@ export async function getSessionCards(tx: DbOrTx, sessionIds: string[], locale: 
         availabilityBand: publicBand(s.status, r.general),
         bookUrl: `/${URL_SEGMENT[locale]}/account/book/${s.id}`,
         opensForCustomersAt: s.isLeadMagnet && r.phase === "lead" && Number(r.general) <= 0 ? (r.opensForCustomersAt ?? s.leadWindowEndAt) : null,
+        imageFileId: s.imageFileId,
+        eventCategory: s.eventCategory,
       },
     ];
   });

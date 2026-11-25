@@ -65,7 +65,7 @@ describe("getSessionCards: opensForCustomersAt (booking spec 4.9, booking-P7)", 
     const s = await leadEvent({ generalTaken: 2 });
     const c = await card(s.id);
     expect(Object.keys(c).sort()).toEqual(
-      ["availabilityBand", "bookUrl", "endsAt", "isLeadMagnet", "isMemberOnly", "kind", "location", "opensForCustomersAt", "productId", "sessionId", "startsAt", "title"].sort(),
+      ["availabilityBand", "bookUrl", "endsAt", "eventCategory", "imageFileId", "isLeadMagnet", "isMemberOnly", "kind", "location", "opensForCustomersAt", "productId", "sessionId", "startsAt", "title"].sort(),
     );
     expect(JSON.stringify(c)).not.toMatch(/@|person/i);
     expect(c.bookUrl).toBe(`/en/account/book/${s.id}`);

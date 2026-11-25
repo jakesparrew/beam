@@ -560,7 +560,8 @@
         "salesFrom": "Te koop vanaf {date}",
         "soldOut": "Uitverkocht",
         "tickets": "Tickets",
-        "register": "Inschrijven"
+        "register": "Inschrijven",
+        "free": "Gratis"
       },
       "gift": {
         "cta": "Geef een cadeaubon"
@@ -938,7 +939,9 @@
         "whereValue": "BEAM Vitality Center, Sint-Martens-Latem",
         "price": "Prijs",
         "change": "Ander moment",
-        "total": "Totaal"
+        "total": "Totaal",
+        "online": "Online (WebinarGeek)",
+        "free": "Gratis"
       },
       "package": {
         "title": "Kom je vaker?",

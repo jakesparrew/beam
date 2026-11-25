@@ -324,6 +324,8 @@ export type PublicEvent = {
   /** The event page in this locale, else the portal booking page. */
   href: string;
   bookHref: string;
+  /** Owner requirements 4 and 5: the event artwork, null or absent without one. */
+  imageUrl?: string | null;
   /**
    * R2 (rule 32, scenario 3): end of the open lead window of a Lead Magnet event (ISO), shown as
    * "Priority access for new guests until <date>"; null outside the window. Never a count or rank.
@@ -384,6 +386,7 @@ async function loadPublicEvents(locale: Locale, opts: { page: number; limit: num
       location: r.location,
       href: hrefs[r.sessionId] ?? bookSessionPath(locale, r.sessionId),
       bookHref: bookSessionPath(locale, r.sessionId),
+      imageUrl: r.imageFileId ? fileUrl(r.imageFileId) : null,
       priorityUntil: leadWindowOpen({ isLeadMagnet: r.isLeadMagnet, leadWindowStartAt: starts.get(r.sessionId) ?? null, leadWindowEndAt: r.leadWindowEndAt }, now) ? iso(r.leadWindowEndAt) : null,
     }));
   return { items, page, hasMore };
@@ -440,6 +443,9 @@ export type EventFacts = {
   isWebinar: boolean;
   /** R2 (edge case 36): the webinar's public page in this locale, null while it is not public. */
   webinar: { href: string } | null;
+  /** Owner requirements 4 and 5: the artwork, null without one; free = no product and no ticket types. */
+  imageUrl?: string | null;
+  isFree?: boolean;
 };
 
 /** The member price of a product: its member price version or the public price minus the member discount (rule 26). */
@@ -523,6 +529,7 @@ async function loadEventFacts(sessionId: string, locale: Locale): Promise<EventF
       leadWindowEndAt: sessions.leadWindowEndAt,
       webinarId: sessions.webinarId,
       productId: sessions.productId,
+      imageFileId: sessions.imageFileId,
     })
     .from(sessions)
     .where(eq(sessions.id, sessionId));
@@ -563,6 +570,8 @@ async function loadEventFacts(sessionId: string, locale: Locale): Promise<EventF
     accessDependsOnViewer: s.isLeadMagnet && (leadOpen || phase === "customer_release"),
     isWebinar,
     webinar: isWebinar ? await webinarLinkOf(db, s.id, locale) : null,
+    imageUrl: s.imageFileId ? fileUrl(s.imageFileId) : null,
+    isFree: !s.productId && types.length === 0,
   };
 }
 

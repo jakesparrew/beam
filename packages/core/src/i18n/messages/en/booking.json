@@ -18,7 +18,8 @@
       "book": "Book",
       "my_bookings": "My bookings",
       "my_waitlist": "My waiting lists",
-      "partner_holds": "My partner seats"
+      "partner_holds": "My partner seats",
+      "events": "Events & webinars"
     },
     "common": {
       "save": "Save",
@@ -614,7 +615,10 @@
       "keep": "Keep my booking",
       "back": "All my bookings",
       "qr_label": "Check-in QR code",
-      "guest_note": "A guest booked through your booking."
+      "guest_note": "A guest booked through your booking.",
+      "webinar_intro": "This webinar runs on WebinarGeek. Use this button when it starts.",
+      "webinar_join": "Go to the webinar",
+      "materials": "Presentations and materials"
     },
     "portalReschedule": {
       "title": "Move my booking",
@@ -661,7 +665,9 @@
         "intro": "Your booking for {title} on {date} is confirmed.",
         "pay_at_desk": "Payment at reception.",
         "qr": "Show this code at reception.",
-        "cta": "View my booking"
+        "cta": "View my booking",
+        "join": "This webinar runs on WebinarGeek. The button below takes you to the webinar page.",
+        "join_cta": "Go to the webinar"
       },
       "booking_rescheduled": {
         "subject": "Your booking has moved to {date}",
@@ -797,6 +803,45 @@
     "ageGroup": {
       "child": "Child (under 12)",
       "youth": "Youth (12 to 17)"
+    },
+    "event": {
+      "list_title": "Events and webinars",
+      "list_intro": "Events and webinars sit outside the day and night schedule: create them on any date, with their own venue, price and capacity.",
+      "new_event": "New event",
+      "new_webinar": "New webinar",
+      "filter": "Show",
+      "filter_all": "All",
+      "filter_events": "Events",
+      "filter_webinars": "Webinars",
+      "list_empty": "No events or webinars planned yet.",
+      "booked_of": "{booked} of {capacity} booked",
+      "details": "Event details",
+      "webinar_details": "Webinar details",
+      "starts_at": "Start (date and time)",
+      "ends_at": "End (date and time)",
+      "price": "Ticket price (EUR)",
+      "price_hint": "Leave empty or 0 for a free event.",
+      "webinargeek_url": "WebinarGeek link",
+      "webinargeek_url_hint": "The webinar's registration or watch page on WebinarGeek. Participants get this link in their confirmation and in their account.",
+      "webinargeek_id": "WebinarGeek broadcast ID (optional)",
+      "webinargeek_id_hint": "Only fill this in when your WebinarGeek plan includes the API: participants are then registered in WebinarGeek automatically.",
+      "webinargeek_link": "Link to WebinarGeek",
+      "webinargeek_intro": "The broadcast runs on WebinarGeek. Here you manage the details, price, artwork and materials; export the registrations as CSV to import them into WebinarGeek.",
+      "export_csv": "Export registrations (CSV)",
+      "artwork": "Artwork",
+      "artwork_hint": "PNG, JPG, WebP or GIF, at most 10 MB. Landscape (16:9) works best.",
+      "artwork_alt": "Artwork of {title}",
+      "materials": "Presentations and materials",
+      "materials_hint": "Upload them in advance. Participants see them in their account once you share them.",
+      "no_materials": "No materials yet.",
+      "upload": "Upload",
+      "uploading": "Uploading…",
+      "materials_released": "Shared with participants since {date}.",
+      "materials_hidden": "Not visible to participants yet.",
+      "release_materials": "Share with participants",
+      "hide_materials": "Hide again",
+      "file_too_large": "The file is larger than 10 MB.",
+      "image_type": "Choose a PNG, JPG, WebP or GIF image."
     }
   }
 }

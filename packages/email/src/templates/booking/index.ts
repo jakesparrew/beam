@@ -39,6 +39,8 @@ export const templates = [
       pay_at_desk: "booking.email.booking_confirmed.pay_at_desk",
       qr: "booking.email.booking_confirmed.qr",
       cta: "booking.email.booking_confirmed.cta",
+      join: "booking.email.booking_confirmed.join",
+      join_cta: "booking.email.booking_confirmed.join_cta",
     },
   }),
   defineTemplate({

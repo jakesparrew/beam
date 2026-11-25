@@ -119,6 +119,8 @@ export const KIND_PERMISSION: Record<Exclude<FileKind, "image">, string> = {
   rendered_email: "email.write",
   // DPIA register documents and other compliance papers (the DPIA screen needs `settings.write`).
   staff_document: "settings.write",
+  // Event and webinar materials: booked people get a signed link once staff release them.
+  material: "bookings.read",
 };
 
 const CUSTOMER_KINDS: readonly FileKind[] = ["invoice_pdf", "receipt", "export"];

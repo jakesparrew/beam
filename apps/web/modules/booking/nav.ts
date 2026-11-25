@@ -16,6 +16,17 @@ export const nav = [
     order: 100,
   },
   {
+    // Owner requirements 4 and 5: events and WebinarGeek webinars on any date.
+    key: "booking.events",
+    area: "admin",
+    section: "booking",
+    labelKey: "booking.nav.events",
+    href: "/admin/sessions/events",
+    permission: "bookings.read",
+    icon: "ticket",
+    order: 105,
+  },
+  {
     key: "booking.bookings",
     area: "admin",
     section: "booking",

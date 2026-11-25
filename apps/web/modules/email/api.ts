@@ -35,6 +35,7 @@ import type {
   TemplateKind,
 } from "@beam/core/email";
 import { and, desc, eq, gte, inArray, sql, type Ctx } from "@/lib/ctx";
+import * as campaigns from "./server/campaigns";
 import * as context from "./server/context";
 import * as latestMessage from "./server/latest-message";
 import * as linkToken from "./server/link-token";
@@ -59,6 +60,16 @@ export type {
 
 /** The idempotency key of the `email.send` job of a message. */
 export const emailSendJobKey = send.emailSendJobKey;
+
+/**
+ * A draft campaign (with its new draft template) aimed at `segmentId`, by the staff actor of
+ * `ctx` (ops' "fill this session"). Nothing is scheduled or sent; staff finish it on the campaign page.
+ */
+export async function createCampaignDraft(ctx: Ctx, input: { name: string; purpose: MarketingPurpose; segmentId: string }): Promise<{ campaignId: string }> {
+  const { campaignId } = await campaigns.createCampaignRecord(ctx, { name: input.name, purpose: input.purpose });
+  await campaigns.updateCampaignRecord(ctx, { campaignId, expectedVersion: 1, segmentId: input.segmentId });
+  return { campaignId };
+}
 
 /** Queues one transactional email in the caller's transaction. The same `key` twice is one message and one job. */
 export function sendTransactional(ctx: Ctx, input: SendTransactionalInput): Promise<{ emailMessageId: string; jobId: string }> {

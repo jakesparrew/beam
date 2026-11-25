@@ -1,11 +1,13 @@
 /**
- * platform's `defaults` seed: the nine system roles and their default permissions
- * (architecture section 4, platform spec section 7, PL-80).
+ * platform's `defaults` seed: the nine built-in roles and their default permissions
+ * (architecture section 4, platform spec section 7, PL-80). The predefined ones
+ * (`PREDEFINED_ROLE_KEYS`: Administrator, Manager, Front Desk, Finance / Accounts and the
+ * partner role) are `is_system`; the other four are editable, deletable roles.
  */
 import { and, eq, not, sql } from "drizzle-orm";
 import type { DbOrTx } from "../client";
 import type { LocalizedText } from "../schema/_shared";
-import { ROLE_KEYS, roles, type RoleKey } from "../schema/platform";
+import { PREDEFINED_ROLE_KEYS, ROLE_KEYS, roles, type RoleKey, type SystemRoleKey } from "../schema/platform";
 import type { DefaultSeed, SeedOptions } from "./run";
 
 /** The V1 permission strings of architecture section 4 (fallback when no registry is passed). */
@@ -55,10 +57,14 @@ export const V1_PERMISSIONS = [
 
 /** Permissions technical_admin does not get by default. */
 const TECHNICAL_ADMIN_EXCLUDED = new Set(["persons.sensitive_read"]);
-/** Permissions management does not get by default. */
-const MANAGEMENT_EXCLUDED = new Set([
+/**
+ * Permissions the Manager (management) does not get by default: no technical logs, no sensitive
+ * or dangerous system settings (users and roles, feature flags), no privacy runs or health data.
+ */
+export const MANAGEMENT_EXCLUDED: ReadonlySet<string> = new Set([
   "users.manage",
   "system.jobs",
+  "flags.manage",
   "privacy.run",
   "persons.sensitive_read",
 ]);
@@ -70,7 +76,7 @@ const MANAGEMENT_EXCLUDED = new Set([
  */
 export const DEFAULT_ROLE_GRANTS: Readonly<
   Record<
-    Exclude<RoleKey, "owner" | "technical_admin" | "management">,
+    Exclude<SystemRoleKey, "owner" | "technical_admin" | "management">,
     readonly string[]
   >
 > = {
@@ -139,9 +145,9 @@ export const DEFAULT_ROLE_GRANTS: Readonly<
   external_partner: ["partner.own"],
 };
 
-export const ROLE_NAMES: Readonly<Record<RoleKey, Required<LocalizedText>>> = {
-  owner: { "nl-BE": "Eigenaar", "fr-BE": "Propriétaire", en: "Owner" },
-  management: { "nl-BE": "Directie", "fr-BE": "Direction", en: "Management" },
+export const ROLE_NAMES: Readonly<Record<SystemRoleKey, Required<LocalizedText>>> = {
+  owner: { "nl-BE": "Beheerder", "fr-BE": "Administrateur", en: "Administrator" },
+  management: { "nl-BE": "Manager", "fr-BE": "Manager", en: "Manager" },
   customer_service: {
     "nl-BE": "Klantenservice",
     "fr-BE": "Service clientèle",
@@ -149,8 +155,8 @@ export const ROLE_NAMES: Readonly<Record<RoleKey, Required<LocalizedText>>> = {
   },
   sales: { "nl-BE": "Verkoop", "fr-BE": "Ventes", en: "Sales" },
   marketing: { "nl-BE": "Marketing", "fr-BE": "Marketing", en: "Marketing" },
-  finance: { "nl-BE": "Financiën", "fr-BE": "Finances", en: "Finance" },
-  reception: { "nl-BE": "Onthaal", "fr-BE": "Accueil", en: "Reception" },
+  finance: { "nl-BE": "Financiën / Boekhouding", "fr-BE": "Finances / Comptabilité", en: "Finance / Accounts" },
+  reception: { "nl-BE": "Onthaal", "fr-BE": "Accueil", en: "Front Desk" },
   technical_admin: {
     "nl-BE": "Technisch beheerder",
     "fr-BE": "Administrateur technique",
@@ -164,19 +170,19 @@ export const ROLE_NAMES: Readonly<Record<RoleKey, Required<LocalizedText>>> = {
 };
 
 export const ROLE_DESCRIPTIONS: Readonly<
-  Record<RoleKey, Required<LocalizedText>>
+  Record<SystemRoleKey, Required<LocalizedText>>
 > = {
   owner: {
-    "nl-BE": "Alle rechten, ook rechten die later worden toegevoegd.",
-    "fr-BE": "Tous les droits, y compris ceux ajoutés plus tard.",
-    en: "Every permission, including permissions added later.",
+    "nl-BE": "Volledige toegang: alle functies, instellingen, gegevens en technische logboeken.",
+    "fr-BE": "Accès complet : toutes les fonctions, paramètres, données et journaux techniques.",
+    en: "Full access: all functionality, settings, data and technical logs.",
   },
   management: {
     "nl-BE":
-      "Alles behalve gebruikersbeheer, systeemtaken, privacyverzoeken en gevoelige gegevens.",
+      "Dagelijkse werking en beheer, zonder technische logboeken, gebruikersbeheer, gevoelige systeeminstellingen of gezondheidsgegevens.",
     "fr-BE":
-      "Tout sauf la gestion des utilisateurs, les tâches système, les demandes de confidentialité et les données sensibles.",
-    en: "Everything except user management, system jobs, privacy requests and sensitive data.",
+      "Fonctionnement quotidien et gestion, sans journaux techniques, gestion des utilisateurs, paramètres système sensibles ni données de santé.",
+    en: "Day-to-day operations and management, without technical logs, user management, sensitive system settings or health data.",
   },
   customer_service: {
     "nl-BE": "Klanten, boekingen, wachtlijsten, tegoeden en taken.",
@@ -196,14 +202,14 @@ export const ROLE_DESCRIPTIONS: Readonly<
     en: "Forms, email, campaigns, automations, website and webinars.",
   },
   finance: {
-    "nl-BE": "Facturen, terugbetalingen, prijzen en financiële rapporten.",
-    "fr-BE": "Factures, remboursements, prix et rapports financiers.",
-    en: "Invoices, refunds, prices and financial reports.",
+    "nl-BE": "Financiële gegevens: transacties, facturen, betalingen, terugbetalingen en financiële rapporten.",
+    "fr-BE": "Informations financières : transactions, factures, paiements, remboursements et rapports financiers.",
+    en: "Financial information: transactions, invoices, payments, refunds and financial reporting.",
   },
   reception: {
-    "nl-BE": "Onthaal: klanten, boekingen, kassa en tegoeden.",
-    "fr-BE": "Accueil : clients, réservations, caisse et crédits.",
-    en: "Front desk: customers, bookings, till and credits.",
+    "nl-BE": "Kassa, boekingen en klantgegevens, zonder financiële rapporten.",
+    "fr-BE": "Caisse, réservations et données clients, sans rapports financiers.",
+    en: "Till (POS), bookings and client information, without financial reports.",
   },
   technical_admin: {
     "nl-BE": "Alle rechten behalve het lezen van gevoelige gegevens.",
@@ -245,12 +251,12 @@ export async function grantDefaultPermission(
 }
 
 /** The roles that receive `permission` by default. */
-export function defaultRolesFor(permission: string): RoleKey[] {
-  const out: RoleKey[] = [];
+export function defaultRolesFor(permission: string): SystemRoleKey[] {
+  const out: SystemRoleKey[] = [];
   if (!TECHNICAL_ADMIN_EXCLUDED.has(permission)) out.push("technical_admin");
   if (!MANAGEMENT_EXCLUDED.has(permission)) out.push("management");
   for (const [role, list] of Object.entries(DEFAULT_ROLE_GRANTS) as [
-    RoleKey,
+    SystemRoleKey,
     readonly string[],
   ][]) {
     if (list.includes(permission)) out.push(role);
@@ -258,25 +264,28 @@ export function defaultRolesFor(permission: string): RoleKey[] {
   return out;
 }
 
+const PREDEFINED = new Set<string>(PREDEFINED_ROLE_KEYS);
+
 async function run(db: DbOrTx, options: SeedOptions): Promise<void> {
+  // The other built-in roles are starter roles of a fresh database only: an administrator may
+  // rename or delete them, so a later run must not bring them back.
+  const fresh = (await db.select({ id: roles.id }).from(roles).where(eq(roles.key, "owner"))).length === 0;
   for (const key of ROLE_KEYS) {
-    await db
-      .insert(roles)
-      .values({
-        key,
-        name: ROLE_NAMES[key],
-        description: ROLE_DESCRIPTIONS[key],
-        permissions: key === "owner" ? ["*"] : [],
-        isSystem: true,
-      })
-      .onConflictDoUpdate({
-        target: roles.key,
-        set: {
-          name: ROLE_NAMES[key],
-          description: ROLE_DESCRIPTIONS[key],
-          isSystem: true,
-        },
-      });
+    const predefined = PREDEFINED.has(key);
+    if (!predefined && !fresh) continue;
+    const insert = db.insert(roles).values({
+      key,
+      name: ROLE_NAMES[key],
+      description: ROLE_DESCRIPTIONS[key],
+      permissions: key === "owner" ? ["*"] : [],
+      isSystem: predefined,
+    });
+    await (predefined
+      ? insert.onConflictDoUpdate({
+          target: roles.key,
+          set: { name: ROLE_NAMES[key], description: ROLE_DESCRIPTIONS[key], isSystem: true },
+        })
+      : insert.onConflictDoNothing({ target: roles.key }));
   }
   const registry = [...new Set(options.permissions ?? V1_PERMISSIONS)].sort();
   for (const permission of registry) {

@@ -59,8 +59,16 @@ export const ROLE_KEYS = [
   "technical_admin",
   "external_partner",
 ] as const;
-export type RoleKey = (typeof ROLE_KEYS)[number];
-export const rolesKey = pgEnum("roles_key", ROLE_KEYS);
+/** A role key the code knows and the defaults seed creates. */
+export type SystemRoleKey = (typeof ROLE_KEYS)[number];
+/** Any role key: a built-in one or a custom role an administrator made (`roles.key` is text). */
+export type RoleKey = SystemRoleKey | (string & {});
+/**
+ * The predefined roles (`is_system`, owner's review section 11): owner = Administrator,
+ * management = Manager, reception = Front Desk, finance = Finance / Accounts, plus the partner
+ * role. The other built-in keys are editable and deletable, like a custom role.
+ */
+export const PREDEFINED_ROLE_KEYS = ["owner", "management", "reception", "finance", "external_partner"] as const satisfies readonly SystemRoleKey[];
 export const jobsLane = pgEnum("jobs_lane", ["fast", "bulk"]);
 export const jobsStatus = pgEnum("jobs_status", [
   "pending",
@@ -167,7 +175,7 @@ export const users = pgTable(
     passwordHash: text(),
     passwordChangedAt: tstz(),
     locale: localeEnum().notNull().default("nl-BE"),
-    roleKey: rolesKey().references((): AnyPgColumn => roles.key, {
+    roleKey: text().$type<RoleKey>().references((): AnyPgColumn => roles.key, {
       onUpdate: "cascade",
       onDelete: "restrict",
     }),
@@ -277,7 +285,7 @@ export const roles = pgTable(
   "roles",
   {
     id: id(),
-    key: rolesKey().notNull().unique(),
+    key: text().$type<RoleKey>().notNull().unique(),
     name: localized().notNull(),
     description: localized().notNull().default({}),
     permissions: text()
@@ -293,6 +301,7 @@ export const roles = pgTable(
     ...timestamps(),
   },
   (t) => [
+    check("roles_key_ck", sql`${t.key} ~ '^[a-z][a-z0-9_]{1,47}$'`),
     check(
       "roles_owner_all_ck",
       sql`${t.key} <> 'owner' or ${t.permissions} = '{*}'::text[]`,

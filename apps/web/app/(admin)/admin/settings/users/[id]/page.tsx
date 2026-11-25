@@ -1,11 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ROLE_KEYS } from "@beam/db/schema";
 import { Badge, EmptyState, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@beam/ui";
 import { requireStaff } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
 import { adminLocale, translator } from "@/lib/i18n";
-import { catalogueSection, getStaffUser } from "@/modules/platform/queries";
+import { catalogueSection, getStaffUser, listRoles } from "@/modules/platform/queries";
 import { RevokeSessionButton, UserAccountControls, UserProfileForm } from "@/modules/platform/ui/user-form";
 
 /**
@@ -18,15 +17,16 @@ export default async function StaffUserPage({ params }: { params: Promise<{ id: 
   const locale = await adminLocale();
   const tr = translator(locale);
   const t = (k: string, p?: Record<string, string | number>) => tr(`platform.users.${k}`, p);
-  const user = await getStaffUser(await getAppDb(), id);
+  const db = await getAppDb();
+  const user = await getStaffUser(db, id);
   if (!user) notFound();
   const labels = catalogueSection(locale, "platform.users");
   const errors = catalogueSection(locale, "platform.errors");
   const when = (d: Date | string | null) => (d ? new Date(d).toLocaleString(locale, { timeZone: "Europe/Brussels", dateStyle: "short", timeStyle: "short" }) : "–");
   const locked = !!user.lockedUntil && user.lockedUntil.getTime() > new Date().getTime();
   // Only an owner may change a user to or from owner (PL-16).
-  const roleChoices = actor.roleKey === "owner" ? ROLE_KEYS : user.roleKey === "owner" ? (["owner"] as const) : ROLE_KEYS.filter((k) => k !== "owner");
-  const roles = roleChoices.map((k) => ({ key: k, label: tr(`platform.roles.${k}`) }));
+  const allRoles = (await listRoles(db, locale)).map((r) => ({ key: r.key, label: r.label }));
+  const roles = actor.roleKey === "owner" ? allRoles : user.roleKey === "owner" ? allRoles.filter((r) => r.key === "owner") : allRoles.filter((r) => r.key !== "owner");
   const editable = {
     id: user.id,
     name: user.name,

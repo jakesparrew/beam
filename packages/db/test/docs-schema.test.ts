@@ -47,7 +47,7 @@ describe("docs-schema", () => {
     expect(doc).toMatch(
       /\| `data` \| jsonb \| no \| .* \| SENSITIVE \(key data\.key_version\) \|/,
     );
-    expect(doc).toContain("| `roles_key` |");
+    expect(doc).toContain("| `users_audience` |");
     expect(doc).toContain("persons.id on delete restrict");
     expect(doc).toContain("- `v_support_sla`");
     expect(doc).toContain("check `users_audience_shape_ck`");

@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { headers } from "next/headers";
-import type { RoleKey } from "@beam/db/schema";
 import { Alert, AlertDescription, type NavSection } from "@beam/ui";
 import { RECOVERY_CODES_LOW } from "@beam/core/platform";
 import { LOCALES, URL_SEGMENT } from "@beam/core/i18n";
@@ -13,6 +12,7 @@ import { reportProblemLabels, softTranslator, translator } from "@/lib/i18n";
 import { appEnv } from "@/lib/integrations";
 import { getSetting } from "@/lib/settings";
 import { isGoLiveGateComplete } from "@/modules/platform/api";
+import { getRoleLabel } from "@/modules/platform/queries";
 import { AdminLocaleSwitch } from "@/modules/platform/ui/locale-switch";
 import { AdminFrame } from "@/modules/platform/ui/support-form";
 import { NAV } from "@/registry/nav.generated";
@@ -108,7 +108,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   const codesLeft = secrets ? unusedCodeCount(secrets.codes) : null;
   const support = (await getSetting(db, "support")) as { emergency_phone: string };
   const pathname = ((await headers()).get("x-pathname") ?? "/admin").split("?")[0]!;
-  const roleLabel = soft(`platform.roles.${actor.roleKey satisfies RoleKey}`);
+  const roleLabel = await getRoleLabel(db, actor.roleKey, locale).catch(() => soft(`platform.roles.${actor.roleKey}`));
   const gateOpen = appEnv() === "production" && !(await isGoLiveGateComplete(db).catch(() => false));
 
   const banners: ReactNode[] = [];

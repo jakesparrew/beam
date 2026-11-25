@@ -1,21 +1,24 @@
 import Link from "next/link";
-import { Alert, AlertDescription, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@beam/ui";
+import { Alert, AlertDescription, Badge, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@beam/ui";
 import { requireStaff } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
 import { adminLocale, translator } from "@/lib/i18n";
-import { listRoles } from "@/modules/platform/queries";
+import { catalogueSection, listRoles } from "@/modules/platform/queries";
+import { CreateRoleForm } from "@/modules/platform/ui/role-editor";
 import { PERMISSIONS } from "@/registry/permissions.generated";
 
 /**
- * `/admin/settings/roles` (`users.manage`): the nine roles with member and permission counts, and
- * the permission strings a role still holds that the registry no longer declares (PL-18).
+ * `/admin/settings/roles` (`users.manage`): the predefined roles (Administrator, Manager, Front
+ * Desk, Finance / Accounts, partner) and the custom roles with member and permission counts, the
+ * form for a new custom role, and the permission strings a role still holds that the registry
+ * no longer declares (PL-18).
  */
 export default async function RolesPage() {
   await requireStaff({ permission: "users.manage" });
   const locale = await adminLocale();
   const tr = translator(locale);
   const t = (k: string, p?: Record<string, string | number>) => tr(`platform.role_editor.${k}`, p);
-  const roles = await listRoles(await getAppDb());
+  const roles = await listRoles(await getAppDb(), locale);
   const withUnknown = roles.filter((r) => r.unknownPermissions.length > 0);
 
   return (
@@ -31,7 +34,7 @@ export default async function RolesPage() {
             <ul className="mt-2 list-disc pl-5">
               {withUnknown.map((r) => (
                 <li key={r.key}>
-                  {tr(`platform.roles.${r.key}`)}: <span className="font-mono text-xs">{r.unknownPermissions.join(", ")}</span>
+                  {r.label}: <span className="font-mono text-xs">{r.unknownPermissions.join(", ")}</span>
                 </li>
               ))}
             </ul>
@@ -42,6 +45,7 @@ export default async function RolesPage() {
         <TableHeader>
           <TableRow>
             <TableHead>{t("col_role")}</TableHead>
+            <TableHead>{t("col_kind")}</TableHead>
             <TableHead>{t("col_members")}</TableHead>
             <TableHead>{t("col_permissions")}</TableHead>
           </TableRow>
@@ -51,15 +55,17 @@ export default async function RolesPage() {
             <TableRow key={r.key}>
               <TableCell>
                 <Link href={`/admin/settings/roles/${r.key}`} className="font-medium hover:underline">
-                  {tr(`platform.roles.${r.key}`)}
+                  {r.label}
                 </Link>
               </TableCell>
+              <TableCell>{r.isSystem ? <Badge variant="secondary">{t("kind_predefined")}</Badge> : <Badge variant="outline">{t("kind_custom")}</Badge>}</TableCell>
               <TableCell>{r.members}</TableCell>
               <TableCell>{r.permissions.includes("*") ? t("all_permissions") : t("permission_count", { count: r.permissions.length - r.unknownPermissions.length, total: PERMISSIONS.length })}</TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
+      <CreateRoleForm labels={catalogueSection(locale, "platform.role_editor")} errors={catalogueSection(locale, "platform.errors")} />
     </div>
   );
 }

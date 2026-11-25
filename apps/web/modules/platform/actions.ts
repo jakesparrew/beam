@@ -29,7 +29,6 @@ import {
   jobs,
   monthlyReports,
   roles,
-  ROLE_KEYS,
   securityIncidents,
   supportRequests,
   users,
@@ -42,7 +41,7 @@ import { findOrCreatePersonByEmail, setPersonTester } from "@/modules/crm/api";
 import { isDpiaApproved } from "@/modules/ops/api";
 import { FLAGS } from "@/registry/flags.generated";
 import { PERMISSIONS } from "@/registry/permissions.generated";
-import type { FlagKey, SettingKey } from "@/registry/types.generated";
+import type { FlagKey, Permission, SettingKey } from "@/registry/types.generated";
 import { action, actionSession } from "@/lib/action";
 import {
   appUrl,
@@ -82,7 +81,7 @@ import { rowsOf, sensitiveKey, setCurrentKeyVersion } from "@/lib/sensitive";
 import { checkPasswordPolicy, dummyHash, hashPassword, needsRehash, verifyPassword } from "@/lib/password";
 import { checkRateLimits } from "@/lib/rate-limit";
 import { generateTotpSecret, totpUri, verifyTotp as checkTotp } from "@/lib/totp";
-import { searchAudit } from "./queries";
+import { ROLE_KEY_RE, roleKeyFor, searchAudit } from "./queries";
 
 const Email = z.string().trim().toLowerCase().email().max(254);
 const LocaleInput = z.enum(LOCALES);
@@ -577,7 +576,7 @@ export const discardJob = action(
 // ---------------------------------------------------------------------------
 
 const Uuid = z.string().uuid();
-const RoleKeyInput = z.enum(ROLE_KEYS);
+const RoleKeyInput = z.string().regex(ROLE_KEY_RE);
 const INVITE_HOURS = 72;
 const ADMIN_ROLES = GO_LIVE_CONFIRM_ROLES as readonly RoleKey[];
 
@@ -603,6 +602,16 @@ async function assertNotLastOwner(ctx: Ctx, userId: string): Promise<void> {
     await ctx.tx.execute(sql`select count(*)::int as n from users where audience = 'staff' and role_key = 'owner' and status = 'active' and id <> ${userId}`),
   );
   if ((others[0]?.n ?? 0) === 0) throw new ConflictError("last_owner");
+}
+
+async function roleRow(ctx: Ctx, key: string) {
+  const [row] = await ctx.tx.select().from(roles).where(eq(roles.key, key));
+  return row ?? null;
+}
+
+/** A user can only be given a role that exists (custom roles can be deleted). */
+async function assertRoleExists(ctx: Ctx, key: string): Promise<void> {
+  if (!(await roleRow(ctx, key))) throw new AppError("validation", "unknown_role", { roleKey: "unknown_role" });
 }
 
 async function sendInvite(ctx: Ctx, user: { id: string; email: string; locale: (typeof LOCALES)[number]; name: string | null }): Promise<void> {
@@ -633,6 +642,7 @@ export const inviteStaffUser = action(
   async (ctx, input): Promise<{ userId: string }> => {
     if (input.roleKey === "owner") requireRole(ctx, ["owner"]);
     if (input.roleKey === "external_partner") throw new AppError("validation", "partner_needs_person", { roleKey: "partner_needs_person" });
+    await assertRoleExists(ctx, input.roleKey);
     if (await findUserByEmail(ctx, input.email)) throw new ConflictError("email_taken");
     const [user] = await ctx.tx
       .insert(users)
@@ -674,6 +684,7 @@ export const updateStaffUser = action(
     if (roleChange) {
       if (input.roleKey === "owner" || user.roleKey === "owner") requireRole(ctx, ["owner"]);
       if (input.roleKey === "external_partner" && !user.personId) throw new AppError("validation", "partner_needs_person", { roleKey: "partner_needs_person" });
+      await assertRoleExists(ctx, input.roleKey!);
       if (user.roleKey === "owner") await assertNotLastOwner(ctx, user.id);
     }
     const rest: Partial<typeof users.$inferInsert> = {};
@@ -772,12 +783,63 @@ export const updateRolePermissions = action(
     const known = new Set<string>(PERMISSIONS);
     const unknown = input.permissions.filter((p) => !known.has(p));
     if (unknown.length) throw new AppError("validation", "unknown_permission", { permissions: unknown.join(",") });
-    const [role] = await ctx.tx.select({ permissions: roles.permissions }).from(roles).where(eq(roles.key, input.roleKey));
+    const role = await roleRow(ctx, input.roleKey);
     if (!role) throw new NotFoundError();
     const next = [...new Set(input.permissions)].sort();
-    if (next.includes("persons.sensitive_read") && !role.permissions.includes("persons.sensitive_read")) requireRole(ctx, ["owner"]);
-    await ctx.tx.update(roles).set({ permissions: next, updatedByUserId: staffOf(ctx).userId }).where(eq(roles.key, input.roleKey));
+    // Only an Administrator grants a permission the actor does not hold (persons.sensitive_read included).
+    const actor = staffOf(ctx);
+    if (next.some((p) => !role.permissions.includes(p) && !actor.permissions.has(p as Permission))) requireRole(ctx, ["owner"]);
+    await ctx.tx.update(roles).set({ permissions: next, updatedByUserId: actor.userId }).where(eq(roles.key, input.roleKey));
     await ctx.audit({ action: "roles.update_permissions", entityType: "roles", entityId: input.roleKey, oldValue: { permissions: role.permissions }, newValue: { permissions: next } });
+    return {};
+  },
+);
+
+const RoleName = z.string().trim().min(2).max(60);
+const RoleDescription = z.string().trim().max(300);
+const inAllLocales = (text: string) => Object.fromEntries(LOCALES.map((l) => [l, text]));
+
+/** A custom role (owner's review section 11): a name, no permissions yet; the key comes from the name. */
+export const createRole = action(
+  { name: "roles.create", audience: "staff", permission: "users.manage", input: z.object({ name: RoleName, description: RoleDescription.optional() }), audit: false },
+  async (ctx, input): Promise<{ roleKey: string }> => {
+    const key = roleKeyFor(input.name);
+    if (!key) throw new AppError("validation", "role_name_invalid", { name: "role_name_invalid" });
+    if (await roleRow(ctx, key)) throw new ConflictError("role_exists");
+    const name = inAllLocales(input.name);
+    const description = input.description ? inAllLocales(input.description) : {};
+    await ctx.tx.insert(roles).values({ key, name, description, permissions: [], isSystem: false, updatedByUserId: staffOf(ctx).userId });
+    await ctx.audit({ action: "roles.create", entityType: "roles", entityId: key, newValue: { name: input.name, description: input.description ?? null } });
+    return { roleKey: key };
+  },
+);
+
+/** Renames a custom role; the predefined roles keep their names in the three languages. */
+export const renameRole = action(
+  { name: "roles.rename", audience: "staff", permission: "users.manage", input: z.object({ roleKey: RoleKeyInput, name: RoleName, description: RoleDescription.optional() }), audit: false },
+  async (ctx, input): Promise<Record<string, never>> => {
+    const role = await roleRow(ctx, input.roleKey);
+    if (!role) throw new NotFoundError();
+    if (role.isSystem) throw new ConflictError("system_role");
+    const name = inAllLocales(input.name);
+    const description = input.description !== undefined ? inAllLocales(input.description) : role.description;
+    await ctx.tx.update(roles).set({ name, description, updatedByUserId: staffOf(ctx).userId }).where(eq(roles.key, role.key));
+    await ctx.audit({ action: "roles.rename", entityType: "roles", entityId: role.key, oldValue: { name: role.name, description: role.description }, newValue: { name, description } });
+    return {};
+  },
+);
+
+/** Deletes a custom role nobody holds (disabled and invited users count too: the FK restricts). */
+export const deleteRole = action(
+  { name: "roles.delete", audience: "staff", permission: "users.manage", input: z.object({ roleKey: RoleKeyInput }), audit: false },
+  async (ctx, input): Promise<Record<string, never>> => {
+    const role = await roleRow(ctx, input.roleKey);
+    if (!role) throw new NotFoundError();
+    if (role.isSystem) throw new ConflictError("system_role");
+    const [held] = await ctx.tx.select({ n: sql<number>`count(*)::int` }).from(users).where(eq(users.roleKey, role.key));
+    if (Number(held?.n ?? 0) > 0) throw new ConflictError("role_in_use");
+    await ctx.tx.delete(roles).where(eq(roles.key, role.key));
+    await ctx.audit({ action: "roles.delete", entityType: "roles", entityId: role.key, oldValue: { name: role.name, permissions: role.permissions } });
     return {};
   },
 );

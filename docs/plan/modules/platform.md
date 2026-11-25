@@ -29,7 +29,6 @@ All tables live in `packages/db/src/schema/platform.ts`; views in `packages/db/s
 | `locale` (shared) | `nl-BE`, `fr-BE`, `en` |
 | `users_audience` | `staff`, `customer` |
 | `users_status` | `active`, `disabled` |
-| `roles_key` | `owner`, `management`, `customer_service`, `sales`, `marketing`, `finance`, `reception`, `technical_admin`, `external_partner` |
 | `jobs_lane` | `fast`, `bulk` |
 | `jobs_status` | `pending`, `running`, `succeeded`, `failed`, `dead` |
 | `webhook_events_provider` | `mollie`, `resend`, `billit` (R3 adds `meta`) |
@@ -58,7 +57,7 @@ All tables live in `packages/db/src/schema/platform.ts`; views in `packages/db/s
 | password_hash | text | yes | argon2id PHC string; check `password_hash is null or password_hash like '$argon2id$%'` |
 | password_changed_at | timestamptz | yes | |
 | locale | locale | no | `'nl-BE'` |
-| role_key | roles_key | yes | FK `roles.key` on update cascade, on delete restrict |
+| role_key | text | yes | FK `roles.key` on update cascade, on delete restrict |
 | person_id | uuid | yes | FK `persons.id` (crm) on delete restrict |
 | totp_secret_enc | bytea | yes | AES-256-GCM, AAD `users.totp_secret:<id>` |
 | recovery_codes_enc | bytea | yes | AES-256-GCM of JSON `[{hash, used_at}]`, hash = sha256 hex of the code |
@@ -98,7 +97,7 @@ Indexes: `auth_sessions_user_idx (user_id)`, `auth_sessions_expires_idx (expires
 `identifier text not null`, `token text not null` (Auth.js stores sha256(token + AUTH_SECRET)), `expires_at timestamptz not null` (property `expires`), `created_at timestamptz not null default now()`. Primary key `(identifier, token)`. Identifiers: plain lower-cased email for customer magic links (15 min), `staff-invite:<user_id>` (72 h), `password-reset:<user_id>` (1 h). Index on `expires_at`.
 
 ### `roles`
-`id uuid pk`, `key roles_key not null unique`, `name jsonb not null` (LocalizedText), `description jsonb not null default '{}'`, `permissions text[] not null default '{}'`, `seeded_permissions text[] not null default '{}'` (every permission a seed has ever granted, so a seed never re-grants one the owner removed), `is_system boolean not null default true`, `updated_by_user_id uuid` FK `users.id`, `created_at`, `updated_at`. Check `roles_owner_all_ck`: `key <> 'owner' or permissions = '{*}'`. Invariant: `'*'` appears only on `owner` and means every permission in `registry/permissions.generated.ts`, including ones added later. All nine rows are seeded; roles are not created or deleted in V1.
+`id uuid pk`, `key text not null unique` (check `roles_key_ck`: `^[a-z][a-z0-9_]{1,47}$`), `name jsonb not null` (LocalizedText), `description jsonb not null default '{}'`, `permissions text[] not null default '{}'`, `seeded_permissions text[] not null default '{}'` (every permission a seed has ever granted, so a seed never re-grants one the owner removed), `is_system boolean not null default true`, `updated_by_user_id uuid` FK `users.id`, `created_at`, `updated_at`. Check `roles_owner_all_ck`: `key <> 'owner' or permissions = '{*}'`. Invariant: `'*'` appears only on `owner` and means every permission in `registry/permissions.generated.ts`, including ones added later. Owner's review section 11 (migration `0061_custom_roles`): the predefined roles are `owner` = Administrator, `management` = Manager (no `system.jobs`, `users.manage`, `flags.manage`, `privacy.run`, `persons.sensitive_read`), `reception` = Front Desk, `finance` = Finance / Accounts, plus `external_partner`; they are `is_system` and cannot be renamed or deleted. `customer_service`, `sales`, `marketing` and `technical_admin` are `is_system = false` (seeded on a fresh database only) and behave like custom roles. Administrators (`users.manage`) create, rename, change and delete custom roles; a role anyone holds cannot be deleted; only an owner grants a permission the actor lacks; every change is audited (`roles.create`, `roles.rename`, `roles.update_permissions`, `roles.delete`, `users.role_change`).
 
 ### `jobs`
 | Column | Type | Null | Default / check |

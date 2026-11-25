@@ -11,7 +11,7 @@
  * Also holds the small order helpers the other order files share (settings, the order lock and
  * the paid amount).
  */
-import { checkouts, orderLines, orders, payments, products, promotionRedemptions, promotions, vouchers } from "@beam/db/schema";
+import { bookings, checkouts, orderLines, orders, payments, products, promotionRedemptions, promotions, vouchers } from "@beam/db/schema";
 import {
   COMMERCE_SETTINGS_DEFAULTS,
   DATED_PRODUCT_KINDS,
@@ -123,6 +123,17 @@ export type FinalizeResult = { delivered: DeliveredLine[]; unavailableOrderLineI
 
 const NOTHING: FinalizeResult = { delivered: [], unavailableOrderLineIds: [] };
 
+/** A booking seat waits for the credits of a package line of this order (booking's package-in-the-booking-flow). */
+async function hasPackageSeat(tx: Tx, orderId: string): Promise<boolean> {
+  const [row] = await tx
+    .select({ id: bookings.id })
+    .from(bookings)
+    .innerJoin(orderLines, eq(orderLines.id, bookings.orderLineId))
+    .where(and(eq(orderLines.orderId, orderId), eq(orderLines.productKind, "package"), eq(bookings.status, "reserved")))
+    .limit(1);
+  return !!row;
+}
+
 /**
  * Runs the paid transaction of `orderId` (rule 32) inside `tx`. Guarded by the order row lock:
  * only a `pending_payment` order (or an `expired` one paid late, rule 28) is finalised; any other
@@ -230,7 +241,9 @@ export async function finalizePaidOrder(tx: Tx, ctx: Ctx, orderId: string, opts:
   // 5. Bookings, once for the whole order (online, payment link and POS alike).
   let unavailableOrderLineIds: string[] = [];
   const datedLines = lines.filter((l) => (DATED_PRODUCT_KINDS as readonly string[]).includes(l.productKind));
-  if (datedLines.length) {
+  // A package bought in the booking flow pays a seat with one of the credits granted above.
+  const seatPackage = lines.some((l) => l.productKind === "package") && !!order.personId && (await hasPackageSeat(tx, orderId));
+  if (datedLines.length || seatPackage) {
     const r = await (await bookingApi()).confirmBookingsForOrder(tx, ctx, { orderId });
     unavailableOrderLineIds = r.unavailableOrderLineIds;
     for (const l of datedLines) {

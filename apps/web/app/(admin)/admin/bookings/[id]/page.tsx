@@ -107,6 +107,7 @@ export default async function BookingDetailPage({ params }: { params: Promise<{ 
             <Badge variant="outline">{tr(`booking.status.${booking.status}`)}</Badge>
             <Badge variant="outline">{tr(`booking.paidWith.${booking.paidWith}`)}</Badge>
             <Badge variant="outline">{tr(`booking.source.${booking.source}`)}</Badge>
+            {booking.ageGroup ? <Badge variant="secondary">{tr(`booking.ageGroup.${booking.ageGroup}`)}</Badge> : null}
             {booking.isPayAtDesk ? <Badge variant="warning">{tr("booking.manual.pay_at_desk")}</Badge> : null}
             {booking.isOverCapacity ? <Badge variant="destructive">{tr("booking.manual.over_capacity")}</Badge> : null}
             {booking.source === "waitlist" ? <Badge variant="secondary">{tr("booking.bookings.waitlist_origin")}</Badge> : null}
@@ -174,7 +175,7 @@ export default async function BookingDetailPage({ params }: { params: Promise<{ 
                   {fullName(g.firstName, g.lastName)}
                 </Link>{" "}
                 <span className="text-sm text-muted-foreground">
-                  · {tr(`booking.status.${g.status}`)} · {tr(`booking.paidWith.${g.paidWith}`)}
+                  {g.ageGroup ? ` · ${tr(`booking.ageGroup.${g.ageGroup}`)}` : ""} · {tr(`booking.status.${g.status}`)} · {tr(`booking.paidWith.${g.paidWith}`)}
                 </span>
               </li>
             ))}

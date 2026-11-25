@@ -507,7 +507,11 @@
       "continue": "Continue",
       "login_for_member": "Log in for member prices",
       "withdrawal_line": "14-day withdrawal right",
-      "processing": "Your payment is being prepared…"
+      "processing": "Your payment is being prepared…",
+      "first_name": "First name",
+      "last_name": "Last name",
+      "phone": "Phone number",
+      "phone_hint": "So we can reach you about your order."
     },
     "pay_order": {
       "title": "Pay your order",
@@ -531,7 +535,10 @@
       "go_bookings": "Go to my bookings",
       "go_orders": "Go to my purchases",
       "go_home": "Back to the website",
-      "guest_access": "We sent a link to your email address to open your account."
+      "guest_access": "We sent a link to your email address to open your account.",
+      "account_offer_title": "Want an account? It is optional.",
+      "account_offer_body": "See your bookings, packages and invoices in one place. We email you a sign-in link, no password needed.",
+      "account_offer_link": "Create my account"
     },
     "my_orders": {
       "title": "My purchases",

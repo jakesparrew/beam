@@ -507,7 +507,11 @@
       "continue": "Verder",
       "login_for_member": "Meld je aan voor ledenprijzen",
       "withdrawal_line": "14 dagen herroepingsrecht",
-      "processing": "Je betaling wordt voorbereid…"
+      "processing": "Je betaling wordt voorbereid…",
+      "first_name": "Voornaam",
+      "last_name": "Achternaam",
+      "phone": "Telefoonnummer",
+      "phone_hint": "Zo kunnen we je bereiken over je bestelling."
     },
     "pay_order": {
       "title": "Betaal je bestelling",
@@ -531,7 +535,10 @@
       "go_bookings": "Naar mijn reservaties",
       "go_orders": "Naar mijn aankopen",
       "go_home": "Terug naar de website",
-      "guest_access": "We stuurden een link naar je e-mailadres om je account te openen."
+      "guest_access": "We stuurden een link naar je e-mailadres om je account te openen.",
+      "account_offer_title": "Een account? Dat mag, het moet niet.",
+      "account_offer_body": "Zie je boekingen, pakketten en facturen op één plek. We mailen je een aanmeldlink, zonder wachtwoord.",
+      "account_offer_link": "Maak mijn account"
     },
     "my_orders": {
       "title": "Mijn aankopen",

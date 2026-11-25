@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { localeFromSegment, URL_SEGMENT } from "@beam/core/i18n";
+import { formatMoney, localeFromSegment, pick, URL_SEGMENT } from "@beam/core/i18n";
+import { getAppDb } from "@/lib/ctx";
 import { translator } from "@/lib/i18n";
+import { getBookingOffers } from "@/modules/booking/queries";
 import { getAvailabilityPreviewForSite } from "@/modules/site/queries";
 import { ArrowBadge, goldButtonClass } from "@/modules/site/ui/public/block-renderer";
 import { buildWeeks } from "@/modules/site/ui/public/blocks/availability-preview";
@@ -10,8 +12,9 @@ import { BookSteps, InfoCard, KindTips, TrustStrip } from "@/modules/site/ui/pub
 
 /**
  * `/[locale]/book`: the public booking flow, steps 1 and 2 (no login). Without `?kind=` the visitor
- * picks a day or night experience, explained; with it, a time from the week schedule. Each time
- * leads to `/[locale]/book/<sessionId>` (overview, then account, then payment).
+ * picks a day or night experience, explained; with it, a time in the next seven days and the
+ * packages to buy instead, with their saving (owner's review 8). Each time leads to
+ * `/[locale]/book/<sessionId>` (details without an account, then review and pay).
  * `/[locale]/account/book` sends visitors without a session here (proxy).
  */
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
@@ -19,7 +22,8 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   return locale ? { title: translator(locale)("site.bookFlow.metaTitle") } : {};
 }
 
-const WEEKS = 4;
+/** Owner's review 8: the sessions of the next seven days. */
+const DAYS = 7;
 
 export default async function PublicBookPage({ params, searchParams }: { params: Promise<{ locale: string }>; searchParams: Promise<{ kind?: string; tab?: string }> }) {
   const { locale: seg } = await params;
@@ -87,9 +91,13 @@ export default async function PublicBookPage({ params, searchParams }: { params:
     );
   }
 
-  const slots = await getAvailabilityPreviewForSite(kind, WEEKS * 7).catch(() => []);
+  const slots = await getAvailabilityPreviewForSite(kind, DAYS).catch(() => []);
   const weeks = buildWeeks(slots, locale, tr, (id) => `${base}/${id}`);
   const night = kind === "night";
+  // Owner's review 8: a package instead of a single session, with its saving (the prices of the first session shown).
+  const firstSlot = slots[0];
+  const { singleCents, offers } = firstSlot ? await getBookingOffers(await getAppDb(), firstSlot.sessionId).catch(() => ({ singleCents: null, offers: [] })) : { singleCents: null, offers: [] };
+  const money = (cents: number) => formatMoney(cents, locale);
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
       <BookSteps current={2} tr={tr} />
@@ -119,6 +127,32 @@ export default async function PublicBookPage({ params, searchParams }: { params:
           <TrustStrip tr={tr} />
         </div>
         <aside className="space-y-4">
+          {offers.length ? (
+            <InfoCard title={tr("site.bookFlow.packages.title")} tone="sand">
+              <p className="text-[#212842]/80">{tr("site.bookFlow.packages.body")}</p>
+              <ul className="grid gap-3 pt-2" data-testid="package-offers">
+                {offers.map((o) => (
+                  <li key={o.productId} className="flex items-start justify-between gap-3 rounded-2xl bg-[#fffaef] p-3">
+                    <span className="grid">
+                      <span className="font-semibold text-[#212842]">{pick(o.name, locale)}</span>
+                      <span className="text-[#212842]/75">
+                        {tr("site.bookFlow.packages.per", { per: money(o.perSessionCents) })}
+                        {o.savingPct !== null && singleCents !== null ? ` · ${tr("site.bookFlow.packages.save", { pct: o.savingPct, single: money(singleCents) })}` : ""}
+                      </span>
+                    </span>
+                    <a
+                      href={`/${URL_SEGMENT[locale]}/checkout?sku=${encodeURIComponent(o.sku)}&from=${encodeURIComponent(`${base}?kind=${kind}`)}`}
+                      className="shrink-0 rounded-full bg-[#212842] px-4 py-2 text-xs font-semibold text-[#fffaef] hover:bg-[#2b3354]"
+                      aria-label={tr("site.bookFlow.packages.buyNamed", { name: pick(o.name, locale), price: money(o.priceCents) })}
+                    >
+                      {money(o.priceCents)}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+              <p className="pt-1 text-xs text-[#212842]/70">{tr("site.bookFlow.packages.inFlow")}</p>
+            </InfoCard>
+          ) : null}
           <KindTips kind={kind} tr={tr} />
         </aside>
       </div>

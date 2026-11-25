@@ -28,6 +28,9 @@ export const BOOKING_CONFLICT_REASONS = [
   "session_closed",
   "invalid_transition",
   "shared_bed_limit",
+  "children_not_allowed",
+  "children_need_paying_adult",
+  "children_not_available",
 ] as const;
 export type BookingConflictReason = (typeof BOOKING_CONFLICT_REASONS)[number];
 

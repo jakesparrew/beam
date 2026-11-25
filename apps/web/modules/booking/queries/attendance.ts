@@ -8,7 +8,7 @@
  */
 import type { DbOrTx } from "@beam/db";
 import { activityEvents, bookings, creditEntries, orderLines, orders, persons, sessions, vSessionAvailability } from "@beam/db/schema";
-import { BOOKING_CONFLICT_REASONS, addDays, brusselsDate, brusselsTime, freeCancelUntil, isCheckinCode, normaliseCheckinCode, zonedTimeToUtc, type BookingRules, type BookingStatus, type PaidWith, type SessionKind } from "@beam/core/booking";
+import { BOOKING_CONFLICT_REASONS, addDays, brusselsDate, brusselsTime, freeCancelUntil, isCheckinCode, normaliseCheckinCode, zonedTimeToUtc, type AgeGroup, type BookingRules, type BookingStatus, type PaidWith, type SessionKind } from "@beam/core/booking";
 import { NotImplementedError } from "@beam/core/errors";
 import { formatDateTime, formatMoney, type Locale, type LocalizedText } from "@beam/core/i18n";
 import { requirePermission } from "@/lib/auth";
@@ -79,6 +79,8 @@ export type CheckinRow = {
   paidWith: PaidWith;
   guestOfBookingId: string | null;
   guestOfName: string | null;
+  /** A child guest's age group (owner's review 1); null for an adult. */
+  ageGroup: AgeGroup | null;
   isPayAtDesk: boolean;
   /** The unpaid order of a `reserved` row (POS link) and its amount per seat; else null. */
   orderId: string | null;
@@ -103,6 +105,7 @@ type RawRow = {
   status: BookingStatus;
   paidWith: PaidWith;
   guestOfBookingId: string | null;
+  ageGroup: AgeGroup | null;
   isPayAtDesk: boolean;
   orderId: string | null;
   orderStatus: string | null;
@@ -128,6 +131,7 @@ function rowSelect(db: DbOrTx) {
       status: bookings.status,
       paidWith: bookings.paidWith,
       guestOfBookingId: bookings.guestOfBookingId,
+      ageGroup: bookings.ageGroup,
       isPayAtDesk: bookings.isPayAtDesk,
       orderId: orders.id,
       orderStatus: orders.status,
@@ -176,6 +180,7 @@ async function enrich(db: DbOrTx, rows: RawRow[]): Promise<CheckinRow[]> {
       paidWith: r.paidWith,
       guestOfBookingId: r.guestOfBookingId,
       guestOfName: r.guestOfBookingId ? (ownerName.get(r.guestOfBookingId) ?? null) : null,
+      ageGroup: r.ageGroup,
       isPayAtDesk: r.isPayAtDesk,
       orderId: unpaid ? r.orderId : null,
       toPayCents: unpaid ? Math.round((r.lineTotalCents ?? 0) / Math.max(1, r.lineQuantity ?? 1)) : null,

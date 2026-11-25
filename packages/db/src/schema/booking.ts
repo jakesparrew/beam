@@ -50,6 +50,8 @@ export const capacityHoldsKind = pgEnum("capacity_holds_kind", ["staff", "partne
 export const bookingsStatus = pgEnum("bookings_status", ["reserved", "confirmed", "cancelled", "late_cancelled", "no_show", "attended"]);
 export const bookingsPaidWith = pgEnum("bookings_paid_with", ["credit", "order", "guest", "free"]);
 export const bookingsSource = pgEnum("bookings_source", ["portal", "admin", "waitlist", "import", "pos", "site"]);
+/** A child guest row (owner's review 1.1, 1.2): `child` under 12, `youth` 12 to 17. */
+export const bookingsAgeGroup = pgEnum("bookings_age_group", ["child", "youth"]);
 export const bookingsCancelReasonCode = pgEnum("bookings_cancel_reason_code", [
   "customer",
   "staff",
@@ -306,6 +308,8 @@ export const bookings = pgTable(
     bookedByUserId: uuid().references(() => users.id),
     bookedByPersonId: uuid().references(() => persons.id),
     source: bookingsSource().notNull(),
+    /** Null for an adult; a child guest's age group (its seat is sold as the child or youth product). */
+    ageGroup: bookingsAgeGroup(),
     /** Id in the source system for imports (`simplybook:12345`). */
     externalRef: text(),
     reservedUntil: tstz(),

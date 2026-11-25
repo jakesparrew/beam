@@ -507,7 +507,11 @@
       "continue": "Continuer",
       "login_for_member": "Connectez-vous pour les prix membres",
       "withdrawal_line": "Droit de rétractation de 14 jours",
-      "processing": "Votre paiement est en préparation…"
+      "processing": "Votre paiement est en préparation…",
+      "first_name": "Prénom",
+      "last_name": "Nom",
+      "phone": "Numéro de téléphone",
+      "phone_hint": "Pour pouvoir vous joindre au sujet de votre commande."
     },
     "pay_order": {
       "title": "Payez votre commande",
@@ -531,7 +535,10 @@
       "go_bookings": "Vers mes réservations",
       "go_orders": "Vers mes achats",
       "go_home": "Retour au site",
-      "guest_access": "Nous avons envoyé un lien à votre adresse e-mail pour ouvrir votre compte."
+      "guest_access": "Nous avons envoyé un lien à votre adresse e-mail pour ouvrir votre compte.",
+      "account_offer_title": "Un compte ? C'est facultatif.",
+      "account_offer_body": "Retrouvez vos réservations, forfaits et factures au même endroit. Nous vous envoyons un lien de connexion par e-mail, sans mot de passe.",
+      "account_offer_link": "Créer mon compte"
     },
     "my_orders": {
       "title": "Mes achats",

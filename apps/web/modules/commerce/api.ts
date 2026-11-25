@@ -192,6 +192,15 @@ export function listPaymentAttention(db: DbOrTx, opts: { limit: number }): Promi
   return attentionService().then((m) => m.listPaymentAttention(db, opts));
 }
 
+/**
+ * Booking's guest flow (owner's review 8): adds an order to this browser's signed viewer cookie, so
+ * a guest who is not signed in may pay it (`/checkout/pay/<orderId>`) and see its return page.
+ * Server actions only.
+ */
+export function rememberOrderInViewer(orderId: string): Promise<void> {
+  return import("./server/checkouts").then((m) => m.rememberInViewer("order", orderId));
+}
+
 // credits' portal packages page: the redeem field submits commerce's own server action (DM-13).
 export { redeemVoucher } from "./actions";
 

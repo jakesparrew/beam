@@ -109,6 +109,9 @@ test.describe("customer shop and checkout", () => {
     await page.getByLabel("Recipient's name").fill("Gift Recipient");
     await page.getByLabel(/Recipient's email/).fill(uniqueEmail("gift-recipient"));
     await page.getByLabel("Your email address").fill(buyer);
+    await page.getByLabel("First name").fill("Gift");
+    await page.getByLabel("Last name").fill("Buyer");
+    await page.getByLabel("Phone number").fill("+32 470 12 34 56");
     await page.getByRole("button", { name: "Buy voucher" }).click();
     await page.waitForURL(/\/en\/checkout\?checkout=/);
     await expect(page.getByText("€40.00").first()).toBeVisible();

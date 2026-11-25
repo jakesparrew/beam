@@ -15,3 +15,4 @@ export * from "./claim-token";
 export * from "./duplicates";
 export * from "./checkin-code";
 export * from "./describe";
+export * from "./children";

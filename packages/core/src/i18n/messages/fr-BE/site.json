@@ -984,7 +984,42 @@
         "heldBody": "Personne d'autre ne peut prendre cette place pendant votre paiement.",
         "secureNote": "Vous payez via notre partenaire de paiement agréé. Vos données sont chiffrées et nous ne conservons jamais vos données de carte.",
         "methods": "Moyens de paiement",
-        "summary": "Votre commande"
+        "summary": "Votre commande",
+        "methodOnStripe": "Sur la page suivante, vous choisissez Bancontact, carte ou Apple Pay."
+      },
+      "guest": {
+        "title": "Vos coordonnées",
+        "intro": "Pas besoin de compte. Nous envoyons votre confirmation à cette adresse e-mail.",
+        "phone": "Numéro de téléphone",
+        "signInBody": "Connectez-vous pour utiliser vos coordonnées et vos forfaits.",
+        "signedIn": "Vous réservez en tant que {name} ({email}).",
+        "payTitle": "Comment souhaitez-vous payer ?",
+        "payOrder": "Payer cette séance : {price}",
+        "payOrderHint": "Bancontact, carte ou Apple Pay : vous choisissez sur la page de paiement sécurisée.",
+        "payCredit": "Avec mon forfait",
+        "payCreditHint": "{count, plural, one {Encore # séance} other {Encore # séances}}",
+        "payPackage": "Acheter {name} pour {price}",
+        "payPackageSaving": "{per} la séance au lieu de {single} : vous économisez {pct} %. Cette réservation utilise une séance, le reste reste sur votre compte.",
+        "payPackageHint": "{per} la séance. Cette réservation utilise une séance, le reste reste sur votre compte.",
+        "kidsTitle": "Vous venez avec des enfants ?",
+        "kidsBody": "Les enfants viennent avec vous et occupent une place. Gratuit avant 12 ans, {youth} de 12 à 17 ans.",
+        "kidFirstName": "Prénom de l'enfant {n}",
+        "kidAge": "Âge",
+        "ageNone": "Choisir",
+        "ageChild": "Moins de 12 ans (gratuit)",
+        "ageYouth": "12 à 17 ans ({price})",
+        "submit": "Continuer vers le paiement",
+        "next": "Ensuite, vous vérifiez votre réservation et vous payez.",
+        "booked": "Votre réservation est confirmée. Nous avons envoyé les détails à votre adresse e-mail.",
+        "noPayOption": "Cette séance ne peut pas être réservée en ligne. Contactez-nous."
+      },
+      "packages": {
+        "title": "Ou achetez un forfait",
+        "body": "Vous venez plus souvent ? Avec un forfait, chaque séance coûte moins cher.",
+        "per": "{per} la séance",
+        "save": "{pct} % de moins que {single}",
+        "buyNamed": "Acheter {name} pour {price}",
+        "inFlow": "Vous pouvez aussi acheter un forfait en réservant un créneau : cette réservation utilise alors une de ses séances."
       }
     }
   }

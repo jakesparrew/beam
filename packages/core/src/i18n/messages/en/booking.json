@@ -192,7 +192,13 @@
       "ticket_type_required": "Choose a ticket type.",
       "too_many_tickets": "This ticket type allows fewer tickets per booking. Remove a guest or choose another ticket.",
       "guest_details_required": "Fill in the first and last name of every guest.",
-      "too_many_guests": "You can bring fewer guests on one booking."
+      "too_many_guests": "You can bring fewer guests on one booking.",
+      "children_not_allowed": "Children are welcome on Saturdays from 1 to 3 pm and at night sessions.",
+      "children_need_paying_adult": "Children always come with a paying adult.",
+      "children_not_available": "Places for children cannot be booked online right now. Please call us.",
+      "child_pays_by_order": "Places for children are paid with the booking.",
+      "package_not_for_session": "This package cannot be used for this session: day packages are for day sessions, night packages for nights.",
+      "pay_with_not_available": "This way of paying is not available for this session."
     },
     "calendar": {
       "title": "Sessions",
@@ -787,6 +793,10 @@
       "error_name": "Give the ticket a name in all three languages before the event is published.",
       "error_window": "The sales end must come after the sales start and before the end of the event.",
       "error_capacity": "The places for this type cannot exceed the event capacity."
+    },
+    "ageGroup": {
+      "child": "Child (under 12)",
+      "youth": "Youth (12 to 17)"
     }
   }
 }

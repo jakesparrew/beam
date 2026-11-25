@@ -12,7 +12,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import { createTestDb, makePerson, makeProduct, makeUser } from "@beam/db/testing";
 import { ensureTermsVersion, makeOrder, makeOrderLine } from "@beam/db/testing/commerce-factories";
 import type { DbHandle, Tx } from "@beam/db";
-import { activityEvents, checkouts, jobs, orders, payments, promotions, termsAcceptances } from "@beam/db/schema";
+import { activityEvents, checkouts, jobs, orders, payments, persons, promotions, termsAcceptances } from "@beam/db/schema";
 import type * as Catalogue from "./catalogue";
 
 vi.mock("next/headers", () => ({ cookies: () => Promise.resolve({ get: () => undefined, set: () => undefined }), headers: () => Promise.resolve(new Headers()) }));
@@ -109,6 +109,9 @@ async function backdate(checkoutId: string, at: Date) {
     .where(eq(checkouts.id, checkoutId));
 }
 
+/** A site guest's details step (owner's review 8): full name and phone with the email. */
+const guestDetails = { firstName: "Gina", lastName: "Gast", phone: "+32 470 12 34 56" };
+
 async function portalCheckout(personId: string, items: { productId: string; quantity: number }[], at?: Date) {
   const viewer: Viewer = { personId };
   const out = await inTx((tx, ctx) => co.startCheckout(tx, ctx, { channel: "portal", items, locale: "nl-BE" }, viewer));
@@ -146,7 +149,7 @@ describe("startCheckout and updateCheckout (rules 16, 48)", () => {
     expect(co.landingPathFrom("//evil.example.com", "https://other.example.com/x", "https://beam.example.com")).toBeNull();
     const product = await makeProduct(h.db, { kind: "voucher", priceCents: 5000, validityDays: 730 });
     const { checkoutId } = await inTx((tx, ctx) =>
-      co.startCheckout(tx, ctx, { channel: "site", items: [{ productId: product.id, quantity: 1 }], locale: "en", email: "Guest.Landing@Example.com", landingPath: "/en/gift" }, { personId: null }),
+      co.startCheckout(tx, ctx, { channel: "site", ...guestDetails, items: [{ productId: product.id, quantity: 1 }], locale: "en", email: "Guest.Landing@Example.com", landingPath: "/en/gift" }, { personId: null }),
     );
     const row = await checkoutRow(checkoutId);
     expect(row).toMatchObject({ landingPath: "/en/gift", email: "guest.landing@example.com", personId: null, channel: "site" });
@@ -160,6 +163,10 @@ describe("startCheckout and updateCheckout (rules 16, 48)", () => {
     const item = await makeProduct(h.db, { kind: "item", priceCents: 1000 });
     await expect(inTx((tx, ctx) => co.startCheckout(tx, ctx, { channel: "portal", items: [{ productId: item.id, quantity: 1 }], locale: "en" }, { personId: null }))).rejects.toMatchObject({ code: "unauthorized" });
     await expect(inTx((tx, ctx) => co.startCheckout(tx, ctx, { channel: "site", items: [{ productId: item.id, quantity: 1 }], locale: "en" }, { personId: null }))).rejects.toMatchObject({ code: "validation" });
+    // A site guest also gives a full name and phone (owner's review 8).
+    await expect(
+      inTx((tx, ctx) => co.startCheckout(tx, ctx, { channel: "site", items: [{ productId: item.id, quantity: 1 }], locale: "en", email: "no.name@example.com", firstName: "Gina" }, { personId: null })),
+    ).rejects.toMatchObject({ code: "validation", fields: { lastName: "required", phone: "required" } });
   });
 
   it("re-quotes on every step and flags a price change against the stored total", async () => {
@@ -244,7 +251,7 @@ describe("placeOrder (rules 20, 26a to 26c)", () => {
     expect(signedIn.quote.totalCents).toBe(9000);
     // Guest with the member's email: the public price, and no order at the member price.
     const guestViewer = { personId: null, checkoutIds: [] as string[] };
-    const guest = await inTx((tx, ctx) => co.startCheckout(tx, ctx, { channel: "site", items, locale: "nl-BE", email: member.email! }, guestViewer));
+    const guest = await inTx((tx, ctx) => co.startCheckout(tx, ctx, { channel: "site", ...guestDetails, items, locale: "nl-BE", email: member.email! }, guestViewer));
     expect(guest.quote.totalCents).toBe(10000);
     const viewer = { personId: null, checkoutIds: [guest.checkoutId] };
     expect((await co.getCheckout(h.db, guest.checkoutId, viewer, "nl-BE"))!.quote.totalCents).toBe(10000);
@@ -258,13 +265,15 @@ describe("placeOrder (rules 20, 26a to 26c)", () => {
   it("creates the guest's person from the email and attaches the site order to it", async () => {
     const product = await makeProduct(h.db, { kind: "voucher", priceCents: 5000, validityDays: 730 });
     const email = `guest-${randomUUID().slice(0, 8)}@example.com`;
-    const started = await inTx((tx, ctx) => co.startCheckout(tx, ctx, { channel: "site", items: [{ productId: product.id, quantity: 1 }], locale: "en", email }, { personId: null }));
+    const started = await inTx((tx, ctx) => co.startCheckout(tx, ctx, { channel: "site", ...guestDetails, items: [{ productId: product.id, quantity: 1 }], locale: "en", email }, { personId: null }));
     const viewer = { personId: null, checkoutIds: [started.checkoutId] };
     const out = await inTx((tx, ctx) => co.placeOrder(tx, ctx, { checkoutId: started.checkoutId, clientKey: randomUUID(), useEuroCredit: false, acceptTerms: true }, viewer));
     const [order] = await h.db.select().from(orders).where(eq(orders.id, out.orderId));
     expect(order).toMatchObject({ channel: "site", totalCents: 5000, termsVersionId });
     expect(order!.personId).toBeTruthy();
     expect((await checkoutRow(started.checkoutId)).personId).toBe(order!.personId);
+    const [person] = await h.db.select().from(persons).where(eq(persons.id, order!.personId!));
+    expect(person).toMatchObject({ email, firstName: "Gina", lastName: "Gast", phone: "+32 470 12 34 56" });
     expect(co.canSeeOrder(order!, { personId: null, orderIds: [order!.id] })).toBe(true);
     expect(co.canSeeOrder(order!, { personId: null })).toBe(false);
   });
@@ -362,7 +371,7 @@ describe("checkouts.mark_abandoned (rules 49, 50)", () => {
     const expired = await portalCheckout(pExpired.id, items, twoHoursAgo());
     await withEndedPayment(failed.checkoutId, pFailed.id, "failed");
     await withEndedPayment(expired.checkoutId, pExpired.id, "expired");
-    const guest = await inTx((tx, ctx) => co.startCheckout(tx, ctx, { channel: "site", items, locale: "en", email: "idle.guest@example.com" }, { personId: null }));
+    const guest = await inTx((tx, ctx) => co.startCheckout(tx, ctx, { channel: "site", ...guestDetails, items, locale: "en", email: "idle.guest@example.com" }, { personId: null }));
     await backdate(guest.checkoutId, twoHoursAgo());
     const recent = await portalCheckout(pLeft.id, items);
 

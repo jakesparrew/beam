@@ -6,6 +6,7 @@ import { translator } from "@/lib/i18n";
 import { startCheckout } from "@/modules/commerce/actions";
 import { getShopCatalogue } from "@/modules/commerce/queries";
 import { basketErrorFrom, ErrorSummary, errorQuery } from "@/modules/commerce/ui/basket";
+import { GuestDetailsFields, guestDetailsFrom } from "@/modules/commerce/ui/guest-details";
 
 type Search = { error?: string; field?: string };
 
@@ -46,7 +47,6 @@ export default async function GiftPage({ params, searchParams }: { params: Promi
     const recipientEmail = str(fd, "recipientEmail");
     const message = str(fd, "message");
     const deliverOn = str(fd, "deliverOn");
-    const email = str(fd, "email");
     const result = await startCheckout({
       channel: "site",
       locale,
@@ -64,7 +64,7 @@ export default async function GiftPage({ params, searchParams }: { params: Promi
         },
       ],
       landingPath: `/${seg}/gift`,
-      ...(email ? { email } : {}),
+      ...guestDetailsFrom(fd),
     });
     if (!result.ok) redirect(`/${seg}/gift?${errorQuery(result.error)}` as never);
     redirect(`/${seg}/checkout?checkout=${result.data.checkoutId}` as never);
@@ -137,9 +137,12 @@ export default async function GiftPage({ params, searchParams }: { params: Promi
             <input id="deliverOn" name="deliverOn" type="date" min={brusselsToday()} max={brusselsToday(365)} className={inputClass} aria-describedby={describedBy("deliverOn", true)} />,
             tr("commerce.gift.deliver_hint"),
           )}
-          {signedIn
-            ? null
-            : field("email", tr("commerce.gift.buyer_email"), <input id="email" name="email" type="email" required autoComplete="email" maxLength={254} className={inputClass} aria-describedby={describedBy("email", false)} />)}
+          {signedIn ? null : (
+            <fieldset className="grid gap-3">
+              <legend className="mb-2 text-sm font-semibold">{tr("commerce.checkout.email_title")}</legend>
+              <GuestDetailsFields locale={locale} field={error?.field ?? null} emailLabel={tr("commerce.gift.buyer_email")} />
+            </fieldset>
+          )}
           <button type="submit" className="min-h-12 w-fit rounded-md bg-primary px-6 font-semibold text-primary-foreground">
             {tr("commerce.gift.buy")}
           </button>

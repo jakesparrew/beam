@@ -137,7 +137,7 @@ export async function getBooking(db: DbOrTx, id: string) {
     .where(eq(bookings.id, id));
   if (!row) throw new NotFoundError("booking_not_found");
   const guests = await db
-    .select({ id: bookings.id, personId: bookings.personId, firstName: persons.firstName, lastName: persons.lastName, status: bookings.status, paidWith: bookings.paidWith })
+    .select({ id: bookings.id, personId: bookings.personId, firstName: persons.firstName, lastName: persons.lastName, status: bookings.status, paidWith: bookings.paidWith, ageGroup: bookings.ageGroup })
     .from(bookings)
     .innerJoin(persons, eq(persons.id, bookings.personId))
     .where(eq(bookings.guestOfBookingId, id))

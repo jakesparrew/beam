@@ -192,7 +192,13 @@
       "ticket_type_required": "Choisissez un type de billet.",
       "too_many_tickets": "Ce type de billet autorise moins de billets par réservation. Retirez un invité ou choisissez un autre billet.",
       "guest_details_required": "Indiquez le prénom et le nom de chaque invité.",
-      "too_many_guests": "Vous pouvez amener moins d'invités sur une réservation."
+      "too_many_guests": "Vous pouvez amener moins d'invités sur une réservation.",
+      "children_not_allowed": "Les enfants sont les bienvenus le samedi de 13 h à 15 h et lors des séances de nuit.",
+      "children_need_paying_adult": "Les enfants viennent toujours avec un adulte payant.",
+      "children_not_available": "Les places enfants ne peuvent pas être réservées en ligne pour le moment. Appelez-nous.",
+      "child_pays_by_order": "Les places enfants se paient avec la réservation.",
+      "package_not_for_session": "Ce forfait ne peut pas être utilisé pour cette séance : les forfaits de jour sont pour les séances de jour, les forfaits de nuit pour les nuits.",
+      "pay_with_not_available": "Ce mode de paiement n'est pas disponible pour cette séance."
     },
     "calendar": {
       "title": "Séances",
@@ -787,6 +793,10 @@
       "error_name": "Donnez un nom au billet dans les trois langues avant de publier l'événement.",
       "error_window": "La fin des ventes doit suivre le début et précéder la fin de l'événement.",
       "error_capacity": "Les places de ce type ne peuvent pas dépasser la capacité de l'événement."
+    },
+    "ageGroup": {
+      "child": "Enfant (moins de 12 ans)",
+      "youth": "Jeune (12 à 17 ans)"
     }
   }
 }

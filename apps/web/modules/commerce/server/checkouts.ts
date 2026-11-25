@@ -137,6 +137,7 @@ const Utm = z
 const Items = z.array(CartItem).min(1).max(20);
 const Email = z.string().trim().toLowerCase().pipe(z.email().max(254));
 
+const Name = z.string().trim().min(1).max(100);
 export const StartCheckoutInput = z.object({
   channel: z.enum(["portal", "site"]),
   items: Items,
@@ -144,6 +145,10 @@ export const StartCheckoutInput = z.object({
   utm: Utm.optional(),
   landingPath: z.string().max(300).optional(),
   email: Email.optional(),
+  /** The site guest's details step (owner's review 8): with the email, full name and phone. */
+  firstName: Name.optional(),
+  lastName: Name.optional(),
+  phone: z.string().trim().min(6).max(40).optional(),
 });
 export const UpdateCheckoutInput = z.object({
   checkoutId: z.uuid(),
@@ -248,6 +253,11 @@ export async function startCheckout(
   if (input.channel === "portal" && !personId) throw new AppError("unauthorized");
   const email = input.email?.trim().toLowerCase() || null;
   if (!personId && !email) throw new ValidationError("validation", { email: "required" });
+  // A site guest gives their full name and phone with the email (owner's review 8).
+  if (!personId && input.channel === "site") {
+    const missing = Object.fromEntries((["firstName", "lastName", "phone"] as const).filter((k) => !input[k]).map((k) => [k, "required"]));
+    if (Object.keys(missing).length) throw new ValidationError("validation", missing);
+  }
   await assertSellable(tx, input.items);
   const quote = await getQuote(tx, { personId, items: input.items, promoCode: null, channel: input.channel, at: ctx.now });
   const [row] = await tx
@@ -255,6 +265,9 @@ export async function startCheckout(
     .values({
       personId,
       email,
+      firstName: personId ? null : (input.firstName ?? null),
+      lastName: personId ? null : (input.lastName ?? null),
+      phone: personId ? null : (input.phone ?? null),
       channel: input.channel,
       items: input.items,
       totalCents: quote.totalCents,
@@ -350,7 +363,8 @@ export async function placeOrder(
       ...(utm ? { utm, ...(utm.campaign ? { campaign: utm.campaign } : {}) } : {}),
       ...(opts.referralCode ? { referral_code: opts.referralCode } : {}),
     };
-    personId = (await findOrCreatePersonByEmail(tx, ctx, { email: c.email, locale, acquisition })).personId;
+    const details = { ...(c.firstName ? { firstName: c.firstName } : {}), ...(c.lastName ? { lastName: c.lastName } : {}), ...(c.phone ? { phone: c.phone } : {}) };
+    personId = (await findOrCreatePersonByEmail(tx, ctx, { email: c.email, ...details, locale, acquisition })).personId;
   }
   const isGuest = !(viewer.personId && viewer.personId === personId);
 

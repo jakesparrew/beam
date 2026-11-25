@@ -984,7 +984,42 @@
         "heldBody": "Nobody else can take this place while you pay.",
         "secureNote": "You pay through our licensed payment partner. Your details are encrypted and we never store your card details.",
         "methods": "Payment methods",
-        "summary": "Your order"
+        "summary": "Your order",
+        "methodOnStripe": "On the next page you choose Bancontact, card or Apple Pay."
+      },
+      "guest": {
+        "title": "Your details",
+        "intro": "No account needed. We send your confirmation to this email address.",
+        "phone": "Phone number",
+        "signInBody": "Sign in to use your saved details and your packages.",
+        "signedIn": "You are booking as {name} ({email}).",
+        "payTitle": "How would you like to pay?",
+        "payOrder": "Pay for this session: {price}",
+        "payOrderHint": "Bancontact, card or Apple Pay: you choose on the secure payment page.",
+        "payCredit": "Use my package",
+        "payCreditHint": "{count, plural, one {# session left} other {# sessions left}}",
+        "payPackage": "Buy {name} for {price}",
+        "payPackageSaving": "{per} a session instead of {single}: you save {pct}%. This booking uses one session, the rest stays in your account.",
+        "payPackageHint": "{per} a session. This booking uses one session, the rest stays in your account.",
+        "kidsTitle": "Bringing children?",
+        "kidsBody": "Children come with you and take a place. Under 12 is free, 12 to 17 costs {youth}.",
+        "kidFirstName": "First name of child {n}",
+        "kidAge": "Age",
+        "ageNone": "Choose",
+        "ageChild": "Under 12 (free)",
+        "ageYouth": "12 to 17 ({price})",
+        "submit": "Continue to checkout",
+        "next": "Next you review your booking and pay.",
+        "booked": "Your booking is confirmed. We sent the details to your email address.",
+        "noPayOption": "This session cannot be booked online. Please contact us."
+      },
+      "packages": {
+        "title": "Or buy a package",
+        "body": "Coming more often? With a package each session costs less.",
+        "per": "{per} a session",
+        "save": "{pct}% less than {single}",
+        "buyNamed": "Buy {name} for {price}",
+        "inFlow": "You can also buy a package when you book a time: that booking then uses one of its sessions."
       }
     }
   }

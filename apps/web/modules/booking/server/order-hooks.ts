@@ -11,7 +11,7 @@ import { bookings, orderLines, orders, persons, sessions, waitlistEntries } from
 import { AlreadyBookedError, BookingConflictError, SessionFullError, bookingTransition, transition as waitlistTransition } from "@beam/core/booking";
 import { URL_SEGMENT, formatDateTime, pick } from "@beam/core/i18n";
 import { NotFoundError, and, eq, inArray, or, sql, type Ctx } from "@/lib/ctx";
-import { getMembershipForPerson } from "@/modules/credits/api";
+import { InsufficientCreditsError, SharingNotAllowedError, consumeCredits, getMembershipForPerson } from "@/modules/credits/api";
 import { sendTransactional } from "@/modules/email/api";
 import { LIVE_STATUSES, PROVISIONAL_RESERVATION_MS, lockSession, readAvailabilityRow, sendConfirmationEmail, type BookingRow, type SessionRow } from "./book";
 import { recordBookingFact } from "./facts";
@@ -84,6 +84,50 @@ async function confirmLinkedEntries(ctx: Ctx, booking: BookingRow, session: Sess
       dedupeKey: `waitlist:${entry.id}:confirmed:${entry.offersCount}:${entry.rejoinCount}`,
     });
   }
+}
+
+/** The `reserved` seats of an order waiting for the credits of a package line of the same order. */
+async function packageSeatRows(tx: Tx, orderId: string): Promise<BookingRow[]> {
+  const rows = await tx
+    .select({ b: bookings })
+    .from(bookings)
+    .innerJoin(orderLines, eq(orderLines.id, bookings.orderLineId))
+    .where(and(eq(orderLines.orderId, orderId), eq(orderLines.productKind, "package"), eq(bookings.status, "reserved")))
+    .orderBy(bookings.createdAt);
+  return rows.map((r) => r.b);
+}
+
+/**
+ * Owner's review 3 (a package bought in the booking flow): the owner's `reserved` seat takes one
+ * credit of the package the paid order just granted and becomes `confirmed` (fact, confirmation
+ * email); its link to the package line is dropped, so a later cancellation releases the credit
+ * instead of refunding the package. A seat the credits cannot pay stays `reserved` and lapses
+ * (the customer keeps the package). Returns whether the seat was confirmed.
+ */
+export async function confirmPackageSeat(tx: Tx, ctx: Ctx, booking: BookingRow, session: SessionRow): Promise<boolean> {
+  if (booking.status !== "reserved" || !session.creditKind) return false;
+  try {
+    await consumeCredits(tx, ctx, {
+      personId: booking.personId,
+      beneficiaryPersonId: booking.personId,
+      kind: session.creditKind,
+      units: session.creditCost,
+      ref: { type: "booking", id: booking.id },
+      validAt: session.startsAt,
+    });
+  } catch (error) {
+    if (error instanceof InsufficientCreditsError || error instanceof SharingNotAllowedError) return false;
+    throw error;
+  }
+  bookingTransition("reserved", "confirmed", actorKind(ctx));
+  const [row] = await tx
+    .update(bookings)
+    .set({ status: "confirmed", orderLineId: null, reservedUntil: null, version: sql`${bookings.version} + 1`, updatedAt: ctx.now })
+    .where(eq(bookings.id, booking.id))
+    .returning();
+  await recordBookingFact(ctx, "booking.confirmed", row!, { by: "system" });
+  await sendConfirmationEmail(ctx, row!, session);
+  return true;
 }
 
 /**
@@ -166,6 +210,11 @@ export async function confirmOrderBookings(
     await sendConfirmationEmail(ctx, row!, session);
     confirmedBookingIds.push(row!.id);
   }
+  // Seats paid with a package of this order (its credits were granted earlier in this transaction).
+  for (const b of await packageSeatRows(tx, orderId)) {
+    const session = locked.get(b.sessionId) ?? (await lockSession(tx, b.sessionId));
+    if (await confirmPackageSeat(tx, ctx, b, session)) confirmedBookingIds.push(b.id);
+  }
   return { confirmedBookingIds, unavailableOrderLineIds };
 }
 
@@ -177,14 +226,17 @@ export async function releaseOrderBookings(
 ): Promise<{ releasedBookingIds: string[] }> {
   const code = input.reason === "order_cancelled" ? "order_cancelled" : "payment_expired";
   const lines = await orderSessionLines(tx, input.orderId);
-  if (!lines.length) return { releasedBookingIds: [] };
+  // A seat waiting for a package of this order is linked to the package line.
+  const packageSeats = await packageSeatRows(tx, input.orderId);
+  if (!lines.length && !packageSeats.length) return { releasedBookingIds: [] };
   const released: string[] = [];
   const locked = new Map<string, SessionRow>();
-  for (const sessionId of [...new Set(lines.map((l) => l.sessionId!))].sort()) locked.set(sessionId, await lockSession(tx, sessionId));
+  for (const sessionId of [...new Set([...lines.map((l) => l.sessionId!), ...packageSeats.map((b) => b.sessionId)])].sort()) locked.set(sessionId, await lockSession(tx, sessionId));
+  const lineIds = [...lines.map((l) => l.id), ...packageSeats.map((b) => b.orderLineId!)];
   const rows = await tx
     .select()
     .from(bookings)
-    .where(and(inArray(bookings.orderLineId, lines.map((l) => l.id)), eq(bookings.status, "reserved")));
+    .where(and(inArray(bookings.orderLineId, lineIds), eq(bookings.status, "reserved")));
   for (const b of rows) {
     bookingTransition("reserved", "cancelled", ctx.actor.kind === "customer" || ctx.actor.kind === "public" ? "system" : ctx.actor.kind);
     const [row] = await tx

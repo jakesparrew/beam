@@ -192,7 +192,13 @@
       "ticket_type_required": "Kies een tickettype.",
       "too_many_tickets": "Dit tickettype laat minder tickets per boeking toe. Verwijder een gast of kies een ander ticket.",
       "guest_details_required": "Vul de voor- en achternaam van elke gast in.",
-      "too_many_guests": "Je kunt minder gasten meebrengen op één boeking."
+      "too_many_guests": "Je kunt minder gasten meebrengen op één boeking.",
+      "children_not_allowed": "Kinderen zijn welkom op zaterdag van 13 tot 15 uur en tijdens nachtsessies.",
+      "children_need_paying_adult": "Kinderen komen altijd samen met een betalende volwassene.",
+      "children_not_available": "Plaatsen voor kinderen kunnen nu niet online geboekt worden. Bel ons gerust.",
+      "child_pays_by_order": "Plaatsen voor kinderen worden samen met de boeking betaald.",
+      "package_not_for_session": "Dit pakket kan niet voor deze sessie gebruikt worden: dagpakketten zijn voor dagsessies, nachtpakketten voor nachten.",
+      "pay_with_not_available": "Deze betaalwijze is niet mogelijk voor deze sessie."
     },
     "calendar": {
       "title": "Sessies",
@@ -787,6 +793,10 @@
       "error_name": "Geef het ticket een naam in de drie talen voor het evenement gepubliceerd wordt.",
       "error_window": "Het einde van de verkoop moet na de start liggen en voor het einde van het evenement.",
       "error_capacity": "De plaatsen voor dit type mogen de capaciteit van het evenement niet overschrijden."
+    },
+    "ageGroup": {
+      "child": "Kind (onder 12)",
+      "youth": "Jongere (12 tot 17)"
     }
   }
 }

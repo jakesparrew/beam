@@ -35,7 +35,7 @@ function cardView(c: CheckinCard, locale: Locale, tr: Tr, soft: Tr, canOverride:
   return {
     bookingId: c.bookingId,
     personId: c.personId,
-    name: c.name,
+    name: c.ageGroup ? `${c.name} (${tr(`booking.ageGroup.${c.ageGroup}`)})` : c.name,
     sessionLine: `${formatDate(c.startsAt, locale, "full")} · ${brusselsTime(c.startsAt)}–${brusselsTime(c.endsAt)} · ${show(c.sessionTitle, locale)}`,
     status: c.status,
     statusLabel: tr(`booking.status.${c.status}`),
@@ -54,7 +54,8 @@ function cardView(c: CheckinCard, locale: Locale, tr: Tr, soft: Tr, canOverride:
     reception,
     guests: c.guests.map((g) => ({
       bookingId: g.bookingId,
-      name: g.name,
+      // Children come as guests of the adult (owner's review 1): the desk sees their age group.
+      name: g.ageGroup ? `${g.name} (${tr(`booking.ageGroup.${g.ageGroup}`)})` : g.name,
       statusLabel: tr(`booking.status.${g.status}`),
       canCheckIn: (g.status === "confirmed" || g.status === "no_show") && c.inWindow && !c.wrongDay,
     })),
@@ -79,6 +80,7 @@ function RowLink({ row, locale, tr }: { row: CheckinRow; locale: Locale; tr: Tr 
         </span>
         <span className="flex flex-wrap gap-1">
           <Badge variant="outline">{tr(`booking.status.${row.status}`)}</Badge>
+          {row.ageGroup ? <Badge variant="outline">{tr(`booking.ageGroup.${row.ageGroup}`)}</Badge> : null}
           {row.toPayCents !== null ? <Badge variant="warning">{tr("booking.checkin.to_pay", { amount: formatMoney(row.toPayCents, locale) })}</Badge> : null}
           {!row.termsAccepted ? <Badge variant="warning">{tr("booking.checkin.terms_pending")}</Badge> : null}
           {row.healthDeclaration.state !== "valid" ? (

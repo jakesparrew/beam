@@ -558,6 +558,10 @@ export const checkouts = pgTable(
     personId: uuid().references(() => persons.id, { onDelete: "restrict" }),
     /** PII; lower-cased. */
     email: text(),
+    /** PII: the guest's name and phone from the details step, given to crm when the order is placed. */
+    firstName: text(),
+    lastName: text(),
+    phone: text(),
     channel: checkoutsChannel().notNull(),
     /** `CartItem[]` without prices (D55). */
     items: jsonb().notNull(),

@@ -1,44 +1,84 @@
+import { randomUUID } from "node:crypto";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
-import { formatMoney, localeFromSegment, URL_SEGMENT } from "@beam/core/i18n";
+import { childrenAllowed } from "@beam/core/booking";
+import { formatMoney, localeFromSegment, pick, URL_SEGMENT, type Locale } from "@beam/core/i18n";
 import { actorFromSession, getSession } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
-import { translator } from "@/lib/i18n";
+import { softTranslator, translator } from "@/lib/i18n";
+import { getSetting } from "@/lib/settings";
+import { bookAsGuest, bookSession } from "@/modules/booking/actions";
 import { getSessionCards } from "@/modules/booking/api";
-import { getProductPrice } from "@/modules/commerce/api";
-import { customerSignUp } from "@/modules/platform/actions";
-import { ArrowBadge, goldButtonClass } from "@/modules/site/ui/public/block-renderer";
+import { getBookableSession, getBookingOffers } from "@/modules/booking/queries";
+import { GuestBookForm, type GuestBookState } from "@/modules/booking/ui/site/guest-book-form";
+import { getPersonCreditSummary } from "@/modules/credits/api";
+import { getCurrentLegalVersion, getLegalLinks, hasAcceptedCurrentTerms } from "@/modules/site/api";
 import { BookSteps, InfoCard, TrustStrip } from "@/modules/site/ui/public/book-flow";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const ERRORS = new Set(["account_exists", "password_policy"]);
 const TZ = "Europe/Brussels";
-/** The seeded pricing page per locale (packages and memberships). */
-const PRICING_PATH = { "nl-BE": "prijzen", "fr-BE": "tarifs", en: "prices" } as const;
+const MAX_KIDS = 10;
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const locale = localeFromSegment((await params).locale);
   return locale ? { title: translator(locale)("site.bookFlow.metaTitle"), robots: { index: false } } : {};
 }
 
-const field = (fd: FormData, k: string) => {
-  const v = fd.get(k);
-  return typeof v === "string" ? v.trim() : "";
-};
+/**
+ * The submitted form as the actions' input. `pay` is `credit` (the client's own package), `order`
+ * (this session) or `package:<productId>` (buy that package, this booking uses one session).
+ */
+function readForm(fd: FormData) {
+  const v = (k: string) => {
+    const x = fd.get(k);
+    return typeof x === "string" ? x.trim() : "";
+  };
+  const pay = v("pay");
+  const packageProductId = pay.startsWith("package:") ? pay.slice("package:".length) : undefined;
+  const children: Array<{ firstName: string; ageGroup: "child" | "youth" }> = [];
+  for (let i = 0; i < MAX_KIDS; i++) {
+    const firstName = v(`kids.${i}.firstName`);
+    const ageGroup = v(`kids.${i}.ageGroup`);
+    if (firstName && (ageGroup === "child" || ageGroup === "youth")) children.push({ firstName, ageGroup });
+  }
+  const name = v("emergency.name");
+  const phone = v("emergency.phone");
+  const values: Record<string, string> = {};
+  for (const [k, x] of fd.entries()) if (typeof x === "string" && k !== "clientKey" && !k.startsWith("$")) values[k] = x;
+  return {
+    v,
+    values,
+    pay,
+    packageProductId,
+    common: {
+      children,
+      clientKey: UUID.test(v("clientKey")) ? v("clientKey") : randomUUID(),
+      ...(fd.get("acceptTerms") === "on" ? { acceptTerms: true } : {}),
+      ...(name && phone ? { emergencyContact: { name, phone } } : {}),
+    },
+  };
+}
+
+/** The error message of a refused booking, and the form fields it names. */
+function refusal(locale: Locale, error: { code: string; message: string; fields?: Record<string, string> }): { message: string; fields: string[] } {
+  const soft = softTranslator(locale);
+  const key = `booking.errors.${error.message}`;
+  const known = soft(key) !== key;
+  const fallback = error.code === "validation" ? "booking.errors.validation" : "booking.errors.generic";
+  const fields = Object.keys(error.fields ?? {}).map((f) => (f.startsWith("emergencyContact.") ? f.replace("emergencyContact.", "emergency.") : f));
+  return { message: known ? soft(key) : soft(fallback), fields };
+}
 
 /**
- * `/[locale]/book/<sessionId>`: step 3 of the public booking flow. The chosen session with price,
- * what to expect and how to prepare, then the account step: a new visitor creates an account in
- * one form (`auth.customer_sign_up`, signed in at once), a known one logs in; both land on the
- * portal's booking form (`/account/book/<id>`, step 4: payment or package credit).
+ * `/[locale]/book/<sessionId>`: the chosen session and step 1 of booking without an account
+ * (owner's review 8). A guest gives email, full name and phone; a signed-in client books as
+ * themselves. Both choose how to pay: this session (Stripe Checkout offers Bancontact, card, ...),
+ * their own day or night package, or a package bought now with its saving shown (owner's review
+ * 3). Children come along on sessions that take them (owner's review 1). The submit holds the
+ * seat and leads to step 2, review and pay (`/checkout/pay/<orderId>` for a guest,
+ * `/account/checkout/<orderId>` when signed in).
  */
-export default async function PublicBookSessionPage({
-  params,
-  searchParams,
-}: {
-  params: Promise<{ locale: string; sessionId: string }>;
-  searchParams: Promise<{ error?: string; email?: string; first?: string; last?: string }>;
-}) {
+export default async function PublicBookSessionPage({ params, searchParams }: { params: Promise<{ locale: string; sessionId: string }>; searchParams: Promise<{ booked?: string }> }) {
   const { locale: seg, sessionId } = await params;
   const locale = localeFromSegment(seg);
   if (!locale || !UUID.test(sessionId)) notFound();
@@ -47,33 +87,82 @@ export default async function PublicBookSessionPage({
   const db = await getAppDb();
   const [card] = await getSessionCards(db, [sessionId], locale);
   if (!card) notFound();
-  const price = card.productId ? await getProductPrice(db, card.productId, "public").catch(() => null) : null;
-  const actor = actorFromSession(await getSession());
-  const signedIn = actor?.kind === "customer" ? (await getSession())?.user : null;
+  const session = await getSession();
+  const actor = actorFromSession(session);
+  const customer = actor?.kind === "customer" ? actor : null;
+  const prices = await getBookingOffers(db, sessionId).catch(() => ({ singleCents: null, childCents: { child: null, youth: null }, offers: [] }));
+  const rules = await getSetting(db, "booking_rules");
 
   const prefix = `/${URL_SEGMENT[locale]}`;
   const here = `${prefix}/book/${sessionId}`;
-  const portalBook = `${prefix}/account/book/${sessionId}`;
   const kind = card.kind === "night" ? "night" : "day";
   const fmt = (opts: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat(locale, { timeZone: TZ, ...opts });
   const dateLine = fmt({ weekday: "long", day: "numeric", month: "long" }).format(card.startsAt);
   const timeLine = `${fmt({ hour: "2-digit", minute: "2-digit" }).format(card.startsAt)} – ${fmt({ hour: "2-digit", minute: "2-digit" }).format(card.endsAt)}`;
   const full = card.availabilityBand === "full";
-  const error = sp.error ? (ERRORS.has(sp.error) ? sp.error : "generic") : null;
+  const money = (cents: number) => formatMoney(cents, locale);
 
-  async function signUp(fd: FormData) {
-    "use server";
-    const email = field(fd, "email");
-    const firstName = field(fd, "firstName");
-    const lastName = field(fd, "lastName");
-    const res = await customerSignUp({ email, firstName, lastName, password: (fd.get("password") as string | null) ?? "", locale: locale!, returnTo: portalBook });
-    if (res.ok) redirect(res.data.next as never);
-    const reason = res.error.message === "account_exists" || res.error.message === "password_policy" ? res.error.message : "generic";
-    const q = new URLSearchParams({ error: reason, email, first: firstName, last: lastName });
-    redirect(`${here}?${q.toString()}#account` as never);
+  // Signed in: their package, emergency contact and terms state, as on the portal booking page.
+  const view = customer ? await getBookableSession(db, customer.personId, sessionId).catch(() => null) : null;
+  const creditsLeft =
+    customer && view?.payOptions.includes("credit") && view.session.creditKind
+      ? ((await getPersonCreditSummary(db, customer.personId).catch(() => null))?.byKind.find((k) => k.kind === view.session.creditKind)?.remainingUnits ?? null)
+      : null;
+  const termsLive = await getCurrentLegalVersion(db, "terms").catch(() => null);
+  const termsNeeded = termsLive ? (customer ? !(await hasAcceptedCurrentTerms(db, customer.personId).catch(() => false)) : true) : false;
+  const termsHref = termsNeeded ? ((await getLegalLinks(locale, db).catch(() => null))?.terms ?? null) : null;
+  const emergency = customer ? !!view?.needsEmergencyContact : card.kind === "night" && rules.require_emergency_contact_for_nights;
+  const kidsAllowed = childrenAllowed({ kind: card.kind, startsAt: card.startsAt }) && rules.max_guests_per_booking > 0 && prices.childCents.child !== null && prices.childCents.youth !== null;
+
+  const payOptions: Array<{ value: string; label: string; hint: string | null }> = [];
+  if (customer && view?.payOptions.includes("credit")) {
+    payOptions.push({ value: "credit", label: tr("site.bookFlow.guest.payCredit"), hint: creditsLeft !== null ? tr("site.bookFlow.guest.payCreditHint", { count: creditsLeft }) : null });
+  }
+  if (card.productId && prices.singleCents !== null) {
+    payOptions.push({ value: "order", label: tr("site.bookFlow.guest.payOrder", { price: money(prices.singleCents) }), hint: tr("site.bookFlow.guest.payOrderHint") });
+  }
+  for (const o of prices.offers) {
+    const per = money(o.perSessionCents);
+    payOptions.push({
+      value: `package:${o.productId}`,
+      label: tr("site.bookFlow.guest.payPackage", { name: pick(o.name, locale), price: money(o.priceCents) }),
+      hint:
+        o.savingPct !== null && prices.singleCents !== null
+          ? tr("site.bookFlow.guest.payPackageSaving", { per, single: money(prices.singleCents), pct: o.savingPct })
+          : tr("site.bookFlow.guest.payPackageHint", { per }),
+    });
   }
 
-  const input = "h-12 w-full rounded-xl border border-input bg-card px-4 text-base outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/40";
+  const signedIn = !!customer;
+  const user = session?.user;
+  async function submit(prev: GuestBookState, fd: FormData): Promise<GuestBookState> {
+    "use server";
+    const loc = localeFromSegment(seg) ?? "nl-BE";
+    const form = readForm(fd);
+    const res = signedIn
+      ? await bookSession({
+          sessionId,
+          ...form.common,
+          payWith: form.pay === "order" ? "order" : "credit",
+          ...(form.packageProductId ? { buyPackageProductId: form.packageProductId } : {}),
+        })
+      : await bookAsGuest({
+          sessionId,
+          ...form.common,
+          email: form.v("email"),
+          firstName: form.v("firstName"),
+          lastName: form.v("lastName"),
+          phone: form.v("phone"),
+          pay: form.packageProductId ? "package" : "order",
+          ...(form.packageProductId ? { packageProductId: form.packageProductId } : {}),
+        });
+    if (res.ok) {
+      if (res.data.kind === "checkout") redirect(res.data.redirectTo as never);
+      redirect((signedIn ? `/${seg}/account/bookings/${res.data.bookingIds[0]}?done=booked` : `/${seg}/book/${sessionId}?booked=1`) as never);
+    }
+    const { message, fields } = refusal(loc, res.error);
+    return { error: message, fields, values: form.values, n: prev.n + 1 };
+  }
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
@@ -98,10 +187,10 @@ export default async function PublicBookSessionPage({
                 <dt className="text-xs tracking-widest text-[#fffaef]/60 uppercase">{tr("site.bookFlow.summary.where")}</dt>
                 <dd className="mt-1 font-medium">{card.location ?? tr("site.bookFlow.summary.whereValue")}</dd>
               </div>
-              {price ? (
+              {prices.singleCents !== null ? (
                 <div>
                   <dt className="text-xs tracking-widest text-[#fffaef]/60 uppercase">{tr("site.bookFlow.summary.price")}</dt>
-                  <dd className="mt-1 text-2xl font-semibold tabular-nums">{formatMoney(price.amountCents, locale)}</dd>
+                  <dd className="mt-1 text-2xl font-semibold tabular-nums">{money(prices.singleCents)}</dd>
                 </div>
               ) : null}
             </dl>
@@ -110,88 +199,62 @@ export default async function PublicBookSessionPage({
             </a>
           </section>
 
-          {full ? (
+          {sp.booked ? (
+            <p role="status" className="rounded-2xl bg-[#e7f1ea] p-5" data-testid="guest-booked">
+              {tr("site.bookFlow.guest.booked")}
+            </p>
+          ) : full ? (
             <p role="status" className="rounded-2xl border border-border bg-card p-5">
               {tr("site.bookFlow.full")}
             </p>
-          ) : signedIn ? (
-            <section className="flex flex-wrap items-center justify-between gap-4 rounded-[2rem] border border-border bg-card p-6 sm:p-8">
-              <p className="text-lg">{tr("site.bookFlow.account.signedIn", { name: signedIn.name ?? signedIn.email })}</p>
-              <a href={portalBook} className={`${goldButtonClass} py-2 pr-2 pl-6`}>
-                {tr("site.bookFlow.account.continue")}
-                <ArrowBadge dark />
-              </a>
-            </section>
+          ) : payOptions.length === 0 ? (
+            <p role="status" className="rounded-2xl border border-border bg-card p-5">
+              {tr("site.bookFlow.guest.noPayOption")}
+            </p>
           ) : (
-            <section id="account" aria-labelledby="account-title" className="rounded-[2rem] border border-border bg-card p-6 sm:p-10">
-              <h2 id="account-title" className="font-display text-3xl">
-                {tr("site.bookFlow.account.title")}
-              </h2>
-              <p className="mt-2 max-w-xl text-muted-foreground">{tr("site.bookFlow.account.intro")}</p>
-              {error ? (
-                <p role="alert" className="mt-5 rounded-xl border border-destructive/40 bg-destructive/5 p-4 text-sm">
-                  {tr(`site.bookFlow.errors.${error}`)}
-                  {error === "account_exists" ? (
-                    <>
-                      {" "}
-                      <a href={`${prefix}/account/login?returnTo=${encodeURIComponent(portalBook)}`} className="font-semibold underline">
-                        {tr("site.bookFlow.account.login")}
-                      </a>
-                    </>
-                  ) : null}
-                </p>
-              ) : null}
-              <div className="mt-6 grid gap-8 md:grid-cols-[1.4fr_1fr]">
-                <form action={signUp} className="grid gap-4">
-                  <h3 className="font-semibold">{tr("site.bookFlow.account.new")}</h3>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <label className="grid gap-1.5 text-sm font-medium">
-                      {tr("site.bookFlow.account.firstName")}
-                      <input name="firstName" required autoComplete="given-name" maxLength={100} defaultValue={sp.first ?? ""} className={input} />
-                    </label>
-                    <label className="grid gap-1.5 text-sm font-medium">
-                      {tr("site.bookFlow.account.lastName")}
-                      <input name="lastName" required autoComplete="family-name" maxLength={100} defaultValue={sp.last ?? ""} className={input} />
-                    </label>
-                  </div>
-                  <label className="grid gap-1.5 text-sm font-medium">
-                    {tr("site.bookFlow.account.email")}
-                    <input name="email" type="email" required autoComplete="email" maxLength={254} defaultValue={sp.email ?? ""} className={input} />
-                  </label>
-                  <label className="grid gap-1.5 text-sm font-medium">
-                    {tr("site.bookFlow.account.password")}
-                    <input name="password" type="password" required minLength={10} autoComplete="new-password" className={input} aria-describedby="pw-hint" />
-                    <span id="pw-hint" className="text-xs font-normal text-muted-foreground">
-                      {tr("site.bookFlow.account.passwordHint")}
-                    </span>
-                  </label>
-                  <button type="submit" className={`${goldButtonClass} mt-2 justify-self-start py-2 pr-2 pl-6`}>
-                    {tr("site.bookFlow.account.submit")}
-                    <ArrowBadge dark />
-                  </button>
-                </form>
-                <div className="grid content-start gap-3 rounded-2xl bg-[#f4ead3] p-6">
-                  <h3 className="font-semibold">{tr("site.bookFlow.account.existing")}</h3>
-                  <p className="text-sm text-[#212842]/75">{tr("site.bookFlow.account.existingBody")}</p>
-                  <a
-                    href={`${prefix}/account/login?returnTo=${encodeURIComponent(portalBook)}`}
-                    className="inline-flex items-center justify-center justify-self-start rounded-full bg-[#212842] px-6 py-3 text-sm font-semibold text-[#fffaef] hover:bg-[#2b3354]"
-                  >
-                    {tr("site.bookFlow.account.login")}
-                  </a>
-                </div>
-              </div>
+            <section aria-label={tr("site.bookFlow.steps.details")} className="rounded-[2rem] border border-border bg-card p-6 sm:p-10">
+              <GuestBookForm
+                action={submit}
+                clientKey={randomUUID()}
+                signedIn={signedIn}
+                loginHref={`${prefix}/account/login?returnTo=${encodeURIComponent(here)}`}
+                payOptions={payOptions}
+                kids={kidsAllowed ? { max: Math.min(MAX_KIDS, rules.max_guests_per_booking) } : null}
+                emergency={emergency}
+                terms={termsNeeded ? { href: termsHref } : null}
+                labels={{
+                  detailsTitle: tr("site.bookFlow.guest.title"),
+                  detailsIntro: tr("site.bookFlow.guest.intro"),
+                  email: tr("site.bookFlow.account.email"),
+                  firstName: tr("site.bookFlow.account.firstName"),
+                  lastName: tr("site.bookFlow.account.lastName"),
+                  phone: tr("site.bookFlow.guest.phone"),
+                  signInTitle: tr("site.bookFlow.account.existing"),
+                  signInBody: tr("site.bookFlow.guest.signInBody"),
+                  signIn: tr("site.bookFlow.account.login"),
+                  signedIn: user ? tr("site.bookFlow.guest.signedIn", { name: user.name ?? user.email, email: user.email }) : null,
+                  payTitle: tr("site.bookFlow.guest.payTitle"),
+                  kidsTitle: tr("site.bookFlow.guest.kidsTitle"),
+                  kidsBody: tr("site.bookFlow.guest.kidsBody", { youth: money(prices.childCents.youth ?? 0) }),
+                  kidFirstName: tr("site.bookFlow.guest.kidFirstName", { n: "{n}" }),
+                  kidAge: tr("site.bookFlow.guest.kidAge"),
+                  ageNone: tr("site.bookFlow.guest.ageNone"),
+                  ageChild: tr("site.bookFlow.guest.ageChild"),
+                  ageYouth: tr("site.bookFlow.guest.ageYouth", { price: money(prices.childCents.youth ?? 0) }),
+                  emergencyTitle: tr("booking.portalSession.emergency_title"),
+                  emergencyName: tr("booking.portalSession.emergency_name"),
+                  emergencyPhone: tr("booking.portalSession.emergency_phone"),
+                  acceptTerms: tr("booking.portalSession.accept_terms"),
+                  readTerms: tr("booking.portalSession.read_terms"),
+                  submit: tr("site.bookFlow.guest.submit"),
+                  next: tr("site.bookFlow.guest.next"),
+                }}
+              />
             </section>
           )}
           <TrustStrip tr={tr} />
         </div>
         <aside className="space-y-4">
-          <InfoCard title={tr("site.bookFlow.package.title")} tone="sand">
-            <p className="text-[#212842]/80">{tr("site.bookFlow.package.body")}</p>
-            <a href={`${prefix}/${PRICING_PATH[locale]}`} className="inline-block pt-1 font-semibold text-[#212842] underline underline-offset-4">
-              {tr("site.bookFlow.package.link")} →
-            </a>
-          </InfoCard>
           <InfoCard title={tr("site.bookFlow.bring.title")}>
             <p>{tr("site.bookFlow.bring.body")}</p>
           </InfoCard>

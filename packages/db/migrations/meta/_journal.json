@@ -435,6 +435,13 @@
       "when": 1795624476615,
       "tag": "0061_custom_roles",
       "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1795626983087,
+      "tag": "0062_guest_booking_children",
+      "breakpoints": true
     }
   ]
 }

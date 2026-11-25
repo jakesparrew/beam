@@ -6,19 +6,22 @@
  */
 import { randomUUID } from "node:crypto";
 import type { DbOrTx, Tx } from "@beam/db";
-import { bookings, capacityHolds, orderLines, orders, persons, sessions, ticketTypes, vSessionAvailability, waitlistEntries } from "@beam/db/schema";
+import { bookings, capacityHolds, orderLines, orders, persons, products, sessions, ticketTypes, vSessionAvailability, waitlistEntries } from "@beam/db/schema";
 import {
   AlreadyBookedError,
+  CHILD_PRODUCT_SKUS,
   BookingConflictError,
   NeedsReviewError,
   SessionFullError,
   bookingTransition,
+  childrenAllowed,
   computeAvailability,
   deriveIpSalt,
   duplicateSignals,
   hashIp,
   normaliseEmail,
   transition as waitlistTransition,
+  type AgeGroup,
   type Availability,
   type AvailabilityRow,
   type AvailabilityViewer,
@@ -35,7 +38,7 @@ import { createPersonWithoutEmail, findOrCreatePersonByEmail, getPersonStatus } 
 import { sendTransactional } from "@/modules/email/api";
 import { ensureHealthAndContact, type EmergencyContactInput } from "./declarations";
 import { recordBookingFact } from "./facts";
-import { linkOrderLines } from "./order-hooks";
+import { confirmPackageSeat, linkOrderLines } from "./order-hooks";
 import { qrAttachment, renderCheckinQr } from "./qr";
 import { ensureTermsAccepted } from "./terms";
 
@@ -43,7 +46,8 @@ export type { Availability };
 export type SessionRow = typeof sessions.$inferSelect;
 export type BookingRow = typeof bookings.$inferSelect;
 
-export type GuestSeatInput = { firstName: string; lastName: string; email?: string; sharesBed?: boolean; payWith: "guest" | "order" | "free" };
+/** A guest seat; `ageGroup` makes it a child seat (paid by order as the child or youth product). */
+export type GuestSeatInput = { firstName: string; lastName: string; email?: string; sharesBed?: boolean; payWith: "guest" | "order" | "free"; ageGroup?: AgeGroup };
 
 export type BookSeatsInput = {
   sessionId: string;
@@ -72,6 +76,16 @@ export type BookSeatsInput = {
   /** Default true. */
   sendEmail?: boolean;
   locale?: Locale;
+  /**
+   * A site guest who is not signed in (found or created by email): public prices, no euro credit,
+   * no credits of their own, and a `site` order the browser pays through the viewer cookie.
+   */
+  guest?: boolean;
+  /**
+   * Owner's review 3: buy this package in the same order and pay the owner's seat with one of its
+   * credits once the order is paid (`payWith: 'credit'`; the seat stays `reserved` until then).
+   */
+  buyPackageProductId?: string;
 };
 
 export type BookResult =
@@ -322,6 +336,9 @@ export async function releaseWaitlistEntryOnBooking(ctx: Ctx, sessionId: string,
 
 type PlannedRow = {
   id: string;
+  /** The product an order-paid row is sold as (a child's own product). */
+  productId: string | null;
+  ageGroup: AgeGroup | null;
   personId: string;
   paidWith: PaidWith;
   /** Credit payer for `credit` / `guest` rows. */
@@ -515,12 +532,20 @@ export async function bookSeats(tx: Tx, ctx: Ctx, input: BookSeatsInput): Promis
   const sharers = guests.filter((g) => g.sharesBed).length;
   if (sharers > 0 && (session.kind !== "night" || sharers > rules.max_shared_bed_guests_per_booking)) throw new BookingConflictError("shared_bed_limit");
 
+  // A site guest pays by order (or buys a package for the seat); credits need a signed-in owner.
+  if (input.guest && (staff || (input.payWith !== "order" && !(input.payWith === "credit" && input.buyPackageProductId)))) {
+    throw new ValidationError("pay_with_not_available", { payWith: "not_available" });
+  }
+  const pkg = input.buyPackageProductId ? await packageForSeat(tx, session, input) : null;
+  // Children (owner's review 1.1, 1.2): guest rows of a paying adult, on the sessions that take them.
+  const childProducts = await childProductsFor(tx, session, input, guests);
+
   // R51, R52 (booking-P8): ticket type checks under the session lock.
   const ticket = await resolveTicketType(tx, session, input, guests, { staff, override, now: ctx.now });
   const productId = ticket ? ticket.productId : session.productId;
   const payOpts = { staff, override, reason: input.reason };
   assertPayable(session, input.payWith, productId, payOpts);
-  for (const g of guests) assertPayable(session, g.payWith, productId, payOpts);
+  for (const g of guests) if (!g.ageGroup) assertPayable(session, g.payWith, productId, payOpts);
 
   const [owner] = await tx.select({ id: persons.id, locale: persons.locale }).from(persons).where(eq(persons.id, input.personId));
   if (!owner) throw new NotFoundError("person_not_found");
@@ -528,13 +553,11 @@ export async function bookSeats(tx: Tx, ctx: Ctx, input: BookSeatsInput): Promis
 
   // Edge case 2: a double submit of a paid booking returns the existing checkout.
   const repeat = await existingCheckout(tx, session.id, input.personId, input.clientKey);
-  if (repeat) {
-    const redirectTo = staff ? `/admin/pos?order=${repeat.orderId}` : `/${URL_SEGMENT[locale]}/account/checkout/${repeat.orderId}`;
-    return { kind: "checkout", bookingIds: repeat.bookingIds, orderId: repeat.orderId, redirectTo };
-  }
+  if (repeat) return { kind: "checkout", bookingIds: repeat.bookingIds, orderId: repeat.orderId, redirectTo: checkoutPath(repeat.orderId, locale, input) };
 
-  // R15 member-only (staff with override may bypass) and the customer gate (R7).
-  const viewer = await viewerFor(tx, session, input.personId);
+  // R15 member-only (staff with override may bypass) and the customer gate (R7). A guest proves
+  // nobody by typing an email, so they book as the public.
+  const viewer: AvailabilityViewer = input.guest ? { status: "anonymous", isMember: false } : await viewerFor(tx, session, input.personId);
   if (session.isMemberOnly && !viewer.isMember && !override) throw new BookingConflictError("member_only");
   const availability = await readAvailabilityRow(tx, session);
   const computed = computeAvailability(availability, viewer, ctx.now, rules);
@@ -556,6 +579,8 @@ export async function bookSeats(tx: Tx, ctx: Ctx, input: BookSeatsInput): Promis
       payerPersonId: input.payWith === "guest" ? input.grantOwnerPersonId! : input.personId,
       guestOfBookingId: null,
       capacityUnits: 1,
+      productId,
+      ageGroup: null,
     },
   ];
   for (const g of guests) {
@@ -570,7 +595,10 @@ export async function bookSeats(tx: Tx, ctx: Ctx, input: BookSeatsInput): Promis
       paidWith: g.payWith,
       payerPersonId: input.grantOwnerPersonId ?? input.personId,
       guestOfBookingId: ownerId,
-      capacityUnits: g.sharesBed ? 0 : 1,
+      // Children take a seat like any guest; only an adult may share a bed (R13).
+      capacityUnits: g.sharesBed && !g.ageGroup ? 0 : 1,
+      productId: g.ageGroup ? childProducts![g.ageGroup] : productId,
+      ageGroup: g.ageGroup ?? null,
     });
   }
 
@@ -629,7 +657,8 @@ export async function bookSeats(tx: Tx, ctx: Ctx, input: BookSeatsInput): Promis
   const inserted: BookingRow[] = [];
   try {
     for (const r of rows) {
-      const status = r.paidWith === "order" ? "reserved" : "confirmed";
+      // A seat paid with a package bought in this order waits for the payment like an order seat.
+      const status = r.paidWith === "order" || (pkg && r.id === ownerId) ? "reserved" : "confirmed";
       bookingTransition(null, status, staff ? "staff" : ctx.actor.kind === "system" ? "system" : ctx.actor.kind === "public" ? "public" : "customer");
       const [row] = await tx
         .insert(bookings)
@@ -642,6 +671,7 @@ export async function bookSeats(tx: Tx, ctx: Ctx, input: BookSeatsInput): Promis
           guestOfBookingId: r.guestOfBookingId,
           capacityUnits: r.capacityUnits,
           ticketTypeId: input.ticketTypeId ?? null,
+          ageGroup: r.ageGroup,
           capacityHoldId: input.holdId ?? null,
           usedLeadSeat: r.guestOfBookingId === null && computed.useLeadSeat,
           isOverCapacity,
@@ -664,6 +694,7 @@ export async function bookSeats(tx: Tx, ctx: Ctx, input: BookSeatsInput): Promis
   if (session.creditKind && session.creditCost > 0) {
     for (const r of rows) {
       if (r.paidWith !== "credit" && r.paidWith !== "guest") continue;
+      if (pkg && r.id === ownerId) continue; // consumed from the new package once paid (confirmPackageSeat)
       try {
         await consumeCredits(tx, ctx, {
           personId: r.payerPersonId,
@@ -679,21 +710,29 @@ export async function bookSeats(tx: Tx, ctx: Ctx, input: BookSeatsInput): Promis
     }
   }
 
-  // R18: one quantity-1 item per order-paid seat, in row order.
+  // R18: one quantity-1 item per order-paid seat, in row order (after the package line, if any).
   const orderRows = inserted.filter((b) => b.paidWith === "order");
+  const productOf = new Map(rows.map((r) => [r.id, r.productId]));
+  const ownerRow = inserted[0]!;
   let orderId: string | null = null;
   // Rows commerce confirmed inside createOrder (rule 24: euro credit or a promo covers the total).
   const settled = new Set<string>();
-  if (orderRows.length) {
+  if (orderRows.length || pkg) {
+    const useEuroCredit = input.guest || pkg ? false : input.useEuroCredit;
     const order = await createOrder(tx, ctx, {
       personId: input.personId,
-      channel: staff ? "admin" : "portal",
-      // R51: a ticket line carries its type, so commerce groups the order's tickets (`groupTicketTypes`).
-      items: orderRows.map((b) => ({ productId: productId!, quantity: 1, sessionId: session.id, bookingIds: [b.id], ...(ticket ? { ticketTypeId: ticket.id } : {}) })),
+      // Edge case 23: a site guest's order is priced as the public's.
+      ...(input.guest ? { pricingPersonId: null } : {}),
+      channel: staff ? "admin" : input.guest ? "site" : "portal",
+      items: [
+        ...(pkg ? [{ productId: pkg.id, quantity: 1 }] : []),
+        // R51: a ticket line carries its type, so commerce groups the order's tickets (`groupTicketTypes`).
+        ...orderRows.map((b) => ({ productId: productOf.get(b.id)!, quantity: 1, sessionId: session.id, bookingIds: [b.id], ...(ticket ? { ticketTypeId: ticket.id } : {}) })),
+      ],
       promoCode: input.promoCode ?? null,
       clientKey: input.clientKey,
       locale,
-      ...(input.useEuroCredit !== undefined ? { useEuroCredit: input.useEuroCredit } : {}),
+      ...(useEuroCredit !== undefined ? { useEuroCredit } : {}),
       ...(input.payAtDesk ? { expiresAt: session.endsAt } : {}),
     });
     if (order.status === "paid") {
@@ -707,9 +746,14 @@ export async function bookSeats(tx: Tx, ctx: Ctx, input: BookSeatsInput): Promis
           settled.add(b.id);
         }
       }
+      // Nothing due for a package (a full promotion): its credits exist now, so the seat takes one.
+      if (pkg && (await confirmPackageSeat(tx, ctx, ownerRow, session))) {
+        Object.assign(ownerRow, (await tx.select().from(bookings).where(eq(bookings.id, ownerRow.id)))[0]);
+        settled.add(ownerRow.id);
+      }
     } else {
       orderId = order.orderId;
-      const linked = await linkOrderLines(tx, orderRows, order.lineIds);
+      const linked = await linkOrderLines(tx, pkg ? [ownerRow, ...orderRows] : orderRows, order.lineIds);
       for (const b of inserted) {
         const l = linked.find((x) => x.id === b.id);
         if (l) Object.assign(b, { orderLineId: l.orderLineId, reservedUntil: l.reservedUntil });
@@ -734,8 +778,51 @@ export async function bookSeats(tx: Tx, ctx: Ctx, input: BookSeatsInput): Promis
 
   const bookingIds = inserted.map((b) => b.id);
   if (!orderId) return { kind: "confirmed", bookingIds };
-  const redirectTo = staff ? `/admin/pos?order=${orderId}` : `/${URL_SEGMENT[locale]}/account/checkout/${orderId}`;
-  return { kind: "checkout", bookingIds, orderId, redirectTo };
+  return { kind: "checkout", bookingIds, orderId, redirectTo: checkoutPath(orderId, locale, input) };
+}
+
+/** The page that pays a booking's order: the POS for staff, the public pay page for a site guest, else the portal. */
+function checkoutPath(orderId: string, locale: Locale, input: Pick<BookSeatsInput, "by" | "guest">): string {
+  if (input.by === "staff") return `/admin/pos?order=${orderId}`;
+  return input.guest ? `/${URL_SEGMENT[locale]}/checkout/pay/${orderId}` : `/${URL_SEGMENT[locale]}/account/checkout/${orderId}`;
+}
+
+/**
+ * Owner's review 3: the package bought in the booking flow must be an active package of the
+ * session's credit kind (day packages for day sessions, night for nights; never mixed) with
+ * enough units for the seat.
+ */
+async function packageForSeat(tx: Tx, session: SessionRow, input: Pick<BookSeatsInput, "payWith" | "buyPackageProductId">): Promise<{ id: string }> {
+  if (input.payWith !== "credit") throw new ValidationError("pay_with_not_available", { payWith: "not_available" });
+  const [p] = await tx
+    .select({ id: products.id, kind: products.kind, isActive: products.isActive, creditKind: products.creditKind, creditUnits: products.creditUnits })
+    .from(products)
+    .where(eq(products.id, input.buyPackageProductId!));
+  const fits = !!p && p.kind === "package" && p.isActive && !!session.creditKind && p.creditKind === session.creditKind && (p.creditUnits ?? 0) >= session.creditCost;
+  if (!fits) throw new ValidationError("package_not_for_session", { buyPackageProductId: "not_for_session" });
+  return { id: p.id };
+}
+
+/**
+ * Owner's review 1.1, 1.2: children come as guests of a paying adult, only on sessions that take
+ * them (`childrenAllowed`), each paid by order as the session kind's child (free) or youth (half
+ * price) product. Null when the booking has no children.
+ */
+async function childProductsFor(tx: Tx, session: SessionRow, input: Pick<BookSeatsInput, "payWith">, guests: GuestSeatInput[]): Promise<Record<AgeGroup, string> | null> {
+  const children = guests.filter((g) => g.ageGroup);
+  if (!children.length) return null;
+  if (!childrenAllowed(session)) throw new BookingConflictError("children_not_allowed");
+  if (input.payWith === "free") throw new BookingConflictError("children_need_paying_adult");
+  if (children.some((c) => c.payWith !== "order")) throw new ValidationError("child_pays_by_order", { guests: "child_pays_by_order" });
+  const skus = CHILD_PRODUCT_SKUS[session.kind as "day" | "night"];
+  const found = await tx
+    .select({ id: products.id, sku: products.sku })
+    .from(products)
+    .where(and(inArray(products.sku, [skus.child, skus.youth]), eq(products.isActive, true)));
+  const idOf = (sku: string) => found.find((p) => p.sku === sku)?.id;
+  const out = { child: idOf(skus.child), youth: idOf(skus.youth) };
+  if (children.some((c) => !out[c.ageGroup!])) throw new BookingConflictError("children_not_available");
+  return out as Record<AgeGroup, string>;
 }
 
 /**

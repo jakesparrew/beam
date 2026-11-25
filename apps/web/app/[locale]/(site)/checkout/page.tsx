@@ -7,6 +7,7 @@ import { translator } from "@/lib/i18n";
 import { placeOrder, startCheckout, updateCheckout } from "@/modules/commerce/actions";
 import { getCheckout, getShopProduct, readViewer } from "@/modules/commerce/queries";
 import { landingPathFrom } from "@/modules/commerce/server/checkouts";
+import { GuestDetailsFields, guestDetailsFrom } from "@/modules/commerce/ui/guest-details";
 import { Basket, basketErrorFrom, billingDetailsFrom, ErrorSummary, errorQuery, itemsAfterUpdate, LoginForMemberPrices, termsUrlFor } from "@/modules/commerce/ui/basket";
 
 type Search = { sku?: string; from?: string; checkout?: string; error?: string; field?: string };
@@ -18,8 +19,8 @@ const str = (fd: FormData, k: string) => {
 
 /**
  * `/[locale]/checkout` (section 5.3): the guest checkout of site buy links `?sku=...&from=<page>`
- * (packages, memberships, vouchers and items; session and event links go to booking). The email
- * step comes first and creates the checkout row (with `landing_path` from `from`, else the
+ * (packages, memberships, vouchers and items; session and event links go to booking). The details
+ * step (email, full name and phone, owner's review 8) comes first and creates the checkout row (with `landing_path` from `from`, else the
  * same-origin Referer); then the same basket as the portal, with terms, the company invoice box
  * and "Log in for member prices" (a guest quotes as public, edge case 23).
  */
@@ -103,55 +104,30 @@ export default async function SiteCheckoutPage({ params, searchParams }: { param
   const landingPath = landingPathFrom(sp.from, referer, appUrl("/"));
   async function begin(fd: FormData) {
     "use server";
-    const email = str(fd, "email");
     const result = await startCheckout({
       channel: "site",
       items: [{ productId, quantity: 1 }],
       locale,
       ...(landingPath ? { landingPath } : {}),
-      ...(email ? { email } : {}),
+      ...guestDetailsFrom(fd),
     });
     if (!result.ok) redirect(`/${seg}/checkout?sku=${encodeURIComponent(sp.sku ?? "")}&${errorQuery(result.error)}` as never);
     redirect(`/${seg}/checkout?checkout=${result.data.checkoutId}` as never);
   }
-  const emailError = error?.field === "email";
+  // Owner's review 8: a guest gives email, full name and phone, as in the booking flow.
+  const detailsError = ["email", "firstName", "lastName", "phone"].includes(error?.field ?? "");
   return shell(
     <>
       <div className="rounded-md border p-4">
         <p className="font-medium">{product.name}</p>
         {product.unitCents !== null ? <p className="tabular-nums">{formatMoney(product.unitCents, locale)}</p> : null}
       </div>
-      <ErrorSummary locale={locale} error={error && !emailError ? error : null} />
+      <ErrorSummary locale={locale} error={error && !detailsError ? error : null} />
       <form action={begin} className="grid gap-4" aria-labelledby="email-step-title">
         <h2 id="email-step-title" className="text-lg font-semibold">
           {tr("commerce.checkout.email_title")}
         </h2>
-        {signedIn ? null : (
-          <div className="grid gap-1">
-            <label htmlFor="email" className="text-sm font-medium">
-              {tr("commerce.checkout.email_label")}
-            </label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              required
-              autoComplete="email"
-              maxLength={254}
-              aria-invalid={emailError ? true : undefined}
-              aria-describedby={emailError ? "email-hint email-error" : "email-hint"}
-              className="h-11 rounded-md border px-3"
-            />
-            <p id="email-hint" className="text-sm text-muted-foreground">
-              {tr("commerce.checkout.email_hint")}
-            </p>
-            {emailError ? (
-              <p id="email-error" className="text-sm text-red-700 dark:text-red-300">
-                {tr("commerce.errors.email_required")}
-              </p>
-            ) : null}
-          </div>
-        )}
+        {signedIn ? null : <GuestDetailsFields locale={locale} field={detailsError ? error!.field : null} />}
         <button type="submit" className="min-h-12 w-fit rounded-md bg-primary px-6 font-semibold text-primary-foreground">
           {tr("commerce.checkout.continue")}
         </button>

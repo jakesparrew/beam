@@ -22,7 +22,8 @@ export default async function SiteCheckoutReturnPage({ params, searchParams }: {
   const { payment } = await searchParams;
   const tr = translator(locale);
   const seg = URL_SEGMENT[locale];
-  const viewer = await readViewer(actorFromSession(await getSession()));
+  const actor = actorFromSession(await getSession());
+  const viewer = await readViewer(actor);
   const order = await getOrderForPayment(await getAppDb(), orderId, viewer, locale);
   if (!order) notFound();
   const id = order.orderId;
@@ -54,7 +55,18 @@ export default async function SiteCheckoutReturnPage({ params, searchParams }: {
           { href: `/${seg}`, label: tr("commerce.return.go_home") },
         ]}
       />
-      <p className="mt-4 text-sm text-muted-foreground">{tr("commerce.return.guest_access")}</p>
+      {actor?.kind === "customer" ? null : (
+        // Owner's review 8: an account is offered after paying, never required (magic link, no password).
+        <section aria-labelledby="account-offer" className="mt-6 grid gap-2 rounded-2xl bg-[#f4ead3] p-6">
+          <h2 id="account-offer" className="text-lg font-semibold">
+            {tr("commerce.return.account_offer_title")}
+          </h2>
+          <p className="text-sm text-[#212842]/80">{tr("commerce.return.account_offer_body")}</p>
+          <a href={`/${seg}/account/login`} className="w-fit font-semibold underline underline-offset-4">
+            {tr("commerce.return.account_offer_link")}
+          </a>
+        </section>
+      )}
     </div>
   );
 }

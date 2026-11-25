@@ -984,7 +984,42 @@
         "heldBody": "Niemand anders kan deze plaats nemen zolang je betaalt.",
         "secureNote": "Je betaalt via onze erkende betaalpartner. Je gegevens worden versleuteld verstuurd en we bewaren nooit je kaartgegevens.",
         "methods": "Betaalmethodes",
-        "summary": "Jouw bestelling"
+        "summary": "Jouw bestelling",
+        "methodOnStripe": "Op de volgende pagina kies je Bancontact, kaart of Apple Pay."
+      },
+      "guest": {
+        "title": "Jouw gegevens",
+        "intro": "Je hebt geen account nodig. We sturen je bevestiging naar dit e-mailadres.",
+        "phone": "Telefoonnummer",
+        "signInBody": "Meld je aan om je gegevens en je pakketten te gebruiken.",
+        "signedIn": "Je boekt als {name} ({email}).",
+        "payTitle": "Hoe wil je betalen?",
+        "payOrder": "Betaal deze sessie: {price}",
+        "payOrderHint": "Bancontact, kaart of Apple Pay: je kiest op de beveiligde betaalpagina.",
+        "payCredit": "Met mijn pakket",
+        "payCreditHint": "{count, plural, one {Nog # sessie} other {Nog # sessies}}",
+        "payPackage": "Koop {name} voor {price}",
+        "payPackageSaving": "{per} per sessie in plaats van {single}: je bespaart {pct}%. Deze boeking gebruikt één sessie, de rest blijft in je account.",
+        "payPackageHint": "{per} per sessie. Deze boeking gebruikt één sessie, de rest blijft in je account.",
+        "kidsTitle": "Kom je met kinderen?",
+        "kidsBody": "Kinderen komen met jou mee en nemen een plaats in. Onder 12 jaar is gratis, van 12 tot 17 jaar kost {youth}.",
+        "kidFirstName": "Voornaam kind {n}",
+        "kidAge": "Leeftijd",
+        "ageNone": "Kies",
+        "ageChild": "Onder 12 (gratis)",
+        "ageYouth": "12 tot 17 ({price})",
+        "submit": "Verder naar afrekenen",
+        "next": "Daarna controleer je je boeking en betaal je.",
+        "booked": "Je boeking is bevestigd. We stuurden de details naar je e-mailadres.",
+        "noPayOption": "Deze sessie kan niet online geboekt worden. Neem contact met ons op."
+      },
+      "packages": {
+        "title": "Of koop een pakket",
+        "body": "Kom je vaker? Met een pakket betaal je minder per sessie.",
+        "per": "{per} per sessie",
+        "save": "{pct}% goedkoper dan {single}",
+        "buyNamed": "Koop {name} voor {price}",
+        "inFlow": "Je kan ook een pakket kopen wanneer je een moment boekt: die boeking gebruikt dan één sessie ervan."
       }
     }
   }

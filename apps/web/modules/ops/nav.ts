@@ -11,7 +11,7 @@
  */
 export const nav = [
   // Insights
-  { key: "ops.dashboard", area: "admin", section: "insights", labelKey: "ops.nav.dashboard", href: "/admin/dashboard", permission: "reports.read", icon: "layout-dashboard", order: 10 },
+  { key: "ops.dashboard", area: "admin", section: "insights", labelKey: "ops.nav.dashboard", href: "/admin/dashboard", permission: "reports.read", orPermission: "tasks.all", icon: "layout-dashboard", order: 10 },
   { key: "ops.retention", area: "admin", section: "insights", labelKey: "ops.nav.retention", href: "/admin/dashboard/retention", permission: "reports.read", flag: "ff_ops_retention", icon: "repeat", order: 11 },
   { key: "ops.pipeline", area: "admin", section: "insights", labelKey: "ops.nav.pipeline", href: "/admin/dashboard/pipeline", permission: "reports.read", flag: "ff_ops_retention", icon: "workflow", order: 12 },
   { key: "ops.management", area: "admin", section: "insights", labelKey: "ops.nav.management", href: "/admin/dashboard/management", permission: "reports.read", flag: "ff_ops_marketing", icon: "chart-line", order: 13 },

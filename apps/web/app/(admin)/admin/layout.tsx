@@ -27,6 +27,8 @@ type AdminNavEntry = {
   labelKey: string;
   href: string;
   permission?: string;
+  /** A second permission that also opens the entry (the dashboard: `reports.read` or `tasks.all`). */
+  orPermission?: string;
   flag?: string;
   icon: string;
   order: number;
@@ -64,7 +66,7 @@ async function badgeCount(entry: AdminNavEntry, db: DbOrTx, actor: StaffActor): 
 
 /** Entries the actor may open: permission (PL-19) and flag (PL-43, off unless on for the actor). */
 async function visibleEntries(actor: StaffActor): Promise<AdminNavEntry[]> {
-  const entries = (NAV.admin as readonly AdminNavEntry[]).filter((e) => !e.permission || hasPermission(actor, e.permission as Permission));
+  const entries = (NAV.admin as readonly AdminNavEntry[]).filter((e) => !e.permission || hasPermission(actor, e.permission as Permission) || (!!e.orPermission && hasPermission(actor, e.orPermission as Permission)));
   const flagged = await Promise.all(entries.map(async (e) => (!e.flag ? true : await flag(e.flag as FlagKey, actor).catch(() => false))));
   return entries.filter((_, i) => flagged[i]).sort((a, b) => a.order - b.order || a.key.localeCompare(b.key));
 }

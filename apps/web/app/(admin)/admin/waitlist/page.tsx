@@ -9,7 +9,7 @@ import { toTableRows, waitlistTableLabels } from "@/modules/booking/ui/session-w
 
 /**
  * `/admin/waitlist` (`waitlist.manage`, booking spec 5.1, R48, R49): every entry of future
- * sessions grouped by session and queue, with a "flagged for review" filter that lists the
+ * sessions grouped by date, product type and session (owner review section 10), with a "flagged for review" filter that lists the
  * duplicate signals. Offer, move, reorder, release and flag review run the audited
  * `booking.waitlist_*` actions.
  */

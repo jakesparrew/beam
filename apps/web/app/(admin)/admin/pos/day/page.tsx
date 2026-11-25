@@ -80,12 +80,11 @@ export default async function PosDayPage({ searchParams }: { searchParams: Promi
         {sp.closed !== undefined ? <p className="rounded-md border p-3 text-sm">{c("closed_ok", { difference: money(Number(sp.closed)) })}</p> : null}
         {sp.reopened ? <p className="rounded-md border p-3 text-sm">{c("reopened")}</p> : null}
       </div>
-      <form method="get" className="flex flex-wrap items-end gap-2">
+      <form data-auto-filter="" method="get" className="flex flex-wrap items-end gap-2">
         <label className="grid gap-1 text-sm">
           <span>{c("day")}</span>
           <Input type="date" name="day" defaultValue={day} max={today} className="h-11 w-48" />
         </label>
-        <Button type="submit" variant="outline" className="min-h-11">{c("show")}</Button>
       </form>
 
       <section aria-labelledby="pos-day-totals" className="grid gap-2">

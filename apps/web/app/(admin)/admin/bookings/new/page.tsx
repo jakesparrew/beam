@@ -1,26 +1,25 @@
 import Link from "next/link";
 import type { Route } from "next";
-import { Button, Input, Label, buttonVariants } from "@beam/ui";
+import { Input, Label, buttonVariants } from "@beam/ui";
 import { BOOKING_CONFLICT_REASONS, addDays, brusselsDate, brusselsTime, zonedTimeToUtc } from "@beam/core/booking";
 import { formatDate, type Locale, type LocalizedText } from "@beam/core/i18n";
 import { hasPermission, requireStaff } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
 import { adminLocale, softTranslator, translator } from "@/lib/i18n";
-import { listManualBookingSessions } from "@/modules/booking/queries";
+import { getSession, listManualBookingSessions } from "@/modules/booking/queries";
 import { ManualBookingWizard, type WizardSession } from "@/modules/booking/ui/manual-booking-wizard";
 import { getPerson, searchPersons } from "@/modules/crm/api";
 
 const show = (text: LocalizedText | null | undefined, locale: Locale) => text?.[locale] || text?.["nl-BE"] || text?.en || text?.["fr-BE"] || "";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
-/** Days of sessions the picker lists from the chosen date. */
-const PICKER_DAYS = 14;
 
 /**
  * `/admin/bookings/new` (`bookings.write`, booking spec 5.1): step 1 finds the person through crm
- * (`?q=`) or links to crm's new-person form; step 2 (`?personId=`) is the booking form with the
- * sessions of 14 days from `?date=` (default today; `?sessionId=` preselects one, e.g. from the
- * session detail page). Override toggles appear only with `bookings.override`.
+ * (`?q=`) or links to crm's new-person form; step 2 (`?personId=`) is the booking form: a date
+ * picker (`?date=`, applies on change; default today, or the day of `?sessionId=`, which is
+ * preselected, e.g. from the session detail page) and that day's sessions as time slots with
+ * their free places (owner review section 10). Override toggles appear only with `bookings.override`.
  */
 export default async function NewBookingPage({ searchParams }: { searchParams: Promise<{ q?: string; personId?: string; date?: string; sessionId?: string }> }) {
   const actor = await requireStaff({ permission: "bookings.write" });
@@ -32,8 +31,9 @@ export default async function NewBookingPage({ searchParams }: { searchParams: P
   const q = (sp.q ?? "").trim();
   const personId = sp.personId && UUID.test(sp.personId) ? sp.personId : undefined;
   const sessionId = sp.sessionId && UUID.test(sp.sessionId) ? sp.sessionId : undefined;
-  const date = sp.date && DATE.test(sp.date) ? sp.date : brusselsDate(new Date());
   const person = personId ? await getPerson(db, personId) : null;
+  const preselected = person && sessionId && !sp.date ? await getSession(db, sessionId) : null;
+  const date = sp.date && DATE.test(sp.date) ? sp.date : preselected ? brusselsDate(preselected.startsAt) : brusselsDate(new Date());
   const withSession = (extra: Record<string, string>) => {
     const p = new URLSearchParams(extra);
     if (sessionId) p.set("sessionId", sessionId);
@@ -45,13 +45,12 @@ export default async function NewBookingPage({ searchParams }: { searchParams: P
     return (
       <div className="grid gap-6">
         <h1 className="text-2xl font-semibold">{tr("booking.manual.title")}</h1>
-        <form method="get" role="search" className="grid max-w-xl gap-2 sm:grid-cols-[1fr_auto] sm:items-end">
+        <form data-auto-filter="" method="get" role="search" className="grid max-w-xl gap-2 sm:grid-cols-[1fr_auto] sm:items-end">
           <div className="grid gap-1">
             <Label htmlFor="manual-q">{tr("booking.manual.person_search")}</Label>
             <Input id="manual-q" name="q" defaultValue={q} placeholder={soft("crm.persons.list.search_placeholder")} autoFocus />
           </div>
           {sessionId ? <input type="hidden" name="sessionId" value={sessionId} /> : null}
-          <Button type="submit">{soft("crm.common.search")}</Button>
         </form>
         {matches.length ? (
           <ul className="grid max-w-xl gap-2">
@@ -78,10 +77,12 @@ export default async function NewBookingPage({ searchParams }: { searchParams: P
   }
 
   const canOverride = hasPermission(actor, "bookings.override");
-  const rows = await listManualBookingSessions(db, { from: zonedTimeToUtc(date, "00:00"), to: zonedTimeToUtc(addDays(date, PICKER_DAYS), "00:00"), personId: person.id });
+  const dayHref = (d: string) => `/admin/bookings/new?${new URLSearchParams({ personId: person.id, date: d })}` as Route;
+  const rows = await listManualBookingSessions(db, { from: zonedTimeToUtc(date, "00:00"), to: zonedTimeToUtc(addDays(date, 1), "00:00"), personId: person.id });
   const sessions: WizardSession[] = rows.map((s) => ({
     id: s.id,
-    label: `${formatDate(s.startsAt, locale)} ${brusselsTime(s.startsAt)} · ${show(s.title, locale)}${s.status === "closed" ? ` · ${tr("booking.availability.closed")}` : ""}`,
+    label: `${show(s.title, locale)}${s.status === "closed" ? ` · ${tr("booking.availability.closed")}` : ""}`,
+    time: `${brusselsTime(s.startsAt)}-${brusselsTime(s.endsAt)}`,
     kind: s.kind,
     availability: s.availableTotal > 0 ? tr("booking.availability.placesLeft", { count: s.availableTotal }) : tr("booking.availability.full"),
     isFull: s.availableTotal <= 0,
@@ -127,24 +128,29 @@ export default async function NewBookingPage({ searchParams }: { searchParams: P
       <p className="text-lg">
         <span className="font-medium">{[person.firstName, person.lastName].filter(Boolean).join(" ") || person.email || person.customerNumber}</span> <span className="text-sm text-muted-foreground">· {person.customerNumber}</span>
       </p>
-      <form method="get" className="flex flex-wrap items-end gap-2">
+      <form method="get" data-auto-filter="" className="flex flex-wrap items-end gap-2">
         <input type="hidden" name="personId" value={person.id} />
         <div className="grid gap-1">
-          <Label htmlFor="manual-date">{tr("booking.exceptions.date")}</Label>
-          <Input id="manual-date" type="date" name="date" defaultValue={date} />
+          <Label htmlFor="manual-date">{tr("booking.manual.day")}</Label>
+          <Input id="manual-date" type="date" name="date" defaultValue={date} className="h-10 w-48" />
         </div>
-        <Button type="submit" variant="outline">
-          {tr("booking.manual.session_picker")}
-        </Button>
+        <Link href={dayHref(addDays(date, -1))} className={buttonVariants({ variant: "outline", size: "lg" })}>
+          {tr("booking.manual.previous_day")}
+        </Link>
+        <Link href={dayHref(addDays(date, 1))} className={buttonVariants({ variant: "outline", size: "lg" })}>
+          {tr("booking.manual.next_day")}
+        </Link>
+        <p className="w-full text-sm text-muted-foreground first-letter:uppercase">{formatDate(date, locale, "full")}</p>
       </form>
       <ManualBookingWizard
+        key={date}
         personId={person.id}
         sessions={sessions}
         {...(sessionId ? { initialSessionId: sessionId } : {})}
         canOverride={canOverride}
         labels={{
           session: tr("booking.manual.session_picker"),
-          choose: tr("booking.manual.session_picker"),
+          noSessions: tr("booking.manual.no_sessions"),
           payment: tr("booking.manual.payment"),
           ticketType: tr("booking.manual.ticket_type"),
           payCredit: tr("booking.manual.pay_credit"),

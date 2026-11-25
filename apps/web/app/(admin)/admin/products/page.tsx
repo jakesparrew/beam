@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Badge, Button, buttonVariants, EmptyState, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@beam/ui";
+import { Badge, buttonVariants, EmptyState, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@beam/ui";
 import { PRODUCT_KINDS, type ProductKind } from "@beam/core/commerce";
 import { formatMoney, type LocalizedText } from "@beam/core/i18n";
 import { hasPermission, requireStaff } from "@/lib/auth";
@@ -45,7 +45,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
         </div>
       </header>
       {canEdit ? null : <p className="text-sm text-muted-foreground">{c("read_only")}</p>}
-      <form className="flex flex-wrap items-end gap-2" role="search">
+      <form data-auto-filter="" className="flex flex-wrap items-end gap-2" role="search">
         <select name="kind" defaultValue={kind ?? ""} aria-label={c("filter_kind")} className={selectClass}>
           <option value="">{tr("commerce.common.all")}</option>
           {PRODUCT_KINDS.map((k) => (
@@ -59,9 +59,6 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
           <option value="active">{tr("commerce.common.active")}</option>
           <option value="inactive">{tr("commerce.common.inactive")}</option>
         </select>
-        <Button type="submit" variant="outline">
-          {tr("commerce.common.filter")}
-        </Button>
         {filtered ? (
           <Link href="/admin/products" className={buttonVariants({ variant: "ghost" })}>
             {tr("commerce.common.clear_filters")}

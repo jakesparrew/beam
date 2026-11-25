@@ -8,8 +8,10 @@ import { SettingsForm } from "@/modules/platform/ui/settings-form";
 import { zodToFormFields } from "@/modules/platform/ui/zod-form";
 
 /** Keys with their own screen or written only by the system. */
-const DEDICATED: Record<string, "/admin/settings/ai" | "/admin/system/go-live" | "/admin/system/security"> = {
+const DEDICATED: Record<string, "/admin/settings/ai" | "/admin/system/go-live" | "/admin/system/security" | "/admin/sessions/rules" | "/admin/sessions/rules?tab=hours"> = {
   ai: "/admin/settings/ai",
+  booking_rules: "/admin/sessions/rules",
+  business_hours: "/admin/sessions/rules?tab=hours",
   go_live_gate: "/admin/system/go-live",
   security: "/admin/system/security",
 };

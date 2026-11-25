@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Route } from "next";
-import { Badge, Button, EmptyState, Input, Label, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, buttonVariants } from "@beam/ui";
+import { Badge, EmptyState, Input, Label, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, buttonVariants } from "@beam/ui";
 import { BOOKING_SOURCES, BOOKING_STATUSES, PAID_WITH, addDays, brusselsTime, zonedTimeToUtc, type BookingSource, type BookingStatus, type PaidWith } from "@beam/core/booking";
 import { formatDate, type Locale, type LocalizedText } from "@beam/core/i18n";
 import { hasPermission, requireStaff } from "@/lib/auth";
@@ -78,7 +78,7 @@ export default async function BookingsPage({ searchParams }: { searchParams: Pro
         ) : null}
       </div>
 
-      <form method="get" className="grid gap-3 rounded-md border p-3 sm:grid-cols-3 lg:grid-cols-6 lg:items-end" role="search">
+      <form data-auto-filter="" method="get" className="grid gap-3 rounded-md border p-3 sm:grid-cols-3 lg:grid-cols-6 lg:items-end" role="search">
         <div className="grid gap-1 lg:col-span-2">
           <Label htmlFor="bookings-q">{tr("booking.bookings.person")}</Label>
           <Input id="bookings-q" name="q" defaultValue={q} placeholder={soft("crm.persons.list.search_placeholder")} />
@@ -126,9 +126,6 @@ export default async function BookingsPage({ searchParams }: { searchParams: Pro
         </div>
         {personId ? <input type="hidden" name="personId" value={personId} /> : null}
         {sessionId ? <input type="hidden" name="sessionId" value={sessionId} /> : null}
-        <Button type="submit" variant="outline">
-          {soft("crm.common.search")}
-        </Button>
       </form>
 
       {people.length ? (

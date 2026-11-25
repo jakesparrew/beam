@@ -333,7 +333,17 @@
       "conflicts_title": "Sessies met boekingen op deze dag",
       "conflict_row": "{time}: {count, plural, one {# boeking} other {# boekingen}}",
       "cancel_conflicts": "Deze sessies annuleren",
-      "empty": "Geen sluitingsdagen gepland."
+      "empty": "Geen sluitingsdagen gepland.",
+      "calendar_title": "Kalender",
+      "calendar_prev": "Vorige maand",
+      "calendar_next": "Volgende maand",
+      "calendar_today": "Deze maand",
+      "calendar_hint": "Klik op een dag om hem te sluiten of weer te openen. Rood: gesloten. Oranje: speciale uren. Grijs: elke week gesloten.",
+      "calendar_reason": "Reden (niet verplicht, klanten zien ze)",
+      "calendar_remove": "Verwijderen",
+      "calendar_closed_weekly": "Elke week gesloten",
+      "calendar_partial": "alleen sommige sessies",
+      "calendar_default_name": "Gesloten"
     },
     "rules": {
       "title": "Boekingsregels",
@@ -456,7 +466,11 @@
       "send_email": "De bevestigingsmail versturen",
       "emergency_contact": "Noodcontact voor de nacht",
       "create": "Boeking aanmaken",
-      "ticket_type": "Tickettype"
+      "ticket_type": "Tickettype",
+      "day": "Dag",
+      "previous_day": "Vorige dag",
+      "next_day": "Volgende dag",
+      "no_sessions": "Geen sessies op deze dag. Kies een andere dag."
     },
     "checkin": {
       "title": "Onthaal",
@@ -480,7 +494,12 @@
       "guests_of": "Gasten van {name}",
       "check_in_override": "Toch inchecken",
       "revert_no_show": "No-show ongedaan maken",
-      "scan_hint": "Scan de QR-code, of typ de code of een naam, en druk op Enter."
+      "scan_hint": "Scan de QR-code, of typ de code of een naam, en druk op Enter.",
+      "cue_night": "Nacht",
+      "cue_member": "Lid",
+      "cue_package": "Betaalt met een pakket",
+      "cue_child": "Kind",
+      "cue_guest": "Gast"
     },
     "waitlist": {
       "title": "Wachtlijsten",
@@ -496,7 +515,12 @@
       "clear_flag": "Markering wissen",
       "add_person": "Persoon toevoegen",
       "no_email_phone": "Geen e-mail: bel deze persoon over het aanbod.",
-      "empty": "Niemand staat op de wachtlijst."
+      "empty": "Niemand staat op de wachtlijst.",
+      "type_day": "Dagsessies",
+      "type_night": "Nachtsessies",
+      "type_event": "Evenementen",
+      "type_webinar": "Webinars",
+      "waiting_count": "Wachtend: {count}"
     },
     "portalBook": {
       "title": "Een sessie boeken",

@@ -57,12 +57,11 @@ export default async function NewPrivacyRequestPage({ searchParams }: { searchPa
     return (
       <div className="grid gap-6">
         <h1 className="text-2xl font-semibold">{tr("ops.privacy.new")}</h1>
-        <form method="get" role="search" className="grid max-w-xl gap-2 sm:grid-cols-[1fr_auto] sm:items-end">
+        <form data-auto-filter="" method="get" role="search" className="grid max-w-xl gap-2 sm:grid-cols-[1fr_auto] sm:items-end">
           <div className="grid gap-1">
             <Label htmlFor="privacy-q">{tr("platform.users.search")}</Label>
             <Input id="privacy-q" name="q" defaultValue={q} placeholder={soft("crm.persons.list.search_placeholder")} autoFocus />
           </div>
-          <Button type="submit">{tr("platform.users.search")}</Button>
         </form>
         {matches.length ? (
           <ul className="grid max-w-xl gap-2">

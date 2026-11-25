@@ -147,7 +147,7 @@ export default async function LightspeedPage({ searchParams }: { searchParams: P
           <h2 id="lightspeed-daily" className="text-lg font-semibold">
             {c("daily_title")}
           </h2>
-          <form method="get" className="flex flex-wrap items-end gap-2">
+          <form data-auto-filter="" method="get" className="flex flex-wrap items-end gap-2">
             <label className="grid gap-1 text-sm">
               <span>{c("from")}</span>
               <Input type="date" name="from" defaultValue={from} max={to} className="h-11 w-48" />
@@ -156,9 +156,6 @@ export default async function LightspeedPage({ searchParams }: { searchParams: P
               <span>{c("to")}</span>
               <Input type="date" name="to" defaultValue={to} className="h-11 w-48" />
             </label>
-            <Button type="submit" variant="outline" className="min-h-11">
-              {c("show")}
-            </Button>
           </form>
           {daily.length === 0 ? (
             <p className="text-sm text-muted-foreground">{c("daily_empty")}</p>

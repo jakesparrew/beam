@@ -64,7 +64,7 @@ export default async function CampaignsPage({ searchParams }: { searchParams: Pr
           <AlertDescription>{errorText}</AlertDescription>
         </Alert>
       ) : null}
-      <form className="flex flex-wrap items-end gap-3" method="get">
+      <form data-auto-filter="" className="flex flex-wrap items-end gap-3" method="get">
         <div className="grid gap-1">
           <Label htmlFor="campaigns-q">{t("search")}</Label>
           <Input id="campaigns-q" name="q" defaultValue={sp.q ?? ""} />
@@ -80,9 +80,6 @@ export default async function CampaignsPage({ searchParams }: { searchParams: Pr
             ))}
           </select>
         </div>
-        <Button type="submit" variant="outline">
-          {t("filter")}
-        </Button>
       </form>
       {list.items.length === 0 ? (
         <EmptyState

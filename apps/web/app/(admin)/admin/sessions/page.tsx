@@ -90,9 +90,6 @@ export default async function SessionsPage({ searchParams }: { searchParams: Pro
               <Link href="/admin/sessions/exceptions" className={buttonVariants({ variant: "outline" })}>
                 {tr("booking.nav.exceptions")}
               </Link>
-              <Link href="/admin/sessions/rules" className={buttonVariants({ variant: "outline" })}>
-                {tr("booking.nav.rules")}
-              </Link>
             </>
           ) : null}
           <Link href="/admin/sessions/holds" className={buttonVariants({ variant: "outline" })}>

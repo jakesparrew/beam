@@ -20,6 +20,8 @@ export type StaffWaitlistRow = {
   sessionId: string;
   sessionTitle: LocalizedText;
   startsAt: Date;
+  /** The kind of product the session sells; a webinar is an event session with a webinar. */
+  productType: "day" | "night" | "event" | "webinar";
   personId: string;
   personName: string;
   hasEmail: boolean;
@@ -64,6 +66,8 @@ export async function listWaitlistRows(
       sessionId: sessions.id,
       sessionTitle: sessions.title,
       startsAt: sessions.startsAt,
+      sessionKind: sessions.kind,
+      webinarId: sessions.webinarId,
       personId: persons.id,
       firstName: persons.firstName,
       lastName: persons.lastName,
@@ -93,8 +97,9 @@ export async function listWaitlistRows(
     .offset(input.offset ?? 0);
   return {
     hasMore: rows.length > PAGE,
-    rows: rows.slice(0, PAGE).map(({ firstName, lastName, email, ...r }) => ({
+    rows: rows.slice(0, PAGE).map(({ firstName, lastName, email, sessionKind, webinarId, ...r }) => ({
       ...r,
+      productType: webinarId ? ("webinar" as const) : sessionKind,
       personName: [firstName, lastName].filter(Boolean).join(" ").trim() || "-",
       hasEmail: !!email,
     })),

@@ -308,13 +308,12 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
             ) : (
               <>
                 <p className="text-sm text-muted-foreground">{c("anonymous")}</p>
-                <form method="get" role="search" className="flex flex-wrap items-end gap-2">
+                <form data-auto-filter="" method="get" role="search" className="flex flex-wrap items-end gap-2">
                   {Object.entries(hidden()).map(([k, v]) => (k === "personId" ? null : <input key={k} type="hidden" name={k} value={v} />))}
                   <label className="grid gap-1 text-sm">
                     <span>{c("person_search")}</span>
                     <Input name="q" defaultValue={q} className="h-11 w-64" />
                   </label>
-                  <Button type="submit" variant="outline" className="min-h-11">{c("search")}</Button>
                 </form>
                 {q.length >= 2 && !matches.length ? <p className="text-sm">{c("no_match")}</p> : null}
                 <ul className="grid gap-1">

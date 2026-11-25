@@ -333,7 +333,17 @@
       "conflicts_title": "Sessions with bookings on this day",
       "conflict_row": "{time}: {count, plural, one {# booking} other {# bookings}}",
       "cancel_conflicts": "Cancel these sessions",
-      "empty": "No closed days planned."
+      "empty": "No closed days planned.",
+      "calendar_title": "Calendar",
+      "calendar_prev": "Previous month",
+      "calendar_next": "Next month",
+      "calendar_today": "This month",
+      "calendar_hint": "Click a day to close it or open it again. Red: closed. Orange: special hours. Grey: closed every week.",
+      "calendar_reason": "Reason (optional, customers see it)",
+      "calendar_remove": "Remove",
+      "calendar_closed_weekly": "Closed every week",
+      "calendar_partial": "some sessions only",
+      "calendar_default_name": "Closed"
     },
     "rules": {
       "title": "Booking rules",
@@ -456,7 +466,11 @@
       "send_email": "Send the confirmation email",
       "emergency_contact": "Emergency contact for the night",
       "create": "Create booking",
-      "ticket_type": "Ticket type"
+      "ticket_type": "Ticket type",
+      "day": "Day",
+      "previous_day": "Previous day",
+      "next_day": "Next day",
+      "no_sessions": "No sessions on this day. Pick another day."
     },
     "checkin": {
       "title": "Check-in desk",
@@ -480,7 +494,12 @@
       "guests_of": "Guests of {name}",
       "check_in_override": "Check in anyway",
       "revert_no_show": "Undo no-show",
-      "scan_hint": "Scan the QR code, or type the code or a name, then press Enter."
+      "scan_hint": "Scan the QR code, or type the code or a name, then press Enter.",
+      "cue_night": "Night",
+      "cue_member": "Member",
+      "cue_package": "Pays with a package",
+      "cue_child": "Child",
+      "cue_guest": "Guest"
     },
     "waitlist": {
       "title": "Waiting lists",
@@ -496,7 +515,12 @@
       "clear_flag": "Clear flag",
       "add_person": "Add a person",
       "no_email_phone": "No email: phone this person about the offer.",
-      "empty": "Nobody is waiting."
+      "empty": "Nobody is waiting.",
+      "type_day": "Day sessions",
+      "type_night": "Night sessions",
+      "type_event": "Events",
+      "type_webinar": "Webinars",
+      "waiting_count": "Waiting: {count}"
     },
     "portalBook": {
       "title": "Book a session",

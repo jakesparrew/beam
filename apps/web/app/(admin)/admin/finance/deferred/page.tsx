@@ -137,7 +137,7 @@ export default async function FinanceDeferredPage({
         <p className="max-w-3xl text-sm text-muted-foreground">{l("intro")}</p>
       </header>
 
-      <form method="get" aria-label={l("filters")} className="grid gap-4 sm:grid-cols-[repeat(3,minmax(10rem,14rem))_auto] sm:items-end">
+      <form data-auto-filter="" method="get" aria-label={l("filters")} className="grid gap-4 sm:grid-cols-[repeat(3,minmax(10rem,14rem))_auto] sm:items-end">
         <div className="grid gap-1.5">
           <Label htmlFor="deferred-as-of">{l("as_of")}</Label>
           <Input id="deferred-as-of" name="asOf" type="date" required defaultValue={deferred.asOf} />
@@ -150,7 +150,6 @@ export default async function FinanceDeferredPage({
           <Label htmlFor="deferred-to">{l("to")}</Label>
           <Input id="deferred-to" name="to" type="date" required defaultValue={period.to} />
         </div>
-        <Button type="submit">{l("apply")}</Button>
       </form>
       <div aria-live="polite" role="status" className="grid gap-1 text-sm">
         {asOfFallback ? <p className="font-medium text-destructive">{l("as_of_invalid")}</p> : null}

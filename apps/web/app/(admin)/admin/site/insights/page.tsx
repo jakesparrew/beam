@@ -1,5 +1,5 @@
 import NextLink from "next/link";
-import { Button, EmptyState } from "@beam/ui";
+import { EmptyState } from "@beam/ui";
 import { formatMoney } from "@beam/core/i18n";
 import { hasPermission, requireStaff } from "@/lib/auth";
 import { adminLocale } from "@/lib/i18n";
@@ -44,7 +44,7 @@ export default async function SiteInsightsPage({ searchParams }: { searchParams:
         <p className="text-sm text-muted-foreground">{L["insights.intro"]}</p>
       </div>
       <SiteSectionNav L={L} current="/admin/site/insights" />
-      <form className="flex flex-wrap items-end gap-3" action="/admin/site/insights">
+      <form data-auto-filter="" className="flex flex-wrap items-end gap-3" action="/admin/site/insights">
         <label className="grid gap-1 text-sm">
           {L["insights.from"]}
           <input type="date" name="from" defaultValue={data.fromDay} className={inputClass} />
@@ -53,9 +53,6 @@ export default async function SiteInsightsPage({ searchParams }: { searchParams:
           {L["insights.to"]}
           <input type="date" name="to" defaultValue={data.toDay} className={inputClass} />
         </label>
-        <Button type="submit" variant="outline">
-          {L["insights.apply"]}
-        </Button>
         {data.rows.length ? (
           <a href={csvHref} download={`landing-insights-${data.fromDay}-${data.toDay}.csv`} className="text-sm underline hover:no-underline">
             {L["insights.export"]}

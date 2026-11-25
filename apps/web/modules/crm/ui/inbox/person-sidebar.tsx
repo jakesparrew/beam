@@ -89,11 +89,8 @@ export function PersonSidebar({
           <p className="text-sm text-muted-foreground">{labels.unlinked}</p>
           {canWrite ? (
             <>
-              <form method="get" className="flex gap-2" role="search">
+              <form data-auto-filter="" method="get" className="flex gap-2" role="search">
                 <Input name="q" defaultValue={query} placeholder={labels.searchPlaceholder} aria-label={labels.search} />
-                <Button type="submit" variant="outline">
-                  {labels.searchButton}
-                </Button>
               </form>
               {query ? (
                 results.length ? (

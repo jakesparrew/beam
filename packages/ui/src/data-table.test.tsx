@@ -18,7 +18,6 @@ const labels = {
   pagination: "Pagination",
   previous: "Previous",
   next: "Next",
-  applyFilters: "Apply",
   filters: "Filters",
 };
 
@@ -163,6 +162,9 @@ describe("DataTable", () => {
     );
     const form = screen.getByRole("search", { name: "Filters" });
     expect(form).toHaveAttribute("method", "get");
+    // Applies on change (AutoFilter in the admin shell): no Apply button.
+    expect(form).toHaveAttribute("data-auto-filter");
+    expect(form.querySelector("button")).toBeNull();
     expect(screen.getByLabelText("Status")).toHaveValue("dead");
     expect(screen.getByLabelText("Search")).toHaveValue("");
     // Non-filter params survive a submit; the cursor resets.

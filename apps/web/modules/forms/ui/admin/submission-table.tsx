@@ -7,7 +7,7 @@
  */
 import Link from "next/link";
 import { formatDateTime, formatNumber, type Locale } from "@beam/core/i18n";
-import { Badge, Button, EmptyState, Input, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@beam/ui";
+import { Badge, EmptyState, Input, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@beam/ui";
 import type { SubmissionFilter, SubmissionFilterOptions, SubmissionRow } from "../../queries";
 
 /** Screen copy keyed relative to `forms.`; a missing key renders `⟦forms.<key>⟧`. */
@@ -66,7 +66,7 @@ export function SubmissionTable({ formId, rows, nextCursor, filter, options, out
   const filtered = Object.values(filter).some((v) => typeof v === "string" && v);
   return (
     <div className="grid gap-4">
-      <form method="get" action={base} className="flex flex-wrap items-end gap-3 rounded-md border p-3" aria-label={lbl(labels, "submissions.filters")}>
+      <form data-auto-filter="" method="get" action={base} className="flex flex-wrap items-end gap-3 rounded-md border p-3" aria-label={lbl(labels, "submissions.filters")}>
         <Select name="status" value={filter.status} label={lbl(labels, "submissions.filter_status")} options={[all, ...STATUSES.map((s) => ({ value: s, label: lbl(labels, `submissions.status_${s}`) }))]} />
         {options.outcomes.length ? (
           <Select name="outcomeKey" value={filter.outcomeKey} label={lbl(labels, "submissions.filter_outcome")} options={[all, ...options.outcomes.map((o) => ({ value: o.key, label: outcomeLabels[o.key] ?? o.key }))]} />
@@ -91,7 +91,6 @@ export function SubmissionTable({ formId, rows, nextCursor, filter, options, out
           {lbl(labels, "submissions.filter_q")}
           <Input type="search" name="q" defaultValue={filter.q ?? ""} maxLength={100} className="w-56" />
         </label>
-        <Button type="submit">{lbl(labels, "submissions.apply")}</Button>
         {filtered ? (
           <Link className="text-sm underline" href={base as never}>
             {lbl(labels, "submissions.reset")}

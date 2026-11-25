@@ -9,7 +9,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { brusselsDay } from "@beam/core/forms";
 import { formatMoney, formatNumber, formatPercent } from "@beam/core/i18n";
-import { Button, Card, CardContent, CardHeader, CardTitle, EmptyState, Input, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@beam/ui";
+import { Card, CardContent, CardHeader, CardTitle, EmptyState, Input, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@beam/ui";
 import { hasPermission, requireStaff } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
 import { adminLocale, translator } from "@/lib/i18n";
@@ -64,7 +64,7 @@ export default async function FormReportPage({ params, searchParams }: { params:
         </div>
       </header>
 
-      <form method="get" className="flex flex-wrap items-end gap-3 rounded-md border p-3">
+      <form data-auto-filter="" method="get" className="flex flex-wrap items-end gap-3 rounded-md border p-3">
         <label className="grid gap-1 text-sm">
           {tr("forms.report.from")}
           <Input type="date" name="from" defaultValue={lo} className="w-40" />
@@ -83,7 +83,6 @@ export default async function FormReportPage({ params, searchParams }: { params:
             ))}
           </select>
         </label>
-        <Button type="submit">{tr("forms.report.apply")}</Button>
       </form>
 
       {t.started < 1 ? (

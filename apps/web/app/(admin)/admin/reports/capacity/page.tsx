@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Button, cn, EmptyState, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@beam/ui";
+import { cn, EmptyState, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@beam/ui";
 import { formatPercent } from "@beam/core/i18n";
 import { flag } from "@/lib/flags";
 import { translator } from "@/lib/i18n";
@@ -44,7 +44,7 @@ export default async function CapacityReportPage({ searchParams }: { searchParam
       </div>
       <p className="text-sm text-muted-foreground">{tr("ops.reports.capacity.intro")}</p>
 
-      <form method="get" action={BASE} className="flex flex-wrap items-end gap-3">
+      <form data-auto-filter="" method="get" action={BASE} className="flex flex-wrap items-end gap-3">
         <input type="hidden" name="groupBy" value={groupBy} />
         <label className="grid gap-1 text-sm">
           {tr("ops.common.from")}
@@ -54,9 +54,6 @@ export default async function CapacityReportPage({ searchParams }: { searchParam
           {tr("ops.common.to")}
           <input type="date" name="to" defaultValue={r.range.to} className="rounded-md border bg-background px-2 py-1" />
         </label>
-        <Button type="submit" variant="outline" size="sm">
-          {tr("ops.common.apply")}
-        </Button>
       </form>
 
       <nav aria-label={tr("ops.reports.capacity.group_by")} className="flex flex-wrap items-center gap-2">

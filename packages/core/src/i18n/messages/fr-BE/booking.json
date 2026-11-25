@@ -333,7 +333,17 @@
       "conflicts_title": "Séances avec des réservations ce jour-là",
       "conflict_row": "{time} : {count, plural, one {# réservation} other {# réservations}}",
       "cancel_conflicts": "Annuler ces séances",
-      "empty": "Aucun jour de fermeture prévu."
+      "empty": "Aucun jour de fermeture prévu.",
+      "calendar_title": "Calendrier",
+      "calendar_prev": "Mois précédent",
+      "calendar_next": "Mois suivant",
+      "calendar_today": "Ce mois-ci",
+      "calendar_hint": "Cliquez sur un jour pour le fermer ou le rouvrir. Rouge : fermé. Orange : horaires spéciaux. Gris : fermé chaque semaine.",
+      "calendar_reason": "Raison (facultative, visible par les clients)",
+      "calendar_remove": "Supprimer",
+      "calendar_closed_weekly": "Fermé chaque semaine",
+      "calendar_partial": "certaines séances seulement",
+      "calendar_default_name": "Fermé"
     },
     "rules": {
       "title": "Règles de réservation",
@@ -456,7 +466,11 @@
       "send_email": "Envoyer l’e-mail de confirmation",
       "emergency_contact": "Contact d’urgence pour la nuit",
       "create": "Créer la réservation",
-      "ticket_type": "Type de billet"
+      "ticket_type": "Type de billet",
+      "day": "Jour",
+      "previous_day": "Jour précédent",
+      "next_day": "Jour suivant",
+      "no_sessions": "Aucune séance ce jour-là. Choisissez un autre jour."
     },
     "checkin": {
       "title": "Accueil",
@@ -480,7 +494,12 @@
       "guests_of": "Invités de {name}",
       "check_in_override": "Enregistrer quand même",
       "revert_no_show": "Annuler l’absence",
-      "scan_hint": "Scannez le code QR, ou tapez le code ou un nom, puis appuyez sur Entrée."
+      "scan_hint": "Scannez le code QR, ou tapez le code ou un nom, puis appuyez sur Entrée.",
+      "cue_night": "Nuit",
+      "cue_member": "Membre",
+      "cue_package": "Paie avec un forfait",
+      "cue_child": "Enfant",
+      "cue_guest": "Invité"
     },
     "waitlist": {
       "title": "Listes d’attente",
@@ -496,7 +515,12 @@
       "clear_flag": "Lever le signalement",
       "add_person": "Ajouter une personne",
       "no_email_phone": "Pas d’e-mail : appelez cette personne pour l’offre.",
-      "empty": "Personne n’est en attente."
+      "empty": "Personne n’est en attente.",
+      "type_day": "Séances de jour",
+      "type_night": "Séances de nuit",
+      "type_event": "Événements",
+      "type_webinar": "Webinaires",
+      "waiting_count": "En attente : {count}"
     },
     "portalBook": {
       "title": "Réserver une séance",

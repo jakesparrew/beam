@@ -99,9 +99,10 @@ export const nav = [
     order: 160,
   },
   {
+    // Owner review section 10: booking rules live under Settings only, not under Bookings.
     key: "booking.rules",
     area: "admin",
-    section: "booking",
+    section: "settings",
     labelKey: "booking.nav.rules",
     href: "/admin/sessions/rules",
     permission: "settings.write",

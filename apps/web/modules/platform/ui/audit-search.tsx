@@ -14,7 +14,7 @@ export type AuditRowView = { id: string; actor: string; action: string; entityTy
 
 export function AuditSearchForm({ filters, staff, labels }: { filters: AuditFilters; staff: { id: string; name: string }[]; labels: Labels }) {
   return (
-    <form method="get" className="grid gap-3 rounded-md border p-4 sm:grid-cols-4" role="search" aria-label={lab(labels, "filters")}>
+    <form data-auto-filter="" method="get" className="grid gap-3 rounded-md border p-4 sm:grid-cols-4" role="search" aria-label={lab(labels, "filters")}>
       <FormField label={lab(labels, "actor")}>
         <select name="actorId" defaultValue={filters.actorId ?? ""} className="h-9 rounded-md border bg-background px-2 text-sm">
           <option value="">{lab(labels, "any")}</option>
@@ -44,7 +44,6 @@ export function AuditSearchForm({ filters, staff, labels }: { filters: AuditFilt
         <Input name="to" type="date" defaultValue={filters.to ?? ""} />
       </FormField>
       <div className="flex items-end">
-        <Button type="submit">{lab(labels, "apply")}</Button>
       </div>
     </form>
   );

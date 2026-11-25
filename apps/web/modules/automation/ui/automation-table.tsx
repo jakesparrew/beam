@@ -5,7 +5,7 @@
  * Every string comes from the `automation` catalogue through `labels`; times are Europe/Brussels.
  */
 import Link from "next/link";
-import { Badge, Button, Card, CardContent, CardHeader, CardTitle, EmptyState, Input, Label, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@beam/ui";
+import { Badge, Card, CardContent, CardHeader, CardTitle, EmptyState, Input, Label, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@beam/ui";
 import { formatDateTime, type Locale } from "@beam/core/i18n";
 import type { At, Definition, Filter, Step } from "@beam/core/automation";
 import { AutomationStatusBadge, fill, type Labels } from "./outcome-badge";
@@ -41,7 +41,7 @@ export function AutomationFilters({
 }) {
   const selectClass = "h-9 rounded-md border border-input bg-background px-3 text-sm";
   return (
-    <form method="get" action="/admin/automations" className="flex flex-wrap items-end gap-3" data-testid="automation-filters">
+    <form data-auto-filter="" method="get" action="/admin/automations" className="flex flex-wrap items-end gap-3" data-testid="automation-filters">
       <div className="grid gap-1">
         <Label htmlFor="automation-filter-status">{l["list.filter_status"]}</Label>
         <select id="automation-filter-status" name="status" defaultValue={value.status ?? ""} className={selectClass}>
@@ -68,9 +68,6 @@ export function AutomationFilters({
         <Label htmlFor="automation-filter-q">{l["list.search"]}</Label>
         <Input id="automation-filter-q" name="q" defaultValue={value.q ?? ""} placeholder={l["list.search_placeholder"]} className="w-56" />
       </div>
-      <Button type="submit" variant="outline">
-        {l["common.apply"]}
-      </Button>
     </form>
   );
 }

@@ -46,7 +46,7 @@ export default async function CampaignRecipientsPage({ params, searchParams }: {
           <Link href={`/admin/campaigns/${c.id}`}>{clab(labels, "back_to_campaign")}</Link>
         </Button>
       </div>
-      <form className="flex flex-wrap items-end gap-3" method="get">
+      <form data-auto-filter="" className="flex flex-wrap items-end gap-3" method="get">
         <div className="grid gap-1">
           <Label htmlFor="recipients-q">{clab(labels, "search")}</Label>
           <Input id="recipients-q" name="q" defaultValue={sp.q ?? ""} />
@@ -62,9 +62,6 @@ export default async function CampaignRecipientsPage({ params, searchParams }: {
             ))}
           </select>
         </div>
-        <Button type="submit" variant="outline">
-          {clab(labels, "filter")}
-        </Button>
       </form>
       {list.total === 0 && !status && !sp.q ? (
         <EmptyState title={clab(labels, "recipients_empty")} />

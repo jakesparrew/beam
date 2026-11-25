@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Button, buttonVariants, EmptyState, Input } from "@beam/ui";
+import { buttonVariants, EmptyState, Input } from "@beam/ui";
 import { formatMoney } from "@beam/core/i18n";
 import { requireStaff } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
@@ -80,7 +80,7 @@ export default async function PipelinePage({ searchParams }: { searchParams: Pro
           />
         )
       ) : null}
-      <form className="flex flex-wrap items-end gap-2" role="search">
+      <form data-auto-filter="" className="flex flex-wrap items-end gap-2" role="search">
         <select
           name="owner"
           defaultValue={owner ?? ""}
@@ -95,9 +95,6 @@ export default async function PipelinePage({ searchParams }: { searchParams: Pro
           ))}
         </select>
         <Input name="min" type="number" min={0} defaultValue={sp.min ?? ""} aria-label={p("filter_min_value")} placeholder={p("filter_min_value")} className="max-w-48" />
-        <Button type="submit" variant="outline">
-          {p("filter")}
-        </Button>
         {owner || minValueCents ? (
           <Link href="/admin/pipeline" className={buttonVariants({ variant: "ghost" })}>
             {tr("crm.common.clear_filters")}

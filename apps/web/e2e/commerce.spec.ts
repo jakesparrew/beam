@@ -170,8 +170,10 @@ test.describe.serial("front desk and refunds", () => {
     await expectAccessible(page);
     await page.locator(`a[href*="${product!.id}"]`).first().click();
     await page.waitForURL(/items=/);
-    await page.getByLabel(/Zoek op naam|Search by name|Rechercher par nom/).fill(POS_BUYER);
-    await page.getByRole("button", { name: /^(Zoeken|Search|Rechercher)$/ }).click();
+    // The search applies on Enter (owner review section 10: no separate search button).
+    const search = page.getByLabel(/Zoek op naam|Search by name|Rechercher par nom/);
+    await search.fill(POS_BUYER);
+    await search.press("Enter");
     await page.getByRole("link", { name: new RegExp(POS_BUYER.replace(/[.]/g, "\\.")) }).click();
     await page.waitForURL(/personId=/);
     await page.getByRole("radio", { name: /^(Contant|Cash|Espèces)$/ }).check();

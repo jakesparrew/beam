@@ -13,6 +13,7 @@ import { appEnv } from "@/lib/integrations";
 import { getSetting } from "@/lib/settings";
 import { isGoLiveGateComplete } from "@/modules/platform/api";
 import { getRoleLabel } from "@/modules/platform/queries";
+import { AutoFilter } from "@/modules/platform/ui/auto-filter";
 import { AdminLocaleSwitch } from "@/modules/platform/ui/locale-switch";
 import { AdminFrame } from "@/modules/platform/ui/support-form";
 import { NAV } from "@/registry/nav.generated";
@@ -163,6 +164,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
       reportLabels={reportProblemLabels(tr, locale)}
       emergencyPhone={support.emergency_phone}
     >
+      <AutoFilter />
       {children}
     </AdminFrame>
   );

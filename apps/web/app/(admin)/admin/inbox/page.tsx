@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Button, buttonVariants } from "@beam/ui";
+import { buttonVariants } from "@beam/ui";
 import { formatDateTime } from "@beam/core/i18n";
 import { INBOX_CHANNELS, INBOX_THREAD_STATUSES, type InboxChannel, type InboxThreadStatus } from "@beam/db/schema";
 import { requireStaff } from "@/lib/auth";
@@ -55,7 +55,7 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
       <header className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">{p("title")}</h1>
       </header>
-      <form className="flex flex-wrap items-end gap-2" role="search">
+      <form data-auto-filter="" className="flex flex-wrap items-end gap-2" role="search">
         <select name="status" defaultValue={status} aria-label={p("filter_status")} className={selectClass}>
           {INBOX_THREAD_STATUSES.map((s) => (
             <option key={s} value={s}>
@@ -86,9 +86,6 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
           <input type="checkbox" name="escalated" value="1" defaultChecked={escalatedOnly} className="size-4" />
           {p("filter_escalated")}
         </label>
-        <Button type="submit" variant="outline">
-          {p("filter")}
-        </Button>
         {filtered ? (
           <Link href="/admin/inbox" className={buttonVariants({ variant: "ghost" })}>
             {tr("crm.common.clear_filters")}

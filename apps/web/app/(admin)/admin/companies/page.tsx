@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Badge, Button, buttonVariants, EmptyState, Input, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@beam/ui";
+import { Badge, buttonVariants, EmptyState, Input, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@beam/ui";
 import type { CompanyStatus } from "@beam/core/crm";
 import { hasPermission, requireStaff } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
@@ -31,7 +31,7 @@ export default async function CompaniesPage({ searchParams }: { searchParams: Pr
           </Link>
         ) : null}
       </header>
-      <form className="flex flex-wrap items-end gap-2" role="search">
+      <form data-auto-filter="" className="flex flex-wrap items-end gap-2" role="search">
         <Input name="q" defaultValue={q ?? ""} placeholder={c("search_placeholder")} aria-label={tr("crm.common.search")} className="max-w-sm" />
         <select
           name="status"
@@ -50,9 +50,6 @@ export default async function CompaniesPage({ searchParams }: { searchParams: Pr
           <input type="checkbox" name="partner" value="yes" defaultChecked={sp.partner === "yes"} />
           {c("col_partner")}
         </label>
-        <Button type="submit" variant="outline">
-          {tr("crm.common.search")}
-        </Button>
         {filtered ? (
           <Link href="/admin/companies" className={buttonVariants({ variant: "ghost" })}>
             {tr("crm.common.clear_filters")}

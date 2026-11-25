@@ -86,7 +86,7 @@ export default async function TemplatesPage({ searchParams }: { searchParams: Pr
           </Button>
         ))}
       </nav>
-      <form className="flex flex-wrap items-end gap-3" method="get">
+      <form data-auto-filter="" className="flex flex-wrap items-end gap-3" method="get">
         <input type="hidden" name="kind" value={kind} />
         <div className="grid gap-1">
           <Label htmlFor="templates-q">{t("search")}</Label>
@@ -116,9 +116,6 @@ export default async function TemplatesPage({ searchParams }: { searchParams: Pr
             </select>
           </div>
         ) : null}
-        <Button type="submit" variant="outline">
-          {t("filter")}
-        </Button>
       </form>
       {kind === "marketing" ? (
         <form action={create} className="flex flex-wrap items-end gap-3 rounded-md border p-4" aria-label={t("new")}>

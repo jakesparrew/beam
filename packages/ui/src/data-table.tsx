@@ -40,7 +40,7 @@ export type DataTableLabels = {
   pagination: string;
   previous: string;
   next: string;
-  /** Submit button of the filter form, for example "Apply". */
+  /** @deprecated Ignored: filters apply on change (the admin shell's `AutoFilter`), no button. */
   applyFilters?: string;
   /** Accessible name of the filter form, for example "Filters". */
   filters?: string;
@@ -53,7 +53,7 @@ export type DataTableProps<T> = {
   nextCursor?: string | null;
   /** Opaque keyset cursor of the previous page; `null` on the first page. */
   prevCursor?: string | null;
-  /** Column filters, rendered as a GET form so the state lives in the URL. */
+  /** Column filters, rendered as a GET form so the state lives in the URL; they apply on change. */
   filters?: DataTableFilter[];
   /** Shown instead of the table when `rows` is empty (usually an `EmptyState`). */
   emptyState: ReactNode;
@@ -145,6 +145,7 @@ export function DataTable<T>({
           {filters?.length ? (
             <form
               method="get"
+              data-auto-filter=""
               role="search"
               aria-label={labels.filters}
               className="flex flex-wrap items-end gap-3"
@@ -188,14 +189,6 @@ export function DataTable<T>({
                   </div>
                 );
               })}
-              {labels.applyFilters ? (
-                <button
-                  type="submit"
-                  className={buttonVariants({ variant: "outline" })}
-                >
-                  {labels.applyFilters}
-                </button>
-              ) : null}
             </form>
           ) : (
             <span />

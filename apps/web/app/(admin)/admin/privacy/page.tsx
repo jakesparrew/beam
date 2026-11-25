@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Route } from "next";
-import { Badge, Button, buttonVariants } from "@beam/ui";
+import { Badge, buttonVariants } from "@beam/ui";
 import { PRIVACY_KINDS, PRIVACY_STATUSES, brusselsDate, type PrivacyKind, type PrivacyStatus } from "@beam/core/ops";
 import { hasPermission, requireStaff } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
@@ -49,7 +49,7 @@ export default async function PrivacyRequestsPage({ searchParams }: { searchPara
           </Link>
         ) : null}
       </div>
-      <form method="get" className="flex flex-wrap items-end gap-3" aria-label={tr("platform.table.filters")}>
+      <form data-auto-filter="" method="get" className="flex flex-wrap items-end gap-3" aria-label={tr("platform.table.filters")}>
         <label className="grid gap-1 text-sm">
           <span>{tr("platform.jobs.filter_status")}</span>
           <select name="status" defaultValue={status ?? ""} className="h-10 rounded-md border bg-background px-2">
@@ -72,9 +72,6 @@ export default async function PrivacyRequestsPage({ searchParams }: { searchPara
             ))}
           </select>
         </label>
-        <Button type="submit" variant="outline" size="sm">
-          {tr("platform.jobs.apply_filters")}
-        </Button>
       </form>
       {items.length === 0 ? (
         <p className="text-sm text-muted-foreground">{tr("ops.privacy.empty")}</p>

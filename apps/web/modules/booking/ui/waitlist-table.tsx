@@ -1,23 +1,32 @@
 "use client";
 /**
  * The staff waitlist table (booking spec 5.1 `/admin/waitlist` and the session tab, R48, R49):
- * entries grouped by session and queue, with the duplicate signals of flagged entries and the
+ * entries grouped by date, product type and session (in queue order), with the duplicate signals of flagged entries and the
  * staff actions `offerSeatManually`, `moveWaitlistEntry` (queue or position), `releaseWaitlistEntry`
  * and `reviewWaitlistFlag`. A `confirmed` entry shows no action (protected seat, R41). Entries
  * without an email are marked "phone this person" when offered. Texts come from the page.
  */
+import Link from "next/link";
+import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Alert, AlertDescription, Badge, Button, Input } from "@beam/ui";
+import { Alert, AlertDescription, Badge, Button, Input, NavIcon } from "@beam/ui";
 import { moveWaitlistEntry, offerSeatManually, releaseWaitlistEntry, reviewWaitlistFlag } from "../actions/waitlist";
 
 type Queue = "lead" | "customer" | "public";
 type State = "waiting" | "offered" | "confirmed" | "released" | "expired" | "withdrawn";
+type ProductType = "day" | "night" | "event" | "webinar";
 
 export type WaitlistTableRow = {
   entryId: string;
   sessionId: string;
   sessionLabel: string;
+  sessionTitle: string;
+  /** Brussels date `YYYY-MM-DD` of the session start, the group key. */
+  sessionDate: string;
+  dateLabel: string;
+  timeLabel: string;
+  productType: ProductType;
   personName: string;
   hasEmail: boolean;
   queue: Queue;
@@ -46,6 +55,9 @@ export type WaitlistTableLabels = {
   confirm: string;
   empty: string;
   queues: Record<Queue, string>;
+  productTypes: Record<ProductType, string>;
+  /** "Waiting: {count}", filled in per session. */
+  waitingCount: string;
   states: Record<State, string>;
   errors: Record<string, string>;
 };
@@ -145,48 +157,102 @@ function Row({ row, labels, onDone }: { row: WaitlistTableRow; labels: WaitlistT
   );
 }
 
+const TYPE_ORDER = ["day", "night", "event", "webinar"] as const;
+const TYPE_ICON: Record<ProductType, string> = { day: "sun", night: "moon", event: "calendar-days", webinar: "video" };
+
+function EntriesTable({ rows, labels, onDone }: { rows: WaitlistTableRow[]; labels: WaitlistTableLabels; onDone: (error: string | null) => void }) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-left text-sm">
+        <thead>
+          <tr className="border-b">
+            <th className="p-2">{labels.person}</th>
+            <th className="p-2">{labels.queue}</th>
+            <th className="p-2">{labels.joinedAt}</th>
+            <th className="p-2">
+              <span className="sr-only">{labels.confirm}</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <Row key={r.entryId} row={r} labels={labels} onDone={onDone} />
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/**
+ * With `showSession` (the `/admin/waitlist` page, owner review section 10) the entries are grouped
+ * by date, then by product type (day, night, event, webinar), then by session with its start time
+ * and how many people wait; the session tab shows its own entries only.
+ */
 export function WaitlistTable({ rows, labels, showSession = true }: { rows: WaitlistTableRow[]; labels: WaitlistTableLabels; showSession?: boolean }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   if (rows.length === 0) return <p className="text-sm text-muted-foreground">{labels.empty}</p>;
-  const sessions = [...new Map(rows.map((r) => [r.sessionId, r.sessionLabel])).entries()];
   const done = (e: string | null) => {
     setError(e);
     if (!e) router.refresh();
   };
+  const alert = error ? (
+    <Alert variant="destructive" role="alert">
+      <AlertDescription>{error}</AlertDescription>
+    </Alert>
+  ) : null;
+  if (!showSession) {
+    return (
+      <div className="space-y-6">
+        {alert}
+        <EntriesTable rows={rows} labels={labels} onDone={done} />
+      </div>
+    );
+  }
+  // Rows arrive ordered by session start, so dates and sessions keep that order.
+  const dates = [...new Set(rows.map((r) => r.sessionDate))];
   return (
-    <div className="space-y-6">
-      {error ? (
-        <Alert variant="destructive" role="alert">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      ) : null}
-      {sessions.map(([sessionId, sessionLabel]) => (
-        <section key={sessionId} aria-label={sessionLabel}>
-          {showSession ? <h2 className="mb-2 text-lg font-semibold">{sessionLabel}</h2> : null}
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-b">
-                  <th className="p-2">{labels.person}</th>
-                  <th className="p-2">{labels.queue}</th>
-                  <th className="p-2">{labels.joinedAt}</th>
-                  <th className="p-2">
-                    <span className="sr-only">{labels.confirm}</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows
-                  .filter((r) => r.sessionId === sessionId)
-                  .map((r) => (
-                    <Row key={r.entryId} row={r} labels={labels} onDone={done} />
-                  ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      ))}
+    <div className="space-y-8">
+      {alert}
+      {dates.map((date) => {
+        const dayRows = rows.filter((r) => r.sessionDate === date);
+        return (
+          <section key={date} aria-labelledby={`waitlist-${date}`} className="space-y-4">
+            <h2 id={`waitlist-${date}`} className="border-b pb-1 text-lg font-semibold first-letter:uppercase">
+              {dayRows[0]!.dateLabel}
+            </h2>
+            {TYPE_ORDER.filter((type) => dayRows.some((r) => r.productType === type)).map((type) => {
+              const typeRows = dayRows.filter((r) => r.productType === type);
+              const sessions = [...new Map(typeRows.map((r) => [r.sessionId, r])).values()];
+              return (
+                <div key={type} className="space-y-3">
+                  <h3 className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+                    <NavIcon icon={TYPE_ICON[type]} />
+                    {labels.productTypes[type]}
+                  </h3>
+                  {sessions.map((s) => {
+                    const entries = typeRows.filter((r) => r.sessionId === s.sessionId);
+                    const waiting = entries.filter((r) => r.state === "waiting").length;
+                    return (
+                      <div key={s.sessionId} className="rounded-md border" aria-label={s.sessionLabel} role="group">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b bg-muted/40 px-3 py-2">
+                          <span className="font-semibold tabular-nums">{s.timeLabel}</span>
+                          <Link href={`/admin/sessions/${s.sessionId}` as Route} className="font-medium hover:underline">
+                            {s.sessionTitle}
+                          </Link>
+                          <Badge variant="secondary">{labels.waitingCount.replace("{count}", String(waiting))}</Badge>
+                        </div>
+                        <EntriesTable rows={entries} labels={labels} onDone={done} />
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </section>
+        );
+      })}
     </div>
   );
 }

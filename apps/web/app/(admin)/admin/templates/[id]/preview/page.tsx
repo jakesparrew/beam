@@ -88,7 +88,7 @@ export default async function TemplatePreviewPage({ params, searchParams }: { pa
             </Button>
           ))}
         </div>
-        <form method="get" className="flex flex-wrap items-end gap-2">
+        <form data-auto-filter="" method="get" className="flex flex-wrap items-end gap-2">
           <input type="hidden" name="locale" value={locale} />
           <input type="hidden" name="use" value={use} />
           <input type="hidden" name="as" value={sample ?? "lead"} />
@@ -97,12 +97,9 @@ export default async function TemplatePreviewPage({ params, searchParams }: { pa
             <Label htmlFor="preview-outcome">{t("outcome")}</Label>
             <Input id="preview-outcome" name="outcome" defaultValue={outcome ?? ""} />
           </div>
-          <Button type="submit" size="sm" variant="outline">
-            {t("apply")}
-          </Button>
         </form>
         {canReadPersons ? (
-          <form method="get" className="flex flex-wrap items-end gap-2">
+          <form data-auto-filter="" method="get" className="flex flex-wrap items-end gap-2">
             <input type="hidden" name="locale" value={locale} />
             <input type="hidden" name="use" value={use} />
             {versionId ? <input type="hidden" name="version" value={versionId} /> : null}
@@ -110,9 +107,6 @@ export default async function TemplatePreviewPage({ params, searchParams }: { pa
               <Label htmlFor="preview-person">{t("person_search")}</Label>
               <Input id="preview-person" name="q" defaultValue={sp.q ?? ""} />
             </div>
-            <Button type="submit" size="sm" variant="outline">
-              {t("search")}
-            </Button>
           </form>
         ) : null}
         {matches.length ? (

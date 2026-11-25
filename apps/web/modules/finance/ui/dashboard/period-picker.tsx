@@ -5,7 +5,7 @@
  * choice carries `aria-current`.
  */
 import Link from "next/link";
-import { Button, cn, Input, Label } from "@beam/ui";
+import { cn, Input, Label } from "@beam/ui";
 import type { DashboardLabel } from "./format";
 
 export const PRESET_PERIODS = ["day", "week", "month", "ytd"] as const;
@@ -39,7 +39,7 @@ export function PeriodPicker({ current, from, to, l }: PeriodPickerProps) {
           </Link>
         ))}
       </nav>
-      <form method="get" action="/admin/finance/dashboard" className="flex flex-wrap items-end gap-2" aria-label={l("period_custom")}>
+      <form data-auto-filter="" method="get" action="/admin/finance/dashboard" className="flex flex-wrap items-end gap-2" aria-label={l("period_custom")}>
         <input type="hidden" name="period" value="custom" />
         <div className="grid gap-1">
           <Label htmlFor="dashboard-from">{l("from")}</Label>
@@ -49,9 +49,6 @@ export function PeriodPicker({ current, from, to, l }: PeriodPickerProps) {
           <Label htmlFor="dashboard-to">{l("to")}</Label>
           <Input id="dashboard-to" name="to" type="date" defaultValue={to} required className="w-40" />
         </div>
-        <Button type="submit" variant={current === "custom" ? "default" : "outline"} aria-pressed={current === "custom"}>
-          {l("apply")}
-        </Button>
       </form>
     </div>
   );

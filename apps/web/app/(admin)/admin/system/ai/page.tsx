@@ -77,14 +77,11 @@ export default async function AiUsagePage({ searchParams }: { searchParams: Prom
         <h2 id="usage" className="text-lg font-medium">
           {t("usage_title", { month, total: money.format(totalCents / 100) })}
         </h2>
-        <form method="get" className="flex items-end gap-2">
+        <form data-auto-filter="" method="get" className="flex items-end gap-2">
           <label className="grid gap-1 text-sm">
             {t("month")}
             <input type="month" name="month" defaultValue={month} className="h-9 rounded-md border bg-background px-2" />
           </label>
-          <button type="submit" className="h-9 rounded-md border px-3 text-sm">
-            {tr("platform.table.apply")}
-          </button>
         </form>
         {usage.length === 0 ? (
           <EmptyState title={t("empty")} />

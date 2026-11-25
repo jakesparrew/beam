@@ -62,7 +62,7 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
           </li>
         ))}
       </ul>
-      <form method="get" className="flex flex-wrap items-end gap-3" role="search" aria-label={tr("platform.table.filters")}>
+      <form data-auto-filter="" method="get" className="flex flex-wrap items-end gap-3" role="search" aria-label={tr("platform.table.filters")}>
         <label className="grid gap-1 text-sm">
           {t("col_provider")}
           <select name="provider" defaultValue={provider ?? ""} className="h-9 rounded-md border bg-background px-2">
@@ -82,9 +82,6 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
             <option value="false">{t("failed")}</option>
           </select>
         </label>
-        <button type="submit" className="h-9 rounded-md border px-3 text-sm">
-          {tr("platform.table.apply")}
-        </button>
       </form>
       {calls.rows.length === 0 ? (
         <EmptyState title={t("empty")} />

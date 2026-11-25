@@ -1,20 +1,23 @@
 "use client";
 /**
  * The manual booking wizard's booking step (booking spec 5.1 `/admin/bookings/new`, R12, R15,
- * R16, R62b, R63): the person chosen in the page's search step, a session picker with live
- * availability, the payment choice (package credit with the balance, pay now at the POS, pay at
+ * R16, R62b, R63): the person chosen in the page's search step, the sessions of the day picked on
+ * the page as time slots with their live availability (owner review section 10), the payment choice (package credit with the balance, pay now at the POS, pay at
  * the desk, free), guests, the override toggles (only with `bookings.override`), the night's
  * emergency contact (a non-blocking prompt) and "send the confirmation email". It submits
  * `createManualBooking`; an order paid now opens commerce's POS. Every text comes from the page.
  */
 import { useRouter } from "next/navigation";
 import { useMemo, useState, type FormEvent } from "react";
-import { Alert, AlertDescription, Button, Checkbox, FormField, Input, Label, Textarea } from "@beam/ui";
+import { Alert, AlertDescription, Button, Checkbox, FormField, Input, Label, Textarea, cn } from "@beam/ui";
 import { createManualBooking } from "../actions/bookings";
 
 export type WizardSession = {
   id: string;
+  /** Title (and "closed" when the session is closed). */
   label: string;
+  /** Start and end time, "10:00-12:00". */
+  time: string;
   kind: "day" | "night" | "event";
   /** "3 places left" or "Full". */
   availability: string;
@@ -31,7 +34,8 @@ export type WizardSession = {
 
 export type WizardLabels = {
   session: string;
-  choose: string;
+  /** Shown when the chosen day has no sessions. */
+  noSessions: string;
   payment: string;
   /** R51: the ticket type picker. */
   ticketType?: string;
@@ -60,9 +64,6 @@ export type WizardLabels = {
 
 type Pay = "credit" | "order" | "desk" | "free";
 type Guest = { firstName: string; lastName: string; email: string; sharesBed: boolean };
-
-const selectClass =
-  "h-11 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 export function ManualBookingWizard({
   personId,
@@ -140,20 +141,45 @@ export function ManualBookingWizard({
 
   return (
     <form onSubmit={(e) => void submit(e)} className="grid max-w-2xl gap-5">
-      <FormField label={labels.session} required requiredMark=" *">
-        <select className={selectClass} value={sessionId} onChange={(e) => {
-            setSessionId(e.target.value);
-            setPay("");
-            setTicketTypeId(sessions.find((s) => s.id === e.target.value)?.ticketTypes?.find((t) => !t.disabled)?.id ?? "");
-          }} required>
-          <option value="">{labels.choose}</option>
-          {sessions.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.label} · {s.availability}
-            </option>
-          ))}
-        </select>
-      </FormField>
+      <fieldset className="grid gap-2" data-testid="manual-session-slots">
+        <legend className="mb-1 text-sm font-medium">
+          {labels.session} <span aria-hidden>*</span>
+        </legend>
+        {sessions.length === 0 ? (
+          <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">{labels.noSessions}</p>
+        ) : (
+          <div className="grid gap-2 sm:grid-cols-2">
+            {sessions.map((s) => (
+              <label
+                key={s.id}
+                className={cn(
+                  "flex min-h-11 cursor-pointer items-start gap-3 rounded-md border p-3 text-sm hover:border-primary has-[:checked]:border-primary has-[:checked]:bg-primary/5",
+                  s.isFull && "bg-muted/50",
+                )}
+              >
+                <input
+                  type="radio"
+                  name="sessionId"
+                  value={s.id}
+                  checked={sessionId === s.id}
+                  onChange={() => {
+                    setSessionId(s.id);
+                    setPay("");
+                    setTicketTypeId(s.ticketTypes?.find((t) => !t.disabled)?.id ?? "");
+                  }}
+                  className="mt-0.5 size-4"
+                  required
+                />
+                <span className="grid gap-0.5">
+                  <span className="font-semibold tabular-nums">{s.time}</span>
+                  <span>{s.label}</span>
+                  <span className={s.isFull ? "text-destructive" : "text-muted-foreground"}>{s.availability}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+        )}
+      </fieldset>
 
       {session?.isFull ? (
         <Alert variant={overCapacity ? "destructive" : "default"}>

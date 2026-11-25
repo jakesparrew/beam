@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Badge, Button, buttonVariants, EmptyState, Input, Label, Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@beam/ui";
+import { Badge, buttonVariants, EmptyState, Input, Label, Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@beam/ui";
 import { formatDate, formatMoney } from "@beam/core/i18n";
 import { hasPermission, requireStaff } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
@@ -55,7 +55,7 @@ export default async function FinanceInvoicesPage({ searchParams }: { searchPara
           </Link>
         ) : null}
       </header>
-      <form className="flex flex-wrap items-end gap-3" role="search">
+      <form data-auto-filter="" className="flex flex-wrap items-end gap-3" role="search">
         <div className="grid gap-1">
           <Label htmlFor="fin-from">{l("invoices.from")}</Label>
           <Input id="fin-from" type="date" name="from" defaultValue={filter.from ?? ""} />
@@ -109,9 +109,6 @@ export default async function FinanceInvoicesPage({ searchParams }: { searchPara
           <Label htmlFor="fin-q">{l("invoices.search")}</Label>
           <Input id="fin-q" type="search" name="q" defaultValue={filter.q ?? ""} maxLength={100} />
         </div>
-        <Button type="submit" variant="outline">
-          {l("common.filter")}
-        </Button>
         {filtered ? (
           <Link href="/admin/finance/invoices" className={buttonVariants({ variant: "ghost" })}>
             {l("common.clear")}

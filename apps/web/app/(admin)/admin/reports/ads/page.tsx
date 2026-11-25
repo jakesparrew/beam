@@ -76,7 +76,7 @@ export default async function AdsReportPage({ searchParams }: { searchParams: Pr
       {sp.queued ? <Alert>{Number(sp.queued) > 0 ? tr("ops.ads.pull.queued", { count: Number(sp.queued) }) : tr("ops.ads.pull.none")}</Alert> : null}
       {sp.error ? <Alert variant="destructive">{tr(sp.error === "conflict" ? "ops.ads.accounts.conflict" : sp.error === "pull" ? "ops.ads.pull.failed" : "ops.ads.accounts.invalid")}</Alert> : null}
 
-      <form method="get" action={BASE} className="flex flex-wrap items-end gap-3">
+      <form data-auto-filter="" method="get" action={BASE} className="flex flex-wrap items-end gap-3">
         <label className="grid gap-1 text-sm">
           {tr("ops.common.from")}
           <input type="date" name="from" defaultValue={r.range.from} className="rounded-md border bg-background px-2 py-1" />
@@ -85,9 +85,6 @@ export default async function AdsReportPage({ searchParams }: { searchParams: Pr
           {tr("ops.common.to")}
           <input type="date" name="to" defaultValue={r.range.to} className="rounded-md border bg-background px-2 py-1" />
         </label>
-        <Button type="submit" variant="outline" size="sm">
-          {tr("ops.common.apply")}
-        </Button>
       </form>
 
       {noAccounts ? (

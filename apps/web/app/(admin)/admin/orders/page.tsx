@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Badge, Button, buttonVariants, EmptyState, Input, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@beam/ui";
+import { Badge, buttonVariants, EmptyState, Input, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@beam/ui";
 import { ORDER_CHANNELS, ORDER_STATUSES, type OrderChannel, type OrderStatus } from "@beam/core/commerce";
 import { formatDateTime, formatMoney } from "@beam/core/i18n";
 import { zonedTimeToUtc } from "@beam/core/platform";
@@ -67,7 +67,7 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
           ) : null}
         </div>
       </header>
-      <form className="flex flex-wrap items-end gap-2" role="search">
+      <form data-auto-filter="" className="flex flex-wrap items-end gap-2" role="search">
         <label className="grid gap-1 text-sm">
           <span>{c("search")}</span>
           <Input name="q" defaultValue={q ?? ""} className="w-64" />
@@ -102,9 +102,6 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
           <span>{c("to")}</span>
           <Input type="date" name="to" defaultValue={sp.to ?? ""} />
         </label>
-        <Button type="submit" variant="outline">
-          {tr("commerce.common.filter")}
-        </Button>
         {filtered ? (
           <Link href="/admin/orders" className={buttonVariants({ variant: "ghost" })}>
             {tr("commerce.common.clear_filters")}

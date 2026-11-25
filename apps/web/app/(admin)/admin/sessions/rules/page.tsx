@@ -65,6 +65,9 @@ export default async function RulesPage({ searchParams }: { searchParams: Promis
 
   return (
     <div className="grid max-w-5xl gap-6">
+      <Link href="/admin/settings" className="text-sm text-muted-foreground hover:underline">
+        {tr("platform.settings.back")}
+      </Link>
       <h1 className="text-2xl font-semibold">{tr("booking.rules.title")}</h1>
       <nav className="flex gap-1 border-b" aria-label={tr("booking.rules.title")}>
         <Link href={{ pathname: "/admin/sessions/rules", query: { tab: "rules" } }} aria-current={tab === "rules" ? "page" : undefined} className={tabClass(tab === "rules")}>

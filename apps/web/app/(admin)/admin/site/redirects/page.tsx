@@ -1,4 +1,4 @@
-import { Button } from "@beam/ui";
+
 import { hasPermission, requireStaff } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
 import { adminLocale } from "@/lib/i18n";
@@ -22,7 +22,7 @@ export default async function SiteRedirectsPage({ searchParams }: { searchParams
     <div className="grid gap-6">
       <h1 className="text-2xl font-semibold">{L["redirects.title"]}</h1>
       <SiteSectionNav L={L} current="/admin/site/redirects" />
-      <form className="flex flex-wrap items-end gap-2" role="search" action="/admin/site/redirects">
+      <form data-auto-filter="" className="flex flex-wrap items-end gap-2" role="search" action="/admin/site/redirects">
         <select name="source" defaultValue={source ?? ""} aria-label={L["redirects.source"]} className={selectClass}>
           <option value="">{L["pages.all"]}</option>
           {SOURCES.map((s) => (
@@ -32,9 +32,6 @@ export default async function SiteRedirectsPage({ searchParams }: { searchParams
           ))}
         </select>
         <input name="q" defaultValue={sp.q ?? ""} aria-label={L["pages.search"]} placeholder={L["redirects.from"]} className={selectClass} />
-        <Button type="submit" variant="outline">
-          {L["pages.search"]}
-        </Button>
       </form>
       <RedirectsTable rows={rows} L={L} pickers={pickers} canEdit={hasPermission(actor, "site.publish")} locale={locale} />
     </div>

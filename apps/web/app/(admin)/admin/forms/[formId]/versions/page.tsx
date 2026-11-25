@@ -76,7 +76,7 @@ export default async function FormVersionsPage({ params, searchParams }: { param
         </TableBody>
       </Table>
       {rows.length > 1 ? (
-        <form className="flex flex-wrap items-end gap-3" method="get" aria-label={v("compare")}>
+        <form data-auto-filter="" className="flex flex-wrap items-end gap-3" method="get" aria-label={v("compare")}>
           <label className="grid gap-1 text-sm">
             {v("compare_from")}
             <select name="a" defaultValue={sp.a ?? rows[1]?.id} className="h-9 rounded-md border bg-background px-2 text-sm">
@@ -97,9 +97,6 @@ export default async function FormVersionsPage({ params, searchParams }: { param
               ))}
             </select>
           </label>
-          <button type="submit" className={buttonVariants({ variant: "outline" })}>
-            {v("compare")}
-          </button>
         </form>
       ) : null}
       {diff ? <VersionDiff diff={diff} labels={labels} /> : null}

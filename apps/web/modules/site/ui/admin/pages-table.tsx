@@ -5,7 +5,7 @@
  */
 import NextLink from "next/link";
 import type { Route } from "next";
-import { Badge, Button, buttonVariants, EmptyState, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@beam/ui";
+import { Badge, buttonVariants, EmptyState, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@beam/ui";
 import type { Locale } from "@beam/core/i18n";
 import { PAGE_KINDS, type PageKind, type PageStatus } from "@beam/core/site";
 import type { AdminPageRow, SiteAdminLabels } from "../../queries/admin";
@@ -54,7 +54,7 @@ export function PagesTable({
   const filtered = !!(filter.kind || filter.status || filter.q);
   return (
     <div className="grid gap-3">
-      <form className="flex flex-wrap items-end gap-2" role="search" action="/admin/site">
+      <form data-auto-filter="" className="flex flex-wrap items-end gap-2" role="search" action="/admin/site">
         <select name="kind" defaultValue={filter.kind ?? ""} aria-label={L["pages.filterKind"]} className={selectClass}>
           <option value="">{L["pages.all"]}</option>
           {PAGE_KINDS.map((k) => (
@@ -72,9 +72,6 @@ export function PagesTable({
           ))}
         </select>
         <input name="q" defaultValue={filter.q ?? ""} aria-label={L["pages.search"]} placeholder={L["pages.search"]} className={selectClass} />
-        <Button type="submit" variant="outline">
-          {L["pages.search"]}
-        </Button>
       </form>
       {rows.length === 0 ? (
         <EmptyState

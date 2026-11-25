@@ -6,7 +6,7 @@
  * Europe/Brussels. Server-rendered; every string arrives through `l`.
  */
 import Link from "next/link";
-import { Button, EmptyState, Input, Label, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@beam/ui";
+import { EmptyState, Input, Label, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@beam/ui";
 import { formatDateTime, type Locale } from "@beam/core/i18n";
 import type { AutomationRunOutcome } from "@beam/core/automation";
 import { AUTOMATION_RUN_OUTCOMES } from "@beam/db/schema";
@@ -43,7 +43,7 @@ export function endReasonText(reason: string | null, l: Labels): string {
 
 export function RunFilters({ action, l, value }: { action: string; l: Labels; value: { outcome?: string; from?: string; to?: string } }) {
   return (
-    <form method="get" action={action} className="flex flex-wrap items-end gap-3" data-testid="run-filters">
+    <form data-auto-filter="" method="get" action={action} className="flex flex-wrap items-end gap-3" data-testid="run-filters">
       <div className="grid gap-1">
         <Label htmlFor="run-filter-outcome">{l["runs.filter_outcome"]}</Label>
         <select id="run-filter-outcome" name="outcome" defaultValue={value.outcome ?? ""} className={selectClass}>
@@ -63,9 +63,6 @@ export function RunFilters({ action, l, value }: { action: string; l: Labels; va
         <Label htmlFor="run-filter-to">{l["runs.to"]}</Label>
         <Input id="run-filter-to" type="date" name="to" defaultValue={value.to ?? ""} />
       </div>
-      <Button type="submit" variant="outline">
-        {l["common.apply"]}
-      </Button>
     </form>
   );
 }
@@ -142,7 +139,7 @@ export type EnrolmentView = {
 
 export function EnrolmentFilters({ action, l, status }: { action: string; l: Labels; status?: string }) {
   return (
-    <form method="get" action={action} className="flex flex-wrap items-end gap-3">
+    <form data-auto-filter="" method="get" action={action} className="flex flex-wrap items-end gap-3">
       <div className="grid gap-1">
         <Label htmlFor="enrolment-filter-status">{l["enrolments.filter_status"]}</Label>
         <select id="enrolment-filter-status" name="status" defaultValue={status ?? ""} className={selectClass}>
@@ -154,9 +151,6 @@ export function EnrolmentFilters({ action, l, status }: { action: string; l: Lab
           ))}
         </select>
       </div>
-      <Button type="submit" variant="outline">
-        {l["common.apply"]}
-      </Button>
     </form>
   );
 }

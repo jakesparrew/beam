@@ -53,7 +53,7 @@ export default async function EmailMessagesPage({ searchParams }: { searchParams
           <Link href="/admin/email">{t("back_overview")}</Link>
         </Button>
       </div>
-      <form className="flex flex-wrap items-end gap-3" method="get">
+      <form data-auto-filter="" className="flex flex-wrap items-end gap-3" method="get">
         {args.personId ? <input type="hidden" name="person" value={args.personId} /> : null}
         <div className="grid gap-1">
           <Label htmlFor="messages-q">{t("search")}</Label>
@@ -89,9 +89,6 @@ export default async function EmailMessagesPage({ searchParams }: { searchParams
           <Label htmlFor="messages-to">{t("to")}</Label>
           <Input id="messages-to" name="to" type="date" defaultValue={sp.to ?? ""} />
         </div>
-        <Button type="submit" variant="outline">
-          {t("apply")}
-        </Button>
       </form>
       {list.items.length ? (
         <Table data-testid="messages-table">

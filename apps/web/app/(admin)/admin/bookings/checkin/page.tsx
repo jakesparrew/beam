@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Route } from "next";
-import { Badge, buttonVariants } from "@beam/ui";
+import { Badge, NavIcon, buttonVariants } from "@beam/ui";
 import { BOOKING_CONFLICT_REASONS, brusselsDate, brusselsTime } from "@beam/core/booking";
 import { formatDate, formatMoney, type Locale, type LocalizedText } from "@beam/core/i18n";
 import { hasPermission, requireStaff } from "@/lib/auth";
@@ -20,8 +20,28 @@ const orKey = (soft: Tr, key: string, fallback: string) => {
   return v === key ? fallback : v;
 };
 
+/** Icon per session kind, shared by the rows and the day list. */
+const KIND_ICON = { day: "sun", night: "moon", event: "calendar-days" } as const;
+
+/** An icon with its meaning as tooltip and for screen readers (owner review section 10). */
+function Cue({ icon, label }: { icon: string; label: string }) {
+  return (
+    <span title={label} className="inline-flex items-center text-muted-foreground">
+      <NavIcon icon={icon} />
+      <span className="sr-only">{label}</span>
+    </span>
+  );
+}
+
 function cardView(c: CheckinCard, locale: Locale, tr: Tr, soft: Tr, canOverride: boolean): BookingCardView {
   const rc = c.receptionCard;
+  const cues: BookingCardView["cues"] = [
+    ...(c.kind === "night" ? [{ icon: "moon", label: tr("booking.checkin.cue_night") }] : []),
+    ...(rc?.isMember ? [{ icon: "badge-check", label: tr("booking.checkin.cue_member") }] : []),
+    ...(c.paidWith === "credit" ? [{ icon: "package", label: tr("booking.checkin.cue_package") }] : []),
+    ...(rc?.isMinor ? [{ icon: "baby", label: tr("booking.checkin.cue_child") }] : []),
+    ...(c.guestOfName ? [{ icon: "user-plus", label: tr("booking.checkin.guests_of", { name: c.guestOfName }) }] : []),
+  ];
   const reception = rc
     ? [
         tr("crm.person360.header.customer_number", { customerNumber: rc.customerNumber }),
@@ -52,6 +72,7 @@ function cardView(c: CheckinCard, locale: Locale, tr: Tr, soft: Tr, canOverride:
     canRevertNoShow: c.canRevertNoShow && !c.canCheckIn,
     notes: c.notes,
     reception,
+    cues,
     guests: c.guests.map((g) => ({
       bookingId: g.bookingId,
       name: g.name,
@@ -69,8 +90,12 @@ function RowLink({ row, locale, tr }: { row: CheckinRow; locale: Locale; tr: Tr 
         className="flex min-h-11 flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 hover:bg-accent"
         data-booking-id={row.bookingId}
       >
-        <span>
+        <span className="flex flex-wrap items-center gap-x-2">
           <span className="font-medium">{row.name}</span>
+          {row.kind === "night" ? <Cue icon="moon" label={tr("booking.checkin.cue_night")} /> : null}
+          {row.paidWith === "credit" ? <Cue icon="package" label={tr("booking.checkin.cue_package")} /> : null}
+          {row.guestOfName ? <Cue icon="user-plus" label={tr("booking.checkin.cue_guest")} /> : null}
+          {row.notes ? <Cue icon="sticky-note" label={tr("booking.session.attendee_notes")} /> : null}
           <span className="text-sm text-muted-foreground">
             {" "}
             · {brusselsTime(row.startsAt)} {show(row.sessionTitle, locale)}
@@ -79,7 +104,12 @@ function RowLink({ row, locale, tr }: { row: CheckinRow; locale: Locale; tr: Tr 
         </span>
         <span className="flex flex-wrap gap-1">
           <Badge variant="outline">{tr(`booking.status.${row.status}`)}</Badge>
-          {row.toPayCents !== null ? <Badge variant="warning">{tr("booking.checkin.to_pay", { amount: formatMoney(row.toPayCents, locale) })}</Badge> : null}
+          {row.toPayCents !== null ? (
+            <Badge variant="warning" className="gap-1">
+              <NavIcon icon="euro" className="size-3" />
+              {tr("booking.checkin.to_pay", { amount: formatMoney(row.toPayCents, locale) })}
+            </Badge>
+          ) : null}
           {!row.termsAccepted ? <Badge variant="warning">{tr("booking.checkin.terms_pending")}</Badge> : null}
           {row.healthDeclaration.state !== "valid" ? (
             <Badge variant="warning">{tr(row.healthDeclaration.state === "expired" ? "booking.checkin.health_expired" : "booking.checkin.health_missing")}</Badge>
@@ -146,6 +176,7 @@ export default async function CheckinPage({ searchParams }: { searchParams: Prom
         <h1 className="text-2xl font-semibold">{tr("booking.checkin.title")}</h1>
         <div className="flex flex-wrap gap-2">
           <Link href={"/admin/bookings/new"} className={buttonVariants({ variant: "outline", size: "sm" })}>
+            <NavIcon icon="user-plus" />
             {tr("booking.checkin.add_walk_in")}
           </Link>
           <Link href={`/admin/sessions/day/${today}/print` as Route} className={buttonVariants({ variant: "outline", size: "sm" })}>
@@ -179,10 +210,14 @@ export default async function CheckinPage({ searchParams }: { searchParams: Prom
         {day.map((s) => (
           <div key={s.sessionId} className="grid gap-2 rounded-md border p-3" data-session-id={s.sessionId}>
             <h3 className="flex flex-wrap items-center justify-between gap-2 font-medium">
-              <Link href={`/admin/sessions/${s.sessionId}` as Route} className="underline-offset-4 hover:underline">
+              <Link href={`/admin/sessions/${s.sessionId}` as Route} className="inline-flex items-center gap-2 underline-offset-4 hover:underline">
+                <NavIcon icon={KIND_ICON[s.kind]} />
                 {brusselsTime(s.startsAt)}–{brusselsTime(s.endsAt)} · {show(s.title, locale)}
               </Link>
-              <span className="text-sm font-normal text-muted-foreground">{tr("booking.day.checked_in", { done: s.arrived, total: s.arrived + s.notArrived.length })}</span>
+              <span className="inline-flex items-center gap-1 text-sm font-normal text-muted-foreground">
+                <NavIcon icon="circle-check" />
+                {tr("booking.day.checked_in", { done: s.arrived, total: s.arrived + s.notArrived.length })}
+              </span>
             </h3>
             {s.notArrived.length ? (
               <>

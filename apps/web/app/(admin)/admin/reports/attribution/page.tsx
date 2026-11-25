@@ -1,7 +1,7 @@
 import type { Route } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Button, cn, EmptyState, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@beam/ui";
+import { cn, EmptyState, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@beam/ui";
 import { formatDate, formatMoney, formatNumber, formatPercent } from "@beam/core/i18n";
 import { flag } from "@/lib/flags";
 import { translator } from "@/lib/i18n";
@@ -51,7 +51,7 @@ export default async function AttributionReportPage({ searchParams }: { searchPa
         {report.dataAsOf ? tr("ops.common.data_as_of", { date: formatDate(report.dataAsOf, ctx.locale) }) : tr("ops.attribution.data_as_of_none")}
       </p>
       <div className="flex flex-wrap items-end gap-6">
-        <form method="get" action={BASE} className="flex flex-wrap items-end gap-3">
+        <form data-auto-filter="" method="get" action={BASE} className="flex flex-wrap items-end gap-3">
           <input type="hidden" name="model" value={model} />
           <label className="grid gap-1 text-sm">
             {tr("ops.common.from")}
@@ -61,9 +61,6 @@ export default async function AttributionReportPage({ searchParams }: { searchPa
             {tr("ops.common.to")}
             <input type="date" name="to" defaultValue={report.range.to} className="rounded-md border bg-background px-2 py-1" />
           </label>
-          <Button type="submit" variant="outline" size="sm">
-            {tr("ops.common.apply")}
-          </Button>
         </form>
         <nav aria-label={tr("ops.attribution.model.legend")} className="flex gap-2">
           {MODELS.map((m) => (

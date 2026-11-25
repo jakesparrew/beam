@@ -1,7 +1,7 @@
 import type { Route } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Badge, Button, EmptyState, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@beam/ui";
+import { Badge, EmptyState, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@beam/ui";
 import { formatMoney, formatPercent, type Locale } from "@beam/core/i18n";
 import { flag } from "@/lib/flags";
 import { translator } from "@/lib/i18n";
@@ -175,7 +175,7 @@ function Tile({ label, value }: { label: string; value: string }) {
 
 function RangeForm({ action, from, to, tr }: { action: string; from: string; to: string; tr: ReturnType<typeof translator> }) {
   return (
-    <form method="get" action={action} className="flex flex-wrap items-end gap-3">
+    <form data-auto-filter="" method="get" action={action} className="flex flex-wrap items-end gap-3">
       <label className="grid gap-1 text-sm">
         {tr("ops.common.from")}
         <input type="date" name="from" defaultValue={from} className="rounded-md border bg-background px-2 py-1" />
@@ -184,9 +184,6 @@ function RangeForm({ action, from, to, tr }: { action: string; from: string; to:
         {tr("ops.common.to")}
         <input type="date" name="to" defaultValue={to} className="rounded-md border bg-background px-2 py-1" />
       </label>
-      <Button type="submit" variant="outline" size="sm">
-        {tr("ops.common.apply")}
-      </Button>
     </form>
   );
 }

@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { DbHandle } from "../src/client";
-import { ROLE_KEYS, roles } from "../src/schema/platform";
+import { PREDEFINED_ROLE_KEYS, ROLE_KEYS, roles } from "../src/schema/platform";
 import { DEFAULT_SEEDS } from "../src/seed/index.generated";
 import { grantDefaultPermission, seedDefaults } from "../src/seed/run";
 import {
@@ -45,14 +45,14 @@ describe("generated DEFAULT_SEEDS order", () => {
 });
 
 describe("platform defaults seed", () => {
-  it("seeds the nine system roles with names in three locales", async () => {
+  it("seeds the nine built-in roles in three locales; only the predefined ones are system roles", async () => {
     const ran = await seedDefaults(h.db);
     expect(ran[0]).toBe("platform");
     expect(ran).toEqual(seedOrder);
     const rows = await h.db.select().from(roles);
     expect(rows.map((r) => r.key).sort()).toEqual([...ROLE_KEYS].sort());
     for (const r of rows) {
-      expect(r.isSystem).toBe(true);
+      expect(r.isSystem).toBe((PREDEFINED_ROLE_KEYS as readonly string[]).includes(r.key));
       expect(Object.keys(r.name).sort()).toEqual(["en", "fr-BE", "nl-BE"]);
     }
   });
@@ -67,6 +67,7 @@ describe("platform defaults seed", () => {
     for (const p of [
       "users.manage",
       "system.jobs",
+      "flags.manage",
       "privacy.run",
       "persons.sensitive_read",
     ]) {
@@ -158,5 +159,15 @@ describe("platform defaults seed", () => {
       await grantDefaultPermission(h.db, "owner", "dashboards.manage"),
     ).toBe(false);
     expect((await role("owner")).permissions).toEqual(["*"]);
+  });
+
+  it("never brings back a deleted starter role, never renames an edited one, and restores predefined names", async () => {
+    await h.db.delete(roles).where(eq(roles.key, "sales"));
+    await h.db.update(roles).set({ name: { en: "Shop team" } }).where(eq(roles.key, "marketing"));
+    await h.db.update(roles).set({ name: { en: "Boss" } }).where(eq(roles.key, "owner"));
+    await seedDefaults(h.db);
+    expect(await h.db.select().from(roles).where(eq(roles.key, "sales"))).toHaveLength(0);
+    expect((await role("marketing")).name).toEqual({ en: "Shop team" });
+    expect((await role("owner")).name).toMatchObject({ en: "Administrator" });
   });
 });

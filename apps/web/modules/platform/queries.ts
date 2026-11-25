@@ -6,7 +6,7 @@
 import type { DbOrTx } from "@beam/db";
 import type { AnyColumn } from "drizzle-orm";
 import { AI_FEATURE_KEYS, AI_FEATURES } from "@beam/core/ai";
-import { MESSAGES, type Locale } from "@beam/core/i18n";
+import { MESSAGES, t, type Locale } from "@beam/core/i18n";
 import { GO_LIVE_ITEMS, isGateItemConfirmed, type GoLiveGate } from "@beam/core/platform";
 import {
   auditLog,
@@ -15,8 +15,8 @@ import {
   integrationCalls,
   jobs,
   monthlyReports,
+  PREDEFINED_ROLE_KEYS,
   roles,
-  ROLE_KEYS,
   securityIncidents,
   settings,
   supportRequests,
@@ -235,26 +235,83 @@ export async function getStaffUser(tx: DbOrTx, userId: string) {
   return { ...user, sessions, audit };
 }
 
-export type RoleRow = { key: RoleKey; name: Record<string, string>; permissions: string[]; members: number; unknownPermissions: string[] };
+/** The shape of `roles.key` (check `roles_key_ck`). */
+export const ROLE_KEY_RE = /^[a-z][a-z0-9_]{1,47}$/;
 
-export async function listRoles(tx: DbOrTx): Promise<RoleRow[]> {
+/** The key of a custom role, from its name ("Thérapeute senior" -> `therapeute_senior`); null if none fits. */
+export function roleKeyFor(name: string): string | null {
+  const slug = name.normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+  const key = (/^[a-z]/.test(slug) ? slug : `role_${slug}`).slice(0, 48).replace(/_+$/, "");
+  return ROLE_KEY_RE.test(key) ? key : null;
+}
+
+/**
+ * Permissions the role editor marks as dangerous: technical logs, system settings and access,
+ * data export and erasure, health data.
+ */
+export const DANGEROUS_PERMISSIONS: ReadonlySet<string> = new Set([
+  "system.jobs",
+  "settings.write",
+  "flags.manage",
+  "users.manage",
+  "persons.export",
+  "persons.erase",
+  "privacy.run",
+  "persons.sensitive_read",
+]);
+
+/** A role's name in `locale`: the catalogue for the predefined roles, the stored name for the others. */
+export function roleLabel(role: { key: string; name: Record<string, string>; isSystem: boolean }, locale: Locale): string {
+  const k = `platform.roles.${role.key}`;
+  if (role.isSystem && t.has(locale, k)) return t(locale, k);
+  return role.name[locale] ?? Object.values(role.name)[0] ?? (t.has(locale, k) ? t(locale, k) : role.key);
+}
+
+export type RoleRow = { key: RoleKey; label: string; isSystem: boolean; permissions: string[]; members: number; holders: number; unknownPermissions: string[] };
+
+/**
+ * Every role with its label, active members, all holders (any status; a role with holders
+ * cannot be deleted) and permissions: the predefined roles first, then the others by name.
+ */
+export async function listRoles(tx: DbOrTx, locale: Locale = "nl-BE"): Promise<RoleRow[]> {
   const known = new Set<string>(PERMISSIONS);
-  const rows = rowsOf<{ key: RoleKey; name: Record<string, string>; permissions: string[]; members: number }>(
+  const rows = rowsOf<{ key: RoleKey; name: Record<string, string>; is_system: boolean; permissions: string[]; members: number; holders: number }>(
     await tx.execute(sql`
-      select r.key::text as key, r.name, r.permissions,
-             (select count(*)::int from users u where u.role_key = r.key and u.audience = 'staff' and u.status = 'active') as members
-      from roles r order by array_position(enum_range(null::roles_key), r.key)`),
+      select r.key, r.name, r.is_system, r.permissions,
+             (select count(*)::int from users u where u.role_key = r.key and u.audience = 'staff' and u.status = 'active') as members,
+             (select count(*)::int from users u where u.role_key = r.key) as holders
+      from roles r`),
   );
-  return rows.map((r) => ({ ...r, members: Number(r.members), unknownPermissions: r.permissions.filter((p) => p !== "*" && !known.has(p)) }));
+  const order = (key: string) => {
+    const i = (PREDEFINED_ROLE_KEYS as readonly string[]).indexOf(key);
+    return i === -1 ? PREDEFINED_ROLE_KEYS.length : i;
+  };
+  return rows
+    .map((r) => ({
+      key: r.key,
+      label: roleLabel({ key: r.key, name: r.name, isSystem: r.is_system }, locale),
+      isSystem: r.is_system,
+      permissions: r.permissions,
+      members: Number(r.members),
+      holders: Number(r.holders),
+      unknownPermissions: r.permissions.filter((p) => p !== "*" && !known.has(p)),
+    }))
+    .sort((a, b) => order(a.key) - order(b.key) || a.label.localeCompare(b.label, locale));
+}
+
+/** The label of one role (the admin header); the key itself when the role is gone. */
+export async function getRoleLabel(tx: DbOrTx, roleKey: string, locale: Locale): Promise<string> {
+  const [role] = await tx.select({ key: roles.key, name: roles.name, isSystem: roles.isSystem }).from(roles).where(eq(roles.key, roleKey));
+  return role ? roleLabel(role, locale) : roleKey;
 }
 
 /** One role with the registry's permissions grouped by module (PL-18: unknown strings listed apart). */
 export async function getRole(tx: DbOrTx, roleKey: string) {
-  if (!(ROLE_KEYS as readonly string[]).includes(roleKey)) return null;
+  if (!ROLE_KEY_RE.test(roleKey)) return null;
   const [role] = await tx
-    .select({ key: roles.key, name: roles.name, description: roles.description, permissions: roles.permissions, updatedAt: roles.updatedAt })
+    .select({ key: roles.key, name: roles.name, description: roles.description, isSystem: roles.isSystem, permissions: roles.permissions, updatedAt: roles.updatedAt })
     .from(roles)
-    .where(eq(roles.key, roleKey as RoleKey));
+    .where(eq(roles.key, roleKey));
   if (!role) return null;
   const groups = new Map<string, string[]>();
   for (const p of PERMISSIONS) {
@@ -262,8 +319,10 @@ export async function getRole(tx: DbOrTx, roleKey: string) {
     groups.set(m, [...(groups.get(m) ?? []), p]);
   }
   const known = new Set<string>(PERMISSIONS);
+  const [held] = await tx.select({ n: sql<number>`count(*)::int` }).from(users).where(eq(users.roleKey, role.key));
   return {
     ...role,
+    holders: Number(held?.n ?? 0),
     isOwner: role.key === "owner",
     groups: [...groups.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([module, permissions]) => ({ module, permissions })),
     unknownPermissions: role.permissions.filter((p) => p !== "*" && !known.has(p)),

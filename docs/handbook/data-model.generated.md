@@ -2457,7 +2457,6 @@ check `retention_policies_batch_ck`; check `retention_policies_days_ck`; check `
 | `jobs_status` | `pending`, `running`, `succeeded`, `failed`, `dead` |
 | `locale` | `nl-BE`, `fr-BE`, `en` |
 | `monthly_reports_status` | `draft`, `sent` |
-| `roles_key` | `owner`, `management`, `customer_service`, `sales`, `marketing`, `finance`, `reception`, `technical_admin`, `external_partner` |
 | `security_incidents_severity` | `critical`, `high`, `normal` |
 | `security_incidents_status` | `open`, `contained`, `resolved` |
 | `support_requests_channel` | `email`, `slack`, `whatsapp`, `phone`, `in_app` |
@@ -2663,7 +2662,7 @@ index `rate_limits_expires_idx`
 | Column | Type | Null | Default | Key | References | Marking |
 | --- | --- | --- | --- | --- | --- | --- |
 | `id` | uuid | no | `gen_random_uuid()` | PK |  |  |
-| `key` | roles_key | no |  | unique |  |  |
+| `key` | text | no |  | unique |  |  |
 | `name` | jsonb | no |  |  |  |  |
 | `description` | jsonb | no | `{}` |  |  |  |
 | `permissions` | text[] | no | `'{}'::text[]` |  |  |  |
@@ -2673,7 +2672,7 @@ index `rate_limits_expires_idx`
 | `created_at` | timestamp with time zone | no | `now()` |  |  |  |
 | `updated_at` | timestamp with time zone | no | `now()` |  |  |  |
 
-check `roles_owner_all_ck`
+check `roles_key_ck`; check `roles_owner_all_ck`
 
 ### `security_incidents`
 
@@ -2750,7 +2749,7 @@ check `support_requests_first_response_ck`; check `support_requests_resolved_ck`
 | `password_hash` | text | yes |  |  |  |  |
 | `password_changed_at` | timestamp with time zone | yes |  |  |  |  |
 | `locale` | locale | no | `"nl-BE"` |  |  |  |
-| `role_key` | roles_key | yes |  |  | roles.key on delete restrict |  |
+| `role_key` | text | yes |  |  | roles.key on delete restrict |  |
 | `person_id` | uuid | yes |  |  | persons.id on delete restrict |  |
 | `totp_secret_enc` | bytea | yes |  |  |  |  |
 | `recovery_codes_enc` | bytea | yes |  |  |  |  |

@@ -1,10 +1,9 @@
 import Link from "next/link";
-import { ROLE_KEYS, type RoleKey } from "@beam/db/schema";
 import { Badge, DataTable, EmptyState } from "@beam/ui";
 import { requireStaff } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
 import { adminLocale, translator } from "@/lib/i18n";
-import { catalogueSection, listStaffUsers, type StaffUserRow } from "@/modules/platform/queries";
+import { catalogueSection, listRoles, listStaffUsers, type StaffUserRow } from "@/modules/platform/queries";
 import { InviteUserForm } from "@/modules/platform/ui/user-form";
 
 type Search = { q?: string; role?: string; status?: string; cursor?: string };
@@ -16,14 +15,16 @@ export default async function StaffUsersPage({ searchParams }: { searchParams: P
   const locale = await adminLocale();
   const tr = translator(locale);
   const t = (k: string, p?: Record<string, string | number>) => tr(`platform.users.${k}`, p);
-  const roleKey = (ROLE_KEYS as readonly string[]).includes(sp.role ?? "") ? (sp.role as RoleKey) : undefined;
+  const db = await getAppDb();
+  const allRoles = await listRoles(db, locale);
+  const roleKey = allRoles.some((r) => r.key === sp.role) ? sp.role : undefined;
   const status = sp.status === "active" || sp.status === "disabled" ? sp.status : undefined;
-  const { rows, nextCursor } = await listStaffUsers(await getAppDb(), { ...(sp.q ? { q: sp.q } : {}), ...(roleKey ? { roleKey } : {}), ...(status ? { status } : {}), cursor: sp.cursor ?? null });
-  const roleLabel = (k: string) => tr(`platform.roles.${k}`);
+  const { rows, nextCursor } = await listStaffUsers(db, { ...(sp.q ? { q: sp.q } : {}), ...(roleKey ? { roleKey } : {}), ...(status ? { status } : {}), cursor: sp.cursor ?? null });
+  const roleLabel = (k: string) => allRoles.find((r) => r.key === k)?.label ?? k;
   const now = new Date().getTime();
   const when = (d: Date | null) => (d ? d.toLocaleString(locale, { timeZone: "Europe/Brussels", dateStyle: "short", timeStyle: "short" }) : "–");
   // Only an owner may create owners (PL-16); the form never offers it to anyone else.
-  const roles = ROLE_KEYS.filter((k) => k !== "owner" || actor.roleKey === "owner").map((k) => ({ key: k, label: roleLabel(k) }));
+  const roles = allRoles.filter((r) => r.key !== "owner" || actor.roleKey === "owner").map((r) => ({ key: r.key, label: r.label }));
 
   return (
     <div className="grid gap-6">
@@ -39,7 +40,7 @@ export default async function StaffUsersPage({ searchParams }: { searchParams: P
         caption={t("title")}
         filters={[
           { kind: "search", key: "q", label: t("search"), placeholder: t("search_placeholder") },
-          { kind: "select", key: "role", label: t("role"), allLabel: t("all_roles"), options: ROLE_KEYS.map((k) => ({ value: k, label: roleLabel(k) })) },
+          { kind: "select", key: "role", label: t("role"), allLabel: t("all_roles"), options: allRoles.map((r) => ({ value: r.key, label: r.label })) },
           { kind: "select", key: "status", label: t("col_status"), allLabel: t("all_statuses"), options: [{ value: "active", label: t("status_active") }, { value: "disabled", label: t("status_disabled") }] },
         ]}
         labels={{ pagination: tr("platform.table.pagination"), previous: tr("platform.table.previous"), next: tr("platform.table.next"), applyFilters: tr("platform.table.apply"), filters: tr("platform.table.filters") }}

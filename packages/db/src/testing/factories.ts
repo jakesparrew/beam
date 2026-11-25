@@ -9,7 +9,7 @@ import { sessions } from "../schema/booking";
 import { priceVersions, products } from "../schema/commerce";
 import { creditEntries, creditGrants } from "../schema/credits";
 import { persons } from "../schema/crm";
-import { roles, users, type RoleKey } from "../schema/platform";
+import { roles, users, type RoleKey, type SystemRoleKey } from "../schema/platform";
 
 let counter = 0;
 /** A short unique suffix: a per-process counter plus random characters. */
@@ -42,7 +42,7 @@ export async function makePerson(
   return row!;
 }
 
-const ROLE_NAMES: Record<RoleKey, string> = {
+const ROLE_NAMES: Record<SystemRoleKey, string> = {
   owner: "Owner",
   management: "Management",
   customer_service: "Customer service",
@@ -60,7 +60,7 @@ export async function ensureRole(db: DbOrTx, key: RoleKey): Promise<void> {
     .insert(roles)
     .values({
       key,
-      name: { en: ROLE_NAMES[key] },
+      name: { en: (ROLE_NAMES as Record<string, string>)[key] ?? key },
       permissions: key === "owner" ? ["*"] : [],
     })
     .onConflictDoNothing({ target: roles.key });

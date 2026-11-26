@@ -508,6 +508,24 @@
         "legal_page_changed": "Ceci modifie une page juridique.",
         "path_changed": "L'adresse change ; une redirection est créée à la publication.",
         "text_too_long": "Un texte est plus long que recommandé."
+      },
+      "booking_links": {
+        "nav": "Boutons de réservation",
+        "title": "Boutons de réservation sur Google, Instagram et Facebook",
+        "intro": "Placez un bouton « Réserver » sur vos profils qui mène directement à la page de réservation de BEAM. Chaque lien a son propre suivi, pour voir ensuite combien de réservations viennent de chaque canal.",
+        "copy": "Copier",
+        "copied": "Copié",
+        "link": "Lien",
+        "how": "Comment le configurer",
+        "google_name": "Fiche d'établissement Google",
+        "google_steps": "Ouvrez votre fiche Google (cherchez « BEAM Vitality Center » sur Google en étant connecté) → Modifier le profil → Réservations ou Liens de rendez-vous → collez le lien et enregistrez. Le bouton « Réserver » apparaît dans la recherche Google et Maps.",
+        "instagram_name": "Instagram",
+        "instagram_steps": "App Instagram → Modifier le profil → Boutons d'action → Réserver → choisissez l'option avec votre propre lien (site web) et collez le lien. Si l'option n'apparaît pas, mettez le lien dans votre bio.",
+        "facebook_name": "Page Facebook",
+        "facebook_steps": "Ouvrez la page BEAM → Ajouter un bouton (ou Modifier le bouton) → Réserver → Lien vers le site web → collez le lien et enregistrez.",
+        "newsletter_name": "Newsletters et e-mails",
+        "newsletter_steps": "Utilisez ce lien pour les boutons des newsletters et des e-mails automatiques, afin de distinguer les réservations venant des e-mails.",
+        "note": "Les liens utilisent l'adresse de l'application. Après le lancement sur beam.be, ils s'adaptent automatiquement ; remplacez alors une fois les liens sur les profils."
       }
     },
     "blocks": {

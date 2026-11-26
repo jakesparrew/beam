@@ -15,6 +15,16 @@ export const nav = [
     order: 700,
   },
   {
+    key: "site.booking_links",
+    area: "admin",
+    section: "website",
+    labelKey: "site.admin.booking_links.nav",
+    href: "/admin/site/booking-links",
+    permission: "site.edit",
+    icon: "megaphone",
+    order: 710,
+  },
+  {
     key: "site.account",
     area: "portal",
     labelKey: "site.portal.nav.home",

@@ -508,6 +508,24 @@
         "legal_page_changed": "Dit wijzigt een juridische pagina.",
         "path_changed": "Het adres verandert; bij publicatie wordt een doorverwijzing gemaakt.",
         "text_too_long": "Een tekst is langer dan aanbevolen."
+      },
+      "booking_links": {
+        "nav": "Boekknoppen",
+        "title": "Boekknoppen op Google, Instagram en Facebook",
+        "intro": "Zet een 'Boeken'-knop op jullie profielen die rechtstreeks naar de BEAM-boekingspagina leidt. Elke link heeft een eigen tracking, zodat je later ziet hoeveel boekingen via welk kanaal binnenkomen.",
+        "copy": "Kopiëren",
+        "copied": "Gekopieerd",
+        "link": "Link",
+        "how": "Zo stel je het in",
+        "google_name": "Google Bedrijfsprofiel",
+        "google_steps": "Open je Google Bedrijfsprofiel (zoek 'BEAM Vitality Center' op Google terwijl je aangemeld bent) → Profiel bewerken → Boekingen of Afspraaklinks → plak de link en sla op. De knop 'Boeken' verschijnt in Google Zoeken en Maps.",
+        "instagram_name": "Instagram",
+        "instagram_steps": "Instagram-app → Profiel bewerken → Actieknoppen → Boeken of Reserveren → kies de optie met een eigen link (website) en plak de link. Zie je die optie niet, plaats de link dan in je bio of als link in je profiel.",
+        "facebook_name": "Facebook-pagina",
+        "facebook_steps": "Open de BEAM-pagina → Knop toevoegen (of Knop bewerken) → Nu boeken → Link naar website → plak de link en sla op.",
+        "newsletter_name": "Nieuwsbrieven en e-mails",
+        "newsletter_steps": "Gebruik deze link voor knoppen in nieuwsbrieven en automatische e-mails, zodat boekingen uit e-mail apart zichtbaar zijn.",
+        "note": "De links gebruiken het adres van de app. Na de lancering op beam.be passen ze zich vanzelf aan; vervang dan de links op de profielen één keer."
       }
     },
     "blocks": {

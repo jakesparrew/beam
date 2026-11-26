@@ -83,7 +83,7 @@ const GROUPS: ReadonlyArray<{ key: string; label: string; icon: string; keys: st
     key: "marketing",
     label: "platform.nav.section_marketing",
     icon: "megaphone",
-    keys: ["email.campaigns", "automation.automations", "forms.forms", "crm.segments", "email.templates", "site.website", "assistant.overview", "crm.inbox"],
+    keys: ["email.campaigns", "automation.automations", "forms.forms", "crm.segments", "email.templates", "site.website", "site.booking_links", "assistant.overview", "crm.inbox"],
     labels: { "email.templates": "platform.nav.email_templates", "assistant.overview": "platform.nav.assistant" },
   },
   {

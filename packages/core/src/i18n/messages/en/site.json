@@ -508,6 +508,24 @@
         "legal_page_changed": "This changes a legal page.",
         "path_changed": "The address changes; a redirect is created on publish.",
         "text_too_long": "A text is longer than recommended."
+      },
+      "booking_links": {
+        "nav": "Booking buttons",
+        "title": "Booking buttons on Google, Instagram and Facebook",
+        "intro": "Put a 'Book' button on your profiles that leads straight to the BEAM booking page. Each link carries its own tracking, so you can see later how many bookings come from each channel.",
+        "copy": "Copy",
+        "copied": "Copied",
+        "link": "Link",
+        "how": "How to set it up",
+        "google_name": "Google Business Profile",
+        "google_steps": "Open your Google Business Profile (search 'BEAM Vitality Center' on Google while signed in) → Edit profile → Bookings or Appointment links → paste the link and save. The 'Book' button appears in Google Search and Maps.",
+        "instagram_name": "Instagram",
+        "instagram_steps": "Instagram app → Edit profile → Action buttons → Book or Reserve → choose the option with your own link (website) and paste the link. If you don't see that option, put the link in your bio.",
+        "facebook_name": "Facebook page",
+        "facebook_steps": "Open the BEAM page → Add button (or Edit button) → Book now → Link to website → paste the link and save.",
+        "newsletter_name": "Newsletters and emails",
+        "newsletter_steps": "Use this link for buttons in newsletters and automated emails, so bookings from email show up separately.",
+        "note": "The links use the app's address. After the launch on beam.be they adapt automatically; then replace the links on the profiles once."
       }
     },
     "blocks": {

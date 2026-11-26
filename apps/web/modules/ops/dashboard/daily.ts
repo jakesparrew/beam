@@ -110,6 +110,34 @@ export async function getDailyCapacity(db: DbOrTx, input: { day: string; locale:
   return { slots, total: { capacity: sum("capacity"), booked: sum("booked"), held: sum("held"), available: sum("available") } };
 }
 
+/** Monday of the ISO week that holds `day` (`YYYY-MM-DD`). */
+export function weekStart(day: string): string {
+  const [y, m, d] = day.split("-").map(Number);
+  const dow = new Date(Date.UTC(y!, m! - 1, d!)).getUTCDay();
+  return shiftDay(day, -((dow + 6) % 7));
+}
+
+export type WeekOccupancy = { from: string; days: string[]; slots: (CapacitySlot & { day: string; time: string })[] };
+
+/**
+ * Every session of the Monday-to-Sunday week that holds `day` (cancelled ones and webinars left
+ * out), with its Brussels day and start time: the cells of the dashboard's week heatmap.
+ */
+export async function getWeekOccupancy(db: DbOrTx, input: { day: string; locale: Locale }): Promise<WeekOccupancy> {
+  const from = weekStart(input.day);
+  const days = Array.from({ length: 7 }, (_, i) => shiftDay(from, i));
+  const rows = rowsOf<SlotRow & { day: string; time: string }>(
+    await db.execute(sql`select ${slotColumns(input.locale)},
+        to_char(s.starts_at at time zone 'Europe/Brussels', 'YYYY-MM-DD') as day,
+        to_char(s.starts_at at time zone 'Europe/Brussels', 'HH24:MI') as time
+      from sessions s join v_session_availability a on a.session_id = s.id
+      where (s.starts_at at time zone 'Europe/Brussels')::date between ${from}::date and ${days[6]}::date
+        and s.status <> 'cancelled' and s.webinar_id is null
+      order by s.starts_at, s.id`),
+  );
+  return { from, days, slots: rows.map((r) => ({ ...toSlot(r), day: r.day, time: r.time })) };
+}
+
 /** Open sessions starting within the next 7 days that still have free places (the "fill this session" list). */
 export async function listSessionsToFill(db: DbOrTx, input: { now: Date; locale: Locale }): Promise<CapacitySlot[]> {
   return rowsOf<SlotRow>(

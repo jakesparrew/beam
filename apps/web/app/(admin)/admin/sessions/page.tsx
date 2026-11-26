@@ -170,7 +170,10 @@ export default async function SessionsPage({ searchParams }: { searchParams: Pro
                           <td className={td}>
                             <Link href={link} className="flex flex-wrap items-center gap-x-2 gap-y-1 hover:underline">
                               <span className={cn("font-medium", !past && "text-foreground")}>{show(b.title, locale)}</span>
-                              <span className="text-[0.75rem] text-muted-foreground">{b.eventCategory ? tr(`booking.eventCategory.${b.eventCategory}`) : tr(`booking.kind.${b.kind}`)}</span>
+                              {(() => {
+                                const kindText = b.eventCategory ? tr(`booking.eventCategory.${b.eventCategory}`) : tr(`booking.kind.${b.kind}`);
+                                return kindText === show(b.title, locale) ? null : <span className="text-[0.75rem] text-muted-foreground">{kindText}</span>;
+                              })()}
                               {b.isLeadMagnet ? <StatusPill tone="gold">{tr("booking.calendar.lead_badge")}</StatusPill> : null}
                             </Link>
                           </td>

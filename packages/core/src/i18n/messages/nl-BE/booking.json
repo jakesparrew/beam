@@ -888,7 +888,8 @@
       "day_summary": "{count, plural, one {# sessie} other {# sessies}} · {booked} van {capacity} geboekt",
       "day_empty": "Geen sessies",
       "today_badge": "Vandaag",
-      "week_range": "{from} – {to}"
+      "week_range": "{from} – {to}",
+      "col_date": "Datum"
     }
   }
 }

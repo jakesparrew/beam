@@ -888,7 +888,8 @@
       "day_summary": "{count, plural, one {# session} other {# sessions}} · {booked} of {capacity} booked",
       "day_empty": "No sessions",
       "today_badge": "Today",
-      "week_range": "{from} – {to}"
+      "week_range": "{from} – {to}",
+      "col_date": "Date"
     }
   }
 }

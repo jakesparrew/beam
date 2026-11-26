@@ -72,7 +72,7 @@ export default async function EventsPage({ searchParams }: { searchParams: Promi
             <table className="w-full min-w-[46rem] text-[0.8125rem]">
               <thead className="bg-[#faf9f6]">
                 <tr className="border-b border-border">
-                  <th scope="col" className={cn(th, "w-40")}>{tr(`${L}.col_time`)}</th>
+                  <th scope="col" className={cn(th, "w-52")}>{tr(`${L}.col_date`)}</th>
                   <th scope="col" className={th}>{tr("booking.event.details")}</th>
                   <th scope="col" className={cn(th, "w-48")}>{tr(`${L}.col_occupancy`)}</th>
                   <th scope="col" className={cn(th, "w-28")}>{tr(`${L}.col_status`)}</th>
@@ -93,7 +93,7 @@ export default async function EventsPage({ searchParams }: { searchParams: Promi
                           </span>
                           <span className="grid leading-tight">
                             <span className="font-medium text-foreground first-letter:uppercase">{weekday.format(s.startsAt)}</span>
-                            <span className="text-[0.75rem] text-muted-foreground">
+                            <span className="text-[0.75rem] whitespace-nowrap text-muted-foreground">
                               {brusselsTime(s.startsAt)}–{brusselsTime(s.endsAt)}
                             </span>
                           </span>

@@ -87,7 +87,7 @@ export type AdminShellProps = {
   currentPath?: string;
   /** Extra header content (for example a global search). */
   headerSlot?: ReactNode;
-  /** Logo image for the sidebar (light artwork, it sits on the dark sidebar); the brand text otherwise. */
+  /** Logo image for the sidebar (dark artwork on the light sidebar); the brand text otherwise. */
   logoSrc?: string;
   children: ReactNode;
 };
@@ -125,12 +125,12 @@ function NavGroup({
     <li data-nav-section={section.key}>
       <div
         className={cn(
-          "group/row relative flex items-center rounded-xl transition-colors hover:bg-sidebar-accent",
+          "group/row relative flex items-center rounded-lg transition-colors hover:bg-sidebar-accent/70",
           rowActive && "bg-sidebar-accent",
         )}
       >
         {rowActive ? (
-          <span aria-hidden="true" className="absolute top-2 bottom-2 left-0 w-1 rounded-full bg-sidebar-primary" />
+          <span aria-hidden="true" className="absolute top-1.5 bottom-1.5 -left-3 w-1 rounded-r-full bg-sidebar-primary" />
         ) : null}
         <a
           href={section.href}
@@ -138,11 +138,11 @@ function NavGroup({
           aria-current={isActive(section.href, currentPath) && !children.some((i) => isActive(i.href, currentPath)) ? "page" : undefined}
           onClick={onNavigate}
           className={cn(
-            "flex flex-1 items-center gap-3 px-3 py-2.5 text-sm font-medium text-sidebar-foreground transition-colors group-hover/row:text-sidebar-accent-foreground",
-            rowActive && "text-sidebar-accent-foreground",
+            "flex flex-1 items-center gap-2.5 px-2.5 py-2 text-[0.84375rem] font-medium text-sidebar-foreground transition-colors group-hover/row:text-sidebar-accent-foreground",
+            rowActive && "font-semibold text-sidebar-accent-foreground",
           )}
         >
-          <span className={cn("grid size-5 place-items-center", rowActive ? "text-sidebar-primary" : "opacity-80")}>
+          <span className={cn("grid size-5 place-items-center [&_svg]:size-4", rowActive ? "text-[#8a5a14]" : "text-sidebar-foreground/70")}>
             <NavIcon icon={section.icon} />
           </span>
           <span>{section.label}</span>
@@ -173,8 +173,8 @@ function NavGroup({
                   aria-current={active ? "page" : undefined}
                   onClick={onNavigate}
                   className={cn(
-                    "block rounded-lg px-2.5 py-1.5 text-[0.8125rem] text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                    active && "font-medium text-sidebar-primary",
+                    "block rounded-md px-2.5 py-1.5 text-[0.8125rem] text-sidebar-foreground/85 transition-colors hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground",
+                    active && "bg-sidebar-accent/60 font-semibold text-sidebar-accent-foreground",
                   )}
                 >
                   {item.label}
@@ -202,7 +202,7 @@ function NavList({
   if (nav.length && nav.every((s) => s.href)) {
     return (
       <nav aria-label={label} className="p-3">
-        <ul className="flex flex-col gap-1">
+        <ul className="flex flex-col gap-0.5">
           {nav.map((section) => (
             <NavGroup key={section.key} section={section as NavSection & { href: string }} currentPath={currentPath} onNavigate={onNavigate} />
           ))}
@@ -286,9 +286,9 @@ export function AdminShell({
 }: AdminShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const logo = (
-    <a href="/admin" className="flex items-center px-5 py-6">
+    <a href="/admin" className="flex items-center px-5 pt-5 pb-3">
       {logoSrc ? (
-        <img src={logoSrc} alt="" className="h-8 w-auto" />
+        <img src={logoSrc} alt="" className="h-6 w-auto" />
       ) : null}
       <span className={logoSrc ? "sr-only" : "text-lg font-semibold text-sidebar-accent-foreground"}>{labels.brand}</span>
     </a>
@@ -305,7 +305,7 @@ export function AdminShell({
       >
         {labels.skipToContent}
       </a>
-      <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col overflow-y-auto bg-sidebar text-sidebar-foreground md:flex">
+      <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col overflow-y-auto border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex">
         {logo}
         <NavList
           nav={nav}
@@ -315,7 +315,7 @@ export function AdminShell({
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
       {banner ? <div data-slot="admin-shell-banner" className="px-4 pt-4 md:px-8">{banner}</div> : null}
-      <header className="sticky top-0 z-40 flex h-16 items-center gap-3 bg-background/80 px-4 backdrop-blur-md md:px-8">
+      <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b border-border bg-background/85 px-4 backdrop-blur-md md:px-8">
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
           <SheetTrigger asChild>
             <Button
@@ -330,7 +330,7 @@ export function AdminShell({
           <SheetContent
             side="left"
             closeLabel={labels.closeNavigation}
-            className="overflow-y-auto border-sidebar-border bg-sidebar p-0 text-sidebar-foreground"
+            className="admin-theme overflow-y-auto border-sidebar-border bg-sidebar p-0 text-sidebar-foreground"
           >
             <SheetHeader className="sr-only">
               <SheetTitle>{labels.navigation}</SheetTitle>
@@ -398,7 +398,7 @@ export function AdminShell({
       <main
         id={MAIN_ID}
         tabIndex={-1}
-        className="min-w-0 flex-1 px-4 pt-2 pb-10 outline-none md:px-8"
+        className="min-w-0 flex-1 px-4 pt-6 pb-12 outline-none md:px-8"
       >
         {children}
       </main>

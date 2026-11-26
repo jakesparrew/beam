@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { headers } from "next/headers";
 import { isLocale } from "@beam/core/i18n";
 import { adminLocale, routeGroupOf } from "@/lib/i18n";
-import { poppins, rufina } from "./fonts";
+import { inter, poppins, rufina } from "./fonts";
 import "./globals.css";
 
 export const metadata = {
@@ -22,7 +22,7 @@ async function documentLocale(): Promise<string> {
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang={await documentLocale()} className={`${poppins.variable} ${rufina.variable}`}>
+    <html lang={await documentLocale()} className={`${poppins.variable} ${rufina.variable} ${inter.variable}`}>
       <body className="min-h-dvh bg-background font-sans text-foreground antialiased">{children}</body>
     </html>
   );

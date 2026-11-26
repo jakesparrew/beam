@@ -149,7 +149,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
           locales={LOCALES.map((l) => ({ value: l, short: URL_SEGMENT[l].toUpperCase(), label: tr(`platform.shell.locale_${URL_SEGMENT[l]}`) }))}
         />
       }
-      logoSrc="/brand/beam-logo-header.png"
+      logoSrc="/brand/beam-logo-dark.png"
       labels={{
         skipToContent: tr("platform.shell.skip_to_content"),
         navigation: tr("platform.shell.navigation"),

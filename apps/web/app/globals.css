@@ -282,53 +282,120 @@
 }
 
 /* ------------------------------------------------------------------------------------------
- * Back-office in the BEAM house style: Rufina page titles, soft floating cards, pill buttons,
- * rounded fields and tables on white cards. Scoped to the admin shell so the site keeps its own.
+ * Back-office (owner review, November 2026): a calm, light, data-first interface in the spirit
+ * of Cal.com and Airbnb's host tools. Warm-white canvas, white surfaces with hairline borders,
+ * near-black primary actions, BEAM gold only for selection and focus, Inter with tabular
+ * figures, 8/12px corners. Scoped to the admin shell (and `.admin-theme` for portalled panels
+ * such as the mobile menu) so the public site and the portal keep the beam.be look.
  * ---------------------------------------------------------------------------------------- */
 .font-display {
   font-family: var(--font-rufina), Georgia, serif;
 }
+[data-slot="admin-shell"],
+.admin-theme {
+  --radius: 0.625rem;
+  --background: #f7f6f3;
+  --foreground: #141414;
+  --card: #ffffff;
+  --card-foreground: #141414;
+  --popover: #ffffff;
+  --popover-foreground: #141414;
+  --primary: #141414;
+  --primary-foreground: #ffffff;
+  --secondary: #f1efea;
+  --secondary-foreground: #141414;
+  --muted: #f1efea;
+  --muted-foreground: #615d56;
+  --accent: #f7eedc;
+  --accent-foreground: #141414;
+  --border: #e6e2da;
+  --input: #dcd6cb;
+  --ring: #c9973a;
+  --success: #1f8a5b;
+  --warning: #b26b00;
+  --chart-1: #141414;
+  --chart-2: #c9973a;
+  --chart-3: #1f8a5b;
+  --chart-4: #c2410c;
+  --chart-5: #4f46e5;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #3d3a35;
+  --sidebar-primary: #c9973a;
+  --sidebar-primary-foreground: #141414;
+  --sidebar-accent: #f7eedc;
+  --sidebar-accent-foreground: #141414;
+  --sidebar-border: #ebe7df;
+  --sidebar-ring: #c9973a;
+  /* Status pairs (soft background, readable text at 4.5:1 or more). */
+  --status-ok: #17734b;
+  --status-ok-soft: #e6f4ec;
+  --status-warn: #8f5600;
+  --status-warn-soft: #fff1d6;
+  --status-bad: #b4380a;
+  --status-bad-soft: #fde9e1;
+  --status-info: #4338ca;
+  --status-info-soft: #eceefe;
+  --status-full: #141414;
+  font-family: var(--font-inter), "Inter", ui-sans-serif, system-ui, sans-serif;
+  font-feature-settings: "cv11" 1, "ss01" 1;
+  color: var(--foreground);
+}
+[data-slot="admin-shell"] main {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.875rem;
+}
 [data-slot="admin-shell"] main h1 {
-  font-family: var(--font-rufina), Georgia, serif;
-  font-weight: 700;
-  font-size: clamp(1.75rem, 1.4rem + 1vw, 2.25rem);
-  line-height: 1.15;
-  letter-spacing: -0.01em;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 1.375rem;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+}
+[data-slot="admin-shell"] main h2 {
+  letter-spacing: -0.005em;
 }
 [data-slot="admin-shell"] [data-slot="card"] {
-  border-color: transparent;
-  border-radius: 1.25rem;
-  box-shadow: 0 1px 2px rgb(33 40 66 / 0.04), 0 12px 32px -18px rgb(33 40 66 / 0.22);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 2px rgb(20 20 20 / 0.03);
+}
+[data-slot="admin-shell"] [data-slot="card-title"] {
+  font-size: 0.9375rem;
+  font-weight: 600;
 }
 [data-slot="admin-shell"] [data-slot="button"] {
+  border-radius: 0.5rem;
+  font-weight: 600;
+}
+[data-slot="admin-shell"] [data-slot="badge"] {
   border-radius: 9999px;
+  font-weight: 600;
 }
 [data-slot="admin-shell"] [data-slot="input"],
 [data-slot="admin-shell"] [data-slot="select-trigger"],
 [data-slot="admin-shell"] main select,
 [data-slot="admin-shell"] main textarea,
 [data-slot="admin-shell"] main input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]) {
-  border-radius: 0.75rem;
+  border-radius: 0.5rem;
   background-color: var(--card);
 }
 [data-slot="admin-shell"] [data-slot="table-container"] {
   background: var(--card);
-  border-radius: 1.25rem;
-  padding: 0.25rem 0.75rem;
-  box-shadow: 0 1px 2px rgb(33 40 66 / 0.04), 0 12px 32px -18px rgb(33 40 66 / 0.22);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 2px rgb(20 20 20 / 0.03);
 }
 [data-slot="admin-shell"] [data-slot="table-head"] {
-  font-size: 0.7rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 0.75rem;
+  font-weight: 500;
   color: var(--muted-foreground);
+  background: #faf9f6;
 }
 [data-slot="admin-shell"] [data-slot="table"] tbody tr {
-  transition: background-color 0.15s;
+  transition: background-color 0.12s;
 }
 [data-slot="admin-shell"] [data-slot="table"] tbody tr:hover {
-  background-color: #fbf8f1;
+  background-color: #faf9f6;
 }
 
 /* Customer portal in the BEAM house style: Rufina titles, soft floating cards, pill buttons and

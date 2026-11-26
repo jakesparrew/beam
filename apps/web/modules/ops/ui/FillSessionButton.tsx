@@ -54,7 +54,7 @@ export function FillSessionButton({ sessionId, labels }: { sessionId: string; la
             {state.message}
           </span>
         ) : null}
-        <Button size="sm" variant="outline" disabled={state.kind === "busy"} onClick={() => void preview()} data-testid="fill-session">
+        <Button size="sm" variant="outline" className="h-7 px-2.5 text-[0.75rem]" disabled={state.kind === "busy"} onClick={() => void preview()} data-testid="fill-session">
           {state.kind === "busy" ? labels.counting : labels.button}
         </Button>
       </div>

@@ -1,15 +1,15 @@
 /**
- * The day view at the top of `/admin/dashboard` (owner requirements 6), laid out like a modern
- * operations dashboard: smart suggestions with one-click actions, four KPI tiles against the
- * same weekday last week, the week as an occupancy heatmap (day blocks and nights against the
- * seven days) next to the day's sessions, then who is coming (with what to offer them), the
- * revenue of the day per kind and the sessions of the next 7 days to fill. Each part shows only
- * when the viewer may see it (`dailyAccess`): Front Desk sees no revenue and no campaign button,
- * client names need `persons.read`.
+ * The day view at the top of `/admin/dashboard` (owner requirements 6), in the back-office's
+ * data-first style: one line of suggestions with actions, a compact KPI strip (against the same
+ * weekday last week), the week as an occupancy grid with status colours (free, almost full,
+ * full, no session) next to today's sessions, then who is coming as a filterable table with the
+ * follow-up per client, the day's revenue per kind and the sessions to fill. Each part shows
+ * only when the viewer may see it (`dailyAccess`): Front Desk sees no revenue and no campaign
+ * button, client names need `persons.read`.
  */
 import type { Route } from "next";
 import Link from "next/link";
-import { Badge, Card, CardAction, CardContent, CardHeader, CardTitle, NavIcon, cn } from "@beam/ui";
+import { NavIcon, cn } from "@beam/ui";
 import { comparePeriods } from "@beam/core/ops";
 import { formatDate, formatMoney, formatTime, type Locale } from "@beam/core/i18n";
 import {
@@ -31,14 +31,17 @@ import {
 import { FILL_REASONS } from "../dashboard/fill-session";
 import type { OpsReadCtx } from "../reports/registry";
 import { brusselsDate } from "../reports/revenue";
-import { ChangeBadge } from "./ChangeBadge";
 import { FillSessionButton, type FillSessionLabels } from "./FillSessionButton";
 
 type Tr = (key: string, params?: Record<string, string | number>) => string;
 const K = "ops.dashboard.daily";
-const GOLD = "#d1a64a";
 /** Sessions listed in "sessions to fill" before the "more" link. */
-const FILL_SHOWN = 6;
+const FILL_SHOWN = 5;
+export type ClientFilter = "all" | "members" | "new" | "action";
+export const CLIENT_FILTERS: readonly ClientFilter[] = ["all", "members", "new", "action"];
+
+const surface = "rounded-xl border border-border bg-card";
+const sectionTitle = "text-[0.9375rem] font-semibold tracking-[-0.005em]";
 
 function kindLabel(tr: Tr, kind: string) {
   return tr(`ops.dashboard.overview.kind_${kind}`);
@@ -58,8 +61,32 @@ function membershipText(m: NonNullable<DayClient["membership"]>, tr: Tr, locale:
 }
 
 const pctOf = (s: { booked: number; held: number; capacity: number }) => (s.capacity ? Math.min(100, Math.round(((s.booked + s.held) / s.capacity) * 100)) : 0);
-const shortDay = (d: Date | string, locale: Locale) =>
-  new Intl.DateTimeFormat(locale, { timeZone: "Europe/Brussels", weekday: "short", day: "numeric", month: "short" }).format(typeof d === "string" ? new Date(`${d}T12:00:00Z`) : d);
+const shortDay = (d: Date, locale: Locale) => new Intl.DateTimeFormat(locale, { timeZone: "Europe/Brussels", weekday: "short", day: "numeric", month: "short" }).format(d);
+
+/** Free, almost full (75% or more), full, or over. */
+type SlotState = "free" | "almost" | "full" | "past";
+function slotState(s: { booked: number; held: number; capacity: number; available: number; endsAt: Date }, now: Date): SlotState {
+  if (s.endsAt.getTime() < now.getTime()) return "past";
+  if (s.available <= 0) return "full";
+  return pctOf(s) >= 75 ? "almost" : "free";
+}
+const STATE_CELL: Record<SlotState, string> = {
+  free: "bg-[var(--status-ok-soft)] text-[var(--status-ok)]",
+  almost: "bg-[var(--status-warn-soft)] text-[var(--status-warn)]",
+  full: "bg-[var(--status-full)] text-white",
+  past: "bg-muted text-muted-foreground",
+};
+const STATE_PILL: Record<SlotState | "running", string> = {
+  free: "bg-[var(--status-ok-soft)] text-[var(--status-ok)]",
+  almost: "bg-[var(--status-warn-soft)] text-[var(--status-warn)]",
+  full: "bg-[var(--status-full)] text-white",
+  past: "bg-muted text-muted-foreground",
+  running: "bg-[var(--status-info-soft)] text-[var(--status-info)]",
+};
+
+function Pill({ className, children }: { className?: string; children: React.ReactNode }) {
+  return <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[0.6875rem] leading-4 font-semibold whitespace-nowrap", className)}>{children}</span>;
+}
 
 function fillLabels(tr: Tr, errors: Record<string, string>): FillSessionLabels {
   return {
@@ -77,58 +104,31 @@ function fillLabels(tr: Tr, errors: Record<string, string>): FillSessionLabels {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Smart suggestions
+// Suggestions: one calm line of chips, each with its action
 // ---------------------------------------------------------------------------------------------
 
-type Suggestion = { key: string; icon: string; title: string; text: string; action: React.ReactNode };
-
-function SuggestionsStrip({ items, tr }: { items: Suggestion[]; tr: Tr }) {
-  if (!items.length) return null;
-  return (
-    <section aria-labelledby="daily-suggestions" className="grid gap-3 rounded-[1.25rem] bg-[linear-gradient(120deg,#f4ead3,#fbf6ea_60%,#f4ead3)] p-4 ring-1 ring-[#d1a64a]/30 sm:p-5" data-testid="daily-suggestions">
-      <h2 id="daily-suggestions" className="flex flex-wrap items-center gap-2 text-sm">
-        <span className="flex size-7 items-center justify-center rounded-full bg-[#212842] text-[#e8c26a]">
-          <NavIcon icon="sparkles" className="size-4" />
-        </span>
-        <span className="font-semibold">{tr(`${K}.suggestions_title`)}</span>
-        <span className="text-muted-foreground">· {tr(`${K}.suggestions_count`, { count: items.length })}</span>
-      </h2>
-      <ul className="-mx-1 flex snap-x gap-3 overflow-x-auto px-1 pb-1">
-        {items.map((s) => (
-          <li key={s.key} className="grid min-w-[16rem] flex-1 snap-start content-between gap-3 rounded-2xl bg-card p-4 shadow-sm ring-1 ring-black/5" data-suggestion={s.key}>
-            <div className="grid gap-1">
-              <span className="flex items-center gap-2 font-semibold">
-                <NavIcon icon={s.icon} className="size-4 text-[#a0621e]" />
-                {s.title}
-              </span>
-              <span className="text-sm text-muted-foreground">{s.text}</span>
-            </div>
-            <div>{s.action}</div>
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
-
-const pillLink = "inline-flex items-center rounded-full border border-[#d1a64a]/60 bg-background px-3.5 py-1.5 text-sm font-medium hover:bg-[#f4ead3] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
+type Suggestion = { key: string; text: React.ReactNode; action: React.ReactNode };
 
 function buildSuggestions(input: { toFill: CapacitySlot[]; clients: DayClient[] | null; access: DailyAccess; tr: Tr; locale: Locale; now: Date; errors: Record<string, string> }): Suggestion[] {
   const { toFill, clients, access, tr, locale, now, errors } = input;
   const out: Suggestion[] = [];
-  // The two emptiest sessions of the next days: the biggest gains from a targeted mail.
   const emptiest = [...toFill].sort((a, b) => pctOf(a) - pctOf(b) || a.startsAt.getTime() - b.startsAt.getTime()).slice(0, 2);
   for (const s of emptiest) {
     out.push({
       key: `fill:${s.sessionId}`,
-      icon: s.kind === "night" ? "moon" : "calendar-days",
-      title: tr(`${K}.sugg_fill_title`, { when: `${shortDay(s.startsAt, locale)} ${formatTime(s.startsAt, locale)}` }),
-      text: `${tr(`${K}.free_of`, { count: s.available, capacity: s.capacity })}${s.waiting ? ` · ${tr(`${K}.waiting`, { count: s.waiting })}` : ""}`,
+      text: (
+        <>
+          <b className="font-semibold text-foreground">
+            {shortDay(s.startsAt, locale)} {formatTime(s.startsAt, locale)}
+          </b>{" "}
+          {tr(`${K}.free_of`, { count: s.available, capacity: s.capacity })}
+        </>
+      ),
       action: access.fill ? (
         <FillSessionButton sessionId={s.sessionId} labels={fillLabels(tr, errors)} />
       ) : (
-        <Link href={`/admin/sessions/${s.sessionId}` as Route} className={pillLink}>
-          {tr(`${K}.sugg_open_session`)}
+        <Link href={`/admin/sessions/${s.sessionId}` as Route} className="font-semibold text-[#8a5a14] hover:underline">
+          {tr(`${K}.sugg_open_session`)} →
         </Link>
       ),
     });
@@ -136,299 +136,284 @@ function buildSuggestions(input: { toFill: CapacitySlot[]; clients: DayClient[] 
   if (clients) {
     const opps = clients.map((c) => clientOpportunities(c, now));
     const count = (key: Opportunity["key"]) => opps.filter((list) => list.some((o) => o.key === key)).length;
-    const clientsLink = (
-      <a href="#daily-clients-title" className={pillLink}>
-        {tr(`${K}.sugg_see_clients`)}
-      </a>
-    );
-    const groups: [Opportunity["key"], string, string][] = [
-      ["package_low", "package", "package"],
-      ["membership_renewal", "badge-check", "renewal"],
-      ["first_visit", "user-plus", "first"],
-      ["free_session_unused", "gift", "free"],
+    const groups: [Opportunity["key"], string][] = [
+      ["package_low", "package"],
+      ["membership_renewal", "renewal"],
+      ["first_visit", "first"],
+      ["free_session_unused", "free"],
     ];
-    for (const [key, icon, name] of groups) {
+    for (const [key, name] of groups) {
       const n = count(key);
-      if (n) out.push({ key, icon, title: tr(`${K}.sugg_${name}_title`), text: tr(`${K}.sugg_${name}_text`, { count: n }), action: clientsLink });
+      if (!n) continue;
+      out.push({
+        key,
+        text: tr(`${K}.sugg_${name}_text`, { count: n }),
+        action: (
+          <Link href={{ pathname: "/admin/dashboard", query: { who: "action" }, hash: "daily-clients-title" }} className="font-semibold text-[#8a5a14] hover:underline">
+            {tr(`${K}.see`)} →
+          </Link>
+        ),
+      });
     }
   }
   return out;
 }
 
-// ---------------------------------------------------------------------------------------------
-// KPI tiles
-// ---------------------------------------------------------------------------------------------
-
-function Kpi({ icon, label, value, sub, badge, testId }: { icon: string; label: string; value: string; sub?: string; badge?: React.ReactNode; testId?: string }) {
+function SuggestionsLine({ items, tr }: { items: Suggestion[]; tr: Tr }) {
+  if (!items.length) return null;
   return (
-    <div className="grid content-between gap-3 rounded-[1.25rem] bg-card p-5 shadow-sm ring-1 ring-black/5" data-testid={testId}>
-      <span className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
-        {label}
-        <span className="flex size-8 items-center justify-center rounded-full bg-[#f4ead3] text-[#a0621e]">
-          <NavIcon icon={icon} className="size-4" />
-        </span>
-      </span>
-      <span className="text-3xl leading-none font-semibold tracking-tight tabular-nums">{value}</span>
-      <span className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-        {badge}
-        {sub}
-      </span>
-    </div>
+    <section aria-labelledby="daily-suggestions" className={cn(surface, "flex items-center gap-2 overflow-x-auto p-1.5 pl-3")} data-testid="daily-suggestions">
+      <h2 id="daily-suggestions" className="flex shrink-0 items-center gap-1.5 text-[0.8125rem] font-semibold">
+        <NavIcon icon="sparkles" className="size-3.5 text-[#c9973a]" />
+        {tr(`${K}.suggestions_count`, { count: items.length })}
+      </h2>
+      <span aria-hidden="true" className="mx-1 h-5 w-px shrink-0 bg-border" />
+      <ul className="flex gap-1.5">
+        {items.map((s) => (
+          <li key={s.key} className="flex shrink-0 items-center gap-2.5 rounded-lg bg-muted px-2.5 py-1 text-[0.8125rem] text-muted-foreground" data-suggestion={s.key}>
+            <span>{s.text}</span>
+            {s.action}
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
 // ---------------------------------------------------------------------------------------------
-// Week heatmap
+// KPI strip: four figures in one bordered row, no empty space
 // ---------------------------------------------------------------------------------------------
 
-/** Gold scale from free (light sand) to full (deep amber, white figures). */
-function heatClass(pct: number, full: boolean): string {
-  if (full) return "bg-[#8a5a14] text-white";
-  if (pct >= 75) return "bg-[#b9832d] text-white";
-  if (pct >= 50) return "bg-[#d1a64a] text-[#1c1c1c]";
-  if (pct >= 25) return "bg-[#e6c886] text-[#1c1c1c]";
-  if (pct > 0) return "bg-[#f1e0b6] text-[#1c1c1c]";
-  return "bg-[#f8f0dd] text-muted-foreground";
+function Delta({ change, changePct, formatted, locale }: { change: number; changePct: number | null; formatted: string; locale: Locale }) {
+  const tone = change > 0 ? "bg-[var(--status-ok-soft)] text-[var(--status-ok)]" : change < 0 ? "bg-[var(--status-bad-soft)] text-[var(--status-bad)]" : "bg-muted text-muted-foreground";
+  const sign = change > 0 ? "+" : change < 0 ? "−" : "±";
+  const pct = changePct === null ? "" : ` (${sign}${new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(Math.abs(changePct))}%)`;
+  return <span className={cn("rounded-md px-1.5 py-px text-[0.6875rem] font-semibold", tone)}>{`${sign}${formatted}${pct}`}</span>;
 }
 
-type HeatRow = { key: string; label: string; icon: string; cells: Map<string, (CapacitySlot & { day: string; time: string })[]> };
+type Kpi = { key: string; label: string; value: string; delta?: React.ReactNode; sub?: string };
 
-function heatRows(week: WeekOccupancy, tr: Tr): HeatRow[] {
-  const rows = new Map<string, HeatRow>();
-  const order = (k: string) => (k.startsWith("day:") ? `0${k}` : k.startsWith("night:") ? `1${k}` : `2${k}`);
+function KpiStrip({ items }: { items: Kpi[] }) {
+  return (
+    <section className={cn(surface, "grid grid-cols-2 lg:grid-flow-col lg:auto-cols-fr lg:grid-cols-none lg:divide-x lg:divide-border")} data-testid="daily-kpis">
+      {items.map((k, i) => (
+        <div key={k.key} className={cn("grid content-start gap-1 px-5 py-3.5", i < 2 && "border-b border-border lg:border-b-0", i % 2 === 1 && "border-l border-border lg:border-l-0")} data-testid={`daily-kpi-${k.key}`}>
+          <span className="text-[0.75rem] font-medium text-muted-foreground">{k.label}</span>
+          <span className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+            <span className="text-[1.5rem] leading-none font-semibold tracking-[-0.02em]">{k.value}</span>
+            {k.delta}
+          </span>
+          {k.sub ? <span className="text-[0.75rem] text-muted-foreground">{k.sub}</span> : null}
+        </div>
+      ))}
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------------------------
+// Week occupancy grid
+// ---------------------------------------------------------------------------------------------
+
+type WeekSlot = WeekOccupancy["slots"][number];
+type GridRow = { key: string; label: string; cells: Map<string, WeekSlot[]> };
+
+function gridRows(week: WeekOccupancy, tr: Tr): GridRow[] {
+  const rows = new Map<string, GridRow>();
+  const rank = (k: string) => (k.startsWith("day:") ? `0${k}` : k.startsWith("night:") ? `1${k}` : `2${k}`);
   for (const s of week.slots) {
     const key = s.kind === "event" ? "event" : `${s.kind}:${s.time}`;
-    const label = s.kind === "event" ? tr(`${K}.week_events`) : s.kind === "night" ? `${tr(`${K}.week_night`)} ${s.time}` : s.time;
-    const row = rows.get(key) ?? { key, label, icon: s.kind === "night" ? "moon" : s.kind === "event" ? "ticket" : "sun", cells: new Map() };
-    const list: (CapacitySlot & { day: string; time: string })[] = row.cells.get(s.day) ?? [];
+    const label = s.kind === "event" ? tr(`${K}.week_events`) : `${s.time} ${kindLabel(tr, s.kind).toLowerCase()}`;
+    const row = rows.get(key) ?? { key, label, cells: new Map<string, WeekSlot[]>() };
+    const list: WeekSlot[] = row.cells.get(s.day) ?? [];
     row.cells.set(s.day, [...list, s]);
     rows.set(key, row);
   }
-  return [...rows.values()].sort((a, b) => order(a.key).localeCompare(order(b.key)));
+  return [...rows.values()].sort((a, b) => rank(a.key).localeCompare(rank(b.key)));
 }
 
-function WeekHeatmap({ week, day, today, now, tr, locale }: { week: WeekOccupancy; day: string; today: string; now: Date; tr: Tr; locale: Locale }) {
-  const rows = heatRows(week, tr);
-  const dayHead = (d: string) => new Intl.DateTimeFormat(locale, { timeZone: "UTC", weekday: "short" }).format(new Date(`${d}T12:00:00Z`));
-  const dayNum = (d: string) => Number(d.slice(8, 10));
+function WeekGrid({ week, day, today, now, tr, locale }: { week: WeekOccupancy; day: string; today: string; now: Date; tr: Tr; locale: Locale }) {
+  const rows = gridRows(week, tr);
+  const head = (d: string) => new Intl.DateTimeFormat(locale, { timeZone: "UTC", weekday: "short" }).format(new Date(`${d}T12:00:00Z`));
   const future = week.slots.filter((s) => s.endsAt.getTime() > now.getTime() && s.kind !== "event");
-  const busiest = [...future].sort((a, b) => pctOf(b) - pctOf(a)).slice(0, 3);
-  const quietest = [...future].filter((s) => s.available > 0).sort((a, b) => pctOf(a) - pctOf(b)).slice(0, 3);
+  const busiest = [...future].sort((a, b) => pctOf(b) - pctOf(a))[0];
+  const quietest = [...future].filter((s) => s.available > 0).sort((a, b) => pctOf(a) - pctOf(b))[0];
+  const waiting = future.filter((s) => s.waiting > 0).sort((a, b) => b.waiting - a.waiting);
   const when = (s: CapacitySlot) => `${shortDay(s.startsAt, locale)} ${formatTime(s.startsAt, locale)}`;
-  const weekLink = (n: number) => ({ pathname: "/admin/dashboard", query: { day: shiftDay(day, n) } });
+  const legend: [SlotState | "closed", string][] = [
+    ["free", tr(`${K}.legend_free`)],
+    ["almost", tr(`${K}.legend_almost`)],
+    ["full", tr(`${K}.legend_full`)],
+    ["closed", tr(`${K}.legend_closed`)],
+  ];
   return (
-    <Card data-testid="daily-week">
-      <CardHeader>
-        <CardTitle className="text-base">{tr(`${K}.week_title`)}</CardTitle>
-        <CardAction className="flex items-center gap-1 text-sm">
-          <Link href={weekLink(-7)} aria-label={tr(`${K}.week_prev`)} className="rounded-full px-2 py-1 text-muted-foreground hover:bg-muted hover:text-foreground">
-            ←
+    <section className={cn(surface, "grid content-start gap-4 p-5")} data-testid="daily-week">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <h2 className={sectionTitle}>{tr(`${K}.week_title`)}</h2>
+        <span className="flex items-center gap-1 text-[0.8125rem] text-muted-foreground">
+          <Link href={{ pathname: "/admin/dashboard", query: { day: shiftDay(day, -7) } }} aria-label={tr(`${K}.week_prev`)} className="rounded-md px-1.5 hover:bg-muted hover:text-foreground">
+            ‹
           </Link>
-          <span className="tabular-nums text-muted-foreground">
-            {formatDate(week.days[0]!, locale)} – {formatDate(week.days[6]!, locale)}
-          </span>
-          <Link href={weekLink(7)} aria-label={tr(`${K}.week_next`)} className="rounded-full px-2 py-1 text-muted-foreground hover:bg-muted hover:text-foreground">
-            →
+          {formatDate(week.days[0]!, locale)} – {formatDate(week.days[6]!, locale)}
+          <Link href={{ pathname: "/admin/dashboard", query: { day: shiftDay(day, 7) } }} aria-label={tr(`${K}.week_next`)} className="rounded-md px-1.5 hover:bg-muted hover:text-foreground">
+            ›
           </Link>
-        </CardAction>
-      </CardHeader>
-      <CardContent className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_15rem]">
-        {rows.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{tr(`${K}.no_sessions`)}</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[34rem] table-fixed border-separate border-spacing-1.5 text-sm">
-              <thead>
-                <tr>
-                  <th scope="col" className="w-24" />
-                  {week.days.map((d) => (
-                    <th key={d} scope="col" className="pb-1 text-center font-normal">
-                      <Link
-                        href={{ pathname: "/admin/dashboard", query: d === today ? {} : { day: d } }}
-                        className={cn(
-                          "mx-auto grid w-12 justify-items-center rounded-xl py-1 leading-tight hover:bg-muted",
-                          d === today && "bg-[#212842] text-[#fffaef] hover:bg-[#212842]",
-                          d === day && d !== today && "ring-1 ring-[#d1a64a]",
-                        )}
-                        aria-current={d === day ? "date" : undefined}
-                      >
-                        <span className="text-[0.7rem] uppercase opacity-70">{dayHead(d)}</span>
-                        <span className="font-semibold tabular-nums">{dayNum(d)}</span>
-                      </Link>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row) => (
-                  <tr key={row.key}>
-                    <th scope="row" className="pr-1 text-left font-medium whitespace-nowrap text-muted-foreground">
-                      <span className="flex items-center gap-1.5">
-                        <NavIcon icon={row.icon} className="size-3.5" />
-                        {row.label}
-                      </span>
-                    </th>
-                    {week.days.map((d) => {
-                      const cell = row.cells.get(d) ?? [];
-                      if (!cell.length) {
-                        return (
-                          <td key={d} className="h-11 rounded-lg bg-[repeating-linear-gradient(135deg,#f6f1e6,#f6f1e6_4px,#efe7d6_4px,#efe7d6_8px)]">
-                            <span className="sr-only">{tr(`${K}.week_closed`)}</span>
-                          </td>
-                        );
-                      }
-                      const agg = cell.reduce((a, s) => ({ booked: a.booked + s.booked, held: a.held + s.held, capacity: a.capacity + s.capacity, available: a.available + s.available }), { booked: 0, held: 0, capacity: 0, available: 0 });
-                      const pct = pctOf(agg);
-                      const first = cell[0]!;
-                      const past = first.endsAt.getTime() < now.getTime();
-                      const label = tr(`${K}.week_cell`, { when: `${shortDay(first.startsAt, locale)} ${row.label}`, booked: agg.booked + agg.held, capacity: agg.capacity });
+        </span>
+        <ul className="ml-auto flex flex-wrap gap-1.5 text-[0.75rem] text-muted-foreground">
+          {legend.map(([state, label]) => (
+            <li key={state} className="flex items-center gap-1.5 rounded-md border border-border px-2 py-0.5">
+              <span aria-hidden="true" className={cn("size-2.5 rounded-sm", state === "closed" ? "bg-muted ring-1 ring-border" : STATE_CELL[state].split(" ")[0])} />
+              {label}
+            </li>
+          ))}
+        </ul>
+      </div>
+      {rows.length === 0 ? (
+        <p className="text-sm text-muted-foreground">{tr(`${K}.no_sessions`)}</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[36rem] table-fixed border-separate border-spacing-1 text-[0.75rem]">
+            <thead>
+              <tr>
+                <th scope="col" className="w-[6.5rem]" />
+                {week.days.map((d) => (
+                  <th key={d} scope="col" className="pb-1 font-normal">
+                    <Link
+                      href={{ pathname: "/admin/dashboard", query: d === today ? {} : { day: d } }}
+                      aria-current={d === day ? "date" : undefined}
+                      className={cn(
+                        "mx-auto flex w-fit items-baseline gap-1 rounded-md px-2 py-0.5 text-muted-foreground hover:bg-muted",
+                        d === today && "bg-foreground text-background hover:bg-foreground",
+                        d === day && d !== today && "ring-1 ring-[#c9973a]",
+                      )}
+                    >
+                      <span>{head(d)}</span>
+                      <b className={cn("font-semibold", d === today ? "text-background" : "text-foreground")}>{Number(d.slice(8, 10))}</b>
+                    </Link>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={row.key}>
+                  <th scope="row" className="pr-2 text-left text-[0.8125rem] font-medium whitespace-nowrap text-foreground/80">
+                    {row.label}
+                  </th>
+                  {week.days.map((d) => {
+                    const cell = row.cells.get(d) ?? [];
+                    if (!cell.length) {
                       return (
-                        <td key={d} className="h-11 p-0">
-                          <Link
-                            href={`/admin/sessions/${first.sessionId}` as Route}
-                            title={label}
-                            aria-label={label}
-                            className={cn(
-                              "flex h-11 items-center justify-center rounded-lg text-xs font-semibold tabular-nums transition hover:ring-2 hover:ring-[#212842]/40 focus-visible:outline-2 focus-visible:outline-[#212842]",
-                              heatClass(pct, agg.available === 0),
-                              past && "opacity-50",
-                            )}
-                            data-testid="daily-week-cell"
-                            data-pct={pct}
-                          >
-                            {agg.booked + agg.held}/{agg.capacity}
-                          </Link>
+                        <td key={d} className="h-9 rounded-md bg-muted text-center text-muted-foreground/50">
+                          <span aria-hidden="true">–</span>
+                          <span className="sr-only">{tr(`${K}.week_closed`)}</span>
                         </td>
                       );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
-              <span>{tr(`${K}.week_legend`)}</span>
-              <span>0%</span>
-              <span className="h-2 w-40 rounded-full bg-[linear-gradient(90deg,#f8f0dd,#e6c886,#d1a64a,#b9832d,#8a5a14)]" aria-hidden="true" />
-              <span>100%</span>
-            </div>
-          </div>
-        )}
-        <div className="grid content-start gap-5 text-sm">
-          {busiest.length ? (
-            <div className="grid gap-2">
-              <h3 className="font-semibold">{tr(`${K}.week_busiest`)}</h3>
-              <ul className="grid gap-2">
-                {busiest.map((s) => (
-                  <li key={s.sessionId} className="grid">
-                    <Link href={`/admin/sessions/${s.sessionId}` as Route} className="font-medium underline-offset-4 hover:underline">
-                      {when(s)}
-                    </Link>
-                    <span className="text-muted-foreground">{s.available ? tr(`${K}.places_left`, { count: s.available }) : tr(`${K}.full`)} · {pctOf(s)}%</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-          {quietest.length ? (
-            <div className="grid gap-2">
-              <h3 className="font-semibold">{tr(`${K}.week_quiet`)}</h3>
-              <ul className="grid gap-2">
-                {quietest.map((s) => (
-                  <li key={s.sessionId} className="grid">
-                    <Link href={`/admin/sessions/${s.sessionId}` as Route} className="font-medium underline-offset-4 hover:underline">
-                      {when(s)}
-                    </Link>
-                    <span className="text-muted-foreground">{tr(`${K}.free_of`, { count: s.available, capacity: s.capacity })}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
+                    }
+                    const agg = cell.reduce(
+                      (a, s) => ({ booked: a.booked + s.booked, held: a.held + s.held, capacity: a.capacity + s.capacity, available: a.available + s.available, waiting: a.waiting + s.waiting }),
+                      { booked: 0, held: 0, capacity: 0, available: 0, waiting: 0 },
+                    );
+                    const first = cell[0]!;
+                    const state = slotState({ ...agg, endsAt: cell[cell.length - 1]!.endsAt }, now);
+                    const label = tr(`${K}.week_cell`, { when: `${shortDay(first.startsAt, locale)} ${row.label}`, booked: agg.booked + agg.held, capacity: agg.capacity });
+                    return (
+                      <td key={d} className="h-9 p-0">
+                        <Link
+                          href={`/admin/sessions/${first.sessionId}` as Route}
+                          title={label}
+                          aria-label={label}
+                          className={cn("flex h-9 items-center justify-center gap-1 rounded-md font-semibold transition hover:ring-2 hover:ring-foreground/25", STATE_CELL[state])}
+                          data-testid="daily-week-cell"
+                          data-pct={pctOf(agg)}
+                          data-state={state}
+                        >
+                          {agg.booked + agg.held}/{agg.capacity}
+                          {agg.waiting ? <span className="rounded bg-white/25 px-1 text-[0.625rem]">+{agg.waiting}</span> : null}
+                        </Link>
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      </CardContent>
-    </Card>
+      )}
+      <dl className="grid grid-cols-3 gap-4 border-t border-border pt-3 text-[0.8125rem]">
+        <div>
+          <dt className="text-muted-foreground">{tr(`${K}.busiest_short`)}</dt>
+          <dd className="font-semibold">{busiest ? `${when(busiest)} · ${pctOf(busiest)}%` : "–"}</dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground">{tr(`${K}.quietest_short`)}</dt>
+          <dd className="font-semibold">{quietest ? `${when(quietest)} · ${tr(`${K}.free_of`, { count: quietest.available, capacity: quietest.capacity })}` : "–"}</dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground">{tr(`${K}.waitlist_short`)}</dt>
+          <dd className="font-semibold">{waiting.length ? `${tr(`${K}.waiting`, { count: waiting.reduce((n, s) => n + s.waiting, 0) })} · ${when(waiting[0]!)}` : tr(`${K}.waitlist_none`)}</dd>
+        </div>
+      </dl>
+    </section>
   );
 }
 
 // ---------------------------------------------------------------------------------------------
-// The day's sessions
+// Today's sessions
 // ---------------------------------------------------------------------------------------------
 
-function CapacityBlock({ capacity, tr, locale, now }: { capacity: DailyCapacity; tr: Tr; locale: Locale; now: Date }) {
+function TodayBlock({ capacity, tr, locale, now }: { capacity: DailyCapacity; tr: Tr; locale: Locale; now: Date }) {
   const { slots, total } = capacity;
   return (
-    <Card data-testid="daily-capacity">
-      <CardHeader>
-        <CardTitle className="text-base">{tr(`${K}.today_title`)}</CardTitle>
-        <CardAction>
-          <Link href="/admin/bookings" className="text-sm font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">
-            {tr("ops.dashboard.overview.open_bookings")} →
-          </Link>
-        </CardAction>
-      </CardHeader>
-      <CardContent className="grid gap-4">
-        {slots.length ? (
-          <p className="text-sm text-muted-foreground" data-testid="daily-capacity-total" data-capacity={total.capacity} data-booked={total.booked} data-available={total.available}>
-            <span className="text-lg font-semibold text-foreground tabular-nums">{tr(`${K}.places_left`, { count: total.available })}</span>
-            <span className="ml-2">{tr("ops.dashboard.overview.booked_of", { booked: total.booked, capacity: total.capacity })}</span>
-          </p>
-        ) : (
-          <p className="text-sm text-muted-foreground">{tr(`${K}.no_sessions`)}</p>
-        )}
-        <ul className="grid gap-2.5">
-          {slots.map((s) => {
-            const pct = pctOf(s);
-            const past = s.endsAt.getTime() < now.getTime();
-            const status = past ? "past" : s.available === 0 ? "full" : pct >= 75 ? "almost" : "open";
-            return (
-              <li key={s.sessionId}>
-                <Link
-                  href={`/admin/sessions/${s.sessionId}` as Route}
-                  className={cn("grid grid-cols-[3.25rem_1fr_auto] items-center gap-3 rounded-2xl p-2.5 ring-1 ring-border transition hover:bg-muted/60", past && "opacity-55")}
-                  data-testid="daily-slot"
-                >
-                  <span className="grid justify-items-center rounded-xl bg-[#f4ead3] py-1.5 leading-tight">
-                    <NavIcon icon={s.kind === "night" ? "moon" : s.kind === "event" ? "ticket" : "sun"} className="size-3.5 text-[#a0621e]" />
-                    <span className="text-sm font-semibold tabular-nums">{formatTime(s.startsAt, locale)}</span>
+    <section className={cn(surface, "grid content-start gap-3 p-5")} data-testid="daily-capacity">
+      <div className="flex items-baseline gap-2">
+        <h2 className={sectionTitle}>{tr(`${K}.today_title`)}</h2>
+        <Link href="/admin/bookings/checkin" className="ml-auto text-[0.8125rem] font-medium text-muted-foreground hover:text-foreground">
+          {tr(`${K}.reception`)} →
+        </Link>
+      </div>
+      {slots.length ? (
+        <p className="text-[0.8125rem] text-muted-foreground" data-testid="daily-capacity-total" data-capacity={total.capacity} data-booked={total.booked} data-available={total.available}>
+          <b className="font-semibold text-foreground">{tr(`${K}.places_left`, { count: total.available })}</b> · {tr("ops.dashboard.overview.booked_of", { booked: total.booked, capacity: total.capacity })}
+        </p>
+      ) : (
+        <p className="text-sm text-muted-foreground">{tr(`${K}.no_sessions`)}</p>
+      )}
+      <ol className="grid gap-1.5">
+        {slots.map((s) => {
+          const running = s.startsAt.getTime() <= now.getTime() && s.endsAt.getTime() > now.getTime();
+          const state = slotState(s, now);
+          const pillKey = running ? "running" : state;
+          const pillText = running ? tr(`${K}.now_running`) : state === "past" ? tr(`${K}.status_past`) : state === "full" ? tr(`${K}.full`) : tr(`${K}.places_left`, { count: s.available });
+          return (
+            <li key={s.sessionId}>
+              <Link
+                href={`/admin/sessions/${s.sessionId}` as Route}
+                className={cn("grid grid-cols-[3rem_1fr_auto] items-center gap-3 rounded-lg border px-3 py-2.5 transition hover:bg-muted/60", running ? "border-[#c9973a] ring-1 ring-[#c9973a]" : "border-border", state === "past" && !running && "opacity-60")}
+                data-testid="daily-slot"
+              >
+                <span className="text-[0.8125rem] font-semibold">{formatTime(s.startsAt, locale)}</span>
+                <span className="grid min-w-0 leading-tight">
+                  <span className="truncate text-[0.8125rem] font-medium">{s.title}</span>
+                  <span className="text-[0.75rem] text-muted-foreground">
+                    {s.booked + s.held}/{s.capacity} · {formatTime(s.startsAt, locale)}–{formatTime(s.endsAt, locale)}
+                    {s.waiting ? ` · ${tr(`${K}.waiting`, { count: s.waiting })}` : ""}
                   </span>
-                  <span className="grid min-w-0 gap-1">
-                    <span className="truncate text-sm font-medium">
-                      {s.title} <span className="font-normal text-muted-foreground">· {formatTime(s.startsAt, locale)}–{formatTime(s.endsAt, locale)}</span>
-                    </span>
-                    <span className="h-1.5 overflow-hidden rounded-full bg-muted" aria-hidden="true">
-                      <span className="block h-full rounded-full" style={{ width: `${Math.max(pct, 2)}%`, background: s.available === 0 ? "#8a5a14" : GOLD }} />
-                    </span>
-                    <span className="flex flex-wrap gap-x-3 text-xs text-muted-foreground tabular-nums">
-                      <span>{tr("ops.dashboard.overview.booked_of", { booked: s.booked, capacity: s.capacity })}</span>
-                      {s.held ? <span>{tr(`${K}.held`, { count: s.held })}</span> : null}
-                      {s.waiting ? <span>{tr(`${K}.waiting`, { count: s.waiting })}</span> : null}
-                    </span>
-                  </span>
-                  <span
-                    className={cn(
-                      "rounded-full px-2.5 py-1 text-xs font-medium whitespace-nowrap",
-                      status === "full" && "bg-[#8a5a14] text-white",
-                      status === "almost" && "bg-[#f4ead3] text-[#8a5a14]",
-                      status === "open" && "bg-emerald-50 text-emerald-800",
-                      status === "past" && "bg-muted text-muted-foreground",
-                    )}
-                  >
-                    {status === "full" ? tr(`${K}.full`) : tr(`${K}.status_${status}`)}
-                  </span>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      </CardContent>
-    </Card>
+                </span>
+                <Pill className={STATE_PILL[pillKey]}>{pillText}</Pill>
+              </Link>
+            </li>
+          );
+        })}
+      </ol>
+    </section>
   );
 }
 
 // ---------------------------------------------------------------------------------------------
-// Who is coming
+// Who is coming: a table with the follow-up per client
 // ---------------------------------------------------------------------------------------------
 
+const AVATAR_TONES = ["bg-[#fde7d3] text-[#9a3412]", "bg-[#e0e7ff] text-[#3730a3]", "bg-[#dcfce7] text-[#166534]", "bg-[#f7eedc] text-[#8a5a14]", "bg-[#fce7f3] text-[#9d174d]"];
 const initials = (name: string | null) =>
   (name ?? "?")
     .split(/\s+/)
@@ -436,173 +421,220 @@ const initials = (name: string | null) =>
     .slice(0, 2)
     .map((p) => p[0]!.toUpperCase())
     .join("");
+const tone = (id: string) => AVATAR_TONES[[...id].reduce((n, c) => n + c.charCodeAt(0), 0) % AVATAR_TONES.length]!;
 
-function ClientsBlock({ clients, tr, locale, now }: { clients: DayClient[]; tr: Tr; locale: Locale; now: Date }) {
+function matchesFilter(c: DayClient, filter: ClientFilter, now: Date): boolean {
+  if (filter === "members") return c.membership !== null;
+  if (filter === "new") return c.isFirstVisit;
+  if (filter === "action") return clientOpportunities(c, now).length > 0;
+  return true;
+}
+
+function ClientsTable({ clients, filter, day, today, tr, locale, now }: { clients: DayClient[]; filter: ClientFilter; day: string; today: string; tr: Tr; locale: Locale; now: Date }) {
+  const count = (f: ClientFilter) => clients.filter((c) => matchesFilter(c, f, now)).length;
+  const shown = clients.filter((c) => matchesFilter(c, filter, now));
+  const query = (f: ClientFilter) => ({ ...(day === today ? {} : { day }), ...(f === "all" ? {} : { who: f }) });
   return (
-    <Card data-testid="daily-clients">
-      <CardHeader>
-        <CardTitle id="daily-clients-title" className="text-base">
+    <section className={cn(surface, "min-w-0 overflow-hidden")} data-testid="daily-clients">
+      <div className="flex flex-wrap items-center gap-3 border-b border-border px-5 py-3">
+        <h2 id="daily-clients-title" className={sectionTitle}>
           {tr(`${K}.clients_title`)}
-        </CardTitle>
-        <CardAction>
-          <Badge variant="secondary">{tr(`${K}.clients_count`, { count: clients.length })}</Badge>
-        </CardAction>
-      </CardHeader>
-      <CardContent>
-        {clients.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{tr(`${K}.clients_empty`)}</p>
-        ) : (
-          <ul className="grid gap-3">
-            {clients.map((c) => {
-              const href = `/admin/persons/${c.personId}` as Route;
-              const opps = clientOpportunities(c, now);
-              return (
-                <li key={c.personId} className="grid grid-cols-[2.5rem_1fr] gap-3 border-b pb-3 last:border-b-0 last:pb-0" data-testid="daily-client" data-person-id={c.personId}>
-                  <span className={cn("flex size-10 items-center justify-center rounded-full text-sm font-semibold", c.membership ? "bg-[#212842] text-[#e8c26a]" : "bg-[#f4ead3] text-[#8a5a14]")} aria-hidden="true">
-                    {initials(c.name)}
-                  </span>
-                  <div className="grid min-w-0 gap-1">
-                    <div className="flex flex-wrap items-baseline justify-between gap-2">
-                      <Link href={href} className="font-medium underline-offset-4 hover:underline focus-visible:underline">
-                        {c.name ?? "-"}
+        </h2>
+        <nav aria-label={tr(`${K}.clients_title`)} className="flex rounded-lg bg-muted p-0.5 text-[0.75rem] font-medium">
+          {CLIENT_FILTERS.map((f) => (
+            <Link
+              key={f}
+              href={{ pathname: "/admin/dashboard", query: query(f), hash: "daily-clients-title" }}
+              aria-current={f === filter ? "true" : undefined}
+              className={cn("rounded-md px-2.5 py-1 text-muted-foreground hover:text-foreground", f === filter && "bg-card text-foreground shadow-sm")}
+            >
+              {tr(`${K}.who_${f}`)} <span className="opacity-70">{count(f)}</span>
+            </Link>
+          ))}
+        </nav>
+      </div>
+      {clients.length === 0 || shown.length === 0 ? (
+        <p className="px-5 py-6 text-sm text-muted-foreground">{clients.length === 0 ? tr(`${K}.clients_empty`) : tr(`${K}.who_empty`)}</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[44rem] text-[0.8125rem]">
+            <thead className="bg-[#faf9f6] text-left text-[0.75rem] text-muted-foreground">
+              <tr className="border-b border-border">
+                <th scope="col" className="py-2 pr-3 pl-5 font-medium">{tr(`${K}.col_client`)}</th>
+                <th scope="col" className="px-3 py-2 font-medium">{tr(`${K}.col_session`)}</th>
+                <th scope="col" className="px-3 py-2 font-medium">{tr(`${K}.col_credits`)}</th>
+                <th scope="col" className="px-3 py-2 font-medium">{tr(`${K}.col_membership`)}</th>
+                <th scope="col" className="py-2 pr-5 pl-3 font-medium">{tr(`${K}.col_followup`)}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {shown.map((c) => {
+                const href = `/admin/persons/${c.personId}` as Route;
+                const opps = clientOpportunities(c, now);
+                const credits = c.packages.filter((p) => p.total > 0);
+                return (
+                  <tr key={c.personId} className="border-b border-border align-top last:border-b-0 hover:bg-[#faf9f6]" data-testid="daily-client" data-person-id={c.personId}>
+                    <td className="py-2.5 pr-3 pl-5">
+                      <Link href={href} className="flex items-center gap-2.5">
+                        <span aria-hidden="true" className={cn("grid size-8 shrink-0 place-items-center rounded-full text-[0.6875rem] font-semibold", tone(c.personId))}>
+                          {initials(c.name)}
+                        </span>
+                        <span className="font-semibold whitespace-nowrap hover:underline">{c.name ?? "-"}</span>
+                        {c.isFirstVisit ? <Pill className="bg-[var(--status-info-soft)] text-[var(--status-info)]">{tr(`${K}.new_badge`)}</Pill> : null}
                       </Link>
-                      <span className="text-sm text-muted-foreground tabular-nums">{c.sessions.map((s) => `${formatTime(s.startsAt, locale)} ${kindLabel(tr, s.kind)}`).join(" · ")}</span>
-                    </div>
-                    <div className="flex flex-wrap gap-1.5 text-xs">
-                      {c.membership ? <Badge variant={c.membership.status === "past_due" ? "destructive" : "secondary"}>{membershipText(c.membership, tr, locale)}</Badge> : null}
-                      {c.packages
-                        .filter((p) => p.remaining > 0)
-                        .map((p) => (
-                          <Badge key={p.kind} variant="outline">
-                            {tr(`${K}.package`, { kind: tr(`${K}.credit_${p.kind}`), remaining: p.remaining, total: p.total })}
-                            {p.nextExpiresAt ? ` · ${tr(`${K}.until`, { date: formatDate(p.nextExpiresAt, locale) })}` : ""}
-                          </Badge>
-                        ))}
-                    </div>
-                    {opps.length ? (
-                      <ul className="grid gap-0.5" data-testid="daily-opportunities">
-                        {opps.map((o) => (
-                          <li key={`${o.key}:${o.kind ?? ""}`} data-opportunity={o.key}>
-                            <Link href={href} className="text-sm font-medium text-[#8a5a14] underline-offset-4 hover:underline focus-visible:underline">
-                              → {opportunityText(o, tr, locale)}
-                            </Link>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : null}
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </CardContent>
-    </Card>
+                    </td>
+                    <td className="px-3 py-2.5 whitespace-nowrap">
+                      {c.sessions.map((s) => (
+                        <span key={s.sessionId} className="block leading-8">
+                          {formatTime(s.startsAt, locale)} <span className="text-muted-foreground">{kindLabel(tr, s.kind).toLowerCase()}</span>
+                        </span>
+                      ))}
+                    </td>
+                    <td className="px-3 py-2.5 leading-8 whitespace-nowrap">
+                      {credits.length ? (
+                        credits.map((p) => (
+                          <span key={p.kind} className="block">
+                            <b className={cn("font-semibold", p.remaining === 0 && "text-[var(--status-bad)]")}>{p.remaining}</b>
+                            <span className="text-muted-foreground">
+                              {" "}
+                              / {p.total} {tr(`${K}.credit_${p.kind}`)}
+                            </span>
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-muted-foreground">{tr(`${K}.single_session`)}</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2.5 leading-8">
+                      {c.membership ? (
+                        <Pill className={c.membership.status === "past_due" || !c.membership.renews ? "bg-[var(--status-warn-soft)] text-[var(--status-warn)]" : "bg-[var(--status-ok-soft)] text-[var(--status-ok)]"}>
+                          {membershipText(c.membership, tr, locale)}
+                        </Pill>
+                      ) : (
+                        <span className="text-muted-foreground">–</span>
+                      )}
+                    </td>
+                    <td className="py-2.5 pr-5 pl-3">
+                      {opps.length ? (
+                        <ul className="grid gap-1" data-testid="daily-opportunities">
+                          {opps.map((o) => (
+                            <li key={`${o.key}:${o.kind ?? ""}`} data-opportunity={o.key}>
+                              <Link href={href} className="inline-flex rounded-md border border-border bg-card px-2 py-1 text-[0.75rem] leading-4 font-semibold hover:border-[#c9973a] hover:bg-[#f7eedc]">
+                                {opportunityText(o, tr, locale)}
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <span className="leading-8 text-muted-foreground">–</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
   );
 }
 
 // ---------------------------------------------------------------------------------------------
-// Sessions to fill
+// Revenue and sessions to fill (side column)
 // ---------------------------------------------------------------------------------------------
 
-function FillBlock({ slots, canFill, tr, locale, errors }: { slots: CapacitySlot[]; canFill: boolean; tr: Tr; locale: Locale; errors: Record<string, string> }) {
-  const labels = fillLabels(tr, errors);
-  return (
-    <Card data-testid="daily-fill">
-      <CardHeader>
-        <CardTitle className="text-base">{tr(`${K}.fill_title`)}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {slots.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{tr(`${K}.fill_empty`)}</p>
-        ) : (
-          <ul className="grid gap-2">
-            {slots.slice(0, FILL_SHOWN).map((s) => (
-              <li key={s.sessionId} className="flex flex-wrap items-center justify-between gap-2 border-b pb-2 last:border-b-0 last:pb-0" data-testid="daily-fill-session">
-                <div className="grid min-w-0 gap-0.5">
-                  <Link href={`/admin/sessions/${s.sessionId}` as Route} className="truncate font-medium underline-offset-4 hover:underline focus-visible:underline">
-                    {shortDay(s.startsAt, locale)} {formatTime(s.startsAt, locale)} · {kindLabel(tr, s.kind)}
-                  </Link>
-                  <span className="text-sm text-muted-foreground tabular-nums">
-                    {tr(`${K}.free_of`, { count: s.available, capacity: s.capacity })}
-                    {s.waiting ? ` · ${tr(`${K}.waiting`, { count: s.waiting })}` : ""}
-                  </span>
-                </div>
-                {canFill ? <FillSessionButton sessionId={s.sessionId} labels={labels} /> : null}
-              </li>
-            ))}
-          </ul>
-        )}
-        {slots.length > FILL_SHOWN ? (
-          <Link href="/admin/sessions" className="mt-3 inline-block text-sm font-medium underline-offset-4 hover:underline">
-            {tr(`${K}.fill_more`, { count: slots.length - FILL_SHOWN })} →
-          </Link>
-        ) : null}
-      </CardContent>
-    </Card>
-  );
-}
-
-// ---------------------------------------------------------------------------------------------
-// Revenue
-// ---------------------------------------------------------------------------------------------
+const REVENUE_TONES: Record<string, string> = { sessions: "#c9973a", packages: "#8a5a14", memberships: "#141414", events: "#4f46e5", other: "#b8b2a7" };
 
 function RevenueBlock({ r, day, tr, locale }: { r: DailyRevenue; day: string; tr: Tr; locale: Locale }) {
   const money = (c: number) => formatMoney(c, locale);
   const gross = r.groups.reduce((n, g) => n + g.sales.current, 0);
-  const colours: Record<string, string> = { sessions: "#d1a64a", packages: "#8a5a14", memberships: "#212842", events: "#b9832d", other: "#c9c2b4" };
   return (
-    <Card data-testid="daily-revenue" data-value={r.net.current}>
-      <CardHeader>
-        <CardTitle className="text-base">{tr(`${K}.revenue_title`)}</CardTitle>
-      </CardHeader>
-      <CardContent className="grid gap-4">
-        <div className="grid gap-1">
-          <span className="text-3xl leading-none font-semibold tracking-tight tabular-nums">{money(r.net.current)}</span>
-          <span className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <ChangeBadge change={r.net.change} changePct={r.net.changePct} formattedChange={money(Math.abs(r.net.change))} blankLabel={tr("ops.period.change_blank")} label={tr("ops.period.change")} locale={locale} />
-            {tr(`${K}.revenue_vs`, { date: formatDate(r.compareDay, locale), amount: money(r.net.previous) })}
-          </span>
-        </div>
-        {gross > 0 ? (
-          <div className="flex h-2.5 overflow-hidden rounded-full bg-muted" aria-hidden="true">
-            {r.groups
-              .filter((g) => g.sales.current > 0)
-              .map((g) => (
-                <span key={g.key} style={{ width: `${(g.sales.current / gross) * 100}%`, background: colours[g.key] }} />
-              ))}
-          </div>
-        ) : null}
-        <table className="w-full text-sm">
-          <tbody>
-            {r.groups.map((g) => (
-              <tr key={g.key} className="border-b last:border-b-0" data-group={g.key}>
-                <th scope="row" className="py-1.5 text-left font-normal text-muted-foreground">
-                  <span className="flex items-center gap-2">
-                    <span className="size-2.5 rounded-full" style={{ background: colours[g.key] }} aria-hidden="true" />
-                    {tr(`${K}.revenue_${g.key}`)}
-                  </span>
-                </th>
-                <td className="py-1.5 text-right font-medium tabular-nums">{money(g.sales.current)}</td>
-                <td className="py-1.5 pl-3 text-right text-xs text-muted-foreground tabular-nums">{money(g.sales.previous)}</td>
-              </tr>
-            ))}
-            {r.refunds.current || r.refunds.previous ? (
-              <tr data-group="refunds">
-                <th scope="row" className="py-1.5 text-left font-normal text-muted-foreground">
-                  {tr(`${K}.revenue_refunds`)}
-                </th>
-                <td className="py-1.5 text-right font-medium tabular-nums">-{money(r.refunds.current)}</td>
-                <td className="py-1.5 pl-3 text-right text-xs text-muted-foreground tabular-nums">-{money(r.refunds.previous)}</td>
-              </tr>
-            ) : null}
-          </tbody>
-        </table>
-        <Link href={{ pathname: "/admin/reports/revenue", query: { period: "day", at: day } }} className="text-sm font-medium underline-offset-4 hover:underline">
+    <section className={cn(surface, "grid content-start gap-3 p-5")} data-testid="daily-revenue" data-value={r.net.current}>
+      <div className="flex items-baseline gap-2">
+        <h2 className={sectionTitle}>{tr(`${K}.revenue_title`)}</h2>
+        <Link href={{ pathname: "/admin/reports/revenue", query: { period: "day", at: day } }} className="ml-auto text-[0.8125rem] font-medium text-muted-foreground hover:text-foreground">
           {tr("ops.dashboard.overview.more_figures")} →
         </Link>
-      </CardContent>
-    </Card>
+      </div>
+      <div className="flex flex-wrap items-baseline gap-2">
+        <span className="text-[1.5rem] leading-none font-semibold tracking-[-0.02em]">{money(r.net.current)}</span>
+        <Delta change={r.net.change} changePct={r.net.changePct} formatted={money(Math.abs(r.net.change))} locale={locale} />
+      </div>
+      {gross > 0 ? (
+        <div className="flex h-2 overflow-hidden rounded-full bg-muted" aria-hidden="true">
+          {r.groups
+            .filter((g) => g.sales.current > 0)
+            .map((g) => (
+              <span key={g.key} style={{ width: `${(g.sales.current / gross) * 100}%`, background: REVENUE_TONES[g.key] }} />
+            ))}
+        </div>
+      ) : null}
+      <table className="w-full text-[0.8125rem]">
+        <thead className="sr-only">
+          <tr>
+            <th scope="col">{tr(`${K}.revenue_title`)}</th>
+            <th scope="col">{formatDate(r.day, locale)}</th>
+            <th scope="col">{formatDate(r.compareDay, locale)}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {r.groups.map((g) => (
+            <tr key={g.key} className="border-b border-border last:border-b-0" data-group={g.key}>
+              <th scope="row" className="py-1.5 text-left font-normal text-muted-foreground">
+                <span className="flex items-center gap-2">
+                  <span aria-hidden="true" className="size-2 rounded-full" style={{ background: REVENUE_TONES[g.key] }} />
+                  {tr(`${K}.revenue_${g.key}`)}
+                </span>
+              </th>
+              <td className="py-1.5 text-right font-semibold">{money(g.sales.current)}</td>
+              <td className="w-20 py-1.5 text-right text-[0.75rem] text-muted-foreground">{money(g.sales.previous)}</td>
+            </tr>
+          ))}
+          {r.refunds.current || r.refunds.previous ? (
+            <tr data-group="refunds">
+              <th scope="row" className="py-1.5 text-left font-normal text-muted-foreground">
+                {tr(`${K}.revenue_refunds`)}
+              </th>
+              <td className="py-1.5 text-right font-semibold">−{money(r.refunds.current)}</td>
+              <td className="py-1.5 text-right text-[0.75rem] text-muted-foreground">−{money(r.refunds.previous)}</td>
+            </tr>
+          ) : null}
+        </tbody>
+      </table>
+      <p className="text-[0.75rem] text-muted-foreground">{tr(`${K}.revenue_vs`, { date: formatDate(r.compareDay, locale), amount: money(r.net.previous) })}</p>
+    </section>
+  );
+}
+
+function FillBlock({ slots, canFill, tr, locale, errors }: { slots: CapacitySlot[]; canFill: boolean; tr: Tr; locale: Locale; errors: Record<string, string> }) {
+  const labels = fillLabels(tr, errors);
+  return (
+    <section className={cn(surface, "grid content-start gap-2 p-5")} data-testid="daily-fill">
+      <h2 className={sectionTitle}>{tr(`${K}.fill_title`)}</h2>
+      {slots.length === 0 ? (
+        <p className="text-sm text-muted-foreground">{tr(`${K}.fill_empty`)}</p>
+      ) : (
+        <ul className="grid">
+          {slots.slice(0, FILL_SHOWN).map((s) => (
+            <li key={s.sessionId} className="flex items-center justify-between gap-3 border-b border-border py-2 last:border-b-0" data-testid="daily-fill-session">
+              <Link href={`/admin/sessions/${s.sessionId}` as Route} className="grid min-w-0 leading-tight hover:underline">
+                <span className="truncate text-[0.8125rem] font-semibold">
+                  {shortDay(s.startsAt, locale)} {formatTime(s.startsAt, locale)} <span className="font-normal text-muted-foreground">· {kindLabel(tr, s.kind).toLowerCase()}</span>
+                </span>
+                <span className="text-[0.75rem] text-muted-foreground">{tr(`${K}.free_of`, { count: s.available, capacity: s.capacity })}</span>
+              </Link>
+              {canFill ? <FillSessionButton sessionId={s.sessionId} labels={labels} /> : null}
+            </li>
+          ))}
+        </ul>
+      )}
+      {slots.length > FILL_SHOWN ? (
+        <Link href="/admin/sessions" className="text-[0.8125rem] font-medium text-muted-foreground hover:text-foreground">
+          {tr(`${K}.fill_more`, { count: slots.length - FILL_SHOWN })} →
+        </Link>
+      ) : null}
+    </section>
   );
 }
 
@@ -610,7 +642,7 @@ function RevenueBlock({ r, day, tr, locale }: { r: DailyRevenue; day: string; tr
 // The page part
 // ---------------------------------------------------------------------------------------------
 
-export async function DailyDashboard({ ctx, tr, day, access, errors }: { ctx: OpsReadCtx; tr: Tr; day: string; access: DailyAccess; errors: Record<string, string> }) {
+export async function DailyDashboard({ ctx, tr, day, access, errors, who = "all" }: { ctx: OpsReadCtx; tr: Tr; day: string; access: DailyAccess; errors: Record<string, string>; who?: ClientFilter }) {
   const locale = ctx.locale;
   const [capacity, lastWeek, week, clients, toFill, revenue] = await Promise.all([
     getDailyCapacity(ctx.tx, { day, locale }),
@@ -621,45 +653,46 @@ export async function DailyDashboard({ ctx, tr, day, access, errors }: { ctx: Op
     access.revenue ? getDailyRevenue(ctx.tx, { day }) : null,
   ]);
   const today = brusselsDate(ctx.now);
-  const count = (n: number) => String(n);
-  const badge = (c: { change: number; changePct: number | null }, formatted: string) => (
-    <ChangeBadge change={c.change} changePct={c.changePct} formattedChange={formatted} blankLabel={tr("ops.period.change_blank")} label={tr("ops.period.change")} locale={locale} />
-  );
-  const booked = comparePeriods(capacity.total.booked + capacity.total.held, lastWeek.total.booked + lastWeek.total.held);
-  const occupancy = capacity.total.capacity ? Math.round(((capacity.total.booked + capacity.total.held) / capacity.total.capacity) * 100) : 0;
+  const taken = capacity.total.booked + capacity.total.held;
+  const booked = comparePeriods(taken, lastWeek.total.booked + lastWeek.total.held);
+  const occupancy = capacity.total.capacity ? Math.round((taken / capacity.total.capacity) * 100) : 0;
   const freeAhead = toFill.reduce((n, s) => n + s.available, 0);
   const suggestions = buildSuggestions({ toFill, clients, access, tr, locale, now: ctx.now, errors });
+  const kpis: Kpi[] = [
+    {
+      key: "occupancy",
+      label: tr(`${K}.kpi_occupancy`),
+      value: `${occupancy}%`,
+      delta: <Delta change={booked.change} changePct={booked.changePct} formatted={String(Math.abs(booked.change))} locale={locale} />,
+      sub: tr(`${K}.kpi_occupancy_sub`, { booked: taken, capacity: capacity.total.capacity }),
+    },
+    ...(clients ? [{ key: "clients", label: tr(`${K}.kpi_clients`), value: String(clients.length), sub: tr(`${K}.kpi_clients_sub`, { count: clients.filter((c) => c.isFirstVisit).length }) }] : []),
+    ...(revenue
+      ? [
+          {
+            key: "revenue",
+            label: tr(`${K}.kpi_revenue`),
+            value: formatMoney(revenue.net.current, locale),
+            delta: <Delta change={revenue.net.change} changePct={revenue.net.changePct} formatted={formatMoney(Math.abs(revenue.net.change), locale)} locale={locale} />,
+            sub: tr(`${K}.vs_last_week`),
+          },
+        ]
+      : []),
+    { key: "week", label: tr(`${K}.kpi_week`), value: String(freeAhead), sub: tr(`${K}.kpi_week_sub`, { count: toFill.length }) },
+  ];
 
   return (
-    <div className="grid gap-6">
-      <SuggestionsStrip items={suggestions} tr={tr} />
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi
-          icon="calendar-check"
-          label={tr(`${K}.kpi_occupancy`)}
-          value={`${occupancy}%`}
-          sub={tr(`${K}.kpi_occupancy_sub`, { booked: capacity.total.booked + capacity.total.held, capacity: capacity.total.capacity })}
-          badge={badge(booked, count(Math.abs(booked.change)))}
-          testId="daily-kpi-occupancy"
-        />
-        {clients ? (
-          <Kpi icon="user-plus" label={tr(`${K}.kpi_clients`)} value={count(clients.length)} sub={tr(`${K}.kpi_clients_sub`, { count: clients.filter((c) => c.isFirstVisit).length })} testId="daily-kpi-clients" />
-        ) : null}
-        {revenue ? (
-          <Kpi icon="euro" label={tr(`${K}.kpi_revenue`)} value={formatMoney(revenue.net.current, locale)} badge={badge(revenue.net, formatMoney(Math.abs(revenue.net.change), locale))} sub={tr(`${K}.vs_last_week`)} testId="daily-kpi-revenue" />
-        ) : null}
-        <Kpi icon="calendar-days" label={tr(`${K}.kpi_week`)} value={count(freeAhead)} sub={tr(`${K}.kpi_week_sub`, { count: toFill.length })} testId="daily-kpi-week" />
+    <div className="grid gap-4">
+      <SuggestionsLine items={suggestions} tr={tr} />
+      <KpiStrip items={kpis} />
+      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
+        <WeekGrid week={week} day={day} today={today} now={ctx.now} tr={tr} locale={locale} />
+        <TodayBlock capacity={capacity} tr={tr} locale={locale} now={ctx.now} />
       </div>
-      <WeekHeatmap week={week} day={day} today={today} now={ctx.now} tr={tr} locale={locale} />
-      <div className="grid items-start gap-6 lg:grid-cols-2">
-        <div className="grid content-start gap-6">
-          <CapacityBlock capacity={capacity} tr={tr} locale={locale} now={ctx.now} />
-          {revenue ? <RevenueBlock r={revenue} day={day} tr={tr} locale={locale} /> : null}
-        </div>
-        <div className="grid content-start gap-6">
-          {clients ? <ClientsBlock clients={clients} tr={tr} locale={locale} now={ctx.now} /> : null}
-          <FillBlock slots={toFill} canFill={access.fill} tr={tr} locale={locale} errors={errors} />
-        </div>
+      {clients ? <ClientsTable clients={clients} filter={who} day={day} today={today} tr={tr} locale={locale} now={ctx.now} /> : null}
+      <div className="grid items-start gap-4 lg:grid-cols-2">
+        {revenue ? <RevenueBlock r={revenue} day={day} tr={tr} locale={locale} /> : null}
+        <FillBlock slots={toFill} canFill={access.fill} tr={tr} locale={locale} errors={errors} />
       </div>
     </div>
   );

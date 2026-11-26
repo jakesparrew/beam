@@ -13,7 +13,7 @@ import { staffReadCtx } from "@/modules/ops/reports/queries";
 import { brusselsDate } from "@/modules/ops/reports/revenue";
 import { holdsAny } from "@/modules/ops/reports/registry";
 import { ActionCard, type ActionCardRowView } from "@/modules/ops/ui/ActionCard";
-import { DailyDashboard } from "@/modules/ops/ui/DailyDashboard";
+import { CLIENT_FILTERS, DailyDashboard, type ClientFilter } from "@/modules/ops/ui/DailyDashboard";
 
 /**
  * `/admin/dashboard`: first the day (owner requirements 6, `?day=YYYY-MM-DD`, today by default):
@@ -62,7 +62,7 @@ function rowHref(card: ActionCardKey, row: ActionCardRow): Route | null {
   return row.personId ? (`/admin/persons/${row.personId}` as Route) : null;
 }
 
-export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ view?: string; card?: string; day?: string }> }) {
+export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ view?: string; card?: string; day?: string; who?: string }> }) {
   const ctx = await staffReadCtx();
   if (!holdsAny(ctx.actor, ...DASHBOARD_PERMISSIONS)) notFound();
   const sp = await searchParams;
@@ -76,33 +76,35 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const cards = await getActionDashboard(ctx, { view, expand });
   const errors = Object.fromEntries(["unauthorized", "forbidden", "validation", "not_found", "conflict", "rate_limited"].map((c) => [c, tr(`platform.errors.${c}`)]));
   // Awaited here (not rendered as an async child) so the page renders in one pass.
-  const daily = expand ? null : await DailyDashboard({ ctx, tr, day, access: dailyAccess(ctx.actor), errors });
+  const who: ClientFilter = (CLIENT_FILTERS as readonly string[]).includes(sp.who ?? "") ? (sp.who as ClientFilter) : "all";
+  const daily = expand ? null : await DailyDashboard({ ctx, tr, day, access: dailyAccess(ctx.actor), errors, who });
   const shown: ActionCardData[] = expand ? cards.filter((c) => c.key === expand) : cards;
   // Lists that ask for something come first; the empty ones are only named, not drawn as cards.
   const busy = shown.filter((c) => c.count > 0);
   const quiet = shown.filter((c) => c.count === 0);
   const dayQuery = (d: string) => ({ ...(d === today ? {} : { day: d }), ...(view === "week" ? { view } : {}) });
   const viewQuery = (v: "today" | "week") => ({ ...(day === today ? {} : { day }), ...(v === "week" ? { view: v } : {}) });
-  const pill = "rounded-full px-3 py-1.5 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
+  const pill = "rounded-md px-3 py-1 text-[0.8125rem] font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
 
   return (
     <div className="grid gap-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-sm text-muted-foreground first-letter:uppercase" data-testid="dashboard-day" data-day={day}>
+          <p className="text-[0.8125rem] text-muted-foreground first-letter:uppercase" data-testid="dashboard-day" data-day={day}>
             {formatDate(day, ctx.locale, "full")}
           </p>
           <h1>{expand ? tr("ops.dashboard.title") : tr(`ops.dashboard.overview.greeting_${dayPart(ctx.now)}`, { name: firstName })}</h1>
         </div>
         {expand ? null : (
-          <nav aria-label={tr("ops.dashboard.daily.day_switch")} className="flex items-center gap-1 rounded-full bg-card p-1 shadow-sm" data-testid="dashboard-day-switch">
+          <div className="flex items-center gap-2">
+          <nav aria-label={tr("ops.dashboard.daily.day_switch")} className="flex items-center rounded-lg bg-muted p-1" data-testid="dashboard-day-switch">
             <Link href={{ pathname: "/admin/dashboard", query: dayQuery(shiftDay(day, -1)) }} className={cn(pill, "text-muted-foreground hover:text-foreground")} aria-label={tr("ops.dashboard.daily.day_previous")}>
               ←
             </Link>
             <Link
               href={{ pathname: "/admin/dashboard", query: dayQuery(today) }}
               aria-current={day === today ? "date" : undefined}
-              className={cn(pill, day === today ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}
+              className={cn(pill, day === today ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}
             >
               {tr("ops.dashboard.view.today")}
             </Link>
@@ -110,6 +112,13 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
               →
             </Link>
           </nav>
+          <Link href="/admin/bookings/checkin" className="inline-flex h-9 items-center rounded-lg border border-border bg-card px-3 text-[0.8125rem] font-semibold hover:bg-muted">
+            {tr("ops.dashboard.daily.reception")}
+          </Link>
+          <Link href="/admin/bookings/new" className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3.5 text-[0.8125rem] font-semibold text-primary-foreground hover:opacity-90">
+            <span aria-hidden="true">+</span> {tr("ops.dashboard.daily.new_booking")}
+          </Link>
+          </div>
         )}
       </div>
       {expand ? (

@@ -866,6 +866,29 @@
       "hide_materials": "Hide again",
       "file_too_large": "The file is larger than 10 MB.",
       "image_type": "Choose a PNG, JPG, WebP or GIF image."
+    },
+    "list": {
+      "subtitle": "All sessions per day. Open a session for its participants, check-in and waiting list.",
+      "view_list": "List",
+      "view_week": "Week",
+      "view_label": "View",
+      "col_time": "Time",
+      "col_session": "Session",
+      "col_occupancy": "Occupancy",
+      "col_free": "Free",
+      "col_waiting": "Waiting",
+      "col_status": "Status",
+      "status_open": "Open",
+      "status_full": "Full",
+      "status_almost": "Almost full",
+      "status_closed": "Closed",
+      "status_cancelled": "Cancelled",
+      "status_draft": "Draft",
+      "status_past": "Over",
+      "day_summary": "{count, plural, one {# session} other {# sessions}} · {booked} of {capacity} booked",
+      "day_empty": "No sessions",
+      "today_badge": "Today",
+      "week_range": "{from} – {to}"
     }
   }
 }

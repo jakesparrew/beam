@@ -116,7 +116,13 @@ function NavGroup({
   currentPath?: string;
   onNavigate?: () => void;
 }) {
-  const children = section.items.filter((i) => i.href !== section.href);
+  // Every page of the group is listed (the first one too, so "Agenda" shows "Sessies"); a group
+  // with a single page has no sub-rows.
+  const children = section.items.length > 1 ? section.items : [];
+  // The most specific matching page is the active one (/admin/sessions/events is not "Sessies").
+  const activeChild = children
+    .filter((i) => isActive(i.href, currentPath))
+    .sort((x, y) => y.href.length - x.href.length)[0]?.key;
   const holdsActive =
     isActive(section.href, currentPath) || children.some((i) => isActive(i.href, currentPath));
   const [open, setOpen] = useState(holdsActive);
@@ -164,7 +170,7 @@ function NavGroup({
       {children.length && open ? (
         <ul className="mt-1 mb-2 ml-[1.375rem] flex flex-col gap-0.5 border-l border-sidebar-border pl-3">
           {children.map((item) => {
-            const active = isActive(item.href, currentPath);
+            const active = item.key === activeChild;
             return (
               <li key={item.key}>
                 <a

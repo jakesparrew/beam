@@ -866,6 +866,29 @@
       "hide_materials": "Masquer à nouveau",
       "file_too_large": "Le fichier dépasse 10 Mo.",
       "image_type": "Choisissez une image PNG, JPG, WebP ou GIF."
+    },
+    "list": {
+      "subtitle": "Toutes les séances par jour. Ouvrez une séance pour les participants, l'enregistrement et la liste d'attente.",
+      "view_list": "Liste",
+      "view_week": "Semaine",
+      "view_label": "Affichage",
+      "col_time": "Heure",
+      "col_session": "Séance",
+      "col_occupancy": "Occupation",
+      "col_free": "Libre",
+      "col_waiting": "Liste d'attente",
+      "col_status": "Statut",
+      "status_open": "Ouvert",
+      "status_full": "Complet",
+      "status_almost": "Presque complet",
+      "status_closed": "Fermé",
+      "status_cancelled": "Annulé",
+      "status_draft": "Brouillon",
+      "status_past": "Terminé",
+      "day_summary": "{count, plural, one {# séance} other {# séances}} · {booked} sur {capacity} réservées",
+      "day_empty": "Aucune séance",
+      "today_badge": "Aujourd'hui",
+      "week_range": "{from} – {to}"
     }
   }
 }

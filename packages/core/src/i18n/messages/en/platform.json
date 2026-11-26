@@ -200,7 +200,20 @@
       "section_automation": "Automation",
       "section_webinars": "Webinars",
       "section_credits": "Credits",
-      "partner": "Partner area"
+      "partner": "Partner area",
+      "section_agenda": "Schedule",
+      "section_reception": "Front desk",
+      "section_pos": "Till & sales",
+      "today": "Today",
+      "general": "General",
+      "billing": "Invoicing",
+      "privacy": "Privacy & data",
+      "technical": "Technical",
+      "accountant_export": "Accountant export",
+      "assistant": "AI assistant",
+      "email_templates": "Email templates",
+      "bookings": "Bookings",
+      "orders": "Orders & payments"
     },
     "report": {
       "title": "Report a problem",

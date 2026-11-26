@@ -200,7 +200,20 @@
       "section_automation": "Automatisation",
       "section_webinars": "Webinaires",
       "section_credits": "Crédits",
-      "partner": "Espace partenaire"
+      "partner": "Espace partenaire",
+      "section_agenda": "Agenda",
+      "section_reception": "Accueil",
+      "section_pos": "Caisse & ventes",
+      "today": "Aujourd'hui",
+      "general": "Général",
+      "billing": "Facturation",
+      "privacy": "Vie privée & données",
+      "technical": "Technique",
+      "accountant_export": "Export comptable",
+      "assistant": "Assistant IA",
+      "email_templates": "Modèles d'e-mail",
+      "bookings": "Réservations",
+      "orders": "Commandes & paiements"
     },
     "report": {
       "title": "Signaler un problème",

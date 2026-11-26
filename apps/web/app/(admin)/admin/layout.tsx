@@ -37,21 +37,62 @@ type AdminNavEntry = {
 };
 
 /**
- * The sidebar: one row per group, in this order, each linking to its `main` entry with the
- * group's other entries folding out below it. A module entry lands in the group that lists its
- * section (or its key in `keys`); anything unclaimed falls into Settings. Edit this to change the menu.
+ * The sidebar (owner review, November 2026): eight groups in the order the team works, each a
+ * curated, ordered list of entry keys (the first visible one is where the row links). An entry
+ * shows when its permission and flag allow it. Entries listed in no group are left out of the
+ * menu on purpose (rare, technical or partner-only pages): their pages stay reachable from the
+ * page they belong to (for example the session page, the till, Technisch). `labels` renames an
+ * entry inside the menu where the module's own label is too generic ("Overzicht", "Exports").
  */
-const GROUPS: ReadonlyArray<{ key: string; label: string; icon: string; main: string; sections: string[]; keys?: string[] }> = [
-  { key: "dashboard", label: "ops.nav.dashboard", icon: "layout-dashboard", main: "ops.dashboard", sections: ["insights"] },
-  { key: "customers", label: "platform.nav.section_customers", icon: "users", main: "crm.persons", sections: ["customers"] },
-  { key: "booking", label: "platform.nav.section_booking", icon: "calendar-days", main: "booking.bookings", sections: ["booking", "webinar"] },
-  { key: "sales", label: "platform.nav.section_sales", icon: "shopping-cart", main: "commerce.products", sections: ["sales"] },
-  { key: "finance", label: "platform.nav.section_finance", icon: "receipt", main: "finance.invoices", sections: ["finance"] },
-  { key: "assistant", label: "assistant.nav.section", icon: "bot", main: "assistant.overview", sections: ["assistant"] },
-  { key: "marketing", label: "platform.nav.section_marketing", icon: "megaphone", main: "email.overview", sections: ["email", "marketing"] },
-  { key: "website", label: "platform.nav.section_website", icon: "globe", main: "site.website", sections: ["website"] },
-  { key: "reports", label: "platform.nav.section_reports", icon: "chart-bar", main: "ops.reports", sections: ["reports"] },
-  { key: "settings", label: "platform.nav.section_settings", icon: "settings", main: "platform.settings", sections: ["settings", "data", "system", "help"] },
+const GROUPS: ReadonlyArray<{ key: string; label: string; icon: string; keys: string[]; labels?: Record<string, string> }> = [
+  {
+    key: "dashboard",
+    label: "ops.nav.dashboard",
+    icon: "layout-dashboard",
+    keys: ["ops.dashboard", "ops.reports", "ops.retention", "ops.management", "ops.summary", "ops.custom", "ops.ask"],
+    labels: { "ops.dashboard": "platform.nav.today" },
+  },
+  { key: "reception", label: "platform.nav.section_reception", icon: "clipboard-list", keys: ["booking.checkin"] },
+  {
+    key: "agenda",
+    label: "platform.nav.section_agenda",
+    icon: "calendar-days",
+    keys: ["booking.sessions", "booking.bookings", "booking.events", "booking.waitlist"],
+  },
+  {
+    key: "customers",
+    label: "platform.nav.section_customers",
+    icon: "users",
+    keys: ["crm.persons", "credits.packages", "credits.memberships", "crm.companies", "crm.tasks", "crm.pipeline"],
+  },
+  {
+    key: "sales",
+    label: "platform.nav.section_pos",
+    icon: "shopping-cart",
+    keys: ["commerce.pos", "commerce.orders", "commerce.products", "commerce.promotions"],
+    labels: { "commerce.orders": "platform.nav.orders" },
+  },
+  {
+    key: "finance",
+    label: "platform.nav.section_finance",
+    icon: "receipt",
+    keys: ["finance.invoices", "finance.exports"],
+    labels: { "finance.exports": "platform.nav.accountant_export" },
+  },
+  {
+    key: "marketing",
+    label: "platform.nav.section_marketing",
+    icon: "megaphone",
+    keys: ["email.campaigns", "automation.automations", "forms.forms", "crm.segments", "email.templates", "site.website", "assistant.overview", "crm.inbox"],
+    labels: { "email.templates": "platform.nav.email_templates", "assistant.overview": "platform.nav.assistant" },
+  },
+  {
+    key: "settings",
+    label: "platform.nav.section_settings",
+    icon: "settings",
+    keys: ["platform.settings", "booking.rules", "booking.templates", "booking.exceptions", "platform.users", "platform.roles", "finance.settings", "ops.privacy", "platform.system"],
+    labels: { "platform.settings": "platform.nav.general", "finance.settings": "platform.nav.billing", "ops.privacy": "platform.nav.privacy", "platform.system": "platform.nav.technical" },
+  },
 ];
 
 /** A badge that throws or takes longer than this is left out; the shell never waits on it. */
@@ -89,22 +130,18 @@ export default async function AdminLayout({ children }: { children: ReactNode })
 
   const entries = await visibleEntries(actor);
   const badges = await Promise.all(entries.map((e) => badgeCount(e, db, actor)));
-  const grouped = new Map<string, NavSection["items"]>(GROUPS.map((g) => [g.key, []]));
-  entries.forEach((e, i) => {
-    const n = badges[i];
-    const label = soft(e.labelKey);
-    const item = { key: e.key, href: e.href, label: n ? tr("platform.nav.with_badge", { label, count: n }) : label, icon: e.icon };
-    const group = GROUPS.find((g) => g.keys?.includes(e.key)) ?? GROUPS.find((g) => g.sections.includes(e.section)) ?? GROUPS.at(-1)!;
-    grouped.get(group.key)!.push(item);
-  });
+  const byKey = new Map(entries.map((e, i) => [e.key, { e, n: badges[i] }]));
   const nav: NavSection[] = GROUPS.flatMap((g) => {
-    const items = grouped.get(g.key)!;
+    const items = g.keys.flatMap((key) => {
+      const hit = byKey.get(key);
+      if (!hit) return [];
+      const label = soft(g.labels?.[key] ?? hit.e.labelKey);
+      return [{ key, href: hit.e.href, label: hit.n ? tr("platform.nav.with_badge", { label, count: hit.n }) : label, icon: hit.e.icon }];
+    });
     if (!items.length) return [];
-    // The row opens the group's main entry, or its first entry when the actor cannot see the main one.
-    const main = items.find((i) => i.key === g.main) ?? items[0]!;
-    // Duplicate hrefs (one page listed by two modules) show once.
+    // Duplicate hrefs (one page listed by two modules) show once; a one-page group has no sub-rows.
     const unique = items.filter((it, idx) => items.findIndex((o) => o.href === it.href) === idx);
-    return [{ key: g.key, label: soft(g.label), href: main.href, icon: g.icon, items: unique }];
+    return [{ key: g.key, label: soft(g.label), href: unique[0]!.href, icon: g.icon, items: unique.length > 1 ? unique : [] }];
   });
 
   const secrets = await readMfaSecrets(db, actor.userId).catch(() => null);

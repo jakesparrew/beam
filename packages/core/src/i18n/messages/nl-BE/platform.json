@@ -200,7 +200,20 @@
       "section_automation": "Automatisering",
       "section_webinars": "Webinars",
       "section_credits": "Tegoeden",
-      "partner": "Partnerzone"
+      "partner": "Partnerzone",
+      "section_agenda": "Agenda",
+      "section_reception": "Onthaal",
+      "section_pos": "Kassa & verkoop",
+      "today": "Vandaag",
+      "general": "Algemeen",
+      "billing": "Facturatie",
+      "privacy": "Privacy & gegevens",
+      "technical": "Technisch",
+      "accountant_export": "Export boekhouder",
+      "assistant": "AI-assistent",
+      "email_templates": "E-mailsjablonen",
+      "bookings": "Boekingen",
+      "orders": "Bestellingen & betalingen"
     },
     "report": {
       "title": "Een probleem melden",

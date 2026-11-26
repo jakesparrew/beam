@@ -866,6 +866,29 @@
       "hide_materials": "Weer verbergen",
       "file_too_large": "Het bestand is groter dan 10 MB.",
       "image_type": "Kies een PNG-, JPG-, WebP- of GIF-afbeelding."
+    },
+    "list": {
+      "subtitle": "Alle sessies per dag. Open een sessie voor deelnemers, inchecken en de wachtlijst.",
+      "view_list": "Lijst",
+      "view_week": "Week",
+      "view_label": "Weergave",
+      "col_time": "Tijd",
+      "col_session": "Sessie",
+      "col_occupancy": "Bezetting",
+      "col_free": "Vrij",
+      "col_waiting": "Wachtlijst",
+      "col_status": "Status",
+      "status_open": "Open",
+      "status_full": "Volzet",
+      "status_almost": "Bijna vol",
+      "status_closed": "Gesloten",
+      "status_cancelled": "Geannuleerd",
+      "status_draft": "Concept",
+      "status_past": "Voorbij",
+      "day_summary": "{count, plural, one {# sessie} other {# sessies}} · {booked} van {capacity} geboekt",
+      "day_empty": "Geen sessies",
+      "today_badge": "Vandaag",
+      "week_range": "{from} – {to}"
     }
   }
 }

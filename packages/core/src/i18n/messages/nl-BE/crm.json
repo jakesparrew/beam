@@ -423,7 +423,11 @@
         "email": "E-mail",
         "phone": "Telefoon",
         "address": "Adres",
-        "desk": "Bij de balie"
+        "desk": "Bij de balie",
+        "contact_email": "E-mail sturen",
+        "contact_call": "Bellen",
+        "contact_whatsapp": "WhatsApp-bericht sturen",
+        "more_actions": "Meer acties"
       },
       "banners": {
         "override_conflict": "Manuele status {override} verschilt van berekende {derived}",
@@ -484,7 +488,10 @@
         "merge_with": "Samenvoegen met…",
         "book": "Boeken voor deze klant",
         "sell": "Verkopen",
-        "interaction_occurred_at": "Wanneer (leeg = nu)"
+        "interaction_occurred_at": "Wanneer (leeg = nu)",
+        "book_short": "Boeken",
+        "sell_pos": "Verkopen aan de kassa",
+        "new_task": "Nieuwe taak"
       },
       "sensitive": {
         "hidden": "Gevoelige gegevens zijn verborgen.",
@@ -538,7 +545,60 @@
         "no_shows": "{count, plural, one {# keer niet gekomen} other {# keer niet gekomen}}",
         "expires_on": "Eerste verval {date}",
         "purchases": "{count, plural, one {# aankoop} other {# aankopen}}",
-        "open_invoices": "{count, plural, one {# open factuur} other {# open facturen}}"
+        "open_invoices": "{count, plural, one {# open factuur} other {# open facturen}}",
+        "next_visit": "Volgende bezoek",
+        "nothing_planned": "Niets gepland",
+        "book": "Boek",
+        "no_package": "Geen pakket",
+        "sell_package": "Verkoop pakket",
+        "credit_day": "Dag",
+        "credit_night": "Nacht",
+        "credit_euro": "Eurotegoed",
+        "free_member": "{count, plural, one {+ # gratis lidsessie} other {+ # gratis lidsessies}}",
+        "membership": "Lidmaatschap",
+        "member_until": "Tot {date}",
+        "renews": "Verlengt automatisch",
+        "ends": "Stopt, wordt niet verlengd",
+        "past_due": "Betaling achterstallig",
+        "no_membership": "Geen lidmaatschap",
+        "sell_membership": "Verkopen",
+        "spent_sub": "{visits, plural, one {# bezoek} other {# bezoeken}} · gem. {avg} per bezoek",
+        "nothing_spent": "Nog niets besteed",
+        "open": "Openstaand",
+        "nothing_open": "Niets openstaand",
+        "expires_short": "Vervalt {date}"
+      },
+      "alerts": {
+        "title": "Aandachtspunten bij de balie",
+        "open_balance": "Openstaand saldo {amount}",
+        "past_due": "Lidmaatschap: betaling achterstallig",
+        "fill_health": "Invullen aan de balie",
+        "record_guardian": "Registreren",
+        "view": "Bekijken",
+        "desk_ok": "In orde",
+        "desk_open": "{count, plural, one {# punt open} other {# punten open}}"
+      },
+      "overview": {
+        "next_visits": "Volgende bezoeken",
+        "nothing_planned": "Niets gepland.",
+        "book_session": "Boek een sessie",
+        "followup": "Opvolging",
+        "followup_none": "Geen opvolging nodig.",
+        "recent": "Recente activiteit",
+        "recent_empty": "Nog geen activiteit.",
+        "full_timeline": "Volledige tijdlijn",
+        "visits_strip": "Bezoeken, laatste 12 maanden",
+        "visits_month": "{month}: {count, plural, =0 {geen bezoeken} one {# bezoek} other {# bezoeken}}"
+      },
+      "followup": {
+        "first_visit": "Eerste bezoek op komst",
+        "package_used_up": "{kind, select, night {Nachttegoed op} other {Dagtegoed op}}",
+        "package_low": "{kind, select, night {Laatste nachttegoed} other {Laatste dagtegoed}}",
+        "package_expiring": "{units, plural, one {# tegoed vervalt} other {# tegoeden vervallen}} op {date}",
+        "membership_renewal": "Lidmaatschap stopt op {date}",
+        "free_session_unused": "{units, plural, one {# gratis lidsessie nog niet gebruikt} other {# gratis lidsessies nog niet gebruikt}}",
+        "sell_package": "Pakket verkopen",
+        "view_membership": "Lidmaatschap bekijken"
       }
     },
     "timeline": {

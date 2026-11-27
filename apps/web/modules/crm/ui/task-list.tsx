@@ -70,6 +70,8 @@ export function TaskList({
   labels,
   compact = false,
   showCreate = true,
+  dense,
+  openCreate = false,
 }: {
   tasks: TaskView[];
   currentUserId: string;
@@ -81,15 +83,19 @@ export function TaskList({
   /** Inside a 360 or company page: no "about" column and no source. */
   compact?: boolean;
   showCreate?: boolean;
+  /** The 360's side column: a titled list (heading `id`) with a small "+" instead of the table. */
+  dense?: { title: string; headingId: string };
+  /** Opens the create form at once (the 360's "⋯ → Nieuwe taak"). */
+  openCreate?: boolean;
 }) {
   const router = useRouter();
-  const [editing, setEditing] = useState<TaskFormValues | null>(null);
+  const blank: TaskFormValues = { title: "", kind: "follow_up", dueLocal: "", priority: "normal", ownerUserId: currentUserId, notes: "" };
+  const [editing, setEditing] = useState<TaskFormValues | null>(openCreate && showCreate ? blank : null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const kinds = Object.entries(labels.kinds).map(([value, label]) => ({ value, label }));
   const priorities = Object.entries(labels.priorities).map(([value, label]) => ({ value, label }));
-  const blank: TaskFormValues = { title: "", kind: "follow_up", dueLocal: "", priority: "normal", ownerUserId: currentUserId, notes: "" };
 
   async function move(id: string, fn: typeof completeTask) {
     setBusy(id);
@@ -104,6 +110,103 @@ export function TaskList({
   }
 
   const relatedHref = (t: TaskView) => (t.personId ? `/admin/persons/${t.personId}` : t.companyId ? `/admin/companies/${t.companyId}` : null);
+  const form = editing ? (
+    <TaskForm
+      initial={editing}
+      {...(personId ? { personId } : {})}
+      {...(companyId ? { companyId } : {})}
+      canAssignOthers={canAssignOthers}
+      owners={owners}
+      kinds={kinds}
+      priorities={priorities}
+      labels={labels.form}
+      onDone={() => setEditing(null)}
+    />
+  ) : null;
+  const alert = error ? (
+    <Alert variant="destructive" role="alert">
+      <AlertDescription>{error}</AlertDescription>
+    </Alert>
+  ) : null;
+  const rowAction = "rounded px-1 text-[0.75rem] font-medium text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50";
+
+  if (dense)
+    return (
+      <div className="grid" data-testid="task-list-dense">
+        <header className="flex items-center justify-between gap-2 border-b border-border px-5 py-2.5">
+          <h2 id={dense.headingId} className="text-[0.875rem] font-semibold">
+            {dense.title}
+            {tasks.length ? <span className="ml-1.5 font-normal text-muted-foreground tabular-nums">{tasks.length}</span> : null}
+          </h2>
+          {showCreate ? (
+            <button
+              type="button"
+              onClick={() => setEditing(blank)}
+              disabled={!!editing}
+              aria-label={labels.create}
+              title={labels.create}
+              className="grid size-6 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40"
+            >
+              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="size-3.5">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+            </button>
+          ) : null}
+        </header>
+        {form ? <div className="border-b border-border p-3">{form}</div> : null}
+        {alert ? <div className="p-3">{alert}</div> : null}
+        {tasks.length === 0 ? (
+          <p className="px-5 py-3 text-[0.8125rem] text-muted-foreground">{labels.empty}</p>
+        ) : (
+          <ul className="divide-y divide-border text-[0.8125rem]" data-testid="task-list">
+            {tasks.map((t) => {
+              const canTouch = canAssignOthers || t.ownerId === currentUserId;
+              const open = t.status === "open";
+              return (
+                <li key={t.id} data-task-id={t.id} data-overdue={t.isOverdue || undefined} className="group flex items-start gap-2.5 px-5 py-2">
+                  {canTouch && open ? (
+                    <button
+                      type="button"
+                      disabled={busy === t.id}
+                      onClick={() => void move(t.id, completeTask)}
+                      aria-label={`${labels.complete}: ${t.title}`}
+                      title={labels.complete}
+                      data-action="complete"
+                      className="mt-0.5 size-3.5 shrink-0 rounded-full border-[1.5px] border-muted-foreground/60 hover:border-[var(--status-ok)] hover:bg-[var(--status-ok-soft)]"
+                    />
+                  ) : (
+                    <span aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 rounded-full border-[1.5px] border-border" />
+                  )}
+                  <span className="grid min-w-0 flex-1 leading-tight">
+                    <span className="font-medium">{t.title}</span>
+                    <span className="flex flex-wrap items-center gap-x-1.5 text-[0.75rem] text-muted-foreground">
+                      {t.dueLabel ? <span className={cn("tabular-nums", t.isOverdue && "font-semibold text-[var(--status-bad)]")}>{t.dueLabel}</span> : <span>{labels.noDue}</span>}
+                      {t.isOverdue ? <StatusPill tone="bad">{labels.overdue}</StatusPill> : t.isDueToday ? <StatusPill tone="warn">{labels.dueToday}</StatusPill> : null}
+                      <span>· {t.ownerLabel}</span>
+                    </span>
+                  </span>
+                  {canTouch && open ? (
+                    <span className="flex shrink-0 gap-0.5 opacity-60 group-hover:opacity-100 focus-within:opacity-100">
+                      <button
+                        type="button"
+                        title={labels.reassign}
+                        className={rowAction}
+                        onClick={() => setEditing({ id: t.id, title: t.title, kind: t.kind, dueLocal: t.dueLocal, priority: t.priority, ownerUserId: t.ownerId, notes: t.notes ?? "", personId: t.personId, companyId: t.companyId })}
+                      >
+                        {labels.edit}
+                      </button>
+                      <button type="button" disabled={busy === t.id} onClick={() => void move(t.id, cancelTask)} className={rowAction}>
+                        {labels.cancel}
+                      </button>
+                    </span>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+    );
 
   return (
     <div className="grid gap-2">
@@ -114,24 +217,8 @@ export function TaskList({
           </button>
         </div>
       ) : null}
-      {editing ? (
-        <TaskForm
-          initial={editing}
-          {...(personId ? { personId } : {})}
-          {...(companyId ? { companyId } : {})}
-          canAssignOthers={canAssignOthers}
-          owners={owners}
-          kinds={kinds}
-          priorities={priorities}
-          labels={labels.form}
-          onDone={() => setEditing(null)}
-        />
-      ) : null}
-      {error ? (
-        <Alert variant="destructive" role="alert">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      ) : null}
+      {form}
+      {alert}
       {tasks.length === 0 ? (
         compact ? (
           <p className="rounded-xl border border-border bg-card px-5 py-4 text-[0.8125rem] text-muted-foreground">{labels.empty}</p>

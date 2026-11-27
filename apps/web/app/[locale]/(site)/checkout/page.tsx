@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { formatMoney, localeFromSegment, URL_SEGMENT } from "@beam/core/i18n";
 import { actorFromSession, appUrl, getSession } from "@/lib/auth";
+import { knownVisitorDetails } from "@/lib/visitor-details";
 import { getAppDb } from "@/lib/ctx";
 import { translator } from "@/lib/i18n";
 import { placeOrder, startCheckout, updateCheckout } from "@/modules/commerce/actions";
@@ -31,7 +32,8 @@ export default async function SiteCheckoutPage({ params, searchParams }: { param
   const sp = await searchParams;
   const tr = translator(locale);
   const seg = URL_SEGMENT[locale];
-  const actor = actorFromSession(await getSession());
+  const session = await getSession();
+  const actor = actorFromSession(session);
   const signedIn = actor?.kind === "customer" ? actor : null;
   const viewer = await readViewer(actor);
   const db = await getAppDb();
@@ -114,7 +116,9 @@ export default async function SiteCheckoutPage({ params, searchParams }: { param
     if (!result.ok) redirect(`/${seg}/checkout?sku=${encodeURIComponent(sp.sku ?? "")}&${errorQuery(result.error)}` as never);
     redirect(`/${seg}/checkout?checkout=${result.data.checkoutId}` as never);
   }
-  // Owner's review 8: a guest gives email, full name and phone, as in the booking flow.
+  // Owner's review 8: a guest gives email, full name and phone, as in the booking flow; someone
+  // signed in without a client account (staff) gets what the session knows prefilled.
+  const known = signedIn ? {} : await knownVisitorDetails(db, session);
   const detailsError = ["email", "firstName", "lastName", "phone"].includes(error?.field ?? "");
   return shell(
     <>
@@ -127,7 +131,7 @@ export default async function SiteCheckoutPage({ params, searchParams }: { param
         <h2 id="email-step-title" className="text-lg font-semibold">
           {tr("commerce.checkout.email_title")}
         </h2>
-        {signedIn ? null : <GuestDetailsFields locale={locale} field={detailsError ? error!.field : null} />}
+        {signedIn ? null : <GuestDetailsFields locale={locale} field={detailsError ? error!.field : null} defaults={known} />}
         <button type="submit" className="min-h-12 w-fit rounded-md bg-primary px-6 font-semibold text-primary-foreground">
           {tr("commerce.checkout.continue")}
         </button>

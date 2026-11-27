@@ -15,7 +15,7 @@ const FIELDS = [
 
 const LABEL = { email: "email_label", firstName: "first_name", lastName: "last_name", phone: "phone" } as const;
 
-export function GuestDetailsFields({ locale, field, emailLabel }: { locale: Locale; field?: string | null; emailLabel?: string }) {
+export function GuestDetailsFields({ locale, field, emailLabel, defaults }: { locale: Locale; field?: string | null; emailLabel?: string; defaults?: Partial<Record<(typeof FIELDS)[number]["name"], string>> }) {
   const tr = translator(locale);
   return (
     <div className="grid gap-4 sm:grid-cols-2">
@@ -33,6 +33,7 @@ export function GuestDetailsFields({ locale, field, emailLabel }: { locale: Loca
               name={f.name}
               type={f.type}
               required
+              defaultValue={defaults?.[f.name]}
               autoComplete={f.autoComplete}
               maxLength={f.maxLength}
               minLength={f.minLength}

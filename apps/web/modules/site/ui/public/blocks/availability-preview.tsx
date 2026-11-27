@@ -15,7 +15,7 @@ import { bandLabel } from "./events-list";
 const TZ = "Europe/Brussels";
 const DAY_MS = 86_400_000;
 const dayKey = (d: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(d);
-const fmt = (d: Date, locale: Locale, opts: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat(locale, { timeZone: TZ, ...opts }).format(d);
+const fmt = (d: Date, locale: Locale, opts: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat(locale, { timeZone: TZ, hourCycle: "h23", ...opts }).format(d);
 
 const DOT: Record<string, string> = { available: "bg-[#3f8f5a]", few: "bg-[#d1a64a]", full: "bg-[#9aa0b0]" };
 
@@ -24,7 +24,9 @@ type Slot = { sessionId: string; startsAt: string; band: string };
 /** Whole weeks (seven days each, closed days included) from today up to the last slot. */
 export function buildWeeks(slots: Slot[], locale: Locale, tr: BlockContext["tr"], hrefOf: (sessionId: string) => string): Week[] {
   const byDay = new Map<string, Slot[]>();
-  for (const s of slots) byDay.set(dayKey(new Date(s.startsAt)), [...(byDay.get(dayKey(new Date(s.startsAt))) ?? []), s]);
+  // The cached list starts at midnight; times that already began today are not offered.
+  const now = Date.now();
+  for (const s of slots.filter((x) => new Date(x.startsAt).getTime() > now)) byDay.set(dayKey(new Date(s.startsAt)), [...(byDay.get(dayKey(new Date(s.startsAt))) ?? []), s]);
   // Whole weeks from today up to the last loaded session (noon steps keep DST from skipping a day).
   const noon = new Date(`${dayKey(new Date())}T12:00:00Z`);
   const last = slots.length ? new Date(slots.at(-1)!.startsAt) : noon;

@@ -7,6 +7,7 @@ import { actorFromSession, getSession } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
 import { softTranslator, translator } from "@/lib/i18n";
 import { getSetting } from "@/lib/settings";
+import { knownVisitorDetails } from "@/lib/visitor-details";
 import { bookAsGuest, bookSession } from "@/modules/booking/actions";
 import { getSessionCards } from "@/modules/booking/api";
 import { getBookableSession, getBookingAddOns, getBookingOffers } from "@/modules/booking/queries";
@@ -160,7 +161,7 @@ export default async function PublicBookSessionPage({ params, searchParams }: { 
   // Owner requirements 4 and 5: an event shows its own artwork; a free event says so; a webinar is online.
   const heroImage = card.imageFileId ? `/api/public/files/${card.imageFileId}` : `/brand/book-${kind}.webp`;
   const isFree = card.kind === "event" && !card.productId;
-  const fmt = (opts: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat(locale, { timeZone: TZ, ...opts });
+  const fmt = (opts: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat(locale, { timeZone: TZ, hourCycle: "h23", ...opts });
   const dateLine = fmt({ weekday: "long", day: "numeric", month: "long" }).format(card.startsAt);
   const timeLine = `${fmt({ hour: "2-digit", minute: "2-digit" }).format(card.startsAt)} – ${fmt({ hour: "2-digit", minute: "2-digit" }).format(card.endsAt)}`;
   const full = card.availabilityBand === "full";
@@ -219,6 +220,7 @@ export default async function PublicBookSessionPage({ params, searchParams }: { 
           const name = pick(o.name, locale);
           return {
             productId: o.productId,
+            name,
             priceCents: o.priceCents,
             kind,
             label: o.savingPct ? tr("site.bookFlow.packages.optionSave", { name, price: money(o.priceCents), pct: o.savingPct }) : tr("site.bookFlow.packages.option", { name, price: money(o.priceCents) }),
@@ -264,148 +266,168 @@ export default async function PublicBookSessionPage({ params, searchParams }: { 
     return { error: message, fields, values: form.values, n: prev.n + 1 };
   }
 
+  const prefill = customer ? undefined : Object.fromEntries(Object.entries(await knownVisitorDetails(db, session).catch(() => ({}))).filter((e): e is [string, string] => !!e[1]));
+  const hero = (
+      <section aria-labelledby="session-title" className="relative isolate overflow-hidden rounded-[2rem] p-7 text-[#fffaef] sm:p-10">
+        {/* eslint-disable-next-line @next/next/no-img-element -- static brand photo */}
+        <img src={heroImage} alt="" className="absolute inset-0 -z-20 h-full w-full object-cover" />
+        <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[linear-gradient(110deg,rgba(23,28,48,0.94)_0%,rgba(23,28,48,0.78)_55%,rgba(23,28,48,0.35)_100%)]" />
+        <p className="text-xs font-semibold tracking-[0.25em] text-[#d1a64a] uppercase">{tr("site.bookFlow.s3.title")}</p>
+        <h1 id="session-title" className="font-display mt-2 text-4xl sm:text-5xl">
+          {card.title}
+        </h1>
+        <dl className="mt-6 grid gap-4 sm:grid-cols-3">
+          <div>
+            <dt className="text-xs tracking-widest text-[#fffaef]/60 uppercase">{tr("site.bookFlow.summary.when")}</dt>
+            {[formSession, ...moreSessions].map((x) => (
+              <dd key={x.sessionId} className="mt-1 first-letter:uppercase">
+                <span className="font-medium">{x.day}</span>
+                <span className="block text-[#fffaef]/80 tabular-nums">{x.time}</span>
+              </dd>
+            ))}
+          </div>
+          <div>
+            <dt className="text-xs tracking-widest text-[#fffaef]/60 uppercase">{tr("site.bookFlow.summary.where")}</dt>
+            <dd className="mt-1 font-medium">{card.location ?? (card.eventCategory === "webinar" ? tr("site.bookFlow.summary.online") : tr("site.bookFlow.summary.whereValue"))}</dd>
+          </div>
+          {prices.singleCents !== null ? (
+            <div>
+              <dt className="text-xs tracking-widest text-[#fffaef]/60 uppercase">{tr("site.bookFlow.summary.price")}</dt>
+              <dd className="mt-1 text-2xl font-semibold tabular-nums">
+                {moreSessions.length ? `${moreSessions.length + 1} × ` : ""}
+                {money(prices.singleCents)}
+              </dd>
+            </div>
+          ) : isFree ? (
+            <div>
+              <dt className="text-xs tracking-widest text-[#fffaef]/60 uppercase">{tr("site.bookFlow.summary.price")}</dt>
+              <dd className="mt-1 text-2xl font-semibold">{tr("site.bookFlow.summary.free")}</dd>
+            </div>
+          ) : null}
+        </dl>
+        <a href={`${prefix}/book?kind=${kind}`} className="mt-6 inline-block text-sm text-[#fffaef]/80 underline underline-offset-4 hover:text-[#fffaef]">
+          {tr("site.bookFlow.summary.change")}
+        </a>
+      </section>
+  );
+  const sideCards = (
+    <>
+      <InfoCard title={tr("site.bookFlow.bring.title")}>
+        <p>{tr("site.bookFlow.bring.body")}</p>
+      </InfoCard>
+      <InfoCard title={tr("site.bookFlow.after.title")}>
+        <p>{tr("site.bookFlow.after.body")}</p>
+      </InfoCard>
+    </>
+  );
+  const status = sp.booked ? (
+    <p role="status" className="rounded-2xl bg-[#e7f1ea] p-5" data-testid="guest-booked">
+      {tr("site.bookFlow.guest.booked")}
+    </p>
+  ) : full ? (
+    <p role="status" className="rounded-2xl border border-border bg-card p-5">
+      {tr("site.bookFlow.full")}
+    </p>
+  ) : payOptions.length === 0 && !packages ? (
+    <p role="status" className="rounded-2xl border border-border bg-card p-5">
+      {tr("site.bookFlow.guest.noPayOption")}
+    </p>
+  ) : null;
+
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
       <BookSteps current={3} tr={tr} />
-      <div className="grid gap-8 lg:grid-cols-[1fr_22rem]">
-        <div className="space-y-8">
-          <section aria-labelledby="session-title" className="relative isolate overflow-hidden rounded-[2rem] p-7 text-[#fffaef] sm:p-10">
-            {/* eslint-disable-next-line @next/next/no-img-element -- static brand photo */}
-            <img src={heroImage} alt="" className="absolute inset-0 -z-20 h-full w-full object-cover" />
-            <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[linear-gradient(110deg,rgba(23,28,48,0.94)_0%,rgba(23,28,48,0.78)_55%,rgba(23,28,48,0.35)_100%)]" />
-            <p className="text-xs font-semibold tracking-[0.25em] text-[#d1a64a] uppercase">{tr("site.bookFlow.s3.title")}</p>
-            <h1 id="session-title" className="font-display mt-2 text-4xl sm:text-5xl">
-              {card.title}
-            </h1>
-            <dl className="mt-6 grid gap-4 sm:grid-cols-3">
-              <div>
-                <dt className="text-xs tracking-widest text-[#fffaef]/60 uppercase">{tr("site.bookFlow.summary.when")}</dt>
-                <dd className="mt-1 font-medium first-letter:uppercase">{dateLine}</dd>
-                <dd className="text-[#fffaef]/80 tabular-nums">{timeLine}</dd>
-              </div>
-              <div>
-                <dt className="text-xs tracking-widest text-[#fffaef]/60 uppercase">{tr("site.bookFlow.summary.where")}</dt>
-                <dd className="mt-1 font-medium">{card.location ?? (card.eventCategory === "webinar" ? tr("site.bookFlow.summary.online") : tr("site.bookFlow.summary.whereValue"))}</dd>
-              </div>
-              {prices.singleCents !== null ? (
-                <div>
-                  <dt className="text-xs tracking-widest text-[#fffaef]/60 uppercase">{tr("site.bookFlow.summary.price")}</dt>
-                  <dd className="mt-1 text-2xl font-semibold tabular-nums">{money(prices.singleCents)}</dd>
-                </div>
-              ) : isFree ? (
-                <div>
-                  <dt className="text-xs tracking-widest text-[#fffaef]/60 uppercase">{tr("site.bookFlow.summary.price")}</dt>
-                  <dd className="mt-1 text-2xl font-semibold">{tr("site.bookFlow.summary.free")}</dd>
-                </div>
-              ) : null}
-            </dl>
-            <a href={`${prefix}/book?kind=${kind}`} className="mt-6 inline-block text-sm text-[#fffaef]/80 underline underline-offset-4 hover:text-[#fffaef]">
-              {tr("site.bookFlow.summary.change")}
-            </a>
-          </section>
-
-          {sp.booked ? (
-            <p role="status" className="rounded-2xl bg-[#e7f1ea] p-5" data-testid="guest-booked">
-              {tr("site.bookFlow.guest.booked")}
-            </p>
-          ) : full ? (
-            <p role="status" className="rounded-2xl border border-border bg-card p-5">
-              {tr("site.bookFlow.full")}
-            </p>
-          ) : payOptions.length === 0 && !packages ? (
-            <p role="status" className="rounded-2xl border border-border bg-card p-5">
-              {tr("site.bookFlow.guest.noPayOption")}
-            </p>
-          ) : (
-            <section aria-label={tr("site.bookFlow.steps.details")} className="rounded-[2rem] border border-border bg-card p-6 sm:p-10">
-              <GuestBookForm
-                action={submit}
-                clientKey={randomUUID()}
-                locale={locale}
-                signedIn={signedIn}
-                loginHref={`${prefix}/account/login?returnTo=${encodeURIComponent(here)}`}
-                payOptions={payOptions}
-                packages={packages}
-                kids={kidsAllowed ? { max: Math.min(MAX_KIDS, rules.max_guests_per_booking) } : null}
-                companions={card.kind !== "event" && rules.max_guests_per_booking > 0 ? { max: Math.min(MAX_COMPANIONS, rules.max_guests_per_booking), sharedBeds: rules.max_shared_bed_guests_per_booking } : null}
-                extras={addOns.extras.map((e) => ({
-                  productId: e.productId,
-                  name: pick(e.name, locale),
-                  priceCents: e.priceCents,
-                  price: money(e.priceCents),
-                  kinds: e.kinds,
-                  icon: extraIcon(e.sku, e.itemCategory),
-                  imageUrl: e.imageFileId ? `/api/public/files/${e.imageFileId}` : null,
-                }))}
-                session={formSession}
-                moreSessions={moreSessions}
-                emergency={emergency}
-                emergencyIfNight={rules.require_emergency_contact_for_nights}
-                terms={termsNeeded ? { href: termsHref } : null}
-                labels={{
-                  detailsTitle: tr("site.bookFlow.guest.title"),
-                  detailsIntro: tr("site.bookFlow.guest.intro"),
-                  email: tr("site.bookFlow.account.email"),
-                  firstName: tr("site.bookFlow.account.firstName"),
-                  lastName: tr("site.bookFlow.account.lastName"),
-                  phone: tr("site.bookFlow.guest.phone"),
-                  signInTitle: tr("site.bookFlow.account.existing"),
-                  signInBody: tr("site.bookFlow.guest.signInBody"),
-                  signIn: tr("site.bookFlow.account.login"),
-                  signedIn: user ? tr("site.bookFlow.guest.signedIn", { name: user.name ?? user.email, email: user.email }) : null,
-                  payTitle: tr("site.bookFlow.guest.payTitle"),
-                  packagePick: tr("site.bookFlow.guest.packagePick"),
-                  kidsTitle: tr("site.bookFlow.guest.kidsTitle"),
-                  kidsBody: tr("site.bookFlow.guest.kidsBody", { youth: money(prices.childCents.youth ?? 0) }),
-                  kidFirstName: tr("site.bookFlow.guest.kidFirstName", { n: "{n}" }),
-                  kidAge: tr("site.bookFlow.guest.kidAge"),
-                  ageNone: tr("site.bookFlow.guest.ageNone"),
-                  ageChild: tr("site.bookFlow.guest.ageChild"),
-                  ageYouth: tr("site.bookFlow.guest.ageYouth", { price: money(prices.childCents.youth ?? 0) }),
-                  emergencyTitle: tr("booking.portalSession.emergency_title"),
-                  emergencyName: tr("booking.portalSession.emergency_name"),
-                  emergencyPhone: tr("booking.portalSession.emergency_phone"),
-                  acceptTerms: tr("booking.portalSession.accept_terms"),
-                  readTerms: tr("booking.portalSession.read_terms"),
-                  submit: tr("site.bookFlow.guest.submit"),
-                  next: tr("site.bookFlow.guest.next"),
-                  companionsTitle: tr("site.bookFlow.guest.companionsTitle"),
-                  companionsBody: tr("site.bookFlow.guest.companionsBody", { max: Math.min(MAX_COMPANIONS, rules.max_guests_per_booking) }),
-                  companion: tr("site.bookFlow.guest.companion", { n: "{n}" }),
-                  companionEmail: tr("site.bookFlow.guest.companionEmail"),
-                  sharesBed: tr("site.bookFlow.guest.sharesBed"),
-                  addCompanion: tr("site.bookFlow.guest.addCompanion"),
-                  removeCompanion: tr("site.bookFlow.guest.removeCompanion"),
-                  extrasTitle: tr("site.bookFlow.guest.extrasTitle"),
-                  extrasBody: tr("site.bookFlow.guest.extrasBody"),
-                  extraAdd: tr("site.bookFlow.guest.extraAdd"),
-                  fewer: tr("site.bookFlow.guest.extraFewer", { name: "{name}" }),
-                  more: tr("site.bookFlow.guest.extraMore", { name: "{name}" }),
-                  removeSession: tr("site.bookFlow.guest.removeSession", { when: "{when}" }),
-                  kindDay: tr("site.bookFlow.day.title"),
-                  kindNight: tr("site.bookFlow.night.title"),
-                  codeTitle: tr("site.bookFlow.guest.codeTitle"),
-                  codeLabel: tr("site.bookFlow.guest.codeLabel"),
-                  codeHint: tr("site.bookFlow.guest.codeHint"),
-                  summaryTitle: tr("site.bookFlow.guest.summaryTitle"),
-                  seats: tr("site.bookFlow.guest.seats", { n: "{n}" }),
-                  total: tr("site.bookFlow.summary.total"),
-                  totalHint: tr("site.bookFlow.guest.totalHint"),
-                }}
-              />
-            </section>
-          )}
-          <TrustStrip tr={tr} />
+      {status ? (
+        <div className="grid gap-8 lg:grid-cols-[1fr_22rem]">
+          <div className="space-y-8">
+            {hero}
+            {status}
+            <TrustStrip tr={tr} />
+          </div>
+          <aside className="space-y-4">{sideCards}</aside>
         </div>
-        <aside className="space-y-4">
-          <InfoCard title={tr("site.bookFlow.bring.title")}>
-            <p>{tr("site.bookFlow.bring.body")}</p>
-          </InfoCard>
-          <InfoCard title={tr("site.bookFlow.after.title")}>
-            <p>{tr("site.bookFlow.after.body")}</p>
-          </InfoCard>
-        </aside>
-      </div>
+      ) : (
+        <GuestBookForm
+          action={submit}
+          clientKey={randomUUID()}
+          locale={locale}
+          signedIn={signedIn}
+          loginHref={`${prefix}/account/login?returnTo=${encodeURIComponent(here)}`}
+          payOptions={payOptions}
+          packages={packages}
+          kids={kidsAllowed ? { max: Math.min(MAX_KIDS, rules.max_guests_per_booking) } : null}
+          companions={card.kind !== "event" && rules.max_guests_per_booking > 0 ? { max: Math.min(MAX_COMPANIONS, rules.max_guests_per_booking), sharedBeds: rules.max_shared_bed_guests_per_booking } : null}
+          extras={addOns.extras.map((e) => ({
+            productId: e.productId,
+            name: pick(e.name, locale),
+            priceCents: e.priceCents,
+            price: money(e.priceCents),
+            kinds: e.kinds,
+            icon: extraIcon(e.sku, e.itemCategory),
+            imageUrl: e.imageFileId ? `/api/public/files/${e.imageFileId}` : null,
+          }))}
+          session={formSession}
+          moreSessions={moreSessions}
+          emergency={emergency}
+          emergencyIfNight={rules.require_emergency_contact_for_nights}
+          terms={termsNeeded ? { href: termsHref } : null}
+          prefill={prefill}
+          header={hero}
+          aside={sideCards}
+          footer={<TrustStrip tr={tr} />}
+          labels={{
+            detailsTitle: tr("site.bookFlow.guest.title"),
+            detailsIntro: tr("site.bookFlow.guest.intro"),
+            email: tr("site.bookFlow.account.email"),
+            firstName: tr("site.bookFlow.account.firstName"),
+            lastName: tr("site.bookFlow.account.lastName"),
+            phone: tr("site.bookFlow.guest.phone"),
+            signInTitle: tr("site.bookFlow.account.existing"),
+            signInBody: tr("site.bookFlow.guest.signInBody"),
+            signIn: tr("site.bookFlow.account.login"),
+            signedIn: user ? tr("site.bookFlow.guest.signedIn", { name: user.name ?? user.email, email: user.email }) : null,
+            payTitle: tr("site.bookFlow.guest.payTitle"),
+            packagePick: tr("site.bookFlow.guest.packagePick"),
+            kidsTitle: tr("site.bookFlow.guest.kidsTitle"),
+            kidsBody: tr("site.bookFlow.guest.kidsBody", { youth: money(prices.childCents.youth ?? 0) }),
+            kidFirstName: tr("site.bookFlow.guest.kidFirstName", { n: "{n}" }),
+            kidAge: tr("site.bookFlow.guest.kidAge"),
+            ageNone: tr("site.bookFlow.guest.ageNone"),
+            ageChild: tr("site.bookFlow.guest.ageChild"),
+            ageYouth: tr("site.bookFlow.guest.ageYouth", { price: money(prices.childCents.youth ?? 0) }),
+            emergencyTitle: tr("booking.portalSession.emergency_title"),
+            emergencyName: tr("booking.portalSession.emergency_name"),
+            emergencyPhone: tr("booking.portalSession.emergency_phone"),
+            acceptTerms: tr("booking.portalSession.accept_terms"),
+            readTerms: tr("booking.portalSession.read_terms"),
+            submit: tr("site.bookFlow.guest.submit"),
+            next: tr("site.bookFlow.guest.next"),
+            companionsTitle: tr("site.bookFlow.guest.companionsTitle"),
+            companionsBody: tr("site.bookFlow.guest.companionsBody", { max: Math.min(MAX_COMPANIONS, rules.max_guests_per_booking) }),
+            companion: tr("site.bookFlow.guest.companion", { n: "{n}" }),
+            companionEmail: tr("site.bookFlow.guest.companionEmail"),
+            sharesBed: tr("site.bookFlow.guest.sharesBed"),
+            addCompanion: tr("site.bookFlow.guest.addCompanion"),
+            removeCompanion: tr("site.bookFlow.guest.removeCompanion"),
+            extrasTitle: tr("site.bookFlow.guest.extrasTitle"),
+            extrasBody: tr("site.bookFlow.guest.extrasBody"),
+            extraAdd: tr("site.bookFlow.guest.extraAdd"),
+            fewer: tr("site.bookFlow.guest.extraFewer", { name: "{name}" }),
+            more: tr("site.bookFlow.guest.extraMore", { name: "{name}" }),
+            removeSession: tr("site.bookFlow.guest.removeSession", { when: "{when}" }),
+            inPackage: tr("site.bookFlow.guest.inPackage"),
+            kindDay: tr("site.bookFlow.day.title"),
+            kindNight: tr("site.bookFlow.night.title"),
+            codeTitle: tr("site.bookFlow.guest.codeTitle"),
+            codeLabel: tr("site.bookFlow.guest.codeLabel"),
+            codeHint: tr("site.bookFlow.guest.codeHint"),
+            summaryTitle: tr("site.bookFlow.guest.summaryTitle"),
+            seats: tr("site.bookFlow.guest.seats", { n: "{n}" }),
+            total: tr("site.bookFlow.summary.total"),
+            totalHint: tr("site.bookFlow.guest.totalHint"),
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -269,7 +269,9 @@
   transform: none;
 }
 .site-theme .site-on-dark :is(a, button).site-gold,
-.site-theme :is(a, button).site-gold.site-on-dark {
+.site-theme :is(a, button).site-gold.site-on-dark,
+/* Owner: the checkout's main actions (pay, continue) in solid gold, like the header's "Book your session". */
+.site-theme :is(a, button).site-gold.site-fill {
   background: var(--site-gold);
   color: var(--site-navy);
 }

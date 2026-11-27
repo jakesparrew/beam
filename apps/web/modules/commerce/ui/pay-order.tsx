@@ -82,7 +82,7 @@ export async function PayOrderScreen({
             <div className="grid gap-3">
               <button
                 type="submit"
-                className="site-gold inline-flex h-14 w-full items-center justify-center gap-3 rounded-full px-8 text-base font-semibold text-[#212842] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                className="site-gold site-fill inline-flex h-14 w-full items-center justify-center gap-3 rounded-full px-8 text-base font-semibold text-[#212842] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
               >
                 <LockIcon />
                 {tr("commerce.checkout.pay", { amount: formatMoney(order.dueCents, locale) })}

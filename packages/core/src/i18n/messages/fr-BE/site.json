@@ -1067,7 +1067,8 @@
         "payPackageChoicePlain": "Acheter un forfait",
         "packagePick": "Forfait",
         "removeSession": "Retirer {when}",
-        "extraAdd": "Ajouter"
+        "extraAdd": "Ajouter",
+        "inPackage": "Inclus dans votre forfait"
       },
       "packages": {
         "title": "Ou achetez un forfait",

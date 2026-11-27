@@ -1067,7 +1067,8 @@
         "payPackageChoicePlain": "Buy a package",
         "packagePick": "Package",
         "removeSession": "Remove {when}",
-        "extraAdd": "Add"
+        "extraAdd": "Add",
+        "inPackage": "Included in your package"
       },
       "packages": {
         "title": "Or buy a package",

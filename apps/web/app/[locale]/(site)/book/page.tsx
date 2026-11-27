@@ -102,7 +102,7 @@ export default async function PublicBookPage({ params, searchParams }: { params:
   const night = kind === "night";
   // Owner's review 8: a package instead of a single session, with its saving (the prices of the first session shown).
   const firstSlot = slots[0];
-  const { offers } = firstSlot ? await getBookingOffers(await getAppDb(), firstSlot.sessionId).catch(() => ({ singleCents: null, offers: [] })) : { singleCents: null, offers: [] };
+  const offers = firstSlot ? (await getBookingOffers(await getAppDb(), firstSlot.sessionId).catch(() => null))?.offers ?? [] : [];
   const money = (cents: number) => formatMoney(cents, locale);
   const bestPct = Math.max(0, ...offers.map((o) => o.savingPct ?? 0));
   return (

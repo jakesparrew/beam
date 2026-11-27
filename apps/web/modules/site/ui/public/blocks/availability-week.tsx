@@ -41,7 +41,7 @@ export function AvailabilityWeeks({ weeks, night, labels, pick }: { weeks: Week[
         : [...list, { sessionId: s.sessionId, startsAt: s.startsAt, href: s.href, label: `${d.weekday} ${d.day} · ${s.time}` }].sort((a, b) => a.startsAt.localeCompare(b.startsAt)),
     );
   const slotClass = (s: WeekSlot, on: boolean) =>
-    `flex w-full items-center justify-between gap-2 rounded-full px-3 py-1.5 text-sm font-medium tabular-nums transition ${
+    `flex w-full items-center justify-center gap-2 rounded-xl px-2 py-2 text-[0.9375rem] font-semibold tabular-nums transition ${
       s.band === "full"
         ? "pointer-events-none line-through opacity-50"
         : on
@@ -88,14 +88,14 @@ export function AvailabilityWeeks({ weeks, night, labels, pick }: { weeks: Week[
                     const on = picked.some((p) => p.sessionId === s.sessionId);
                     const inner = (
                       <>
-                        <time dateTime={s.startsAt}>{s.time}</time>
                         {on ? (
-                          <span aria-hidden="true" className="text-xs">
+                          <span aria-hidden="true" className="w-2 text-xs leading-none">
                             ✓
                           </span>
                         ) : (
                           <span aria-hidden="true" className={`size-2 shrink-0 rounded-full ${DOT[s.band] ?? DOT.available}`} />
                         )}
+                        <time dateTime={s.startsAt}>{s.time}</time>
                         <span data-band={s.band} className="sr-only">
                           {s.bandLabel}
                         </span>

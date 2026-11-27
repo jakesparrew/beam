@@ -1067,7 +1067,8 @@
         "payPackageChoicePlain": "Koop een pakket",
         "packagePick": "Pakket",
         "removeSession": "{when} verwijderen",
-        "extraAdd": "Toevoegen"
+        "extraAdd": "Toevoegen",
+        "inPackage": "Inbegrepen in je pakket"
       },
       "packages": {
         "title": "Of koop een pakket",

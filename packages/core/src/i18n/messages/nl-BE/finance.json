@@ -286,7 +286,10 @@
         "identity_missing": "Op facturen ontbreken uitgeversgegevens: {fields}.",
         "retry_all": "Alle mislukte opnieuw proberen",
         "rerender_blocked": "Alle geblokkeerde pdf's opnieuw opmaken",
-        "view_all": "Bekijken"
+        "view_all": "Bekijken",
+        "subtitle": "Wat er vandaag en deze maand gefactureerd is, wat nog openstaat, en wat opvolging vraagt.",
+        "checks": "Opvolging",
+        "col_state": "Stand"
       },
       "invoices": {
         "title": "Facturen en creditnota's",
@@ -312,7 +315,25 @@
         "pdf_ready": "Pdf klaar",
         "pdf_missing": "Geen pdf",
         "export": "Csv van deze filter exporteren",
-        "export_queued": "De export wordt voorbereid."
+        "export_queued": "De export wordt voorbereid.",
+        "subtitle": "Elke betaalde bestelling maakt automatisch een factuur; creditnota's corrigeren ze. Klik op een rij om het document te openen.",
+        "export_short": "Csv exporteren",
+        "more": "Meer",
+        "kpi_month": "Gefactureerd deze maand",
+        "kpi_month_sub": "{count} facturen, excl. btw",
+        "kpi_open": "Openstaand",
+        "kpi_count": "{count} facturen",
+        "notice_requests": "{count} aanvragen voor een bedrijfsfactuur wachten op een beslissing.",
+        "notice_requests_action": "Beoordelen",
+        "search_placeholder": "Zoek op nummer of klant",
+        "period": "Periode",
+        "period_all": "Alle",
+        "period_this_month": "Deze maand",
+        "period_last_month": "Vorige maand",
+        "period_this_year": "Dit jaar",
+        "period_last_year": "Vorig jaar",
+        "filters": "Filters",
+        "due": "vervalt {date}"
       },
       "detail": {
         "back": "Terug naar facturen",
@@ -379,7 +400,8 @@
         "col_reference": "Referentie",
         "emailed_at": "Laatst gemaild",
         "last_reminder": "Laatste herinnering",
-        "actions": "Acties"
+        "actions": "Acties",
+        "info": "Gegevens"
       },
       "credit_note": {
         "open": "Creditnota uitgeven",
@@ -466,7 +488,8 @@
         "last_failure": "Laatste mislukte oproep",
         "never": "Nooit",
         "run_now": "Nu afstemmen",
-        "run_queued": "De afstemming staat in de wachtrij."
+        "run_queued": "De afstemming staat in de wachtrij.",
+        "subtitle": "Documenten die nog niet in Billit staan, en de dagelijkse afstemming tussen BEAM en Billit."
       },
       "requests": {
         "title": "Aanvragen voor een bedrijfsfactuur",
@@ -489,7 +512,8 @@
         "approved": "Goedgekeurd: nieuwe factuur uitgegeven.",
         "rejected": "De aanvraag is geweigerd.",
         "show_all": "Alle aanvragen tonen",
-        "show_open": "Openstaande aanvragen tonen"
+        "show_open": "Openstaande aanvragen tonen",
+        "subtitle": "Klanten die hun factuur op naam van een bedrijf vragen. Goedkeuren maakt een creditnota en een nieuwe bedrijfsfactuur."
       },
       "settings": {
         "title": "Facturatie-instellingen",
@@ -529,7 +553,8 @@
         "col_complete": "Volledigheid",
         "note_complete": "Volledig",
         "note_incomplete": "Ontbreekt: {locales}",
-        "no_notes": "Geen btw-vermeldingen ingesteld."
+        "no_notes": "Geen btw-vermeldingen ingesteld.",
+        "subtitle": "Wat de volgende factuur vermeldt: de verkopersgegevens, de betalingstermijn en de koppelingen."
       },
       "exports": {
         "title": "Exports voor de boekhouder",
@@ -568,7 +593,20 @@
         "status_queued": "In wachtrij",
         "status_running": "Bezig",
         "status_done": "Klaar",
-        "status_failed": "Mislukt"
+        "status_failed": "Mislukt",
+        "files_caption": "Bestanden voor de boekhouder",
+        "col_file": "Bestand",
+        "col_last": "Laatste export",
+        "export": "Exporteren",
+        "history": "Recente exports",
+        "view_screen": "Op het scherm bekijken",
+        "desc_invoices": "Eén rij per factuur en creditnota van de periode: nummer, datum, klant, bedragen en status.",
+        "desc_invoice_lines": "Eén rij per documentlijn: omschrijving, aantal, btw-tarief en bedragen.",
+        "desc_vat_summary": "Btw per maand, soort document en tarief: netto, btw en bruto.",
+        "desc_payments": "Ontvangen betalingen per dag, en het geld dat via creditnota's terugging.",
+        "desc_deferred_revenue": "Ongebruikte betaalde tegoeden op de laatste dag van de periode, per soort, btw-behandeling en tarief.",
+        "desc_breakage": "Per maand: gebruikte, ongebruikt vervallen en ingetrokken tegoeden.",
+        "desc_voucher_redemptions": "Elke besteding van eurotegoed met het factuurnummer van de bestelling."
       },
       "dashboard": {
         "title": "Financieel dashboard",
@@ -739,7 +777,8 @@
         "export_breakage": "Breakage exporteren",
         "export_voucher_redemptions": "Inwisselingen exporteren",
         "export_requested": "Export ingepland. Download hem straks bij Exports.",
-        "open_exports": "Naar exports"
+        "open_exports": "Naar exports",
+        "open_order": "Bestelling openen"
       }
     },
     "portal": {

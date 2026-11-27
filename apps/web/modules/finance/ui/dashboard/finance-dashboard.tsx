@@ -1,5 +1,6 @@
 /**
- * The finance dashboard screen (finance spec section 5, blueprint 43, finance-P8): period
+ * The finance dashboard screen (finance spec section 5, blueprint 43, finance-P8; the page renders
+ * the header and the back link to Facturen): period
  * selector, KPI tiles with previous-period and last-year comparison, the revenue trend, revenue
  * by category and payment method, VAT by rate and quarter, cash in and out, and the tables of
  * open invoices, failed payments and recurring revenue, each with its CSV. A server component:
@@ -49,20 +50,19 @@ function CsvLink({ href, file, label, text }: { href: string; file: string; labe
   );
 }
 
+/** A hairline surface with a compact title row; the tables inside lose their own frame. */
 function Section({ title, description, actions, children }: { title: string; description?: string; actions?: ReactNode; children: ReactNode }) {
   return (
-    <Card>
-      <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-2">
-        <div className="grid gap-1">
-          <CardTitle className="text-base">
-            <h2>{title}</h2>
-          </CardTitle>
-          {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
+    <section className="grid content-start gap-3 rounded-xl border border-border bg-card p-4">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="grid gap-0.5">
+          <h2 className="text-[0.9375rem] font-semibold">{title}</h2>
+          {description ? <p className="text-[0.75rem] text-muted-foreground">{description}</p> : null}
         </div>
         {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}
-      </CardHeader>
-      <CardContent className="grid gap-3">{children}</CardContent>
-    </Card>
+      </div>
+      <div className="grid gap-3 [&_[data-slot=table-container]]:rounded-none [&_[data-slot=table-container]]:border-0 [&_[data-slot=table-container]]:shadow-none">{children}</div>
+    </section>
   );
 }
 
@@ -96,14 +96,7 @@ export function FinanceDashboardView({ data, labels, locale, invalidCustom = fal
     csvHref([header, "current_eur", "previous_eur", "last_year_eur"], rows.map((r) => [r.key, euros(r.current), euros(r.previous), euros(r.lastYear)]));
 
   return (
-    <div className="grid gap-6" data-testid="finance-dashboard" data-period={period.period} data-from={period.from} data-to={period.to}>
-      <header className="grid gap-2">
-        <h1 className="text-2xl font-semibold">{l("title")}</h1>
-        <p className="max-w-3xl text-sm text-muted-foreground">{l("intro")}</p>
-        <Link href={invoicesOfPeriod} className="w-fit text-sm underline underline-offset-4">
-          {l("period_invoices")}
-        </Link>
-      </header>
+    <div className="grid gap-4" data-testid="finance-dashboard" data-period={period.period} data-from={period.from} data-to={period.to}>
       <PeriodPicker current={period.period} from={period.from} to={period.to} l={l} />
       {invalidCustom ? (
         <Alert variant="destructive">
@@ -184,7 +177,7 @@ export function FinanceDashboardView({ data, labels, locale, invalidCustom = fal
         />
       </Section>
 
-      <div className="grid gap-6 xl:grid-cols-2">
+      <div className="grid gap-4 xl:grid-cols-2">
         <Section
           title={l("chart_category")}
           actions={<CsvLink text={l("csv")} href={figureCsv("category", data.byCategory.map((r) => ({ ...r, key: r.category })))} file={file("by-category")} label={l("csv_label", { table: l("chart_category") })} />}
@@ -199,7 +192,7 @@ export function FinanceDashboardView({ data, labels, locale, invalidCustom = fal
         </Section>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-2">
+      <div className="grid gap-4 xl:grid-cols-2">
         <Section
           title={l("chart_vat")}
           actions={

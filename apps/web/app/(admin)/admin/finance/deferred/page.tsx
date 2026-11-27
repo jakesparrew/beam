@@ -1,16 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import type { ReactNode } from "react";
 import {
   Badge,
   Button,
-  buttonVariants,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
+  cn,
   EmptyState,
-  Input,
-  Label,
   Table,
   TableBody,
   TableCaption,
@@ -22,7 +17,7 @@ import {
 import { formatDate, formatMoney, formatNumber, type Locale } from "@beam/core/i18n";
 import { requireStaff } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
-import { adminLocale } from "@/lib/i18n";
+import { adminLocale, translator } from "@/lib/i18n";
 import { requestFinanceExport } from "@/modules/finance/actions";
 import { getBreakage, getDeferredRevenue, getVoucherRedemptions, type Money3 } from "@/modules/finance/queries";
 import { brusselsDay } from "@/modules/finance/service/billit-sync";
@@ -30,6 +25,8 @@ import { periodError } from "@/modules/finance/service/exports";
 import { bucketLabel } from "@/modules/finance/ui/dashboard/format";
 import { financeLabels } from "@/modules/finance/ui/labels";
 import { actionErrorText, fillLabel } from "@/modules/finance/ui/text";
+import { PageHeader, SecondaryAction, Toolbar } from "@/modules/platform/ui/admin-kit";
+import { BackLink, fieldClass, KpiStrip, Notice } from "@/modules/platform/ui/admin-list-kit";
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const KINDS = ["day", "night", "euro"] as const;
@@ -57,6 +54,22 @@ async function onExport(form: FormData) {
   if (r.ok) redirect(`/admin/finance/deferred?requested=1&${back}`);
   const key = r.error.message.startsWith("finance.errors.") ? r.error.message : (Object.values(r.error.fields ?? {}).find((v) => v.startsWith("finance.errors.")) ?? r.error.code);
   redirect(`/admin/finance/deferred?error=${encodeURIComponent(key)}&${back}`);
+}
+
+/** A hairline surface with a compact title row and its export; the tables inside lose their own frame. */
+function Section({ title, description, action, children }: { title: string; description: string; action: ReactNode; children: ReactNode }) {
+  return (
+    <section className="grid content-start gap-3 rounded-xl border border-border bg-card p-4">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="grid gap-0.5">
+          <h2 className="text-[0.9375rem] font-semibold">{title}</h2>
+          <p className="max-w-3xl text-[0.75rem] text-muted-foreground">{description}</p>
+        </div>
+        {action}
+      </div>
+      <div className="grid gap-3 [&_[data-slot=table-container]]:rounded-none [&_[data-slot=table-container]]:border-0 [&_[data-slot=table-container]]:shadow-none">{children}</div>
+    </section>
+  );
 }
 
 function MoneyCells({ m, locale }: { m: Money3; locale: Locale }) {
@@ -90,7 +103,8 @@ function ExportButton({ kind, from, to, keep, label }: { kind: R3ExportKind; fro
  * paid credits on `?asOf=` (default today) by credit kind and by kind, VAT treatment and rate;
  * recognised, breakage and revoked value per month for `?from=&to=` (default this year); euro
  * voucher redemptions of that period with their invoice numbers; and the three accountant CSVs.
- * Without `reports.finance` the page is a 404 (`requireStaff`).
+ * Without `reports.finance` the page is a 404 (`requireStaff`). Out of the menu (owner review
+ * November 2026): reached from Facturen ("More") and from Export boekhouder.
  */
 export default async function FinanceDeferredPage({
   searchParams,
@@ -131,61 +145,47 @@ export default async function FinanceDeferredPage({
   const hasDeferred = deferred.byRate.some((r) => r.units > 0);
 
   return (
-    <div className="grid gap-6">
-      <header className="grid gap-1">
-        <h1 className="text-2xl font-semibold">{l("title")}</h1>
-        <p className="max-w-3xl text-sm text-muted-foreground">{l("intro")}</p>
-      </header>
+    <div className="grid gap-4">
+      <BackLink href="/admin/finance/invoices">{translator(locale)("finance.nav.invoices")}</BackLink>
+      <PageHeader title={l("title")} description={l("intro")} actions={<SecondaryAction href="/admin/finance/exports">{l("open_exports")}</SecondaryAction>} />
 
-      <form data-auto-filter="" method="get" aria-label={l("filters")} className="grid gap-4 sm:grid-cols-[repeat(3,minmax(10rem,14rem))_auto] sm:items-end">
-        <div className="grid gap-1.5">
-          <Label htmlFor="deferred-as-of">{l("as_of")}</Label>
-          <Input id="deferred-as-of" name="asOf" type="date" required defaultValue={deferred.asOf} />
-        </div>
-        <div className="grid gap-1.5">
-          <Label htmlFor="deferred-from">{l("from")}</Label>
-          <Input id="deferred-from" name="from" type="date" required defaultValue={period.from} />
-        </div>
-        <div className="grid gap-1.5">
-          <Label htmlFor="deferred-to">{l("to")}</Label>
-          <Input id="deferred-to" name="to" type="date" required defaultValue={period.to} />
-        </div>
+      <form data-auto-filter="" method="get" aria-label={l("filters")}>
+        <Toolbar>
+          {(
+            [
+              ["deferred-as-of", "asOf", l("as_of"), deferred.asOf],
+              ["deferred-from", "from", l("from"), period.from],
+              ["deferred-to", "to", l("to"), period.to],
+            ] as const
+          ).map(([id, name, label, value]) => (
+            <label key={id} htmlFor={id} className="flex items-center gap-2 text-[0.8125rem]">
+              <span className="text-muted-foreground">{label}</span>
+              <input id={id} name={name} type="date" required defaultValue={value} className={cn(fieldClass, "w-40")} />
+            </label>
+          ))}
+        </Toolbar>
       </form>
-      <div aria-live="polite" role="status" className="grid gap-1 text-sm">
-        {asOfFallback ? <p className="font-medium text-destructive">{l("as_of_invalid")}</p> : null}
-        {periodInvalid ? <p className="font-medium text-destructive">{l("period_invalid")}</p> : null}
+      <div aria-live="polite" role="status" className="grid gap-2 empty:hidden">
+        {asOfFallback ? <Notice tone="bad">{l("as_of_invalid")}</Notice> : null}
+        {periodInvalid ? <Notice tone="bad">{l("period_invalid")}</Notice> : null}
         {sp.requested === "1" ? (
-          <p>
-            {l("export_requested")}{" "}
-            <Link href="/admin/finance/exports" className="underline underline-offset-4">
-              {l("open_exports")}
-            </Link>
-          </p>
+          <Notice tone="ok" action={{ href: "/admin/finance/exports", label: l("open_exports") }}>
+            {l("export_requested")}
+          </Notice>
         ) : null}
-        {errorText ? <p className="font-medium text-destructive">{errorText}</p> : null}
+        {errorText ? <Notice tone="bad">{errorText}</Notice> : null}
       </div>
 
-      <Card>
-        <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-2">
-          <div className="grid gap-1">
-            <CardTitle className="text-base">{l("deferred_title", { date: formatDate(deferred.asOf, locale) })}</CardTitle>
-            <p className="text-sm text-muted-foreground">{deferred.source === "today" ? l("deferred_today") : l("deferred_past", { date: formatDate(deferred.asOf, locale) })}</p>
-          </div>
-          <ExportButton kind="deferred_revenue" from={deferred.asOf} to={deferred.asOf} keep={keep} label={l("export_deferred_revenue")} />
-        </CardHeader>
-        <CardContent className="grid gap-6">
+      <Section
+        title={l("deferred_title", { date: formatDate(deferred.asOf, locale) })}
+        description={deferred.source === "today" ? l("deferred_today") : l("deferred_past", { date: formatDate(deferred.asOf, locale) })}
+        action={<ExportButton kind="deferred_revenue" from={deferred.asOf} to={deferred.asOf} keep={keep} label={l("export_deferred_revenue")} />}
+      >
           {!hasDeferred ? (
             <EmptyState title={l("empty")} />
           ) : (
             <>
-              <dl className="grid gap-4 sm:grid-cols-3">
-                {(["grossCents", "netCents", "vatCents"] as const).map((k) => (
-                  <div key={k} className="rounded-lg border p-4">
-                    <dt className="text-sm text-muted-foreground">{l(k === "grossCents" ? "gross" : k === "netCents" ? "net" : "vat")}</dt>
-                    <dd className="text-2xl font-semibold tabular-nums">{formatMoney(deferred.total[k], locale)}</dd>
-                  </div>
-                ))}
-              </dl>
+              <KpiStrip items={(["grossCents", "netCents", "vatCents"] as const).map((k) => ({ key: k, label: l(k === "grossCents" ? "gross" : k === "netCents" ? "net" : "vat"), value: formatMoney(deferred.total[k], locale) }))} />
               <Table>
                 <TableCaption>{l("by_kind_caption")}</TableCaption>
                 <TableHeader>
@@ -236,18 +236,9 @@ export default async function FinanceDeferredPage({
               </Table>
             </>
           )}
-        </CardContent>
-      </Card>
+      </Section>
 
-      <Card>
-        <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-2">
-          <div className="grid gap-1">
-            <CardTitle className="text-base">{l("movements_title")}</CardTitle>
-            <p className="max-w-3xl text-sm text-muted-foreground">{l("movements_intro")}</p>
-          </div>
-          <ExportButton kind="breakage" from={period.from} to={period.to} keep={keep} label={l("export_breakage")} />
-        </CardHeader>
-        <CardContent>
+      <Section title={l("movements_title")} description={l("movements_intro")} action={<ExportButton kind="breakage" from={period.from} to={period.to} keep={keep} label={l("export_breakage")} />}>
           {movements.length === 0 ? (
             <EmptyState title={l("movements_empty")} />
           ) : (
@@ -279,18 +270,9 @@ export default async function FinanceDeferredPage({
               </TableBody>
             </Table>
           )}
-        </CardContent>
-      </Card>
+      </Section>
 
-      <Card>
-        <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-2">
-          <div className="grid gap-1">
-            <CardTitle className="text-base">{l("vouchers_title")}</CardTitle>
-            <p className="max-w-3xl text-sm text-muted-foreground">{l("vouchers_intro")}</p>
-          </div>
-          <ExportButton kind="voucher_redemptions" from={period.from} to={period.to} keep={keep} label={l("export_voucher_redemptions")} />
-        </CardHeader>
-        <CardContent className="grid gap-2">
+      <Section title={l("vouchers_title")} description={l("vouchers_intro")} action={<ExportButton kind="voucher_redemptions" from={period.from} to={period.to} keep={keep} label={l("export_voucher_redemptions")} />}>
           {redemptions.length === 0 ? (
             <EmptyState title={l("vouchers_empty")} />
           ) : (
@@ -313,7 +295,11 @@ export default async function FinanceDeferredPage({
                   {shownRedemptions.map((r, i) => (
                     <TableRow key={`${r.orderId}-${i}`}>
                       <TableCell className="whitespace-nowrap">{formatDate(r.redeemedOn, locale)}</TableCell>
-                      <TableCell className="font-mono text-xs">{r.orderId}</TableCell>
+                      <TableCell>
+                        <Link href={`/admin/orders/${r.orderId}`} className="font-medium hover:underline">
+                          {l("open_order")}
+                        </Link>
+                      </TableCell>
                       <TableCell>{r.invoiceNumber ?? <span className="text-muted-foreground">{l("no_invoice")}</span>}</TableCell>
                       <TableCell className="text-right tabular-nums">{formatMoney(r.amountCents, locale)}</TableCell>
                       <TableCell>{r.isReversed ? <Badge variant="secondary">{l("reversed")}</Badge> : l("common.none")}</TableCell>
@@ -323,20 +309,9 @@ export default async function FinanceDeferredPage({
               </Table>
             </>
           )}
-        </CardContent>
-      </Card>
+      </Section>
 
-      <section aria-labelledby="deferred-export-title" className="grid gap-1">
-        <h2 id="deferred-export-title" className="text-base font-semibold">
-          {l("export_title")}
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          {l("export_intro")}{" "}
-          <Link href="/admin/finance/exports" className={buttonVariants({ variant: "link", size: "sm" })}>
-            {l("open_exports")}
-          </Link>
-        </p>
-      </section>
+      <p className="text-[0.75rem] text-muted-foreground">{l("export_intro")}</p>
     </div>
   );
 }

@@ -88,6 +88,8 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
           maxAmount: euros(p.maxAmountCents),
           isShopVisible: p.isShopVisible,
           isPosVisible: p.isPosVisible,
+          isBookingExtra: p.isBookingExtra,
+          bookingExtraKinds: p.bookingExtraKinds,
           sortOrder: String(p.sortOrder),
         }}
         options={productFormOptions(tr)}

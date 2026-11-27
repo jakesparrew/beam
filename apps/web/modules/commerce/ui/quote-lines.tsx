@@ -103,8 +103,23 @@ export function QuoteLines({
 }
 
 /** Order lines (pay page, order detail) in the same table shape, read-only. */
-export function OrderLinesTable({ locale, lines, totalCents }: { locale: Locale; lines: { id: string; description: string; quantity: number; lineTotalCents: number }[]; totalCents: number }) {
+/**
+ * An order's lines and total. With `showDiscount` the lines show their price before the discount
+ * and a discount line comes before the total (the booking flow's code field, owner decision).
+ */
+export function OrderLinesTable({
+  locale,
+  lines,
+  totalCents,
+  showDiscount = false,
+}: {
+  locale: Locale;
+  lines: { id: string; description: string; quantity: number; lineTotalCents: number; discountCents?: number }[];
+  totalCents: number;
+  showDiscount?: boolean;
+}) {
   const tr = translator(locale);
+  const discountCents = showDiscount ? lines.reduce((n, l) => n + (l.discountCents ?? 0), 0) : 0;
   return (
     <table className="w-full text-sm">
       <caption className="sr-only">{tr("commerce.my_orders.lines")}</caption>
@@ -126,11 +141,19 @@ export function OrderLinesTable({ locale, lines, totalCents }: { locale: Locale;
           <tr key={l.id} className="border-b">
             <td className="py-2 pr-2">{l.description}</td>
             <td className="py-2 pr-2">{l.quantity}</td>
-            <td className="py-2 text-right tabular-nums">{formatMoney(l.lineTotalCents, locale)}</td>
+            <td className="py-2 text-right tabular-nums">{formatMoney(l.lineTotalCents + (discountCents > 0 ? (l.discountCents ?? 0) : 0), locale)}</td>
           </tr>
         ))}
       </tbody>
       <tfoot>
+        {discountCents > 0 ? (
+          <tr data-testid="order-discount">
+            <th scope="row" colSpan={2} className="py-2 text-left font-medium">
+              {tr("commerce.checkout.discount")}
+            </th>
+            <td className="py-2 text-right tabular-nums">−{formatMoney(discountCents, locale)}</td>
+          </tr>
+        ) : null}
         <tr>
           <th scope="row" colSpan={2} className="py-2 text-left font-semibold">
             {tr("commerce.checkout.total")}

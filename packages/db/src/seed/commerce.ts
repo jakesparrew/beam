@@ -11,7 +11,7 @@
  *   keys: products by SKU, price versions by (product, audience, version), code promotions by
  *   code and the automatic promotion by its English name.
  */
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { COMMERCE_SETTINGS_DEFAULTS, PAYMENT_PROVIDER_BY_CHANNEL_DEFAULTS } from "@beam/core/commerce";
 import type { DbOrTx } from "../client";
 import { priceVersions, products, promotions } from "../schema/commerce";
@@ -83,7 +83,11 @@ export const BEAM_SKUS = {
   nights10: "BEAM-NIGHTS-10",
   membershipYear: "BEAM-MEMBER-YEAR",
   detoxSalt: "BEAM-DETOX-SALT",
+  robeRental: "BEAM-ROBE-RENTAL",
 } as const;
+
+/** The demo catalogue's booking extras (owner decision: add-ons in the booking flow). */
+const BOOKING_EXTRA_SKUS: readonly string[] = [BEAM_SKUS.detoxSalt, BEAM_SKUS.robeRental];
 
 /** 18 months, the validity of every BEAM package. */
 const EIGHTEEN_MONTHS = 548;
@@ -165,8 +169,21 @@ function beamProducts(from: Date): DemoProduct[] {
       vatRatePct: "21.00",
       itemCategory: "wellness_product",
       isShopVisible: true,
+      isBookingExtra: true,
       sortOrder: 140,
       prices: [{ amountCents: 2_500, validFromAt: from }],
+    },
+    {
+      kind: "item",
+      sku: BEAM_SKUS.robeRental,
+      name: text("Badjas huren", "Location de peignoir", "Robe rental"),
+      description: text("Een zachte badjas voor tijdens je sessie.", "Un peignoir doux pendant votre séance.", "A soft robe to wear during your session."),
+      vatRatePct: "21.00",
+      itemCategory: "other",
+      isShopVisible: false,
+      isBookingExtra: true,
+      sortOrder: 141,
+      prices: [{ amountCents: 500, validFromAt: from }],
     },
   ];
 }
@@ -369,6 +386,9 @@ export async function seedCommerceCatalogue(db: DbOrTx, input: { now: Date; staf
       if (added[0]) created++;
     }
   }
+
+  // Catalogues seeded before booking extras existed get the flag on their demo extras.
+  await db.update(products).set({ isBookingExtra: true }).where(and(inArray(products.sku, [...BOOKING_EXTRA_SKUS]), eq(products.isBookingExtra, false)));
 
   if (input.staffUserId) {
     const welcome = await upsertPromotion(db, { code: "WELKOM10" }, {

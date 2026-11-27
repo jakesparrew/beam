@@ -9,8 +9,8 @@ import { softTranslator, translator } from "@/lib/i18n";
 import { getSetting } from "@/lib/settings";
 import { bookAsGuest, bookSession } from "@/modules/booking/actions";
 import { getSessionCards } from "@/modules/booking/api";
-import { getBookableSession, getBookingOffers } from "@/modules/booking/queries";
-import { GuestBookForm, type GuestBookState } from "@/modules/booking/ui/site/guest-book-form";
+import { getBookableSession, getBookingAddOns, getBookingOffers } from "@/modules/booking/queries";
+import { GuestBookForm, type BookFormSession, type GuestBookState } from "@/modules/booking/ui/site/guest-book-form";
 import { getPersonCreditSummary } from "@/modules/credits/api";
 import { getCurrentLegalVersion, getLegalLinks, hasAcceptedCurrentTerms } from "@/modules/site/api";
 import { BookSteps, InfoCard, TrustStrip } from "@/modules/site/ui/public/book-flow";
@@ -18,6 +18,24 @@ import { BookSteps, InfoCard, TrustStrip } from "@/modules/site/ui/public/book-f
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const TZ = "Europe/Brussels";
 const MAX_KIDS = 10;
+const MAX_COMPANIONS = 10;
+const UTM_KEYS = ["source", "medium", "campaign", "term", "content"] as const;
+
+/** The hidden `utm` field: a JSON object of short strings (validated again by the action's `Utm` schema). */
+function readUtm(raw: string): Record<string, string> | undefined {
+  try {
+    const parsed: unknown = raw ? JSON.parse(raw) : null;
+    if (!parsed || typeof parsed !== "object") return undefined;
+    const out: Record<string, string> = {};
+    for (const k of UTM_KEYS) {
+      const x = (parsed as Record<string, unknown>)[k];
+      if (typeof x === "string" && x.trim()) out[k] = x.trim().slice(0, 200);
+    }
+    return Object.keys(out).length ? out : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const locale = localeFromSegment((await params).locale);
@@ -41,17 +59,40 @@ function readForm(fd: FormData) {
     const ageGroup = v(`kids.${i}.ageGroup`);
     if (firstName && (ageGroup === "child" || ageGroup === "youth")) children.push({ firstName, ageGroup });
   }
+  // Owner decisions: other adults, extras, more sessions in the same payment, a code, the campaign.
+  const companions: Array<{ firstName: string; lastName: string; email?: string; sharesBed?: boolean }> = [];
+  for (let i = 0; i < MAX_COMPANIONS; i++) {
+    const firstName = v(`companions.${i}.firstName`);
+    const lastName = v(`companions.${i}.lastName`);
+    const email = v(`companions.${i}.email`);
+    if (firstName || lastName) companions.push({ firstName, lastName, ...(email ? { email } : {}), ...(fd.get(`companions.${i}.sharesBed`) === "on" ? { sharesBed: true } : {}) });
+  }
+  const extras: Array<{ productId: string; quantity: number }> = [];
+  const moreSessionIds: string[] = [];
+  for (const [k, x] of fd.entries()) {
+    if (typeof x !== "string") continue;
+    const id = k.slice(k.indexOf(".") + 1);
+    if (k.startsWith("extras.") && UUID.test(id) && Number(x) > 0) extras.push({ productId: id, quantity: Math.min(10, Math.floor(Number(x))) });
+    if (k.startsWith("more.") && UUID.test(id) && x === "on") moreSessionIds.push(id);
+  }
+  const code = v("code");
+  const utm = readUtm(v("utm"));
   const name = v("emergency.name");
   const phone = v("emergency.phone");
   const values: Record<string, string> = {};
-  for (const [k, x] of fd.entries()) if (typeof x === "string" && k !== "clientKey" && !k.startsWith("$")) values[k] = x;
+  for (const [k, x] of fd.entries()) if (typeof x === "string" && k !== "clientKey" && k !== "utm" && !k.startsWith("$")) values[k] = x;
   return {
     v,
     values,
     pay,
     packageProductId,
+    companions,
     common: {
       children,
+      moreSessionIds,
+      extras,
+      ...(code ? { code } : {}),
+      ...(utm ? { utm } : {}),
       clientKey: UUID.test(v("clientKey")) ? v("clientKey") : randomUUID(),
       ...(fd.get("acceptTerms") === "on" ? { acceptTerms: true } : {}),
       ...(name && phone ? { emergencyContact: { name, phone } } : {}),
@@ -59,14 +100,15 @@ function readForm(fd: FormData) {
   };
 }
 
-/** The error message of a refused booking, and the form fields it names. */
+/** The error message of a refused booking (booking's, else commerce's for codes and vouchers), and the form fields it names. */
 function refusal(locale: Locale, error: { code: string; message: string; fields?: Record<string, string> }): { message: string; fields: string[] } {
   const soft = softTranslator(locale);
-  const key = `booking.errors.${error.message}`;
-  const known = soft(key) !== key;
+  const key = [`booking.errors.${error.message}`, `commerce.errors.${error.message}`, `commerce.errors.${error.code}`].find((k) => soft(k) !== k);
   const fallback = error.code === "validation" ? "booking.errors.validation" : "booking.errors.generic";
-  const fields = Object.keys(error.fields ?? {}).map((f) => (f.startsWith("emergencyContact.") ? f.replace("emergencyContact.", "emergency.") : f));
-  return { message: known ? soft(key) : soft(fallback), fields };
+  const fields = Object.keys(error.fields ?? {}).map((f) =>
+    f.startsWith("emergencyContact.") ? f.replace("emergencyContact.", "emergency.") : f === "promoCode" || f === "code" ? "code" : f.startsWith("guests.") ? f.replace("guests.", "companions.") : f,
+  );
+  return { message: soft(key ?? fallback), fields };
 }
 
 /**
@@ -116,8 +158,30 @@ export default async function PublicBookSessionPage({ params, searchParams }: { 
   const termsHref = termsNeeded ? ((await getLegalLinks(locale, db).catch(() => null))?.terms ?? null) : null;
   const emergency = customer ? !!view?.needsEmergencyContact : card.kind === "night" && rules.require_emergency_contact_for_nights;
   const kidsAllowed = childrenAllowed({ kind: card.kind, startsAt: card.startsAt }) && rules.max_guests_per_booking > 0 && prices.childCents.child !== null && prices.childCents.youth !== null;
+  // Owner decisions: extras and more sessions of the next seven days (day and night).
+  const addOns = card.kind === "event" ? { extras: [], moreSessions: [] } : await getBookingAddOns(db, sessionId).catch(() => ({ extras: [], moreSessions: [] }));
+  const dayFmt = fmt({ weekday: "long", day: "numeric", month: "long" });
+  const hm = fmt({ hour: "2-digit", minute: "2-digit" });
+  const formSession: BookFormSession = {
+    sessionId,
+    kind: card.kind === "night" ? "night" : card.kind === "day" ? "day" : "event",
+    day: dateLine,
+    time: timeLine,
+    priceCents: prices.singleCents,
+    youthCents: prices.childCents.youth,
+    childrenAllowed: kidsAllowed,
+  };
+  const moreSessions: BookFormSession[] = addOns.moreSessions.map((m) => ({
+    sessionId: m.sessionId,
+    kind: m.kind,
+    day: dayFmt.format(m.startsAt),
+    time: `${hm.format(m.startsAt)} – ${hm.format(m.endsAt)}`,
+    priceCents: m.singleCents,
+    youthCents: m.youthCents,
+    childrenAllowed: m.childrenAllowed,
+  }));
 
-  const payOptions: Array<{ value: string; label: string; hint: string | null }> = [];
+  const payOptions: Array<{ value: string; label: string; hint: string | null; packageCents?: number; packageKind?: string }> = [];
   if (customer && view?.payOptions.includes("credit")) {
     payOptions.push({ value: "credit", label: tr("site.bookFlow.guest.payCredit"), hint: creditsLeft !== null ? tr("site.bookFlow.guest.payCreditHint", { count: creditsLeft }) : null });
   }
@@ -127,6 +191,8 @@ export default async function PublicBookSessionPage({ params, searchParams }: { 
   for (const o of prices.offers) {
     const per = money(o.perSessionCents);
     payOptions.push({
+      packageCents: o.priceCents,
+      packageKind: kind,
       value: `package:${o.productId}`,
       label: tr("site.bookFlow.guest.payPackage", { name: pick(o.name, locale), price: money(o.priceCents) }),
       hint:
@@ -148,6 +214,7 @@ export default async function PublicBookSessionPage({ params, searchParams }: { 
           ...form.common,
           payWith: form.pay === "order" ? "order" : "credit",
           ...(form.packageProductId ? { buyPackageProductId: form.packageProductId } : {}),
+          guests: form.companions.map((c) => ({ ...c, payWith: "order" as const })),
         })
       : await bookAsGuest({
           sessionId,
@@ -158,6 +225,7 @@ export default async function PublicBookSessionPage({ params, searchParams }: { 
           phone: form.v("phone"),
           pay: form.packageProductId ? "package" : "order",
           ...(form.packageProductId ? { packageProductId: form.packageProductId } : {}),
+          companions: form.companions,
         });
     if (res.ok) {
       if (res.data.kind === "checkout") redirect(res.data.redirectTo as never);
@@ -224,11 +292,17 @@ export default async function PublicBookSessionPage({ params, searchParams }: { 
               <GuestBookForm
                 action={submit}
                 clientKey={randomUUID()}
+                locale={locale}
                 signedIn={signedIn}
                 loginHref={`${prefix}/account/login?returnTo=${encodeURIComponent(here)}`}
                 payOptions={payOptions}
                 kids={kidsAllowed ? { max: Math.min(MAX_KIDS, rules.max_guests_per_booking) } : null}
+                companions={card.kind !== "event" && rules.max_guests_per_booking > 0 ? { max: Math.min(MAX_COMPANIONS, rules.max_guests_per_booking), sharedBeds: rules.max_shared_bed_guests_per_booking } : null}
+                extras={addOns.extras.map((e) => ({ productId: e.productId, name: pick(e.name, locale), priceCents: e.priceCents, price: money(e.priceCents), kinds: e.kinds }))}
+                session={formSession}
+                moreSessions={moreSessions}
                 emergency={emergency}
+                emergencyIfNight={rules.require_emergency_contact_for_nights}
                 terms={termsNeeded ? { href: termsHref } : null}
                 labels={{
                   detailsTitle: tr("site.bookFlow.guest.title"),
@@ -256,6 +330,28 @@ export default async function PublicBookSessionPage({ params, searchParams }: { 
                   readTerms: tr("booking.portalSession.read_terms"),
                   submit: tr("site.bookFlow.guest.submit"),
                   next: tr("site.bookFlow.guest.next"),
+                  companionsTitle: tr("site.bookFlow.guest.companionsTitle"),
+                  companionsBody: tr("site.bookFlow.guest.companionsBody", { max: Math.min(MAX_COMPANIONS, rules.max_guests_per_booking) }),
+                  companion: tr("site.bookFlow.guest.companion", { n: "{n}" }),
+                  companionEmail: tr("site.bookFlow.guest.companionEmail"),
+                  sharesBed: tr("site.bookFlow.guest.sharesBed"),
+                  addCompanion: tr("site.bookFlow.guest.addCompanion"),
+                  removeCompanion: tr("site.bookFlow.guest.removeCompanion"),
+                  extrasTitle: tr("site.bookFlow.guest.extrasTitle"),
+                  extrasBody: tr("site.bookFlow.guest.extrasBody"),
+                  fewer: tr("site.bookFlow.guest.extraFewer", { name: "{name}" }),
+                  more: tr("site.bookFlow.guest.extraMore", { name: "{name}" }),
+                  moreTitle: tr("site.bookFlow.guest.moreTitle"),
+                  moreBody: tr("site.bookFlow.guest.moreBody"),
+                  kindDay: tr("site.bookFlow.day.title"),
+                  kindNight: tr("site.bookFlow.night.title"),
+                  codeTitle: tr("site.bookFlow.guest.codeTitle"),
+                  codeLabel: tr("site.bookFlow.guest.codeLabel"),
+                  codeHint: tr("site.bookFlow.guest.codeHint"),
+                  summaryTitle: tr("site.bookFlow.guest.summaryTitle"),
+                  seats: tr("site.bookFlow.guest.seats", { n: "{n}" }),
+                  total: tr("site.bookFlow.summary.total"),
+                  totalHint: tr("site.bookFlow.guest.totalHint"),
                 }}
               />
             </section>

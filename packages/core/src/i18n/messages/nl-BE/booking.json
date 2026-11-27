@@ -199,7 +199,11 @@
       "children_not_available": "Plaatsen voor kinderen kunnen nu niet online geboekt worden. Bel ons gerust.",
       "child_pays_by_order": "Plaatsen voor kinderen worden samen met de boeking betaald.",
       "package_not_for_session": "Dit pakket kan niet voor deze sessie gebruikt worden: dagpakketten zijn voor dagsessies, nachtpakketten voor nachten.",
-      "pay_with_not_available": "Deze betaalwijze is niet mogelijk voor deze sessie."
+      "pay_with_not_available": "Deze betaalwijze is niet mogelijk voor deze sessie.",
+      "duplicate_session": "Je koos dezelfde sessie twee keer.",
+      "too_many_sessions": "Je kunt maximaal zes sessies samen boeken.",
+      "package_too_small": "Dit pakket heeft niet genoeg sessies voor alle gekozen momenten.",
+      "extra_not_available": "Een gekozen extra is niet meer beschikbaar."
     },
     "calendar": {
       "title": "Sessies",

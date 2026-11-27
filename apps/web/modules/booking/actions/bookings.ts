@@ -8,12 +8,13 @@
  */
 import { z } from "zod";
 import { AGE_GROUPS } from "@beam/core/booking";
+import { Utm, isVoucherCodeFormat } from "@beam/core/commerce";
 import { ForbiddenError } from "@beam/core/errors";
 import { action } from "@/lib/action";
-import { actorHasPermission, ValidationError } from "@/lib/ctx";
-import { rememberOrderInViewer } from "@/modules/commerce/api";
+import { actorHasPermission, ValidationError, type Ctx } from "@/lib/ctx";
+import { applyVoucherToOrder, rememberOrderInViewer } from "@/modules/commerce/api";
 import { findOrCreatePersonByEmail, getPerson } from "@/modules/crm/api";
-import { bookSeats, type BookResult } from "../server/book";
+import { MAX_EXTRA_QUANTITY, MAX_SESSIONS_PER_BOOKING, bookSeats, type BookResult } from "../server/book";
 import { cancelBookingRow, cancelSessionRow } from "../server/cancel";
 import { addGuestRow, type AddGuestResult } from "../server/guests";
 import { rescheduleRow } from "../server/reschedule";
@@ -33,6 +34,39 @@ const Child = z.object({ firstName: z.string().trim().min(1).max(100), lastName:
 const childSeats = (children: Array<z.infer<typeof Child>>, adultLastName: string) =>
   children.map((c) => ({ firstName: c.firstName, lastName: c.lastName || adultLastName, payWith: "order" as const, ageGroup: c.ageGroup }));
 
+/** Owner decision: another adult without an account, priced as an adult and paid in the same order (R54, R13). */
+const Companion = z.object({
+  firstName: z.string().trim().min(1).max(100),
+  lastName: z.string().trim().min(1).max(100),
+  email: z.string().trim().toLowerCase().pipe(z.email().max(254)).optional(),
+  sharesBed: z.boolean().optional(),
+});
+const companionSeats = (companions: Array<z.infer<typeof Companion>>) => companions.map((c) => ({ ...c, payWith: "order" as const }));
+
+/** Owner decision: the other sessions of the same booking, the extras and the "discount code or gift voucher" field. */
+const Party = {
+  moreSessionIds: z.array(z.uuid()).max(MAX_SESSIONS_PER_BOOKING - 1).default([]),
+  extras: z.array(z.object({ productId: z.uuid(), quantity: z.number().int().min(1).max(MAX_EXTRA_QUANTITY) })).max(10).default([]),
+  code: z.string().trim().max(64).optional(),
+  utm: Utm.optional(),
+};
+
+/**
+ * The code field: a gift voucher code (its format, BEAM-XXXX-XXXX-XXXX) pays part of the order
+ * once it exists; anything else is a promotion code the order must apply, or the booking is
+ * refused with the quote's reason.
+ */
+// ponytail: a 12-character Crockford promotion code reads as a voucher; promotions are short words in practice.
+function splitCode(code: string | undefined): { promoCode?: string; requirePromo?: true; voucherCode?: string } {
+  if (!code) return {};
+  return isVoucherCodeFormat(code) ? { voucherCode: code } : { promoCode: code, requirePromo: true };
+}
+
+/** Redeems the typed gift voucher against the booking's order (it may pay it in full). */
+async function applyVoucher(ctx: Ctx, result: BookResult, voucherCode: string | undefined): Promise<void> {
+  if (voucherCode && result.kind === "checkout") await applyVoucherToOrder(ctx.tx, ctx, { orderId: result.orderId, code: voucherCode });
+}
+
 const BookSessionInput = z.object({
   sessionId: z.uuid(),
   ticketTypeId: z.uuid().optional(),
@@ -47,6 +81,7 @@ const BookSessionInput = z.object({
   acceptTerms: z.boolean().optional(),
   emergencyContact: EmergencyContact.optional(),
   clientKey: z.uuid(),
+  ...Party,
 });
 
 /** Customer booking from the portal (R16-R18, R54-R56, R62, R62b). */
@@ -54,10 +89,21 @@ export const bookSession = action(
   { name: "booking.book", audience: "customer", input: BookSessionInput },
   async (ctx, input): Promise<{ kind: "confirmed"; bookingIds: string[] } | { kind: "checkout"; orderId: string; redirectTo: string }> => {
     if (ctx.actor.kind !== "customer") throw new ForbiddenError("forbidden: customer");
-    const { children, ...rest } = input;
+    const { children, code, utm, ...rest } = input;
     const adult = children.length ? await getPerson(ctx.tx, ctx.actor.personId) : null;
     const guests = [...rest.guests, ...childSeats(children, adult?.lastName ?? "")];
-    const result: BookResult = await bookSeats(ctx.tx, ctx, { ...rest, guests, personId: ctx.actor.personId, source: "portal", by: "customer", locale: ctx.locale });
+    const { voucherCode, ...promo } = splitCode(code);
+    const result: BookResult = await bookSeats(ctx.tx, ctx, {
+      ...rest,
+      ...promo,
+      ...(utm && Object.keys(utm).length ? { utm } : {}),
+      guests,
+      personId: ctx.actor.personId,
+      source: "portal",
+      by: "customer",
+      locale: ctx.locale,
+    });
+    await applyVoucher(ctx, result, voucherCode);
     return result.kind === "checkout" ? { kind: "checkout", orderId: result.orderId, redirectTo: result.redirectTo } : { kind: "confirmed", bookingIds: result.bookingIds };
   },
 );
@@ -72,10 +118,12 @@ const BookAsGuestInput = z.object({
   pay: z.enum(["order", "package"]),
   packageProductId: z.uuid().optional(),
   children: z.array(Child).max(10).default([]),
+  companions: z.array(Companion).max(10).default([]),
   promoCode: z.string().trim().max(64).optional(),
   acceptTerms: z.boolean().optional(),
   emergencyContact: EmergencyContact.optional(),
   clientKey: z.uuid(),
+  ...Party,
 });
 
 /**
@@ -89,21 +137,29 @@ export const bookAsGuest = action(
   async (ctx, input): Promise<{ kind: "confirmed"; bookingIds: string[] } | { kind: "checkout"; orderId: string; redirectTo: string }> => {
     if (input.pay === "package" && !input.packageProductId) throw new ValidationError("validation", { packageProductId: "required" });
     const locale = ctx.locale;
+    // Campaign links (Google Business Profile, Instagram, Facebook): the visit's UTM goes on the
+    // order and, for a new person only, on their acquisition (crm rule 3 never overwrites it).
+    const utm = input.utm && Object.keys(input.utm).length ? input.utm : undefined;
     const { personId } = await findOrCreatePersonByEmail(ctx.tx, ctx, {
       email: input.email,
       firstName: input.firstName,
       lastName: input.lastName,
       phone: input.phone,
       locale,
-      acquisition: { source: "website" },
+      acquisition: { source: "website", ...(utm ? { utm, ...(utm.campaign ? { campaign: utm.campaign } : {}) } : {}) },
     });
+    const { voucherCode, ...promo } = splitCode(input.code);
     const result = await bookSeats(ctx.tx, ctx, {
       sessionId: input.sessionId,
       personId,
       payWith: input.pay === "package" ? "credit" : "order",
       ...(input.pay === "package" ? { buyPackageProductId: input.packageProductId } : {}),
-      guests: childSeats(input.children, input.lastName),
+      guests: [...companionSeats(input.companions), ...childSeats(input.children, input.lastName)],
+      moreSessionIds: input.moreSessionIds,
+      extras: input.extras,
       ...(input.promoCode ? { promoCode: input.promoCode } : {}),
+      ...promo,
+      ...(utm ? { utm } : {}),
       ...(input.acceptTerms ? { acceptTerms: true } : {}),
       ...(input.emergencyContact ? { emergencyContact: input.emergencyContact } : {}),
       clientKey: input.clientKey,
@@ -112,6 +168,7 @@ export const bookAsGuest = action(
       guest: true,
       locale,
     });
+    await applyVoucher(ctx, result, voucherCode);
     if (result.kind !== "checkout") return { kind: "confirmed", bookingIds: result.bookingIds };
     await rememberOrderInViewer(result.orderId);
     return { kind: "checkout", orderId: result.orderId, redirectTo: result.redirectTo };

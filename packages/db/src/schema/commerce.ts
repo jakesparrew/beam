@@ -216,6 +216,13 @@ export const products = pgTable(
     maxAmountCents: money(),
     isShopVisible: boolean().notNull().default(false),
     isPosVisible: boolean().notNull().default(true),
+    /** Owner decision: offered as an extra (add-on) in the public booking flow; `item` products only. */
+    isBookingExtra: boolean().notNull().default(false),
+    /** The session kinds (`day`, `night`, `event`) a booking extra is offered with; empty = every kind. */
+    bookingExtraKinds: text()
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
     imageFileId: uuid().references(() => files.id),
     isActive: boolean().notNull().default(false),
     sortOrder: integer().notNull().default(0),
@@ -224,6 +231,10 @@ export const products = pgTable(
   (t) => [
     index("products_kind_active_idx").on(t.kind, t.isActive, t.sortOrder),
     check("products_sku_chk", sql`${t.sku} ~ '^[A-Z0-9-]{3,32}$'`),
+    check(
+      "products_booking_extra_chk",
+      sql`(not ${t.isBookingExtra} or ${t.kind} = 'item') and ${t.bookingExtraKinds} <@ array['day', 'night', 'event']::text[]`,
+    ),
     vatRateCheck("products_vat_rate_chk", t.vatRatePct),
     check(
       "products_credit_units_chk",
@@ -341,6 +352,14 @@ export const orders = pgTable(
     createdByUserId: uuid().references(() => users.id),
     /** Staff note; may hold personal data. */
     note: text(),
+    /** The visit's `utm_*` values of a booking-flow order (owner decision; checkout orders keep theirs on `checkouts.utm`). */
+    utm: jsonb().$type<{
+      source?: string;
+      medium?: string;
+      campaign?: string;
+      term?: string;
+      content?: string;
+    }>(),
     paidAt: tstz(),
     cancelledAt: tstz(),
     version: integer().notNull().default(0),

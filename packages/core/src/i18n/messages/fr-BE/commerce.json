@@ -149,7 +149,13 @@
       "voucher_vat_zero": "Les bons cadeaux sont à 0 % de TVA.",
       "voucher_min_730": "Les bons cadeaux sont valables au moins 730 jours.",
       "custom_amount_range": "Entre 5 € et 1 000 €, minimum pas au-dessus du maximum.",
-      "both_or_neither": "Remplissez les deux champs de crédits inclus, ou aucun."
+      "both_or_neither": "Remplissez les deux champs de crédits inclus, ou aucun.",
+      "field_booking_extra": "Extra lors d'une réservation",
+      "field_booking_extra_kinds": "Proposer uniquement avec (rien de coché = toutes les séances)",
+      "extra_kind_day": "Séances de jour",
+      "extra_kind_night": "Séances de nuit",
+      "extra_kind_event": "Événements",
+      "item_only": "Seuls les articles peuvent être un extra de réservation."
     },
     "admin_prices": {
       "title": "Historique des prix",
@@ -525,7 +531,8 @@
       "expired": "Cette réservation a expiré.",
       "back_to_booking": "Retour aux réservations",
       "due": "Reste à payer",
-      "not_payable": "Cette commande ne peut plus être payée."
+      "not_payable": "Cette commande ne peut plus être payée.",
+      "credit_paid": "Payé par chèque-cadeau ou crédit"
     },
     "return": {
       "title": "Paiement",

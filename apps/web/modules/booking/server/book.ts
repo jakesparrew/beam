@@ -29,6 +29,7 @@ import {
   type DupCandidate,
   type PaidWith,
 } from "@beam/core/booking";
+import type { Utm } from "@beam/core/commerce";
 import { URL_SEGMENT, formatDateTime, missingLocales, pick, type Locale } from "@beam/core/i18n";
 import { NotFoundError, ValidationError, actorHasPermission, and, createCtx, eq, gt, inArray, ne, or, sql, writeDurably, type Ctx } from "@/lib/ctx";
 import { getSetting } from "@/lib/settings";
@@ -46,8 +47,11 @@ export type { Availability };
 export type SessionRow = typeof sessions.$inferSelect;
 export type BookingRow = typeof bookings.$inferSelect;
 
-/** A guest seat; `ageGroup` makes it a child seat (paid by order as the child or youth product). */
-export type GuestSeatInput = { firstName: string; lastName: string; email?: string; sharesBed?: boolean; payWith: "guest" | "order" | "free"; ageGroup?: AgeGroup };
+/**
+ * A guest seat; `ageGroup` makes it a child seat (paid by order as the child or youth product).
+ * `personId`: an existing person (the same companion on the next session of the booking).
+ */
+export type GuestSeatInput = { firstName: string; lastName: string; email?: string; sharesBed?: boolean; payWith: "guest" | "order" | "free"; ageGroup?: AgeGroup; personId?: string };
 
 export type BookSeatsInput = {
   sessionId: string;
@@ -86,6 +90,14 @@ export type BookSeatsInput = {
    * credits once the order is paid (`payWith: 'credit'`; the seat stays `reserved` until then).
    */
   buyPackageProductId?: string;
+  /** Owner decision: the same party on these sessions too, in the same order (seats held, confirmed and released together). */
+  moreSessionIds?: string[];
+  /** Owner decision: booking extras (`item` products marked `is_booking_extra`) as extra order lines. */
+  extras?: Array<{ productId: string; quantity: number }>;
+  /** The booking flow's code field: a `promoCode` that gives no discount refuses the booking with the reason. */
+  requirePromo?: boolean;
+  /** The visit's `utm_*` values, stored on the order. */
+  utm?: Utm;
 };
 
 export type BookResult =
@@ -520,8 +532,184 @@ async function resolveTicketType(
   return tt;
 }
 
-/** Books the owner and guests (R8-R19, R54-R56, R62, R62b, R63). Runs in the caller's transaction. */
+/** At most this many sessions in one booking (owner decision: several sessions, one payment). */
+export const MAX_SESSIONS_PER_BOOKING = 6;
+/** At most this many of one booking extra. */
+export const MAX_EXTRA_QUANTITY = 10;
+
+/** One session's seats: checked, inserted and paid with credits; the order comes after (R18). */
+type PreparedSeats = {
+  session: SessionRow;
+  rows: PlannedRow[];
+  inserted: BookingRow[];
+  /** The owner's seat waits for the credits of the package bought in this order. */
+  pkgSeat: boolean;
+  ticket: TicketTypeRow | null;
+  locale: Locale;
+};
+
+/**
+ * Books the owner and guests (R8-R19, R54-R56, R62, R62b, R63) on `sessionId` and (owner
+ * decision) the same party on `moreSessionIds`, with `extras` as extra lines, all in one order.
+ * Runs in the caller's transaction.
+ */
 export async function bookSeats(tx: Tx, ctx: Ctx, input: BookSeatsInput): Promise<BookResult> {
+  const more = input.moreSessionIds ?? [];
+  const sessionIds = [input.sessionId, ...more];
+  if (new Set(sessionIds).size !== sessionIds.length) throw new ValidationError("duplicate_session", { sessionIds: "duplicate" });
+  if (sessionIds.length > MAX_SESSIONS_PER_BOOKING) throw new ValidationError("too_many_sessions", { sessionIds: "too_many" });
+  // R10 for several sessions: every row lock first, in id order, so two bookings of the same
+  // sessions never wait on each other (the order hooks lock in the same order).
+  const locked = new Map<string, SessionRow>();
+  if (more.length) for (const id of [...sessionIds].sort()) locked.set(id, await lockSession(tx, id));
+  // R13: a bed is shared only on nights; on a day session of the same booking each takes a seat.
+  const guestsFor = (kind: string | undefined) => (more.length ? (input.guests ?? []).map((g) => ({ ...g, sharesBed: kind === "night" ? g.sharesBed : false })) : input.guests);
+
+  const first = await prepareSeats(tx, ctx, { ...input, guests: guestsFor(locked.get(input.sessionId)?.kind) });
+  if ("repeat" in first) return first.repeat;
+  const parts: PreparedSeats[] = [first];
+  const pkg = input.buyPackageProductId ? await packageForSeat(tx, first.session, input) : null;
+  let packageUnits = pkg ? first.session.creditCost : 0;
+  for (const sessionId of more) {
+    const session = locked.get(sessionId)!;
+    // A package bought now pays every session of its kind (one credit each, R17); a session of
+    // the other kind is paid by order (day and night are never mixed).
+    const fits = !!pkg && session.creditKind === pkg.creditKind;
+    if (fits) packageUnits += session.creditCost;
+    // The companions are the persons of the first session's rows, never created twice.
+    const guests = (guestsFor(session.kind) ?? []).map((g, i) => ({ ...g, personId: first.rows[i + 1]!.personId }));
+    const part = await prepareSeats(tx, ctx, {
+      ...input,
+      sessionId,
+      guests,
+      ticketTypeId: undefined,
+      holdId: undefined,
+      ...(pkg && !fits ? { payWith: "order" as const, buyPackageProductId: undefined } : {}),
+    });
+    if ("repeat" in part) return part.repeat;
+    parts.push(part);
+  }
+  if (pkg && packageUnits > pkg.creditUnits) throw new ValidationError("package_too_small", { buyPackageProductId: "too_small" });
+  const extras = await bookingExtras(tx, input.extras ?? [], parts.map((p) => p.session.kind));
+
+  const staff = input.by === "staff";
+  const locale = first.locale;
+  const pkgSeats = parts.filter((p) => p.pkgSeat).map((p) => p.inserted[0]!);
+  const orderRows = parts.flatMap((p) => p.inserted.filter((b) => b.paidWith === "order"));
+  // R18: one quantity-1 item per order-paid seat, in row order (after the package line, if any),
+  // then the extras. A companion's seat is priced without the owner's member prices (owner decision).
+  const seatItems = parts.flatMap((p) => {
+    const productOf = new Map(p.rows.map((r) => [r.id, r.productId]));
+    return p.inserted
+      .filter((b) => b.paidWith === "order")
+      .map((b) => ({
+        productId: productOf.get(b.id)!,
+        quantity: 1,
+        sessionId: p.session.id,
+        bookingIds: [b.id],
+        // R51: a ticket line carries its type, so commerce groups the order's tickets (`groupTicketTypes`).
+        ...(p.ticket ? { ticketTypeId: p.ticket.id } : {}),
+        ...(b.guestOfBookingId && !b.ageGroup ? { guestSeat: true } : {}),
+      }));
+  });
+  let orderId: string | null = null;
+  // Rows commerce confirmed inside createOrder (rule 24: euro credit or a promo covers the total).
+  const settled = new Set<string>();
+  if (seatItems.length || pkg || extras.length) {
+    const useEuroCredit = input.guest || pkg ? false : input.useEuroCredit;
+    const order = await createOrder(tx, ctx, {
+      personId: input.personId,
+      // Edge case 23: a site guest's order is priced as the public's.
+      ...(input.guest ? { pricingPersonId: null } : {}),
+      channel: staff ? "admin" : input.guest ? "site" : "portal",
+      items: [...(pkg ? [{ productId: pkg.id, quantity: 1 }] : []), ...seatItems, ...extras],
+      promoCode: input.promoCode ?? null,
+      clientKey: input.clientKey,
+      locale,
+      ...(useEuroCredit !== undefined ? { useEuroCredit } : {}),
+      ...(input.payAtDesk ? { expiresAt: first.session.endsAt } : {}),
+      ...(input.requirePromo ? { requirePromo: true } : {}),
+      ...(input.utm ? { utm: input.utm } : {}),
+    });
+    const all = parts.flatMap((p) => p.inserted);
+    if (order.status === "paid") {
+      // `confirmBookingsForOrder` already ran in this transaction: it set the lines, confirmed the
+      // rows and recorded `booking.confirmed` with its email. Nothing is left to pay or link.
+      const fresh = orderRows.length ? await tx.select().from(bookings).where(inArray(bookings.id, orderRows.map((b) => b.id))) : [];
+      for (const b of all) {
+        const f = fresh.find((x) => x.id === b.id);
+        if (f && f.status === "confirmed") {
+          Object.assign(b, f);
+          settled.add(b.id);
+        }
+      }
+      // Nothing due for a package (a full promotion): its credits exist now, so each seat takes one.
+      for (const p of parts.filter((x) => x.pkgSeat)) {
+        const seat = p.inserted[0]!;
+        if (await confirmPackageSeat(tx, ctx, seat, p.session)) {
+          Object.assign(seat, (await tx.select().from(bookings).where(eq(bookings.id, seat.id)))[0]);
+          settled.add(seat.id);
+        }
+      }
+    } else {
+      orderId = order.orderId;
+      const from = pkg ? 1 : 0;
+      const linked = await linkOrderLines(tx, [...pkgSeats, ...orderRows], [...pkgSeats.map(() => order.lineIds[0]!), ...order.lineIds.slice(from, from + orderRows.length)]);
+      for (const b of all) {
+        const l = linked.find((x) => x.id === b.id);
+        if (l) Object.assign(b, { orderLineId: l.orderLineId, reservedUntil: l.reservedUntil });
+      }
+    }
+  }
+
+  // R61 facts, R58 guest facts on the owner's timeline, R59 emails, waitlist release.
+  for (const p of parts) {
+    const s = p.session;
+    const factSession = { kind: s.kind, eventCategory: s.eventCategory, startsAt: s.startsAt, partnerCompanyId: s.partnerCompanyId };
+    for (const b of p.inserted) {
+      if (!settled.has(b.id)) await recordBookingFact(ctx, b.status === "reserved" ? "booking.reserved" : "booking.confirmed", b, { session: factSession, by: input.by });
+      if (b.guestOfBookingId) await recordBookingFact(ctx, "booking.guest_added", b, { session: factSession, by: input.by, subjectPersonId: input.personId });
+    }
+    if (input.sendEmail !== false) {
+      for (const b of p.inserted) {
+        if (settled.has(b.id)) continue;
+        if (b.status === "confirmed") await sendConfirmationEmail(ctx, b, s);
+        else if (b.isPayAtDesk && b.guestOfBookingId === null) await sendConfirmationEmail(ctx, b, s, { payAtDesk: true });
+      }
+    }
+    for (const b of p.inserted) await releaseWaitlistEntryOnBooking(ctx, s.id, b.personId);
+  }
+
+  const bookingIds = parts.flatMap((p) => p.inserted.map((b) => b.id));
+  if (!orderId) return { kind: "confirmed", bookingIds };
+  return { kind: "checkout", bookingIds, orderId, redirectTo: checkoutPath(orderId, locale, input) };
+}
+
+/**
+ * Owner decision: the booking extras of an order, checked: active `item` products marked
+ * `is_booking_extra`, offered with at least one of the booked session kinds (none listed = all),
+ * 1 to `MAX_EXTRA_QUANTITY` each. Prices come from the order's quote.
+ */
+async function bookingExtras(tx: Tx, extras: NonNullable<BookSeatsInput["extras"]>, kinds: string[]): Promise<Array<{ productId: string; quantity: number }>> {
+  const wanted = extras.filter((e) => e.quantity > 0);
+  if (!wanted.length) return [];
+  if (new Set(wanted.map((e) => e.productId)).size !== wanted.length) throw new ValidationError("extra_not_available", { extras: "duplicate" });
+  const rows = await tx
+    .select({ id: products.id, kinds: products.bookingExtraKinds })
+    .from(products)
+    .where(and(inArray(products.id, wanted.map((e) => e.productId)), eq(products.isBookingExtra, true), eq(products.isActive, true), eq(products.kind, "item")));
+  const fields: Record<string, string> = {};
+  wanted.forEach((e, i) => {
+    const p = rows.find((r) => r.id === e.productId);
+    if (!p || (p.kinds.length > 0 && !p.kinds.some((k) => kinds.includes(k)))) fields[`extras.${i}.productId`] = "not_available";
+    else if (!Number.isInteger(e.quantity) || e.quantity > MAX_EXTRA_QUANTITY) fields[`extras.${i}.quantity`] = "too_many";
+  });
+  if (Object.keys(fields).length) throw new ValidationError("extra_not_available", fields);
+  return wanted.map((e) => ({ productId: e.productId, quantity: e.quantity }));
+}
+
+/** One session of `bookSeats`: the checks under the session lock, the rows, terms and credits (R8-R17, R48, R62, R62b). */
+async function prepareSeats(tx: Tx, ctx: Ctx, input: BookSeatsInput): Promise<PreparedSeats | { repeat: BookResult }> {
   const staff = input.by === "staff";
   if (staff && ctx.actor.kind !== "staff") throw new ValidationError("staff_booking_needs_staff_actor");
   const override = staff && actorHasPermission(ctx.actor, "bookings.override");
@@ -568,7 +756,7 @@ export async function bookSeats(tx: Tx, ctx: Ctx, input: BookSeatsInput): Promis
 
   // Edge case 2: a double submit of a paid booking returns the existing checkout.
   const repeat = await existingCheckout(tx, session.id, input.personId, input.clientKey);
-  if (repeat) return { kind: "checkout", bookingIds: repeat.bookingIds, orderId: repeat.orderId, redirectTo: checkoutPath(repeat.orderId, locale, input) };
+  if (repeat) return { repeat: { kind: "checkout", bookingIds: repeat.bookingIds, orderId: repeat.orderId, redirectTo: checkoutPath(repeat.orderId, locale, input) } };
 
   // R15 member-only (staff with override may bypass) and the customer gate (R7). A guest proves
   // nobody by typing an email, so they book as the public.
@@ -601,9 +789,11 @@ export async function bookSeats(tx: Tx, ctx: Ctx, input: BookSeatsInput): Promis
   for (const g of guests) {
     const acquisition = { source: "guest" as const, referrer_person_id: input.personId };
     const email = g.email?.trim();
-    const personId = email
-      ? (await findOrCreatePersonByEmail(tx, ctx, { email, firstName: g.firstName, lastName: g.lastName, locale, acquisition })).personId
-      : (await createPersonWithoutEmail(tx, ctx, { firstName: g.firstName, lastName: g.lastName, locale, acquisition })).personId;
+    const personId =
+      g.personId ??
+      (email
+        ? (await findOrCreatePersonByEmail(tx, ctx, { email, firstName: g.firstName, lastName: g.lastName, locale, acquisition })).personId
+        : (await createPersonWithoutEmail(tx, ctx, { firstName: g.firstName, lastName: g.lastName, locale, acquisition })).personId);
     rows.push({
       id: randomUUID(),
       personId,
@@ -725,75 +915,7 @@ export async function bookSeats(tx: Tx, ctx: Ctx, input: BookSeatsInput): Promis
     }
   }
 
-  // R18: one quantity-1 item per order-paid seat, in row order (after the package line, if any).
-  const orderRows = inserted.filter((b) => b.paidWith === "order");
-  const productOf = new Map(rows.map((r) => [r.id, r.productId]));
-  const ownerRow = inserted[0]!;
-  let orderId: string | null = null;
-  // Rows commerce confirmed inside createOrder (rule 24: euro credit or a promo covers the total).
-  const settled = new Set<string>();
-  if (orderRows.length || pkg) {
-    const useEuroCredit = input.guest || pkg ? false : input.useEuroCredit;
-    const order = await createOrder(tx, ctx, {
-      personId: input.personId,
-      // Edge case 23: a site guest's order is priced as the public's.
-      ...(input.guest ? { pricingPersonId: null } : {}),
-      channel: staff ? "admin" : input.guest ? "site" : "portal",
-      items: [
-        ...(pkg ? [{ productId: pkg.id, quantity: 1 }] : []),
-        // R51: a ticket line carries its type, so commerce groups the order's tickets (`groupTicketTypes`).
-        ...orderRows.map((b) => ({ productId: productOf.get(b.id)!, quantity: 1, sessionId: session.id, bookingIds: [b.id], ...(ticket ? { ticketTypeId: ticket.id } : {}) })),
-      ],
-      promoCode: input.promoCode ?? null,
-      clientKey: input.clientKey,
-      locale,
-      ...(useEuroCredit !== undefined ? { useEuroCredit } : {}),
-      ...(input.payAtDesk ? { expiresAt: session.endsAt } : {}),
-    });
-    if (order.status === "paid") {
-      // `confirmBookingsForOrder` already ran in this transaction: it set the lines, confirmed the
-      // rows and recorded `booking.confirmed` with its email. Nothing is left to pay or link.
-      const fresh = await tx.select().from(bookings).where(inArray(bookings.id, orderRows.map((b) => b.id)));
-      for (const b of inserted) {
-        const f = fresh.find((x) => x.id === b.id);
-        if (f && f.status === "confirmed") {
-          Object.assign(b, f);
-          settled.add(b.id);
-        }
-      }
-      // Nothing due for a package (a full promotion): its credits exist now, so the seat takes one.
-      if (pkg && (await confirmPackageSeat(tx, ctx, ownerRow, session))) {
-        Object.assign(ownerRow, (await tx.select().from(bookings).where(eq(bookings.id, ownerRow.id)))[0]);
-        settled.add(ownerRow.id);
-      }
-    } else {
-      orderId = order.orderId;
-      const linked = await linkOrderLines(tx, pkg ? [ownerRow, ...orderRows] : orderRows, order.lineIds);
-      for (const b of inserted) {
-        const l = linked.find((x) => x.id === b.id);
-        if (l) Object.assign(b, { orderLineId: l.orderLineId, reservedUntil: l.reservedUntil });
-      }
-    }
-  }
-
-  // R61 facts, R58 guest facts on the owner's timeline, R59 emails, waitlist release.
-  const factSession = { kind: session.kind, eventCategory: session.eventCategory, startsAt: session.startsAt, partnerCompanyId: session.partnerCompanyId };
-  for (const b of inserted) {
-    if (!settled.has(b.id)) await recordBookingFact(ctx, b.status === "reserved" ? "booking.reserved" : "booking.confirmed", b, { session: factSession, by: input.by });
-    if (b.guestOfBookingId) await recordBookingFact(ctx, "booking.guest_added", b, { session: factSession, by: input.by, subjectPersonId: input.personId });
-  }
-  if (input.sendEmail !== false) {
-    for (const b of inserted) {
-      if (settled.has(b.id)) continue;
-      if (b.status === "confirmed") await sendConfirmationEmail(ctx, b, session);
-      else if (b.isPayAtDesk && b.guestOfBookingId === null) await sendConfirmationEmail(ctx, b, session, { payAtDesk: true });
-    }
-  }
-  for (const b of inserted) await releaseWaitlistEntryOnBooking(ctx, session.id, b.personId);
-
-  const bookingIds = inserted.map((b) => b.id);
-  if (!orderId) return { kind: "confirmed", bookingIds };
-  return { kind: "checkout", bookingIds, orderId, redirectTo: checkoutPath(orderId, locale, input) };
+  return { session, rows, inserted, pkgSeat: !!pkg, ticket, locale };
 }
 
 /** The page that pays a booking's order: the POS for staff, the public pay page for a site guest, else the portal. */
@@ -807,7 +929,11 @@ function checkoutPath(orderId: string, locale: Locale, input: Pick<BookSeatsInpu
  * session's credit kind (day packages for day sessions, night for nights; never mixed) with
  * enough units for the seat.
  */
-async function packageForSeat(tx: Tx, session: SessionRow, input: Pick<BookSeatsInput, "payWith" | "buyPackageProductId">): Promise<{ id: string }> {
+async function packageForSeat(
+  tx: Tx,
+  session: SessionRow,
+  input: Pick<BookSeatsInput, "payWith" | "buyPackageProductId">,
+): Promise<{ id: string; creditKind: string; creditUnits: number }> {
   if (input.payWith !== "credit") throw new ValidationError("pay_with_not_available", { payWith: "not_available" });
   const [p] = await tx
     .select({ id: products.id, kind: products.kind, isActive: products.isActive, creditKind: products.creditKind, creditUnits: products.creditUnits })
@@ -815,7 +941,7 @@ async function packageForSeat(tx: Tx, session: SessionRow, input: Pick<BookSeats
     .where(eq(products.id, input.buyPackageProductId!));
   const fits = !!p && p.kind === "package" && p.isActive && !!session.creditKind && p.creditKind === session.creditKind && (p.creditUnits ?? 0) >= session.creditCost;
   if (!fits) throw new ValidationError("package_not_for_session", { buyPackageProductId: "not_for_session" });
-  return { id: p.id };
+  return { id: p.id, creditKind: p.creditKind!, creditUnits: p.creditUnits! };
 }
 
 /**

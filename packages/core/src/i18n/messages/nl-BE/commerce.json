@@ -149,7 +149,13 @@
       "voucher_vat_zero": "Cadeaubonnen hebben 0 % btw.",
       "voucher_min_730": "Cadeaubonnen zijn minstens 730 dagen geldig.",
       "custom_amount_range": "Tussen € 5 en € 1.000, minimum niet boven maximum.",
-      "both_or_neither": "Vul beide velden voor inbegrepen kredieten in, of geen."
+      "both_or_neither": "Vul beide velden voor inbegrepen kredieten in, of geen.",
+      "field_booking_extra": "Extra bij een boeking",
+      "field_booking_extra_kinds": "Alleen aanbieden bij (niets aangeduid = bij alle sessies)",
+      "extra_kind_day": "Dagsessies",
+      "extra_kind_night": "Nachtsessies",
+      "extra_kind_event": "Events",
+      "item_only": "Alleen artikelen kunnen een extra bij een boeking zijn."
     },
     "admin_prices": {
       "title": "Prijsgeschiedenis",
@@ -525,7 +531,8 @@
       "expired": "Deze reservatie is vervallen.",
       "back_to_booking": "Terug naar reservaties",
       "due": "Nog te betalen",
-      "not_payable": "Deze bestelling kan niet meer betaald worden."
+      "not_payable": "Deze bestelling kan niet meer betaald worden.",
+      "credit_paid": "Betaald met cadeaubon of tegoed"
     },
     "return": {
       "title": "Betaling",

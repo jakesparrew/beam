@@ -149,7 +149,13 @@
       "voucher_vat_zero": "Vouchers carry 0 % VAT.",
       "voucher_min_730": "Vouchers are valid at least 730 days.",
       "custom_amount_range": "Between €5 and €1,000, minimum not above maximum.",
-      "both_or_neither": "Fill in both included fields or neither."
+      "both_or_neither": "Fill in both included fields or neither.",
+      "field_booking_extra": "Booking extra",
+      "field_booking_extra_kinds": "Offer only with (none ticked = every session)",
+      "extra_kind_day": "Day sessions",
+      "extra_kind_night": "Night sessions",
+      "extra_kind_event": "Events",
+      "item_only": "Only items can be a booking extra."
     },
     "admin_prices": {
       "title": "Price history",
@@ -525,7 +531,8 @@
       "expired": "This reservation has expired.",
       "back_to_booking": "Back to bookings",
       "due": "Still to pay",
-      "not_payable": "This order cannot be paid any more."
+      "not_payable": "This order cannot be paid any more.",
+      "credit_paid": "Paid with gift voucher or credit"
     },
     "return": {
       "title": "Payment",

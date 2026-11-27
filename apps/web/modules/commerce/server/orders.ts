@@ -19,6 +19,7 @@ import {
   type OrderStatus,
   type OrderSummary,
   type QuoteWarning,
+  type Utm,
 } from "@beam/core/commerce";
 import { formatDateTime, LOCALES, type Locale, type LocalizedText } from "@beam/core/i18n";
 import { and, desc, eq, gt, inArray, isNull, lte, or, sql, ConflictError, NotFoundError, ValidationError, type Ctx, type DbOrTx, type Tx } from "@/lib/ctx";
@@ -45,6 +46,13 @@ export type CreateOrderInput = {
   note?: string;
   /** Channel `admin` only (booking R63 pay-at-desk: the session's `ends_at`). */
   expiresAt?: Date;
+  /**
+   * The booking flow's code field: a `promoCode` that wins no line refuses the order with the
+   * quote's reason (`promo_unknown`, `promo_expired`, ...) instead of silently pricing without it.
+   */
+  requirePromo?: boolean;
+  /** The visit's `utm_*` values (booking flow orders; checkout orders keep theirs on the checkout). */
+  utm?: Utm;
 };
 
 export type CreateOrderResult = {
@@ -190,6 +198,10 @@ export async function createOrder(tx: Tx, ctx: Ctx, input: CreateOrderInput): Pr
     if (kind === "validation") throw new ValidationError("validation", { items: w.code });
   }
   if (quoted.lines.length !== items.length) throw new ConflictError("product_unavailable");
+  if (input.requirePromo && input.promoCode?.trim() && !quoted.promotionId) {
+    const reason = warnings.find((w) => w.code.startsWith("promo_"))?.code ?? "promo_not_eligible";
+    throw new ValidationError(reason, { promoCode: reason });
+  }
 
   const settings = await commerceSettings(tx);
   const expiresAt = input.expiresAt ?? new Date(ctx.now.getTime() + settings.order_expiry_minutes * 60_000);
@@ -213,6 +225,7 @@ export async function createOrder(tx: Tx, ctx: Ctx, input: CreateOrderInput): Pr
       termsVersionId,
       createdByUserId: ctx.actor.kind === "staff" ? ctx.actor.userId : null,
       note: input.note ?? null,
+      utm: input.utm && Object.keys(input.utm).length ? input.utm : null,
     })
     .returning();
   const orderId = order!.id;

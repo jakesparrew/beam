@@ -183,7 +183,10 @@ describe("order bookings (R18)", () => {
     expect(rows).toHaveLength(3);
     expect(orderCalls).toHaveLength(1);
     expect(orderCalls[0]).toMatchObject({ personId: owner.id, channel: "portal", locale: "fr-BE" });
-    expect(orderCalls[0]!.items).toEqual(result.bookingIds.map((id) => ({ productId: product.id, quantity: 1, sessionId: session.id, bookingIds: [id] })));
+    // Owner decision: a guest's seat is priced without the owner's member prices (`guestSeat`).
+    expect(orderCalls[0]!.items).toEqual(
+      result.bookingIds.map((id, i) => ({ productId: product.id, quantity: 1, sessionId: session.id, bookingIds: [id], ...(i > 0 ? { guestSeat: true } : {}) })),
+    );
     const owners = rows.filter((r) => r.guestOfBookingId === null);
     expect(owners).toHaveLength(1);
     for (const r of rows) {

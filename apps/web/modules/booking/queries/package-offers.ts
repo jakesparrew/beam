@@ -6,11 +6,12 @@
  * night packages for nights, never mixed (the same rule `bookSeats` checks).
  */
 import type { DbOrTx } from "@beam/db";
-import { sessions } from "@beam/db/schema";
-import { CHILD_PRODUCT_SKUS } from "@beam/core/booking";
+import { products, sessions } from "@beam/db/schema";
+import { CHILD_PRODUCT_SKUS, childrenAllowed } from "@beam/core/booking";
 import type { LocalizedText } from "@beam/core/i18n";
-import { eq } from "@/lib/ctx";
+import { and, asc, eq, inArray } from "@/lib/ctx";
 import { getProductPrice, listPublicPrices } from "@/modules/commerce/api";
+import { getAvailabilityPreview } from "../api/bookings";
 
 export type PackageOffer = {
   productId: string;
@@ -55,4 +56,59 @@ export async function getBookingOffers(db: DbOrTx, sessionId: string, at: Date =
     })
     .sort((a, b) => a.units - b.units || a.priceCents - b.priceCents);
   return { singleCents, childCents, offers };
+}
+
+/** Owner decision: a booking extra the booking form offers, at its public price (the order's quote applies member discounts). */
+export type BookingExtraOffer = { productId: string; name: LocalizedText; priceCents: number; kinds: string[] };
+
+/** Owner decision: a day or night session of the next days that the same booking can add. */
+export type MoreSessionOffer = { sessionId: string; kind: "day" | "night"; startsAt: Date; endsAt: Date; singleCents: number | null; youthCents: number | null; childrenAllowed: boolean };
+
+/**
+ * The add-ons of the public booking form for `sessionId`: the booking extras (active `item`
+ * products marked `is_booking_extra`, in sort order) and the other bookable day and night sessions
+ * of the next `days` days (the 7-day picker of `/book`), each with its single public price.
+ */
+export async function getBookingAddOns(db: DbOrTx, sessionId: string, opts: { days?: number; at?: Date } = {}): Promise<{ extras: BookingExtraOffer[]; moreSessions: MoreSessionOffer[] }> {
+  const at = opts.at ?? new Date();
+  const extraRows = await db
+    .select({ id: products.id, name: products.name, kinds: products.bookingExtraKinds })
+    .from(products)
+    .where(and(eq(products.isBookingExtra, true), eq(products.isActive, true), eq(products.kind, "item")))
+    .orderBy(asc(products.sortOrder), asc(products.sku));
+  const extras: BookingExtraOffer[] = [];
+  for (const r of extraRows) {
+    const price = await getProductPrice(db, r.id, "public", at);
+    if (price) extras.push({ productId: r.id, name: r.name, priceCents: price.amountCents, kinds: r.kinds });
+  }
+
+  const to = new Date(at.getTime() + (opts.days ?? 7) * 86_400_000);
+  const slots = [...(await getAvailabilityPreview(db, { kind: "day", from: at, to })), ...(await getAvailabilityPreview(db, { kind: "night", from: at, to }))].filter(
+    (s) => s.sessionId !== sessionId && s.band !== "full",
+  );
+  if (!slots.length) return { extras, moreSessions: [] };
+  const rows = await db
+    .select({ id: sessions.id, kind: sessions.kind, startsAt: sessions.startsAt, endsAt: sessions.endsAt, productId: sessions.productId })
+    .from(sessions)
+    .where(inArray(sessions.id, slots.map((s) => s.sessionId)))
+    .orderBy(asc(sessions.startsAt));
+  const priceOf = new Map<string, number | null>();
+  for (const productId of new Set(rows.map((r) => r.productId).filter((x): x is string => !!x))) {
+    priceOf.set(productId, (await getProductPrice(db, productId, "public", at))?.amountCents ?? null);
+  }
+  const prices = await listPublicPrices(db, { at });
+  const youthOf = (kind: "day" | "night") => prices.find((p) => p.sku === CHILD_PRODUCT_SKUS[kind].youth && p.isActive)?.publicAmountCents ?? null;
+  const moreSessions = rows.map((r): MoreSessionOffer => {
+    const kind = r.kind as "day" | "night";
+    return {
+      sessionId: r.id,
+      kind,
+      startsAt: r.startsAt,
+      endsAt: r.endsAt,
+      singleCents: r.productId ? (priceOf.get(r.productId) ?? null) : null,
+      youthCents: youthOf(kind),
+      childrenAllowed: childrenAllowed(r),
+    };
+  });
+  return { extras, moreSessions };
 }

@@ -206,12 +206,13 @@ function quoteDetailed(input: QuoteInput): { quote: Quote; itemIndex: number[] }
       { key: "base", source: "base", sourceId: baseVersion?.id ?? null, unitCents: baseUnitCents, reason: `${baseAudience}_price` },
     ];
 
-    const personPrice = personPriceAt(input.personPrices, product.id, at);
+    // A companion's seat gets none of the buyer's own prices (owner decision).
+    const personPrice = item.guestSeat ? null : personPriceAt(input.personPrices, product.id, at);
     if (personPrice) {
       candidates.push({ key: "person_price", source: "person_price", sourceId: personPrice.id, unitCents: personPrice.amountCents, reason: "person_price" });
     }
 
-    if (input.isMember && !excluded && !product.isCustomAmount) {
+    if (input.isMember && !excluded && !product.isCustomAmount && !item.guestSeat) {
       const memberVersion = priceVersionAt(item.prices, "member", at);
       if (memberVersion) {
         candidates.push({

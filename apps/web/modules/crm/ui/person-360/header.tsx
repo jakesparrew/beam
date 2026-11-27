@@ -1,8 +1,8 @@
 "use client";
 /**
  * The 360's key facts (crm spec 5.1, rules 3.11, 3.55; the name, status and pills sit in the
- * page header): contact data, locale, tags, acquisition, partner, companies, the emergency
- * contact and the desk checks of the reception quick view. `NoteForm` and
+ * page header, the open desk checks in the banner under it): contact data, locale, origin,
+ * partner, companies, the emergency contact, tags and a one-line desk state. `NoteForm` and
  * `InteractionForm` are the "Add note" (with the sensitive toggle only for holders of
  * `persons.sensitive_read`) and "Log interaction" actions. Every string is a prop.
  */
@@ -11,7 +11,6 @@ import { useRouter } from "next/navigation";
 import { useId, useState, type FormEvent, type ReactNode } from "react";
 import { Button, Checkbox, cn, Input, Label, Textarea } from "@beam/ui";
 import { addNote, logInteraction } from "../../timeline/actions";
-import type { ReceptionCardLabels, ReceptionCardView } from "./reception-card";
 
 export type PersonFactsView = {
   email: string | null;
@@ -27,7 +26,8 @@ export type PersonFactsView = {
   companies: Array<{ id: string; name: string; position: string | null }>;
   tags: Array<{ key: string; label: string; color: string }>;
   emergencyContact: { name: string; phone: string; relation?: string } | null;
-  reception: ReceptionCardView;
+  /** The desk checks (terms, health declaration, guardian consent for a minor) in one line; the banner names what is open. */
+  desk: { ok: boolean; label: string };
 };
 
 export type PersonFactsLabels = {
@@ -46,9 +46,7 @@ export type PersonFactsLabels = {
   noEmergencyContact: string;
   tags: string;
   birthOn: string;
-  /** The desk checks: terms, health declaration and, for a minor, the guardian's consent. */
   desk: string;
-  reception: ReceptionCardLabels;
 };
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
@@ -60,27 +58,17 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-function Check({ ok, yes, no }: { ok: boolean; yes: string; no: string }) {
-  return (
-    <li className="flex items-center gap-2" data-state={ok ? "ok" : "missing"}>
-      <span aria-hidden="true" className={cn("size-2 shrink-0 rounded-full", ok ? "bg-[var(--status-ok)]" : "bg-[var(--status-bad)]")} />
-      <span className={ok ? undefined : "font-medium text-[var(--status-bad)]"}>{ok ? yes : no}</span>
-    </li>
-  );
-}
-
 /**
- * The key facts of the 360's overview (owner review, November 2026): contact, language, birth
- * date, channel, origin, partner, companies, emergency contact, onboarding and tags in one
- * label/value list, with the desk checks (terms, health declaration, guardian consent) below.
+ * The key facts of the 360's overview (owner review, November 2026): contact, language, origin
+ * and emergency contact always; address, birth date, channel, partner, companies and onboarding
+ * when known; then the tags and the desk state in one line.
  */
 export function PersonFacts({ view, labels }: { view: PersonFactsView; labels: PersonFactsLabels }) {
-  const r = view.reception;
   const dash = <span className="text-muted-foreground">–</span>;
   return (
-    <section aria-label={labels.title} className="grid content-start gap-3 rounded-xl border border-border bg-card p-5" data-testid="person-facts">
+    <section aria-label={labels.title} className="grid content-start gap-3 rounded-xl border border-border bg-card px-5 py-4" data-testid="person-facts">
       <h2 className="text-[0.875rem] font-semibold">{labels.title}</h2>
-      <dl className="grid grid-cols-[minmax(7rem,max-content)_1fr] gap-x-4 gap-y-2">
+      <dl className="grid grid-cols-[minmax(6rem,max-content)_1fr] gap-x-4 gap-y-1.5">
         <Row label={labels.email}>
           {view.email ? (
             <a href={`mailto:${view.email}`} className="hover:underline">
@@ -132,27 +120,23 @@ export function PersonFacts({ view, labels }: { view: PersonFactsView; labels: P
           )}
         </Row>
         {view.onboarding ? <Row label={labels.onboarding}>{view.onboarding}</Row> : null}
-        {view.tags.length ? (
-          <Row label={labels.tags}>
-            <span className="flex flex-wrap gap-1">
-              {view.tags.map((t) => (
-                <span key={t.key} className="inline-flex items-center gap-1 rounded-full border border-border px-1.5 py-px text-[0.6875rem] font-medium">
-                  <span aria-hidden="true" className="size-1.5 rounded-full" style={{ background: t.color }} />
-                  {t.label}
-                </span>
-              ))}
-            </span>
-          </Row>
-        ) : null}
+        <Row label={labels.desk}>
+          <span className="inline-flex items-center gap-1.5" data-testid="person-desk-checks" data-state={view.desk.ok ? "ok" : "missing"}>
+            <span aria-hidden="true" className={cn("size-1.5 shrink-0 rounded-full", view.desk.ok ? "bg-[var(--status-ok)]" : "bg-[var(--status-bad)]")} />
+            <span className={view.desk.ok ? undefined : "font-medium text-[var(--status-bad)]"}>{view.desk.label}</span>
+          </span>
+        </Row>
       </dl>
-      <div className="grid gap-1.5 border-t border-border pt-3" data-testid="person-desk-checks">
-        <h3 className="text-[0.75rem] font-medium text-muted-foreground">{labels.desk}</h3>
-        <ul className="grid gap-1 text-[0.8125rem]">
-          <Check ok={r.declarations.termsAccepted} yes={labels.reception.termsAccepted} no={labels.reception.termsMissing} />
-          <Check ok={r.declarations.healthDeclarationValid} yes={labels.reception.healthValid} no={labels.reception.healthMissing} />
-          {r.isMinor ? <Check ok={r.declarations.guardianConsentValid} yes={labels.reception.guardianValid} no={labels.reception.guardianMissing} /> : null}
+      {view.tags.length ? (
+        <ul aria-label={labels.tags} className="flex flex-wrap gap-1 border-t border-border pt-3">
+          {view.tags.map((t) => (
+            <li key={t.key} className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-px text-[0.6875rem] font-medium">
+              <span aria-hidden="true" className="size-1.5 rounded-full" style={{ background: t.color }} />
+              {t.label}
+            </li>
+          ))}
         </ul>
-      </div>
+      ) : null}
     </section>
   );
 }

@@ -423,7 +423,11 @@
         "email": "E-mail",
         "phone": "Téléphone",
         "address": "Adresse",
-        "desk": "À l'accueil"
+        "desk": "À l'accueil",
+        "contact_email": "Envoyer un e-mail",
+        "contact_call": "Appeler",
+        "contact_whatsapp": "Envoyer un message WhatsApp",
+        "more_actions": "Plus d'actions"
       },
       "banners": {
         "override_conflict": "Le statut manuel {override} diffère du statut calculé {derived}",
@@ -484,7 +488,10 @@
         "merge_with": "Fusionner avec…",
         "book": "Réserver pour ce client",
         "sell": "Vendre",
-        "interaction_occurred_at": "Quand (vide = maintenant)"
+        "interaction_occurred_at": "Quand (vide = maintenant)",
+        "book_short": "Réserver",
+        "sell_pos": "Vendre à la caisse",
+        "new_task": "Nouvelle tâche"
       },
       "sensitive": {
         "hidden": "Les données sensibles sont masquées.",
@@ -538,7 +545,60 @@
         "no_shows": "{count, plural, one {# absence} other {# absences}}",
         "expires_on": "Première échéance le {date}",
         "purchases": "{count, plural, one {# achat} other {# achats}}",
-        "open_invoices": "{count, plural, one {# facture ouverte} other {# factures ouvertes}}"
+        "open_invoices": "{count, plural, one {# facture ouverte} other {# factures ouvertes}}",
+        "next_visit": "Prochaine visite",
+        "nothing_planned": "Rien de prévu",
+        "book": "Réserver",
+        "no_package": "Pas de forfait",
+        "sell_package": "Vendre un forfait",
+        "credit_day": "Jour",
+        "credit_night": "Nuit",
+        "credit_euro": "Crédit en euros",
+        "free_member": "{count, plural, one {+ # séance gratuite de membre} other {+ # séances gratuites de membre}}",
+        "membership": "Abonnement",
+        "member_until": "Jusqu'au {date}",
+        "renews": "Renouvellement automatique",
+        "ends": "S'arrête, pas de renouvellement",
+        "past_due": "Paiement en retard",
+        "no_membership": "Pas d'abonnement",
+        "sell_membership": "Vendre",
+        "spent_sub": "{visits, plural, one {# visite} other {# visites}} · moy. {avg} par visite",
+        "nothing_spent": "Rien dépensé pour l'instant",
+        "open": "Ouvert",
+        "nothing_open": "Rien d'ouvert",
+        "expires_short": "Expire le {date}"
+      },
+      "alerts": {
+        "title": "Points d'attention à l'accueil",
+        "open_balance": "Solde ouvert {amount}",
+        "past_due": "Abonnement : paiement en retard",
+        "fill_health": "Remplir à l'accueil",
+        "record_guardian": "Enregistrer",
+        "view": "Voir",
+        "desk_ok": "En ordre",
+        "desk_open": "{count, plural, one {# point ouvert} other {# points ouverts}}"
+      },
+      "overview": {
+        "next_visits": "Prochaines visites",
+        "nothing_planned": "Rien de prévu.",
+        "book_session": "Réserver une séance",
+        "followup": "Suivi",
+        "followup_none": "Aucun suivi nécessaire.",
+        "recent": "Activité récente",
+        "recent_empty": "Pas encore d'activité.",
+        "full_timeline": "Chronologie complète",
+        "visits_strip": "Visites, 12 derniers mois",
+        "visits_month": "{month} : {count, plural, =0 {aucune visite} one {# visite} other {# visites}}"
+      },
+      "followup": {
+        "first_visit": "Première visite à venir",
+        "package_used_up": "{kind, select, night {Crédits de nuit épuisés} other {Crédits de jour épuisés}}",
+        "package_low": "{kind, select, night {Dernier crédit de nuit} other {Dernier crédit de jour}}",
+        "package_expiring": "{units, plural, one {# crédit expire} other {# crédits expirent}} le {date}",
+        "membership_renewal": "L'abonnement s'arrête le {date}",
+        "free_session_unused": "{units, plural, one {# séance gratuite de membre pas encore utilisée} other {# séances gratuites de membre pas encore utilisées}}",
+        "sell_package": "Vendre un forfait",
+        "view_membership": "Voir l'abonnement"
       }
     },
     "timeline": {

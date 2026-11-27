@@ -423,7 +423,11 @@
         "email": "Email",
         "phone": "Phone",
         "address": "Address",
-        "desk": "At the desk"
+        "desk": "At the desk",
+        "contact_email": "Send email",
+        "contact_call": "Call",
+        "contact_whatsapp": "Send a WhatsApp message",
+        "more_actions": "More actions"
       },
       "banners": {
         "override_conflict": "Manual status {override} differs from calculated {derived}",
@@ -484,7 +488,10 @@
         "merge_with": "Merge with…",
         "book": "Book for this client",
         "sell": "Sell",
-        "interaction_occurred_at": "When (empty = now)"
+        "interaction_occurred_at": "When (empty = now)",
+        "book_short": "Book",
+        "sell_pos": "Sell at the till",
+        "new_task": "New task"
       },
       "sensitive": {
         "hidden": "Sensitive data is hidden.",
@@ -538,7 +545,60 @@
         "no_shows": "{count, plural, one {# no-show} other {# no-shows}}",
         "expires_on": "First expiry {date}",
         "purchases": "{count, plural, one {# purchase} other {# purchases}}",
-        "open_invoices": "{count, plural, one {# open invoice} other {# open invoices}}"
+        "open_invoices": "{count, plural, one {# open invoice} other {# open invoices}}",
+        "next_visit": "Next visit",
+        "nothing_planned": "Nothing planned",
+        "book": "Book",
+        "no_package": "No package",
+        "sell_package": "Sell a package",
+        "credit_day": "Day",
+        "credit_night": "Night",
+        "credit_euro": "Euro credit",
+        "free_member": "{count, plural, one {+ # free member session} other {+ # free member sessions}}",
+        "membership": "Membership",
+        "member_until": "Until {date}",
+        "renews": "Renews automatically",
+        "ends": "Ends, not renewed",
+        "past_due": "Payment past due",
+        "no_membership": "No membership",
+        "sell_membership": "Sell",
+        "spent_sub": "{visits, plural, one {# visit} other {# visits}} · avg {avg} per visit",
+        "nothing_spent": "Nothing spent yet",
+        "open": "Open",
+        "nothing_open": "Nothing open",
+        "expires_short": "Expires {date}"
+      },
+      "alerts": {
+        "title": "Reception attention points",
+        "open_balance": "Open balance {amount}",
+        "past_due": "Membership: payment past due",
+        "fill_health": "Fill in at reception",
+        "record_guardian": "Record",
+        "view": "View",
+        "desk_ok": "All set",
+        "desk_open": "{count, plural, one {# point open} other {# points open}}"
+      },
+      "overview": {
+        "next_visits": "Next visits",
+        "nothing_planned": "Nothing planned.",
+        "book_session": "Book a session",
+        "followup": "Follow-up",
+        "followup_none": "No follow-up needed.",
+        "recent": "Recent activity",
+        "recent_empty": "No activity yet.",
+        "full_timeline": "Full timeline",
+        "visits_strip": "Visits, last 12 months",
+        "visits_month": "{month}: {count, plural, =0 {no visits} one {# visit} other {# visits}}"
+      },
+      "followup": {
+        "first_visit": "First visit coming up",
+        "package_used_up": "{kind, select, night {Night credits used up} other {Day credits used up}}",
+        "package_low": "{kind, select, night {Last night credit} other {Last day credit}}",
+        "package_expiring": "{units, plural, one {# credit expires} other {# credits expire}} on {date}",
+        "membership_renewal": "Membership ends on {date}",
+        "free_session_unused": "{units, plural, one {# free member session not used yet} other {# free member sessions not used yet}}",
+        "sell_package": "Sell a package",
+        "view_membership": "View membership"
       }
     },
     "timeline": {

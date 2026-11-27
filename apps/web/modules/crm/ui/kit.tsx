@@ -44,6 +44,25 @@ export function Initials({ name }: { name: string | null | undefined }) {
   );
 }
 
+const AVATAR_TONES = ["bg-[#fde7d3] text-[#9a3412]", "bg-[#e0e7ff] text-[#3730a3]", "bg-[#dcfce7] text-[#166534]", "bg-[#f7eedc] text-[#8a5a14]", "bg-[#fce7f3] text-[#9d174d]"];
+
+/** Initials on a soft colour picked from the id, as booking's and the dashboard's avatars, so a person keeps one colour. */
+export function PersonAvatar({ id, name, className }: { id: string; name: string | null | undefined; className?: string }) {
+  const letters =
+    (name ?? "")
+      .split(/[\s-]+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((w) => Array.from(w)[0]!.toUpperCase())
+      .join("") || "–";
+  const tone = AVATAR_TONES[[...id].reduce((n, c) => n + c.charCodeAt(0), 0) % AVATAR_TONES.length]!;
+  return (
+    <span aria-hidden="true" className={cn("grid size-8 shrink-0 place-items-center rounded-full text-[0.6875rem] font-semibold", tone, className)}>
+      {letters}
+    </span>
+  );
+}
+
 /** A hairline surface (white, 12px corners); `flush` drops the padding for tables. */
 export function Surface({ children, className, flush = false, ...rest }: { children: ReactNode; className?: string; flush?: boolean } & React.HTMLAttributes<HTMLElement>) {
   return (

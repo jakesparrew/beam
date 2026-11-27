@@ -90,12 +90,21 @@ test("staff adds a note and a task on the 360", async ({ page }) => {
   await expect(page.getByTestId("timeline").getByText(NOTE)).toBeVisible();
 
   await page.goto(`/admin/persons/${createdId}`);
+  // The open tasks sit in the overview's side column; the small "+" in their heading opens the form.
   const tasks = page.locator('section[aria-labelledby="tasks-heading"]');
   await tasks.getByRole("button").first().click();
   await tasks.locator("input").first().fill(TASK);
   await clickAndWait(page, () => tasks.locator('button[type="submit"]').first().click());
   const [task] = await e2eRows<{ n: number }>(sql`select count(*)::int as n from tasks where title = ${TASK} and person_id = ${createdId}`);
   expect(Number(task!.n)).toBe(1);
+
+  // The header's "⋯" menu holds the secondary actions; "new task" opens the same form.
+  await page.getByTestId("person-actions-menu").click();
+  const menu = page.getByRole("menu");
+  for (const action of ["edit", "sell", "task", "merge"]) await expect(menu.locator(`[data-action="${action}"]`)).toBeVisible();
+  await menu.locator('[data-action="task"]').click();
+  await page.waitForURL(/\?task=new$/);
+  await expect(tasks.locator("input").first()).toBeVisible();
 });
 
 test("staff sets an override and sees the banner", async ({ page }) => {

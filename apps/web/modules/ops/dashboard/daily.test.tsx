@@ -19,7 +19,7 @@ import { makeCustomer } from "./ops-p3.fixtures";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: () => undefined, refresh: () => undefined }) }));
 
-const { clientOpportunities, dailyAccess, getDailyCapacity, getDailyRevenue, listDayClients, parseDay, shiftDay } = await import("./daily");
+const { clientOpportunities, dailyAccess, getClientSnapshot, getDailyCapacity, getDailyRevenue, listDayClients, parseDay, shiftDay } = await import("./daily");
 const { DailyDashboard } = await import("../ui/DailyDashboard");
 type DayClient = Awaited<ReturnType<typeof listDayClients>>[number];
 
@@ -160,6 +160,11 @@ describe("listDayClients", () => {
     expect(bert.packages).toEqual([{ kind: "day", remaining: 1, total: 10, nextExpiresAt: pack.expiresAt }]);
     expect(clientOpportunities(bert, NOW).map((o) => o.key).sort()).toEqual(["free_session_unused", "membership_renewal", "package_low"]);
     expect(clientOpportunities(ann, NOW).map((o) => o.key)).toEqual(["first_visit"]);
+
+    // The 360's snapshot of one person reads the same membership, packages and first visit.
+    expect(await getClientSnapshot(h.db, { personId: regular.id, now: NOW })).toEqual({ ...bert, sessions: [] });
+    expect(await getClientSnapshot(h.db, { personId: first.id, now: NOW })).toEqual({ ...ann, sessions: [] });
+    expect(await getClientSnapshot(h.db, { personId: randomUUID(), now: NOW })).toBeNull();
   });
 });
 

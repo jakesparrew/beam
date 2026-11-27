@@ -12,7 +12,7 @@
 import type { DbOrTx } from "@beam/db";
 import type { Locale } from "@beam/core/i18n";
 import { comparePeriods } from "@beam/core/ops";
-import { sql, type Actor } from "@/lib/ctx";
+import { sql, type Actor, type SQL } from "@/lib/ctx";
 import { rowsOf } from "@/lib/sensitive";
 import { holdsAny } from "../reports/registry";
 import { brusselsDate } from "../reports/revenue";
@@ -188,6 +188,50 @@ type ClientRow = {
 
 const json = <T>(v: unknown): T => (typeof v === "string" ? JSON.parse(v) : v) as T;
 
+/** Membership, free member credits and bought packages of `pp.person_id` (with `membershipJoin`). */
+const clientColumns = (now: SQL) => sql`
+        m.status as membership_status, m.current_period_end_at as period_end_at, m.cancel_at, m.has_mandate,
+        (select coalesce(jsonb_agg(jsonb_build_object('kind', f.credit_kind, 'units', f.units) order by f.credit_kind), '[]'::jsonb)
+           from (select credit_kind, sum(remaining_units)::int as units from v_credit_grant_balances
+                 where membership_id = m.id and is_usable and credit_kind in ('day', 'night') group by 1) f) as free_left,
+        (select coalesce(jsonb_agg(jsonb_build_object('kind', k.credit_kind, 'remaining', k.remaining, 'total', k.total, 'nextExpiresAt', k.next_expires_at) order by k.credit_kind), '[]'::jsonb)
+           from (select credit_kind, sum(remaining_units)::int as remaining, sum(base_units)::int as total,
+                        min(expires_at) filter (where remaining_units > 0) as next_expires_at
+                 from v_credit_grant_balances
+                 where person_id = pp.person_id and membership_id is null and credit_kind in ('day', 'night')
+                   and status in ('active', 'exhausted') and (expires_at is null or expires_at > ${now})
+                 group by 1) k) as packages`;
+
+/** The live membership of `pp.person_id` as `m`. */
+const membershipJoin = (now: SQL) => sql`
+      left join lateral (
+        select m.id, m.status, m.current_period_end_at, m.cancel_at,
+          exists (select 1 from mandates md where md.id = m.mandate_id and md.status = 'valid') as has_mandate
+        from memberships m where m.person_id = pp.person_id and m.status in ('active', 'past_due') and m.started_at <= ${now}
+        order by m.started_at desc limit 1) m on true`;
+
+function toDayClient(r: ClientRow): DayClient {
+  const cancelAt = r.cancel_at ? new Date(r.cancel_at) : null;
+  return {
+    personId: r.person_id,
+    name: r.name,
+    sessions: json<{ sessionId: string; kind: SessionKind; startsAt: string }[]>(r.sessions).map((s) => ({ ...s, startsAt: new Date(s.startsAt) })),
+    isFirstVisit: r.is_first_visit,
+    membership: r.membership_status
+      ? {
+          status: r.membership_status,
+          endsAt: cancelAt ?? new Date(r.period_end_at!),
+          renews: r.membership_status === "active" && !cancelAt && r.has_mandate === true,
+          freeLeft: json<{ kind: CreditKind; units: number }[]>(r.free_left).filter((f) => f.units > 0),
+        }
+      : null,
+    packages: json<{ kind: CreditKind; remaining: number; total: number; nextExpiresAt: string | null }[]>(r.packages).map((p) => ({
+      ...p,
+      nextExpiresAt: p.nextExpiresAt ? new Date(p.nextExpiresAt) : null,
+    })),
+  };
+}
+
 /** The real persons with a live booking on a session of `day`, first arrivals first. */
 export async function listDayClients(db: DbOrTx, input: { day: string; now: Date }): Promise<DayClient[]> {
   const now = ts(input.now);
@@ -207,46 +251,34 @@ export async function listDayClients(db: DbOrTx, input: { day: string; now: Date
       select pp.person_id, nullif(trim(concat_ws(' ', pe.first_name, pe.last_name)), '') as name, pp.sessions,
         not exists (select 1 from bookings b2 join sessions s2 on s2.id = b2.session_id
                     where b2.person_id = pp.person_id and b2.status in ('confirmed', 'attended') and s2.starts_at < pp.first_start) as is_first_visit,
-        m.status as membership_status, m.current_period_end_at as period_end_at, m.cancel_at, m.has_mandate,
-        (select coalesce(jsonb_agg(jsonb_build_object('kind', f.credit_kind, 'units', f.units) order by f.credit_kind), '[]'::jsonb)
-           from (select credit_kind, sum(remaining_units)::int as units from v_credit_grant_balances
-                 where membership_id = m.id and is_usable and credit_kind in ('day', 'night') group by 1) f) as free_left,
-        (select coalesce(jsonb_agg(jsonb_build_object('kind', k.credit_kind, 'remaining', k.remaining, 'total', k.total, 'nextExpiresAt', k.next_expires_at) order by k.credit_kind), '[]'::jsonb)
-           from (select credit_kind, sum(remaining_units)::int as remaining, sum(base_units)::int as total,
-                        min(expires_at) filter (where remaining_units > 0) as next_expires_at
-                 from v_credit_grant_balances
-                 where person_id = pp.person_id and membership_id is null and credit_kind in ('day', 'night')
-                   and status in ('active', 'exhausted') and (expires_at is null or expires_at > ${now})
-                 group by 1) k) as packages
+        ${clientColumns(now)}
       from people pp join persons pe on pe.id = pp.person_id
-      left join lateral (
-        select m.id, m.status, m.current_period_end_at, m.cancel_at,
-          exists (select 1 from mandates md where md.id = m.mandate_id and md.status = 'valid') as has_mandate
-        from memberships m where m.person_id = pp.person_id and m.status in ('active', 'past_due') and m.started_at <= ${now}
-        order by m.started_at desc limit 1) m on true
+      ${membershipJoin(now)}
       order by pp.first_start, name, pp.person_id`),
   );
-  return rows.map((r) => {
-    const cancelAt = r.cancel_at ? new Date(r.cancel_at) : null;
-    return {
-      personId: r.person_id,
-      name: r.name,
-      sessions: json<{ sessionId: string; kind: SessionKind; startsAt: string }[]>(r.sessions).map((s) => ({ ...s, startsAt: new Date(s.startsAt) })),
-      isFirstVisit: r.is_first_visit,
-      membership: r.membership_status
-        ? {
-            status: r.membership_status,
-            endsAt: cancelAt ?? new Date(r.period_end_at!),
-            renews: r.membership_status === "active" && !cancelAt && r.has_mandate === true,
-            freeLeft: json<{ kind: CreditKind; units: number }[]>(r.free_left).filter((f) => f.units > 0),
-          }
-        : null,
-      packages: json<{ kind: CreditKind; remaining: number; total: number; nextExpiresAt: string | null }[]>(r.packages).map((p) => ({
-        ...p,
-        nextExpiresAt: p.nextExpiresAt ? new Date(p.nextExpiresAt) : null,
-      })),
-    };
-  });
+  return rows.map(toDayClient);
+}
+
+/**
+ * One person as the day list sees them, at `now` (crm's 360 follow-up, owner review November
+ * 2026): `sessions` is empty and `isFirstVisit` means a live booking ahead and no earlier visit.
+ * Null for an unknown id.
+ */
+export async function getClientSnapshot(db: DbOrTx, input: { personId: string; now: Date }): Promise<DayClient | null> {
+  const now = ts(input.now);
+  const [row] = rowsOf<ClientRow>(
+    await db.execute(sql`
+      select pp.person_id, nullif(trim(concat_ws(' ', pe.first_name, pe.last_name)), '') as name, '[]'::jsonb as sessions,
+        exists (select 1 from bookings b join sessions s on s.id = b.session_id
+                where b.person_id = pp.person_id and s.starts_at > ${now} and s.status <> 'cancelled' and s.webinar_id is null
+                  and (b.status = 'confirmed' or (b.status = 'reserved' and b.reserved_until > ${now})))
+        and not exists (select 1 from bookings b2 join sessions s2 on s2.id = b2.session_id
+                        where b2.person_id = pp.person_id and b2.status in ('confirmed', 'attended') and s2.starts_at < ${now}) as is_first_visit,
+        ${clientColumns(now)}
+      from (select ${input.personId}::uuid as person_id) pp join persons pe on pe.id = pp.person_id
+      ${membershipJoin(now)}`),
+  );
+  return row ? toDayClient(row) : null;
 }
 
 export type OpportunityKey = "first_visit" | "package_low" | "package_expiring" | "membership_renewal" | "free_session_unused";

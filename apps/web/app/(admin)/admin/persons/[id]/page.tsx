@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
 import type { Route } from "next";
 import { notFound, redirect } from "next/navigation";
-import { CONSENT_PURPOSES, MARKETING_PURPOSES, onboardingProgress, TIMELINE_CATEGORIES, type MarketingPurpose } from "@beam/core/crm";
-import { formatDate, formatDateTime, formatMoney, type Locale } from "@beam/core/i18n";
+import { CONSENT_PURPOSES, MARKETING_PURPOSES, normalisePhone, onboardingProgress, TIMELINE_CATEGORIES, type MarketingPurpose } from "@beam/core/crm";
+import { formatDate, formatDateTime, formatMoney, formatTime, type Locale } from "@beam/core/i18n";
 import { SENSITIVE_FIELD_KEYS } from "@beam/core/privacy";
 import { hasPermission, requireStaff } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
@@ -21,11 +21,11 @@ import { getPersonCreditSummary } from "@/modules/credits/api";
 import { PersonMembershipPanel } from "@/modules/credits/ui/person-membership-panel";
 import { PersonEmailHistory } from "@/modules/email/ui/PersonEmailHistory";
 import { getInvoiceForOrder, listInvoicesForPerson } from "@/modules/finance/api";
-import { getPersonStats } from "@/modules/ops/api";
+import { getPersonOpportunities, getPersonStats, type Opportunity } from "@/modules/ops/api";
 import { getCurrentLegalVersion } from "@/modules/site/api";
 import { listStaffForAssignment } from "@/modules/platform/api";
-import { PageHeader, PrimaryAction, SecondaryAction, Segmented, StatusPill, type Tone } from "@/modules/platform/ui/admin-kit";
-import { BackLink, KpiStrip, Notice, type Kpi } from "@/modules/platform/ui/admin-list-kit";
+import { PrimaryAction, Segmented, StatusPill, type Tone } from "@/modules/platform/ui/admin-kit";
+import { BackLink, Notice } from "@/modules/platform/ui/admin-list-kit";
 import { getPersonConsentPanel } from "@/modules/crm/consent/queries";
 import { listPersonDeclarations } from "@/modules/crm/declarations/queries";
 import { getPerson360, listPersonSegments } from "@/modules/crm/person360/queries";
@@ -33,8 +33,28 @@ import { listTasks, taskListLabels, toTaskView } from "@/modules/crm/tasks/queri
 import { getTimeline, toTimelineRows } from "@/modules/crm/timeline/queries";
 import { ConsentPanel } from "@/modules/crm/ui/consent-panel";
 import { DeclarationCard } from "@/modules/crm/ui/declaration-card";
+import { PersonAvatar } from "@/modules/crm/ui/kit";
+import { PersonActionsMenu, type PersonMenuItem } from "@/modules/crm/ui/person-360/actions-menu";
 import { ActionBlock, InteractionForm, NoteForm, PersonFacts } from "@/modules/crm/ui/person-360/header";
 import { OverrideBanner, StatusOverrideForm } from "@/modules/crm/ui/person-360/override-banner";
+import {
+  ActivityList,
+  ContactLinks,
+  CreditMeter,
+  DeskAlerts,
+  FollowUpList,
+  KpiEmpty,
+  KpiValue,
+  ProfileKpis,
+  VisitList,
+  VisitsStrip,
+  visitsByMonth,
+  type Action,
+  type DeskAlert,
+  type FollowUp,
+  type ProfileKpi,
+  type VisitRowView,
+} from "@/modules/crm/ui/person-360/profile";
 import { Panel, PanelTable, type PanelRow } from "@/modules/crm/ui/person-360/panels";
 import { receptionCardLabels } from "@/modules/crm/ui/person-360/reception-card";
 import { NotAvailable, safePanel, type SafeResult } from "@/modules/crm/ui/person-360/safe-panel";
@@ -60,24 +80,28 @@ const ENROLMENT_TONE: Record<string, Tone> = { active: "ok", completed: "muted",
 /**
  * `/admin/persons/[id]`, the customer 360 (`persons.read`; each action its own permission), crm
  * spec 5.1, as a detail page in the back-office kit (owner review, November 2026): the header
- * (name, number, contact line and the status, corporate, tester, minor and new pills) with "Book
- * for this client" (`bookings.write`) and the quiet edit and merge links; a KPI strip (visits,
- * credits left, member until, spent, open balance); then tabs (`?tab=`): overview (key facts with
- * the desk checks, the next bookings, open waiting-list offers and the follow-up tasks), bookings
+ * (avatar, name, number, quick-contact links and a few pills) with one primary "Boeken"
+ * (`bookings.write`) and a "⋯" menu (edit, sell at the till, new task, merge, each with its own
+ * permission); one banner with the reception warnings (house rules, health declaration, guardian
+ * consent, open balance, past-due membership), each with its action; a KPI row (next visit,
+ * credits per kind, membership, spent, open balance) whose empty cells are a muted line with an
+ * action; then tabs (`?tab=`): overview (next visits, the dashboard's follow-up opportunities,
+ * recent activity; key facts, tags, open tasks, the open account and a visit strip), bookings
  * (with the wellbeing check-ins for `persons.sensitive_read`), packages and membership, payments
  * and invoices, the timeline (note and contact log, timeline, automations, emails, the assistant
  * panels) and data and consents (status override, consents, guardian consent, sensitive data,
  * segments). Each foreign panel loads through `safePanel()` and only on its tab. A merged id
  * redirects to its winner.
  */
-export default async function Person360Page({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ tab?: string }> }) {
+export default async function Person360Page({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ tab?: string; task?: string }> }) {
   const actor = await requireStaff({ permission: "persons.read" });
   const { id } = await params;
   if (!UUID.test(id)) notFound();
   const db = await getAppDb();
   const data = await getPerson360(db, id);
   if (!data) notFound();
-  const wanted = (await searchParams).tab;
+  const sp = await searchParams;
+  const wanted = sp.tab;
   const tab: Tab = (TABS as readonly string[]).includes(wanted ?? "") ? (wanted as Tab) : "overview";
   if (data.redirectTo && data.redirectTo !== id) redirect(`/admin/persons/${data.redirectTo}${tab === "overview" ? "" : `?tab=${tab}`}` as never);
 
@@ -88,6 +112,9 @@ export default async function Person360Page({ params, searchParams }: { params: 
   const a = (k: string) => tr(`crm.person360.actions.${k}`);
   const col = (k: string) => tr(`crm.person360.cols.${k}`);
   const kp = (k: string, p?: Record<string, string | number>) => tr(`crm.person360.kpi.${k}`, p);
+  const ov = (k: string, p?: Record<string, string | number>) => tr(`crm.person360.overview.${k}`, p);
+  const al = (k: string, p?: Record<string, string | number>) => tr(`crm.person360.alerts.${k}`, p);
+  const fu = (k: string, p?: Record<string, string | number>) => tr(`crm.person360.followup.${k}`, p);
   const na = pl("not_available");
   const none = tr("crm.common.none");
   const canWrite = hasPermission(actor, "persons.write");
@@ -96,6 +123,7 @@ export default async function Person360Page({ params, searchParams }: { params: 
   const canAllTasks = hasPermission(actor, "tasks.all");
   const canBook = hasPermission(actor, "bookings.write");
   const canAssistant = hasPermission(actor, "assistant.read");
+  const canSell = hasPermission(actor, "commerce.sell");
   const { person, status } = data;
   const statusLabel = (s: string) => tr(`crm.enums.person_status.${s}`);
   const date = (d: Date | string | null | undefined) => (d ? formatDate(d, locale) : null);
@@ -103,11 +131,14 @@ export default async function Person360Page({ params, searchParams }: { params: 
   const now = new Date();
   const is = (...t: Tab[]) => t.includes(tab);
 
-  const [credits, stats, invoices, bookings, offers, orders, tasks, staff, enrolments, emails, automationsNode, timeline, segmentsOfPerson, consent, declarations, guardianVersion] = await Promise.all([
+  const [credits, stats, invoices, bookings, opportunities, recent, offers, orders, tasks, staff, enrolments, emails, automationsNode, timeline, segmentsOfPerson, consent, declarations, guardianVersion] = await Promise.all([
     safePanel(() => getPersonCreditSummary(db, person.id)),
     safePanel(() => getPersonStats(db, person.id)),
     safePanel(() => listInvoicesForPerson(db, person.id)),
-    when(is("overview", "bookings"), () => listPersonBookings(db, person.id, { limit: 20 })),
+    // ponytail: the latest 200 bookings feed the next visit, the bookings tab and the 12-month strip; page it if a client books more.
+    safePanel(() => listPersonBookings(db, person.id, { limit: 200 })),
+    safePanel(() => getPersonOpportunities(db, { personId: person.id, now })),
+    when(is("overview"), async () => toTimelineRows(db, (await getTimeline(db, { personId: person.id, limit: 5 })).items, locale)),
     when(is("overview", "bookings"), () => listOpenOffersForPerson(db, person.id)),
     when(is("payments"), () => listPersonOrders(db, person.id, { limit: 20 })),
     when(is("overview"), () => listTasks(db, { userId: actor.userId, scope: canAllTasks ? "all" : "mine", personId: person.id, status: "open" })),
@@ -144,44 +175,178 @@ export default async function Person360Page({ params, searchParams }: { params: 
   const isNew = now.getTime() - person.createdAt.getTime() < NEW_DAYS * 86_400_000;
   const tabHref = (t: Tab) => (t === "overview" ? `/admin/persons/${person.id}` : `/admin/persons/${person.id}?tab=${t}`) as Route;
 
-  // The KPI strip: visits, credits left, member until, spent and the open balance.
+  const erased = !!person.erasedAt;
+  const bookHref = `/admin/bookings/new?personId=${person.id}`;
+  const sellHref = `/admin/pos?personId=${person.id}`;
+  const bookAction = (label: string): Action | null => (canBook && !erased ? { href: bookHref, label } : null);
+  const sellAction = (label: string): Action | null => (canSell && !erased ? { href: sellHref, label } : null);
+  const brussels = (d: Date, o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat(locale, { timeZone: "Europe/Brussels", ...o }).format(d);
+  const dash = "–";
+
   const stat = stats.ok ? stats.value : null;
-  const creditOf = (k: string) => (credits.ok ? (credits.value.byKind.find((c) => c.kind === k)?.remainingUnits ?? 0) : 0);
-  const creditParts = [creditOf("day") ? tr("crm.persons.list.credits_day", { count: creditOf("day") }) : null, creditOf("night") ? tr("crm.persons.list.credits_night", { count: creditOf("night") }) : null].filter(Boolean);
-  const firstExpiry = credits.ok ? credits.value.byKind.filter((c) => c.kind !== "euro" && c.remainingUnits > 0 && c.nextExpiresAt).map((c) => c.nextExpiresAt!).sort((x, y) => x.getTime() - y.getTime())[0] : undefined;
   const membership = credits.ok ? credits.value.membership : null;
+  const pastDue = membership?.status === "past_due";
+  const client = opportunities.ok ? (opportunities.value?.client ?? null) : null;
   const openInvoices = invoices.ok ? invoices.value.filter((i) => i.kind === "invoice" && i.status === "open") : [];
   // Orders "op rekening" count too, unless they already have an (open) invoice counted above.
   const onAccount = await getPersonOpenAccount(db, person.id).catch(() => null);
   const uninvoiced = onAccount ? (await Promise.all(onAccount.orders.map(async (o) => ((await getInvoiceForOrder(db, o.orderId))?.status === "open" ? 0 : o.dueCents)))) : [];
   const openCents = openInvoices.reduce((s, i) => s + i.totalCents, 0) + uninvoiced.reduce((s, c) => s + c, 0);
-  const dash = "–";
-  const kpis: Kpi[] = [
+
+  // Reception warnings: what blocks or needs the desk before the visit.
+  const decl = data.reception.declarations;
+  const deskMissing: DeskAlert[] = [
+    ...(decl.termsAccepted ? [] : [{ key: "terms", tone: "bad" as const, text: reception.termsMissing }]),
+    ...(decl.healthDeclarationValid ? [] : [{ key: "health", tone: "bad" as const, text: reception.healthMissing, action: canWrite && !erased ? { href: `/admin/forms/enter?personId=${person.id}`, label: al("fill_health") } : null }]),
+    ...(data.reception.isMinor && !decl.guardianConsentValid ? [{ key: "guardian", tone: "bad" as const, text: reception.guardianMissing, action: canWrite && !erased ? { href: tabHref("details"), label: al("record_guardian") } : null }] : []),
+  ];
+  const alerts: DeskAlert[] = erased
+    ? []
+    : [
+        ...deskMissing,
+        ...(openCents > 0 ? [{ key: "balance", tone: "warn" as const, text: al("open_balance", { amount: money(openCents) }), action: { href: tabHref("payments"), label: al("view") } }] : []),
+        ...(pastDue ? [{ key: "past_due", tone: "warn" as const, text: al("past_due"), action: { href: tabHref("packages"), label: al("view") } }] : []),
+      ];
+
+  // The KPI row: next visit, credits, membership, spent and the open balance; an empty cell is a muted line with its action.
+  const live = (b: { status: string; startsAt: Date }) => b.startsAt.getTime() > now.getTime() && (b.status === "confirmed" || b.status === "reserved");
+  const upcoming = bookings.ok ? bookings.value.filter(live).sort((x, y) => x.startsAt.getTime() - y.startsAt.getTime()) : [];
+  const next = upcoming[0];
+  const whenLabel = (d: Date) => `${brussels(d, { weekday: "short", day: "numeric", month: "short" })} · ${formatTime(d, locale)}`;
+  const lastVisit = stat?.lastVisitAt ? kp("last_visit_on", { date: date(stat.lastVisitAt) ?? "" }) : null;
+  const packs = client
+    ? client.packages.filter((p) => p.total > 0).map((p) => ({ kind: p.kind, remaining: p.remaining, total: p.total, expires: p.remaining > 0 ? p.nextExpiresAt : null }))
+    : credits.ok
+      ? credits.value.byKind.filter((k) => k.kind !== "euro" && k.remainingUnits > 0).map((k) => ({ kind: k.kind, remaining: k.remainingUnits, total: null as number | null, expires: k.nextExpiresAt }))
+      : [];
+  const freeUnits = client?.membership?.freeLeft.reduce((s, f) => s + f.units, 0) ?? 0;
+  const euro = credits.ok ? (credits.value.byKind.find((k) => k.kind === "euro")?.remainingUnits ?? 0) : 0;
+  const memberEnds = client?.membership?.endsAt ?? membership?.periodEndAt ?? null;
+
+  const kpis: ProfileKpi[] = [
     {
-      key: "visits",
-      label: pl("visits"),
-      value: stat ? String(stat.visits) : dash,
-      ...(stat?.lastVisitAt || stat?.noShows ? { sub: [stat.lastVisitAt ? kp("last_visit_on", { date: date(stat.lastVisitAt) ?? "" }) : null, stat.noShows ? kp("no_shows", { count: stat.noShows }) : null].filter(Boolean).join(" · ") } : {}),
+      key: "next_visit",
+      label: kp("next_visit"),
       href: tabHref("bookings"),
+      body: !bookings.ok ? (
+        <KpiValue value={dash} />
+      ) : next ? (
+        <KpiValue value={<span className="first-letter:uppercase">{whenLabel(next.startsAt)}</span>} sub={textOf(next.title, locale)} />
+      ) : (
+        <>
+          <KpiEmpty text={kp("nothing_planned")} action={bookAction(kp("book"))} />
+          {lastVisit ? <span className="text-[0.75rem] text-muted-foreground">{lastVisit}</span> : null}
+        </>
+      ),
     },
-    { key: "credits", label: kp("credits"), value: credits.ok ? creditParts.join(" · ") || "0" : dash, ...(firstExpiry ? { sub: kp("expires_on", { date: date(firstExpiry) ?? "" }) } : {}), href: tabHref("packages") },
+    {
+      key: "credits",
+      label: kp("credits"),
+      href: tabHref("packages"),
+      body:
+        !credits.ok && !client ? (
+          <KpiValue value={dash} />
+        ) : packs.length || freeUnits || euro ? (
+          <span className="grid gap-1.5">
+            {packs.map((p) => (
+              <CreditMeter key={p.kind} label={kp(`credit_${p.kind}`)} remaining={p.remaining} total={p.total} sub={p.expires ? kp("expires_short", { date: date(p.expires) ?? "" }) : null} />
+            ))}
+            {euro ? (
+              <span className="flex items-baseline justify-between gap-2 text-[0.8125rem]">
+                <span className="text-muted-foreground">{kp("credit_euro")}</span>
+                <span className="font-semibold tabular-nums">{money(euro)}</span>
+              </span>
+            ) : null}
+            {freeUnits ? <span className="text-[0.75rem] text-muted-foreground">{kp("free_member", { count: freeUnits })}</span> : null}
+          </span>
+        ) : (
+          <KpiEmpty text={kp("no_package")} action={sellAction(kp("sell_package"))} />
+        ),
+    },
     {
       key: "membership",
-      label: kp("membership_until"),
-      value: membership ? (date(membership.periodEndAt) ?? dash) : none,
-      ...(membership ? { sub: textOf(membership.planName, locale) } : {}),
-      ...(membership?.status === "past_due" ? { tone: "bad" as const } : {}),
+      label: kp("membership"),
       href: tabHref("packages"),
+      body: !credits.ok ? (
+        <KpiValue value={dash} />
+      ) : membership ? (
+        <KpiValue
+          value={memberEnds ? kp("member_until", { date: date(memberEnds) ?? "" }) : dash}
+          tone={pastDue ? "bad" : undefined}
+          sub={[textOf(membership.planName, locale), pastDue ? kp("past_due") : client?.membership ? kp(client.membership.renews ? "renews" : "ends") : null].filter(Boolean).join(" · ")}
+        />
+      ) : (
+        <KpiEmpty text={kp("no_membership")} action={sellAction(kp("sell_membership"))} />
+      ),
     },
-    { key: "spent", label: kp("spent"), value: stat ? money(stat.revenueCents) : dash, ...(stat ? { sub: kp("purchases", { count: stat.purchases }) } : {}), href: tabHref("payments") },
+    {
+      key: "spent",
+      label: kp("spent"),
+      href: tabHref("payments"),
+      body: !stat ? (
+        stats.ok ? <KpiEmpty text={kp("nothing_spent")} /> : <KpiValue value={dash} />
+      ) : stat.revenueCents > 0 ? (
+        <KpiValue value={money(stat.revenueCents)} sub={stat.visits ? kp("spent_sub", { visits: stat.visits, avg: money(Math.round(stat.revenueCents / stat.visits)) }) : kp("purchases", { count: stat.purchases })} />
+      ) : (
+        <KpiEmpty text={kp("nothing_spent")} />
+      ),
+    },
     {
       key: "balance",
-      label: kp("balance"),
-      value: invoices.ok ? money(openCents) : dash,
-      ...(openCents > 0 ? { sub: [openInvoices.length ? kp("open_invoices", { count: openInvoices.length }) : null, onAccount?.orders.length ? tr("commerce.open_account.short", { count: onAccount.orders.length }) : null].filter(Boolean).join(" · "), tone: "warn" as const } : {}),
+      label: kp("open"),
       href: tabHref("payments"),
+      body: !invoices.ok ? (
+        <KpiValue value={dash} />
+      ) : openCents > 0 ? (
+        <KpiValue
+          value={money(openCents)}
+          tone="warn"
+          sub={[openInvoices.length ? kp("open_invoices", { count: openInvoices.length }) : null, onAccount?.orders.length ? tr("commerce.open_account.short", { count: onAccount.orders.length }) : null].filter(Boolean).join(" · ")}
+        />
+      ) : (
+        <KpiEmpty text={kp("nothing_open")} />
+      ),
     },
   ];
+
+  // The "⋯" menu: every secondary action, each behind its own permission.
+  const menu: PersonMenuItem[] = [
+    ...(canWrite ? [{ key: "edit", href: `/admin/persons/${person.id}/edit`, label: a("edit") }] : []),
+    ...(canSell && !erased ? [{ key: "sell", href: sellHref, label: a("sell_pos") }] : []),
+    ...(!erased ? [{ key: "task", href: `/admin/persons/${person.id}?task=new`, label: a("new_task") }] : []),
+    ...(canMerge ? [{ key: "merge", href: "/admin/persons/duplicates", label: a("merge_with"), separated: true }] : []),
+  ];
+
+  // Overview: next visits, follow-up (the dashboard's opportunities), recent activity, visit strip.
+  const visitRow = (b: (typeof upcoming)[number]): VisitRowView => ({
+    id: b.bookingId,
+    href: `/admin/bookings/${b.bookingId}`,
+    weekday: brussels(b.startsAt, { weekday: "short" }).replace(/\.$/, ""),
+    day: brussels(b.startsAt, { day: "numeric" }),
+    month: brussels(b.startsAt, { month: "long" }),
+    time: formatTime(b.startsAt, locale),
+    title: textOf(b.title, locale),
+    meta: [tr(`booking.kind.${b.kind}`), b.isGuest ? col("guest") : null].filter(Boolean).join(" · "),
+    pill: b.status === "reserved" ? { tone: "warn", label: tr(`booking.status.${b.status}`) } : null,
+  });
+  const followUp = (o: Opportunity): FollowUp => {
+    const key = `${o.key}${o.kind ? `:${o.kind}` : ""}`;
+    const on = date(o.date) ?? "";
+    if (o.key === "first_visit") return { key, text: fu("first_visit"), action: canWrite && !erased ? { href: tabHref("timeline"), label: a("add_note") } : null };
+    if (o.key === "package_low") return { key, text: fu(o.units ? "package_low" : "package_used_up", { kind: o.kind ?? "day" }), action: sellAction(fu("sell_package")) };
+    if (o.key === "package_expiring") return { key, text: fu("package_expiring", { units: o.units ?? 0, date: on }), action: bookAction(ov("book_session")) };
+    if (o.key === "membership_renewal") return { key, text: fu("membership_renewal", { date: on }), action: { href: tabHref("packages"), label: fu("view_membership") } };
+    return { key, text: fu("free_session_unused", { units: o.units ?? 0 }), action: bookAction(ov("book_session")) };
+  };
+  const months = bookings.ok
+    ? visitsByMonth(
+        bookings.value.filter((b) => b.status === "attended" && !b.isGuest).map((b) => b.startsAt),
+        now,
+        locale,
+      )
+    : [];
+  const monthName = (key: string) => new Intl.DateTimeFormat(locale, { timeZone: "UTC", month: "long", year: "numeric" }).format(new Date(`${key}-15T12:00:00Z`));
+  const whatsapp = normalisePhone(person.phone)?.slice(1) ?? null;
 
   const staffList = staff.ok ? staff.value : [];
   const self = staffList.find((s) => s.userId === actor.userId);
@@ -207,7 +372,6 @@ export default async function Person360Page({ params, searchParams }: { params: 
     },
     pill: { tone: BOOKING_TONE[b.status] ?? "muted", label: tr(`booking.status.${b.status}`) },
   });
-  const upcoming = bookings.ok ? bookings.value.filter((b) => b.startsAt.getTime() > now.getTime() && (b.status === "confirmed" || b.status === "reserved")).sort((x, y) => x.startsAt.getTime() - y.startsAt.getTime()) : [];
   const offerRows = rowsOr(offers, (o) => ({ id: o.entryId, cells: { session: textOf(o.title, locale), date: date(o.startsAt), until: date(o.offerExpiresAt) } }));
   const offerColumns = [
     { key: "session", label: col("session") },
@@ -231,16 +395,14 @@ export default async function Person360Page({ params, searchParams }: { params: 
       ) : null}
 
       <BackLink href="/admin/persons">{tr("crm.persons.list.title")}</BackLink>
-      <div data-testid="person-header">
-        <PageHeader
-          title={person.name || "—"}
-          description={
-            <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              <span className="tabular-nums">{h("customer_number", { customerNumber: person.customerNumber })}</span>
-              {person.email ? <span>· {person.email}</span> : null}
-              {person.phone ? <span className="tabular-nums">· {person.phone}</span> : null}
+      <header data-testid="person-header" className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+        <div className="flex min-w-0 items-center gap-3.5">
+          <PersonAvatar id={person.id} name={person.name} className="size-12 text-[0.9375rem]" />
+          <div className="grid min-w-0 gap-1">
+            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+              <h1 className="min-w-0 truncate">{person.name || "—"}</h1>
               <StatusPill tone={status.status === "member" ? "ok" : status.status === "lead" ? "info" : "muted"} className={status.override ? "ring-1 ring-current ring-inset" : undefined}>
-                <span data-testid="person-status" title={status.override ? h("status_derived", { status: statusLabel(status.derivedStatus) }) : undefined}>
+                <span data-testid="person-status" title={status.override ? [h("status_override", { status: statusLabel(status.override) }), h("status_derived", { status: statusLabel(status.derivedStatus) })].join(" · ") : undefined}>
                   {statusLabel(status.status)}
                 </span>
               </StatusPill>
@@ -250,28 +412,28 @@ export default async function Person360Page({ params, searchParams }: { params: 
                   <span data-testid="person-corporate">{h("corporate")}</span>
                 </StatusPill>
               ) : null}
-              {person.isTester ? <StatusPill tone="muted">{h("tester")}</StatusPill> : null}
               {data.reception.isMinor ? <StatusPill tone="warn">{h("minor")}</StatusPill> : null}
               {isNew ? <StatusPill tone="info">{h("new")}</StatusPill> : null}
-              {status.override ? <span className="text-[0.75rem]">{[h("status_override", { status: statusLabel(status.override) }), h("status_derived", { status: statusLabel(status.derivedStatus) })].join(" · ")}</span> : null}
-            </span>
-          }
-          actions={
-            <>
-              {canWrite ? <SecondaryAction href={`/admin/persons/${person.id}/edit` as Route}>{a("edit")}</SecondaryAction> : null}
-              {canMerge ? <SecondaryAction href="/admin/persons/duplicates">{a("merge_with")}</SecondaryAction> : null}
-              {canBook && !person.erasedAt ? <PrimaryAction href={`/admin/bookings/new?personId=${person.id}` as Route}>+ {a("book")}</PrimaryAction> : null}
-            </>
-          }
-        />
-      </div>
+              {person.isTester ? <StatusPill tone="muted">{h("tester")}</StatusPill> : null}
+            </div>
+            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[0.8125rem] text-muted-foreground">
+              <span className="tabular-nums">{h("customer_number", { customerNumber: person.customerNumber })}</span>
+              <ContactLinks email={person.email} phone={person.phone} whatsapp={whatsapp} labels={{ email: h("contact_email"), call: h("contact_call"), whatsapp: h("contact_whatsapp") }} />
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {canBook && !erased ? <PrimaryAction href={bookHref as Route}>{a("book_short")}</PrimaryAction> : null}
+          <PersonActionsMenu label={h("more_actions")} items={menu} />
+        </div>
+      </header>
 
       {person.erasedAt ? <Notice tone="bad">{tr("crm.person360.banners.erased")}</Notice> : null}
       {person.processingRestrictedAt ? <Notice tone="warn">{tr("crm.person360.banners.restricted")}</Notice> : null}
+      <DeskAlerts title={al("title")} items={alerts} />
 
-      <KpiStrip items={kpis} data-testid="kpi-strip" aria-label={pl("kpis")} />
+      <ProfileKpis label={pl("kpis")} items={kpis} />
 
-      <PersonOpenAccount personId={person.id} locale={locale} />
       <div className="overflow-x-auto">
         <Segmented label={tr("crm.person360.tabs.label")} items={TABS.map((t) => ({ key: t, label: tr(`crm.person360.tabs.${t}`), href: tabHref(t), active: t === tab }))} />
       </div>
@@ -279,36 +441,40 @@ export default async function Person360Page({ params, searchParams }: { params: 
       {tab === "overview" ? (
         <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
           <div className="grid gap-4">
-            <Panel title={pl("upcoming")} testId="panel-bookings" flush action={{ href: tabHref("bookings"), label: pl("all_bookings") }}>
-              <PanelTable
-                caption={pl("upcoming")}
-                columns={[
-                  { key: "date", label: col("date"), className: "w-48" },
-                  { key: "session", label: col("session") },
-                  { key: "kind", label: col("kind"), className: "w-28" },
-                  { key: "pill", label: col("status"), className: "w-28" },
-                ]}
-                rows={bookings.ok ? upcoming.slice(0, 5).map(bookingRow) : null}
-                empty={pl("no_upcoming")}
-                notAvailable={na}
-              />
+            <Panel title={ov("next_visits")} testId="panel-bookings" flush action={{ href: tabHref("bookings"), label: pl("all_bookings") }}>
+              {bookings.ok ? (
+                <VisitList rows={upcoming.slice(0, 5).map(visitRow)} empty={<KpiEmpty text={ov("nothing_planned")} action={bookAction(ov("book_session"))} />} />
+              ) : (
+                <div className="px-5 py-4">
+                  <NotAvailable label={na} />
+                </div>
+              )}
             </Panel>
             {offers.ok && offers.value.length ? (
               <Panel title={pl("waitlist")} testId="panel-waitlist" flush>
                 <PanelTable caption={pl("waitlist")} columns={offerColumns} rows={offerRows} empty={none} notAvailable={na} />
               </Panel>
             ) : null}
-            <section className="grid gap-2" aria-labelledby="tasks-heading">
-              <h2 id="tasks-heading" className="text-[0.875rem] font-semibold">
-                {pl("tasks")}
-              </h2>
-              {tasks.ok ? (
-                <TaskList tasks={tasks.value.map((t) => toTaskView(t, locale, tr))} currentUserId={actor.userId} canAssignOthers={canAllTasks} owners={owners} personId={person.id} labels={taskListLabels(tr)} compact />
+            <Panel title={ov("followup")} testId="panel-followup" flush>
+              {opportunities.ok && opportunities.value ? (
+                <FollowUpList items={opportunities.value.opportunities.map(followUp)} empty={ov("followup_none")} />
               ) : (
-                <NotAvailable label={na} />
+                <div className="px-5 py-3">
+                  <NotAvailable label={na} />
+                </div>
               )}
-            </section>
+            </Panel>
+            <Panel title={ov("recent")} testId="panel-recent" flush action={{ href: tabHref("timeline"), label: ov("full_timeline") }}>
+              {recent.ok ? (
+                <ActivityList rows={recent.value.map((r) => ({ id: r.id, occurredAt: r.occurredAt, time: r.timeLabel, category: r.categoryLabel, summary: r.summary }))} empty={ov("recent_empty")} />
+              ) : (
+                <div className="px-5 py-3">
+                  <NotAvailable label={na} />
+                </div>
+              )}
+            </Panel>
           </div>
+          <div className="grid content-start gap-4">
           <PersonFacts
             view={{
               email: person.email,
@@ -327,7 +493,7 @@ export default async function Person360Page({ params, searchParams }: { params: 
               companies: data.companies.map((co) => ({ id: co.companyId, name: co.name, position: co.position })),
               tags: data.tags.map((t) => ({ key: t.key, label: textOf(t.name, locale) || t.key, color: t.color })),
               emergencyContact: person.emergencyContact,
-              reception: data.reception,
+              desk: { ok: deskMissing.length === 0, label: deskMissing.length ? al("desk_open", { count: deskMissing.length }) : al("desk_ok") },
             }}
             labels={{
               title: pl("facts"),
@@ -346,9 +512,40 @@ export default async function Person360Page({ params, searchParams }: { params: 
               tags: a("tag"),
               birthOn: h("birth_on"),
               desk: h("desk"),
-              reception,
             }}
           />
+            <section aria-labelledby="tasks-heading" className="overflow-hidden rounded-xl border border-border bg-card">
+              {tasks.ok ? (
+                <TaskList
+                  tasks={tasks.value.map((t) => toTaskView(t, locale, tr))}
+                  currentUserId={actor.userId}
+                  canAssignOthers={canAllTasks}
+                  owners={owners}
+                  personId={person.id}
+                  labels={taskListLabels(tr)}
+                  dense={{ title: pl("tasks"), headingId: "tasks-heading" }}
+                  openCreate={sp.task === "new"}
+                />
+              ) : (
+                <div className="grid gap-2 px-5 py-3">
+                  <h2 id="tasks-heading" className="text-[0.875rem] font-semibold">
+                    {pl("tasks")}
+                  </h2>
+                  <NotAvailable label={na} />
+                </div>
+              )}
+            </section>
+            <PersonOpenAccount personId={person.id} locale={locale} />
+            {months.length ? (
+              <div className="rounded-xl border border-border bg-card px-5 py-4">
+                <VisitsStrip
+                  label={[ov("visits_strip"), stat?.noShows ? kp("no_shows", { count: stat.noShows }) : null].filter(Boolean).join(" · ")}
+                  months={months}
+                  title={(m) => ov("visits_month", { month: monthName(m.key), count: m.count })}
+                />
+              </div>
+            ) : null}
+          </div>
         </div>
       ) : null}
 
@@ -363,7 +560,7 @@ export default async function Person360Page({ params, searchParams }: { params: 
                 { key: "kind", label: col("kind"), className: "w-28" },
                 { key: "pill", label: col("status"), className: "w-36" },
               ]}
-              rows={rowsOr(bookings, bookingRow)}
+              rows={bookings.ok ? bookings.value.slice(0, 50).map(bookingRow) : null}
               empty={none}
               notAvailable={na}
             />
@@ -394,6 +591,7 @@ export default async function Person360Page({ params, searchParams }: { params: 
         </div>
       ) : null}
 
+      {tab === "payments" ? <PersonOpenAccount personId={person.id} locale={locale} /> : null}
       {tab === "payments" ? (
         <div className="grid items-start gap-4 lg:grid-cols-2">
           <Panel title={pl("orders")} testId="panel-orders" flush>

@@ -161,12 +161,11 @@ test.describe.serial("invoices from purchase to report", () => {
     const exportsPage = await page.goto("/admin/finance/exports");
     test.skip(exportsPage?.status() === 404, "the exports screen lands with finance-P7");
     const day = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Brussels" });
-    // The form's own ids: the kind is labelled "Export", and /Van|From/ or /Tot|To/ match other text.
-    await page.locator("#export-kind").selectOption("invoices");
+    // The period's own ids (/Van|From/ or /Tot|To/ match other text); each file has its own Export button.
     await page.locator("#export-from").fill(day);
     await page.locator("#export-to").fill(day);
     const posted = page.waitForResponse((r) => r.request().method() === "POST");
-    await page.locator('form:has(#export-kind) button[type="submit"]').click();
+    await page.locator('button[type="submit"][name="kind"][value="invoices"]').click();
     await posted;
     const [exp] = await e2eRows<{ id: string }>(sql`select id from finance_exports where kind = 'invoices' order by created_at desc limit 1`);
     await expect.poll(async () => (await e2eRows<{ status: string }>(sql`select status from finance_exports where id = ${exp!.id}::uuid`))[0]?.status, { timeout: 60_000 }).toBe("done");

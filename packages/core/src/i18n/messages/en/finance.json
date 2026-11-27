@@ -286,7 +286,10 @@
         "identity_missing": "Invoices are missing issuer details: {fields}.",
         "retry_all": "Retry all failed",
         "rerender_blocked": "Re-render all blocked PDFs",
-        "view_all": "View"
+        "view_all": "View",
+        "subtitle": "What was invoiced today and this month, what is still outstanding, and what needs follow-up.",
+        "checks": "Follow-up",
+        "col_state": "State"
       },
       "invoices": {
         "title": "Invoices and credit notes",
@@ -312,7 +315,25 @@
         "pdf_ready": "PDF ready",
         "pdf_missing": "No PDF",
         "export": "Export CSV of this filter",
-        "export_queued": "The export is being prepared."
+        "export_queued": "The export is being prepared.",
+        "subtitle": "Every paid order creates an invoice automatically; credit notes correct it. Click a row to open the document.",
+        "export_short": "Export CSV",
+        "more": "More",
+        "kpi_month": "Invoiced this month",
+        "kpi_month_sub": "{count} invoices, excl. VAT",
+        "kpi_open": "Outstanding",
+        "kpi_count": "{count} invoices",
+        "notice_requests": "{count} company invoice requests are waiting for a decision.",
+        "notice_requests_action": "Review",
+        "search_placeholder": "Search by number or customer",
+        "period": "Period",
+        "period_all": "All",
+        "period_this_month": "This month",
+        "period_last_month": "Last month",
+        "period_this_year": "This year",
+        "period_last_year": "Last year",
+        "filters": "Filters",
+        "due": "due {date}"
       },
       "detail": {
         "back": "Back to invoices",
@@ -379,7 +400,8 @@
         "col_reference": "Reference",
         "emailed_at": "Last emailed",
         "last_reminder": "Last reminder",
-        "actions": "Actions"
+        "actions": "Actions",
+        "info": "Details"
       },
       "credit_note": {
         "open": "Issue credit note",
@@ -466,7 +488,8 @@
         "last_failure": "Last failed call",
         "never": "Never",
         "run_now": "Run reconcile now",
-        "run_queued": "The reconcile is queued."
+        "run_queued": "The reconcile is queued.",
+        "subtitle": "Documents not yet in Billit, and the daily reconciliation between BEAM and Billit."
       },
       "requests": {
         "title": "Company invoice requests",
@@ -489,7 +512,8 @@
         "approved": "Approved: new invoice issued.",
         "rejected": "The request is rejected.",
         "show_all": "Show all requests",
-        "show_open": "Show open requests"
+        "show_open": "Show open requests",
+        "subtitle": "Customers asking for their invoice in a company's name. Approving issues a credit note and a new company invoice."
       },
       "settings": {
         "title": "Invoicing settings",
@@ -529,7 +553,8 @@
         "col_complete": "Completeness",
         "note_complete": "Complete",
         "note_incomplete": "Missing: {locales}",
-        "no_notes": "No VAT notes configured."
+        "no_notes": "No VAT notes configured.",
+        "subtitle": "What the next invoice will carry: the seller details, the payment terms and the integrations."
       },
       "exports": {
         "title": "Accountant exports",
@@ -568,7 +593,20 @@
         "status_queued": "Queued",
         "status_running": "Running",
         "status_done": "Ready",
-        "status_failed": "Failed"
+        "status_failed": "Failed",
+        "files_caption": "Files for the accountant",
+        "col_file": "File",
+        "col_last": "Last export",
+        "export": "Export",
+        "history": "Recent exports",
+        "view_screen": "View on screen",
+        "desc_invoices": "One row per invoice and credit note of the period: number, date, customer, amounts and status.",
+        "desc_invoice_lines": "One row per document line: description, quantity, VAT rate and amounts.",
+        "desc_vat_summary": "VAT per month, document kind and rate: net, VAT and gross.",
+        "desc_payments": "Payments received per day, and the money returned through credit notes.",
+        "desc_deferred_revenue": "Unused paid credits on the last day of the period, per kind, VAT treatment and rate.",
+        "desc_breakage": "Per month: credits used, expired unused and revoked.",
+        "desc_voucher_redemptions": "Every euro credit spend with the invoice number of the order."
       },
       "dashboard": {
         "title": "Finance dashboard",
@@ -739,7 +777,8 @@
         "export_breakage": "Export breakage",
         "export_voucher_redemptions": "Export voucher redemptions",
         "export_requested": "Export queued. Download it from Exports in a moment.",
-        "open_exports": "Open exports"
+        "open_exports": "Open exports",
+        "open_order": "Open order"
       }
     },
     "portal": {

@@ -1,6 +1,5 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { Badge, Button, Input } from "@beam/ui";
+import { Button, cn, Input } from "@beam/ui";
 import { formatDate, formatDateTime, formatMoney, t } from "@beam/core/i18n";
 import { hasPermission, requireStaff } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
@@ -8,10 +7,12 @@ import { adminLocale, translator } from "@/lib/i18n";
 import { uploadLightspeedCsv } from "@/modules/commerce/actions";
 import { businessDayOf } from "@/modules/commerce/queries";
 import { LIGHTSPEED_MAX_BYTES, getLightspeedDaily, listLightspeedImports } from "@/modules/commerce/queries";
+import { PageHeader, StatusPill, Surface, Toolbar, td, th, type Tone } from "@/modules/platform/ui/admin-kit";
+import { BackLink, fieldClass, Notice } from "@/modules/platform/ui/admin-list-kit";
 
 type Search = Record<string, string | undefined>;
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
-const STATUS_VARIANT = { uploaded: "outline", running: "secondary", done: "success", failed: "destructive" } as const;
+const STATUS_TONE: Record<string, Tone> = { uploaded: "muted", running: "info", done: "ok", failed: "bad" };
 
 /** `day` minus `n` calendar days (`YYYY-MM-DD`, no time zone involved). */
 function daysBefore(day: string, n: number): string {
@@ -24,6 +25,7 @@ function daysBefore(day: string, n: number): string {
  * Staff with `commerce.sell` upload the daily sales CSV exported from the Lightspeed back office;
  * the list shows every import with its status, period and counts, and the rows it could not
  * read. Staff with `reports.finance` see the daily totals by category (`v_lightspeed_daily`).
+ * A one-off import, out of the menu (owner review November 2026): linked from the day close.
  */
 export default async function LightspeedPage({ searchParams }: { searchParams: Promise<Search> }) {
   const actor = await requireStaff();
@@ -54,28 +56,23 @@ export default async function LightspeedPage({ searchParams }: { searchParams: P
   }
 
   return (
-    <div className="grid max-w-5xl gap-6">
-      <header className="grid gap-1">
-        <Link href="/admin/pos" className="text-sm underline">
-          {c("back_to_pos")}
-        </Link>
-        <h1 className="text-2xl font-semibold">{c("title")}</h1>
-        <p className="text-sm text-muted-foreground">{c("intro")}</p>
-      </header>
+    <div className="grid max-w-5xl gap-4">
+      {canUpload ? <BackLink href="/admin/pos/day">{tr("commerce.nav.pos_day")}</BackLink> : null}
+      <PageHeader title={c("title")} description={c("intro")} />
 
-      <div role="status" aria-live="polite">
-        {sp.error ? <p className="rounded-md border border-destructive p-3 text-sm">{c("upload_failed", { message: errorText(sp.error) })}</p> : null}
-        {sp.uploaded ? <p className="rounded-md border p-3 text-sm">{c("uploaded")}</p> : null}
+      <div role="status" aria-live="polite" className="grid gap-2 empty:hidden">
+        {sp.error ? <Notice tone="bad">{c("upload_failed", { message: errorText(sp.error) })}</Notice> : null}
+        {sp.uploaded ? <Notice tone="ok">{c("uploaded")}</Notice> : null}
       </div>
 
       {canUpload ? (
-        <section aria-labelledby="lightspeed-upload" className="grid gap-2 rounded-md border p-4">
-          <h2 id="lightspeed-upload" className="text-lg font-semibold">
+        <Surface aria-labelledby="lightspeed-upload" className="grid gap-2 p-4">
+          <h2 id="lightspeed-upload" className="text-[0.9375rem] font-semibold">
             {c("upload_title")}
           </h2>
-          <p className="text-sm text-muted-foreground">{c("upload_hint", { size: Math.round(LIGHTSPEED_MAX_BYTES / 1024 / 1024) })}</p>
+          <p className="text-[0.75rem] text-muted-foreground">{c("upload_hint", { size: Math.round(LIGHTSPEED_MAX_BYTES / 1024 / 1024) })}</p>
           <form action={onUpload} className="flex flex-wrap items-end gap-2">
-            <label className="grid gap-1 text-sm">
+            <label className="grid gap-1 text-[0.8125rem]">
               <span>{c("file")}</span>
               <Input type="file" name="file" accept=".csv,text/csv" required className="h-11 w-80" />
             </label>
@@ -83,33 +80,35 @@ export default async function LightspeedPage({ searchParams }: { searchParams: P
               {c("upload")}
             </Button>
           </form>
-        </section>
+        </Surface>
       ) : null}
 
       <section aria-labelledby="lightspeed-imports" className="grid gap-2">
-        <h2 id="lightspeed-imports" className="text-lg font-semibold">
+        <h2 id="lightspeed-imports" className="text-[0.9375rem] font-semibold">
           {c("imports_title")}
         </h2>
         {imports.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{c("empty")}</p>
+          <Notice tone="muted">{c("empty")}</Notice>
         ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b text-left">
-                <th scope="col" className="py-1">{c("col_uploaded")}</th>
-                <th scope="col" className="py-1">{c("col_file")}</th>
-                <th scope="col" className="py-1">{c("col_status")}</th>
-                <th scope="col" className="py-1">{c("col_period")}</th>
-                <th scope="col" className="py-1 text-right">{c("col_rows")}</th>
-                <th scope="col" className="py-1 text-right">{c("col_imported")}</th>
-                <th scope="col" className="py-1 text-right">{c("col_skipped")}</th>
+          <Surface flush>
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[48rem] text-[0.8125rem]">
+            <thead className="bg-[#faf9f6]">
+              <tr className="border-b border-border">
+                <th scope="col" className={cn(th, "w-40")}>{c("col_uploaded")}</th>
+                <th scope="col" className={th}>{c("col_file")}</th>
+                <th scope="col" className={cn(th, "w-24")}>{c("col_status")}</th>
+                <th scope="col" className={cn(th, "w-48")}>{c("col_period")}</th>
+                <th scope="col" className={cn(th, "w-20 text-right")}>{c("col_rows")}</th>
+                <th scope="col" className={cn(th, "w-24 text-right")}>{c("col_imported")}</th>
+                <th scope="col" className={cn(th, "w-24 text-right")}>{c("col_skipped")}</th>
               </tr>
             </thead>
             <tbody>
               {imports.map((imp) => (
-                <tr key={imp.id} className="border-b align-top">
-                  <td className="py-2">{formatDateTime(imp.createdAt, locale, "short")}</td>
-                  <td className="py-2">
+                <tr key={imp.id} className="border-b border-border align-top last:border-b-0">
+                  <td className={cn(td, "whitespace-nowrap")}>{formatDateTime(imp.createdAt, locale, "short")}</td>
+                  <td className={td}>
                     <span className="break-all">{imp.fileName}</span>
                     {imp.errors.length ? (
                       <details className="mt-1 text-xs text-muted-foreground">
@@ -122,76 +121,82 @@ export default async function LightspeedPage({ searchParams }: { searchParams: P
                       </details>
                     ) : null}
                   </td>
-                  <td className="py-2">
-                    <Badge variant={STATUS_VARIANT[imp.status]}>{c(`status_${imp.status}`)}</Badge>
+                  <td className={td}>
+                    <StatusPill tone={STATUS_TONE[imp.status] ?? "muted"}>{c(`status_${imp.status}`)}</StatusPill>
                   </td>
-                  <td className="py-2">
+                  <td className={cn(td, "whitespace-nowrap")}>
                     {imp.businessFromOn && imp.businessToOn
                       ? imp.businessFromOn === imp.businessToOn
                         ? formatDate(imp.businessFromOn, locale, "medium")
                         : c("period", { from: formatDate(imp.businessFromOn, locale, "medium"), to: formatDate(imp.businessToOn, locale, "medium") })
                       : "–"}
                   </td>
-                  <td className="py-2 text-right tabular-nums">{imp.rowsTotal}</td>
-                  <td className="py-2 text-right tabular-nums">{imp.rowsImported}</td>
-                  <td className="py-2 text-right tabular-nums">{imp.rowsSkipped}</td>
+                  <td className={cn(td, "text-right tabular-nums")}>{imp.rowsTotal}</td>
+                  <td className={cn(td, "text-right tabular-nums")}>{imp.rowsImported}</td>
+                  <td className={cn(td, "text-right tabular-nums", imp.rowsSkipped > 0 && "text-[var(--status-warn)]")}>{imp.rowsSkipped}</td>
                 </tr>
               ))}
             </tbody>
           </table>
+          </div>
+          </Surface>
         )}
       </section>
 
       {canView ? (
         <section aria-labelledby="lightspeed-daily" className="grid gap-2">
-          <h2 id="lightspeed-daily" className="text-lg font-semibold">
+          <h2 id="lightspeed-daily" className="text-[0.9375rem] font-semibold">
             {c("daily_title")}
           </h2>
-          <form data-auto-filter="" method="get" className="flex flex-wrap items-end gap-2">
-            <label className="grid gap-1 text-sm">
-              <span>{c("from")}</span>
-              <Input type="date" name="from" defaultValue={from} max={to} className="h-11 w-48" />
-            </label>
-            <label className="grid gap-1 text-sm">
-              <span>{c("to")}</span>
-              <Input type="date" name="to" defaultValue={to} className="h-11 w-48" />
-            </label>
+          <form data-auto-filter="" method="get">
+            <Toolbar>
+              <label className="flex items-center gap-2 text-[0.8125rem]">
+                <span className="text-muted-foreground">{c("from")}</span>
+                <input type="date" name="from" defaultValue={from} max={to} className={cn(fieldClass, "w-40")} />
+              </label>
+              <label className="flex items-center gap-2 text-[0.8125rem]">
+                <span className="text-muted-foreground">{c("to")}</span>
+                <input type="date" name="to" defaultValue={to} className={cn(fieldClass, "w-40")} />
+              </label>
+            </Toolbar>
           </form>
           {daily.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{c("daily_empty")}</p>
+            <Notice tone="muted">{c("daily_empty")}</Notice>
           ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-left">
-                  <th scope="col" className="py-1">{c("col_day")}</th>
-                  <th scope="col" className="py-1">{c("col_category")}</th>
-                  <th scope="col" className="py-1 text-right">{c("col_total")}</th>
-                  <th scope="col" className="py-1 text-right">{c("col_vat")}</th>
-                  <th scope="col" className="py-1 text-right">{c("col_receipts")}</th>
+            <Surface flush>
+            <table className="w-full text-[0.8125rem]">
+              <thead className="bg-[#faf9f6]">
+                <tr className="border-b border-border">
+                  <th scope="col" className={cn(th, "w-40")}>{c("col_day")}</th>
+                  <th scope="col" className={th}>{c("col_category")}</th>
+                  <th scope="col" className={cn(th, "w-32 text-right")}>{c("col_total")}</th>
+                  <th scope="col" className={cn(th, "w-28 text-right")}>{c("col_vat")}</th>
+                  <th scope="col" className={cn(th, "w-24 text-right")}>{c("col_receipts")}</th>
                 </tr>
               </thead>
               <tbody>
                 {daily.map((r) => (
-                  <tr key={`${r.businessDayOn}-${r.category}`} className="border-b">
-                    <td className="py-2">{formatDate(r.businessDayOn, locale, "medium")}</td>
-                    <td className="py-2">{r.category}</td>
-                    <td className="py-2 text-right tabular-nums">{money(r.totalCents)}</td>
-                    <td className="py-2 text-right tabular-nums">{money(r.vatCents)}</td>
-                    <td className="py-2 text-right tabular-nums">{r.receipts}</td>
+                  <tr key={`${r.businessDayOn}-${r.category}`} className="border-b border-border">
+                    <td className={cn(td, "whitespace-nowrap")}>{formatDate(r.businessDayOn, locale, "medium")}</td>
+                    <td className={td}>{r.category}</td>
+                    <td className={cn(td, "text-right font-semibold tabular-nums")}>{money(r.totalCents)}</td>
+                    <td className={cn(td, "text-right tabular-nums")}>{money(r.vatCents)}</td>
+                    <td className={cn(td, "text-right tabular-nums")}>{r.receipts}</td>
                   </tr>
                 ))}
               </tbody>
-              <tfoot>
+              <tfoot className="bg-[#fcfbf9]">
                 <tr>
-                  <th scope="row" colSpan={2} className="py-2 text-left">
+                  <th scope="row" colSpan={2} className={cn(td, "text-left font-semibold")}>
                     {c("total")}
                   </th>
-                  <td className="py-2 text-right font-semibold tabular-nums">{money(totals.total)}</td>
-                  <td className="py-2 text-right font-semibold tabular-nums">{money(totals.vat)}</td>
-                  <td />
+                  <td className={cn(td, "text-right font-semibold tabular-nums")}>{money(totals.total)}</td>
+                  <td className={cn(td, "text-right font-semibold tabular-nums")}>{money(totals.vat)}</td>
+                  <td className={td} />
                 </tr>
               </tfoot>
             </table>
+            </Surface>
           )}
         </section>
       ) : null}

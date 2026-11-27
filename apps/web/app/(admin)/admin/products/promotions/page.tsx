@@ -1,15 +1,18 @@
+import type { Route } from "next";
 import Link from "next/link";
-import { Badge, buttonVariants, EmptyState, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@beam/ui";
+import { cn, EmptyState } from "@beam/ui";
 import { formatDate, formatMoney, type LocalizedText } from "@beam/core/i18n";
-import { cn } from "@beam/ui";
 import { requireStaff } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
 import { adminLocale, translator } from "@/lib/i18n";
 import { listPromotions, type PromotionState } from "@/modules/commerce/queries";
+import { PageHeader, PrimaryAction, Segmented, StatusPill, Surface, Toolbar, td, th } from "@/modules/platform/ui/admin-kit";
+import { rowClass, rowLink } from "@/modules/platform/ui/admin-list-kit";
+import { CatalogueSwitch } from "../catalogue-switch";
 
 const STATES: readonly PromotionState[] = ["active", "scheduled", "ended"];
 
-/** `/admin/products/promotions` (`pricing.write`): tabs active, scheduled, ended (commerce spec 5.1). */
+/** `/admin/products/promotions` (`pricing.write`): tabs active, scheduled, ended (commerce spec 5.1); a switch back to Producten. */
 export default async function PromotionsPage({ searchParams }: { searchParams: Promise<{ state?: string }> }) {
   await requireStaff({ permission: "pricing.write" });
   const sp = await searchParams;
@@ -21,75 +24,53 @@ export default async function PromotionsPage({ searchParams }: { searchParams: P
   const date = (d: Date) => formatDate(d, locale, "medium");
 
   return (
-    <div className="grid gap-6">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">{c("title")}</h1>
-        <div className="flex gap-2">
-          <Link href="/admin/products" className={buttonVariants({ variant: "outline" })}>
-            {tr("commerce.nav.products")}
-          </Link>
-          <Link href="/admin/products/promotions/new" className={buttonVariants()}>
-            {c("create")}
-          </Link>
-        </div>
-      </header>
-      <nav aria-label={c("title")} className="flex gap-1 border-b">
-        {STATES.map((s) => (
-          <Link
-            key={s}
-            href={`/admin/products/promotions?state=${s}`}
-            aria-current={s === state ? "page" : undefined}
-            className={cn("-mb-px border-b-2 px-3 py-2 text-sm", s === state ? "border-primary font-medium" : "border-transparent text-muted-foreground hover:text-foreground")}
-          >
-            {c(`tab_${s}`)}
-          </Link>
-        ))}
-      </nav>
+    <div className="grid gap-4">
+      <PageHeader title={c("title")} description={c("subtitle")} actions={<PrimaryAction href="/admin/products/promotions/new">+ {c("create")}</PrimaryAction>} />
+      <Toolbar>
+        <Segmented label={c("title")} items={STATES.map((s) => ({ key: s, label: c(`tab_${s}`), href: `/admin/products/promotions?state=${s}` as Route, active: s === state }))} />
+        <CatalogueSwitch active="promotions" tr={tr} />
+      </Toolbar>
       {rows.length === 0 ? (
-        <EmptyState
-          title={c("empty")}
-          action={
-            <Link href="/admin/products/promotions/new" className={buttonVariants()}>
-              {c("create")}
-            </Link>
-          }
-        />
+        <EmptyState title={c("empty")} action={<PrimaryAction href="/admin/products/promotions/new">+ {c("create")}</PrimaryAction>} />
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{c("col_code")}</TableHead>
-              <TableHead>{c("col_name")}</TableHead>
-              <TableHead>{c("col_value")}</TableHead>
-              <TableHead>{c("col_dates")}</TableHead>
-              <TableHead className="text-right">{c("col_uses")}</TableHead>
-              <TableHead className="text-right">{c("col_per_person")}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((p) => (
-              <TableRow key={p.id}>
-                <TableCell>
-                  <Link href={`/admin/products/promotions/${p.id}`} className="font-mono font-medium underline-offset-4 hover:underline">
-                    {p.code ?? c("automatic")}
-                  </Link>
-                  {p.code === null ? (
-                    <Badge variant="outline" className="ml-2">
-                      {c("automatic")}
-                    </Badge>
-                  ) : null}
-                </TableCell>
-                <TableCell>{(p.name as LocalizedText)[locale]?.trim() || "—"}</TableCell>
-                <TableCell>{p.kind === "percent" ? c("value_percent", { value: p.value }) : c("value_fixed", { amount: formatMoney(p.value, locale) })}</TableCell>
-                <TableCell>{p.endsAt ? c("dates_closed", { from: date(p.startsAt), until: date(p.endsAt) }) : c("dates_open", { from: date(p.startsAt) })}</TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {p.maxUses === null ? c("uses_unlimited", { used: p.usesCount }) : c("uses", { used: p.usesCount, max: p.maxUses })}
-                </TableCell>
-                <TableCell className="text-right tabular-nums">{p.maxUsesPerPerson ?? "—"}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <Surface flush data-testid="promotions-list">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[48rem] text-[0.8125rem]">
+              <caption className="sr-only">{c("title")}</caption>
+              <thead className="bg-[#faf9f6]">
+                <tr className="border-b border-border">
+                  <th scope="col" className={cn(th, "w-44")}>{c("col_code")}</th>
+                  <th scope="col" className={th}>{c("col_name")}</th>
+                  <th scope="col" className={cn(th, "w-44")}>{c("col_value")}</th>
+                  <th scope="col" className={cn(th, "w-56")}>{c("col_dates")}</th>
+                  <th scope="col" className={cn(th, "w-32 text-right")}>{c("col_uses")}</th>
+                  <th scope="col" className={cn(th, "w-24 text-right")}>{c("col_per_person")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((p) => (
+                  <tr key={p.id} className={rowClass}>
+                    <td className={cn(td, "font-semibold whitespace-nowrap")}>
+                      <Link href={`/admin/products/promotions/${p.id}`} className={cn(rowLink, "hover:underline")}>
+                        {p.code ?? c("automatic")}
+                      </Link>
+                    </td>
+                    <td className={td}>
+                      <span className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium">{(p.name as LocalizedText)[locale]?.trim() || "—"}</span>
+                        {p.code === null ? <StatusPill tone="gold">{c("automatic")}</StatusPill> : null}
+                      </span>
+                    </td>
+                    <td className={cn(td, "font-semibold tabular-nums")}>{p.kind === "percent" ? c("value_percent", { value: p.value }) : c("value_fixed", { amount: formatMoney(p.value, locale) })}</td>
+                    <td className={cn(td, "whitespace-nowrap text-muted-foreground")}>{p.endsAt ? c("dates_closed", { from: date(p.startsAt), until: date(p.endsAt) }) : c("dates_open", { from: date(p.startsAt) })}</td>
+                    <td className={cn(td, "text-right tabular-nums")}>{p.maxUses === null ? c("uses_unlimited", { used: p.usesCount }) : c("uses", { used: p.usesCount, max: p.maxUses })}</td>
+                    <td className={cn(td, "text-right tabular-nums")}>{p.maxUsesPerPerson ?? "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Surface>
       )}
     </div>
   );

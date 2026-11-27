@@ -59,6 +59,8 @@ export type ListInvoicesInput = {
   kind?: InvoiceKind;
   status?: InvoiceStatus;
   billitStatus?: BillitStatus;
+  /** Open invoices past their due date (Brussels today), as `v_finance_open_invoices` counts them. */
+  overdue?: boolean;
   isCompany?: boolean;
   q?: string;
   cursor?: string;
@@ -70,6 +72,7 @@ export type InvoiceRow = {
   number: string;
   kind: InvoiceKind;
   issuedOn: string;
+  dueOn: string | null;
   customerName: string | null;
   isCompany: boolean;
   totalCents: number;
@@ -104,6 +107,7 @@ export async function listInvoices(db: DbOrTx, input: ListInvoicesInput = {}): P
   if (input.kind) where.push(eq(invoices.kind, input.kind));
   if (input.status) where.push(eq(invoices.status, input.status));
   if (input.billitStatus) where.push(eq(invoices.billitStatus, input.billitStatus));
+  if (input.overdue) where.push(sql`${invoices.status} = 'open' and ${invoices.dueOn} < (now() at time zone 'Europe/Brussels')::date`);
   if (input.isCompany !== undefined) where.push(eq(invoices.isCompany, input.isCompany));
   const q = input.q?.trim();
   if (q) {
@@ -120,6 +124,7 @@ export async function listInvoices(db: DbOrTx, input: ListInvoicesInput = {}): P
       number: invoices.number,
       kind: invoices.kind,
       issuedOn: invoices.issuedOn,
+      dueOn: invoices.dueOn,
       issuedAt: invoices.issuedAt,
       customerName,
       isCompany: invoices.isCompany,

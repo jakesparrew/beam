@@ -57,6 +57,8 @@ describe("listInvoices", () => {
     expect(numbers((await listInvoices(h.db, { kind: "credit_note" })).rows)).toHaveLength(1);
     expect((await listInvoices(h.db, { kind: "credit_note" })).rows[0]).toMatchObject({ id: creditNoteId, kind: "credit_note" });
     expect((await listInvoices(h.db, { status: "open" })).rows.map((r) => r.id)).toEqual([open.invoiceId]);
+    // The open invoice fell due on 2026-10-01: overdue, with its due date on the row.
+    expect((await listInvoices(h.db, { overdue: true })).rows.map((r) => [r.id, r.dueOn])).toEqual([[open.invoiceId, "2026-10-01"]]);
     expect((await listInvoices(h.db, { status: "cancelled" })).rows.map((r) => r.id)).toEqual([b2c.invoiceId]);
     expect((await listInvoices(h.db, { billitStatus: "failed" })).rows.map((r) => r.id)).toEqual([company.invoiceId]);
     expect((await listInvoices(h.db, { isCompany: true })).rows.map((r) => r.id)).toEqual([company.invoiceId]);

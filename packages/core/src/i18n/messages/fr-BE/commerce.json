@@ -149,7 +149,11 @@
       "voucher_vat_zero": "Les bons cadeaux sont à 0 % de TVA.",
       "voucher_min_730": "Les bons cadeaux sont valables au moins 730 jours.",
       "custom_amount_range": "Entre 5 € et 1 000 €, minimum pas au-dessus du maximum.",
-      "both_or_neither": "Remplissez les deux champs de crédits inclus, ou aucun."
+      "both_or_neither": "Remplissez les deux champs de crédits inclus, ou aucun.",
+      "subtitle": "Le catalogue de la boutique et de la caisse : prix par public, TVA et où chaque produit est vendu.",
+      "search": "Rechercher par nom ou SKU",
+      "col_visible": "Vendu dans",
+      "catalogue": "Catalogue"
     },
     "admin_prices": {
       "title": "Historique des prix",
@@ -259,7 +263,8 @@
       "not_partner": "Cette entreprise n’est pas partenaire.",
       "partner_needs_code": "Une promotion partenaire nécessite un code.",
       "field_products_add": "Ajouter un produit",
-      "remove_product": "Retirer {name}"
+      "remove_product": "Retirer {name}",
+      "subtitle": "Codes de réduction et offres automatiques pour la boutique et la caisse."
     },
     "errors": {
       "sold_out": "C’est complet.",
@@ -740,7 +745,10 @@
       "create": "Créer la commande brouillon",
       "quote_title": "Prix",
       "choose_person": "Choisissez d’abord une personne.",
-      "person_search_hint": "Tapez un nom, une adresse e-mail ou un numéro de client"
+      "person_search_hint": "Tapez un nom, une adresse e-mail ou un numéro de client",
+      "subtitle": "Une commande est un paiement : un forfait, un abonnement, un produit ou une séance. Une place dans une séance (une réservation) se trouve sous Agenda > Réservations.",
+      "tab_attention": "À suivre",
+      "filters": "Filtres"
     },
     "admin_refund": {
       "title": "Rembourser la commande {reference}",
@@ -778,7 +786,9 @@
       "col_customer": "Client",
       "col_amount": "Montant",
       "col_since": "Depuis",
-      "open": "Ouvrir la commande {reference}"
+      "open": "Ouvrir la commande {reference}",
+      "col_problem": "Problème",
+      "subtitle": "Paiements échoués ou en attente, virements en retard et rétrofacturations. Chaque ligne ouvre la commande."
     },
     "pos": {
       "title": "Accueil",
@@ -902,7 +912,10 @@
       "reopen": "Rouvrir la journée",
       "reopened": "La journée est rouverte ; recomptez la caisse à la prochaine clôture.",
       "reopen_forbidden": "Seul le personnel autorisé à rembourser peut rouvrir une journée clôturée.",
-      "failed": "Non enregistré : {message}"
+      "failed": "Non enregistré : {message}",
+      "today": "Aujourd'hui",
+      "previous_day": "Jour précédent",
+      "next_day": "Jour suivant"
     },
     "resume": {
       "title": "Reprendre votre commande",

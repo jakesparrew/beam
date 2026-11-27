@@ -286,7 +286,10 @@
         "identity_missing": "Des données de l'émetteur manquent sur les factures : {fields}.",
         "retry_all": "Relancer tous les échecs",
         "rerender_blocked": "Établir à nouveau tous les PDF bloqués",
-        "view_all": "Voir"
+        "view_all": "Voir",
+        "subtitle": "Ce qui a été facturé aujourd'hui et ce mois-ci, ce qui reste à payer et ce qui demande un suivi.",
+        "checks": "Suivi",
+        "col_state": "État"
       },
       "invoices": {
         "title": "Factures et notes de crédit",
@@ -312,7 +315,25 @@
         "pdf_ready": "PDF prêt",
         "pdf_missing": "Pas de PDF",
         "export": "Exporter ce filtre en CSV",
-        "export_queued": "L'export est en préparation."
+        "export_queued": "L'export est en préparation.",
+        "subtitle": "Chaque commande payée crée automatiquement une facture ; les notes de crédit la corrigent. Cliquez sur une ligne pour ouvrir le document.",
+        "export_short": "Exporter en CSV",
+        "more": "Plus",
+        "kpi_month": "Facturé ce mois-ci",
+        "kpi_month_sub": "{count} factures, hors TVA",
+        "kpi_open": "En attente de paiement",
+        "kpi_count": "{count} factures",
+        "notice_requests": "{count} demandes de facture d'entreprise attendent une décision.",
+        "notice_requests_action": "Traiter",
+        "search_placeholder": "Rechercher par numéro ou client",
+        "period": "Période",
+        "period_all": "Toutes",
+        "period_this_month": "Ce mois-ci",
+        "period_last_month": "Le mois dernier",
+        "period_this_year": "Cette année",
+        "period_last_year": "L'année dernière",
+        "filters": "Filtres",
+        "due": "échéance {date}"
       },
       "detail": {
         "back": "Retour aux factures",
@@ -379,7 +400,8 @@
         "col_reference": "Référence",
         "emailed_at": "Dernier envoi par e-mail",
         "last_reminder": "Dernier rappel",
-        "actions": "Actions"
+        "actions": "Actions",
+        "info": "Informations"
       },
       "credit_note": {
         "open": "Émettre une note de crédit",
@@ -466,7 +488,8 @@
         "last_failure": "Dernier appel en échec",
         "never": "Jamais",
         "run_now": "Lancer le rapprochement",
-        "run_queued": "Le rapprochement est en file d'attente."
+        "run_queued": "Le rapprochement est en file d'attente.",
+        "subtitle": "Les documents pas encore dans Billit, et la réconciliation quotidienne entre BEAM et Billit."
       },
       "requests": {
         "title": "Demandes de facture d'entreprise",
@@ -489,7 +512,8 @@
         "approved": "Approuvée : nouvelle facture émise.",
         "rejected": "La demande est refusée.",
         "show_all": "Afficher toutes les demandes",
-        "show_open": "Afficher les demandes en attente"
+        "show_open": "Afficher les demandes en attente",
+        "subtitle": "Les clients qui demandent leur facture au nom d'une entreprise. Approuver crée une note de crédit et une nouvelle facture d'entreprise."
       },
       "settings": {
         "title": "Paramètres de facturation",
@@ -529,7 +553,8 @@
         "col_complete": "Complétude",
         "note_complete": "Complet",
         "note_incomplete": "Manquant : {locales}",
-        "no_notes": "Aucune mention TVA configurée."
+        "no_notes": "Aucune mention TVA configurée.",
+        "subtitle": "Ce que la prochaine facture mentionnera : les données du vendeur, le délai de paiement et les connexions."
       },
       "exports": {
         "title": "Exports pour le comptable",
@@ -568,7 +593,20 @@
         "status_queued": "En attente",
         "status_running": "En cours",
         "status_done": "Prêt",
-        "status_failed": "Échec"
+        "status_failed": "Échec",
+        "files_caption": "Fichiers pour le comptable",
+        "col_file": "Fichier",
+        "col_last": "Dernier export",
+        "export": "Exporter",
+        "history": "Exports récents",
+        "view_screen": "Voir à l'écran",
+        "desc_invoices": "Une ligne par facture et note de crédit de la période : numéro, date, client, montants et statut.",
+        "desc_invoice_lines": "Une ligne par ligne de document : description, quantité, taux de TVA et montants.",
+        "desc_vat_summary": "TVA par mois, type de document et taux : net, TVA et brut.",
+        "desc_payments": "Les paiements reçus par jour, et l'argent remboursé par notes de crédit.",
+        "desc_deferred_revenue": "Les crédits payés non utilisés au dernier jour de la période, par type, traitement TVA et taux.",
+        "desc_breakage": "Par mois : crédits utilisés, expirés sans être utilisés et retirés.",
+        "desc_voucher_redemptions": "Chaque utilisation de crédit en euros avec le numéro de facture de la commande."
       },
       "dashboard": {
         "title": "Tableau de bord financier",
@@ -739,7 +777,8 @@
         "export_breakage": "Exporter les crédits expirés",
         "export_voucher_redemptions": "Exporter les utilisations de bons",
         "export_requested": "Export programmé. Téléchargez-le dans Exports d’ici un instant.",
-        "open_exports": "Ouvrir les exports"
+        "open_exports": "Ouvrir les exports",
+        "open_order": "Ouvrir la commande"
       }
     },
     "portal": {

@@ -1,12 +1,15 @@
-import Link from "next/link";
+import type { Route } from "next";
 import { notFound, redirect } from "next/navigation";
 import { Button, Input } from "@beam/ui";
+import { addDays } from "@beam/core/booking";
 import { formatDate, formatDateTime, formatMoney, t } from "@beam/core/i18n";
 import { hasPermission, requireStaff } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
 import { adminLocale, translator } from "@/lib/i18n";
 import { closePosDay, reopenPosDay } from "@/modules/commerce/actions";
 import { businessDayOf, getPosDaySummary } from "@/modules/commerce/queries";
+import { PageHeader, PeriodSwitch, SecondaryAction, StatusPill, Surface, Toolbar, td, th } from "@/modules/platform/ui/admin-kit";
+import { BackLink, fieldClass, Notice } from "@/modules/platform/ui/admin-list-kit";
 
 type Search = Record<string, string | undefined>;
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -24,10 +27,11 @@ function errorCode(error: { message: string; fields?: Record<string, string> }):
 }
 
 /**
- * `/admin/pos/day` (commerce spec 5.1, rule 55; `commerce.sell`): the day's POS totals by method
- * (terminal, cash, bank transfer, euro credit), refunds and order count; the cash float and the
- * expected cash in the drawer; the close state. Close the day with the counted cash (a note when
- * it differs); reopen a closed day (`commerce.refund`).
+ * `/admin/pos/day` (commerce spec 5.1, rule 55; `commerce.sell`), reached from the till: the
+ * day's POS totals by method (terminal, cash, bank transfer, euro credit), refunds and order
+ * count; the cash float and the expected cash in the drawer; the close state. Close the day with
+ * the counted cash (a note when it differs); reopen a closed day (`commerce.refund`). The one-off
+ * Lightspeed import is linked from here (it left the menu, owner review November 2026).
  */
 export default async function PosDayPage({ searchParams }: { searchParams: Promise<Search> }) {
   const actor = await requireStaff();
@@ -44,6 +48,7 @@ export default async function PosDayPage({ searchParams }: { searchParams: Promi
   const totals = summary.close.frozen ? { ...summary.totals, ...summary.close.frozen } : summary.totals;
   const expected = summary.close.status === "closed" ? totals.float + totals.cash - totals.cash_refunds : summary.expectedCashCents;
   const canReopen = hasPermission(actor, "commerce.refund");
+  const dayHref = (d: string) => (d === today ? "/admin/pos/day" : `/admin/pos/day?day=${d}`) as Route;
 
   async function onClose(form: FormData) {
     "use server";
@@ -68,95 +73,124 @@ export default async function PosDayPage({ searchParams }: { searchParams: Promi
     [c("credit_balance"), totals.credit_balance],
     [c("refunds", { count: totals.refund_count }), -totals.refunds],
   ];
+  const closed = summary.close.status === "closed";
   return (
-    <div className="grid max-w-3xl gap-6">
-      <header className="grid gap-1">
-        <Link href="/admin/pos" className="text-sm underline">{c("back_to_pos")}</Link>
-        <h1 className="text-2xl font-semibold">{c("title")}</h1>
-        <p className="text-sm text-muted-foreground">{c("intro")}</p>
-      </header>
-      <div role="status" aria-live="polite">
-        {sp.error ? <p className="rounded-md border border-destructive p-3 text-sm">{c("failed", { message: errorText(sp.error) })}</p> : null}
-        {sp.closed !== undefined ? <p className="rounded-md border p-3 text-sm">{c("closed_ok", { difference: money(Number(sp.closed)) })}</p> : null}
-        {sp.reopened ? <p className="rounded-md border p-3 text-sm">{c("reopened")}</p> : null}
+    <div className="grid max-w-4xl gap-4">
+      <BackLink href="/admin/pos">{tr("commerce.nav.pos")}</BackLink>
+      <PageHeader
+        title={
+          <span className="flex flex-wrap items-center gap-2.5">
+            {c("title")}
+            <StatusPill tone={closed ? "muted" : "ok"}>{c(`status_${summary.close.status}`)}</StatusPill>
+          </span>
+        }
+        description={c("intro")}
+        actions={<SecondaryAction href="/admin/pos/lightspeed">{tr("commerce.nav.lightspeed")}</SecondaryAction>}
+      />
+      <div role="status" aria-live="polite" className="grid gap-2 empty:hidden">
+        {sp.error ? <Notice tone="bad">{c("failed", { message: errorText(sp.error) })}</Notice> : null}
+        {sp.closed !== undefined ? <Notice tone="ok">{c("closed_ok", { difference: money(Number(sp.closed)) })}</Notice> : null}
+        {sp.reopened ? <Notice tone="ok">{c("reopened")}</Notice> : null}
       </div>
-      <form data-auto-filter="" method="get" className="flex flex-wrap items-end gap-2">
-        <label className="grid gap-1 text-sm">
-          <span>{c("day")}</span>
-          <Input type="date" name="day" defaultValue={day} max={today} className="h-11 w-48" />
-        </label>
-      </form>
+      <Toolbar>
+        <PeriodSwitch
+          label={formatDate(day, locale, "long")}
+          previous={dayHref(addDays(day, -1))}
+          next={dayHref(addDays(day, 1) > today ? today : addDays(day, 1))}
+          today="/admin/pos/day"
+          todayLabel={c("today")}
+          previousLabel={c("previous_day")}
+          nextLabel={c("next_day")}
+        />
+        <form data-auto-filter="" method="get">
+          <label className="flex items-center gap-2 text-[0.8125rem]">
+            <span className="text-muted-foreground">{c("day")}</span>
+            <input type="date" name="day" defaultValue={day} max={today} className={`${fieldClass} w-40`} />
+          </label>
+        </form>
+      </Toolbar>
 
-      <section aria-labelledby="pos-day-totals" className="grid gap-2">
-        <h2 id="pos-day-totals" className="text-lg font-semibold">
-          {formatDate(day, locale, "long")} · {c("status", { status: c(`status_${summary.close.status}`) })}
-        </h2>
-        {totals.payments === 0 && totals.refund_count === 0 ? <p className="text-sm text-muted-foreground">{c("empty")}</p> : null}
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b text-left">
-              <th scope="col" className="py-1">{c("col_method")}</th>
-              <th scope="col" className="py-1 text-right">{c("col_amount")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map(([label, amount]) => (
-              <tr key={label} className="border-b">
-                <th scope="row" className="py-2 text-left font-normal">{label}</th>
-                <td className="py-2 text-right tabular-nums">{money(amount)}</td>
+      <div className="grid items-start gap-4 md:grid-cols-2">
+        <Surface flush aria-labelledby="pos-day-totals">
+          <h2 id="pos-day-totals" className="border-b border-border px-5 py-3 text-[0.8125rem] font-semibold">
+            {formatDate(day, locale, "long")} · {c("status", { status: c(`status_${summary.close.status}`) })}
+          </h2>
+          {totals.payments === 0 && totals.refund_count === 0 ? <p className="px-5 pt-3 text-[0.8125rem] text-muted-foreground">{c("empty")}</p> : null}
+          <table className="w-full text-[0.8125rem]">
+            <thead className="bg-[#faf9f6]">
+              <tr className="border-b border-border">
+                <th scope="col" className={th}>{c("col_method")}</th>
+                <th scope="col" className={`${th} text-right`}>{c("col_amount")}</th>
               </tr>
-            ))}
-            <tr className="border-b">
-              <th scope="row" className="py-2 text-left font-normal">{c("orders")}</th>
-              <td className="py-2 text-right tabular-nums">{totals.orders}</td>
-            </tr>
-          </tbody>
-        </table>
-        <dl className="grid grid-cols-2 gap-1 text-sm">
-          <dt>{c("float")}</dt>
-          <dd className="text-right tabular-nums">{money(totals.float)}</dd>
-          <dt>{c("cash_refunds")}</dt>
-          <dd className="text-right tabular-nums">- {money(totals.cash_refunds)}</dd>
-          <dt className="font-semibold">{c("expected")}</dt>
-          <dd className="text-right font-semibold tabular-nums" data-testid="pos-expected-cash">{money(expected)}</dd>
-        </dl>
-      </section>
+            </thead>
+            <tbody>
+              {rows.map(([label, amount]) => (
+                <tr key={label} className="border-b border-border">
+                  <th scope="row" className={`${td} text-left font-normal`}>{label}</th>
+                  <td className={`${td} text-right font-semibold tabular-nums`}>{money(amount)}</td>
+                </tr>
+              ))}
+              <tr>
+                <th scope="row" className={`${td} text-left font-normal`}>{c("orders")}</th>
+                <td className={`${td} text-right font-semibold tabular-nums`}>{totals.orders}</td>
+              </tr>
+            </tbody>
+          </table>
+        </Surface>
 
-      {summary.close.status === "closed" ? (
-        <section aria-labelledby="pos-day-reopen" className="grid gap-2 rounded-md border p-4">
-          <p className="text-sm">
-            {c("closed_info", { time: summary.close.closedAt ? formatDateTime(summary.close.closedAt, locale, "short") : "", counted: money(summary.close.countedCashCents ?? 0), difference: money(summary.close.differenceCents ?? 0) })}
-          </p>
-          {summary.close.note ? <p className="text-sm">{c("closed_note", { note: summary.close.note })}</p> : null}
-          <h2 id="pos-day-reopen" className="text-lg font-semibold">{c("reopen_title")}</h2>
-          {canReopen ? (
-            <form action={onReopen} className="flex flex-wrap items-end gap-2">
-              <label className="grid gap-1 text-sm">
-                <span>{c("reason")}</span>
-                <Input name="reason" required minLength={3} maxLength={500} className="h-11 w-80" />
-              </label>
-              <Button type="submit" variant="outline" className="min-h-11">{c("reopen")}</Button>
-            </form>
+        <div className="grid gap-4">
+          <Surface className="p-4">
+            <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1.5 text-[0.8125rem]">
+              <dt className="text-muted-foreground">{c("float")}</dt>
+              <dd className="text-right tabular-nums">{money(totals.float)}</dd>
+              <dt className="text-muted-foreground">{c("cash")}</dt>
+              <dd className="text-right tabular-nums">{money(totals.cash)}</dd>
+              <dt className="text-muted-foreground">{c("cash_refunds")}</dt>
+              <dd className="text-right tabular-nums">- {money(totals.cash_refunds)}</dd>
+              <dt className="border-t border-border pt-1.5 font-semibold">{c("expected")}</dt>
+              <dd className="border-t border-border pt-1.5 text-right text-[1.125rem] font-semibold tabular-nums" data-testid="pos-expected-cash">
+                {money(expected)}
+              </dd>
+            </dl>
+          </Surface>
+
+          {closed ? (
+            <Surface aria-labelledby="pos-day-reopen" className="grid gap-2 p-4">
+              <p className="text-[0.8125rem]">
+                {c("closed_info", { time: summary.close.closedAt ? formatDateTime(summary.close.closedAt, locale, "short") : "", counted: money(summary.close.countedCashCents ?? 0), difference: money(summary.close.differenceCents ?? 0) })}
+              </p>
+              {summary.close.note ? <p className="text-[0.8125rem] text-muted-foreground">{c("closed_note", { note: summary.close.note })}</p> : null}
+              <h2 id="pos-day-reopen" className="text-[0.9375rem] font-semibold">{c("reopen_title")}</h2>
+              {canReopen ? (
+                <form action={onReopen} className="flex flex-wrap items-end gap-2">
+                  <label className="grid flex-1 gap-1 text-[0.8125rem]">
+                    <span>{c("reason")}</span>
+                    <Input name="reason" required minLength={3} maxLength={500} className="h-11" />
+                  </label>
+                  <Button type="submit" variant="outline" className="min-h-11">{c("reopen")}</Button>
+                </form>
+              ) : (
+                <p className="text-[0.8125rem] text-muted-foreground">{c("reopen_forbidden")}</p>
+              )}
+            </Surface>
           ) : (
-            <p className="text-sm text-muted-foreground">{c("reopen_forbidden")}</p>
+            <Surface aria-labelledby="pos-day-close" className="grid gap-3 p-4">
+              <h2 id="pos-day-close" className="text-[0.9375rem] font-semibold">{c("close_title")}</h2>
+              <form action={onClose} className="grid gap-2">
+                <label className="grid gap-1 text-[0.8125rem]">
+                  <span>{c("counted")}</span>
+                  <Input name="counted" inputMode="decimal" required className="h-11 w-40" autoComplete="off" />
+                </label>
+                <label className="grid gap-1 text-[0.8125rem]">
+                  <span>{c("note")}</span>
+                  <Input name="note" maxLength={1000} className="h-11" />
+                </label>
+                <Button type="submit" className="min-h-11 w-fit">{c("close")}</Button>
+              </form>
+            </Surface>
           )}
-        </section>
-      ) : (
-        <section aria-labelledby="pos-day-close" className="grid gap-2 rounded-md border p-4">
-          <h2 id="pos-day-close" className="text-lg font-semibold">{c("close_title")}</h2>
-          <form action={onClose} className="grid gap-2">
-            <label className="grid gap-1 text-sm">
-              <span>{c("counted")}</span>
-              <Input name="counted" inputMode="decimal" required className="h-11 w-40" autoComplete="off" />
-            </label>
-            <label className="grid gap-1 text-sm">
-              <span>{c("note")}</span>
-              <Input name="note" maxLength={1000} className="h-11" />
-            </label>
-            <Button type="submit" className="min-h-11 w-fit">{c("close")}</Button>
-          </form>
-        </section>
-      )}
+        </div>
+      </div>
     </div>
   );
 }

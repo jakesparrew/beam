@@ -57,7 +57,8 @@ const GROUPS: ReadonlyArray<{ key: string; label: string; icon: string; keys: st
     key: "agenda",
     label: "platform.nav.section_agenda",
     icon: "calendar-days",
-    keys: ["booking.sessions", "booking.bookings", "booking.events", "booking.waitlist"],
+    // Waitlists are left out for now (owner): the page stays reachable from the session page.
+    keys: ["booking.sessions", "booking.bookings", "booking.events"],
   },
   {
     key: "customers",

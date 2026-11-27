@@ -71,65 +71,77 @@
         "packages_nearing_completion": {
           "title": "Packages nearly used up",
           "empty": "Nothing needs attention today",
-          "row": "{remaining} of {total} left"
+          "row": "{remaining} of {total} left",
+          "hint": "Credits almost used up: offer a new package."
         },
         "vip_inactive": {
           "title": "High-value customers gone quiet",
           "empty": "Nothing needs attention today",
-          "row": "{days} days without a visit"
+          "row": "{days} days without a visit",
+          "hint": "Clients who spent a lot but stopped coming: call or email them."
         },
         "new_leads_follow_up": {
           "title": "New leads to follow up",
           "empty": "Nothing needs attention today",
-          "row": "Lead since {date}"
+          "row": "Lead since {date}",
+          "hint": "New contacts without a booking: get in touch."
         },
         "b2b_proposals": {
           "title": "B2B proposals to follow up",
           "empty": "Nothing needs attention today",
-          "row": "{company}: {stage}"
+          "row": "{company}: {stage}",
+          "hint": "Open proposals to companies: follow them up."
         },
         "memberships_expiring": {
           "title": "Memberships ending",
           "empty": "Nothing needs attention today",
-          "row": "Ends on {date}"
+          "row": "Ends on {date}",
+          "hint": "Membership ending soon: talk about renewing."
         },
         "failed_payments": {
           "title": "Failed payments",
           "empty": "Nothing needs attention today",
-          "row": "{amount} on {date}"
+          "row": "{amount} on {date}",
+          "hint": "Payment failed: ask them to pay again."
         },
         "webinar_leads_not_booked": {
           "title": "Webinar leads without a booking",
           "empty": "Nothing needs attention today",
           "row": "Registered on {date}",
-          "secondary": "{count} imported from the old webinar tool"
+          "secondary": "{count} imported from the old webinar tool",
+          "hint": "Attended a webinar but did not book: invite them."
         },
         "unused_packages_expiring": {
           "title": "Unused packages expiring",
           "empty": "Nothing needs attention today",
-          "row": "{remaining} left, expires {date}"
+          "row": "{remaining} left, expires {date}",
+          "hint": "Package expiring with unused credits: help them book."
         },
         "shared_package_abuse": {
           "title": "Shared packages to review",
           "empty": "Nothing needs attention today",
           "row": "{guests} guests in 30 days",
-          "review": "Review on the sharing screen"
+          "review": "Review on the sharing screen",
+          "hint": "Shared packages with unusual use: review them."
         },
         "overdue_tasks": {
           "title": "Overdue tasks",
           "empty": "Nothing needs attention today",
-          "row": "Due {date}"
+          "row": "Due {date}",
+          "hint": "Tasks past their due date."
         },
         "overdue_privacy_requests": {
           "title": "Privacy requests near their due date",
           "empty": "Nothing needs attention today",
-          "row": "{kind}, due {date}"
+          "row": "{kind}, due {date}",
+          "hint": "Privacy requests almost overdue: handle them."
         },
         "open_accounts": {
           "title": "Open accounts",
           "empty": "Nothing needs attention today",
           "row": "{amount} on account since {date}",
-          "review": "Go to Follow-up"
+          "review": "Go to Follow-up",
+          "hint": "Orders on account still to be paid."
         }
       },
       "overview": {
@@ -138,12 +150,13 @@
         "kind_day": "Day",
         "kind_night": "Night",
         "kind_event": "Event",
-        "to_do": "To do",
+        "to_do": "To follow up",
         "nothing_needed": "Nothing needed:",
         "greeting_morning": "Good morning, {name}",
         "greeting_afternoon": "Good afternoon, {name}",
         "greeting_evening": "Good evening, {name}",
-        "open_bookings": "All bookings"
+        "open_bookings": "All bookings",
+        "to_do_hint": "Lists of clients worth contacting. Open a list to see who, and turn it into a task with +."
       },
       "daily": {
         "day_switch": "Choose the day",
@@ -176,7 +189,7 @@
         "fill_title": "Sessions to fill (next 7 days)",
         "fill_empty": "Every session of the next 7 days is full.",
         "free_of": "{count, plural, one {# free place} other {# free places}} of {capacity}",
-        "fill_button": "Fill this session",
+        "fill_button": "Actions for this session",
         "fill_counting": "Counting…",
         "fill_total": "People you can email",
         "fill_reason_credits": "With unused credits of this kind",
@@ -198,16 +211,16 @@
         "revenue_other": "Products and other",
         "revenue_refunds": "Refunds",
         "suggestions_title": "Smart suggestions",
-        "suggestions_count": "{count, plural, one {# action} other {# actions}} to follow up today",
+        "suggestions_count": "{count, plural, one {# action} other {# actions}} today",
         "sugg_fill_title": "Fill {when}",
         "sugg_package_title": "Offer a package",
-        "sugg_package_text": "{count, plural, one {# client comes} other {# clients come}} with credits (almost) used up.",
+        "sugg_package_text": "{count, plural, one {# client} other {# clients}} · credits (almost) used up",
         "sugg_renewal_title": "Renew membership",
-        "sugg_renewal_text": "{count, plural, one {# member} other {# members}} whose membership ends soon.",
+        "sugg_renewal_text": "{count, plural, one {# member} other {# members}} · membership ending",
         "sugg_first_title": "New clients",
-        "sugg_first_text": "{count, plural, one {# client comes} other {# clients come}} for the first time: give them a warm welcome.",
+        "sugg_first_text": "{count, plural, one {# new client} other {# new clients}}",
         "sugg_free_title": "Free member sessions",
-        "sugg_free_text": "{count, plural, one {# member has} other {# members have}} free sessions left: suggest booking them.",
+        "sugg_free_text": "{count, plural, one {# member} other {# members}} · free sessions left",
         "sugg_see_clients": "See clients",
         "sugg_open_session": "Open session",
         "kpi_occupancy": "Occupancy",
@@ -265,8 +278,21 @@
         "revenue_periods_title": "Revenue",
         "revenue_net": "Total",
         "revenue_compare_note": "Compared with the same span last week and last month, up to the same day.",
-        "kpi_revenue_sub": "week {week} · month {month}"
-      }
+        "kpi_revenue_sub": "week {week} · month {month}",
+        "free_short": "{count} free",
+        "fill_open_session": "Open session",
+        "fill_add_booking": "Add booking",
+        "fill_mail": "Email clients to fill it",
+        "opp_short": {
+          "first_visit": "First visit",
+          "package_low": "Last {kind} credit",
+          "package_used_up": "{kind} credits used up",
+          "package_expiring": "Credit expires {date}",
+          "membership_renewal": "Member until {date}",
+          "free_session_unused": "Free {kind} session left"
+        }
+      },
+      "count_tasks": "{count, plural, one {# task} other {# tasks}}"
     },
     "period": {
       "day": "Day",

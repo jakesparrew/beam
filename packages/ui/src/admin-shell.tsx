@@ -99,6 +99,12 @@ function isActive(href: string, currentPath?: string): boolean {
   return currentPath === href || currentPath.startsWith(`${href}/`);
 }
 
+/** The one href that wins across the whole menu: the longest that matches the current path. */
+function bestMatch(nav: NavSection[], currentPath?: string): string | undefined {
+  const hrefs = nav.flatMap((s) => [...(s.href ? [s.href] : []), ...s.items.map((i) => i.href)]);
+  return hrefs.filter((h) => isActive(h, currentPath)).sort((a, b) => b.length - a.length)[0];
+}
+
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   const first = parts[0]?.[0] ?? "";
@@ -109,22 +115,20 @@ function initials(name: string): string {
 /** A top-level entry with its sub-pages folding out underneath (sections with an `href`). */
 function NavGroup({
   section,
-  currentPath,
+  activeHref,
   onNavigate,
 }: {
   section: NavSection & { href: string };
-  currentPath?: string;
+  activeHref?: string;
   onNavigate?: () => void;
 }) {
   // Every page of the group is listed (the first one too, so "Agenda" shows "Sessies"); a group
   // with a single page has no sub-rows.
   const children = section.items.length > 1 ? section.items : [];
-  // The most specific matching page is the active one (/admin/sessions/events is not "Sessies").
-  const activeChild = children
-    .filter((i) => isActive(i.href, currentPath))
-    .sort((x, y) => y.href.length - x.href.length)[0]?.key;
-  const holdsActive =
-    isActive(section.href, currentPath) || children.some((i) => isActive(i.href, currentPath));
+  // Only the most specific match in the whole menu is active: /admin/bookings/checkin is
+  // "Onthaal", not also "Agenda > Boekingen".
+  const activeChild = children.find((i) => i.href === activeHref)?.key;
+  const holdsActive = section.href === activeHref || !!activeChild;
   const [open, setOpen] = useState(holdsActive);
   const rowActive = holdsActive;
   return (
@@ -141,7 +145,7 @@ function NavGroup({
         <a
           href={section.href}
           data-nav-key={section.key}
-          aria-current={isActive(section.href, currentPath) && !children.some((i) => isActive(i.href, currentPath)) ? "page" : undefined}
+          aria-current={section.href === activeHref && !activeChild ? "page" : undefined}
           onClick={onNavigate}
           className={cn(
             "flex flex-1 items-center gap-2.5 px-2.5 py-2 text-[0.84375rem] font-medium text-sidebar-foreground transition-colors group-hover/row:text-sidebar-accent-foreground",
@@ -207,10 +211,10 @@ function NavList({
 }) {
   if (nav.length && nav.every((s) => s.href)) {
     return (
-      <nav aria-label={label} className="p-3">
+      <nav aria-label={label} className="px-3 pt-6 pb-3">
         <ul className="flex flex-col gap-0.5">
           {nav.map((section) => (
-            <NavGroup key={section.key} section={section as NavSection & { href: string }} currentPath={currentPath} onNavigate={onNavigate} />
+            <NavGroup key={section.key} section={section as NavSection & { href: string }} activeHref={bestMatch(nav, currentPath)} onNavigate={onNavigate} />
           ))}
         </ul>
       </nav>
@@ -292,7 +296,7 @@ export function AdminShell({
 }: AdminShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const logo = (
-    <a href="/admin" className="flex items-center px-5 pt-5 pb-3">
+    <a href="/admin" className="flex h-14 shrink-0 items-center border-b border-sidebar-border px-5">
       {logoSrc ? (
         <img src={logoSrc} alt="" className="h-6 w-auto" />
       ) : null}

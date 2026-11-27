@@ -71,65 +71,77 @@
         "packages_nearing_completion": {
           "title": "Pakketten bijna op",
           "empty": "Vandaag vraagt niets aandacht",
-          "row": "nog {remaining} van {total}"
+          "row": "nog {remaining} van {total}",
+          "hint": "Tegoed bijna op: bied een nieuw pakket aan."
         },
         "vip_inactive": {
           "title": "Waardevolle klanten zonder bezoek",
           "empty": "Vandaag vraagt niets aandacht",
-          "row": "{days} dagen geen bezoek"
+          "row": "{days} dagen geen bezoek",
+          "hint": "Klanten die veel besteedden maar al lang niet kwamen: bel of mail ze."
         },
         "new_leads_follow_up": {
           "title": "Nieuwe leads opvolgen",
           "empty": "Vandaag vraagt niets aandacht",
-          "row": "Lead sinds {date}"
+          "row": "Lead sinds {date}",
+          "hint": "Nieuwe contacten zonder boeking: neem contact op."
         },
         "b2b_proposals": {
           "title": "B2B-voorstellen opvolgen",
           "empty": "Vandaag vraagt niets aandacht",
-          "row": "{company}: {stage}"
+          "row": "{company}: {stage}",
+          "hint": "Voorstellen aan bedrijven die nog openstaan: volg ze op."
         },
         "memberships_expiring": {
           "title": "Lidmaatschappen die aflopen",
           "empty": "Vandaag vraagt niets aandacht",
-          "row": "Loopt af op {date}"
+          "row": "Loopt af op {date}",
+          "hint": "Lidmaatschap stopt binnenkort: bespreek de verlenging."
         },
         "failed_payments": {
           "title": "Mislukte betalingen",
           "empty": "Vandaag vraagt niets aandacht",
-          "row": "{amount} op {date}"
+          "row": "{amount} op {date}",
+          "hint": "Betaling mislukt: vraag om opnieuw te betalen."
         },
         "webinar_leads_not_booked": {
           "title": "Webinarleads zonder boeking",
           "empty": "Vandaag vraagt niets aandacht",
           "row": "Ingeschreven op {date}",
-          "secondary": "{count} geïmporteerd uit de oude webinartool"
+          "secondary": "{count} geïmporteerd uit de oude webinartool",
+          "hint": "Volgden een webinar maar boekten nog niet: nodig ze uit."
         },
         "unused_packages_expiring": {
           "title": "Ongebruikte pakketten die vervallen",
           "empty": "Vandaag vraagt niets aandacht",
-          "row": "nog {remaining}, vervalt {date}"
+          "row": "nog {remaining}, vervalt {date}",
+          "hint": "Pakket vervalt met ongebruikt tegoed: help ze boeken."
         },
         "shared_package_abuse": {
           "title": "Gedeelde pakketten nakijken",
           "empty": "Vandaag vraagt niets aandacht",
           "row": "{guests} gasten in 30 dagen",
-          "review": "Beoordelen op het deelscherm"
+          "review": "Beoordelen op het deelscherm",
+          "hint": "Gedeelde pakketten met ongewoon gebruik: kijk ze na."
         },
         "overdue_tasks": {
           "title": "Achterstallige taken",
           "empty": "Vandaag vraagt niets aandacht",
-          "row": "Vervallen op {date}"
+          "row": "Vervallen op {date}",
+          "hint": "Taken waarvan de deadline voorbij is."
         },
         "overdue_privacy_requests": {
           "title": "Privacyverzoeken bijna over tijd",
           "empty": "Vandaag vraagt niets aandacht",
-          "row": "{kind}, uiterlijk {date}"
+          "row": "{kind}, uiterlijk {date}",
+          "hint": "Privacyverzoeken die bijna over tijd zijn: handel ze af."
         },
         "open_accounts": {
           "title": "Openstaande rekeningen",
           "empty": "Vandaag vraagt niets aandacht",
           "row": "{amount} op rekening sinds {date}",
-          "review": "Naar Op te volgen"
+          "review": "Naar Op te volgen",
+          "hint": "Bestellingen op rekening die nog betaald moeten worden."
         }
       },
       "overview": {
@@ -138,12 +150,13 @@
         "kind_day": "Dag",
         "kind_night": "Nacht",
         "kind_event": "Event",
-        "to_do": "Te doen",
+        "to_do": "Op te volgen",
         "nothing_needed": "Geen actie nodig:",
         "greeting_morning": "Goedemorgen, {name}",
         "greeting_afternoon": "Goedemiddag, {name}",
         "greeting_evening": "Goedenavond, {name}",
-        "open_bookings": "Alle boekingen"
+        "open_bookings": "Alle boekingen",
+        "to_do_hint": "Lijsten van klanten die je best contacteert. Open een lijst om te zien wie, en maak er een taak van met +."
       },
       "daily": {
         "day_switch": "Kies de dag",
@@ -176,7 +189,7 @@
         "fill_title": "Sessies om te vullen (komende 7 dagen)",
         "fill_empty": "Alle sessies van de komende 7 dagen zijn volzet.",
         "free_of": "{count, plural, one {# vrije plaats} other {# vrije plaatsen}} van {capacity}",
-        "fill_button": "Vul deze sessie",
+        "fill_button": "Acties voor deze sessie",
         "fill_counting": "Tellen…",
         "fill_total": "Mensen die je kunt mailen",
         "fill_reason_credits": "Met ongebruikte tegoeden van deze soort",
@@ -198,16 +211,16 @@
         "revenue_other": "Producten en overige",
         "revenue_refunds": "Terugbetalingen",
         "suggestions_title": "Slimme suggesties",
-        "suggestions_count": "{count, plural, one {# actie} other {# acties}} om vandaag op te volgen",
+        "suggestions_count": "{count, plural, one {# actie} other {# acties}} vandaag",
         "sugg_fill_title": "Vul {when}",
         "sugg_package_title": "Pakket aanbieden",
-        "sugg_package_text": "{count, plural, one {# klant komt} other {# klanten komen}} met (bijna) opgebruikte tegoeden.",
+        "sugg_package_text": "{count, plural, one {# klant} other {# klanten}} · tegoed (bijna) op",
         "sugg_renewal_title": "Lidmaatschap verlengen",
-        "sugg_renewal_text": "{count, plural, one {# lid} other {# leden}} met een lidmaatschap dat binnenkort stopt.",
+        "sugg_renewal_text": "{count, plural, one {# lid} other {# leden}} · lidmaatschap stopt",
         "sugg_first_title": "Nieuwe klanten",
-        "sugg_first_text": "{count, plural, one {# klant komt} other {# klanten komen}} voor het eerst: zorg voor een warm welkom.",
+        "sugg_first_text": "{count, plural, one {# nieuwe klant} other {# nieuwe klanten}}",
         "sugg_free_title": "Gratis ledensessies",
-        "sugg_free_text": "{count, plural, one {# lid heeft} other {# leden hebben}} nog gratis sessies: stel voor om te boeken.",
+        "sugg_free_text": "{count, plural, one {# lid} other {# leden}} · gratis sessies over",
         "sugg_see_clients": "Bekijk klanten",
         "sugg_open_session": "Open sessie",
         "kpi_occupancy": "Bezetting",
@@ -265,8 +278,21 @@
         "revenue_periods_title": "Omzet",
         "revenue_net": "Totaal",
         "revenue_compare_note": "Vergeleken met dezelfde periode vorige week en vorige maand, tot dezelfde dag.",
-        "kpi_revenue_sub": "week {week} · maand {month}"
-      }
+        "kpi_revenue_sub": "week {week} · maand {month}",
+        "free_short": "{count} vrij",
+        "fill_open_session": "Sessie openen",
+        "fill_add_booking": "Boeking toevoegen",
+        "fill_mail": "Klanten mailen om te vullen",
+        "opp_short": {
+          "first_visit": "Eerste bezoek",
+          "package_low": "Laatste {kind}tegoed",
+          "package_used_up": "{kind}tegoed op",
+          "package_expiring": "Tegoed vervalt {date}",
+          "membership_renewal": "Lid stopt {date}",
+          "free_session_unused": "Gratis {kind}sessie over"
+        }
+      },
+      "count_tasks": "{count, plural, one {# taak} other {# taken}}"
     },
     "period": {
       "day": "Dag",

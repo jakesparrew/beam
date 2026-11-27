@@ -128,7 +128,14 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       ) : null}
       {daily}
       <div className="flex flex-wrap items-end justify-between gap-3">
-        {expand ? <span /> : <h2 className="text-[0.9375rem] font-semibold">{tr("ops.dashboard.overview.to_do")}</h2>}
+        {expand ? (
+          <span />
+        ) : (
+          <div className="grid gap-0.5">
+            <h2 className="text-[0.9375rem] font-semibold">{tr("ops.dashboard.overview.to_do")}</h2>
+            <p className="text-[0.8125rem] text-muted-foreground">{tr("ops.dashboard.overview.to_do_hint")}</p>
+          </div>
+        )}
         <nav aria-label={tr("ops.nav.dashboard")} className="flex rounded-lg bg-muted p-0.5" data-testid="dashboard-view">
           {(["today", "week"] as const).map((v) => (
             <Link
@@ -170,7 +177,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
               linkHref={card.linkHref ? (card.linkHref as Route) : null}
               labels={{
                 title: tr(`ops.dashboard.card.${card.key}.title`),
-                count: tr("ops.dashboard.count", { count: card.count }),
+                count: tr(card.key === "overdue_tasks" ? "ops.dashboard.count_tasks" : "ops.dashboard.count", { count: card.count }),
+                hint: tr(`ops.dashboard.card.${card.key}.hint`),
+                preview: card.key === "overdue_tasks" ? [] : card.rows.slice(0, 3).map((r) => r.name ?? "-"),
                 empty: tr(`ops.dashboard.card.${card.key}.empty`),
                 createTask: tr("ops.dashboard.create_task"),
                 taskCreated: tr("ops.dashboard.task_created"),

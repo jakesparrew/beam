@@ -71,65 +71,77 @@
         "packages_nearing_completion": {
           "title": "Forfaits presque épuisés",
           "empty": "Rien ne demande votre attention aujourd’hui",
-          "row": "{remaining} sur {total} restant(s)"
+          "row": "{remaining} sur {total} restant(s)",
+          "hint": "Crédits presque épuisés : proposez un nouveau forfait."
         },
         "vip_inactive": {
           "title": "Clients à forte valeur inactifs",
           "empty": "Rien ne demande votre attention aujourd’hui",
-          "row": "{days} jours sans visite"
+          "row": "{days} jours sans visite",
+          "hint": "Clients qui ont beaucoup dépensé mais ne viennent plus : appelez-les ou écrivez-leur."
         },
         "new_leads_follow_up": {
           "title": "Nouveaux prospects à suivre",
           "empty": "Rien ne demande votre attention aujourd’hui",
-          "row": "Prospect depuis le {date}"
+          "row": "Prospect depuis le {date}",
+          "hint": "Nouveaux contacts sans réservation : prenez contact."
         },
         "b2b_proposals": {
           "title": "Propositions B2B à suivre",
           "empty": "Rien ne demande votre attention aujourd’hui",
-          "row": "{company} : {stage}"
+          "row": "{company} : {stage}",
+          "hint": "Propositions aux entreprises encore ouvertes : relancez-les."
         },
         "memberships_expiring": {
           "title": "Abonnements qui se terminent",
           "empty": "Rien ne demande votre attention aujourd’hui",
-          "row": "Se termine le {date}"
+          "row": "Se termine le {date}",
+          "hint": "Abonnement bientôt terminé : parlez du renouvellement."
         },
         "failed_payments": {
           "title": "Paiements échoués",
           "empty": "Rien ne demande votre attention aujourd’hui",
-          "row": "{amount} le {date}"
+          "row": "{amount} le {date}",
+          "hint": "Paiement échoué : demandez de payer à nouveau."
         },
         "webinar_leads_not_booked": {
           "title": "Prospects webinaire sans réservation",
           "empty": "Rien ne demande votre attention aujourd’hui",
           "row": "Inscrit le {date}",
-          "secondary": "{count} importés de l’ancien outil de webinaires"
+          "secondary": "{count} importés de l’ancien outil de webinaires",
+          "hint": "Ont suivi un webinaire sans réserver : invitez-les."
         },
         "unused_packages_expiring": {
           "title": "Forfaits inutilisés qui expirent",
           "empty": "Rien ne demande votre attention aujourd’hui",
-          "row": "{remaining} restant(s), expire le {date}"
+          "row": "{remaining} restant(s), expire le {date}",
+          "hint": "Forfait qui expire avec des crédits inutilisés : aidez-les à réserver."
         },
         "shared_package_abuse": {
           "title": "Forfaits partagés à vérifier",
           "empty": "Rien ne demande votre attention aujourd’hui",
           "row": "{guests} invités en 30 jours",
-          "review": "Examiner sur l’écran de partage"
+          "review": "Examiner sur l’écran de partage",
+          "hint": "Forfaits partagés à l'usage inhabituel : vérifiez-les."
         },
         "overdue_tasks": {
           "title": "Tâches en retard",
           "empty": "Rien ne demande votre attention aujourd’hui",
-          "row": "Échéance {date}"
+          "row": "Échéance {date}",
+          "hint": "Tâches dont l'échéance est passée."
         },
         "overdue_privacy_requests": {
           "title": "Demandes de confidentialité proches de l’échéance",
           "empty": "Rien ne demande votre attention aujourd’hui",
-          "row": "{kind}, échéance le {date}"
+          "row": "{kind}, échéance le {date}",
+          "hint": "Demandes de confidentialité bientôt en retard : traitez-les."
         },
         "open_accounts": {
           "title": "Comptes ouverts",
           "empty": "Rien ne demande d'attention aujourd'hui",
           "row": "{amount} sur compte depuis le {date}",
-          "review": "Vers À suivre"
+          "review": "Vers À suivre",
+          "hint": "Commandes sur compte encore à payer."
         }
       },
       "overview": {
@@ -138,12 +150,13 @@
         "kind_day": "Jour",
         "kind_night": "Nuit",
         "kind_event": "Événement",
-        "to_do": "À faire",
+        "to_do": "À suivre",
         "nothing_needed": "Rien à faire :",
         "greeting_morning": "Bonjour, {name}",
         "greeting_afternoon": "Bon après-midi, {name}",
         "greeting_evening": "Bonsoir, {name}",
-        "open_bookings": "Toutes les réservations"
+        "open_bookings": "Toutes les réservations",
+        "to_do_hint": "Listes de clients à contacter. Ouvrez une liste pour voir qui, et créez une tâche avec +."
       },
       "daily": {
         "day_switch": "Choisir le jour",
@@ -176,7 +189,7 @@
         "fill_title": "Sessions à remplir (7 prochains jours)",
         "fill_empty": "Toutes les sessions des 7 prochains jours sont complètes.",
         "free_of": "{count, plural, one {# place libre} other {# places libres}} sur {capacity}",
-        "fill_button": "Remplir cette session",
+        "fill_button": "Actions pour cette session",
         "fill_counting": "Comptage…",
         "fill_total": "Personnes à qui écrire",
         "fill_reason_credits": "Avec des crédits inutilisés de ce type",
@@ -198,16 +211,16 @@
         "revenue_other": "Produits et autres",
         "revenue_refunds": "Remboursements",
         "suggestions_title": "Suggestions",
-        "suggestions_count": "{count, plural, one {# action} other {# actions}} à suivre aujourd'hui",
+        "suggestions_count": "{count, plural, one {# action} other {# actions}} aujourd'hui",
         "sugg_fill_title": "Remplir {when}",
         "sugg_package_title": "Proposer un forfait",
-        "sugg_package_text": "{count, plural, one {# client vient} other {# clients viennent}} avec des crédits (presque) épuisés.",
+        "sugg_package_text": "{count, plural, one {# client} other {# clients}} · crédits (presque) épuisés",
         "sugg_renewal_title": "Renouveler l'abonnement",
-        "sugg_renewal_text": "{count, plural, one {# membre} other {# membres}} dont l'abonnement se termine bientôt.",
+        "sugg_renewal_text": "{count, plural, one {# membre} other {# membres}} · abonnement qui se termine",
         "sugg_first_title": "Nouveaux clients",
-        "sugg_first_text": "{count, plural, one {# client vient} other {# clients viennent}} pour la première fois : accueillez-les chaleureusement.",
+        "sugg_first_text": "{count, plural, one {# nouveau client} other {# nouveaux clients}}",
         "sugg_free_title": "Séances gratuites des membres",
-        "sugg_free_text": "{count, plural, one {# membre a} other {# membres ont}} encore des séances gratuites : proposez de réserver.",
+        "sugg_free_text": "{count, plural, one {# membre} other {# membres}} · séances gratuites restantes",
         "sugg_see_clients": "Voir les clients",
         "sugg_open_session": "Ouvrir la séance",
         "kpi_occupancy": "Taux d'occupation",
@@ -265,8 +278,21 @@
         "revenue_periods_title": "Chiffre d'affaires",
         "revenue_net": "Total",
         "revenue_compare_note": "Comparé à la même période la semaine et le mois précédents, jusqu'au même jour.",
-        "kpi_revenue_sub": "semaine {week} · mois {month}"
-      }
+        "kpi_revenue_sub": "semaine {week} · mois {month}",
+        "free_short": "{count} libres",
+        "fill_open_session": "Ouvrir la session",
+        "fill_add_booking": "Ajouter une réservation",
+        "fill_mail": "Écrire aux clients pour remplir",
+        "opp_short": {
+          "first_visit": "Première visite",
+          "package_low": "Dernier crédit {kind}",
+          "package_used_up": "Crédits {kind} épuisés",
+          "package_expiring": "Crédit expire le {date}",
+          "membership_renewal": "Membre jusqu'au {date}",
+          "free_session_unused": "Séance {kind} gratuite restante"
+        }
+      },
+      "count_tasks": "{count, plural, one {# tâche} other {# tâches}}"
     },
     "period": {
       "day": "Jour",

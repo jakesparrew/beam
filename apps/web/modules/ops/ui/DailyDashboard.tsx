@@ -48,6 +48,15 @@ function kindLabel(tr: Tr, kind: string) {
   return tr(`ops.dashboard.overview.kind_${kind}`);
 }
 
+/** The short label shown in the table; the full advice is its tooltip. */
+function opportunityShort(o: Opportunity, tr: Tr, locale: Locale): string {
+  const kind = o.kind ? tr(`${K}.credit_${o.kind}`) : "";
+  const date = o.date ? formatDate(o.date, locale) : "";
+  const key = o.key === "package_low" && !o.units ? "package_used_up" : o.key;
+  const text = tr(`${K}.opp_short.${key}`, { kind, units: o.units ?? 0, date });
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
 function opportunityText(o: Opportunity, tr: Tr, locale: Locale): string {
   const kind = o.kind ? tr(`${K}.credit_${o.kind}`) : "";
   const date = o.date ? formatDate(o.date, locale) : "";
@@ -85,6 +94,39 @@ const STATE_PILL: Record<SlotState | "running", string> = {
   running: "bg-[var(--status-info-soft)] text-[var(--status-info)]",
 };
 
+/** A tiny calendar leaf (weekday on a gold band, day number below) so dates stand out. */
+function DateTile({ at, locale }: { at: Date; locale: Locale }) {
+  const wd = new Intl.DateTimeFormat(locale, { timeZone: "Europe/Brussels", weekday: "short" }).format(at).replace(".", "");
+  const dd = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Brussels", day: "numeric" }).format(at);
+  return (
+    <span aria-hidden="true" className="inline-grid w-8 shrink-0 overflow-hidden rounded-md border border-border bg-card text-center leading-none">
+      <span className="bg-[#c9973a] py-[3px] text-[0.5625rem] font-semibold tracking-wide text-white uppercase">{wd}</span>
+      <span className="py-[3px] text-[0.8125rem] font-semibold tabular-nums">{dd}</span>
+    </span>
+  );
+}
+
+/** A time in a small clock chip. */
+function TimeChip({ at, locale }: { at: Date; locale: Locale }) {
+  return (
+    <span className="inline-flex shrink-0 items-center gap-1 rounded-md border border-border bg-card px-1.5 py-0.5 text-[0.75rem] leading-4 font-semibold tabular-nums">
+      <NavIcon icon="clock" className="size-3 text-[#8a5a14]" />
+      {formatTime(at, locale)}
+    </span>
+  );
+}
+
+/** Date tile plus time chip, with the full text for screen readers. */
+function When({ at, locale }: { at: Date; locale: Locale }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span className="sr-only">{shortDay(at, locale)}</span>
+      <DateTile at={at} locale={locale} />
+      <TimeChip at={at} locale={locale} />
+    </span>
+  );
+}
+
 function Pill({ className, children }: { className?: string; children: React.ReactNode }) {
   return <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[0.6875rem] leading-4 font-semibold whitespace-nowrap", className)}>{children}</span>;
 }
@@ -92,6 +134,9 @@ function Pill({ className, children }: { className?: string; children: React.Rea
 function fillLabels(tr: Tr, errors: Record<string, string>): FillSessionLabels {
   return {
     button: tr(`${K}.fill_button`),
+    openSession: tr(`${K}.fill_open_session`),
+    addBooking: tr(`${K}.fill_add_booking`),
+    mail: tr(`${K}.fill_mail`),
     counting: tr(`${K}.fill_counting`),
     total: tr(`${K}.fill_total`),
     reasons: Object.fromEntries(FILL_REASONS.map((r) => [r, tr(`${K}.fill_reason_${r}`)])) as FillSessionLabels["reasons"],
@@ -118,20 +163,12 @@ function buildSuggestions(input: { toFill: CapacitySlot[]; clients: DayClient[] 
     out.push({
       key: `fill:${s.sessionId}`,
       text: (
-        <>
-          <b className="font-semibold text-foreground">
-            {shortDay(s.startsAt, locale)} {formatTime(s.startsAt, locale)}
-          </b>{" "}
-          {tr(`${K}.free_of`, { count: s.available, capacity: s.capacity })}
-        </>
+        <span className="inline-flex items-center gap-2" title={tr(`${K}.free_of`, { count: s.available, capacity: s.capacity })}>
+          <When at={s.startsAt} locale={locale} />
+          <span className="font-medium text-foreground">{tr(`${K}.free_short`, { count: s.available })}</span>
+        </span>
       ),
-      action: access.fill ? (
-        <FillSessionButton sessionId={s.sessionId} labels={fillLabels(tr, errors)} />
-      ) : (
-        <Link href={`/admin/sessions/${s.sessionId}` as Route} className="font-semibold text-[#8a5a14] hover:underline">
-          {tr(`${K}.sugg_open_session`)} →
-        </Link>
-      ),
+      action: <FillSessionButton sessionId={s.sessionId} labels={fillLabels(tr, errors)} canMail={access.fill} />,
     });
   }
   if (clients) {
@@ -171,7 +208,7 @@ function SuggestionsLine({ items, tr }: { items: Suggestion[]; tr: Tr }) {
       <span aria-hidden="true" className="mx-1 h-5 w-px shrink-0 bg-border" />
       <ul className="flex flex-wrap gap-1.5">
         {items.map((s) => (
-          <li key={s.key} className="flex shrink-0 items-center gap-2.5 rounded-lg bg-muted px-2.5 py-1 text-[0.8125rem] text-muted-foreground" data-suggestion={s.key}>
+          <li key={s.key} className="flex shrink-0 items-center gap-2.5 rounded-lg bg-muted py-1 pr-1.5 pl-1.5 text-[0.8125rem] text-muted-foreground" data-suggestion={s.key}>
             <span>{s.text}</span>
             {s.action}
           </li>
@@ -389,10 +426,10 @@ function TodayBlock({ capacity, tr, locale, now }: { capacity: DailyCapacity; tr
             <li key={s.sessionId}>
               <Link
                 href={`/admin/sessions/${s.sessionId}` as Route}
-                className={cn("grid grid-cols-[3rem_1fr_auto] items-center gap-3 rounded-lg border px-3 py-2.5 transition hover:bg-muted/60", running ? "border-[#c9973a] ring-1 ring-[#c9973a]" : "border-border", state === "past" && !running && "opacity-60")}
+                className={cn("grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-lg border px-3 py-2.5 transition hover:bg-muted/60", running ? "border-[#c9973a] ring-1 ring-[#c9973a]" : "border-border", state === "past" && !running && "opacity-60")}
                 data-testid="daily-slot"
               >
-                <span className="text-[0.8125rem] font-semibold">{formatTime(s.startsAt, locale)}</span>
+                <TimeChip at={s.startsAt} locale={locale} />
                 <span className="grid min-w-0 leading-tight">
                   <span className="truncate text-[0.8125rem] font-medium">{s.title}</span>
                   <span className="text-[0.75rem] text-muted-foreground">
@@ -486,8 +523,8 @@ function ClientsTable({ clients, filter, day, today, tr, locale, now }: { client
                     </td>
                     <td className="px-3 py-2.5 whitespace-nowrap">
                       {c.sessions.map((s) => (
-                        <span key={s.sessionId} className="block leading-8">
-                          {formatTime(s.startsAt, locale)} <span className="text-muted-foreground">{kindLabel(tr, s.kind).toLowerCase()}</span>
+                        <span key={s.sessionId} className="flex items-center gap-1.5 leading-8">
+                          <TimeChip at={s.startsAt} locale={locale} /> <span className="text-muted-foreground">{kindLabel(tr, s.kind).toLowerCase()}</span>
                         </span>
                       ))}
                     </td>
@@ -517,11 +554,16 @@ function ClientsTable({ clients, filter, day, today, tr, locale, now }: { client
                     </td>
                     <td className="py-2.5 pr-5 pl-3">
                       {opps.length ? (
-                        <ul className="grid gap-1" data-testid="daily-opportunities">
+                        <ul className="flex flex-wrap gap-1 pt-1.5" data-testid="daily-opportunities">
                           {opps.map((o) => (
                             <li key={`${o.key}:${o.kind ?? ""}`} data-opportunity={o.key}>
-                              <Link href={href} className="inline-flex rounded-md border border-border bg-card px-2 py-1 text-[0.75rem] leading-4 font-semibold hover:border-[#c9973a] hover:bg-[#f7eedc]">
-                                {opportunityText(o, tr, locale)}
+                              <Link
+                                href={href}
+                                title={opportunityText(o, tr, locale)}
+                                className="inline-flex rounded-full bg-[var(--status-warn-soft)] px-2 py-0.5 text-[0.6875rem] leading-4 font-semibold text-[var(--status-warn)] hover:ring-1 hover:ring-[#c9973a]"
+                              >
+                                {opportunityShort(o, tr, locale)}
+                                <span className="sr-only">: {opportunityText(o, tr, locale)}</span>
                               </Link>
                             </li>
                           ))}
@@ -622,13 +664,14 @@ function FillBlock({ slots, canFill, tr, locale, errors }: { slots: CapacitySlot
         <ul className="grid">
           {slots.slice(0, FILL_SHOWN).map((s) => (
             <li key={s.sessionId} className="flex items-center justify-between gap-3 border-b border-border py-2 last:border-b-0" data-testid="daily-fill-session">
-              <Link href={`/admin/sessions/${s.sessionId}` as Route} className="grid min-w-0 leading-tight hover:underline">
-                <span className="truncate text-[0.8125rem] font-semibold">
-                  {shortDay(s.startsAt, locale)} {formatTime(s.startsAt, locale)} <span className="font-normal text-muted-foreground">· {kindLabel(tr, s.kind).toLowerCase()}</span>
+              <Link href={`/admin/sessions/${s.sessionId}` as Route} className="flex min-w-0 items-center gap-3 hover:underline">
+                <When at={s.startsAt} locale={locale} />
+                <span className="grid min-w-0 leading-tight">
+                  <span className="truncate text-[0.8125rem] font-medium">{kindLabel(tr, s.kind)}</span>
+                  <span className="text-[0.75rem] text-muted-foreground">{tr(`${K}.free_of`, { count: s.available, capacity: s.capacity })}</span>
                 </span>
-                <span className="text-[0.75rem] text-muted-foreground">{tr(`${K}.free_of`, { count: s.available, capacity: s.capacity })}</span>
               </Link>
-              {canFill ? <FillSessionButton sessionId={s.sessionId} labels={labels} /> : null}
+              <FillSessionButton sessionId={s.sessionId} labels={labels} canMail={canFill} />
             </li>
           ))}
         </ul>

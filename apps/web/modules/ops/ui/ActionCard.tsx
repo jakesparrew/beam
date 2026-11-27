@@ -25,6 +25,10 @@ export type ActionCardRowView = {
 
 export type ActionCardLabels = {
   title: string;
+  /** What the list is and what to do about it, in one line. */
+  hint?: string;
+  /** The first names on the list, shown folded so the row says who. */
+  preview?: string[];
   count: string;
   empty: string;
   createTask: string;
@@ -79,15 +83,26 @@ export function ActionCard({
 
   return (
     <details className="group border-b border-border last:border-b-0" data-testid={`action-card-${cardKey}`} data-count={count} open={open}>
-      <summary className="flex cursor-pointer list-none items-center gap-3 px-5 py-2.5 hover:bg-[#faf9f6] [&::-webkit-details-marker]:hidden">
-        <span className="text-[0.8125rem] font-semibold">{labels.title}</span>
-        <span className={cn("rounded-full px-2 py-0.5 text-[0.6875rem] font-semibold", count > 0 ? "bg-[var(--status-warn-soft)] text-[var(--status-warn)]" : "bg-muted text-muted-foreground")}>{labels.count}</span>
-        {labels.secondary ? (
-          <span className="truncate text-[0.75rem] text-muted-foreground" data-testid="action-card-secondary">
-            {labels.secondary}
+      <summary className="flex cursor-pointer list-none items-center gap-3 px-5 py-3 hover:bg-[#faf9f6] [&::-webkit-details-marker]:hidden">
+        <span className="grid min-w-0 gap-0.5">
+          <span className="flex flex-wrap items-center gap-2">
+            <span className="text-[0.8125rem] font-semibold">{labels.title}</span>
+            <span className={cn("rounded-full px-2 py-0.5 text-[0.6875rem] font-semibold", count > 0 ? "bg-[var(--status-warn-soft)] text-[var(--status-warn)]" : "bg-muted text-muted-foreground")}>{labels.count}</span>
+            {labels.secondary ? (
+              <span className="truncate text-[0.75rem] text-muted-foreground" data-testid="action-card-secondary">
+                {labels.secondary}
+              </span>
+            ) : null}
+          </span>
+          {labels.hint ? <span className="text-[0.75rem] text-muted-foreground">{labels.hint}</span> : null}
+        </span>
+        {labels.preview?.length && !open ? (
+          <span className="ml-auto hidden max-w-[40%] truncate text-[0.75rem] text-muted-foreground md:block">
+            {labels.preview.join(", ")}
+            {count > labels.preview.length ? ` +${count - labels.preview.length}` : ""}
           </span>
         ) : null}
-        <span aria-hidden="true" className="ml-auto text-muted-foreground transition-transform group-open:rotate-90">
+        <span aria-hidden="true" className={cn("text-muted-foreground transition-transform group-open:rotate-90", !(labels.preview?.length && !open) && "ml-auto")}>
           ›
         </span>
       </summary>

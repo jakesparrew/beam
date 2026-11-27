@@ -1,11 +1,13 @@
 import Link from "next/link";
 import type { Route } from "next";
 import { formatDateTime } from "@beam/core/i18n";
-import { requireStaff } from "@/lib/auth";
+import { hasPermission, requireStaff } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
 import { adminLocale, translator } from "@/lib/i18n";
 import { CONVERSATION_FILTERS, listConversations, type ConversationFilter } from "@/modules/assistant/queries";
-import { ScorePill, SubNav, SURFACE, assistantSubNav, usd } from "@/modules/assistant/ui/admin/parts";
+import { ScorePill, SURFACE, usd } from "@/modules/assistant/ui/admin/parts";
+import { Segmented } from "@/modules/platform/ui/admin-kit";
+import { AssistantHeader } from "../assistant-header";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +17,7 @@ export const dynamic = "force-dynamic";
  * the lead score and what it cost.
  */
 export default async function AssistantConversationsPage({ searchParams }: { searchParams: Promise<{ filter?: string }> }) {
-  await requireStaff({ permission: "assistant.read" });
+  const actor = await requireStaff({ permission: "assistant.read" });
   const sp = await searchParams;
   const locale = await adminLocale();
   const tr = translator(locale);
@@ -23,31 +25,20 @@ export default async function AssistantConversationsPage({ searchParams }: { sea
   const rows = await listConversations(await getAppDb(), filter);
 
   return (
-    <div className="grid gap-6">
-      <div>
-        <h1 className="font-display text-3xl">{tr("assistant.admin.conversations.title")}</h1>
-      </div>
-      <SubNav active="conversations" items={assistantSubNav(tr)} />
-      <div className="flex flex-wrap gap-2">
-        {CONVERSATION_FILTERS.map((f) => (
-          <Link
-            key={f}
-            href={`/admin/assistant/conversations${f === "all" ? "" : `?filter=${f}`}` as Route}
-            aria-current={f === filter ? "true" : undefined}
-            className="rounded-full border px-3 py-1 text-sm hover:bg-accent aria-[current=true]:border-[#d1a64a] aria-[current=true]:bg-[#f6efdf]"
-          >
-            {tr(`assistant.admin.filter.${f}`)}
-          </Link>
-        ))}
-      </div>
+    <div className="grid gap-4">
+      <AssistantHeader active="conversations" canManage={hasPermission(actor, "assistant.manage")} tr={tr} />
+      <Segmented
+        label={tr("assistant.admin.conversations.title")}
+        items={CONVERSATION_FILTERS.map((f) => ({ key: f, label: tr(`assistant.admin.filter.${f}`), href: `/admin/assistant/conversations${f === "all" ? "" : `?filter=${f}`}` as Route, active: f === filter }))}
+      />
 
       {rows.length === 0 ? (
         <p className={`${SURFACE} p-6 text-sm text-muted-foreground`}>{tr("assistant.admin.conversations.empty")}</p>
       ) : (
-        <ul className="grid gap-3">
+        <ul className="grid gap-2">
           {rows.map((r) => (
             <li key={r.id}>
-              <Link href={`/admin/assistant/conversations/${r.id}` as Route} className={`${SURFACE} grid gap-2 p-4 transition hover:ring-1 hover:ring-[#d1a64a]/50 sm:grid-cols-[1fr_auto]`}>
+              <Link href={`/admin/assistant/conversations/${r.id}` as Route} className={`${SURFACE} grid gap-2 px-5 py-3 hover:bg-[#faf9f6] sm:grid-cols-[1fr_auto]`}>
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className={`grid size-8 place-items-center rounded-full text-xs font-semibold ${r.personName ? "bg-[#212842] text-[#fffaef]" : "bg-muted text-muted-foreground"}`} aria-hidden="true">

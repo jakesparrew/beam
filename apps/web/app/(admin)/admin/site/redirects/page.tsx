@@ -19,8 +19,8 @@ export default async function SiteRedirectsPage({ searchParams }: { searchParams
   const source = SOURCES.includes(sp.source as AdminRedirectRow["source"]) ? (sp.source as AdminRedirectRow["source"]) : undefined;
   const [{ rows }, pickers] = await Promise.all([listRedirects({ q: sp.q?.slice(0, 200), source, cursor: sp.cursor }, locale, db), getEditorPickers(locale, db)]);
   return (
-    <div className="grid gap-6">
-      <h1 className="text-2xl font-semibold">{L["redirects.title"]}</h1>
+    <div className="grid gap-4">
+      <h1>{L["redirects.title"]}</h1>
       <SiteSectionNav L={L} current="/admin/site/redirects" />
       <form data-auto-filter="" className="flex flex-wrap items-end gap-2" role="search" action="/admin/site/redirects">
         <select name="source" defaultValue={source ?? ""} aria-label={L["redirects.source"]} className={selectClass}>

@@ -6,7 +6,8 @@ import { getSetting } from "@/lib/settings";
 import type { AssistantSettingValue } from "@/modules/assistant/config";
 import { getEvalSummary } from "@/modules/assistant/queries";
 import { AddCase, DeleteCase, RunEval } from "@/modules/assistant/ui/admin/eval-controls";
-import { SubNav, SURFACE, assistantSubNav, usd } from "@/modules/assistant/ui/admin/parts";
+import { SURFACE, usd } from "@/modules/assistant/ui/admin/parts";
+import { AssistantHeader } from "../assistant-header";
 
 export const dynamic = "force-dynamic";
 
@@ -23,16 +24,13 @@ export default async function AssistantEvalPage() {
   const [summary, settings] = await Promise.all([getEvalSummary(db), getSetting(db, "assistant") as Promise<AssistantSettingValue>]);
 
   return (
-    <div className="grid gap-6">
-      <div>
-        <h1 className="font-display text-3xl">{tr("assistant.admin.eval.title")}</h1>
-        <p className="max-w-3xl text-sm text-muted-foreground">{tr("assistant.admin.eval.intro")}</p>
-      </div>
-      <SubNav active="eval" items={assistantSubNav(tr)} />
+    <div className="grid gap-4">
+      <AssistantHeader active="eval" canManage tr={tr} />
+      <p className="max-w-3xl text-[0.8125rem] text-muted-foreground">{tr("assistant.admin.eval.intro")}</p>
 
       <section className={`${SURFACE} grid gap-4 p-5`}>
         <RunEval models={settings.models.map((m) => ({ id: m.id, label: m.label }))} labels={{ run: tr("assistant.admin.eval.run"), hint: tr("assistant.admin.eval.runHint"), started: tr("assistant.admin.eval.started") }} />
-        <h2 className="pt-2 text-lg font-semibold">{tr("assistant.admin.eval.results")}</h2>
+        <h2 className="pt-2">{tr("assistant.admin.eval.results")}</h2>
         {summary.runs.length === 0 ? (
           <p className="text-sm text-muted-foreground">{tr("assistant.admin.eval.empty")}</p>
         ) : (
@@ -53,7 +51,7 @@ export default async function AssistantEvalPage() {
       </section>
 
       <section className={`${SURFACE} grid gap-4 p-5`}>
-        <h2 className="text-lg font-semibold">{tr("assistant.admin.eval.cases")}</h2>
+        <h2>{tr("assistant.admin.eval.cases")}</h2>
         <AddCase labels={{ question: tr("assistant.admin.eval.question"), expectation: tr("assistant.admin.eval.expectation"), add: tr("assistant.admin.eval.add") }} />
         <ol className="grid gap-3">
           {summary.cases.map((c) => {

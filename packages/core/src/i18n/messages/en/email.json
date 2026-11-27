@@ -60,7 +60,10 @@
         "validation": "Check the fields and try again.",
         "forbidden": "You do not have permission for this action.",
         "conflict": "Someone else changed this; reload the page."
-      }
+      },
+      "subtitle": "The emails BEAM sends: marketing templates for campaigns and the transactional ones of each module.",
+      "new_name_placeholder": "Name of the new template",
+      "clear": "Clear"
     },
     "editor": {
       "locale_nl": "Dutch",
@@ -406,7 +409,15 @@
         "recipient_not_planned": "This recipient is no longer planned.",
         "recipient_not_removed": "This recipient was not removed.",
         "invalid_transition": "That is not possible in the current status."
-      }
+      },
+      "tab_list": "Newsletters",
+      "tab_stats": "Statistics",
+      "tab_messages": "Sent messages",
+      "tabs": "Email",
+      "subtitle": "Campaigns to your segments, how they are delivered and every message sent.",
+      "search_placeholder": "Search by name",
+      "empty_filtered": "No campaigns match these filters",
+      "clear": "Clear"
     },
     "report": {
       "title": "Report: {name}",
@@ -634,7 +645,8 @@
       "blocked_restricted": "processing restricted",
       "blocked_suppressed": "suppressed",
       "blocked_withdrawn": "consent withdrawn",
-      "blocked_no_consent": "no consent"
+      "blocked_no_consent": "no consent",
+      "clear": "Clear"
     },
     "blocks": {
       "event_opens_for_you": "Opens for you on {date}",

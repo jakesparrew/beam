@@ -1,9 +1,10 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { requireStaff } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
 import { adminLocale, softTranslator, translator } from "@/lib/i18n";
 import { catalogueSection, getSettingForEdit } from "@/modules/platform/queries";
+import { PageHeader } from "@/modules/platform/ui/admin-kit";
+import { BackLink } from "@/modules/platform/ui/admin-list-kit";
 import { SettingsForm } from "@/modules/platform/ui/settings-form";
 import { zodToFormFields } from "@/modules/platform/ui/zod-form";
 
@@ -33,25 +34,29 @@ export default async function SettingKeyPage({ params }: { params: Promise<{ key
   const soft = softTranslator(locale);
   const setting = await getSettingForEdit(await getAppDb(), key);
   if (!setting) notFound();
-  const titleKey = `${setting.owner}.settings.${key}`;
+  const titleKey = `platform.settings.overview.title.${key}`;
   const title = soft(titleKey) === titleKey ? key.replace(/_/g, " ") : soft(titleKey);
+  const descKey = `platform.settings.overview.desc.${key}`;
+  const description = soft(descKey) === descKey ? setting.description : soft(descKey);
 
   return (
-    <div className="grid gap-6">
-      <header className="grid gap-2">
-        <Link href="/admin/settings" className="text-sm text-muted-foreground hover:underline">
-          {tr("platform.settings.back")}
-        </Link>
-        <h1 className="text-2xl font-semibold">{title}</h1>
-        {setting.description ? <p className="text-muted-foreground">{setting.description}</p> : null}
-        <p className="text-sm text-muted-foreground">
-          {tr("platform.settings.version", { version: setting.version })}
-          {" · "}
-          {setting.updatedAt
-            ? tr("platform.settings.last_edit", { who: setting.updatedBy ?? "–", when: setting.updatedAt.toLocaleString(locale, { timeZone: "Europe/Brussels" }) })
-            : tr("platform.settings.default_value")}
-        </p>
-      </header>
+    <div className="grid max-w-4xl gap-4">
+      <BackLink href="/admin/settings">{tr("platform.settings.title")}</BackLink>
+      <PageHeader
+        title={<span className="inline-block first-letter:uppercase">{title}</span>}
+        description={
+          <>
+            {description ? <span className="block">{description}</span> : null}
+            <span className="block text-[0.75rem]">
+              {tr("platform.settings.version", { version: setting.version })}
+              {" · "}
+              {setting.updatedAt
+                ? tr("platform.settings.last_edit", { who: setting.updatedBy ?? "–", when: setting.updatedAt.toLocaleString(locale, { timeZone: "Europe/Brussels" }) })
+                : tr("platform.settings.default_value")}
+            </span>
+          </>
+        }
+      />
       <SettingsForm
         settingKey={key}
         version={setting.version}

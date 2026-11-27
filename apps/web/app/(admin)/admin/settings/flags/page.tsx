@@ -1,5 +1,6 @@
 import { EmptyState } from "@beam/ui";
 import { requireStaff } from "@/lib/auth";
+import { BackLink } from "@/modules/platform/ui/admin-list-kit";
 import { getAppDb } from "@/lib/ctx";
 import { adminLocale, translator } from "@/lib/i18n";
 import { catalogueSection, listFlags, listStaffUsers } from "@/modules/platform/queries";
@@ -22,9 +23,10 @@ export default async function FlagsPage() {
   const staffOptions = staff.rows.map((u) => ({ id: u.id, name: u.name ?? u.email }));
 
   return (
-    <div className="grid gap-6">
-      <header className="grid gap-2">
-        <h1 className="text-2xl font-semibold">{t("title")}</h1>
+    <div className="grid gap-4">
+      <BackLink href="/admin/settings">{tr("platform.settings.title")}</BackLink>
+      <header className="grid gap-1">
+        <h1>{t("title")}</h1>
         <p className="text-muted-foreground">{t("intro")}</p>
       </header>
       {flags.length === 0 ? (

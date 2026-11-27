@@ -325,7 +325,8 @@
       "regeneration_failed": "Het bijwerken van de sessies is mislukt. Probeer opnieuw via de takenpagina.",
       "incomplete_name": "Vul de naam in de drie talen in voor je activeert.",
       "empty": "Nog geen planning: voeg je eerste dagsessies toe.",
-      "step_schedule": "Dagen en uren"
+      "step_schedule": "Dagen en uren",
+      "subtitle": "Het weekrooster; de sessies van de komende weken worden eruit aangemaakt."
     },
     "exceptions": {
       "title": "Sluitingsdagen en aangepaste uren",
@@ -353,7 +354,8 @@
       "calendar_remove": "Verwijderen",
       "calendar_closed_weekly": "Elke week gesloten",
       "calendar_partial": "alleen sommige sessies",
-      "calendar_default_name": "Gesloten"
+      "calendar_default_name": "Gesloten",
+      "subtitle": "Sluitingsdagen, feestdagen en afwijkende uren van de komende twaalf maanden."
     },
     "rules": {
       "title": "Boekingsregels",
@@ -392,7 +394,8 @@
       "hours_closed": "Gesloten",
       "reception_phone": "Telefoon onthaal",
       "note": "Notitie voor klanten",
-      "stale": "Iemand heeft deze regels gewijzigd, herlaad de pagina."
+      "stale": "Iemand heeft deze regels gewijzigd, herlaad de pagina.",
+      "subtitle": "Wanneer mensen mogen annuleren, boeken en inchecken, en de openingsuren."
     },
     "holds": {
       "title": "Geblokkeerde plaatsen",

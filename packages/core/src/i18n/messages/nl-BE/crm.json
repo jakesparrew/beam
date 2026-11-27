@@ -723,7 +723,10 @@
         "col_used_by": "Gebruikt door",
         "used_by_campaigns": "Campagnes",
         "used_by_automations": "Automatiseringen",
-        "archived": "Gearchiveerd"
+        "archived": "Gearchiveerd",
+        "subtitle": "Groepen mensen voor campagnes en automatiseringen.",
+        "active": "Actief",
+        "with_archived": "Met gearchiveerde"
       },
       "builder": {
         "title_new": "Nieuw segment",

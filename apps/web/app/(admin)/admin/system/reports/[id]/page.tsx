@@ -1,10 +1,10 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireStaff } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
 import { adminLocale, translator } from "@/lib/i18n";
 import { catalogueSection, getMonthlyReport } from "@/modules/platform/queries";
 import { MonthlyReportView } from "@/modules/platform/ui/monthly-report-view";
+import { BackLink } from "@/modules/platform/ui/admin-list-kit";
 
 /**
  * `/admin/system/reports/[id]` (`system.jobs`): one monthly SLA report; owner or technical_admin
@@ -20,12 +20,10 @@ export default async function MonthlyReportPage({ params }: { params: Promise<{ 
   const monthName = new Date(`${report.monthOn}T12:00:00Z`).toLocaleDateString(locale, { month: "long", year: "numeric", timeZone: "Europe/Brussels" });
 
   return (
-    <div className="grid gap-6">
-      <header className="grid gap-2">
-        <Link href="/admin/system/reports" className="text-sm text-muted-foreground hover:underline">
-          {tr("platform.reports.back")}
-        </Link>
-        <h1 className="text-2xl font-semibold">{tr("platform.reports.report_title", { month: monthName })}</h1>
+    <div className="grid gap-4">
+      <header className="grid gap-1">
+        <BackLink href="/admin/system/reports">{tr("platform.reports.back")}</BackLink>
+        <h1>{tr("platform.reports.report_title", { month: monthName })}</h1>
       </header>
       <MonthlyReportView
         report={{

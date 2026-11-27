@@ -22,9 +22,9 @@ export default async function SitePageEditor({ params }: { params: Promise<{ pag
   const title = titleIn(data.base?.title, locale, data.page.slug);
   const rich = { bold: "B", italic: "I", h2: "H2", h3: "H3", bullets: "•", numbers: "1.", quote: "❝", link: L["block.link.url"] ?? "Link", linkPrompt: L["block.link.url"] ?? "URL" };
   return (
-    <div className="grid gap-6">
+    <div className="grid gap-4">
       <header className="grid gap-1">
-        <h1 className="text-2xl font-semibold">{title}</h1>
+        <h1>{title}</h1>
         <p className="text-sm text-muted-foreground">
           {L[`kind.${data.page.kind}`]} · {data.page.slug}
         </p>

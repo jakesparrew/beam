@@ -1,16 +1,20 @@
 import Link from "next/link";
 import type { Route } from "next";
-import { Badge, buttonVariants } from "@beam/ui";
+import { cn, EmptyState } from "@beam/ui";
 import { PRIVACY_KINDS, PRIVACY_STATUSES, brusselsDate, type PrivacyKind, type PrivacyStatus } from "@beam/core/ops";
 import { hasPermission, requireStaff } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
 import { adminLocale, translator } from "@/lib/i18n";
 import { listPrivacyRequests } from "@/modules/ops/privacy/queries";
+import { SecondaryAction, Segmented, StatusPill, Surface, Toolbar, td, th, type Tone } from "@/modules/platform/ui/admin-kit";
+import { Disclosure, Field, fieldClass, rowClass, rowLink } from "@/modules/platform/ui/admin-list-kit";
+import { PrivacyHeader } from "./privacy-header";
 
 /**
- * `/admin/privacy` (ops spec 5, rule 58): privacy requests with kind, status, due date (red with a
+ * `/admin/privacy` (ops spec 5, rule 58), the requests tab of "Privacy & gegevens" (owner review,
+ * November 2026): privacy requests with kind, status, due date (red with a
  * "due soon" label under 5 days, so colour is never the only signal), requested by and manual
- * follow-up; filters by status and kind; 50 per page. `privacy.run`, `persons.erase` or
+ * follow-up; kind tabs, status behind "Filters"; 50 per page. `privacy.run`, `persons.erase` or
  * `persons.export`.
  */
 const DUE_SOON_DAYS = 5;
@@ -37,101 +41,93 @@ export default async function PrivacyRequestsPage({ searchParams }: { searchPara
     q.set("page", String(p));
     return `/admin/privacy?${q.toString()}` as Route;
   };
-  const canCreate = hasPermission(actor, "persons.erase") || hasPermission(actor, "persons.export") || hasPermission(actor, "persons.write");
+
+  const href = (patch: Record<string, string | undefined>): Route => {
+    const q = new URLSearchParams();
+    for (const [k, v] of Object.entries({ status, kind, ...patch })) if (v) q.set(k, v);
+    const str = q.toString();
+    return str ? `/admin/privacy?${str}` : "/admin/privacy";
+  };
+  const statusTone = (s: PrivacyStatus): Tone => (s === "failed" ? "bad" : s === "done" ? "ok" : s === "cancelled" ? "muted" : "info");
 
   return (
-    <div className="grid gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">{tr("ops.privacy.title")}</h1>
-        {canCreate ? (
-          <Link href="/admin/privacy/new" className={buttonVariants({ size: "sm" })}>
-            {tr("ops.privacy.new")}
-          </Link>
-        ) : null}
-      </div>
-      <form data-auto-filter="" method="get" className="flex flex-wrap items-end gap-3" aria-label={tr("platform.table.filters")}>
-        <label className="grid gap-1 text-sm">
-          <span>{tr("platform.jobs.filter_status")}</span>
-          <select name="status" defaultValue={status ?? ""} className="h-9 rounded-lg border px-3">
-            <option value="">{tr("platform.integrations.all_statuses")}</option>
-            {PRIVACY_STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {tr(`ops.privacy.status.${s}`)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="grid gap-1 text-sm">
-          <span>{tr("platform.jobs.filter_kind")}</span>
-          <select name="kind" defaultValue={kind ?? ""} className="h-9 rounded-lg border px-3">
-            <option value="">{tr("platform.incidents.all")}</option>
-            {PRIVACY_KINDS.map((k) => (
-              <option key={k} value={k}>
-                {tr(`ops.privacy.kind.${k}`)}
-              </option>
-            ))}
-          </select>
-        </label>
+    <div className="grid gap-4">
+      <PrivacyHeader active="requests" actor={actor} tr={tr} />
+      <form data-auto-filter="" method="get" aria-label={tr("platform.table.filters")}>
+        <Toolbar>
+          {kind ? <input type="hidden" name="kind" value={kind} /> : null}
+          <Segmented
+            label={tr("platform.jobs.filter_kind")}
+            items={[{ key: "all", label: tr("platform.incidents.all"), href: href({ kind: undefined }), active: !kind }, ...PRIVACY_KINDS.map((k) => ({ key: k, label: tr(`ops.privacy.kind.${k}`), href: href({ kind: k }), active: kind === k }))]}
+          />
+          <Disclosure label={tr("platform.table.filters")} count={status ? 1 : 0} clear={status ? { href: href({ status: undefined }), label: tr("platform.integrations.all_statuses") } : null}>
+            <Field label={tr("platform.jobs.filter_status")}>
+              <select name="status" defaultValue={status ?? ""} className={fieldClass}>
+                <option value="">{tr("platform.integrations.all_statuses")}</option>
+                {PRIVACY_STATUSES.map((s) => (
+                  <option key={s} value={s}>
+                    {tr(`ops.privacy.status.${s}`)}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </Disclosure>
+        </Toolbar>
       </form>
       {items.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{tr("ops.privacy.empty")}</p>
+        <EmptyState title={tr("ops.privacy.empty")} />
       ) : (
-        <div className="overflow-x-auto rounded-md border">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50 text-left">
-              <tr>
-                <th className="px-3 py-2">{tr("platform.audit.person_id")}</th>
-                <th className="px-3 py-2">{tr("platform.jobs.col_kind")}</th>
-                <th className="px-3 py-2">{tr("platform.jobs.col_status")}</th>
-                <th className="px-3 py-2">{tr("ops.privacy.due_on", { date: "" }).trim()}</th>
-                <th className="px-3 py-2">{tr("platform.users.col_actor")}</th>
-                <th className="px-3 py-2">{tr("platform.jobs.created_at")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((r) => {
-                const left = daysUntil(r.dueOn, today);
-                const open = r.status !== "done" && r.status !== "cancelled";
-                const soon = open && left < DUE_SOON_DAYS;
-                return (
-                  <tr key={r.id} className="border-t">
-                    <td className="px-3 py-2">
-                      <Link href={`/admin/privacy/${r.id}` as Route} className="font-medium underline-offset-4 hover:underline">
-                        {r.personName ?? r.personId.slice(0, 8)}
-                      </Link>
-                    </td>
-                    <td className="px-3 py-2">{tr(`ops.privacy.kind.${r.kind}`)}</td>
-                    <td className="px-3 py-2">
-                      <span className="flex flex-wrap gap-1">
-                        <Badge variant={r.status === "failed" ? "destructive" : r.status === "done" ? "success" : "secondary"}>{tr(`ops.privacy.status.${r.status}`)}</Badge>
-                        {r.needsManualFollowup ? <Badge variant="destructive">{tr("ops.privacy.manual_followup")}</Badge> : null}
-                      </span>
-                    </td>
-                    <td className={soon ? "px-3 py-2 font-medium text-destructive" : "px-3 py-2"}>
-                      {dateFmt.format(new Date(`${r.dueOn}T12:00:00Z`))}
-                      {soon ? <span className="ml-2 text-xs">({tr("ops.privacy.due_soon")})</span> : null}
-                    </td>
-                    <td className="px-3 py-2">{tr(`ops.privacy.requested_by.${r.requestedBy}`)}</td>
-                    <td className="px-3 py-2">{dateFmt.format(r.createdAt)}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <Surface flush>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[48rem] text-[0.8125rem]">
+              <caption className="sr-only">{tr("ops.privacy.title")}</caption>
+              <thead className="bg-[#faf9f6]">
+                <tr className="border-b border-border">
+                  <th scope="col" className={th}>{tr("platform.audit.person_id")}</th>
+                  <th scope="col" className={cn(th, "w-32")}>{tr("platform.jobs.col_kind")}</th>
+                  <th scope="col" className={cn(th, "w-56")}>{tr("platform.jobs.col_status")}</th>
+                  <th scope="col" className={cn(th, "w-44")}>{tr("ops.privacy.due_on", { date: "" }).trim()}</th>
+                  <th scope="col" className={cn(th, "w-36")}>{tr("platform.users.col_actor")}</th>
+                  <th scope="col" className={cn(th, "w-32")}>{tr("platform.jobs.created_at")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((r) => {
+                  const left = daysUntil(r.dueOn, today);
+                  const open = r.status !== "done" && r.status !== "cancelled";
+                  const soon = open && left < DUE_SOON_DAYS;
+                  return (
+                    <tr key={r.id} className={rowClass}>
+                      <td className={td}>
+                        <Link href={`/admin/privacy/${r.id}` as Route} className={cn(rowLink, "font-semibold hover:underline")}>
+                          {r.personName ?? r.personId.slice(0, 8)}
+                        </Link>
+                      </td>
+                      <td className={td}>{tr(`ops.privacy.kind.${r.kind}`)}</td>
+                      <td className={td}>
+                        <span className="flex flex-wrap gap-1">
+                          <StatusPill tone={statusTone(r.status)}>{tr(`ops.privacy.status.${r.status}`)}</StatusPill>
+                          {r.needsManualFollowup ? <StatusPill tone="bad">{tr("ops.privacy.manual_followup")}</StatusPill> : null}
+                        </span>
+                      </td>
+                      <td className={cn(td, "whitespace-nowrap", soon && "font-semibold text-[var(--status-bad)]")}>
+                        {dateFmt.format(new Date(`${r.dueOn}T12:00:00Z`))}
+                        {soon ? <span className="ml-2 text-[0.75rem]">({tr("ops.privacy.due_soon")})</span> : null}
+                      </td>
+                      <td className={cn(td, "text-muted-foreground")}>{tr(`ops.privacy.requested_by.${r.requestedBy}`)}</td>
+                      <td className={cn(td, "whitespace-nowrap text-muted-foreground")}>{dateFmt.format(r.createdAt)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </Surface>
       )}
       {total > pageSize ? (
         <nav className="flex gap-2" aria-label={tr("platform.table.filters")}>
-          {page > 1 ? (
-            <Link href={pageHref(page - 1)} className={buttonVariants({ variant: "outline", size: "sm" })}>
-              {tr("platform.table.previous")}
-            </Link>
-          ) : null}
-          {page * pageSize < total ? (
-            <Link href={pageHref(page + 1)} className={buttonVariants({ variant: "outline", size: "sm" })}>
-              {tr("platform.table.next")}
-            </Link>
-          ) : null}
+          {page > 1 ? <SecondaryAction href={pageHref(page - 1)}>{tr("platform.table.previous")}</SecondaryAction> : null}
+          {page * pageSize < total ? <SecondaryAction href={pageHref(page + 1)}>{tr("platform.table.next")}</SecondaryAction> : null}
         </nav>
       ) : null}
     </div>

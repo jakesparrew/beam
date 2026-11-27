@@ -723,7 +723,10 @@
         "col_used_by": "Used by",
         "used_by_campaigns": "Campaigns",
         "used_by_automations": "Automations",
-        "archived": "Archived"
+        "archived": "Archived",
+        "subtitle": "Groups of people for campaigns and automations.",
+        "active": "Active",
+        "with_archived": "Including archived"
       },
       "builder": {
         "title_new": "New segment",

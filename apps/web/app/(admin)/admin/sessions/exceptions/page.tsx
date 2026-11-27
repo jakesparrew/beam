@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Route } from "next";
-import { Badge, buttonVariants } from "@beam/ui";
+import { EmptyState } from "@beam/ui";
 import { BOOKING_CONFLICT_REASONS, addDays, brusselsDate, brusselsTime, eachDate, isoWeekday } from "@beam/core/booking";
 import { LOCALES, formatDate, type Locale, type LocalizedText } from "@beam/core/i18n";
 import { requireStaff } from "@/lib/auth";
@@ -11,6 +11,7 @@ import { listExceptions, listTemplates, listUpcomingHolidays } from "@/modules/b
 import { ClosingDaysCalendar, type CalendarDay } from "@/modules/booking/ui/closing-days-calendar";
 import { DeleteExceptionButton, ExceptionForm } from "@/modules/booking/ui/exception-form";
 import { HolidayPanel } from "@/modules/booking/ui/holiday-panel";
+import { PageHeader, PeriodSwitch, StatusPill, Surface } from "@/modules/platform/ui/admin-kit";
 
 const show = (text: LocalizedText | null | undefined, locale: Locale) => text?.[locale] || text?.["nl-BE"] || text?.en || text?.["fr-BE"] || "";
 const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
@@ -71,24 +72,22 @@ export default async function ExceptionsPage({ searchParams }: { searchParams: P
   const localeNames = { "nl-BE": tr("platform.shell.locale_nl"), "fr-BE": tr("platform.shell.locale_fr"), en: tr("platform.shell.locale_en") };
 
   return (
-    <div className="grid gap-8">
-      <h1 className="text-2xl font-semibold">{tr("booking.exceptions.title")}</h1>
-      <section aria-labelledby="closing-calendar" className="grid max-w-4xl gap-3">
+    <div className="grid gap-4">
+      <PageHeader title={tr("booking.exceptions.title")} description={tr("booking.exceptions.subtitle")} />
+      <Surface aria-labelledby="closing-calendar" className="grid max-w-4xl gap-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 id="closing-calendar" className="text-xl font-semibold capitalize">
-            {monthTitle}
+          <h2 id="closing-calendar" className="text-[0.9375rem] font-semibold capitalize">
+            {tr("booking.exceptions.calendar_title")}
           </h2>
-          <nav className="flex gap-2" aria-label={tr("booking.exceptions.calendar_title")}>
-            <Link href={monthLink(shiftMonth(month, -1))} className={buttonVariants({ variant: "outline", size: "sm" })}>
-              {tr("booking.exceptions.calendar_prev")}
-            </Link>
-            <Link href={monthLink(today.slice(0, 7))} className={buttonVariants({ variant: "outline", size: "sm" })}>
-              {tr("booking.exceptions.calendar_today")}
-            </Link>
-            <Link href={monthLink(shiftMonth(month, 1))} className={buttonVariants({ variant: "outline", size: "sm" })}>
-              {tr("booking.exceptions.calendar_next")}
-            </Link>
-          </nav>
+          <PeriodSwitch
+            label={<span className="capitalize">{monthTitle}</span>}
+            previous={monthLink(shiftMonth(month, -1))}
+            next={monthLink(shiftMonth(month, 1))}
+            today={monthLink(today.slice(0, 7))}
+            todayLabel={tr("booking.exceptions.calendar_today")}
+            previousLabel={tr("booking.exceptions.calendar_prev")}
+            nextLabel={tr("booking.exceptions.calendar_next")}
+          />
         </div>
         <ClosingDaysCalendar
           key={month}
@@ -108,29 +107,30 @@ export default async function ExceptionsPage({ searchParams }: { searchParams: P
             defaultName: Object.fromEntries(LOCALES.map((l) => [l, translator(l)("booking.exceptions.calendar_default_name")])) as Record<Locale, string>,
           }}
         />
-      </section>
+      </Surface>
       {exceptions.length === 0 ? (
-        <p className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">{tr("booking.exceptions.empty")}</p>
+        <EmptyState title={tr("booking.exceptions.empty")} />
       ) : (
-        <ul className="grid gap-3">
+        <Surface flush>
+          <ul>
           {exceptions.map((e) => (
-            <li key={e.id} className="grid gap-2 rounded-md border p-3">
+            <li key={e.id} className="grid gap-1.5 border-b border-border px-5 py-3 text-[0.8125rem] last:border-b-0">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span>
                   <Link href={`/admin/sessions/day/${e.onDate}` as Route} className="font-medium hover:underline">
                     {formatDate(e.onDate, locale, "full")}
                   </Link>{" "}
-                  · {show(e.name as LocalizedText, locale)} <Badge variant="outline">{tr(`booking.exceptionKind.${e.kind}`)}</Badge>
-                  {e.kind === "special_hours" && e.opensAt && e.closesAt ? <span className="ml-2 text-sm">{tr("booking.day.opening_hours", { opens: e.opensAt.slice(0, 5), closes: e.closesAt.slice(0, 5) })}</span> : null}
+                  · {show(e.name as LocalizedText, locale)} <StatusPill tone={e.kind === "special_hours" ? "info" : "bad"}>{tr(`booking.exceptionKind.${e.kind}`)}</StatusPill>
+                  {e.kind === "special_hours" && e.opensAt && e.closesAt ? <span className="ml-2 tabular-nums">{tr("booking.day.opening_hours", { opens: e.opensAt.slice(0, 5), closes: e.closesAt.slice(0, 5) })}</span> : null}
                 </span>
                 <DeleteExceptionButton id={e.id} label={tr("booking.common.delete")} error={tr("platform.errors.conflict")} />
               </div>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-[0.75rem] text-muted-foreground">
                 {tr("booking.exceptions.templates")}: {e.templateIds?.length ? e.templateIds.map((id) => templateName.get(id) ?? id).join(", ") : tr("booking.exceptions.all_templates")}
                 {e.note ? ` · ${e.note}` : ""}
               </p>
               {e.conflicts.length ? (
-                <div className="rounded border border-destructive p-2 text-sm">
+                <div className="rounded-lg bg-[var(--status-bad-soft)] px-3 py-2 text-[var(--status-bad)]">
                   <p className="font-medium">{tr("booking.exceptions.conflicts_title")}</p>
                   <ul className="list-disc pl-4">
                     {e.conflicts.map((c) => (
@@ -144,11 +144,12 @@ export default async function ExceptionsPage({ searchParams }: { searchParams: P
               ) : null}
             </li>
           ))}
-        </ul>
+          </ul>
+        </Surface>
       )}
-      <div className="grid gap-8 lg:grid-cols-[2fr_1fr]">
-        <section aria-labelledby="add-exception" className="grid content-start gap-4">
-          <h2 id="add-exception" className="text-xl font-semibold">
+      <div className="grid items-start gap-4 lg:grid-cols-[2fr_1fr]">
+        <Surface aria-labelledby="add-exception" className="grid content-start gap-4">
+          <h2 id="add-exception" className="text-[0.9375rem] font-semibold">
             {tr("booking.exceptions.add")}
           </h2>
           <ExceptionForm
@@ -179,7 +180,7 @@ export default async function ExceptionsPage({ searchParams }: { searchParams: P
               },
             }}
           />
-        </section>
+        </Surface>
         <HolidayPanel
           items={holidays.map((h) => ({ onDate: h.onDate, dateLabel: formatDate(h.onDate, locale, "full"), label: tr(`booking.holidays.${h.key}`), name: h.name }))}
           labels={{

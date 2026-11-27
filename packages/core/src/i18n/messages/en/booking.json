@@ -325,7 +325,8 @@
       "regeneration_failed": "Updating the sessions failed. Retry it from the jobs page.",
       "incomplete_name": "Complete the name in all three languages before activating.",
       "empty": "No schedule yet: add your first day sessions.",
-      "step_schedule": "Days and times"
+      "step_schedule": "Days and times",
+      "subtitle": "The weekly schedule; the sessions of the coming weeks are generated from it."
     },
     "exceptions": {
       "title": "Closed days and special hours",
@@ -353,7 +354,8 @@
       "calendar_remove": "Remove",
       "calendar_closed_weekly": "Closed every week",
       "calendar_partial": "some sessions only",
-      "calendar_default_name": "Closed"
+      "calendar_default_name": "Closed",
+      "subtitle": "Closing days, holidays and special hours of the next twelve months."
     },
     "rules": {
       "title": "Booking rules",
@@ -392,7 +394,8 @@
       "hours_closed": "Closed",
       "reception_phone": "Reception phone",
       "note": "Note for customers",
-      "stale": "Someone changed these rules, reload."
+      "stale": "Someone changed these rules, reload.",
+      "subtitle": "When people may cancel, book and check in, and the opening hours."
     },
     "holds": {
       "title": "Blocked places",

@@ -946,7 +946,10 @@
       "progress_title": "Progress",
       "report_title": "Report",
       "cancel_reason": "Reason for cancelling",
-      "lift_reason": "Reason for lifting the restriction"
+      "lift_reason": "Reason for lifting the restriction",
+      "subtitle": "Privacy requests, how long data is kept and the impact assessment.",
+      "tab_requests": "Requests",
+      "more": "More"
     },
     "retention_policy": {
       "ops_marketing_contact": "Marketing contacts without purchase",

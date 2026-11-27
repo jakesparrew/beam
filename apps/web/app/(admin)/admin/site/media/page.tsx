@@ -15,8 +15,8 @@ export default async function SiteMediaPage({ searchParams }: { searchParams: Pr
   const { rows } = await listMedia({ q: sp.q?.slice(0, 100), cursor: sp.cursor }, await getAppDb());
   const usageLabels = Object.fromEntries(rows.map((r) => [r.mediaId, tr("site.admin.media.usage", { count: r.usage })]));
   return (
-    <div className="grid gap-6">
-      <h1 className="text-2xl font-semibold">{L["media.title"]}</h1>
+    <div className="grid gap-4">
+      <h1>{L["media.title"]}</h1>
       <SiteSectionNav L={L} current="/admin/site/media" />
       <MediaLibrary rows={rows} L={L} usageLabels={usageLabels} />
     </div>

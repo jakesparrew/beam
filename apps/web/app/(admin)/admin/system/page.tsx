@@ -4,6 +4,7 @@ import { getAppDb } from "@/lib/ctx";
 import { adminLocale, translator } from "@/lib/i18n";
 import { getSetting } from "@/lib/settings";
 import { catalogueSection, getSystemOverview } from "@/modules/platform/queries";
+import { PageHeader } from "@/modules/platform/ui/admin-kit";
 import { AutoRefresh, SystemTiles } from "@/modules/platform/ui/system-tiles";
 
 export const dynamic = "force-dynamic";
@@ -34,11 +35,15 @@ export default async function SystemPage() {
   ] as const;
 
   return (
-    <div className="grid gap-6">
-      <header className="grid gap-2">
-        <h1 className="text-2xl font-semibold">{t("title")}</h1>
-        <p className="text-muted-foreground">{t("intro")}</p>
-      </header>
+    <div className="grid gap-4">
+      <PageHeader title={tr("platform.nav.technical")} description={t("intro")} />
+      <nav aria-label={t("pages")} className="flex flex-wrap gap-x-4 gap-y-1 rounded-xl border border-border bg-card px-5 py-2.5 text-[0.8125rem] font-medium">
+        {links.map((l) => (
+          <Link key={l.href} href={l.href} className="text-muted-foreground hover:text-foreground">
+            {l.label}
+          </Link>
+        ))}
+      </nav>
       <AutoRefresh seconds={30} />
       <SystemTiles
         data={{
@@ -51,17 +56,6 @@ export default async function SystemPage() {
         labels={catalogueSection(locale, "platform.system")}
         locale={locale}
       />
-      <nav aria-label={t("pages")}>
-        <ul className="flex flex-wrap gap-3 text-sm">
-          {links.map((l) => (
-            <li key={l.href}>
-              <Link href={l.href} className="underline">
-                {l.label}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </nav>
     </div>
   );
 }

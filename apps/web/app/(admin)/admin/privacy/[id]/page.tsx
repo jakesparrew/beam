@@ -8,6 +8,7 @@ import { getAppDb } from "@/lib/ctx";
 import { adminLocale, translator } from "@/lib/i18n";
 import { cancelPrivacyRequest, completeRectification, liftRestriction, runPrivacyRequestNow, verifyPrivacyRequest } from "@/modules/ops/privacy/actions";
 import { getPrivacyRequest } from "@/modules/ops/privacy/queries";
+import { BackLink } from "@/modules/platform/ui/admin-list-kit";
 
 /**
  * `/admin/privacy/[id]` (`privacy.run`, ops spec 5, rules 59a-64): the request with its warnings,
@@ -68,15 +69,11 @@ export default async function PrivacyRequestPage({ params, searchParams }: { par
   const canRunNow = (r.kind === "erase" && (r.status === "verified" || r.status === "failed") && hasPermission(actor, "persons.erase")) || (r.kind === "export" && r.status === "failed");
 
   return (
-    <div className="grid gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">
-          {tr(`ops.privacy.kind.${r.kind}`)} · {r.personName ?? r.personId.slice(0, 8)}
-        </h1>
-        <Link href="/admin/privacy" className={buttonVariants({ variant: "outline", size: "sm" })}>
-          {tr("ops.privacy.title")}
-        </Link>
-      </div>
+    <div className="grid gap-4">
+      <BackLink href="/admin/privacy">{tr("ops.privacy.title")}</BackLink>
+      <h1>
+        {tr(`ops.privacy.kind.${r.kind}`)} · {r.personName ?? r.personId.slice(0, 8)}
+      </h1>
       {error ? (
         <Alert variant="destructive">
           <AlertDescription>{tr(`platform.errors.${error}`)}</AlertDescription>

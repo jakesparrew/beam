@@ -57,8 +57,8 @@ export function InviteUserForm({ roles, labels, errors }: { roles: RoleOption[];
     if (ok) setKey((k) => k + 1);
   }
   return (
-    <form key={key} onSubmit={(e) => void onSubmit(e)} className="grid max-w-2xl gap-3 rounded-md border p-4" noValidate aria-labelledby="invite-title">
-      <h2 id="invite-title" className="text-lg font-medium">
+    <form key={key} onSubmit={(e) => void onSubmit(e)} className="grid max-w-2xl gap-3 rounded-xl border border-border bg-card p-5" noValidate aria-labelledby="invite-title">
+      <h2 id="invite-title" className="text-[0.9375rem] font-semibold">
         {lab(labels, "invite_title")}
       </h2>
       <div className="grid gap-3 sm:grid-cols-2">

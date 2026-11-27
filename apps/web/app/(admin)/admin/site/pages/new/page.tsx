@@ -12,8 +12,8 @@ export default async function NewSitePage() {
   const L = siteAdminLabels(locale);
   const pickers = await getEditorPickers(locale, await getAppDb());
   return (
-    <div className="grid gap-6">
-      <h1 className="text-2xl font-semibold">{L["newPage.title"]}</h1>
+    <div className="grid gap-4">
+      <h1>{L["newPage.title"]}</h1>
       <SiteSectionNav L={L} current="/admin/site" />
       <NewPageForm L={L} sessions={pickers.sessions} />
     </div>

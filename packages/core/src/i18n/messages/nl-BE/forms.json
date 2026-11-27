@@ -436,7 +436,10 @@
       "empty": "Nog geen formulieren. Maak een leadformulier of een assessment.",
       "no_match": "Geen formulieren voor deze filters.",
       "template_lead": "Leadformulier maken",
-      "template_assessment": "Assessment maken"
+      "template_assessment": "Assessment maken",
+      "subtitle": "Leadformulieren en assessments met hun funnel van de laatste 30 dagen.",
+      "tabs": "Formulieren",
+      "clear": "Wissen"
     },
     "new": {
       "title": "Nieuw formulier",

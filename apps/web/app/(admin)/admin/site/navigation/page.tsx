@@ -13,8 +13,8 @@ export default async function SiteNavigationPage() {
   const L = siteAdminLabels(locale);
   const [menus, pickers] = await Promise.all([listNavMenusForAdmin(db), getEditorPickers(locale, db)]);
   return (
-    <div className="grid gap-6">
-      <h1 className="text-2xl font-semibold">{L["navigation.title"]}</h1>
+    <div className="grid gap-4">
+      <h1>{L["navigation.title"]}</h1>
       <SiteSectionNav L={L} current="/admin/site/navigation" />
       <NavEditor menus={menus} L={L} pickers={pickers} canEdit={hasPermission(actor, "site.publish")} />
     </div>

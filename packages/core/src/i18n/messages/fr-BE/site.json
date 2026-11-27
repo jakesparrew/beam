@@ -448,7 +448,10 @@
         "new": "Nouvelle page",
         "openRequests": "Demandes Claude en cours",
         "search": "Rechercher des pages",
-        "title": "Pages du site"
+        "title": "Pages du site",
+        "subtitle": "Les pages du site public, leurs versions et ce qui est en ligne.",
+        "filters": "Filtres",
+        "clear": "Effacer"
       },
       "redirects": {
         "add": "Ajouter une redirection",

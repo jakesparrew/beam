@@ -1,11 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Alert, AlertDescription, Badge, Button } from "@beam/ui";
+import { Alert, AlertDescription, Button } from "@beam/ui";
 import { brusselsParts, emptyDocument } from "@beam/core/email";
 import { hasPermission, requireStaff } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
 import { adminLocale, translator } from "@/lib/i18n";
 import { getSegmentSummaries } from "@/modules/crm/api";
+import { PageHeader, StatusPill } from "@/modules/platform/ui/admin-kit";
+import { BackLink } from "@/modules/platform/ui/admin-list-kit";
+import { CAMPAIGN_TONE } from "../email-header";
 import { sendTestEmail } from "@/modules/email/actions";
 import { catalogueSection, getCampaign, getTemplate, staffEmailOf } from "@/modules/email/queries";
 import { AudiencePicker } from "@/modules/email/ui/campaign/AudiencePicker";
@@ -76,30 +79,33 @@ export default async function CampaignPage({ params, searchParams }: { params: P
     .reduce((n, [, v]) => n + v, 0);
 
   return (
-    <div className="grid gap-6" data-campaign-status={c.status}>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="grid gap-1">
-          <h1 className="text-2xl font-semibold">{c.name}</h1>
-          <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-            <Badge variant={c.status === "sent" ? "default" : "secondary"} data-testid="campaign-status">
-              {clab(labels, `status_${c.status}`)}
-            </Badge>
-            <Badge variant="outline">{clab(labels, `purpose_${c.purpose}`)}</Badge>
-            {detail.segment ? <span>{detail.segment.name}</span> : null}
-            {c.scheduledAt && c.status !== "draft" ? <span>{clab(labels, "scheduled_for", { at: dateFmt.format(c.scheduledAt) })}</span> : null}
-          </div>
-        </div>
-        <CampaignControls
-          campaignId={c.id}
-          name={c.name}
-          status={c.status}
-          pausedReason={c.pausedReason}
-          version={c.version}
-          canSend={canSend}
-          canWrite={canWrite}
-          labels={labels}
-        />
-      </div>
+    <div className="grid gap-4" data-campaign-status={c.status}>
+      <BackLink href="/admin/campaigns">{tr("email.nav.campaigns")}</BackLink>
+      <PageHeader
+        title={c.name}
+        description={
+          <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span data-testid="campaign-status">
+              <StatusPill tone={CAMPAIGN_TONE[c.status]}>{clab(labels, `status_${c.status}`)}</StatusPill>
+            </span>
+            <span>{clab(labels, `purpose_${c.purpose}`)}</span>
+            {detail.segment ? <span>· {detail.segment.name}</span> : null}
+            {c.scheduledAt && c.status !== "draft" ? <span>· {clab(labels, "scheduled_for", { at: dateFmt.format(c.scheduledAt) })}</span> : null}
+          </span>
+        }
+        actions={
+          <CampaignControls
+            campaignId={c.id}
+            name={c.name}
+            status={c.status}
+            pausedReason={c.pausedReason}
+            version={c.version}
+            canSend={canSend}
+            canWrite={canWrite}
+            labels={labels}
+          />
+        }
+      />
       {!canWrite ? <p className="text-sm text-muted-foreground">{clab(labels, "read_only")}</p> : null}
       {c.lastError && c.status === "draft" ? (
         <Alert variant="destructive">

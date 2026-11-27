@@ -3,6 +3,7 @@ import { getAppDb } from "@/lib/ctx";
 import { adminLocale, jobsTableLabels, translator } from "@/lib/i18n";
 import { listJobKinds, listJobs, type JobLane, type JobStatus } from "@/modules/platform/queries";
 import { JobsTable } from "@/modules/platform/ui/jobs-table";
+import { BackLink } from "@/modules/platform/ui/admin-list-kit";
 
 const STATUSES = ["pending", "running", "succeeded", "failed", "dead", "all"] as const;
 const LANES = ["fast", "bulk"] as const;
@@ -23,10 +24,11 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
     listJobKinds(db),
   ]);
   return (
-    <div className="grid gap-6">
-      <header className="grid gap-2">
-        <h1 className="text-2xl font-semibold">{tr("platform.jobs.title")}</h1>
-        <p className="text-muted-foreground">{tr("platform.jobs.intro")}</p>
+    <div className="grid gap-4">
+      <BackLink href="/admin/system">{tr("platform.nav.technical")}</BackLink>
+      <header className="grid gap-1">
+        <h1>{tr("platform.jobs.title")}</h1>
+        <p className="max-w-2xl text-[0.8125rem] text-muted-foreground">{tr("platform.jobs.intro")}</p>
       </header>
       <JobsTable
         rows={rows.map((r) => ({ ...r, runAt: r.runAt.toISOString() }))}

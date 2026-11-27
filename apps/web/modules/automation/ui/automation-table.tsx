@@ -1,13 +1,11 @@
 /**
- * Server-rendered pieces of the automation screens (automation spec 5): the list table with its
- * filter form (a plain GET form, so it works without JavaScript), the detail header with the
- * section tabs, the stats tiles and the plain-words summaries of a trigger and a step offset.
+ * Server-rendered pieces of the automation screens (automation spec 5): the detail header with the
+ * section tabs and the stats strip in the back-office look (owner review, November 2026; the list
+ * renders in its page with the kit), and the plain-words summaries of a trigger and a step offset.
  * Every string comes from the `automation` catalogue through `labels`; times are Europe/Brussels.
  */
 import Link from "next/link";
-import { Badge, Card, CardContent, CardHeader, CardTitle, EmptyState, Input, Label, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@beam/ui";
-import { formatDateTime, type Locale } from "@beam/core/i18n";
-import { AUTOMATION_CATEGORIES, type AutomationCategory, type At, type Definition, type Filter, type Step } from "@beam/core/automation";
+import { type AutomationCategory, type At, type Definition, type Filter, type Step } from "@beam/core/automation";
 import { AutomationStatusBadge, fill, type Labels } from "./outcome-badge";
 
 export type AutomationTableRow = {
@@ -27,149 +25,6 @@ export type AutomationTableRow = {
   lastRunAt: Date | null;
   category: AutomationCategory;
 };
-
-const STATUSES = ["draft", "active", "paused", "archived"] as const;
-
-/** Status, group and search filters of the list (GET `/admin/automations?status=&group=&q=`). */
-export function AutomationFilters({
-  l,
-  groups,
-  value,
-}: {
-  l: Labels;
-  groups: { key: string; name: string }[];
-  value: { status?: string; group?: string; q?: string; category?: string };
-}) {
-  const selectClass = "h-9 rounded-md border border-input bg-background px-3 text-sm";
-  return (
-    <form data-auto-filter="" method="get" action="/admin/automations" className="flex flex-wrap items-end gap-3" data-testid="automation-filters">
-      {value.category ? <input type="hidden" name="category" value={value.category} /> : null}
-      <div className="grid gap-1">
-        <Label htmlFor="automation-filter-status">{l["list.filter_status"]}</Label>
-        <select id="automation-filter-status" name="status" defaultValue={value.status ?? ""} className={selectClass}>
-          <option value="">{l["common.all"]}</option>
-          {STATUSES.map((s) => (
-            <option key={s} value={s}>
-              {l[`status.${s}`]}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className="grid gap-1">
-        <Label htmlFor="automation-filter-group">{l["list.filter_group"]}</Label>
-        <select id="automation-filter-group" name="group" defaultValue={value.group ?? ""} className={selectClass}>
-          <option value="">{l["common.all"]}</option>
-          {groups.map((g) => (
-            <option key={g.key} value={g.key}>
-              {g.name}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className="grid gap-1">
-        <Label htmlFor="automation-filter-q">{l["list.search"]}</Label>
-        <Input id="automation-filter-q" name="q" defaultValue={value.q ?? ""} placeholder={l["list.search_placeholder"]} className="w-56" />
-      </div>
-    </form>
-  );
-}
-
-/**
- * The categories as tabs with their counts (owner's review, section 10): a link per category keeps
- * the other filters; "All" lists every category, grouped under a heading row.
- */
-export function CategoryTabs({ l, counts, current, query }: { l: Labels; counts: Record<AutomationCategory, number>; current?: AutomationCategory; query: Record<string, string | undefined> }) {
-  const href = (category?: AutomationCategory) => {
-    const entries: [string, string | undefined][] = Object.entries({ ...query, category });
-    const q = new URLSearchParams(entries.filter((e): e is [string, string] => !!e[1]));
-    const s = q.toString();
-    return s ? `/admin/automations?${s}` : "/admin/automations";
-  };
-  const total = Object.values(counts).reduce((a, b) => a + b, 0);
-  const tabs: { key?: AutomationCategory; label: string; count: number }[] = [
-    { label: l["list.category_all"] ?? "", count: total },
-    ...AUTOMATION_CATEGORIES.filter((c) => counts[c] > 0 || c === current).map((c) => ({ key: c, label: l[`list.category.${c}`] ?? c, count: counts[c] })),
-  ];
-  return (
-    <nav aria-label={l["list.categories"]} className="flex flex-wrap gap-2" data-testid="automation-categories">
-      {tabs.map((t) => (
-        <Link
-          key={t.key ?? "all"}
-          href={href(t.key) as never}
-          aria-current={t.key === current ? "page" : undefined}
-          data-category={t.key ?? "all"}
-          className={`rounded-full border px-3 py-1 text-sm ${t.key === current ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted"}`}
-        >
-          {t.label} <span className="tabular-nums opacity-80">{t.count}</span>
-        </Link>
-      ))}
-    </nav>
-  );
-}
-
-/** The list: name, slug, group (exclusive badge), status, version, counts of the last 7 days, last run; grouped by category when `grouped`. */
-export function AutomationTable({ rows, l, locale, emptyAction, filtered, grouped }: { rows: AutomationTableRow[]; l: Labels; locale: Locale; emptyAction?: React.ReactNode; filtered: boolean; grouped?: boolean }) {
-  const ordered = grouped ? AUTOMATION_CATEGORIES.flatMap((c) => rows.filter((r) => r.category === c)) : rows;
-  if (rows.length === 0) return <EmptyState title={filtered ? l["list.empty_filtered"] : l["list.empty"]} action={filtered ? undefined : emptyAction} />;
-  return (
-    <Table data-testid="automation-table">
-      <TableHeader>
-        <TableRow>
-          <TableHead>{l["list.col_name"]}</TableHead>
-          <TableHead>{l["list.col_slug"]}</TableHead>
-          <TableHead>{l["list.col_group"]}</TableHead>
-          <TableHead>{l["list.col_status"]}</TableHead>
-          <TableHead>{l["list.col_version"]}</TableHead>
-          <TableHead className="text-right">{l["list.col_active"]}</TableHead>
-          <TableHead className="text-right">{l["list.col_entered_7d"]}</TableHead>
-          <TableHead className="text-right">{l["list.col_sent_7d"]}</TableHead>
-          <TableHead className="text-right">{l["list.col_skipped_7d"]}</TableHead>
-          <TableHead className="text-right">{l["list.col_failed_7d"]}</TableHead>
-          <TableHead>{l["list.col_last_run"]}</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {ordered.map((r, i) => [
-          grouped && r.category !== ordered[i - 1]?.category ? (
-            <TableRow key={`category-${r.category}`} data-category-heading={r.category} className="bg-muted/40 hover:bg-muted/40">
-              <TableCell colSpan={11} className="font-semibold">
-                {l[`list.category.${r.category}`] ?? r.category}
-              </TableCell>
-            </TableRow>
-          ) : null,
-          <TableRow key={r.id} data-slug={r.slug}>
-            <TableCell>
-              <Link className="font-medium underline-offset-2 hover:underline" href={`/admin/automations/${r.id}`}>
-                {r.name}
-              </Link>
-            </TableCell>
-            <TableCell className="font-mono text-xs">{r.slug}</TableCell>
-            <TableCell>
-              {r.groupName}
-              {r.groupIsExclusive ? (
-                <Badge variant="outline" className="ml-2">
-                  {l["list.exclusive"]}
-                </Badge>
-              ) : null}
-            </TableCell>
-            <TableCell>
-              <AutomationStatusBadge status={r.status} label={l[`status.${r.status}`] ?? r.status} />
-            </TableCell>
-            <TableCell>{r.currentVersion ? fill(l["list.version_n"], { version: r.currentVersion }) : l["list.no_version"]}</TableCell>
-            <TableCell className="text-right tabular-nums">{r.activeCount}</TableCell>
-            <TableCell className="text-right tabular-nums">{r.entered7d}</TableCell>
-            <TableCell className="text-right tabular-nums">{r.sent7d}</TableCell>
-            <TableCell className="text-right tabular-nums">{r.skipped7d}</TableCell>
-            <TableCell className={`text-right tabular-nums ${r.failed7d > 0 ? "font-semibold text-destructive" : ""}`} data-failed={r.failed7d > 0 ? "true" : undefined}>
-              {r.failed7d}
-            </TableCell>
-            <TableCell>{r.lastRunAt ? formatDateTime(r.lastRunAt, locale) : l["list.never"]}</TableCell>
-          </TableRow>,
-        ])}
-      </TableBody>
-    </Table>
-  );
-}
 
 export type AutomationTab = "overview" | "edit" | "builder" | "versions" | "enrolments" | "runs";
 
@@ -201,26 +56,26 @@ export function AutomationHeader({
   ];
   return (
     <div className="grid gap-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <Link href="/admin/automations" className="w-fit text-[0.8125rem] font-medium text-muted-foreground hover:text-foreground">
+        ← {l["list.title"] ?? l["common.back"]}
+      </Link>
+      <header className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
         <div className="grid gap-1">
-          <Link href="/admin/automations" className="text-sm text-muted-foreground underline-offset-2 hover:underline">
-            {l["common.back"]}
-          </Link>
-          <h1 className="flex flex-wrap items-center gap-3 text-2xl font-semibold">
+          <h1 className="flex flex-wrap items-center gap-3">
             {name}
             <AutomationStatusBadge status={status} label={l[`status.${status}`] ?? status} />
           </h1>
-          <p className="font-mono text-xs text-muted-foreground">{slug}</p>
+          <p className="font-mono text-[0.75rem] text-muted-foreground">{slug}</p>
         </div>
         {actions}
-      </div>
-      <nav aria-label={l["detail.tabs_label"]} className="flex flex-wrap gap-1 border-b">
+      </header>
+      <nav aria-label={l["detail.tabs_label"]} className="flex w-fit max-w-full flex-wrap rounded-lg bg-muted p-0.5 text-[0.8125rem] font-medium">
         {tabs.map((t) => (
           <Link
             key={t.key}
             href={t.href as never}
             aria-current={t.key === current ? "page" : undefined}
-            className={`rounded-t-md px-3 py-2 text-sm ${t.key === current ? "border-b-2 border-primary font-semibold" : "text-muted-foreground hover:text-foreground"}`}
+            className={`rounded-md px-3 py-1 whitespace-nowrap ${t.key === current ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
           >
             {l[`detail.tab_${t.key}`]}
           </Link>
@@ -242,18 +97,12 @@ export function StatTiles({ stats, l }: { stats: Record<"activeCount" | "complet
     ["stat_failed_7d", stats.failed7d],
   ] as const;
   return (
-    <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7" data-testid="automation-stats">
+    <dl className="grid grid-cols-2 divide-border rounded-xl border border-border bg-card sm:grid-cols-4 lg:grid-cols-7 lg:divide-x" data-testid="automation-stats">
       {tiles.map(([key, n]) => (
-        <Card key={key} className="py-3">
-          <CardHeader className="px-4">
-            <CardTitle>
-              <dt className="text-xs font-medium text-muted-foreground">{l[`detail.${key}`]}</dt>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="px-4">
-            <dd className={`text-2xl font-semibold tabular-nums ${key === "stat_failed_7d" && n > 0 ? "text-destructive" : ""}`}>{n}</dd>
-          </CardContent>
-        </Card>
+        <div key={key} className="grid content-start gap-0.5 px-5 py-3">
+          <dt className="text-[0.75rem] font-medium text-muted-foreground">{l[`detail.${key}`]}</dt>
+          <dd className={`text-[1.375rem] leading-tight font-semibold tracking-[-0.02em] tabular-nums ${key === "stat_failed_7d" && n > 0 ? "text-[var(--status-bad)]" : ""}`}>{n}</dd>
+        </div>
       ))}
     </dl>
   );

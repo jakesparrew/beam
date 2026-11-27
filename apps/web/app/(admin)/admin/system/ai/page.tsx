@@ -7,6 +7,7 @@ import { getAppDb } from "@/lib/ctx";
 import { adminLocale, translator } from "@/lib/i18n";
 import { getAiDailyUsage, listAiSqlLog, type AiDailyUsage, type AiSqlLogEntry } from "@/modules/platform/ai-sql";
 import { getAiUsage } from "@/modules/platform/queries";
+import { BackLink } from "@/modules/platform/ui/admin-list-kit";
 
 /**
  * `/admin/system/ai` (`system.jobs` or `ai.use`): the AI feature register (blueprint 61: fields
@@ -68,10 +69,11 @@ export default async function AiUsagePage({ searchParams }: { searchParams: Prom
   const r4 = r4Translator(locale);
 
   return (
-    <div className="grid gap-6">
-      <header className="grid gap-2">
-        <h1 className="text-2xl font-semibold">{t("title")}</h1>
-        <p className="text-muted-foreground">{t("intro")}</p>
+    <div className="grid gap-4">
+      <BackLink href="/admin/system">{tr("platform.nav.technical")}</BackLink>
+      <header className="grid gap-1">
+        <h1>{t("title")}</h1>
+        <p className="max-w-2xl text-[0.8125rem] text-muted-foreground">{t("intro")}</p>
       </header>
       <section className="grid gap-3" aria-labelledby="usage">
         <h2 id="usage" className="text-lg font-medium">

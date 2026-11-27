@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Route } from "next";
-import { Badge } from "@beam/ui";
+import { cn, EmptyState } from "@beam/ui";
 import { BOOKING_CONFLICT_REASONS, brusselsDate } from "@beam/core/booking";
 import { formatDate, type Locale, type LocalizedText } from "@beam/core/i18n";
 import { requireStaff } from "@/lib/auth";
@@ -8,7 +8,8 @@ import { getAppDb } from "@/lib/ctx";
 import { adminLocale, translator } from "@/lib/i18n";
 import { listProductOptions, listTemplates } from "@/modules/booking/queries";
 import { TemplateActiveToggle, TemplateForm, type TemplateFormLabels } from "@/modules/booking/ui/template-form";
-import { stepFormLabels } from "@/modules/platform/ui/admin-kit";
+import { PageHeader, StatusPill, stepFormLabels, Surface, td, th } from "@/modules/platform/ui/admin-kit";
+import { aboveRow, rowClass, rowLink } from "@/modules/platform/ui/admin-list-kit";
 
 const show = (text: LocalizedText | null | undefined, locale: Locale) => text?.[locale] || text?.["nl-BE"] || text?.en || text?.["fr-BE"] || "";
 const WEEKDAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
@@ -72,61 +73,70 @@ export default async function TemplatesPage() {
   const toggle = { activate: tr("booking.templates.activate"), deactivate: tr("booking.templates.deactivate"), incomplete: tr("booking.templates.incomplete_name"), error: tr("platform.errors.conflict") };
 
   return (
-    <div className="grid gap-8">
-      <h1 className="text-2xl font-semibold">{tr("booking.templates.title")}</h1>
+    <div className="grid gap-4">
+      <PageHeader title={tr("booking.templates.title")} description={tr("booking.templates.subtitle")} />
       {templates.length === 0 ? (
-        <p className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">{tr("booking.templates.empty")}</p>
+        <EmptyState title={tr("booking.templates.empty")} />
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b text-left">
-                <th className="py-2 pr-3">{tr("booking.templates.kind")}</th>
-                <th className="py-2 pr-3">{tr("booking.templates.name")}</th>
-                <th className="py-2 pr-3">{tr("booking.templates.weekdays")}</th>
-                <th className="py-2 pr-3">{tr("booking.templates.start_time")}</th>
-                <th className="py-2 pr-3">{tr("booking.templates.duration")}</th>
-                <th className="py-2 pr-3">{tr("booking.session.capacity")}</th>
-                <th className="py-2 pr-3">{tr("booking.templates.credit_cost")}</th>
-                <th className="py-2 pr-3">{tr("booking.templates.product")}</th>
-                <th className="py-2 pr-3">{tr("booking.templates.active_from")}</th>
-                <th className="py-2 pr-3">{tr("booking.templates.active")}</th>
-                <th className="py-2" />
-              </tr>
-            </thead>
-            <tbody>
-              {templates.map((t) => (
-                <tr key={t.id} className="border-b align-top">
-                  <td className="py-2 pr-3">{tr(`booking.kind.${t.kind}`)}</td>
-                  <td className="py-2 pr-3">
-                    <Link href={`/admin/sessions/templates/${t.id}` as Route} className="font-medium hover:underline">
-                      {show(t.name as LocalizedText, locale)}
-                    </Link>
-                    {t.isMemberOnly ? <Badge variant="outline" className="ml-2">{tr("booking.templates.member_only")}</Badge> : null}
-                    {t.location ? <span className="block text-xs text-muted-foreground">{t.location}</span> : null}
-                  </td>
-                  <td className="py-2 pr-3">{t.weekdays.map((d) => tr(`booking.weekday.${WEEKDAYS[d - 1]}`).slice(0, 2)).join(" ")}</td>
-                  <td className="py-2 pr-3 tabular-nums">{t.startTime.slice(0, 5)}</td>
-                  <td className="py-2 pr-3 tabular-nums">{t.durationMinutes}</td>
-                  <td className="py-2 pr-3">{t.kind === "night" ? tr("booking.common.beds", { count: t.capacityBeds ?? 0 }) : tr("booking.common.places", { count: t.capacitySeats ?? 0 })}</td>
-                  <td className="py-2 pr-3">{t.creditKind ? `${t.creditCost} × ${tr(`booking.kind.${t.creditKind}`)}` : "—"}</td>
-                  <td className="py-2 pr-3">{t.productId ? (productName.get(t.productId) ?? "—") : "—"}</td>
-                  <td className="py-2 pr-3">
-                    {formatDate(t.activeFromOn, locale)}
-                    {t.activeToOn ? ` – ${formatDate(t.activeToOn, locale)}` : ""}
-                  </td>
-                  <td className="py-2 pr-3">{t.isActive ? <Badge variant="success">{tr("booking.templates.active")}</Badge> : <Badge variant="outline">{tr("booking.session.draft")}</Badge>}</td>
-                  <td className="py-2">
-                    <TemplateActiveToggle id={t.id} isActive={t.isActive} labels={toggle} />
-                  </td>
+        <Surface flush>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[64rem] text-[0.8125rem]">
+              <caption className="sr-only">{tr("booking.templates.title")}</caption>
+              <thead className="bg-[#faf9f6]">
+                <tr className="border-b border-border">
+                  <th scope="col" className={th}>{tr("booking.templates.name")}</th>
+                  <th scope="col" className={cn(th, "w-36")}>{tr("booking.templates.weekdays")}</th>
+                  <th scope="col" className={cn(th, "w-20 text-right")}>{tr("booking.templates.start_time")}</th>
+                  <th scope="col" className={cn(th, "w-20 text-right")}>{tr("booking.templates.duration")}</th>
+                  <th scope="col" className={cn(th, "w-28 text-right")}>{tr("booking.session.capacity")}</th>
+                  <th scope="col" className={cn(th, "w-32")}>{tr("booking.templates.credit_cost")}</th>
+                  <th scope="col" className={cn(th, "w-40")}>{tr("booking.templates.product")}</th>
+                  <th scope="col" className={cn(th, "w-44")}>{tr("booking.templates.active_from")}</th>
+                  <th scope="col" className={cn(th, "w-40")}>{tr("booking.templates.active")}</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {templates.map((t) => (
+                  <tr key={t.id} className={rowClass}>
+                    <td className={td}>
+                      <span className="grid leading-tight">
+                        <span className="flex flex-wrap items-center gap-1.5">
+                          <Link href={`/admin/sessions/templates/${t.id}` as Route} className={cn(rowLink, "font-semibold hover:underline")}>
+                            {show(t.name as LocalizedText, locale)}
+                          </Link>
+                          {t.isMemberOnly ? <StatusPill tone="info">{tr("booking.templates.member_only")}</StatusPill> : null}
+                        </span>
+                        <span className="text-[0.75rem] text-muted-foreground">
+                          {tr(`booking.kind.${t.kind}`)}
+                          {t.location ? ` · ${t.location}` : ""}
+                        </span>
+                      </span>
+                    </td>
+                    <td className={td}>{t.weekdays.map((d) => tr(`booking.weekday.${WEEKDAYS[d - 1]}`).slice(0, 2)).join(" ")}</td>
+                    <td className={cn(td, "text-right font-semibold tabular-nums")}>{t.startTime.slice(0, 5)}</td>
+                    <td className={cn(td, "text-right tabular-nums")}>{t.durationMinutes}</td>
+                    <td className={cn(td, "text-right tabular-nums")}>{t.kind === "night" ? tr("booking.common.beds", { count: t.capacityBeds ?? 0 }) : tr("booking.common.places", { count: t.capacitySeats ?? 0 })}</td>
+                    <td className={td}>{t.creditKind ? `${t.creditCost} × ${tr(`booking.kind.${t.creditKind}`)}` : "–"}</td>
+                    <td className={cn(td, "text-muted-foreground")}>{t.productId ? (productName.get(t.productId) ?? "–") : "–"}</td>
+                    <td className={cn(td, "whitespace-nowrap")}>
+                      {formatDate(t.activeFromOn, locale)}
+                      {t.activeToOn ? ` – ${formatDate(t.activeToOn, locale)}` : ""}
+                    </td>
+                    <td className={td}>
+                      <span className={cn(aboveRow, "flex items-center gap-2")}>
+                        <StatusPill tone={t.isActive ? "ok" : "muted"}>{t.isActive ? tr("booking.templates.active") : tr("booking.session.draft")}</StatusPill>
+                        <TemplateActiveToggle id={t.id} isActive={t.isActive} labels={toggle} />
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Surface>
       )}
-      <section className="grid gap-4" aria-labelledby="add-schedule">
-        <h2 id="add-schedule" className="text-base font-semibold">
+      <Surface className="grid gap-4" aria-labelledby="add-schedule">
+        <h2 id="add-schedule" className="text-[0.9375rem] font-semibold">
           {tr("booking.templates.add")}
         </h2>
         <TemplateForm
@@ -149,7 +159,7 @@ export default async function TemplatesPage() {
           products={products.map((p) => ({ id: p.id, label: `${show(p.name, locale)} (${p.sku})` }))}
           labels={{ ...labels, steps: stepFormLabels(tr) }}
         />
-      </section>
+      </Surface>
     </div>
   );
 }

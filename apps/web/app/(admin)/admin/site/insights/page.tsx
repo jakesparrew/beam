@@ -35,12 +35,12 @@ export default async function SiteInsightsPage({ searchParams }: { searchParams:
   const csvHref = `data:text/csv;charset=utf-8,${encodeURIComponent(`\uFEFF${csv}`)}`;
   const num = (n: number) => n.toLocaleString(locale);
   return (
-    <div className="grid gap-6">
+    <div className="grid gap-4">
       <div className="grid gap-1">
         <NextLink href="/admin/site" className="text-sm underline hover:no-underline">
           {L["nav.website"]}
         </NextLink>
-        <h1 className="text-2xl font-semibold">{L["insights.title"]}</h1>
+        <h1>{L["insights.title"]}</h1>
         <p className="text-sm text-muted-foreground">{L["insights.intro"]}</p>
       </div>
       <SiteSectionNav L={L} current="/admin/site/insights" />

@@ -1,10 +1,9 @@
-import Link from "next/link";
-import { cn } from "@beam/ui";
 import { requireStaff } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
 import { adminLocale, translator } from "@/lib/i18n";
 import { getSettingWithVersion } from "@/lib/settings";
 import { updateSetting } from "@/modules/platform/actions";
+import { PageHeader, Segmented } from "@/modules/platform/ui/admin-kit";
 import { BusinessHoursForm } from "@/modules/booking/ui/business-hours-form";
 import { RulesForm, type RulesFormLabels } from "@/modules/booking/ui/rules-form";
 
@@ -61,22 +60,16 @@ export default async function RulesPage({ searchParams }: { searchParams: Promis
     event: tr("booking.kind.event"),
   };
 
-  const tabClass = (active: boolean) => cn("-mb-px border-b-2 px-3 py-2 text-sm", active ? "border-primary font-medium" : "border-transparent text-muted-foreground hover:text-foreground");
-
   return (
-    <div className="grid max-w-5xl gap-6">
-      <Link href="/admin/settings" className="text-sm text-muted-foreground hover:underline">
-        {tr("platform.settings.back")}
-      </Link>
-      <h1 className="text-2xl font-semibold">{tr("booking.rules.title")}</h1>
-      <nav className="flex gap-1 border-b" aria-label={tr("booking.rules.title")}>
-        <Link href={{ pathname: "/admin/sessions/rules", query: { tab: "rules" } }} aria-current={tab === "rules" ? "page" : undefined} className={tabClass(tab === "rules")}>
-          {tr("booking.rules.tab_rules")}
-        </Link>
-        <Link href={{ pathname: "/admin/sessions/rules", query: { tab: "hours" } }} aria-current={tab === "hours" ? "page" : undefined} className={tabClass(tab === "hours")}>
-          {tr("booking.rules.tab_hours")}
-        </Link>
-      </nav>
+    <div className="grid max-w-5xl gap-4">
+      <PageHeader title={tr("booking.rules.title")} description={tr("booking.rules.subtitle")} />
+      <Segmented
+        label={tr("booking.rules.title")}
+        items={[
+          { key: "rules", label: tr("booking.rules.tab_rules"), href: { pathname: "/admin/sessions/rules", query: { tab: "rules" } }, active: tab === "rules" },
+          { key: "hours", label: tr("booking.rules.tab_hours"), href: { pathname: "/admin/sessions/rules", query: { tab: "hours" } }, active: tab === "hours" },
+        ]}
+      />
       {tab === "rules" ? (
         <RulesForm {...(await getSettingWithVersion(db, "booking_rules"))} save={updateSetting} labels={labels} />
       ) : (

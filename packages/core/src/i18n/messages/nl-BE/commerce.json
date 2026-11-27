@@ -149,7 +149,11 @@
       "voucher_vat_zero": "Cadeaubonnen hebben 0 % btw.",
       "voucher_min_730": "Cadeaubonnen zijn minstens 730 dagen geldig.",
       "custom_amount_range": "Tussen € 5 en € 1.000, minimum niet boven maximum.",
-      "both_or_neither": "Vul beide velden voor inbegrepen kredieten in, of geen."
+      "both_or_neither": "Vul beide velden voor inbegrepen kredieten in, of geen.",
+      "subtitle": "De catalogus van de shop en de kassa: prijzen per doelgroep, btw en waar elk product verkocht wordt.",
+      "search": "Zoek op naam of SKU",
+      "col_visible": "Verkocht in",
+      "catalogue": "Catalogus"
     },
     "admin_prices": {
       "title": "Prijsgeschiedenis",
@@ -259,7 +263,8 @@
       "not_partner": "Dit bedrijf is geen partner.",
       "partner_needs_code": "Een partnerpromotie heeft een code nodig.",
       "field_products_add": "Product toevoegen",
-      "remove_product": "{name} verwijderen"
+      "remove_product": "{name} verwijderen",
+      "subtitle": "Kortingscodes en automatische aanbiedingen voor de shop en de kassa."
     },
     "errors": {
       "sold_out": "Dit is uitverkocht.",
@@ -740,7 +745,10 @@
       "create": "Ontwerpbestelling aanmaken",
       "quote_title": "Prijs",
       "choose_person": "Kies eerst een persoon.",
-      "person_search_hint": "Typ een naam, e-mailadres of klantnummer"
+      "person_search_hint": "Typ een naam, e-mailadres of klantnummer",
+      "subtitle": "Een bestelling is een betaling: een pakket, lidmaatschap, product of sessie. Een plaats in een sessie (een boeking) vind je onder Agenda > Boekingen.",
+      "tab_attention": "Op te volgen",
+      "filters": "Filters"
     },
     "admin_refund": {
       "title": "Bestelling {reference} terugbetalen",
@@ -778,7 +786,9 @@
       "col_customer": "Klant",
       "col_amount": "Bedrag",
       "col_since": "Sinds",
-      "open": "Open bestelling {reference}"
+      "open": "Open bestelling {reference}",
+      "col_problem": "Probleem",
+      "subtitle": "Mislukte en hangende betalingen, achterstallige overschrijvingen en terugboekingen. Elke rij opent de bestelling."
     },
     "pos": {
       "title": "Onthaal",
@@ -902,7 +912,10 @@
       "reopen": "Dag heropenen",
       "reopened": "De dag is opnieuw open; tel de kas opnieuw bij de volgende afsluiting.",
       "reopen_forbidden": "Enkel medewerkers met het recht om terug te betalen kunnen een afgesloten dag heropenen.",
-      "failed": "Niet opgeslagen: {message}"
+      "failed": "Niet opgeslagen: {message}",
+      "today": "Vandaag",
+      "previous_day": "Vorige dag",
+      "next_day": "Volgende dag"
     },
     "resume": {
       "title": "Ga verder met je bestelling",

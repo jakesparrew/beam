@@ -32,7 +32,7 @@ export function PosGrid(props: {
 }) {
   const { locale, active, text } = props;
   const money = (c: number | null) => (c === null ? text.noPrice : formatMoney(c, locale));
-  const tile = "flex min-h-11 flex-col justify-between gap-1 rounded-md border p-3 text-left text-sm hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  const tile = "flex min-h-20 flex-col justify-between gap-1 rounded-xl border border-border bg-card p-3 text-left text-[0.8125rem] hover:border-foreground/30 hover:bg-[#faf9f6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
   return (
     <section aria-labelledby="pos-grid-title" className="grid gap-3">
       <h2 id="pos-grid-title" className="sr-only">
@@ -44,7 +44,7 @@ export function PosGrid(props: {
             key={tab}
             href={props.tabHref(tab) as never}
             aria-current={tab === active ? "page" : undefined}
-            className={`inline-flex min-h-11 items-center rounded-md border px-3 text-sm ${tab === active ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+            className={`inline-flex min-h-11 items-center rounded-lg border px-3.5 text-[0.8125rem] font-semibold ${tab === active ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card hover:bg-muted"}`}
           >
             {text.tab(tab)}
           </Link>
@@ -57,11 +57,11 @@ export function PosGrid(props: {
               <li key={s.sessionId}>
                 {s.href ? (
                   <Link href={s.href as never} className={tile} aria-label={text.add(`${s.title} ${formatDateTime(s.startsAt, locale, "short")}`)}>
-                    <span className="font-medium">{s.title}</span>
-                    <span>{formatDateTime(s.startsAt, locale, "short")}</span>
-                    <span className="flex justify-between gap-2 text-muted-foreground">
-                      <span>{text.seatsFree(s.free)}</span>
-                      <span className="tabular-nums">{money(s.priceCents)}</span>
+                    <span className="font-semibold">{s.title}</span>
+                    <span className="text-muted-foreground">{formatDateTime(s.startsAt, locale, "short")}</span>
+                    <span className="flex justify-between gap-2">
+                      <span className="text-[var(--status-ok)]">{text.seatsFree(s.free)}</span>
+                      <span className="font-semibold tabular-nums">{money(s.priceCents)}</span>
                     </span>
                   </Link>
                 ) : (
@@ -82,10 +82,10 @@ export function PosGrid(props: {
           {props.products.map((p) => (
             <li key={p.id}>
               <Link href={p.href as never} className={tile} aria-label={text.add(p.name)}>
-                <span className="font-medium">{p.name}</span>
-                <span className="flex justify-between gap-2 text-muted-foreground">
-                  <span>{p.sku}</span>
-                  <span className="tabular-nums">{money(p.priceCents)}</span>
+                <span className="font-semibold">{p.name}</span>
+                <span className="flex justify-between gap-2">
+                  <span className="text-[0.75rem] text-muted-foreground">{p.sku}</span>
+                  <span className="font-semibold tabular-nums">{money(p.priceCents)}</span>
                 </span>
               </Link>
             </li>

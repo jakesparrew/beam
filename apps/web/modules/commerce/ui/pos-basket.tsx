@@ -26,8 +26,8 @@ export function PosBasket(props: {
   const { locale, text } = props;
   const money = (c: number) => formatMoney(c, locale);
   return (
-    <section aria-labelledby="pos-basket-title" className="grid gap-3 rounded-md border p-4">
-      <h2 id="pos-basket-title" className="text-lg font-semibold">
+    <section aria-labelledby="pos-basket-title" className="grid gap-3 rounded-xl border border-border bg-card p-4">
+      <h2 id="pos-basket-title" className="text-[0.9375rem] font-semibold">
         {props.title}
       </h2>
       {props.lines.length === 0 ? (

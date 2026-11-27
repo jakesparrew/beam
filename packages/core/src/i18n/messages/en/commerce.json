@@ -149,7 +149,11 @@
       "voucher_vat_zero": "Vouchers carry 0 % VAT.",
       "voucher_min_730": "Vouchers are valid at least 730 days.",
       "custom_amount_range": "Between €5 and €1,000, minimum not above maximum.",
-      "both_or_neither": "Fill in both included fields or neither."
+      "both_or_neither": "Fill in both included fields or neither.",
+      "subtitle": "The catalogue of the shop and the till: prices per audience, VAT and where each product is sold.",
+      "search": "Search by name or SKU",
+      "col_visible": "Sold in",
+      "catalogue": "Catalogue"
     },
     "admin_prices": {
       "title": "Price history",
@@ -259,7 +263,8 @@
       "not_partner": "This company is not a partner.",
       "partner_needs_code": "A partner promotion needs a code.",
       "field_products_add": "Add a product",
-      "remove_product": "Remove {name}"
+      "remove_product": "Remove {name}",
+      "subtitle": "Discount codes and automatic offers for the shop and the till."
     },
     "errors": {
       "sold_out": "This is sold out.",
@@ -740,7 +745,10 @@
       "create": "Create draft order",
       "quote_title": "Price",
       "choose_person": "Choose a person first.",
-      "person_search_hint": "Type a name, email or customer number"
+      "person_search_hint": "Type a name, email or customer number",
+      "subtitle": "An order is a payment: a package, membership, product or session. A seat in a session (a booking) lives under Schedule > Bookings.",
+      "tab_attention": "To follow up",
+      "filters": "Filters"
     },
     "admin_refund": {
       "title": "Refund order {reference}",
@@ -778,7 +786,9 @@
       "col_customer": "Customer",
       "col_amount": "Amount",
       "col_since": "Since",
-      "open": "Open order {reference}"
+      "open": "Open order {reference}",
+      "col_problem": "Problem",
+      "subtitle": "Failed and pending payments, overdue bank transfers and chargebacks. Each row opens the order."
     },
     "pos": {
       "title": "Front desk",
@@ -902,7 +912,10 @@
       "reopen": "Reopen day",
       "reopened": "The day is open again; count the drawer again at the next close.",
       "reopen_forbidden": "Only staff with the refund permission can reopen a closed day.",
-      "failed": "Not saved: {message}"
+      "failed": "Not saved: {message}",
+      "today": "Today",
+      "previous_day": "Previous day",
+      "next_day": "Next day"
     },
     "resume": {
       "title": "Continue your order",

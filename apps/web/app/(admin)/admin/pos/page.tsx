@@ -16,6 +16,8 @@ import { ANONYMOUS_KINDS, businessDayOf, getPosOrder, isPosDayClosed, listProduc
 import { PosBasket, PosPaymentForm, type PosPaymentText } from "@/modules/commerce/ui/pos-basket";
 import { POS_TABS, PosGrid, type PosTab } from "@/modules/commerce/ui/pos-grid";
 import { TerminalDialog } from "@/modules/commerce/ui/terminal-dialog";
+import { PageHeader, SecondaryAction } from "@/modules/platform/ui/admin-kit";
+import { Notice } from "@/modules/platform/ui/admin-list-kit";
 import { getEuroBalance } from "@/modules/credits/api";
 import { getPerson, searchPersons } from "@/modules/crm/api";
 
@@ -116,19 +118,16 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
     vatNumber: c("vat_number"), line1: c("address_line1"), postalCode: c("postal_code"), city: c("city"), country: c("country"), billingEmail: c("billing_email"), pay: c("pay"),
   });
   const header = (
-    <header className="grid gap-2">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl font-semibold">{c("title")}</h1>
-        <Link href="/admin/pos/day" className="inline-flex min-h-11 items-center underline">{c("day_link")}</Link>
+    <div className="grid gap-2">
+      <PageHeader title={tr("commerce.nav.pos")} description={c("intro")} actions={<SecondaryAction href="/admin/pos/day">{c("day_link")}</SecondaryAction>} />
+      <Notice tone="gold" role="note">{c("food_banner")}</Notice>
+      {dayClosed ? <Notice tone="warn">{c("day_closed_banner")}</Notice> : null}
+      <div role="status" aria-live="polite" className="grid gap-2 empty:hidden">
+        {sp.error ? <Notice tone="bad">{c("failed", { message: errorText(sp.error) })}</Notice> : null}
+        {sp.msg === "voucher_redeemed" ? <Notice tone="ok">{c("voucher_redeemed", { amount: money(Number(sp.amount ?? 0)) })}</Notice> : null}
+        {sp.msg === "receipt_sent" ? <Notice tone="ok">{c("receipt_sent")}</Notice> : null}
       </div>
-      <p role="note" className="rounded-md border border-amber-500 bg-amber-50 p-3 text-sm font-medium text-amber-950 dark:bg-amber-950 dark:text-amber-50">{c("food_banner")}</p>
-      {dayClosed ? <p className="rounded-md border p-3 text-sm">{c("day_closed_banner")}</p> : null}
-      <div role="status" aria-live="polite">
-        {sp.error ? <p className="rounded-md border border-destructive p-3 text-sm">{c("failed", { message: errorText(sp.error) })}</p> : null}
-        {sp.msg === "voucher_redeemed" ? <p className="rounded-md border p-3 text-sm">{c("voucher_redeemed", { amount: money(Number(sp.amount ?? 0)) })}</p> : null}
-        {sp.msg === "receipt_sent" ? <p className="rounded-md border p-3 text-sm">{c("receipt_sent")}</p> : null}
-      </div>
-    </header>
+    </div>
   );
 
   // -- The result of a payment ------------------------------------------------
@@ -143,17 +142,17 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
     }
     const isPaid = view.status === "paid";
     return (
-      <div className="grid gap-6">
+      <div className="grid gap-4">
         {header}
-        <section aria-labelledby="pos-done-title" className="grid max-w-xl gap-3 rounded-md border p-4" data-pos-result={view.status}>
-          <h2 id="pos-done-title" className="text-xl font-semibold">{isPaid ? c("paid_title") : c("order_title", { reference: view.reference })}</h2>
+        <section aria-labelledby="pos-done-title" className="grid max-w-xl gap-3 rounded-xl border border-border bg-card p-5" data-pos-result={view.status}>
+          <h2 id="pos-done-title" className="text-[1.125rem] font-semibold">{isPaid ? c("paid_title") : c("order_title", { reference: view.reference })}</h2>
           {isPaid ? <p>{c("paid_body", { reference: view.reference })}</p> : null}
           {isPaid && sp.change ? <p className="text-lg font-semibold">{c("change", { amount: money(Number(sp.change)) })}</p> : null}
           {sp.dueOn ? <p>{c("bank_transfer_open", { reference: view.reference, date: formatDate(sp.dueOn, locale, "long") })}</p> : null}
           {!isPaid && !sp.dueOn ? <p>{c("order_state", { status: tr(`commerce.order_status.${view.status}`) })}</p> : null}
           <div className="flex flex-wrap gap-2">
-            {isPaid ? <Link href={`/admin/pos/receipt/${orderId}` as never} className="inline-flex min-h-11 items-center rounded-md border px-4">{c("print_receipt")}</Link> : null}
-            <Link href="/admin/pos" className="inline-flex min-h-11 items-center rounded-md bg-primary px-4 text-primary-foreground">{c("new_sale")}</Link>
+            {isPaid ? <Link href={`/admin/pos/receipt/${orderId}` as never} className="inline-flex min-h-11 items-center rounded-lg border border-border bg-card px-4 font-semibold hover:bg-muted">{c("print_receipt")}</Link> : null}
+            <Link href="/admin/pos" className="inline-flex min-h-11 items-center rounded-lg bg-primary px-4 font-semibold text-primary-foreground hover:opacity-90">{c("new_sale")}</Link>
           </div>
           {isPaid ? (
             <form action={onEmail} className="flex flex-wrap items-end gap-2">
@@ -184,7 +183,7 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
     const euro = view.personId ? (await getEuroBalance(db, view.personId)).remainingCents : null;
     const terminalPaymentId = sp.payment && UUID.test(sp.payment) && view.liveTerminalPaymentId === sp.payment ? sp.payment : view.liveTerminalPaymentId;
     return (
-      <div className="grid gap-6">
+      <div className="grid gap-4">
         {header}
         <div className="grid max-w-2xl gap-4">
           <PosBasket
@@ -284,9 +283,9 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
 
   const hidden = (extra: Record<string, string> = {}) => ({ ...basketState, ...extra });
   return (
-    <div className="grid gap-6">
+    <div className="grid gap-4">
       {header}
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <PosGrid
           locale={locale}
           active={tab}
@@ -298,8 +297,8 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
           text={{ tabsLabel: c("tabs_label"), tab: (x) => c(`tab_${x}`), add: (n) => c("add_named", { name: n }), seatsFree: (n) => c("seats_free", { count: n }), noSessions: c("no_sessions"), noProducts: c("no_products"), noPrice: c("no_price") }}
         />
         <div className="grid content-start gap-4">
-          <section aria-labelledby="pos-buyer-title" className="grid gap-2 rounded-md border p-4">
-            <h2 id="pos-buyer-title" className="text-lg font-semibold">{c("buyer_title")}</h2>
+          <section aria-labelledby="pos-buyer-title" className="grid gap-2 rounded-xl border border-border bg-card p-4">
+            <h2 id="pos-buyer-title" className="text-[0.9375rem] font-semibold">{c("buyer_title")}</h2>
             {person ? (
               <p className="flex flex-wrap items-center justify-between gap-2 text-sm">
                 <span>{c("selected_person", { name: [person.firstName, person.lastName].filter(Boolean).join(" ") || person.customerNumber })}</span>

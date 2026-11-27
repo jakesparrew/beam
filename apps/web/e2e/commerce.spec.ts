@@ -170,11 +170,10 @@ test.describe.serial("front desk and refunds", () => {
     await expectAccessible(page);
     await page.locator(`a[href*="${product!.id}"]`).first().click();
     await page.waitForURL(/items=/);
-    // The search applies on Enter (owner review section 10: no separate search button).
-    const search = page.getByLabel(/Zoek op naam|Search by name|Rechercher par nom/);
+    // The buyer search lists matches in a dropdown as staff type (owner review November 2026).
+    const search = page.getByRole("combobox", { name: /Zoek op naam|Search by name|Rechercher par nom/ });
     await search.fill(POS_BUYER);
-    await search.press("Enter");
-    await page.getByRole("link", { name: new RegExp(POS_BUYER.replace(/[.]/g, "\\.")) }).click();
+    await page.getByRole("option", { name: new RegExp(POS_BUYER.replace(/[.]/g, "\\.")) }).click();
     await page.waitForURL(/personId=/);
     await page.getByRole("radio", { name: /^(Contant|Cash|Espèces)$/ }).check();
     await page.getByLabel(/Ontvangen contant geld|Cash received|Espèces reçues/).fill(String(Number(product!.amount) / 100));

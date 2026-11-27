@@ -12,14 +12,16 @@ import { getSetting } from "@/lib/settings";
 import { listBookableSessions } from "@/modules/booking/api";
 import { emailReceipt, issueOnAccountInvoice, posCreateWalkIn, posPayOrder, posSell, redeemVoucher, sendPaymentLink } from "@/modules/commerce/actions";
 import { getQuote } from "@/modules/commerce/api";
-import { ANONYMOUS_KINDS, businessDayOf, getPosOrder, isPosDayClosed, listOpenAccounts, listProducts } from "@/modules/commerce/queries";
+import { ANONYMOUS_KINDS, businessDayOf, findPosBuyers, getPosOrder, isPosDayClosed, listOpenAccounts, listProducts, posTabProducts } from "@/modules/commerce/queries";
 import { PosBasket, PosPaymentForm, type PosPaymentText } from "@/modules/commerce/ui/pos-basket";
+import { PosBuyerSearch } from "@/modules/commerce/ui/pos-buyer-search";
 import { POS_TABS, PosGrid, type PosTab } from "@/modules/commerce/ui/pos-grid";
+import { Initials } from "@/modules/commerce/ui/kit";
 import { TerminalDialog } from "@/modules/commerce/ui/terminal-dialog";
 import { PageHeader, SecondaryAction } from "@/modules/platform/ui/admin-kit";
 import { Notice } from "@/modules/platform/ui/admin-list-kit";
 import { getEuroBalance } from "@/modules/credits/api";
-import { getPerson, searchPersons } from "@/modules/crm/api";
+import { getPerson } from "@/modules/crm/api";
 
 type Search = Record<string, string | undefined>;
 type Item = { productId: string; quantity: number; sessionId?: string };
@@ -95,9 +97,11 @@ function afterPayment(out: { orderId: string; status: string; changeCents?: numb
 
 /**
  * `/admin/pos` (commerce spec 5.1, rules 21, 25, 26b, 42 to 45, 56; `commerce.sell`): the
- * reception screen. Left the product grid by kind with today's sessions; right the basket with the
- * buyer (search, walk-in or anonymous), the live quote, euro credit, voucher redemption and the
- * payment (Kaart (terminal), cash, bank transfer, the integrated terminal when configured) or "Op
+ * reception screen. Left the product grid by kind with today's sessions and the food and drinks
+ * (BEAM's till replaces Lightspeed); right the buyer (a live search with a dropdown, `persons.read`,
+ * the walk-in quick-create, or anonymous), the basket with the live quote, euro credit, voucher
+ * redemption and the payment, always shown (pay buttons disabled with one prompt to the buyer
+ * search while a client is needed) (Kaart (terminal), cash, bank transfer, the integrated terminal when configured) or "Op
  * rekening" (needs a client; the order stays open on that person). `?order=<id>` opens a
  * `pending_payment` order read-only and pays it through `posPayOrder`; `?done=<id>` shows the
  * result with print and email receipt, or for an on-account order the three ways to settle it
@@ -127,8 +131,7 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
   });
   const header = (
     <div className="grid gap-2">
-      <PageHeader title={tr("commerce.nav.pos")} description={c("intro")} actions={<SecondaryAction href="/admin/pos/day">{c("day_link")}</SecondaryAction>} />
-      <Notice tone="gold" role="note">{c("food_banner")}</Notice>
+      <PageHeader title={tr("commerce.nav.pos")} actions={<SecondaryAction href="/admin/pos/day">{c("day_link")}</SecondaryAction>} />
       {dayClosed ? <Notice tone="warn">{c("day_closed_banner")}</Notice> : null}
       <div role="status" aria-live="polite" className="grid gap-2 empty:hidden">
         {sp.error ? <Notice tone="bad">{c("failed", { message: errorText(sp.error) })}</Notice> : null}
@@ -265,7 +268,8 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
   const personId = sp.personId && UUID.test(sp.personId) ? sp.personId : null;
   const person = personId ? await getPerson(db, personId) : null;
   const q = sp.q?.trim().slice(0, 100) ?? "";
-  const matches = q.length >= 2 ? await searchPersons(db, { q, limit: 8 }) : [];
+  const canSearch = hasPermission(actor, "persons.read");
+  const matches = canSearch && !person && q.length >= 2 ? await findPosBuyers(db, q) : [];
   const products = await listProducts(db, { activeOnly: true });
   const byId = new Map(products.map((p) => [p.id, p]));
   const sessions = tab === "sessions" ? await listBookableSessions(db, { fromOn: today, toOn: today }).catch(() => []) : [];
@@ -306,6 +310,10 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
     else keep.set("error", errorCode(r.error));
     redirect(`/admin/pos?${keep.toString()}` as never);
   }
+  const BUYER_SEARCH_ID = "pos-buyer-search";
+  const inBasket = (productId: string) => items.filter((i) => i.productId === productId && !i.sessionId).reduce((n, i) => n + i.quantity, 0);
+  const personName = person ? [person.firstName, person.lastName].filter(Boolean).join(" ") || person.customerNumber : "";
+
   async function onRedeem(form: FormData) {
     "use server";
     const pid = field(form, "personId");
@@ -330,52 +338,39 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
           locale={locale}
           active={tab}
           tabHref={(next) => href(sp, { tab: next })}
-          products={products.filter((p) => p.isPosVisible && p.kind === tab).map((p) => ({ id: p.id, name: name(p.name, p.sku), sku: p.sku, priceCents: p.current.public, href: withItem({ productId: p.id, quantity: 1 }) }))}
+          products={posTabProducts(products, tab).map((p) => ({ id: p.id, name: name(p.name, p.sku), sku: p.sku, priceCents: p.current.public, href: withItem({ productId: p.id, quantity: 1 }), quantity: inBasket(p.id), tag: tab === "food" && p.itemCategory ? tr(`commerce.item_category.${p.itemCategory}`) : null }))}
           sessions={sessions
             .filter((s) => s.free > 0)
             .map((s) => ({ sessionId: s.sessionId, title: name(s.title, ""), startsAt: s.startsAt, free: s.free, priceCents: s.productId ? (byId.get(s.productId)?.current.public ?? null) : null, href: s.productId && byId.has(s.productId) ? withItem({ productId: s.productId, quantity: 1, sessionId: s.sessionId }) : null }))}
-          text={{ tabsLabel: c("tabs_label"), tab: (x) => c(`tab_${x}`), add: (n) => c("add_named", { name: n }), seatsFree: (n) => c("seats_free", { count: n }), noSessions: c("no_sessions"), noProducts: c("no_products"), noPrice: c("no_price") }}
+          text={{ tabsLabel: c("tabs_label"), tab: (x) => c(`tab_${x}`), add: (n) => c("add_named", { name: n }), seatsFree: (n) => c("seats_free", { count: n }), noSessions: c("no_sessions"), noProducts: c("no_products"), noPrice: c("no_price"), inBasket: (n) => c("in_basket", { count: n }) }}
         />
         <div className="grid content-start gap-4">
           <section aria-labelledby="pos-buyer-title" className="grid gap-2 rounded-xl border border-border bg-card p-4">
-            <h2 id="pos-buyer-title" className="text-[0.9375rem] font-semibold">{c("buyer_title")}</h2>
+            <h2 id="pos-buyer-title" className="text-[0.75rem] font-semibold tracking-wide text-muted-foreground uppercase">{c("buyer_title")}</h2>
             {person ? (
-              <p className="flex flex-wrap items-center justify-between gap-2 text-sm">
-                <span>{c("selected_person", { name: [person.firstName, person.lastName].filter(Boolean).join(" ") || person.customerNumber })}</span>
-                <Link href={href(sp, { personId: null }) as never} className="inline-flex min-h-11 items-center underline">{c("clear_person")}</Link>
-              </p>
+              <div className="flex items-center gap-3" data-testid="pos-buyer">
+                <Initials id={person.id} name={personName} className="size-10 text-[0.8125rem]" />
+                <div className="grid min-w-0 flex-1">
+                  <span className="flex items-center gap-2 truncate font-semibold">
+                    {personName}
+                    {person.status === "member" ? <span className="rounded-full bg-[#f7eedc] px-2 py-0.5 text-[0.6875rem] font-semibold text-[#8a5a14]">{c("member")}</span> : null}
+                  </span>
+                  <span className="truncate text-[0.75rem] text-muted-foreground">{[person.email ?? person.phone, person.customerNumber].filter(Boolean).join(" · ")}</span>
+                </div>
+                <Link href={href(sp, { personId: null }) as never} scroll={false} className="inline-flex min-h-11 items-center px-2 text-sm font-semibold text-[#8a5a14] underline-offset-2 hover:underline" aria-label={c("change_person_named", { name: personName })}>
+                  {c("change_person")}
+                </Link>
+              </div>
             ) : (
-              <>
-                <p className="text-sm text-muted-foreground">{c("anonymous")}</p>
-                <form data-auto-filter="" method="get" role="search" className="flex flex-wrap items-end gap-2">
-                  {Object.entries(hidden()).map(([k, v]) => (k === "personId" ? null : <input key={k} type="hidden" name={k} value={v} />))}
-                  <label className="grid gap-1 text-sm">
-                    <span>{c("person_search")}</span>
-                    <Input name="q" defaultValue={q} className="h-11 w-64" />
-                  </label>
-                </form>
-                {q.length >= 2 && !matches.length ? <p className="text-sm">{c("no_match")}</p> : null}
-                <ul className="grid gap-1">
-                  {matches.map((m) => (
-                    <li key={m.personId}>
-                      <Link href={href(sp, { personId: m.personId, q: null }) as never} className="inline-flex min-h-11 items-center underline">
-                        {c("choose", { name: [m.name, m.email].filter(Boolean).join(" · ") })}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-                <details className="text-sm">
-                  <summary className="flex min-h-11 cursor-pointer items-center">{c("walk_in_title")}</summary>
-                  <form action={onWalkIn} className="grid gap-2 pt-2">
-                    <input type="hidden" name="items" value={basketState.items} />
-                    <input type="hidden" name="tab" value={tab} />
-                    <label className="grid gap-1"><span>{c("first_name")}</span><Input name="firstName" required className="h-11" autoComplete="given-name" /></label>
-                    <label className="grid gap-1"><span>{c("last_name")}</span><Input name="lastName" className="h-11" autoComplete="family-name" /></label>
-                    <label className="grid gap-1"><span>{c("phone")}</span><Input name="phone" type="tel" className="h-11" autoComplete="tel" /></label>
-                    <Button type="submit" variant="outline" className="min-h-11">{c("create_walk_in")}</Button>
-                  </form>
-                </details>
-              </>
+              <PosBuyerSearch
+                id={BUYER_SEARCH_ID}
+                canSearch={canSearch}
+                initialQuery={q}
+                initialMatches={matches}
+                keep={{ tab, items: basketState.items, promo: basketState.promo, clientKey }}
+                walkIn={onWalkIn}
+                text={{ label: c("person_search"), searching: c("searching"), noMatch: c("no_match"), newClient: c("new_client"), member: c("member"), days: c("credits_days"), nights: c("credits_nights"), walkInTitle: c("walk_in_title"), firstName: c("first_name"), lastName: c("last_name"), phone: c("phone"), create: c("create_walk_in") }}
+              />
             )}
             {openAccounts.length ? (
               <div className="grid gap-1 border-t pt-2 text-sm" data-testid="pos-open-accounts">
@@ -415,25 +410,35 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
             subtotalCents={quote?.subtotalCents ?? 0}
             discountCents={quote?.discountCents ?? 0}
             totalCents={quote?.totalCents ?? 0}
-            notes={[...(quote?.warnings ?? []).map((w) => errorText(w.code)), ...(needsPerson ? [errorText("person_required")] : [])]}
+            notes={(quote?.warnings ?? []).map((w) => errorText(w.code))}
             text={basketText}
           >
             {cart.length ? (
-              <>
-                <form method="get" className="flex flex-wrap items-end gap-2">
+              <div className="flex flex-wrap items-end justify-between gap-2">
+                <form method="get" className="flex items-end gap-2">
                   {Object.entries(hidden()).map(([k, v]) => (k === "promo" ? null : <input key={k} type="hidden" name={k} value={v} />))}
                   <label className="grid gap-1 text-sm">
-                    <span>{c("promo")}</span>
+                    <span className="text-muted-foreground">{c("promo")}</span>
                     <Input name="promo" defaultValue={promo ?? ""} className="h-11 w-40" autoComplete="off" />
                   </label>
                   <Button type="submit" variant="outline" className="min-h-11">{c("apply")}</Button>
                 </form>
-                {!needsPerson && quote ? (
-                  <PosPaymentForm action={onSell} hidden={hidden()} terminals={settings.pos_terminals} allowBankTransfer={!hasDated} allowCash={!dayClosed} canUseEuroCredit={!!euro} onAccount={{ allowed: !!personId }} text={paymentText(euro)} />
-                ) : null}
-                <Link href={href(sp, { items: null, promo: null, clientKey: null }) as never} className="inline-flex min-h-11 items-center text-sm underline">{c("clear_basket")}</Link>
-              </>
+                <Link href={href(sp, { items: null, promo: null, clientKey: null }) as never} scroll={false} className="inline-flex min-h-11 items-center text-sm text-muted-foreground underline">{c("clear_basket")}</Link>
+              </div>
             ) : null}
+            <PosPaymentForm
+              action={onSell}
+              hidden={hidden()}
+              terminals={settings.pos_terminals}
+              allowBankTransfer={!hasDated}
+              allowCash={!dayClosed}
+              canUseEuroCredit={!!euro}
+              onAccount={{ allowed: !!personId }}
+              blocked={cart.length && needsPerson ? { message: c("needs_buyer"), focusId: BUYER_SEARCH_ID } : null}
+              disabled={!quote}
+              buyerSearchId={personId ? undefined : BUYER_SEARCH_ID}
+              text={paymentText(euro)}
+            />
           </PosBasket>
         </div>
       </div>

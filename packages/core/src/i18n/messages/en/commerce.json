@@ -60,7 +60,9 @@
     "item_category": {
       "merchandise": "Merchandise",
       "wellness_product": "Wellness product",
-      "other": "Other"
+      "other": "Other",
+      "food": "Food",
+      "drink": "Drink"
     },
     "audience": {
       "public": "Public",
@@ -150,7 +152,6 @@
       "voucher_min_730": "Vouchers are valid at least 730 days.",
       "custom_amount_range": "Between €5 and €1,000, minimum not above maximum.",
       "both_or_neither": "Fill in both included fields or neither.",
-      "subtitle": "The catalogue of the shop and the till: prices per audience, VAT and where each product is sold.",
       "search": "Search by name or SKU",
       "col_visible": "Sold in",
       "catalogue": "Catalogue",
@@ -159,7 +160,18 @@
       "extra_kind_day": "Day sessions",
       "extra_kind_night": "Night sessions",
       "extra_kind_event": "Events",
-      "item_only": "Only items can be a booking extra."
+      "item_only": "Only items can be a booking extra.",
+      "kind_all": "All kinds",
+      "group_session": "Sessions",
+      "group_night": "Nights",
+      "group_package": "Packages",
+      "group_membership": "Memberships",
+      "group_ticket": "Tickets",
+      "group_voucher": "Vouchers",
+      "group_item": "Items",
+      "group_food": "Food & drinks",
+      "active_named": "{name} active",
+      "same_price": "Same price as public"
     },
     "admin_prices": {
       "title": "Price history",
@@ -800,8 +812,6 @@
     },
     "pos": {
       "title": "Front desk",
-      "intro": "Sell at the counter: pick the products, the buyer and the payment method.",
-      "food_banner": "Food and drink: use Lightspeed.",
       "tabs_label": "Product groups",
       "tab_sessions": "Sessions today",
       "tab_package": "Packages",
@@ -821,10 +831,7 @@
       "buyer_title": "Buyer",
       "person_search": "Search by name, email or phone",
       "search": "Search",
-      "anonymous": "Anonymous buyer (items and vouchers only)",
-      "choose": "Choose {name}",
       "selected_person": "Buyer: {name}",
-      "clear_person": "Change buyer",
       "no_match": "No one found.",
       "walk_in_title": "New walk-in customer",
       "first_name": "First name",
@@ -899,7 +906,17 @@
       "settle_desk": "Later at the desk",
       "link_sent": "The payment invitation was sent.",
       "open_accounts_title": "Open on account: {amount}",
-      "open_account_row": "{reference} · {amount} · since {date}"
+      "open_account_row": "{reference} · {amount} · since {date}",
+      "tab_food": "Food & drinks",
+      "in_basket": "{count} in the basket",
+      "searching": "Searching…",
+      "new_client": "New client",
+      "member": "Member",
+      "credits_days": "Days",
+      "credits_nights": "Nights",
+      "change_person": "Change",
+      "change_person_named": "Change buyer ({name})",
+      "needs_buyer": "Choose a client first to sell sessions"
     },
     "pos_day": {
       "title": "Front-desk day",

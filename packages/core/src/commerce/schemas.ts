@@ -57,7 +57,9 @@ export const POS_DAY_STATUSES = ["open", "closed"] as const;
 export type PosDayStatus = (typeof POS_DAY_STATUSES)[number];
 export const PROMOTION_KINDS = ["percent", "fixed"] as const;
 export type PromotionKind = (typeof PROMOTION_KINDS)[number];
-export const ITEM_CATEGORIES = ["merchandise", "wellness_product", "other"] as const;
+export const ITEM_CATEGORIES = ["merchandise", "wellness_product", "other", "food", "drink"] as const;
+/** Item categories the till lists under "Eten & drinken" (food and drinks consumed on site). */
+export const FOOD_DRINK_CATEGORIES = ["food", "drink"] as const satisfies readonly (typeof ITEM_CATEGORIES)[number][];
 export type ItemCategory = (typeof ITEM_CATEGORIES)[number];
 /** Products sold per seat: one line per booking row, quantity 1 (rule 21). */
 export const DATED_PRODUCT_KINDS = ["session", "night", "ticket"] as const satisfies readonly ProductKind[];

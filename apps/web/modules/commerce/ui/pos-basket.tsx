@@ -1,12 +1,11 @@
 /**
- * The POS basket and its payment form (commerce spec 5.1, rules 25, 26b, 43, 56). Server
- * components: the basket lists the lines with their live quote, the payment form posts to the
- * server action the page passes (`posSell` or `posPayOrder` behind it). Every input has a visible
- * label, touch targets are at least 44 px, amounts carry their currency.
+ * The POS basket (commerce spec 5.1, rules 25, 26b, 43, 56), a server component: the lines with
+ * their live quote and the total. Its payment form (`./pos-payment-form`, a client component)
+ * posts to the server action the page passes (`posSell` or `posPayOrder` behind it). Every input
+ * has a visible label, touch targets are at least 44 px, amounts carry their currency.
  */
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { Button, Input } from "@beam/ui";
 import { formatMoney, type Locale } from "@beam/core/i18n";
 
 export type PosBasketLine = { key: string; description: string; quantity: number; lineTotalCents: number; discountCents: number; removeHref?: string | null };
@@ -95,147 +94,4 @@ export function PosBasket(props: {
   );
 }
 
-export type PosPaymentText = {
-  method: string;
-  cardTerminal: string;
-  terminalReference: string;
-  onAccount: string;
-  onAccountNeedsPerson: string;
-  terminal: string;
-  cash: string;
-  bankTransfer: string;
-  terminalLabel: string;
-  cashReceived: string;
-  useEuroCredit: string;
-  euroCredit: string | null;
-  companyToggle: string;
-  companyName: string;
-  vatNumber: string;
-  line1: string;
-  postalCode: string;
-  city: string;
-  country: string;
-  billingEmail: string;
-  pay: string;
-};
-
-/**
- * Method, cash received, terminal, euro credit and the "Invoice to a company" fields. `hidden`
- * carries the basket (items, buyer, promotion, client key) or the order id. Kaart (terminal) (a
- * card taken on a separate terminal) is the default method; the integrated terminal shows only
- * when one is configured. "Op rekening" posts `onAccount=1` and needs a client.
- */
-export function PosPaymentForm(props: {
-  action: (form: FormData) => Promise<void>;
-  hidden: Record<string, string>;
-  terminals: { id: string; name: string }[];
-  allowBankTransfer: boolean;
-  allowCash: boolean;
-  canUseEuroCredit: boolean;
-  /** "Op rekening" is offered (null hides it); `allowed` is false without a client. */
-  onAccount: { allowed: boolean } | null;
-  text: PosPaymentText;
-}) {
-  const { text } = props;
-  const radio = "h-5 w-5";
-  return (
-    <form action={props.action} className="grid gap-3 border-t pt-3">
-      {Object.entries(props.hidden).map(([name, value]) => (
-        <input key={name} type="hidden" name={name} value={value} />
-      ))}
-      <fieldset className="grid gap-2">
-        <legend className="text-sm font-medium">{text.method}</legend>
-        <label className="flex min-h-11 items-center gap-2 text-sm">
-          <input type="radio" name="method" value="card_terminal" defaultChecked className={radio} />
-          {text.cardTerminal}
-        </label>
-        {props.terminals.length ? (
-          <label className="flex min-h-11 items-center gap-2 text-sm">
-            <input type="radio" name="method" value="terminal" className={radio} />
-            {text.terminal}
-          </label>
-        ) : null}
-        {props.allowCash ? (
-          <label className="flex min-h-11 items-center gap-2 text-sm">
-            <input type="radio" name="method" value="cash" className={radio} />
-            {text.cash}
-          </label>
-        ) : null}
-        {props.allowBankTransfer ? (
-          <label className="flex min-h-11 items-center gap-2 text-sm">
-            <input type="radio" name="method" value="bank_transfer" className={radio} />
-            {text.bankTransfer}
-          </label>
-        ) : null}
-      </fieldset>
-      <label className="grid gap-1 text-sm">
-        <span>{text.terminalReference}</span>
-        <Input name="terminalReference" maxLength={40} className="h-11 w-56" autoComplete="off" />
-      </label>
-      {props.terminals.length ? (
-        <label className="grid gap-1 text-sm">
-          <span>{text.terminalLabel}</span>
-          <select name="terminalId" className="h-11 rounded-md border border-input bg-transparent px-3 text-sm" defaultValue={props.terminals[0]?.id ?? ""}>
-            {props.terminals.map((term) => (
-              <option key={term.id} value={term.id}>
-                {term.name}
-              </option>
-            ))}
-          </select>
-        </label>
-      ) : null}
-      {props.allowCash ? (
-        <label className="grid gap-1 text-sm">
-          <span>{text.cashReceived}</span>
-          <Input name="cashReceived" inputMode="decimal" className="h-11 w-40" autoComplete="off" />
-        </label>
-      ) : null}
-      {props.canUseEuroCredit ? (
-        <label className="flex min-h-11 items-center gap-2 text-sm">
-          <input type="checkbox" name="useEuroCredit" value="1" className={radio} />
-          <span>
-            {text.useEuroCredit}
-            {text.euroCredit ? <span className="block text-muted-foreground">{text.euroCredit}</span> : null}
-          </span>
-        </label>
-      ) : null}
-      <details className="grid gap-2 text-sm">
-        <summary className="flex min-h-11 cursor-pointer items-center">{text.companyToggle}</summary>
-        {/* The details are sent when the company name is filled in. */}
-        <div className="grid gap-2 pt-2">
-          {(
-            [
-              ["companyName", text.companyName, "organization"],
-              ["vatNumber", text.vatNumber, "off"],
-              ["line1", text.line1, "address-line1"],
-              ["postalCode", text.postalCode, "postal-code"],
-              ["city", text.city, "address-level2"],
-              ["country", text.country, "country"],
-              ["billingEmail", text.billingEmail, "email"],
-            ] as const
-          ).map(([name, label, autoComplete]) => (
-            <label key={name} className="grid gap-1">
-              <span>{label}</span>
-              <Input name={name} autoComplete={autoComplete} className="h-11" defaultValue={name === "country" ? "BE" : undefined} />
-            </label>
-          ))}
-        </div>
-      </details>
-      <div className="flex flex-wrap items-center gap-2">
-        <Button type="submit" className="min-h-11 text-base">
-          {text.pay}
-        </Button>
-        {props.onAccount ? (
-          <Button type="submit" name="onAccount" value="1" variant="outline" className="min-h-11 text-base" disabled={!props.onAccount.allowed} aria-describedby={props.onAccount.allowed ? undefined : "pos-on-account-hint"}>
-            {text.onAccount}
-          </Button>
-        ) : null}
-      </div>
-      {props.onAccount && !props.onAccount.allowed ? (
-        <p id="pos-on-account-hint" className="text-sm text-muted-foreground">
-          {text.onAccountNeedsPerson}
-        </p>
-      ) : null}
-    </form>
-  );
-}
+export { PosPaymentForm, type PosPaymentText } from "./pos-payment-form";

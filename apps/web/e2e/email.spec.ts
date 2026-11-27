@@ -244,7 +244,7 @@ test("the report shows the sent campaign; a fake hard bounce shows on the person
   expect(await hardBounce(request, message!.resend_id, target.email)).toBe(200);
   await expect.poll(async () => (await e2eRows<{ status: string }>(sql`select status from email_messages where id = ${message!.id}`))[0]?.status, { timeout: 60_000, intervals: [2000] }).toBe("bounced");
 
-  await page.goto(`/admin/persons/${target.id}`);
+  await page.goto(`/admin/persons/${target.id}?tab=timeline`);
   await expect(page.locator(`[data-testid="person-email-rows"] tr[data-message-id="${message!.id}"]`)).toHaveAttribute("data-status", "bounced");
   await expect(page.locator('[data-testid="person-email-reachability"] [data-purpose="newsletter"]')).toHaveAttribute("data-reachable", "false");
   const [reach] = await e2eRows<{ is_reachable: boolean }>(sql`select is_reachable from v_marketing_reachability where person_id = ${target.id} and purpose = 'newsletter'`);

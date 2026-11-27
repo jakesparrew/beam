@@ -1,15 +1,17 @@
 "use client";
 /**
- * `/admin/persons` list (crm spec 5.1): search box (customer number, email, phone, name), filters
- * (status, tag, segment, locale, acquisition source, tester, corporate client), the columns of the spec, row
- * selection with bulk tag and untag (at most 5000), and the empty state. Filters live in the URL
- * (a GET form); the page is numbered (`page`). Every string is a prop.
+ * The table of `/admin/persons` (crm spec 5.1, owner review November 2026): one row per client
+ * with the initials avatar, name and email, phone, status pill (member, customer, lead; a pin
+ * when set by hand), usable day and night credits, last visit, next booking and tags; the whole
+ * row opens the 360. With `persons.write`, rows can be selected for a bulk tag or untag (at
+ * most 5000); the bar appears once something is selected. Search, filters and paging live in
+ * the page (URL state). Every string is a prop.
  */
 import Link from "next/link";
 import { useState } from "react";
-import { Badge, Checkbox, DataTable, EmptyState, type DataTableColumn, type DataTableFilter } from "@beam/ui";
+import { cn } from "@beam/ui";
 import type { PersonStatus } from "@beam/core/crm";
-import { StatusBadge, type StatusBadgeLabels } from "./status-badge";
+import { aboveRow, Initials, rowClass, rowLink, StatusPill, Surface, td, th, theadClass, type Tone } from "./kit";
 import { TagPicker, type TagOption, type TagPickerLabels } from "./tag-picker";
 
 export type PersonRowView = {
@@ -17,77 +19,42 @@ export type PersonRowView = {
   customerNumber: string;
   name: string;
   email: string | null;
+  phone: string | null;
   status: PersonStatus;
   isOverridden: boolean;
-  isMember: boolean;
   isCorporate: boolean;
   tags: string[];
-  lastActivityAt: string | null;
-  createdAt: string;
+  dayCredits: number;
+  nightCredits: number;
+  /** ISO instants. */
+  lastVisitAt: string | null;
+  nextBookingAt: string | null;
 };
 
-export type FilterOption = { value: string; label: string };
-
 export type PersonsTableLabels = {
-  searchPlaceholder: string;
-  search: string;
-  filterStatus: string;
-  filterTag: string;
-  filterSegment: string;
-  filterLocale: string;
-  filterSource: string;
-  filterTester: string;
-  filterCorporate: string;
-  /** The "Corporate" badge beside the name of a corporate client. */
+  caption: string;
+  /** The "Zakelijk" pill under the name of a corporate client. */
   corporate: string;
-  all: string;
-  yes: string;
-  no: string;
-  columns: Record<"select" | "number" | "name" | "email" | "status" | "member" | "tags" | "lastActivity" | "created", string>;
+  columns: Record<"select" | "client" | "phone" | "status" | "credits" | "lastVisit" | "nextBooking" | "tags", string>;
+  statuses: Record<PersonStatus, string>;
+  overridePin: string;
+  /** "{count} dag", "{count} nacht". */
+  creditsDay: string;
+  creditsNight: string;
   /** `crm.persons.list.selected` rendered for 1 and for 7 (the client swaps in the real count). */
   selectedOne: string;
   selectedOther: string;
   selectAll: string;
-  empty: string;
-  emptyFiltered: string;
-  emptyCreate: string;
-  emptyImport: string;
-  pageOf: string;
-  previous: string;
-  next: string;
-  pagination: string;
-  applyFilters: string;
-  filters: string;
-  status: StatusBadgeLabels;
   picker: TagPickerLabels;
 };
 
-export function PersonsTable({
-  rows,
-  total,
-  page,
-  pageSize,
-  searchParams,
-  options,
-  tags,
-  canWrite,
-  locale,
-  labels,
-}: {
-  rows: PersonRowView[];
-  total: number;
-  page: number;
-  pageSize: number;
-  searchParams: Record<string, string | undefined>;
-  options: { statuses: FilterOption[]; tags: FilterOption[]; segments: FilterOption[]; locales: FilterOption[]; sources: FilterOption[] };
-  tags: TagOption[];
-  canWrite: boolean;
-  locale: string;
-  labels: PersonsTableLabels;
-}) {
+const STATUS_TONE: Record<PersonStatus, Tone> = { member: "ok", customer: "muted", lead: "info" };
+
+export function PersonsTable({ rows, tags, canWrite, locale, labels }: { rows: PersonRowView[]; tags: TagOption[]; canWrite: boolean; locale: string; labels: PersonsTableLabels }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const date = new Intl.DateTimeFormat(locale, { dateStyle: "short", timeZone: "Europe/Brussels" });
-  const tagLabel = new Map(tags.map((t) => [t.key, t]));
+  const day = new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/Brussels" });
+  const dayTime = new Intl.DateTimeFormat(locale, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Brussels" });
+  const tagOf = new Map(tags.map((t) => [t.key, t]));
   const toggle = (id: string, on: boolean) =>
     setSelected((s) => {
       const next = new Set(s);
@@ -96,111 +63,102 @@ export function PersonsTable({
       return next;
     });
   const allOnPage = rows.length > 0 && rows.every((r) => selected.has(r.id));
-
-  const columns: DataTableColumn<PersonRowView>[] = [
-    ...(canWrite
-      ? [
-          {
-            key: "select",
-            header: (
-              <Checkbox
-                aria-label={labels.selectAll}
-                checked={allOnPage}
-                onCheckedChange={(v) => setSelected((s) => new Set(v === true ? [...s, ...rows.map((r) => r.id)] : [...s].filter((id) => !rows.some((r) => r.id === id))))}
-              />
-            ),
-            cell: (r: PersonRowView) => <Checkbox aria-label={`${labels.columns.select} ${r.name}`} checked={selected.has(r.id)} onCheckedChange={(v) => toggle(r.id, v === true)} />,
-          } satisfies DataTableColumn<PersonRowView>,
-        ]
-      : []),
-    { key: "number", header: labels.columns.number, className: "font-mono text-xs", cell: (r) => r.customerNumber },
-    {
-      key: "name",
-      header: labels.columns.name,
-      cell: (r) => (
-        <span className="flex flex-wrap items-center gap-2">
-          <Link href={`/admin/persons/${r.id}` as never}>{r.name}</Link>
-          {r.isCorporate ? <Badge variant="secondary">{labels.corporate}</Badge> : null}
-        </span>
-      ),
-    },
-    { key: "email", header: labels.columns.email, cell: (r) => r.email ?? "" },
-    { key: "status", header: labels.columns.status, cell: (r) => <StatusBadge status={r.status} isOverridden={r.isOverridden} labels={labels.status} /> },
-    { key: "member", header: labels.columns.member, cell: (r) => (r.isMember ? labels.yes : labels.no) },
-    {
-      key: "tags",
-      header: labels.columns.tags,
-      cell: (r) => (
-        <span className="flex flex-wrap gap-1">
-          {r.tags.map((k) => (
-            <Badge key={k} variant="outline" style={tagLabel.get(k) ? { borderColor: tagLabel.get(k)!.color } : undefined}>
-              {tagLabel.get(k)?.label ?? k}
-            </Badge>
-          ))}
-        </span>
-      ),
-    },
-    { key: "last_activity", header: labels.columns.lastActivity, cell: (r) => (r.lastActivityAt ? date.format(new Date(r.lastActivityAt)) : "") },
-    { key: "created", header: labels.columns.created, cell: (r) => date.format(new Date(r.createdAt)) },
-  ];
-
-  const select = (key: string, label: string, opts: FilterOption[]): DataTableFilter => ({ kind: "select", key, label, allLabel: labels.all, options: opts });
-  const filters: DataTableFilter[] = [
-    { kind: "search", key: "q", label: labels.search, placeholder: labels.searchPlaceholder },
-    select("status", labels.filterStatus, options.statuses),
-    select("tag", labels.filterTag, options.tags),
-    ...(options.segments.length ? [select("segment", labels.filterSegment, options.segments)] : []),
-    select("locale", labels.filterLocale, options.locales),
-    select("source", labels.filterSource, options.sources),
-    select("tester", labels.filterTester, [
-      { value: "yes", label: labels.yes },
-      { value: "no", label: labels.no },
-    ]),
-    select("corporate", labels.filterCorporate, [
-      { value: "yes", label: labels.yes },
-      { value: "no", label: labels.no },
-    ]),
-  ];
-  const filtered = Object.entries(searchParams).some(([k, v]) => k !== "page" && k !== "sort" && !!v);
-  const pages = Math.max(1, Math.ceil(total / pageSize));
+  const fill = (s: string, n: number) => s.replace("{count}", String(n));
 
   return (
-    <div className="grid gap-3">
-      {canWrite ? (
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="text-muted-foreground text-sm" role="status">
+    <div className="grid gap-2">
+      {canWrite && selected.size > 0 ? (
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card px-3.5 py-2">
+          <span className="text-[0.8125rem] font-semibold" role="status">
             {selected.size === 1 ? labels.selectedOne : labels.selectedOther.replace(/\b7\b/, String(selected.size))}
           </span>
           <TagPicker tags={tags} selected={[...selected]} labels={labels.picker} onDone={() => setSelected(new Set())} />
         </div>
       ) : null}
-      <DataTable
-        columns={columns}
-        rows={rows}
-        rowKey={(r) => r.id}
-        filters={filters}
-        searchParams={searchParams}
-        cursorParam="page"
-        nextCursor={page < pages ? String(page + 1) : null}
-        prevCursor={page > 1 ? String(page - 1) : null}
-        emptyState={
-          filtered ? (
-            <EmptyState title={labels.emptyFiltered} />
-          ) : (
-            <EmptyState
-              title={labels.empty}
-              action={
-                <span className="flex gap-4">
-                  <Link href={"/admin/persons/new"}>{labels.emptyCreate}</Link>
-                  <Link href={"/admin/imports" as never}>{labels.emptyImport}</Link>
-                </span>
-              }
-            />
-          )
-        }
-        labels={{ pagination: labels.pagination, previous: labels.previous, next: labels.next, applyFilters: labels.applyFilters, filters: labels.filters }}
-        caption={labels.pageOf.replace("{page}", String(page)).replace("{pages}", String(pages))}
-      />
+      <Surface flush data-testid="persons-list">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[60rem] text-[0.8125rem]">
+            <caption className="sr-only">{labels.caption}</caption>
+            <thead className={theadClass}>
+              <tr className="border-b border-border">
+                {canWrite ? (
+                  <th scope="col" className={cn(th, "w-10")}>
+                    <input
+                      type="checkbox"
+                      aria-label={labels.selectAll}
+                      checked={allOnPage}
+                      onChange={(e) => setSelected((s) => new Set(e.target.checked ? [...s, ...rows.map((r) => r.id)] : [...s].filter((id) => !rows.some((r) => r.id === id))))}
+                      className="size-4 accent-[var(--primary)]"
+                    />
+                  </th>
+                ) : null}
+                <th scope="col" className={th}>{labels.columns.client}</th>
+                <th scope="col" className={cn(th, "w-36")}>{labels.columns.phone}</th>
+                <th scope="col" className={cn(th, "w-24")}>{labels.columns.status}</th>
+                <th scope="col" className={cn(th, "w-32 text-right")}>{labels.columns.credits}</th>
+                <th scope="col" className={cn(th, "w-28")}>{labels.columns.lastVisit}</th>
+                <th scope="col" className={cn(th, "w-36")}>{labels.columns.nextBooking}</th>
+                <th scope="col" className={cn(th, "w-44")}>{labels.columns.tags}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.id} className={rowClass} data-testid="persons-row" data-person-id={r.id}>
+                  {canWrite ? (
+                    <td className={td}>
+                      <input type="checkbox" aria-label={`${labels.columns.select} ${r.name}`} checked={selected.has(r.id)} onChange={(e) => toggle(r.id, e.target.checked)} className={cn(aboveRow, "size-4 accent-[var(--primary)]")} />
+                    </td>
+                  ) : null}
+                  <td className={td}>
+                    <span className="flex items-center gap-2.5">
+                      <Initials name={r.name} />
+                      <span className="grid min-w-0 leading-tight">
+                        <span className="flex items-center gap-1.5">
+                          <Link href={`/admin/persons/${r.id}` as never} className={cn(rowLink, "truncate font-medium hover:underline")}>
+                            {r.name}
+                          </Link>
+                          {r.isCorporate ? <StatusPill tone="gold">{labels.corporate}</StatusPill> : null}
+                        </span>
+                        <span className="truncate text-[0.75rem] text-muted-foreground">{[r.email, r.customerNumber].filter(Boolean).join(" · ")}</span>
+                      </span>
+                    </span>
+                  </td>
+                  <td className={cn(td, "whitespace-nowrap tabular-nums")}>{r.phone ?? <span className="text-muted-foreground">–</span>}</td>
+                  <td className={td}>
+                    <StatusPill tone={STATUS_TONE[r.status]} data-testid="person-status" title={r.isOverridden ? labels.overridePin : undefined} className={r.isOverridden ? "ring-1 ring-current ring-inset" : undefined}>
+                      {labels.statuses[r.status]}
+                      {r.isOverridden ? <span className="sr-only"> ({labels.overridePin})</span> : null}
+                    </StatusPill>
+                  </td>
+                  <td className={cn(td, "text-right whitespace-nowrap tabular-nums")}>
+                    {r.dayCredits || r.nightCredits ? (
+                      <span className="grid leading-tight">
+                        {r.dayCredits ? <span className="font-semibold">{fill(labels.creditsDay, r.dayCredits)}</span> : null}
+                        {r.nightCredits ? <span className={r.dayCredits ? "text-[0.75rem] text-muted-foreground" : "font-semibold"}>{fill(labels.creditsNight, r.nightCredits)}</span> : null}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">–</span>
+                    )}
+                  </td>
+                  <td className={cn(td, "whitespace-nowrap")}>{r.lastVisitAt ? day.format(new Date(r.lastVisitAt)) : <span className="text-muted-foreground">–</span>}</td>
+                  <td className={cn(td, "whitespace-nowrap")}>{r.nextBookingAt ? <span className="first-letter:uppercase">{dayTime.format(new Date(r.nextBookingAt))}</span> : <span className="text-muted-foreground">–</span>}</td>
+                  <td className={td}>
+                    <span className="flex flex-wrap gap-1">
+                      {r.tags.slice(0, 3).map((k) => (
+                        <span key={k} className="inline-flex items-center gap-1 rounded-full border border-border px-1.5 py-px text-[0.6875rem] font-medium">
+                          <span aria-hidden="true" className="size-1.5 rounded-full" style={{ background: tagOf.get(k)?.color ?? "currentColor" }} />
+                          {tagOf.get(k)?.label ?? k}
+                        </span>
+                      ))}
+                      {r.tags.length > 3 ? <span className="text-[0.6875rem] text-muted-foreground">+{r.tags.length - 3}</span> : null}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Surface>
     </div>
   );
 }

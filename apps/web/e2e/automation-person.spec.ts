@@ -71,8 +71,8 @@ test(`staff moves a person from ${FROM} to ${TO}`, async ({ page }) => {
     insert into automation_runs (enrolment_id, person_id, automation_id, automation_version_id, outcome, reason, actor, dedupe_key)
     values (${enrolment.id}, ${person.id}, ${from!.id}, ${from!.version_id}, 'entered', 'staff', '{"kind":"system","id":null}'::jsonb, ${`run:${enrolment.id}::entered`})`);
 
-  await signInStaff(page, "marketing", { returnTo: `/admin/persons/${person.id}` });
-  await page.goto(`/admin/persons/${person.id}`);
+  await signInStaff(page, "marketing", { returnTo: `/admin/persons/${person.id}?tab=timeline` });
+  await page.goto(`/admin/persons/${person.id}?tab=timeline`);
   const panel = page.getByTestId("automation-panel");
   await expect(panel.locator(`[data-enrolment-id="${enrolment.id}"]`)).toBeVisible();
 

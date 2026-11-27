@@ -4,11 +4,12 @@
  */
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createTestDb, makePerson } from "@beam/db/testing";
+import { createTestDb, makeGrant, makePerson, makeSession } from "@beam/db/testing";
+import { makeMembership } from "@beam/db/testing/credits-factories";
 import type { DbHandle } from "@beam/db";
-import { personTags, tags } from "@beam/db/schema";
+import { bookings, personTags, tags } from "@beam/db/schema";
 import { formatCustomerNumber } from "@beam/core/crm";
-import { listPersons, parseSearch, searchPersons } from "./queries";
+import { getPersonListFacts, getPersonListKpis, listPersons, parseSearch, searchPersons } from "./queries";
 import { searchPersons as apiSearchPersons } from "./api";
 
 let h: DbHandle;
@@ -80,5 +81,35 @@ describe("searchPersons (3.6)", () => {
     const paged = await listPersons(h.db, { q: surname, page: 2, pageSize: 1, sort: "created_at" });
     expect(paged.total).toBe(all.total);
     expect(paged.rows).toHaveLength(1);
+  });
+
+  it("listPersons filters members, packages and new persons; the list facts and KPIs", async () => {
+    const last = `Kpi${randomUUID().slice(0, 6)}`;
+    const member = await makePerson(h.db, { lastName: last, phoneE164: "+32470000001" });
+    await makeMembership(h.db, { personId: member.id });
+    const pack = await makePerson(h.db, { lastName: last });
+    await makeGrant(h.db, { personId: pack.id, creditKind: "day", units: 4 });
+    await makeGrant(h.db, { personId: pack.id, creditKind: "night", units: 2 });
+    const old = await makePerson(h.db, { lastName: last, createdAt: new Date(Date.now() - 90 * 86_400_000) });
+    const base = { q: last, page: 1, pageSize: 100, sort: "last_name" as const };
+    const ids = async (extra: Partial<Parameters<typeof listPersons>[1]>) => (await listPersons(h.db, { ...base, ...extra })).rows.map((r) => r.id).sort();
+    expect(await ids({ isMember: true })).toEqual([member.id]);
+    expect(await ids({ hasPackage: true })).toEqual([pack.id]);
+    expect(await ids({ createdSince: new Date(Date.now() - 30 * 86_400_000) })).toEqual([member.id, pack.id].sort());
+
+    const past = await makeSession(h.db, { kind: "day", startsAt: new Date(Date.now() - 5 * 86_400_000) });
+    const next = await makeSession(h.db, { kind: "day", startsAt: new Date(Date.now() + 3 * 86_400_000) });
+    await h.db.insert(bookings).values([
+      { sessionId: past.id, personId: pack.id, status: "attended", attendedAt: past.startsAt, paidWith: "free", source: "admin" },
+      { sessionId: next.id, personId: pack.id, status: "confirmed", paidWith: "free", source: "admin" },
+    ]);
+    const facts = await getPersonListFacts(h.db, [member.id, pack.id, old.id]);
+    expect(facts.get(member.id)).toMatchObject({ phone: "+32470000001", dayCredits: 0, nightCredits: 0, nextBookingAt: null });
+    expect(facts.get(pack.id)).toMatchObject({ dayCredits: 4, nightCredits: 2, lastVisitAt: past.startsAt, nextBookingAt: next.startsAt });
+    const kpis = await getPersonListKpis(h.db, new Date(Date.now() - 30 * 86_400_000));
+    expect(kpis.total).toBeGreaterThanOrEqual(3);
+    expect(kpis.members).toBeGreaterThanOrEqual(1);
+    expect(kpis.withPackage).toBeGreaterThanOrEqual(1);
+    expect(kpis.newSince).toBeLessThan(kpis.total);
   });
 });

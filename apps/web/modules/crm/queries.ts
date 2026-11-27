@@ -3,7 +3,7 @@
  * every V1 area; each function is implemented by the package that owns the area. R3: crm-P8
  * the pipeline board and playbook, crm-P9 the inbox; R4: crm-P10 the knowledge base.
  */
-export { listPersons, searchPersons, type PersonListRow } from "./persons/queries";
+export { getPersonListFacts, getPersonListKpis, listPersons, searchPersons, type PersonListFacts, type PersonListRow } from "./persons/queries";
 export { listTags, type TagRow } from "./tags/queries";
 export { getPreferenceState, listConsentWordings, type PreferenceState } from "./consent/queries";
 export { getMyOnboarding, getMyOnboardingProgress, getMyPreferences, getMyProfile, type MyOnboarding, type MyPreferences, type MyProfile } from "./portal/queries";

@@ -134,8 +134,8 @@ test("a registrant 48 hours before an event gets the confirmation and the day-of
 
   // The person page timeline shows the entry and both skips with their due times.
   const staff = await browser.newPage();
-  await signInStaff(staff, "marketing", { returnTo: `/admin/persons/${person.id}` });
-  await staff.goto(`/admin/persons/${person.id}`);
+  await signInStaff(staff, "marketing", { returnTo: `/admin/persons/${person.id}?tab=timeline` });
+  await staff.goto(`/admin/persons/${person.id}?tab=timeline`);
   const timeline = staff.getByTestId("automation-timeline");
   await expect(timeline).toBeVisible();
   await expect(timeline.locator('[data-run-outcome="entered"]').first()).toBeVisible();

@@ -336,7 +336,25 @@
         "empty_filtered": "Niemand voldoet aan deze filters.",
         "bulk_changed": "{count} personen gewijzigd",
         "filter_corporate": "Zakelijke klanten",
-        "corporate": "Zakelijk"
+        "corporate": "Zakelijk",
+        "subtitle": "Iedereen die boekte, kocht of zich inschreef. Klik een klant voor de klantfiche.",
+        "views": "Weergave",
+        "view_members": "Leden",
+        "view_package": "Met pakket",
+        "view_new": "Nieuw",
+        "view_corporate": "Bedrijfsklanten",
+        "kpi_total": "Klanten",
+        "kpi_members": "Leden",
+        "kpi_package": "Met actief pakket",
+        "kpi_new": "Nieuw (laatste {days} dagen)",
+        "caption": "Klanten",
+        "col_client": "Klant",
+        "col_phone": "Telefoon",
+        "col_credits": "Tegoed",
+        "col_last_visit": "Laatste bezoek",
+        "col_next_booking": "Volgende boeking",
+        "credits_day": "{count} dag",
+        "credits_night": "{count} nacht"
       },
       "new": {
         "title": "Nieuwe persoon",
@@ -400,7 +418,12 @@
         "preferred_channel": "Voorkeurskanaal",
         "onboarding": "Onboarding",
         "onboarding_progress": "{answered} van {total} beantwoord",
-        "onboarding_dismissed": "{answered} van {total} beantwoord, verborgen door de klant"
+        "onboarding_dismissed": "{answered} van {total} beantwoord, verborgen door de klant",
+        "new": "Nieuw",
+        "email": "E-mail",
+        "phone": "Telefoon",
+        "address": "Adres",
+        "desk": "Bij de balie"
       },
       "banners": {
         "override_conflict": "Manuele status {override} verschilt van berekende {derived}",
@@ -433,7 +456,12 @@
         "segments": "Segmenten",
         "sensitive": "Gevoelige gegevens",
         "declarations": "Toestemming ouder of voogd",
-        "not_available": "Nog niet beschikbaar"
+        "not_available": "Nog niet beschikbaar",
+        "upcoming": "Volgende boekingen",
+        "no_upcoming": "Geen boekingen gepland.",
+        "all_bookings": "Alle boekingen",
+        "all_packages": "Alle pakketten",
+        "facts": "Kerngegevens"
       },
       "actions": {
         "edit": "Bewerken",
@@ -454,7 +482,7 @@
         "staff_consent": "Toestemming wijzigen",
         "unsubscribe_all": "Uitschrijven voor alle marketing",
         "merge_with": "Samenvoegen met…",
-        "book": "Boeken voor deze persoon",
+        "book": "Boeken voor deze klant",
         "sell": "Verkopen",
         "interaction_occurred_at": "Wanneer (leeg = nu)"
       },
@@ -474,6 +502,43 @@
       },
       "timeline_ui": {
         "all": "Alles"
+      },
+      "tabs": {
+        "label": "Klantfiche",
+        "overview": "Overzicht",
+        "bookings": "Boekingen",
+        "packages": "Pakketten & lidmaatschap",
+        "payments": "Betalingen & facturen",
+        "timeline": "Tijdlijn",
+        "details": "Gegevens & toestemmingen"
+      },
+      "cols": {
+        "date": "Datum",
+        "session": "Sessie",
+        "kind": "Soort",
+        "status": "Status",
+        "guest": "Als gast",
+        "offer_until": "Aanbod geldig tot",
+        "remaining": "Resterend",
+        "expires": "Eerste verval",
+        "reference": "Bestelling",
+        "total": "Totaal",
+        "number": "Nummer",
+        "credit_note": "Creditnota",
+        "automation": "Automatisering",
+        "next_step": "Volgende stap",
+        "segment": "Segment"
+      },
+      "kpi": {
+        "credits": "Tegoed",
+        "membership_until": "Lid tot",
+        "spent": "Totaal besteed",
+        "balance": "Openstaand saldo",
+        "last_visit_on": "Laatst op {date}",
+        "no_shows": "{count, plural, one {# keer niet gekomen} other {# keer niet gekomen}}",
+        "expires_on": "Eerste verval {date}",
+        "purchases": "{count, plural, one {# aankoop} other {# aankopen}}",
+        "open_invoices": "{count, plural, one {# open factuur} other {# open facturen}}"
       }
     },
     "timeline": {
@@ -873,7 +938,7 @@
       "col_related": "Over",
       "col_source": "Bron",
       "create": "Nieuwe taak",
-      "complete": "Afronden",
+      "complete": "Klaar",
       "cancel": "Taak annuleren",
       "reopen": "Heropenen",
       "reassign": "Toewijzen aan iemand anders",
@@ -896,7 +961,8 @@
         "company": "Bedrijf",
         "notes": "Notities",
         "own_only": "Zonder recht op alle taken kan je enkel taken voor jezelf aanmaken."
-      }
+      },
+      "subtitle": "Wat er moet gebeuren, wie het doet en tegen wanneer. Te laat staat bovenaan."
     },
     "companies": {
       "title": "Bedrijven",
@@ -926,7 +992,9 @@
         "ended": "Tot {date}",
         "primary": "Hoofdcontact",
         "email_taken": "Dit e-mailadres hoort bij een andere persoon. Koppel die persoon.",
-        "contact_exists": "Deze persoon is al contact van dit bedrijf."
+        "contact_exists": "Deze persoon is al contact van dit bedrijf.",
+        "referred_short": "Doorverwezen",
+        "open_tasks": "Open taken"
       },
       "form": {
         "name": "Naam",
@@ -951,7 +1019,10 @@
         "relationship": "Relatie",
         "is_primary": "Hoofdcontact",
         "ended_on": "Vertrokken op"
-      }
+      },
+      "subtitle": "Zakelijke klanten, prospecten en partners met hun contactpersonen.",
+      "partners_only": "Alleen partners",
+      "no_vat": "Geen btw-nummer"
     },
     "portal": {
       "profile": {

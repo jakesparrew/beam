@@ -208,7 +208,7 @@ test.describe("V1 acceptance", () => {
 
     test("The CRM shows the activity", async ({ page }) => {
       test.skip(!core.personId, "the core customer did not register");
-      await signInStaff(page, "customer_service", { returnTo: `/admin/persons/${core.personId}` });
+      await signInStaff(page, "customer_service", { returnTo: `/admin/persons/${core.personId}?tab=timeline` });
       await expect(page.getByTestId("person-360")).toBeVisible();
       const timeline = page.getByTestId("timeline");
       for (const kind of ["order.paid", "booking.confirmed", "booking.cancelled"]) {
@@ -289,7 +289,7 @@ test.describe("V1 acceptance", () => {
       // The timeline shows `email.sent` for this message.
       const sent = await e2eRows<{ n: number }>(sql`select count(*)::int as n from activity_events where kind = 'email.sent' and ref_type = 'email_message' and ref_id = ${message.id}`);
       expect(sent[0]!.n).toBe(1);
-      await signInStaff(page, "customer_service", { returnTo: `/admin/persons/${core.personId}` });
+      await signInStaff(page, "customer_service", { returnTo: `/admin/persons/${core.personId}?tab=timeline` });
       await expect(page.getByTestId("timeline").locator('[data-testid="timeline-row"][data-kind="email.sent"]').first()).toBeVisible();
 
       // A second run of the send job adds no second sink message.

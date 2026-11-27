@@ -129,7 +129,7 @@ test("marketing builds trigger -> delay -> branch -> email and task, publishes, 
   await expect(page.getByTestId("automation-status")).toHaveAttribute("data-status", "active");
 
   // Enrol a demo person from the person page.
-  await page.goto(`/admin/persons/${personId}`);
+  await page.goto(`/admin/persons/${personId}?tab=timeline`);
   await page.getByTestId("automation-enrol-open").click();
   await page.getByTestId("automation-enrol-select").selectOption({ label: "E2E builder" });
   await clickAndWait(page, () => page.getByTestId("automation-enrol-submit").click());

@@ -1,32 +1,23 @@
 "use client";
 /**
- * The 360 header (crm spec 5.1, rules 3.11, 3.55): name, customer number, status (derived vs
- * override), member badge, locale, tags, contact data, acquisition, partner, companies, the
- * emergency contact and the declaration badges, beside the reception quick view. `NoteForm` and
+ * The 360's key facts (crm spec 5.1, rules 3.11, 3.55; the name, status and pills sit in the
+ * page header): contact data, locale, tags, acquisition, partner, companies, the emergency
+ * contact and the desk checks of the reception quick view. `NoteForm` and
  * `InteractionForm` are the "Add note" (with the sensitive toggle only for holders of
  * `persons.sensitive_read`) and "Log interaction" actions. Every string is a prop.
  */
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useId, useState, type FormEvent, type ReactNode } from "react";
-import { Badge, Button, Card, CardContent, Checkbox, Input, Label, Textarea } from "@beam/ui";
+import { Button, Checkbox, cn, Input, Label, Textarea } from "@beam/ui";
 import { addNote, logInteraction } from "../../timeline/actions";
-import { ReceptionCard, type ReceptionCardLabels, type ReceptionCardView } from "./reception-card";
+import type { ReceptionCardLabels, ReceptionCardView } from "./reception-card";
 
-export type PersonHeaderView = {
-  id: string;
-  name: string;
-  customerNumberLabel: string;
-  statusLabel: string;
-  derivedLabel: string | null;
-  overrideLabel: string | null;
-  isMember: boolean;
-  isTester: boolean;
-  isCorporate: boolean;
-  localeLabel: string;
+export type PersonFactsView = {
   email: string | null;
   phone: string | null;
   address: string | null;
+  localeLabel: string;
   birthOn: string | null;
   preferredChannel: string | null;
   /** "2 of 4 answered", "Dismissed" ...; `null` hides the row (never shown to the client). */
@@ -36,18 +27,17 @@ export type PersonHeaderView = {
   companies: Array<{ id: string; name: string; position: string | null }>;
   tags: Array<{ key: string; label: string; color: string }>;
   emergencyContact: { name: string; phone: string; relation?: string } | null;
-  banners: string[];
   reception: ReceptionCardView;
 };
 
-export type PersonHeaderLabels = {
-  member: string;
-  tester: string;
-  corporate: string;
+export type PersonFactsLabels = {
+  title: string;
+  email: string;
+  phone: string;
+  address: string;
   preferredChannel: string;
   onboarding: string;
   locale: string;
-  contact: string;
   acquisition: string;
   campaign: string;
   partner: string;
@@ -56,83 +46,114 @@ export type PersonHeaderLabels = {
   noEmergencyContact: string;
   tags: string;
   birthOn: string;
+  /** The desk checks: terms, health declaration and, for a minor, the guardian's consent. */
+  desk: string;
   reception: ReceptionCardLabels;
 };
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="contents">
-      <dt className="text-sm text-muted-foreground">{label}</dt>
-      <dd className="text-sm">{children}</dd>
+      <dt className="text-[0.75rem] font-medium text-muted-foreground">{label}</dt>
+      <dd className="min-w-0 text-[0.8125rem] break-words">{children}</dd>
     </div>
   );
 }
 
-export function PersonHeader({ view, labels }: { view: PersonHeaderView; labels: PersonHeaderLabels }) {
+function Check({ ok, yes, no }: { ok: boolean; yes: string; no: string }) {
   return (
-    <div className="grid gap-4 lg:grid-cols-[1fr_minmax(16rem,22rem)]" data-testid="person-header">
-      <div className="grid gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-2xl font-semibold">{view.name || "—"}</h1>
-          <span className="text-sm text-muted-foreground">{view.customerNumberLabel}</span>
-          <Badge variant={view.overrideLabel ? "warning" : "outline"} data-testid="person-status" title={view.derivedLabel ?? undefined}>
-            {view.statusLabel}
-          </Badge>
-          {view.isMember ? <Badge variant="success">{labels.member}</Badge> : null}
-          {view.isTester ? <Badge variant="secondary">{labels.tester}</Badge> : null}
-          {view.isCorporate ? <Badge variant="secondary" data-testid="person-corporate">{labels.corporate}</Badge> : null}
-        </div>
-        {view.overrideLabel || view.derivedLabel ? (
-          <p className="text-sm text-muted-foreground">{[view.overrideLabel, view.derivedLabel].filter(Boolean).join(" · ")}</p>
+    <li className="flex items-center gap-2" data-state={ok ? "ok" : "missing"}>
+      <span aria-hidden="true" className={cn("size-2 shrink-0 rounded-full", ok ? "bg-[var(--status-ok)]" : "bg-[var(--status-bad)]")} />
+      <span className={ok ? undefined : "font-medium text-[var(--status-bad)]"}>{ok ? yes : no}</span>
+    </li>
+  );
+}
+
+/**
+ * The key facts of the 360's overview (owner review, November 2026): contact, language, birth
+ * date, channel, origin, partner, companies, emergency contact, onboarding and tags in one
+ * label/value list, with the desk checks (terms, health declaration, guardian consent) below.
+ */
+export function PersonFacts({ view, labels }: { view: PersonFactsView; labels: PersonFactsLabels }) {
+  const r = view.reception;
+  const dash = <span className="text-muted-foreground">–</span>;
+  return (
+    <section aria-label={labels.title} className="grid content-start gap-3 rounded-xl border border-border bg-card p-5" data-testid="person-facts">
+      <h2 className="text-[0.875rem] font-semibold">{labels.title}</h2>
+      <dl className="grid grid-cols-[minmax(7rem,max-content)_1fr] gap-x-4 gap-y-2">
+        <Row label={labels.email}>
+          {view.email ? (
+            <a href={`mailto:${view.email}`} className="hover:underline">
+              {view.email}
+            </a>
+          ) : (
+            dash
+          )}
+        </Row>
+        <Row label={labels.phone}>
+          {view.phone ? (
+            <a href={`tel:${view.phone}`} className="tabular-nums hover:underline">
+              {view.phone}
+            </a>
+          ) : (
+            dash
+          )}
+        </Row>
+        {view.address ? <Row label={labels.address}>{view.address}</Row> : null}
+        <Row label={labels.locale}>{view.localeLabel}</Row>
+        {view.birthOn ? <Row label={labels.birthOn}>{view.birthOn}</Row> : null}
+        {view.preferredChannel ? <Row label={labels.preferredChannel}>{view.preferredChannel}</Row> : null}
+        <Row label={labels.acquisition}>{[view.acquisition.source, view.acquisition.campaign ? `${labels.campaign}: ${view.acquisition.campaign}` : null, view.acquisition.date].filter(Boolean).join(" · ") || dash}</Row>
+        {view.partner ? (
+          <Row label={labels.partner}>
+            <Link href={`/admin/companies/${view.partner.id}` as never} className="font-medium hover:underline">
+              {view.partner.name}
+            </Link>
+          </Row>
         ) : null}
-        {view.banners.map((b) => (
-          <p key={b} role="status" className="rounded-md border border-warning bg-warning/15 px-3 py-2 text-sm">
-            {b}
-          </p>
-        ))}
-        {view.tags.length ? (
-          <div className="flex flex-wrap gap-1" aria-label={labels.tags}>
-            {view.tags.map((t) => (
-              <Badge key={t.key} variant="outline" style={{ borderColor: t.color }}>
-                {t.label}
-              </Badge>
+        {view.companies.length ? (
+          <Row label={labels.companies}>
+            {view.companies.map((c, i) => (
+              <span key={c.id}>
+                {i > 0 ? ", " : null}
+                <Link href={`/admin/companies/${c.id}` as never} className="font-medium hover:underline">
+                  {c.name}
+                </Link>
+                {c.position ? <span className="text-muted-foreground"> ({c.position})</span> : null}
+              </span>
             ))}
-          </div>
+          </Row>
         ) : null}
-        <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[max-content_1fr]">
-          <Row label={labels.contact}>{[view.email, view.phone, view.address].filter(Boolean).join(" · ") || "—"}</Row>
-          <Row label={labels.locale}>{view.localeLabel}</Row>
-          {view.birthOn ? <Row label={labels.birthOn}>{view.birthOn}</Row> : null}
-          {view.preferredChannel ? <Row label={labels.preferredChannel}>{view.preferredChannel}</Row> : null}
-          <Row label={labels.acquisition}>{[view.acquisition.source, view.acquisition.campaign ? `${labels.campaign}: ${view.acquisition.campaign}` : null, view.acquisition.date].filter(Boolean).join(" · ") || "—"}</Row>
-          {view.partner ? (
-            <Row label={labels.partner}>
-              <Link href={`/admin/companies/${view.partner.id}` as never} className="underline-offset-4 hover:underline">
-                {view.partner.name}
-              </Link>
-            </Row>
-          ) : null}
-          {view.companies.length ? (
-            <Row label={labels.companies}>
-              {view.companies.map((c, i) => (
-                <span key={c.id}>
-                  {i > 0 ? ", " : null}
-                  <Link href={`/admin/companies/${c.id}` as never} className="underline-offset-4 hover:underline">
-                    {c.name}
-                  </Link>
-                  {c.position ? ` (${c.position})` : null}
+        <Row label={labels.emergencyContact}>
+          {view.emergencyContact ? (
+            [view.emergencyContact.name, view.emergencyContact.phone, view.emergencyContact.relation].filter(Boolean).join(" · ")
+          ) : (
+            <span className="text-muted-foreground">{labels.noEmergencyContact}</span>
+          )}
+        </Row>
+        {view.onboarding ? <Row label={labels.onboarding}>{view.onboarding}</Row> : null}
+        {view.tags.length ? (
+          <Row label={labels.tags}>
+            <span className="flex flex-wrap gap-1">
+              {view.tags.map((t) => (
+                <span key={t.key} className="inline-flex items-center gap-1 rounded-full border border-border px-1.5 py-px text-[0.6875rem] font-medium">
+                  <span aria-hidden="true" className="size-1.5 rounded-full" style={{ background: t.color }} />
+                  {t.label}
                 </span>
               ))}
-            </Row>
-          ) : null}
-          <Row label={labels.emergencyContact}>
-            {view.emergencyContact ? [view.emergencyContact.name, view.emergencyContact.phone, view.emergencyContact.relation].filter(Boolean).join(" · ") : labels.noEmergencyContact}
+            </span>
           </Row>
-          {view.onboarding ? <Row label={labels.onboarding}>{view.onboarding}</Row> : null}
-        </dl>
+        ) : null}
+      </dl>
+      <div className="grid gap-1.5 border-t border-border pt-3" data-testid="person-desk-checks">
+        <h3 className="text-[0.75rem] font-medium text-muted-foreground">{labels.desk}</h3>
+        <ul className="grid gap-1 text-[0.8125rem]">
+          <Check ok={r.declarations.termsAccepted} yes={labels.reception.termsAccepted} no={labels.reception.termsMissing} />
+          <Check ok={r.declarations.healthDeclarationValid} yes={labels.reception.healthValid} no={labels.reception.healthMissing} />
+          {r.isMinor ? <Check ok={r.declarations.guardianConsentValid} yes={labels.reception.guardianValid} no={labels.reception.guardianMissing} /> : null}
+        </ul>
       </div>
-      <ReceptionCard card={view.reception} labels={labels.reception} compact />
-    </div>
+    </section>
   );
 }
 
@@ -271,16 +292,19 @@ export function InteractionForm({ personId, labels }: { personId: string; labels
   );
 }
 
-/** A collapsible action block of the 360 page. */
+/** A collapsible action block of the 360 page: a quiet one-line summary that opens its form. */
 export function ActionBlock({ title, children, testId }: { title: string; children: ReactNode; testId?: string }) {
   return (
-    <Card data-testid={testId}>
-      <CardContent className="py-3">
-        <details>
-          <summary className="cursor-pointer text-sm font-medium">{title}</summary>
-          <div className="pt-3">{children}</div>
-        </details>
-      </CardContent>
-    </Card>
+    <div data-testid={testId} className="rounded-xl border border-border bg-card">
+      <details className="group">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-2.5 text-[0.8125rem] font-semibold [&::-webkit-details-marker]:hidden">
+          {title}
+          <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="size-3.5 text-muted-foreground transition-transform group-open:rotate-180">
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </summary>
+        <div className="border-t border-border px-4 py-3">{children}</div>
+      </details>
+    </div>
   );
 }

@@ -336,7 +336,25 @@
         "empty_filtered": "Personne ne correspond à ces filtres.",
         "bulk_changed": "{count} personnes modifiées",
         "filter_corporate": "Clients professionnels",
-        "corporate": "Professionnel"
+        "corporate": "Professionnel",
+        "subtitle": "Toutes les personnes qui ont réservé, acheté ou se sont inscrites. Cliquez sur un client pour ouvrir sa fiche.",
+        "views": "Vue",
+        "view_members": "Membres",
+        "view_package": "Avec forfait",
+        "view_new": "Nouveaux",
+        "view_corporate": "Clients entreprises",
+        "kpi_total": "Clients",
+        "kpi_members": "Membres",
+        "kpi_package": "Avec un forfait actif",
+        "kpi_new": "Nouveaux ({days} derniers jours)",
+        "caption": "Clients",
+        "col_client": "Client",
+        "col_phone": "Téléphone",
+        "col_credits": "Crédit",
+        "col_last_visit": "Dernière visite",
+        "col_next_booking": "Prochaine réservation",
+        "credits_day": "{count} jour",
+        "credits_night": "{count} nuit"
       },
       "new": {
         "title": "Nouvelle personne",
@@ -400,7 +418,12 @@
         "preferred_channel": "Canal préféré",
         "onboarding": "Accueil",
         "onboarding_progress": "{answered} sur {total} répondues",
-        "onboarding_dismissed": "{answered} sur {total} répondues, masqué par le client"
+        "onboarding_dismissed": "{answered} sur {total} répondues, masqué par le client",
+        "new": "Nouveau",
+        "email": "E-mail",
+        "phone": "Téléphone",
+        "address": "Adresse",
+        "desk": "À l'accueil"
       },
       "banners": {
         "override_conflict": "Le statut manuel {override} diffère du statut calculé {derived}",
@@ -433,7 +456,12 @@
         "segments": "Segments",
         "sensitive": "Données sensibles",
         "declarations": "Consentement parental",
-        "not_available": "Pas encore disponible"
+        "not_available": "Pas encore disponible",
+        "upcoming": "Prochaines réservations",
+        "no_upcoming": "Aucune réservation prévue.",
+        "all_bookings": "Toutes les réservations",
+        "all_packages": "Tous les forfaits",
+        "facts": "Informations clés"
       },
       "actions": {
         "edit": "Modifier",
@@ -454,7 +482,7 @@
         "staff_consent": "Modifier le consentement",
         "unsubscribe_all": "Désinscrire de tout le marketing",
         "merge_with": "Fusionner avec…",
-        "book": "Réserver pour cette personne",
+        "book": "Réserver pour ce client",
         "sell": "Vendre",
         "interaction_occurred_at": "Quand (vide = maintenant)"
       },
@@ -474,6 +502,43 @@
       },
       "timeline_ui": {
         "all": "Tout"
+      },
+      "tabs": {
+        "label": "Fiche client",
+        "overview": "Aperçu",
+        "bookings": "Réservations",
+        "packages": "Forfaits et abonnement",
+        "payments": "Paiements et factures",
+        "timeline": "Historique",
+        "details": "Données et consentements"
+      },
+      "cols": {
+        "date": "Date",
+        "session": "Séance",
+        "kind": "Type",
+        "status": "Statut",
+        "guest": "En tant qu'invité",
+        "offer_until": "Offre valable jusqu'au",
+        "remaining": "Restant",
+        "expires": "Première échéance",
+        "reference": "Commande",
+        "total": "Total",
+        "number": "Numéro",
+        "credit_note": "Note de crédit",
+        "automation": "Automatisation",
+        "next_step": "Étape suivante",
+        "segment": "Segment"
+      },
+      "kpi": {
+        "credits": "Crédit restant",
+        "membership_until": "Membre jusqu'au",
+        "spent": "Total dépensé",
+        "balance": "Solde ouvert",
+        "last_visit_on": "Dernière fois le {date}",
+        "no_shows": "{count, plural, one {# absence} other {# absences}}",
+        "expires_on": "Première échéance le {date}",
+        "purchases": "{count, plural, one {# achat} other {# achats}}",
+        "open_invoices": "{count, plural, one {# facture ouverte} other {# factures ouvertes}}"
       }
     },
     "timeline": {
@@ -873,7 +938,7 @@
       "col_related": "Concerne",
       "col_source": "Source",
       "create": "Nouvelle tâche",
-      "complete": "Marquer comme terminée",
+      "complete": "Terminé",
       "cancel": "Annuler la tâche",
       "reopen": "Rouvrir",
       "reassign": "Réattribuer",
@@ -896,7 +961,8 @@
         "company": "Entreprise",
         "notes": "Notes",
         "own_only": "Sans le droit de voir toutes les tâches, vous ne pouvez créer des tâches que pour vous-même."
-      }
+      },
+      "subtitle": "Ce qu'il faut faire, qui s'en charge et pour quand. Les tâches en retard d'abord."
     },
     "companies": {
       "title": "Entreprises",
@@ -926,7 +992,9 @@
         "ended": "Jusqu’au {date}",
         "primary": "Contact principal",
         "email_taken": "Cette adresse e-mail appartient à une autre personne. Liez plutôt cette personne.",
-        "contact_exists": "Cette personne est déjà un contact de cette entreprise."
+        "contact_exists": "Cette personne est déjà un contact de cette entreprise.",
+        "referred_short": "Recommandés",
+        "open_tasks": "Tâches ouvertes"
       },
       "form": {
         "name": "Nom",
@@ -951,7 +1019,10 @@
         "relationship": "Relation",
         "is_primary": "Contact principal",
         "ended_on": "Parti le"
-      }
+      },
+      "subtitle": "Clients professionnels, prospects et partenaires avec leurs contacts.",
+      "partners_only": "Partenaires uniquement",
+      "no_vat": "Pas de numéro de TVA"
     },
     "portal": {
       "profile": {

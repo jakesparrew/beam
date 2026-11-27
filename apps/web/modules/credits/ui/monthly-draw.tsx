@@ -2,12 +2,13 @@
 /**
  * The monthly members' draw on `/admin/memberships` (`memberships.write`): this month's winner or
  * a button that draws one active member at random for a free night (`drawMonthlyWinner`, one
- * draw per month), and the earlier winners. Strings come in as `credits.admin.draw.*` labels.
+ * draw per month), and the earlier winners behind a disclosure: one compact line (owner review,
+ * November 2026); the rule text is the title's tooltip. Strings come in as `credits.admin.draw.*` labels.
  */
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Alert, AlertDescription, Button, Card, CardContent, CardHeader, CardTitle } from "@beam/ui";
+import { Alert, AlertDescription, Button } from "@beam/ui";
 import { drawMonthlyWinner } from "../actions";
 import { errorMessage, type Labels } from "./adjust-dialog";
 
@@ -38,63 +39,52 @@ export function MonthlyDrawCard({ month, draws, canDraw, labels: l }: { month: s
   }
 
   return (
-    <Card data-testid="monthly-draw">
-      <CardHeader>
-        <CardTitle>{d("title")}</CardTitle>
-      </CardHeader>
-      <CardContent className="grid gap-3 text-sm">
-        <p className="text-muted-foreground">{d("description")}</p>
-        <p className="font-medium">{fill(d("this_month"), { month })}</p>
+    <section data-testid="monthly-draw" aria-label={d("title")} className="grid gap-2 rounded-xl border border-border bg-card px-5 py-3 text-[0.8125rem]">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <h2 className="text-[0.875rem] font-semibold" title={d("description")}>
+          {d("title")}
+        </h2>
+        <span className="text-muted-foreground">{fill(d("this_month"), { month })}</span>
         {current ? (
-          <p role="status">
+          <p role="status" className="font-medium">
             {fill(d("winner"), { name: "" })}
-            <Link href={`/admin/persons/${current.personId}`} className="font-medium underline">
+            <Link href={`/admin/persons/${current.personId}`} className="underline underline-offset-2">
               {current.personName}
             </Link>
           </p>
         ) : (
           <>
-            <p>{d("not_drawn")}</p>
+            <span>{d("not_drawn")}</span>
             {canDraw ? (
-              <div>
-                <Button type="button" onClick={() => void draw()} disabled={busy}>
-                  {busy ? d("drawing") : d("draw")}
-                </Button>
-              </div>
+              <Button type="button" size="sm" onClick={() => void draw()} disabled={busy}>
+                {busy ? d("drawing") : d("draw")}
+              </Button>
             ) : null}
           </>
         )}
-        {error ? (
-          <Alert variant="destructive" role="alert">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        ) : null}
-        <h3 className="font-semibold">{d("history")}</h3>
-        {earlier.length === 0 ? (
-          <p className="text-muted-foreground">{d("history_empty")}</p>
-        ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b text-left">
-                <th scope="col" className="py-1 pr-3 font-medium">{d("col_month")}</th>
-                <th scope="col" className="py-1 font-medium">{d("col_winner")}</th>
-              </tr>
-            </thead>
-            <tbody>
+        {earlier.length ? (
+          <details className="ml-auto">
+            <summary className="cursor-pointer text-[0.75rem] font-semibold text-muted-foreground hover:text-foreground">
+              {d("history")} ({earlier.length})
+            </summary>
+            <ul className="mt-2 grid gap-1">
               {earlier.map((r) => (
-                <tr key={r.month} className="border-b last:border-0">
-                  <td className="py-1 pr-3 tabular-nums">{r.month}</td>
-                  <td className="py-1">
-                    <Link href={`/admin/persons/${r.personId}`} className="hover:underline">
-                      {r.personName}
-                    </Link>
-                  </td>
-                </tr>
+                <li key={r.month} className="flex gap-3">
+                  <span className="w-16 text-muted-foreground tabular-nums">{r.month}</span>
+                  <Link href={`/admin/persons/${r.personId}`} className="hover:underline">
+                    {r.personName}
+                  </Link>
+                </li>
               ))}
-            </tbody>
-          </table>
-        )}
-      </CardContent>
-    </Card>
+            </ul>
+          </details>
+        ) : null}
+      </div>
+      {error ? (
+        <Alert variant="destructive" role="alert">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
+    </section>
   );
 }

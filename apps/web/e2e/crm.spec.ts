@@ -80,7 +80,8 @@ test("staff creates a person and sees the duplicate warning", async ({ page }) =
 });
 
 test("staff adds a note and a task on the 360", async ({ page }) => {
-  await signInStaff(page, "owner", { returnTo: `/admin/persons/${createdId}` });
+  // The note form and the timeline sit on the Tijdlijn tab, the tasks on the overview.
+  await signInStaff(page, "owner", { returnTo: `/admin/persons/${createdId}?tab=timeline` });
   await page.getByTestId("action-note").locator("summary").click();
   const note = page.getByTestId("note-form");
   await note.locator("textarea").fill(NOTE);
@@ -88,6 +89,7 @@ test("staff adds a note and a task on the 360", async ({ page }) => {
   await page.reload();
   await expect(page.getByTestId("timeline").getByText(NOTE)).toBeVisible();
 
+  await page.goto(`/admin/persons/${createdId}`);
   const tasks = page.locator('section[aria-labelledby="tasks-heading"]');
   await tasks.getByRole("button").first().click();
   await tasks.locator("input").first().fill(TASK);
@@ -97,7 +99,7 @@ test("staff adds a note and a task on the 360", async ({ page }) => {
 });
 
 test("staff sets an override and sees the banner", async ({ page }) => {
-  await signInStaff(page, "owner", { returnTo: `/admin/persons/${createdId}` });
+  await signInStaff(page, "owner", { returnTo: `/admin/persons/${createdId}?tab=details` });
   await page.getByTestId("action-override").locator("summary").click();
   const form = page.getByTestId("status-override-form");
   await form.locator("select").selectOption("member");
@@ -121,8 +123,8 @@ test("staff merges two persons and sees both histories", async ({ page }) => {
   const [merged] = await e2eRows<{ merged_into_person_id: string | null }>(sql`select merged_into_person_id from persons where id = ${loserId}`);
   expect(merged!.merged_into_person_id).toBe(createdId);
 
-  await page.goto(`/admin/persons/${loserId}`);
-  await page.waitForURL(new RegExp(`/admin/persons/${createdId}$`));
+  await page.goto(`/admin/persons/${loserId}?tab=timeline`);
+  await page.waitForURL(new RegExp(`/admin/persons/${createdId}\\?tab=timeline$`));
   const timeline = page.getByTestId("timeline");
   await expect(timeline.getByText(`E2E loser history ${RUN}`)).toBeVisible();
   await expect(timeline.getByText(NOTE)).toBeVisible();

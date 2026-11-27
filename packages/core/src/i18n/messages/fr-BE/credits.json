@@ -310,7 +310,8 @@
         "locale_fr": "Français",
         "locale_en": "Anglais",
         "missing": "Manquant",
-        "complete": "Complet"
+        "complete": "Complet",
+        "first_page": "Première page"
       },
       "units": {
         "day": "{count, plural, one {# séance} other {# séances}}",
@@ -341,7 +342,9 @@
         "caption": "Forfaits et avoirs",
         "empty": "Pas encore de forfaits. Les forfaits apparaissent ici dès que des clients en achètent ou que vous en ajoutez un.",
         "none_match": "Aucun forfait ne correspond à ces filtres.",
-        "untitled": "Forfait"
+        "untitled": "Forfait",
+        "subtitle": "Chaque forfait et crédit avec ce qu'il reste et sa date d'échéance.",
+        "started": "début {date}"
       },
       "tiles": {
         "label": "Chiffres des forfaits",
@@ -518,7 +521,8 @@
         "col_cancel_at": "Se termine le",
         "caption": "Abonnements",
         "empty": "Pas encore d'abonnements.",
-        "none_match": "Aucun abonnement ne correspond à ces filtres."
+        "none_match": "Aucun abonnement ne correspond à ces filtres.",
+        "subtitle": "Abonnements actifs et en cours, avec le prochain prélèvement et les paiements échoués."
       },
       "membership": {
         "title": "Abonnement",
@@ -611,7 +615,8 @@
         "discount_product": "Produit",
         "discount_rule": "{pct} % sur {scope}",
         "alternative": "Au choix avec l’inclusion principale (la première utilisation décide)",
-        "alternative_badge": "au choix"
+        "alternative_badge": "au choix",
+        "subtitle": "Ce que comprend chaque formule : crédit par période, réduction et avantages."
       },
       "panel": {
         "title": "Forfaits et avoirs",
@@ -802,6 +807,9 @@
         "col_month": "Mois",
         "col_winner": "Gagnant",
         "grant_label": "Tirage mensuel {month} : nuit offerte"
+      },
+      "area": {
+        "label": "Forfaits et abonnements"
       }
     },
     "units": {

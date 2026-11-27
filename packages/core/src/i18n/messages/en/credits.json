@@ -310,7 +310,8 @@
         "locale_fr": "Français",
         "locale_en": "English",
         "missing": "Missing",
-        "complete": "Complete"
+        "complete": "Complete",
+        "first_page": "First page"
       },
       "units": {
         "day": "{count, plural, one {# session} other {# sessions}}",
@@ -341,7 +342,9 @@
         "caption": "Packages and store credit",
         "empty": "No packages yet. Packages appear here when customers buy them or you add one.",
         "none_match": "No packages match these filters.",
-        "untitled": "Package"
+        "untitled": "Package",
+        "subtitle": "Every package and credit with what is left and when it expires.",
+        "started": "started {date}"
       },
       "tiles": {
         "label": "Package figures",
@@ -518,7 +521,8 @@
         "col_cancel_at": "Ends on",
         "caption": "Memberships",
         "empty": "No memberships yet.",
-        "none_match": "No memberships match these filters."
+        "none_match": "No memberships match these filters.",
+        "subtitle": "Active and running memberships, with the next charge and failed payments."
       },
       "membership": {
         "title": "Membership",
@@ -611,7 +615,8 @@
         "discount_product": "Product",
         "discount_rule": "{pct} % on {scope}",
         "alternative": "Either/or with the primary inclusion (the first use decides)",
-        "alternative_badge": "either/or"
+        "alternative_badge": "either/or",
+        "subtitle": "What each plan includes: credits per period, discount and benefits."
       },
       "panel": {
         "title": "Packages and store credit",
@@ -802,6 +807,9 @@
         "col_month": "Month",
         "col_winner": "Winner",
         "grant_label": "Monthly draw {month}: free night"
+      },
+      "area": {
+        "label": "Packages and memberships"
       }
     },
     "units": {

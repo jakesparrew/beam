@@ -1,14 +1,17 @@
 "use client";
 /**
- * The task table of `/admin/tasks` and of the company page (crm spec 5.1, rule 3.43): overdue
- * tasks first and in red, due today marked; complete, cancel, reopen, reassign (edit) and open
- * the related person or company. An invalid transition shows the catalogue's message.
+ * The task table of `/admin/tasks`, the 360 and the company page (crm spec 5.1, rule 3.43; owner
+ * review November 2026): a "Done" button first in each open row, the title with its kind, the
+ * due date with an overdue (red) or today (amber) pill, the owner with initials and the related
+ * person or company; edit (reassign) and cancel are quiet row actions, a closed task can be
+ * reopened. An invalid transition shows the catalogue's message.
  */
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Alert, AlertDescription, Badge, Button, EmptyState, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@beam/ui";
+import { Alert, AlertDescription, cn, EmptyState } from "@beam/ui";
 import { cancelTask, completeTask, reopenTask } from "../actions";
+import { Initials, quietButton, StatusPill, Surface, td, th, theadClass } from "./kit";
 import { TaskForm, type TaskFormLabels, type TaskFormValues } from "./task-form";
 
 export type TaskView = {
@@ -43,6 +46,8 @@ export type TaskListLabels = {
   cancel: string;
   reopen: string;
   reassign: string;
+  /** The short row action that opens the edit form (reassign, due date, notes). */
+  edit: string;
   openRelated: string;
   invalidTransition: string;
   error: string;
@@ -63,6 +68,8 @@ export function TaskList({
   personId,
   companyId,
   labels,
+  compact = false,
+  showCreate = true,
 }: {
   tasks: TaskView[];
   currentUserId: string;
@@ -71,6 +78,9 @@ export function TaskList({
   personId?: string;
   companyId?: string;
   labels: TaskListLabels;
+  /** Inside a 360 or company page: no "about" column and no source. */
+  compact?: boolean;
+  showCreate?: boolean;
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState<TaskFormValues | null>(null);
@@ -96,12 +106,14 @@ export function TaskList({
   const relatedHref = (t: TaskView) => (t.personId ? `/admin/persons/${t.personId}` : t.companyId ? `/admin/companies/${t.companyId}` : null);
 
   return (
-    <div className="grid gap-4">
-      <div className="flex justify-end">
-        <Button type="button" onClick={() => setEditing(blank)} disabled={!!editing}>
-          {labels.create}
-        </Button>
-      </div>
+    <div className="grid gap-2">
+      {showCreate ? (
+        <div className={cn("flex", compact ? "justify-start" : "justify-end")}>
+          <button type="button" onClick={() => setEditing(blank)} disabled={!!editing} className={quietButton}>
+            + {labels.create}
+          </button>
+        </div>
+      ) : null}
       {editing ? (
         <TaskForm
           initial={editing}
@@ -121,94 +133,109 @@ export function TaskList({
         </Alert>
       ) : null}
       {tasks.length === 0 ? (
-        <EmptyState title={labels.empty} />
+        compact ? (
+          <p className="rounded-xl border border-border bg-card px-5 py-4 text-[0.8125rem] text-muted-foreground">{labels.empty}</p>
+        ) : (
+          <EmptyState title={labels.empty} />
+        )
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{labels.columns.title}</TableHead>
-              <TableHead>{labels.columns.kind}</TableHead>
-              <TableHead>{labels.columns.priority}</TableHead>
-              <TableHead>{labels.columns.due}</TableHead>
-              <TableHead>{labels.columns.owner}</TableHead>
-              <TableHead>{labels.columns.related}</TableHead>
-              <TableHead>{labels.columns.source}</TableHead>
-              <TableHead>{labels.columns.actions}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {tasks.map((t) => {
-              const href = relatedHref(t);
-              const canTouch = canAssignOthers || t.ownerId === currentUserId;
-              return (
-                <TableRow key={t.id} data-overdue={t.isOverdue || undefined} className={t.isOverdue ? "text-destructive" : undefined}>
-                  <TableCell className="font-medium">
-                    <span className={t.status !== "open" ? "line-through opacity-70" : undefined}>{t.title}</span>
-                    {t.status !== "open" ? (
-                      <Badge variant="outline" className="ml-2">
-                        {labels.statuses[t.status] ?? t.status}
-                      </Badge>
-                    ) : null}
-                  </TableCell>
-                  <TableCell>{labels.kinds[t.kind] ?? t.kind}</TableCell>
-                  <TableCell>{labels.priorities[t.priority] ?? t.priority}</TableCell>
-                  <TableCell>
-                    {t.dueLabel ?? <span className="text-muted-foreground">{labels.noDue}</span>}
-                    {t.isOverdue ? (
-                      <Badge variant="destructive" className="ml-2">
-                        {labels.overdue}
-                      </Badge>
-                    ) : t.isDueToday ? (
-                      <Badge variant="warning" className="ml-2">
-                        {labels.dueToday}
-                      </Badge>
-                    ) : null}
-                  </TableCell>
-                  <TableCell>{t.ownerLabel}</TableCell>
-                  <TableCell>
-                    {href && t.relatedLabel ? (
-                      <Link href={href as never} className="underline-offset-4 hover:underline">
-                        {t.relatedLabel}
-                      </Link>
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell>{labels.sources[t.source] ?? t.source}</TableCell>
-                  <TableCell>
-                    {canTouch ? (
-                      <div className="flex flex-wrap gap-1">
-                        {t.status === "open" ? (
-                          <>
-                            <Button size="sm" variant="outline" disabled={busy === t.id} onClick={() => void move(t.id, completeTask)}>
-                              {labels.complete}
-                            </Button>
-                            <Button size="sm" variant="ghost" disabled={busy === t.id} onClick={() => void move(t.id, cancelTask)}>
-                              {labels.cancel}
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() =>
-                                setEditing({ id: t.id, title: t.title, kind: t.kind, dueLocal: t.dueLocal, priority: t.priority, ownerUserId: t.ownerId, notes: t.notes ?? "", personId: t.personId, companyId: t.companyId })
-                              }
-                            >
-                              {labels.reassign}
-                            </Button>
-                          </>
-                        ) : (
-                          <Button size="sm" variant="outline" disabled={busy === t.id} onClick={() => void move(t.id, reopenTask)}>
-                            {labels.reopen}
-                          </Button>
-                        )}
-                      </div>
-                    ) : null}
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+        <Surface flush data-testid="task-list">
+          <div className="overflow-x-auto">
+            <table className={cn("w-full text-[0.8125rem]", !compact && "min-w-[52rem]")}>
+              <thead className={theadClass}>
+                <tr className="border-b border-border">
+                  <th scope="col" className={cn(th, "w-24")}>
+                    <span className="sr-only">{labels.complete}</span>
+                  </th>
+                  <th scope="col" className={th}>{labels.columns.title}</th>
+                  <th scope="col" className={cn(th, "w-44")}>{labels.columns.due}</th>
+                  <th scope="col" className={cn(th, "w-44")}>{labels.columns.owner}</th>
+                  {compact ? null : <th scope="col" className={cn(th, "w-48")}>{labels.columns.related}</th>}
+                  <th scope="col" className={cn(th, "w-28 text-right")}>
+                    <span className="sr-only">{labels.columns.actions}</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {tasks.map((t) => {
+                  const href = relatedHref(t);
+                  const canTouch = canAssignOthers || t.ownerId === currentUserId;
+                  const open = t.status === "open";
+                  return (
+                    <tr key={t.id} data-overdue={t.isOverdue || undefined} data-task-id={t.id} className="border-b border-border last:border-b-0 hover:bg-[#faf9f6]">
+                      <td className={td}>
+                        {canTouch && open ? (
+                          <button type="button" disabled={busy === t.id} onClick={() => void move(t.id, completeTask)} className={cn(quietButton, "gap-1.5")} data-action="complete">
+                            <span aria-hidden="true" className="size-3 rounded-full border-[1.5px] border-current" />
+                            {labels.complete}
+                          </button>
+                        ) : !open ? (
+                          <StatusPill tone="muted">{labels.statuses[t.status] ?? t.status}</StatusPill>
+                        ) : null}
+                      </td>
+                      <td className={td}>
+                        <span className="grid leading-tight">
+                          <span className={cn("font-medium", !open && "text-muted-foreground line-through")}>{t.title}</span>
+                          <span className="text-[0.75rem] text-muted-foreground">
+                            {[labels.kinds[t.kind] ?? t.kind, t.priority === "high" ? labels.priorities.high : null, compact ? null : (labels.sources[t.source] ?? t.source)].filter(Boolean).join(" · ")}
+                          </span>
+                        </span>
+                      </td>
+                      <td className={cn(td, "whitespace-nowrap")}>
+                        <span className="flex flex-wrap items-center gap-1.5">
+                          {t.dueLabel ? <span className={cn("tabular-nums", t.isOverdue && open && "font-semibold text-[var(--status-bad)]")}>{t.dueLabel}</span> : <span className="text-muted-foreground">{labels.noDue}</span>}
+                          {open && t.isOverdue ? <StatusPill tone="bad">{labels.overdue}</StatusPill> : open && t.isDueToday ? <StatusPill tone="warn">{labels.dueToday}</StatusPill> : null}
+                        </span>
+                      </td>
+                      <td className={td}>
+                        <span className="flex items-center gap-2">
+                          <Initials name={t.ownerLabel} />
+                          <span className="truncate">{t.ownerLabel}</span>
+                        </span>
+                      </td>
+                      {compact ? null : (
+                        <td className={td}>
+                          {href && t.relatedLabel ? (
+                            <Link href={href as never} className="font-medium hover:underline">
+                              {t.relatedLabel}
+                            </Link>
+                          ) : (
+                            <span className="text-muted-foreground">–</span>
+                          )}
+                        </td>
+                      )}
+                      <td className={cn(td, "text-right whitespace-nowrap")}>
+                        {canTouch ? (
+                          open ? (
+                            <span className="inline-flex gap-1">
+                              <button
+                                type="button"
+                                title={labels.reassign}
+                                className="rounded-md px-1.5 py-1 text-[0.75rem] font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+                                onClick={() =>
+                                  setEditing({ id: t.id, title: t.title, kind: t.kind, dueLocal: t.dueLocal, priority: t.priority, ownerUserId: t.ownerId, notes: t.notes ?? "", personId: t.personId, companyId: t.companyId })
+                                }
+                              >
+                                {labels.edit}
+                              </button>
+                              <button type="button" disabled={busy === t.id} onClick={() => void move(t.id, cancelTask)} className="rounded-md px-1.5 py-1 text-[0.75rem] font-medium text-muted-foreground hover:bg-muted hover:text-foreground">
+                                {labels.cancel}
+                              </button>
+                            </span>
+                          ) : (
+                            <button type="button" disabled={busy === t.id} onClick={() => void move(t.id, reopenTask)} className={quietButton}>
+                              {labels.reopen}
+                            </button>
+                          )
+                        ) : null}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </Surface>
       )}
     </div>
   );

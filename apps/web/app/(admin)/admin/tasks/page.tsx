@@ -1,5 +1,3 @@
-import Link from "next/link";
-import { cn } from "@beam/ui";
 import { hasPermission, requireStaff } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
 import { adminLocale, translator } from "@/lib/i18n";
@@ -7,6 +5,7 @@ import { listStaffForAssignment } from "@/modules/platform/api";
 import { getTaskCounts, listTasks } from "@/modules/crm/queries";
 import { taskListLabels, toTaskView } from "@/modules/crm/tasks/queries";
 import { TaskList } from "@/modules/crm/ui/task-list";
+import { PageHeader, Segmented, Toolbar } from "@/modules/platform/ui/admin-kit";
 
 const TABS = ["mine", "all", "overdue", "today"] as const;
 type Tab = (typeof TABS)[number];
@@ -14,7 +13,8 @@ type Tab = (typeof TABS)[number];
 /**
  * `/admin/tasks` (`persons.read`), crm spec 5.1 and rule 3.43: tabs Mine / All (with `tasks.all`)
  * / Overdue / Today, overdue tasks first and red. Overdue and Today cover every owner for a user
- * with `tasks.all`, else the user's own tasks.
+ * with `tasks.all`, else the user's own tasks. Back-office kit (owner review, November 2026): one
+ * header, the tabs as a segmented switch with their counts, the task table with "Done" first.
  */
 export default async function TasksPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const actor = await requireStaff({ permission: "persons.read" });
@@ -38,23 +38,20 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
   const tabCount: Partial<Record<Tab, number>> = { mine: counts.open, overdue: counts.overdue, today: counts.dueToday };
 
   return (
-    <div className="grid gap-6">
-      <h1 className="text-2xl font-semibold">{tr("crm.tasks.title")}</h1>
-      <nav className="flex flex-wrap gap-1 border-b" aria-label={tr("crm.tasks.title")}>
-        {tabs.map((t) => (
-          <Link
-            key={t}
-            href={{ pathname: "/admin/tasks", query: { tab: t } }}
-            aria-current={t === tab ? "page" : undefined}
-            className={cn("-mb-px border-b-2 px-3 py-2 text-sm", t === tab ? "border-primary font-medium" : "border-transparent text-muted-foreground hover:text-foreground")}
-          >
-            {tabLabel[t]}
-            {tabCount[t] !== undefined && (canAll ? t === "mine" : true) ? (
-              <span className={cn("ml-2 rounded-full px-2 text-xs", t === "overdue" && counts.overdue > 0 ? "bg-destructive text-destructive-foreground" : "bg-muted")}>{tabCount[t]}</span>
-            ) : null}
-          </Link>
-        ))}
-      </nav>
+    <div className="grid gap-4">
+      <PageHeader title={tr("crm.tasks.title")} description={tr("crm.tasks.subtitle")} />
+      <Toolbar>
+        <Segmented
+          label={tr("crm.tasks.title")}
+          items={tabs.map((t) => ({
+            key: t,
+            label: tabLabel[t],
+            href: { pathname: "/admin/tasks", query: { tab: t } },
+            active: t === tab,
+            ...(tabCount[t] !== undefined && (canAll ? t === "mine" : true) ? { count: tabCount[t] } : {}),
+          }))}
+        />
+      </Toolbar>
       <TaskList tasks={rows.map((r) => toTaskView(r, locale, tr))} currentUserId={actor.userId} canAssignOthers={canAll} owners={owners} labels={taskListLabels(tr)} />
     </div>
   );

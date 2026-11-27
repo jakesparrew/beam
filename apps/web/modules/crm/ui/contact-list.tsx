@@ -7,8 +7,9 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
-import { Alert, AlertDescription, Badge, Button, Card, CardContent, Checkbox, EmptyState, FormField, Input, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@beam/ui";
+import { Alert, AlertDescription, Badge, Button, Card, CardContent, Checkbox, cn, EmptyState, FormField, Input } from "@beam/ui";
 import { endContact, findContactCandidates, linkContact, updateContact } from "../companies/actions";
+import { aboveRow, Initials, quietButton, rowClass, rowLink, StatusPill, Surface, td, th, theadClass } from "./kit";
 
 export type ContactView = {
   id: string;
@@ -234,12 +235,12 @@ export function ContactList({
   }
 
   return (
-    <div className="grid gap-4">
+    <div className="grid gap-2">
       {canEdit ? (
         <div className="flex justify-end">
-          <Button type="button" onClick={() => setLinking(true)} disabled={linking}>
-            {labels.linkContact}
-          </Button>
+          <button type="button" onClick={() => setLinking(true)} disabled={linking} className={quietButton}>
+            + {labels.linkContact}
+          </button>
         </div>
       ) : null}
       {linking ? <LinkContactForm companyId={companyId} locale={locale} labels={labels} onDone={() => setLinking(false)} /> : null}
@@ -251,48 +252,62 @@ export function ContactList({
       {contacts.length === 0 ? (
         <EmptyState title={labels.empty} />
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{labels.name}</TableHead>
-              <TableHead>{labels.position}</TableHead>
-              <TableHead>{labels.decisionRole}</TableHead>
-              <TableHead>{labels.endedOn}</TableHead>
-              {canEdit ? <TableHead /> : null}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {contacts.map((c) => (
-              <TableRow key={c.id} className={c.endedLabel ? "text-muted-foreground" : undefined}>
-                <TableCell>
-                  <Link href={`/admin/persons/${c.personId}` as never} className="font-medium underline-offset-4 hover:underline">
-                    {c.name}
-                  </Link>
-                  {c.isPrimary && !c.endedLabel ? <Badge className="ml-2">{labels.primary}</Badge> : null}
-                </TableCell>
-                <TableCell>{c.position ?? "—"}</TableCell>
-                <TableCell>{c.decisionRole ? (labels.decisionRoles[c.decisionRole] ?? c.decisionRole) : "—"}</TableCell>
-                <TableCell>{c.endedLabel ?? "—"}</TableCell>
-                {canEdit ? (
-                  <TableCell>
-                    {c.endedLabel ? null : (
-                      <div className="flex flex-wrap gap-1">
-                        {!c.isPrimary ? (
-                          <Button size="sm" variant="ghost" disabled={busy === c.id} onClick={() => void run(c.id, () => updateContact({ contactId: c.id, isPrimary: true }))}>
-                            {labels.makePrimary}
-                          </Button>
-                        ) : null}
-                        <Button size="sm" variant="outline" disabled={busy === c.id} onClick={() => void run(c.id, () => endContact({ contactId: c.id, endedOn: today }))}>
-                          {labels.endContact}
-                        </Button>
-                      </div>
-                    )}
-                  </TableCell>
-                ) : null}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <Surface flush data-testid="contact-list">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[44rem] text-[0.8125rem]">
+              <thead className={theadClass}>
+                <tr className="border-b border-border">
+                  <th scope="col" className={th}>{labels.name}</th>
+                  <th scope="col" className={cn(th, "w-48")}>{labels.position}</th>
+                  <th scope="col" className={cn(th, "w-40")}>{labels.decisionRole}</th>
+                  {canEdit ? (
+                    <th scope="col" className={cn(th, "w-56 text-right")}>
+                      <span className="sr-only">{labels.open}</span>
+                    </th>
+                  ) : null}
+                </tr>
+              </thead>
+              <tbody>
+                {contacts.map((c) => (
+                  <tr key={c.id} className={cn(rowClass, c.endedLabel && "text-muted-foreground")}>
+                    <td className={td}>
+                      <span className="flex items-center gap-2.5">
+                        <Initials name={c.name} />
+                        <span className="grid leading-tight">
+                          <span className="flex items-center gap-1.5">
+                            <Link href={`/admin/persons/${c.personId}` as never} className={cn(rowLink, "font-medium hover:underline")}>
+                              {c.name}
+                            </Link>
+                            {c.isPrimary && !c.endedLabel ? <StatusPill tone="ok">{labels.primary}</StatusPill> : null}
+                          </span>
+                          {c.endedLabel ? <span className="text-[0.75rem]">{c.endedLabel}</span> : null}
+                        </span>
+                      </span>
+                    </td>
+                    <td className={td}>{c.position ?? "–"}</td>
+                    <td className={td}>{c.decisionRole ? (labels.decisionRoles[c.decisionRole] ?? c.decisionRole) : "–"}</td>
+                    {canEdit ? (
+                      <td className={cn(td, "text-right whitespace-nowrap")}>
+                        {c.endedLabel ? null : (
+                          <span className={cn(aboveRow, "inline-flex gap-1")}>
+                            {!c.isPrimary ? (
+                              <button type="button" disabled={busy === c.id} onClick={() => void run(c.id, () => updateContact({ contactId: c.id, isPrimary: true }))} className="rounded-md px-1.5 py-1 text-[0.75rem] font-medium text-muted-foreground hover:bg-muted hover:text-foreground">
+                                {labels.makePrimary}
+                              </button>
+                            ) : null}
+                            <button type="button" disabled={busy === c.id} onClick={() => void run(c.id, () => endContact({ contactId: c.id, endedOn: today }))} className="rounded-md px-1.5 py-1 text-[0.75rem] font-medium text-muted-foreground hover:bg-muted hover:text-foreground">
+                              {labels.endContact}
+                            </button>
+                          </span>
+                        )}
+                      </td>
+                    ) : null}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Surface>
       )}
     </div>
   );

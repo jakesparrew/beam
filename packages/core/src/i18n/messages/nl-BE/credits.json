@@ -310,7 +310,8 @@
         "locale_fr": "Frans",
         "locale_en": "Engels",
         "missing": "Ontbreekt",
-        "complete": "Volledig"
+        "complete": "Volledig",
+        "first_page": "Eerste pagina"
       },
       "units": {
         "day": "{count, plural, one {# sessie} other {# sessies}}",
@@ -341,7 +342,9 @@
         "caption": "Pakketten en tegoed",
         "empty": "Nog geen pakketten. Pakketten verschijnen hier zodra klanten er kopen of jij er een toevoegt.",
         "none_match": "Geen pakketten voor deze filters.",
-        "untitled": "Pakket"
+        "untitled": "Pakket",
+        "subtitle": "Elk pakket en tegoed met wat er nog over is en wanneer het vervalt.",
+        "started": "start {date}"
       },
       "tiles": {
         "label": "Cijfers pakketten",
@@ -518,7 +521,8 @@
         "col_cancel_at": "Eindigt op",
         "caption": "Lidmaatschappen",
         "empty": "Nog geen lidmaatschappen.",
-        "none_match": "Geen lidmaatschappen voor deze filters."
+        "none_match": "Geen lidmaatschappen voor deze filters.",
+        "subtitle": "Actieve en lopende lidmaatschappen, met de volgende afschrijving en mislukte betalingen."
       },
       "membership": {
         "title": "Lidmaatschap",
@@ -611,7 +615,8 @@
         "discount_product": "Product",
         "discount_rule": "{pct} % op {scope}",
         "alternative": "Of-of met de hoofdinclusie (het eerste gebruik beslist)",
-        "alternative_badge": "of-of"
+        "alternative_badge": "of-of",
+        "subtitle": "Wat elke formule inhoudt: tegoed per periode, korting en voordelen."
       },
       "panel": {
         "title": "Pakketten en tegoed",
@@ -802,6 +807,9 @@
         "col_month": "Maand",
         "col_winner": "Winnaar",
         "grant_label": "Maandelijkse trekking {month}: gratis nacht"
+      },
+      "area": {
+        "label": "Pakketten en lidmaatschappen"
       }
     },
     "units": {

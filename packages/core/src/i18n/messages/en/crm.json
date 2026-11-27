@@ -336,7 +336,25 @@
         "empty_filtered": "Nobody matches these filters.",
         "bulk_changed": "{count} persons changed",
         "filter_corporate": "Corporate clients",
-        "corporate": "Corporate"
+        "corporate": "Corporate",
+        "subtitle": "Everyone who booked, bought or signed up. Click a client to open their file.",
+        "views": "View",
+        "view_members": "Members",
+        "view_package": "With a package",
+        "view_new": "New",
+        "view_corporate": "Corporate clients",
+        "kpi_total": "Clients",
+        "kpi_members": "Members",
+        "kpi_package": "With an active package",
+        "kpi_new": "New (last {days} days)",
+        "caption": "Clients",
+        "col_client": "Client",
+        "col_phone": "Phone",
+        "col_credits": "Credits left",
+        "col_last_visit": "Last visit",
+        "col_next_booking": "Next booking",
+        "credits_day": "{count} day",
+        "credits_night": "{count} night"
       },
       "new": {
         "title": "New person",
@@ -400,7 +418,12 @@
         "preferred_channel": "Preferred channel",
         "onboarding": "Onboarding",
         "onboarding_progress": "{answered} of {total} answered",
-        "onboarding_dismissed": "{answered} of {total} answered, hidden by the client"
+        "onboarding_dismissed": "{answered} of {total} answered, hidden by the client",
+        "new": "New",
+        "email": "Email",
+        "phone": "Phone",
+        "address": "Address",
+        "desk": "At the desk"
       },
       "banners": {
         "override_conflict": "Manual status {override} differs from calculated {derived}",
@@ -433,7 +456,12 @@
         "segments": "Segments",
         "sensitive": "Sensitive data",
         "declarations": "Guardian consent",
-        "not_available": "Not available yet"
+        "not_available": "Not available yet",
+        "upcoming": "Next bookings",
+        "no_upcoming": "No bookings planned.",
+        "all_bookings": "All bookings",
+        "all_packages": "All packages",
+        "facts": "Key facts"
       },
       "actions": {
         "edit": "Edit",
@@ -454,7 +482,7 @@
         "staff_consent": "Change consent",
         "unsubscribe_all": "Unsubscribe from all marketing",
         "merge_with": "Merge with…",
-        "book": "Book for this person",
+        "book": "Book for this client",
         "sell": "Sell",
         "interaction_occurred_at": "When (empty = now)"
       },
@@ -474,6 +502,43 @@
       },
       "timeline_ui": {
         "all": "All"
+      },
+      "tabs": {
+        "label": "Client file",
+        "overview": "Overview",
+        "bookings": "Bookings",
+        "packages": "Packages & membership",
+        "payments": "Payments & invoices",
+        "timeline": "Timeline",
+        "details": "Details & consents"
+      },
+      "cols": {
+        "date": "Date",
+        "session": "Session",
+        "kind": "Type",
+        "status": "Status",
+        "guest": "As a guest",
+        "offer_until": "Offer valid until",
+        "remaining": "Left",
+        "expires": "First expiry",
+        "reference": "Order",
+        "total": "Total",
+        "number": "Number",
+        "credit_note": "Credit note",
+        "automation": "Automation",
+        "next_step": "Next step",
+        "segment": "Segment"
+      },
+      "kpi": {
+        "credits": "Credits left",
+        "membership_until": "Member until",
+        "spent": "Total spent",
+        "balance": "Open balance",
+        "last_visit_on": "Last on {date}",
+        "no_shows": "{count, plural, one {# no-show} other {# no-shows}}",
+        "expires_on": "First expiry {date}",
+        "purchases": "{count, plural, one {# purchase} other {# purchases}}",
+        "open_invoices": "{count, plural, one {# open invoice} other {# open invoices}}"
       }
     },
     "timeline": {
@@ -873,7 +938,7 @@
       "col_related": "Related to",
       "col_source": "Source",
       "create": "New task",
-      "complete": "Mark as done",
+      "complete": "Done",
       "cancel": "Cancel task",
       "reopen": "Reopen",
       "reassign": "Reassign",
@@ -896,7 +961,8 @@
         "company": "Company",
         "notes": "Notes",
         "own_only": "Without the right to see all tasks you can only create tasks for yourself."
-      }
+      },
+      "subtitle": "What needs doing, who does it and by when. Overdue first."
     },
     "companies": {
       "title": "Companies",
@@ -926,7 +992,9 @@
         "ended": "Until {date}",
         "primary": "Primary contact",
         "email_taken": "This email belongs to another person. Link that person instead.",
-        "contact_exists": "This person is already a contact of this company."
+        "contact_exists": "This person is already a contact of this company.",
+        "referred_short": "Referred",
+        "open_tasks": "Open tasks"
       },
       "form": {
         "name": "Name",
@@ -951,7 +1019,10 @@
         "relationship": "Relationship",
         "is_primary": "Primary contact",
         "ended_on": "Left on"
-      }
+      },
+      "subtitle": "Business clients, prospects and partners with their contacts.",
+      "partners_only": "Partners only",
+      "no_vat": "No VAT number"
     },
     "portal": {
       "profile": {

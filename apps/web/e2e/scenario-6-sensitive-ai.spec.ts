@@ -51,7 +51,7 @@ test.afterAll(async () => {
 });
 
 test("a sensitive note is stored encrypted and shown only as a placeholder", async ({ page }) => {
-  await signInStaff(page, "owner", { returnTo: `/admin/persons/${personId}` });
+  await signInStaff(page, "owner", { returnTo: `/admin/persons/${personId}?tab=timeline` });
   await expect(page.getByTestId("person-360")).toBeVisible();
   const block = page.getByTestId("action-note");
   await block.locator("summary").click();

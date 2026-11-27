@@ -186,6 +186,7 @@ export function taskListLabels(tr: Tr) {
     cancel: t("cancel"),
     reopen: t("reopen"),
     reassign: t("reassign"),
+    edit: tr("crm.common.edit"),
     openRelated: t("open_related"),
     invalidTransition: t("invalid_transition"),
     error: tr("crm.common.error"),

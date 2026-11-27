@@ -15,12 +15,12 @@ import { getPersonActivity, getPersonAssistantPanel, getPersonBehaviourPanel } f
 import { ActivityPanel } from "@/modules/assistant/ui/admin/activity-panel";
 import { BehaviourPanel } from "@/modules/assistant/ui/admin/behaviour-panel";
 import { AssistantPersonPanel } from "@/modules/assistant/ui/admin/person-panel";
-import { listPersonOrders } from "@/modules/commerce/api";
+import { getPersonOpenAccount, listPersonOrders } from "@/modules/commerce/api";
 import { PersonOpenAccount } from "@/modules/commerce/ui/person-open-account";
 import { getPersonCreditSummary } from "@/modules/credits/api";
 import { PersonMembershipPanel } from "@/modules/credits/ui/person-membership-panel";
 import { PersonEmailHistory } from "@/modules/email/ui/PersonEmailHistory";
-import { listInvoicesForPerson } from "@/modules/finance/api";
+import { getInvoiceForOrder, listInvoicesForPerson } from "@/modules/finance/api";
 import { getPersonStats } from "@/modules/ops/api";
 import { getCurrentLegalVersion } from "@/modules/site/api";
 import { listStaffForAssignment } from "@/modules/platform/api";
@@ -151,7 +151,10 @@ export default async function Person360Page({ params, searchParams }: { params: 
   const firstExpiry = credits.ok ? credits.value.byKind.filter((c) => c.kind !== "euro" && c.remainingUnits > 0 && c.nextExpiresAt).map((c) => c.nextExpiresAt!).sort((x, y) => x.getTime() - y.getTime())[0] : undefined;
   const membership = credits.ok ? credits.value.membership : null;
   const openInvoices = invoices.ok ? invoices.value.filter((i) => i.kind === "invoice" && i.status === "open") : [];
-  const openCents = openInvoices.reduce((s, i) => s + i.totalCents, 0);
+  // Orders "op rekening" count too, unless they already have an (open) invoice counted above.
+  const onAccount = await getPersonOpenAccount(db, person.id).catch(() => null);
+  const uninvoiced = onAccount ? (await Promise.all(onAccount.orders.map(async (o) => ((await getInvoiceForOrder(db, o.orderId))?.status === "open" ? 0 : o.dueCents)))) : [];
+  const openCents = openInvoices.reduce((s, i) => s + i.totalCents, 0) + uninvoiced.reduce((s, c) => s + c, 0);
   const dash = "–";
   const kpis: Kpi[] = [
     {
@@ -175,7 +178,7 @@ export default async function Person360Page({ params, searchParams }: { params: 
       key: "balance",
       label: kp("balance"),
       value: invoices.ok ? money(openCents) : dash,
-      ...(openInvoices.length ? { sub: kp("open_invoices", { count: openInvoices.length }), tone: "warn" as const } : {}),
+      ...(openCents > 0 ? { sub: [openInvoices.length ? kp("open_invoices", { count: openInvoices.length }) : null, onAccount?.orders.length ? tr("commerce.open_account.short", { count: onAccount.orders.length }) : null].filter(Boolean).join(" · "), tone: "warn" as const } : {}),
       href: tabHref("payments"),
     },
   ];

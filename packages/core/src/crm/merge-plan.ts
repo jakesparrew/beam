@@ -25,6 +25,8 @@ export const MERGE_STRATEGIES: Record<string, MergeStrategy> = {
   "person_stats.person_id": "keep_winner",
   "processing_restrictions.person_id": "keep_winner",
   "retention_list_items.person_id": "keep_winner",
+  // one daily wellbeing check-in per person per day: the winner's answer for that day stays
+  "wellbeing_checkins.person_id": "keep_winner",
   // moved unless the winner holds a row with the same key
   "privacy_requests.person_id": "repoint",
   "provider_customers.person_id": "repoint",

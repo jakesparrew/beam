@@ -1006,7 +1006,8 @@
       "total": "Totaal"
     },
     "open_account": {
-      "line": "Openstaand: {amount} ({count} op rekening)"
+      "line": "Openstaand: {amount} ({count} op rekening)",
+      "short": "{count} op rekening"
     }
   }
 }

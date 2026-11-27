@@ -1006,7 +1006,8 @@
       "total": "Total"
     },
     "open_account": {
-      "line": "Ouvert : {amount} ({count} sur compte)"
+      "line": "Ouvert : {amount} ({count} sur compte)",
+      "short": "{count} sur compte"
     }
   }
 }

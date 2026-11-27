@@ -531,7 +531,7 @@ export function bookingErrorLabels(tr: Tr): Record<string, string> {
     validation: tr("platform.errors.validation"),
     forbidden: tr("platform.errors.forbidden"),
     not_found: tr("platform.errors.not_found"),
-    internal: tr("platform.errors.internal"),
+    internal: tr("platform.errors.internal", { requestId: "-" }),
   };
 }
 

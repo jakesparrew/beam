@@ -244,7 +244,7 @@ export default async function CheckinPage({ searchParams }: { searchParams: Prom
     validation: tr("platform.errors.validation"),
     forbidden: tr("platform.errors.forbidden"),
     not_found: tr("booking.checkin.not_found"),
-    internal: tr("platform.errors.internal"),
+    internal: tr("platform.errors.internal", { requestId: "-" }),
   };
   const cardLabels = {
     checkIn: tr("booking.checkin.check_in"),

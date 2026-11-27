@@ -114,7 +114,7 @@ export default async function NewBookingPage({ searchParams }: { searchParams: P
     reason_required: tr("booking.manual.reason"),
     forbidden: tr("platform.errors.forbidden"),
     not_found: tr("platform.errors.not_found"),
-    internal: tr("platform.errors.internal"),
+    internal: tr("platform.errors.internal", { requestId: "-" }),
   };
 
   return (

@@ -308,7 +308,7 @@
     "persons": {
       "list": {
         "title": "Klanten",
-        "search_placeholder": "Klantnummer, e-mail, telefoon of naam",
+        "search_placeholder": "Zoek op naam, e-mail, telefoon of klantnummer…",
         "filter_status": "Status",
         "filter_tag": "Tag",
         "filter_segment": "Segment",
@@ -965,13 +965,14 @@
         "notes": "Notities",
         "own_only": "Zonder recht op alle taken kan je enkel taken voor jezelf aanmaken."
       },
-      "subtitle": "Wat er moet gebeuren, wie het doet en tegen wanneer. Te laat staat bovenaan."
+      "subtitle": "Wat er moet gebeuren, wie het doet en tegen wanneer. Te laat staat bovenaan.",
+      "search_placeholder": "Zoek op taak, klant of bedrijf…"
     },
     "companies": {
       "title": "Bedrijven",
       "empty": "Nog geen bedrijven.",
       "create": "Nieuw bedrijf",
-      "search_placeholder": "Naam of btw-nummer",
+      "search_placeholder": "Zoek op naam of btw-nummer…",
       "col_name": "Naam",
       "col_vat": "Btw-nummer",
       "col_status": "Status",

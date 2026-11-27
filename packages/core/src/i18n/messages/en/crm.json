@@ -308,7 +308,7 @@
     "persons": {
       "list": {
         "title": "Customers",
-        "search_placeholder": "Customer number, email, phone or name",
+        "search_placeholder": "Search by name, email, phone or customer number…",
         "filter_status": "Status",
         "filter_tag": "Tag",
         "filter_segment": "Segment",
@@ -965,13 +965,14 @@
         "notes": "Notes",
         "own_only": "Without the right to see all tasks you can only create tasks for yourself."
       },
-      "subtitle": "What needs doing, who does it and by when. Overdue first."
+      "subtitle": "What needs doing, who does it and by when. Overdue first.",
+      "search_placeholder": "Search by task, client or company…"
     },
     "companies": {
       "title": "Companies",
       "empty": "No companies yet.",
       "create": "New company",
-      "search_placeholder": "Name or VAT number",
+      "search_placeholder": "Search by name or VAT number…",
       "col_name": "Name",
       "col_vat": "VAT number",
       "col_status": "Status",

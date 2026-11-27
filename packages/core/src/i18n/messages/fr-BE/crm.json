@@ -308,7 +308,7 @@
     "persons": {
       "list": {
         "title": "Clients",
-        "search_placeholder": "Numéro de client, e-mail, téléphone ou nom",
+        "search_placeholder": "Rechercher par nom, e-mail, téléphone ou numéro client…",
         "filter_status": "Statut",
         "filter_tag": "Tag",
         "filter_segment": "Segment",
@@ -965,13 +965,14 @@
         "notes": "Notes",
         "own_only": "Sans le droit de voir toutes les tâches, vous ne pouvez créer des tâches que pour vous-même."
       },
-      "subtitle": "Ce qu'il faut faire, qui s'en charge et pour quand. Les tâches en retard d'abord."
+      "subtitle": "Ce qu'il faut faire, qui s'en charge et pour quand. Les tâches en retard d'abord.",
+      "search_placeholder": "Rechercher par tâche, client ou entreprise…"
     },
     "companies": {
       "title": "Entreprises",
       "empty": "Pas encore d’entreprises.",
       "create": "Nouvelle entreprise",
-      "search_placeholder": "Nom ou numéro de TVA",
+      "search_placeholder": "Rechercher par nom ou numéro de TVA…",
       "col_name": "Nom",
       "col_vat": "Numéro de TVA",
       "col_status": "Statut",

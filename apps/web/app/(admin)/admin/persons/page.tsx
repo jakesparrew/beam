@@ -9,8 +9,8 @@ import { adminLocale, messageTemplate, translator } from "@/lib/i18n";
 import { getPersonListFacts, getPersonListKpis, listPersons, listSegments, listTags } from "@/modules/crm/queries";
 import { PersonsTable } from "@/modules/crm/ui/person-search";
 import { localeOptions, sourceOptions } from "@/modules/crm/ui/status-badge";
-import { PageHeader, PrimaryAction, SecondaryAction, Segmented, Toolbar } from "@/modules/platform/ui/admin-kit";
-import { Disclosure, Field, fieldClass, KpiStrip, SearchField } from "@/modules/platform/ui/admin-list-kit";
+import { MoreMenu, PageHeader, PrimaryAction, SecondaryAction } from "@/modules/platform/ui/admin-kit";
+import { Field, fieldClass, KpiStrip, ListToolbar, listToolbarLabels, type AppliedFilter } from "@/modules/platform/ui/admin-list-kit";
 
 type Search = { q?: string; view?: string; status?: string; tag?: string; segment?: string; locale?: string; source?: string; tester?: string; corporate?: string; page?: string; sort?: string };
 
@@ -18,6 +18,8 @@ const PAGE_SIZE = 50;
 const SORTS = ["created_at", "last_name", "last_activity_at"] as const;
 /** The segmented views: everyone, members, with a usable package, created in the last 30 days, corporate clients. */
 const VIEWS = ["members", "package", "new", "corporate"] as const;
+/** The views shown as toolbar chips; corporate clients sit in Filters. */
+const CHIP_VIEWS = ["members", "package", "new"] as const;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const NEW_DAYS = 30;
 
@@ -26,9 +28,10 @@ const pick = <T extends string>(list: readonly T[], v: string | undefined): T | 
 /**
  * `/admin/persons` (`persons.read`; create and bulk tag `persons.write`), crm spec 5.1, in the
  * back-office kit (owner review, November 2026): the header with "New person", the four key
- * figures (each opens its view), one toolbar (search on name, email, phone or customer number
- * first; the views Alle / Leden / Met pakket / Nieuw / Bedrijfsklanten; status, tag, segment,
- * language, source and testers behind "Filters"), then the table whose rows open the 360.
+ * figures (each opens its view), the list toolbar (the super search on name, email, phone or
+ * customer number; the views Alle / Leden / Met pakket / Nieuw as chips with their counts;
+ * corporate, status, tag, segment, language, source and testers behind "Filters", applied ones as
+ * removable chips), then the table whose rows open the 360. Tags and duplicates sit in "⋯".
  */
 export default async function PersonsPage({ searchParams }: { searchParams: Promise<Search> }) {
   const actor = await requireStaff({ permission: "persons.read" });
@@ -85,10 +88,27 @@ export default async function PersonsPage({ searchParams }: { searchParams: Prom
     const s = p.toString();
     return s ? `/admin/persons?${s}` : "/admin/persons";
   };
-  const moreFilters = [status, tag, segment, personLocale, source, tester].filter(Boolean).length;
+  // `view=corporate` (older links) is the corporate filter of the Filters panel, not a chip.
+  const moreFilters = [corporate, status, tag, segment, personLocale, source, tester].filter(Boolean).length;
+  const chipCount: Record<(typeof CHIP_VIEWS)[number], number> = { members: kpis.members, package: kpis.withPackage, new: kpis.newSince };
+  const yesNo = [
+    { value: "yes", label: tr("crm.common.yes") },
+    { value: "no", label: tr("crm.common.no") },
+  ];
+  const yn = (v: string) => tr(v === "yes" ? "crm.common.yes" : "crm.common.no");
+  const tagLabel = (t: { key: string; name: Record<string, string | undefined> }) => t.name[locale] ?? t.key;
+  const tagRow = tag ? tags.find((t) => t.id === tag) : undefined;
+  const applied: AppliedFilter[] = [
+    ...(corporate ? [{ key: "corporate", label: l("view_corporate"), value: yn(corporate), href: href({ corporate: undefined, view: view === "corporate" ? undefined : view, page: undefined }) }] : []),
+    ...(status ? [{ key: "status", label: l("filter_status"), value: tr(`crm.enums.person_status.${status}`), href: href({ status: undefined, page: undefined }) }] : []),
+    ...(tag ? [{ key: "tag", label: l("filter_tag"), value: tagRow ? tagLabel(tagRow) : "—", href: href({ tag: undefined, page: undefined }) }] : []),
+    ...(segment ? [{ key: "segment", label: l("filter_segment"), value: segments.find((s) => s.id === segment)?.name ?? "—", href: href({ segment: undefined, page: undefined }) }] : []),
+    ...(personLocale ? [{ key: "locale", label: l("filter_locale"), value: localeOptions(tr).find((o) => o.value === personLocale)?.label ?? personLocale, href: href({ locale: undefined, page: undefined }) }] : []),
+    ...(source ? [{ key: "source", label: l("filter_source"), value: sourceOptions(tr, ACQUISITION_SOURCES).find((o) => o.value === source)?.label ?? source, href: href({ source: undefined, page: undefined }) }] : []),
+    ...(tester ? [{ key: "tester", label: l("filter_tester"), value: yn(tester), href: href({ tester: undefined, page: undefined }) }] : []),
+  ];
   const filtered = !!(q || view || moreFilters || corporate);
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const tagLabel = (t: { key: string; name: Record<string, string | undefined> }) => t.name[locale] ?? t.key;
   const selectedTemplate = messageTemplate(locale, "crm.persons.list.selected");
   const n = (v: number) => formatNumber(v, locale);
   const viewLabel: Record<(typeof VIEWS)[number], string> = { members: l("view_members"), package: l("view_package"), new: l("view_new"), corporate: l("view_corporate") };
@@ -110,11 +130,15 @@ export default async function PersonsPage({ searchParams }: { searchParams: Prom
     <div className="grid gap-4">
       <PageHeader
         title={l("title")}
-        description={l("subtitle")}
         actions={
           <>
-            <SecondaryAction href="/admin/persons/tags">{tr("crm.tags.title")}</SecondaryAction>
-            {hasPermission(actor, "persons.merge") ? <SecondaryAction href="/admin/persons/duplicates">{tr("crm.duplicates.title")}</SecondaryAction> : null}
+            <MoreMenu
+              label={tr("platform.table.more_actions")}
+              items={[
+                { key: "tags", href: "/admin/persons/tags", label: tr("crm.tags.title") },
+                ...(hasPermission(actor, "persons.merge") ? [{ key: "duplicates", href: "/admin/persons/duplicates" as Route, label: tr("crm.duplicates.title") }] : []),
+              ]}
+            />
             {canWrite ? <PrimaryAction href="/admin/persons/new">+ {l("create")}</PrimaryAction> : null}
           </>
         }
@@ -130,32 +154,34 @@ export default async function PersonsPage({ searchParams }: { searchParams: Prom
         ]}
       />
 
-      <form data-auto-filter="" method="get" role="search">
-        <Toolbar>
-          <SearchField label={tr("crm.common.search")} placeholder={l("search_placeholder")} defaultValue={q} />
-          {view ? <input type="hidden" name="view" value={view} /> : null}
-          {sp.sort ? <input type="hidden" name="sort" value={sort} /> : null}
-          {corporate && view !== "corporate" ? <input type="hidden" name="corporate" value={corporate} /> : null}
-          <Segmented
-            label={l("views")}
-            items={[
-              { key: "all", label: tr("crm.common.all"), href: href({ view: undefined, page: undefined }), active: !view },
-              ...VIEWS.map((v) => ({ key: v, label: viewLabel[v], href: href({ view: v, page: undefined }), active: view === v })),
-            ]}
-          />
-          <Disclosure label={tr("crm.common.filters")} count={moreFilters} clear={moreFilters ? { href: href({ status: undefined, tag: undefined, segment: undefined, locale: undefined, source: undefined, tester: undefined, page: undefined }), label: tr("crm.common.clear_filters") } : null}>
-            {select("status", l("filter_status"), status, PERSON_STATUSES.map((s) => ({ value: s, label: tr(`crm.enums.person_status.${s}`) })))}
-            {select("tag", l("filter_tag"), tag, tags.map((t) => ({ value: t.id, label: tagLabel(t) })))}
-            {segments.length ? select("segment", l("filter_segment"), segment, segments.map((s) => ({ value: s.id, label: s.name }))) : null}
-            {select("locale", l("filter_locale"), personLocale, localeOptions(tr))}
-            {select("source", l("filter_source"), source, sourceOptions(tr, ACQUISITION_SOURCES))}
-            {select("tester", l("filter_tester"), tester, [
-              { value: "yes", label: tr("crm.common.yes") },
-              { value: "no", label: tr("crm.common.no") },
-            ])}
-          </Disclosure>
-        </Toolbar>
-      </form>
+      <ListToolbar
+        labels={listToolbarLabels(tr)}
+        search={{ placeholder: l("search_placeholder"), defaultValue: q, label: tr("crm.common.search") }}
+        hidden={{ view: view === "corporate" ? undefined : view, sort: sp.sort ? sort : undefined }}
+        filters={{
+          count: moreFilters,
+          children: (
+            <>
+              {select("corporate", l("view_corporate"), corporate, yesNo)}
+              {select("status", l("filter_status"), status, PERSON_STATUSES.map((s) => ({ value: s, label: tr(`crm.enums.person_status.${s}`) })))}
+              {select("tag", l("filter_tag"), tag, tags.map((t) => ({ value: t.id, label: tagLabel(t) })))}
+              {segments.length ? select("segment", l("filter_segment"), segment, segments.map((s) => ({ value: s.id, label: s.name }))) : null}
+              {select("locale", l("filter_locale"), personLocale, localeOptions(tr))}
+              {select("source", l("filter_source"), source, sourceOptions(tr, ACQUISITION_SOURCES))}
+              {select("tester", l("filter_tester"), tester, yesNo)}
+            </>
+          ),
+        }}
+        chips={{
+          label: l("views"),
+          items: [
+            { key: "all", label: tr("crm.common.all"), href: href({ view: undefined, page: undefined }), active: !view || view === "corporate", count: kpis.total },
+            ...CHIP_VIEWS.map((v) => ({ key: v, label: viewLabel[v], href: href({ view: v, page: undefined }), active: view === v, count: chipCount[v] })),
+          ],
+        }}
+        applied={applied}
+        clearAll={href({ view: view === "corporate" ? undefined : view, corporate: undefined, status: undefined, tag: undefined, segment: undefined, locale: undefined, source: undefined, tester: undefined, page: undefined })}
+      />
 
       {rows.length === 0 ? (
         filtered ? (

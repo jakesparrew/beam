@@ -466,7 +466,8 @@
       },
       "pick_person": "Choisissez une personne :",
       "pay_at_desk_short": "Paiement à l’accueil",
-      "over_capacity_short": "Hors capacité"
+      "over_capacity_short": "Hors capacité",
+      "search_placeholder": "Rechercher par nom, e-mail, téléphone ou numéro client…"
     },
     "manual": {
       "title": "Nouvelle réservation",
@@ -560,7 +561,8 @@
       "waiting_count": "En attente : {count}",
       "subtitle": "Qui attend une place dans les prochaines séances, par jour et par séance. Proposez une place dès qu’elle se libère.",
       "col_queue": "File",
-      "more_actions": "Plus d’actions"
+      "more_actions": "Plus d’actions",
+      "search_placeholder": "Rechercher par nom, e-mail ou séance…"
     },
     "portalBook": {
       "title": "Réserver une séance",
@@ -905,7 +907,8 @@
       "release_materials": "Partager avec les participants",
       "hide_materials": "Masquer à nouveau",
       "file_too_large": "Le fichier dépasse 10 Mo.",
-      "image_type": "Choisissez une image PNG, JPG, WebP ou GIF."
+      "image_type": "Choisissez une image PNG, JPG, WebP ou GIF.",
+      "search_placeholder": "Rechercher par titre ou lieu…"
     },
     "list": {
       "subtitle": "Toutes les séances par jour. Ouvrez une séance pour les participants, l'enregistrement et la liste d'attente.",
@@ -929,7 +932,8 @@
       "day_empty": "Aucune séance",
       "today_badge": "Aujourd'hui",
       "week_range": "{from} – {to}",
-      "col_date": "Date"
+      "col_date": "Date",
+      "search_placeholder": "Rechercher une séance par nom…"
     }
   }
 }

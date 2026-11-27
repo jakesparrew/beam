@@ -8,7 +8,8 @@ import { getAppDb } from "@/lib/ctx";
 import { adminLocale, translator } from "@/lib/i18n";
 import { listExceptions, listSessionsInRange, type SessionBlock } from "@/modules/booking/queries";
 import { CalendarWeek, type CalendarDay } from "@/modules/booking/ui/calendar-week";
-import { OccupancyBar, PageHeader, PeriodSwitch, PrimaryAction, Segmented, StatusPill, Surface, Toolbar, td, th, type Tone } from "@/modules/platform/ui/admin-kit";
+import { OccupancyBar, PageHeader, PeriodSwitch, PrimaryAction, Segmented, StatusPill, Surface, td, th, type Tone } from "@/modules/platform/ui/admin-kit";
+import { ListToolbar, listToolbarLabels } from "@/modules/platform/ui/admin-list-kit";
 
 const KINDS = ["day", "night", "event"] as const;
 const L = "booking.list";
@@ -26,7 +27,7 @@ const mondayOf = (onDate: string) => addDays(onDate, 1 - isoWeekday(onDate));
  * `bookings.override`); the schedule, closing days and blocked places live under Settings and on
  * the session page.
  */
-export default async function SessionsPage({ searchParams }: { searchParams: Promise<{ week?: string; kind?: string; view?: string }> }) {
+export default async function SessionsPage({ searchParams }: { searchParams: Promise<{ week?: string; kind?: string; view?: string; q?: string }> }) {
   const actor = await requireStaff({ permission: "bookings.read" });
   const sp = await searchParams;
   const locale = await adminLocale();
@@ -38,10 +39,15 @@ export default async function SessionsPage({ searchParams }: { searchParams: Pro
   const kind = (KINDS as readonly string[]).includes(sp.kind ?? "") ? (sp.kind as SessionKind) : undefined;
   const view = sp.view === "week" ? "week" : "list";
 
-  const [blocks, exceptions] = await Promise.all([
+  const q = sp.q?.trim().slice(0, 100) || undefined;
+  const needle = q?.toLowerCase();
+
+  const [weekBlocks, exceptions] = await Promise.all([
     listSessionsInRange(db, { from: zonedTimeToUtc(week, "00:00"), to: zonedTimeToUtc(addDays(week, 7), "00:00"), ...(kind ? { kind } : {}) }),
     listExceptions(db, { from: week, to: addDays(week, 6) }),
   ]);
+  // One week of sessions is small, so the title search runs here, in every language.
+  const blocks = needle ? weekBlocks.filter((b) => Object.values(b.title ?? {}).some((t) => t?.toLowerCase().includes(needle))) : weekBlocks;
 
   const days: CalendarDay[] = Array.from({ length: 7 }, (_, i) => {
     const onDate = addDays(week, i);
@@ -70,11 +76,12 @@ export default async function SessionsPage({ searchParams }: { searchParams: Pro
     };
   });
 
-  const href = (q: { week?: string; kind?: string; view?: string }) => {
+  const href = (to: { week?: string; kind?: string; view?: string }) => {
     const p = new URLSearchParams();
-    if (q.week) p.set("week", q.week);
-    if (q.kind) p.set("kind", q.kind);
-    if (q.view && q.view !== "list") p.set("view", q.view);
+    if (to.week) p.set("week", to.week);
+    if (to.kind) p.set("kind", to.kind);
+    if (to.view && to.view !== "list") p.set("view", to.view);
+    if (q) p.set("q", q);
     const s = p.toString();
     return (s ? `/admin/sessions?${s}` : "/admin/sessions") as Route;
   };
@@ -92,36 +99,40 @@ export default async function SessionsPage({ searchParams }: { searchParams: Pro
     <div className="grid gap-5">
       <PageHeader
         title={tr("booking.calendar.title")}
-        description={tr(`${L}.subtitle`)}
         actions={hasPermission(actor, "bookings.override") ? <PrimaryAction href="/admin/sessions/new">+ {tr("booking.calendar.new_session")}</PrimaryAction> : null}
       />
-      <Toolbar>
-        <PeriodSwitch
-          label={tr(`${L}.week_range`, { from: formatDate(week, locale), to: formatDate(addDays(week, 6), locale) })}
-          previous={href({ week: addDays(week, -7), kind, view })}
-          next={href({ week: addDays(week, 7), kind, view })}
-          today={href({ kind, view })}
-          todayLabel={tr("booking.calendar.today")}
-          previousLabel={tr("booking.calendar.previous_week")}
-          nextLabel={tr("booking.calendar.next_week")}
-        />
-        <Segmented
-          label={tr("booking.calendar.filter_kind")}
-          items={[
+      <ListToolbar
+        labels={listToolbarLabels(tr)}
+        search={{ placeholder: tr(`${L}.search_placeholder`), defaultValue: q }}
+        hidden={{ week: sp.week ? week : undefined, kind, view: view === "week" ? view : undefined }}
+        chips={{
+          label: tr("booking.calendar.filter_kind"),
+          items: [
             { key: "all", label: tr("booking.calendar.all_kinds"), href: href({ week, view }), active: !kind },
             ...KINDS.map((k) => ({ key: k, label: tr(`booking.kind.${k}`), href: href({ week, kind: k, view }), active: kind === k })),
-          ]}
-        />
-        <div className="ml-auto">
-          <Segmented
-            label={tr(`${L}.view_label`)}
-            items={[
-              { key: "list", label: tr(`${L}.view_list`), href: href({ week, kind }), active: view === "list" },
-              { key: "week", label: tr(`${L}.view_week`), href: href({ week, kind, view: "week" }), active: view === "week" },
-            ]}
-          />
-        </div>
-      </Toolbar>
+          ],
+        }}
+        aside={
+          <>
+            <PeriodSwitch
+              label={tr(`${L}.week_range`, { from: formatDate(week, locale), to: formatDate(addDays(week, 6), locale) })}
+              previous={href({ week: addDays(week, -7), kind, view })}
+              next={href({ week: addDays(week, 7), kind, view })}
+              today={href({ kind, view })}
+              todayLabel={tr("booking.calendar.today")}
+              previousLabel={tr("booking.calendar.previous_week")}
+              nextLabel={tr("booking.calendar.next_week")}
+            />
+            <Segmented
+              label={tr(`${L}.view_label`)}
+              items={[
+                { key: "list", label: tr(`${L}.view_list`), href: href({ week, kind }), active: view === "list" },
+                { key: "week", label: tr(`${L}.view_week`), href: href({ week, kind, view: "week" }), active: view === "week" },
+              ]}
+            />
+          </>
+        }
+      />
       {view === "week" ? (
         <CalendarWeek days={days} empty={blocks.length === 0 ? tr("booking.calendar.empty") : null} />
       ) : (

@@ -440,7 +440,12 @@
       "previous": "Vorige",
       "next": "Volgende",
       "apply": "Toepassen",
-      "filters": "Filters"
+      "filters": "Filters",
+      "search": "Zoeken",
+      "clear_all": "Wis alles",
+      "remove_filter": "Filter verwijderen",
+      "search_shortcut": "Druk op / om te zoeken",
+      "more_actions": "Meer acties"
     },
     "settings": {
       "title": "Instellingen",

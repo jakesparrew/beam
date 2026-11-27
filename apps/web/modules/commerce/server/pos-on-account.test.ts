@@ -26,6 +26,7 @@ const { businessDayOf, computePosDayTotals } = await import("./pos-day");
 const { getAttentionFeed } = await import("./attention");
 const { scanExpired } = await import("./expiry");
 const { issueRefund } = await import("./refunds");
+const { listOrders } = await import("../queries");
 const { createCtx, eq, and } = await import("@/lib/ctx");
 const { makeCtx, makeJobCtx, resetRuntime, createFakeIntegrations, staffActor } = await import("@/lib/testing");
 const { WEBHOOK_HANDLERS } = await import("@/registry/webhooks.generated");
@@ -115,6 +116,17 @@ describe("Op rekening", () => {
     await expect(asStaff((tx, ctx) => posSell(tx, ctx, { items: [{ productId: merch.id, quantity: 1 }], method: "on_account", clientKey: randomUUID() }))).rejects.toMatchObject({
       fields: { personId: "person_required" },
     });
+  });
+
+  it("shows on the order list as on account, with its line, and a terminal sale with its provider", async () => {
+    const { orderId } = await onAccountSale(1500);
+    const merch = await item(2500);
+    const paid = await asStaff((tx, ctx) => posSell(tx, ctx, { items: [{ productId: merch.id, quantity: 2 }], method: "card_terminal", clientKey: randomUUID() }));
+    const { rows } = await listOrders(h.db, { limit: 200 });
+    const onAccount = rows.find((r) => r.id === orderId)!;
+    expect(onAccount).toMatchObject({ onAccount: true, lineCount: 1, paymentProvider: null });
+    expect(onAccount.firstLine).toBeTruthy();
+    expect(rows.find((r) => r.id === paid.orderId)).toMatchObject({ onAccount: false, lineCount: 1, paymentProvider: "terminal" });
   });
 
   it("keeps the order open without expiry, confirms the walk-in seat, and shows it in follow-up and on the person", async () => {

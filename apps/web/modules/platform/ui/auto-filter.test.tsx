@@ -62,4 +62,35 @@ describe("AutoFilter", () => {
     fireEvent.change(container.querySelector("select[name=x]")!, { target: { value: "b" } });
     expect(push).toHaveBeenCalledTimes(1);
   });
+
+  it("focuses the super search on / (not while typing) and closes popovers on Escape or a click outside", () => {
+    const { container } = render(
+      <>
+        <AutoFilter />
+        <form method="get" action="/admin/bookings" data-auto-filter="">
+          <input type="search" name="q" data-super-search="" />
+          <details data-popover="" open>
+            <summary>Filters</summary>
+            <select name="source" />
+          </details>
+        </form>
+        <textarea name="note" />
+      </>,
+    );
+    const q = container.querySelector<HTMLInputElement>("input[name=q]")!;
+    const details = container.querySelector("details")!;
+    fireEvent.keyDown(container.querySelector("textarea")!, { key: "/" });
+    expect(document.activeElement).not.toBe(q);
+    fireEvent.keyDown(document.body, { key: "/" });
+    expect(document.activeElement).toBe(q);
+
+    fireEvent.pointerDown(container.querySelector("select")!);
+    expect(details.open).toBe(true);
+    fireEvent.pointerDown(document.body);
+    expect(details.open).toBe(false);
+    details.open = true;
+    fireEvent.keyDown(document.body, { key: "Escape" });
+    expect(details.open).toBe(false);
+    expect(push).not.toHaveBeenCalled();
+  });
 });

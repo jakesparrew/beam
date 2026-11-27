@@ -755,7 +755,30 @@
       "person_search_hint": "Type a name, email or customer number",
       "subtitle": "An order is a payment: a package, membership, product or session. A seat in a session (a booking) lives under Schedule > Bookings.",
       "tab_attention": "To follow up",
-      "filters": "Filters"
+      "filters": "Filters",
+      "search_placeholder": "Search by reference, name or email…",
+      "col_items": "Items",
+      "col_payment": "Payment",
+      "items_more": "{first} + {count} more",
+      "no_items": "No items",
+      "today_at": "Today {time}",
+      "yesterday_at": "Yesterday {time}",
+      "channel_short": {
+        "portal": "Online",
+        "site": "Online",
+        "admin": "Staff",
+        "pos": "Till",
+        "link": "Payment link",
+        "recurring": "Subscription"
+      },
+      "method": {
+        "terminal": "Card (terminal)",
+        "cash": "Cash",
+        "online": "Online",
+        "bank_transfer": "Bank transfer",
+        "credit_balance": "Credit balance",
+        "on_account": "On account"
+      }
     },
     "admin_refund": {
       "title": "Refund order {reference}",

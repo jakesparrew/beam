@@ -755,7 +755,30 @@
       "person_search_hint": "Typ een naam, e-mailadres of klantnummer",
       "subtitle": "Een bestelling is een betaling: een pakket, lidmaatschap, product of sessie. Een plaats in een sessie (een boeking) vind je onder Agenda > Boekingen.",
       "tab_attention": "Op te volgen",
-      "filters": "Filters"
+      "filters": "Filters",
+      "search_placeholder": "Zoek op referentie, naam of e-mail…",
+      "col_items": "Artikelen",
+      "col_payment": "Betaling",
+      "items_more": "{first} + {count} meer",
+      "no_items": "Geen artikelen",
+      "today_at": "Vandaag {time}",
+      "yesterday_at": "Gisteren {time}",
+      "channel_short": {
+        "portal": "Online",
+        "site": "Online",
+        "admin": "Medewerker",
+        "pos": "Kassa",
+        "link": "Betaallink",
+        "recurring": "Abonnement"
+      },
+      "method": {
+        "terminal": "Kaart (terminal)",
+        "cash": "Cash",
+        "online": "Online",
+        "bank_transfer": "Overschrijving",
+        "credit_balance": "Tegoed",
+        "on_account": "Op rekening"
+      }
     },
     "admin_refund": {
       "title": "Bestelling {reference} terugbetalen",

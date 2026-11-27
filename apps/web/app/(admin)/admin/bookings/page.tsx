@@ -9,14 +9,15 @@ import { adminLocale, softTranslator, translator } from "@/lib/i18n";
 import { listBookings } from "@/modules/booking/queries";
 import { Initials } from "@/modules/booking/ui/kit";
 import { searchPersons } from "@/modules/crm/api";
-import { PageHeader, PrimaryAction, SecondaryAction, Segmented, StatusPill, Surface, td, th, type Tone } from "@/modules/platform/ui/admin-kit";
+import { PageHeader, PrimaryAction, SecondaryAction, StatusPill, Surface, td, th, type Tone } from "@/modules/platform/ui/admin-kit";
+import { Field, fieldClass, ListToolbar, listToolbarLabels, type AppliedFilter } from "@/modules/platform/ui/admin-list-kit";
 
 const show = (text: LocalizedText | null | undefined, locale: Locale) => text?.[locale] || text?.["nl-BE"] || text?.en || text?.["fr-BE"] || "";
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const control = "h-9 rounded-lg border border-input bg-card px-2.5 text-[0.8125rem] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
-/** The status segments, most used first. */
+/** Every status, most used first; the first three are the toolbar chips, the rest sit in Filters. */
 const STATUS_ORDER: BookingStatus[] = ["confirmed", "reserved", "attended", "no_show", "cancelled", "late_cancelled"];
+const CHIP_STATUSES = STATUS_ORDER.slice(0, 3);
 const STATUS_TONE: Record<BookingStatus, Tone> = { confirmed: "ok", reserved: "warn", attended: "info", no_show: "bad", cancelled: "muted", late_cancelled: "muted" };
 
 type Search = { q?: string; personId?: string; sessionId?: string; status?: string; paidWith?: string; source?: string; from?: string; to?: string; cursor?: string };
@@ -31,9 +32,9 @@ function parseCursor(raw: string | undefined): { createdAt: Date; id: string } |
 
 /**
  * `/admin/bookings` (`bookings.read`, booking spec 5.1), in the back-office kit (owner review,
- * November 2026): one header with "New booking" (`bookings.write`), one auto-applying toolbar
- * (the person search first, the status as a segmented switch, payment, source and the session's
- * date range), then the bookings newest first, 50 per page (keyset), as one table whose rows open
+ * November 2026): one header with "New booking" (`bookings.write`), the list toolbar (the person
+ * search first; the three main statuses as chips; every status, payment, source and the session's
+ * date range behind "Filters"; the applied ones as removable chips), then the bookings newest first, 50 per page (keyset), as one table whose rows open
  * the booking. A search lists the matching people (crm search) to filter on one of them.
  */
 export default async function BookingsPage({ searchParams }: { searchParams: Promise<Search> }) {
@@ -74,53 +75,80 @@ export default async function BookingsPage({ searchParams }: { searchParams: Pro
   };
   const canWrite = hasPermission(actor, "bookings.write");
   const first = page.rows[0];
+  const rareStatus = status && !CHIP_STATUSES.includes(status) ? status : undefined;
+  const applied: AppliedFilter[] = [
+    ...(personId ? [{ key: "person", label: tr("booking.bookings.person"), value: first?.personName || "—", href: keep({ personId: undefined }) }] : []),
+    ...(sessionId ? [{ key: "session", label: tr("booking.bookings.session"), value: first ? show(first.sessionTitle, locale) : "—", href: keep({ sessionId: undefined }) }] : []),
+    ...(rareStatus ? [{ key: "status", label: tr("booking.bookings.filter_status"), value: tr(`booking.bookings.status_short.${rareStatus}`), href: keep({ status: undefined }) }] : []),
+    ...(paidWith ? [{ key: "paidWith", label: tr("booking.bookings.filter_paid_with"), value: tr(`booking.paidWith.${paidWith}`), href: keep({ paidWith: undefined }) }] : []),
+    ...(source ? [{ key: "source", label: tr("booking.bookings.filter_source"), value: tr(`booking.source.${source}`), href: keep({ source: undefined }) }] : []),
+    ...(from ? [{ key: "from", label: tr("booking.bookings.filter_from"), value: formatDate(from, locale), href: keep({ from: undefined }) }] : []),
+    ...(to ? [{ key: "to", label: tr("booking.bookings.filter_to"), value: formatDate(to, locale), href: keep({ to: undefined }) }] : []),
+  ];
 
   return (
     <div className="grid gap-5">
-      <PageHeader
-        title={tr("booking.bookings.title")}
-        description={tr("booking.bookings.subtitle")}
-        actions={canWrite ? <PrimaryAction href="/admin/bookings/new">+ {tr("booking.bookings.new")}</PrimaryAction> : null}
-      />
+      <PageHeader title={tr("booking.bookings.title")} actions={canWrite ? <PrimaryAction href="/admin/bookings/new">+ {tr("booking.bookings.new")}</PrimaryAction> : null} />
 
-      <form data-auto-filter="" method="get" role="search" className="flex flex-wrap items-center gap-2">
-        <label htmlFor="bookings-q" className="sr-only">
-          {tr("booking.bookings.person")}
-        </label>
-        <input id="bookings-q" name="q" type="search" defaultValue={q} placeholder={soft("crm.persons.list.search_placeholder")} className={cn(control, "w-72 px-3 text-[0.875rem]")} />
-        <Segmented
-          label={tr("booking.bookings.filter_status")}
-          items={[
+      <ListToolbar
+        labels={listToolbarLabels(tr)}
+        search={{ placeholder: tr("booking.bookings.search_placeholder"), defaultValue: q, label: tr("booking.bookings.person") }}
+        hidden={{ personId, sessionId }}
+        filters={{
+          count: [rareStatus, paidWith, source, from, to].filter(Boolean).length,
+          children: (
+            <>
+              <Field label={tr("booking.bookings.filter_status")}>
+                <select id="bookings-status" name="status" defaultValue={status ?? ""} className={fieldClass}>
+                  <option value="">{tr("booking.bookings.status_all")}</option>
+                  {STATUS_ORDER.map((s) => (
+                    <option key={s} value={s}>
+                      {tr(`booking.bookings.status_short.${s}`)}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label={tr("booking.bookings.filter_paid_with")}>
+                <select id="bookings-paid-with" name="paidWith" defaultValue={paidWith ?? ""} className={fieldClass}>
+                  <option value="">{tr("booking.bookings.status_all")}</option>
+                  {PAID_WITH.map((s) => (
+                    <option key={s} value={s}>
+                      {tr(`booking.paidWith.${s}`)}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label={tr("booking.bookings.filter_source")}>
+                <select id="bookings-source" name="source" defaultValue={source ?? ""} className={fieldClass}>
+                  <option value="">{tr("booking.bookings.status_all")}</option>
+                  {BOOKING_SOURCES.map((s) => (
+                    <option key={s} value={s}>
+                      {tr(`booking.source.${s}`)}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <div className="grid grid-cols-2 gap-2">
+                <Field label={tr("booking.bookings.filter_from")}>
+                  <input id="bookings-from" name="from" type="date" defaultValue={from ?? ""} className={fieldClass} />
+                </Field>
+                <Field label={tr("booking.bookings.filter_to")}>
+                  <input id="bookings-to" name="to" type="date" defaultValue={to ?? ""} className={fieldClass} />
+                </Field>
+              </div>
+            </>
+          ),
+        }}
+        chips={{
+          label: tr("booking.bookings.filter_status"),
+          items: [
             { key: "all", label: tr("booking.bookings.status_all"), href: keep({ status: undefined, q: q || undefined }), active: !status },
-            ...STATUS_ORDER.map((s) => ({ key: s, label: tr(`booking.bookings.status_short.${s}`), href: keep({ status: s, q: q || undefined }), active: status === s })),
-          ]}
-        />
-        <select id="bookings-paid-with" name="paidWith" defaultValue={paidWith ?? ""} aria-label={tr("booking.bookings.filter_paid_with")} className={control}>
-          <option value="">{tr("booking.bookings.filter_paid_with")}</option>
-          {PAID_WITH.map((s) => (
-            <option key={s} value={s}>
-              {tr(`booking.paidWith.${s}`)}
-            </option>
-          ))}
-        </select>
-        <select id="bookings-source" name="source" defaultValue={source ?? ""} aria-label={tr("booking.bookings.filter_source")} className={control}>
-          <option value="">{tr("booking.bookings.filter_source")}</option>
-          {BOOKING_SOURCES.map((s) => (
-            <option key={s} value={s}>
-              {tr(`booking.source.${s}`)}
-            </option>
-          ))}
-        </select>
-        <span className="flex items-center gap-1.5 text-[0.8125rem] text-muted-foreground">
-          <label htmlFor="bookings-from">{tr("booking.bookings.filter_from")}</label>
-          <input id="bookings-from" name="from" type="date" defaultValue={from ?? ""} className={control} />
-          <label htmlFor="bookings-to">{tr("booking.bookings.filter_to")}</label>
-          <input id="bookings-to" name="to" type="date" defaultValue={to ?? ""} className={control} />
-        </span>
-        {status ? <input type="hidden" name="status" value={status} /> : null}
-        {personId ? <input type="hidden" name="personId" value={personId} /> : null}
-        {sessionId ? <input type="hidden" name="sessionId" value={sessionId} /> : null}
-      </form>
+            ...CHIP_STATUSES.map((s) => ({ key: s, label: tr(`booking.bookings.status_short.${s}`), href: keep({ status: s, q: q || undefined }), active: status === s })),
+          ],
+        }}
+        applied={applied}
+        clearAll={keep({ personId: undefined, sessionId: undefined, status: undefined, paidWith: undefined, source: undefined, from: undefined, to: undefined, q: q || undefined })}
+      />
 
       {people.length ? (
         <div className="flex flex-wrap items-center gap-1.5 text-[0.8125rem]">
@@ -137,16 +165,6 @@ export default async function BookingsPage({ searchParams }: { searchParams: Pro
             ))}
           </ul>
         </div>
-      ) : null}
-      {personId || sessionId ? (
-        <p className="flex flex-wrap items-center gap-2 text-[0.8125rem]">
-          <StatusPill tone="gold">
-            {personId ? `${tr("booking.bookings.person")}: ${first?.personName || "—"}` : `${tr("booking.bookings.session")}: ${first ? show(first.sessionTitle, locale) : "—"}`}
-          </StatusPill>
-          <Link href={keep({ personId: undefined, sessionId: undefined })} className="font-semibold text-[#8a5a14] hover:underline">
-            {tr("booking.common.show_all")}
-          </Link>
-        </p>
       ) : null}
 
       {page.rows.length === 0 ? (

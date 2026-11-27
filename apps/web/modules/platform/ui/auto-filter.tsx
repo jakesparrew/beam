@@ -20,12 +20,21 @@ export function filterHref(form: HTMLFormElement): string {
 
 const isTyped = (el: EventTarget | null): boolean => el instanceof HTMLInputElement && TYPED.has(el.type);
 const formOf = (el: EventTarget | null) => (el instanceof Element ? el.closest<HTMLFormElement>("form[data-auto-filter]") : null);
+/** A field the user types in, where `/` is a character and not the search shortcut. */
+const isEditable = (el: EventTarget | null): boolean => el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement || (el instanceof HTMLElement && el.isContentEditable);
+/** Closes the open toolbar popovers (`<details data-popover>`) that do not contain `keep`. */
+function closePopovers(keep?: Node | null) {
+  for (const d of document.querySelectorAll<HTMLDetailsElement>("details[data-popover][open]")) if (!keep || !d.contains(keep)) d.open = false;
+}
 
 /**
  * Owner review section 10: list filters apply as soon as staff pick a value, with no "Apply"
  * button. Mounted once in the admin shell, it serves every `<form method="get" data-auto-filter>`:
  * a select, checkbox or radio applies on change, a typed field on Enter or after a short pause.
- * The navigation is a client transition, so the field being typed in keeps its focus.
+ * The navigation is a client transition, so the field being typed in keeps its focus. It also
+ * gives the list toolbar its keyboard: `/` focuses the page's super search
+ * (`input[data-super-search]`), and Escape or a click outside closes the open "Filters" and "⋯"
+ * popovers.
  */
 export function AutoFilter() {
   const router = useRouter();
@@ -47,6 +56,20 @@ export function AutoFilter() {
       timer = setTimeout(() => apply(form), TYPING_DELAY_MS);
     };
     const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "/" && !e.metaKey && !e.ctrlKey && !e.altKey && !isEditable(e.target)) {
+        const search = document.querySelector<HTMLInputElement>("input[data-super-search]");
+        if (!search) return;
+        e.preventDefault();
+        search.focus();
+        search.select();
+        return;
+      }
+      if (e.key === "Escape") {
+        const open = document.activeElement?.closest<HTMLDetailsElement>("details[data-popover][open]");
+        closePopovers();
+        open?.querySelector<HTMLElement>("summary")?.focus();
+        return;
+      }
       const form = formOf(e.target);
       if (!form || e.key !== "Enter" || !(e.target instanceof HTMLInputElement)) return;
       e.preventDefault();
@@ -58,12 +81,15 @@ export function AutoFilter() {
       e.preventDefault();
       apply(form);
     };
+    const onPointerDown = (e: PointerEvent) => closePopovers(e.target instanceof Node ? e.target : null);
+    document.addEventListener("pointerdown", onPointerDown);
     document.addEventListener("change", onChange);
     document.addEventListener("input", onInput);
     document.addEventListener("keydown", onKeyDown);
     document.addEventListener("submit", onSubmit);
     return () => {
       clearTimeout(timer);
+      document.removeEventListener("pointerdown", onPointerDown);
       document.removeEventListener("change", onChange);
       document.removeEventListener("input", onInput);
       document.removeEventListener("keydown", onKeyDown);

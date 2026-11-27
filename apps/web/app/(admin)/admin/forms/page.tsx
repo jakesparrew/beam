@@ -6,8 +6,8 @@ import { hasPermission, requireStaff } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
 import { adminLocale, translator } from "@/lib/i18n";
 import { listForms } from "@/modules/forms/queries";
-import { Segmented, StatusPill, Surface, Toolbar, td, th, type Tone } from "@/modules/platform/ui/admin-kit";
-import { Disclosure, Field, fieldClass, rowClass, rowLink, SearchField } from "@/modules/platform/ui/admin-list-kit";
+import { StatusPill, Surface, td, th, type Tone } from "@/modules/platform/ui/admin-kit";
+import { Field, fieldClass, ListToolbar, listToolbarLabels, rowClass, rowLink } from "@/modules/platform/ui/admin-list-kit";
 import { FormsHeader } from "./forms-header";
 
 type Search = { q?: string; status?: string; kind?: string };
@@ -44,15 +44,13 @@ export default async function FormsPage({ searchParams }: { searchParams: Promis
   return (
     <div className="grid gap-4">
       <FormsHeader active="forms" canImports={hasPermission(actor, "forms.publish")} tr={tr} />
-      <form data-auto-filter="" method="get" role="search">
-        <Toolbar>
-          {status ? <input type="hidden" name="status" value={status} /> : null}
-          <SearchField label={t("search")} placeholder={t("search_placeholder")} defaultValue={q} />
-          <Segmented
-            label={t("status")}
-            items={[{ key: "all", label: t("all_statuses"), href: href({ status: undefined }), active: !status }, ...STATUSES.map((s) => ({ key: s, label: tr(`forms.status.${s}`), href: href({ status: s }), active: status === s }))]}
-          />
-          <Disclosure label={t("filters")} count={kind ? 1 : 0} clear={kind ? { href: href({ kind: undefined }), label: t("clear") } : null}>
+      <ListToolbar
+        labels={listToolbarLabels(tr)}
+        search={{ placeholder: t("search_placeholder"), defaultValue: q, label: t("search") }}
+        hidden={{ status }}
+        filters={{
+          count: kind ? 1 : 0,
+          children: (
             <Field label={t("kind")}>
               <select id="forms-kind" name="kind" defaultValue={kind ?? ""} className={fieldClass}>
                 <option value="">{t("all_kinds")}</option>
@@ -63,9 +61,14 @@ export default async function FormsPage({ searchParams }: { searchParams: Promis
                 ))}
               </select>
             </Field>
-          </Disclosure>
-        </Toolbar>
-      </form>
+          ),
+        }}
+        chips={{
+          label: t("status"),
+          items: [{ key: "all", label: t("all_statuses"), href: href({ status: undefined }), active: !status }, ...STATUSES.map((s) => ({ key: s, label: tr(`forms.status.${s}`), href: href({ status: s }), active: status === s }))],
+        }}
+        applied={kind ? [{ key: "kind", label: t("kind"), value: tr(`forms.kind.${kind}`), href: href({ kind: undefined }) }] : []}
+      />
 
       {rows.length === 0 ? (
         filtered ? (

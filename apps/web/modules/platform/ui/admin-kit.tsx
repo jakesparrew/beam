@@ -41,6 +41,36 @@ export function SecondaryAction({ href, children }: { href: Href; children: Reac
   );
 }
 
+/**
+ * The "⋯" menu of a page header: the secondary destinations and actions, so the header keeps one
+ * primary action. A native `<details>`; the admin shell's `AutoFilter` closes it on Escape or a
+ * click outside.
+ */
+export function MoreMenu({ label, items }: { label: string; items: { key: string; href: Href; label: ReactNode }[] }) {
+  if (!items.length) return null;
+  const item = "block rounded-md px-2.5 py-1.5 font-medium whitespace-nowrap hover:bg-muted";
+  return (
+    <details className="relative" data-popover="" data-testid="page-more-menu">
+      <summary aria-label={label} title={label} className="grid size-9 cursor-pointer list-none place-items-center rounded-lg border border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground [&::-webkit-details-marker]:hidden">
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="currentColor" className="size-4">
+          <circle cx="5" cy="12" r="1.75" />
+          <circle cx="12" cy="12" r="1.75" />
+          <circle cx="19" cy="12" r="1.75" />
+        </svg>
+      </summary>
+      <ul className="absolute right-0 z-20 mt-1.5 grid min-w-48 gap-0.5 rounded-xl border border-border bg-card p-1.5 text-[0.8125rem] shadow-lg">
+        {items.map((it) => (
+          <li key={it.key}>
+            <Link href={it.href} className={item}>
+              {it.label}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </details>
+  );
+}
+
 /** A row of filters and switches above the data. */
 export function Toolbar({ children, className }: { children: ReactNode; className?: string }) {
   return <div className={cn("flex flex-wrap items-center gap-2", className)}>{children}</div>;

@@ -325,6 +325,13 @@ export type OrderListRow = {
   personName: string | null;
   personEmail: string | null;
   companyName: string | null;
+  /** The first line's description and the number of lines, for "Dagsessie + 1 meer". */
+  firstLine: (typeof orderLines.$inferSelect)["description"] | null;
+  lineCount: number;
+  /** How it was (or is being) paid: the provider of the settled payment, else of the latest one. */
+  paymentProvider: (typeof payments.$inferSelect)["provider"] | null;
+  /** Put on the customer's account at the till (`on_account_at`). */
+  onAccount: boolean;
 };
 
 type OrderRow = typeof orders.$inferSelect;
@@ -375,6 +382,10 @@ export async function listOrders(db: DbOrTx, input: ListOrdersInput = {}): Promi
       email: persons.email,
       companyName: companies.name,
       paidCents: sql<number>`(select coalesce(sum(p.amount_cents), 0)::int from payments p where p.order_id = ${orders.id} and p.status in ('paid','partially_refunded','refunded'))`,
+      firstLine: sql<OrderListRow["firstLine"]>`(select ol.description from order_lines ol where ol.order_id = ${orders.id} order by ol.line_no limit 1)`,
+      lineCount: sql<number>`(select count(*)::int from order_lines ol where ol.order_id = ${orders.id})`,
+      paymentProvider: sql<OrderListRow["paymentProvider"]>`(select p.provider from payments p where p.order_id = ${orders.id} order by (p.status in ('paid','partially_refunded','refunded')) desc, p.created_at desc limit 1)`,
+      onAccountAt: orders.onAccountAt,
     })
     .from(orders)
     .leftJoin(persons, eq(persons.id, orders.personId))
@@ -394,6 +405,10 @@ export async function listOrders(db: DbOrTx, input: ListOrdersInput = {}): Promi
     personName: r.personId ? [r.firstName, r.lastName].filter(Boolean).join(" ") || r.email : null,
     personEmail: r.email ?? null,
     companyName: r.companyName ?? null,
+    firstLine: r.firstLine ?? null,
+    lineCount: Number(r.lineCount),
+    paymentProvider: r.paymentProvider ?? null,
+    onAccount: !!r.onAccountAt,
   }));
   const last = page.at(-1);
   return { rows: page, nextCursor: rows.length > limit && last ? `${last.createdAt.toISOString()}_${last.id}` : null };

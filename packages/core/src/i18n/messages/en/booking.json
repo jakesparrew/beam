@@ -11,7 +11,7 @@
       "bookings": "Bookings",
       "checkin": "Check-in desk",
       "waitlist": "Waiting lists",
-      "holds": "Holds",
+      "holds": "Blocked places",
       "templates": "Schedule",
       "exceptions": "Closed days",
       "rules": "Booking rules",
@@ -210,7 +210,7 @@
       "filter_kind": "Kind",
       "all_kinds": "All kinds",
       "booked_of_capacity": "{booked} of {capacity}",
-      "held": "{count} held",
+      "held": "{count} blocked",
       "waiting": "{count} waiting",
       "lead_badge": "Lead Magnet",
       "new_session": "New session or event",
@@ -247,7 +247,7 @@
       "title": "Session",
       "capacity": "Capacity",
       "capacity_label": "{booked} booked of {capacity}",
-      "held": "Held",
+      "held": "Blocked",
       "booked": "Booked",
       "live_offers": "Open offers",
       "waiting": "Waiting",
@@ -258,7 +258,7 @@
       "published": "Published",
       "draft": "Draft",
       "tab_attendees": "Attendees",
-      "tab_holds": "Holds",
+      "tab_holds": "Blocked places",
       "tab_waitlist": "Waiting list",
       "tab_ticket_types": "Ticket types",
       "tab_lead": "Lead Magnet",
@@ -286,7 +286,8 @@
       "warning_location_overlap": "Another session uses this room at the same time.",
       "warning_outside_business_hours": "This time is outside the public opening hours.",
       "empty": "No bookings yet.",
-      "revert_no_show": "Undo no-show"
+      "revert_no_show": "Undo no-show",
+      "cancel_session_hint": "Cancelling a session refunds every booking and frees the places."
     },
     "templates": {
       "title": "Schedule",
@@ -385,19 +386,19 @@
       "stale": "Someone changed these rules, reload."
     },
     "holds": {
-      "title": "Holds",
-      "add": "Add hold",
+      "title": "Blocked places",
+      "add": "Block places",
       "session": "Session",
       "kind": "Type",
       "quantity": "Places",
       "used": "Used",
       "company": "Company",
       "note": "Note",
-      "below_bookings": "A hold cannot be smaller than the bookings it already holds.",
-      "empty": "No holds.",
+      "below_bookings": "You cannot block fewer places than are already booked on them.",
+      "empty": "No blocked places.",
       "partner_title": "Partner seats",
       "partner_intro": "Put the names of your guests on the places held for your company. You see only your own places and the names you entered.",
-      "seats_title": "Names on held places",
+      "seats_title": "Names on blocked places",
       "seats_intro": "Assign a named person to a held place. The place is free for the person; with an email address they receive the confirmation and their QR code.",
       "seats_none": "No names yet.",
       "seats_left": "{count, plural, one {# place left} other {# places left}}",
@@ -412,7 +413,8 @@
       "unassign": "Remove",
       "assigned": "The name was added to the held place.",
       "unassigned": "The name was removed and the place is free again.",
-      "not_found": "This held place was not found or is not yours."
+      "not_found": "This held place was not found or is not yours.",
+      "intro": "Places kept for staff, partners, hosts or speakers, or blocked. They are not bookings."
     },
     "bookings": {
       "title": "Bookings",
@@ -439,7 +441,20 @@
       "force_refund": "Cancel and refund",
       "force_reason": "Reason (required)",
       "empty": "No bookings match these filters.",
-      "include_guests": "Also cancel the guests"
+      "include_guests": "Also cancel the guests",
+      "subtitle": "Every booking, newest first. Search a name or filter by status, payment and date.",
+      "status_all": "All",
+      "status_short": {
+        "confirmed": "Confirmed",
+        "reserved": "To pay",
+        "attended": "Attended",
+        "no_show": "No-show",
+        "cancelled": "Cancelled",
+        "late_cancelled": "Late cancelled"
+      },
+      "pick_person": "Pick a person:",
+      "pay_at_desk_short": "Pay at the desk",
+      "over_capacity_short": "Over capacity"
     },
     "manual": {
       "title": "New booking",
@@ -499,7 +514,17 @@
       "cue_member": "Member",
       "cue_package": "Pays with a package",
       "cue_child": "Child",
-      "cue_guest": "Guest"
+      "cue_guest": "Guest",
+      "col_guest": "Guest",
+      "col_booked": "Booked",
+      "col_payment": "Payment",
+      "col_attention": "Attention",
+      "col_action": "Action",
+      "checked_in": "Checked in",
+      "opens_at": "From {time}",
+      "window_closed": "Check-in closed",
+      "results_for": "Results for “{q}”",
+      "guest_of_name": "Guest of {name}"
     },
     "waitlist": {
       "title": "Waiting lists",
@@ -520,7 +545,10 @@
       "type_night": "Night sessions",
       "type_event": "Events",
       "type_webinar": "Webinars",
-      "waiting_count": "Waiting: {count}"
+      "waiting_count": "Waiting: {count}",
+      "subtitle": "Who waits for a place in the coming sessions, by day and session. Offer a place as soon as one frees up.",
+      "col_queue": "Queue",
+      "more_actions": "More actions"
     },
     "portalBook": {
       "title": "Book a session",

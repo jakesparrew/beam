@@ -1,7 +1,6 @@
-import Link from "next/link";
 import type { Route } from "next";
 import { notFound } from "next/navigation";
-import { Badge, buttonVariants } from "@beam/ui";
+import { Badge, cn } from "@beam/ui";
 import { brusselsDate, brusselsTime } from "@beam/core/booking";
 import { formatDate, formatDateTime, type Locale, type LocalizedText } from "@beam/core/i18n";
 import { hasPermission, requireStaff } from "@/lib/auth";
@@ -19,6 +18,7 @@ import {
   listHolds,
   listProductOptions,
   listSessionsInRange,
+  type SessionBlock,
 } from "@/modules/booking/queries";
 import { AttendeeList } from "@/modules/booking/ui/attendee-list";
 import { CancelSessionDialog } from "@/modules/booking/ui/cancel-dialog";
@@ -29,28 +29,62 @@ import { TicketTypesForm } from "@/modules/booking/ui/ticket-types-form";
 import { listTicketTypesWithSold, readAvailabilityRow } from "@/modules/booking/server/book";
 import { EventDetailsForm, EventMediaPanel } from "@/modules/booking/ui/event-details";
 import { getProductPrice } from "@/modules/commerce/api";
+import { PageHeader, PrimaryAction, Segmented, StatusPill, Surface, td, th, type Tone } from "@/modules/platform/ui/admin-kit";
 import { files } from "@beam/db/schema";
 import { inArray } from "@/lib/ctx";
 
 const show = (text: LocalizedText | null | undefined, locale: Locale) => text?.[locale] || text?.["nl-BE"] || text?.en || text?.["fr-BE"] || "";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const HOLD_KINDS = ["staff", "partner", "host", "speaker", "blocked"] as const;
+const HOLD_TONE: Record<(typeof HOLD_KINDS)[number], Tone> = { staff: "muted", partner: "info", host: "gold", speaker: "gold", blocked: "bad" };
 type Tr = (key: string, params?: Record<string, string | number>) => string;
 const RELEASE_RULES = ["customers_then_public", "public", "keep_for_leads"] as const;
+type Tab = "attendees" | "waitlist" | "holds" | "details" | "lead" | "tickets";
 /** A stored instant as the Brussels wall clock of a `datetime-local` input. */
 const localInput = (d: Date | null) => (d ? `${brusselsDate(d)}T${brusselsTime(d)}` : "");
+const secondary = "inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-[0.8125rem] font-semibold hover:bg-muted";
+
+/** The session's state pill, the same reading as the sessions list. */
+function sessionState(s: { status: string; publishedAt: Date | null; endsAt: Date }, block: SessionBlock | undefined, tr: Tr, now: Date): { tone: Tone; label: string } {
+  const L = "booking.list";
+  if (s.status === "cancelled") return { tone: "bad", label: tr(`${L}.status_cancelled`) };
+  if (s.status === "closed") return { tone: "muted", label: tr(`${L}.status_closed`) };
+  if (!s.publishedAt) return { tone: "gold", label: tr(`${L}.status_draft`) };
+  if (s.endsAt.getTime() < now.getTime()) return { tone: "muted", label: tr(`${L}.status_past`) };
+  if (block && block.capacity && block.availableTotal <= 0) return { tone: "full", label: tr(`${L}.status_full`) };
+  if (block && block.capacity && (block.booked + block.held) / block.capacity >= 0.75) return { tone: "warn", label: tr(`${L}.status_almost`) };
+  return { tone: "ok", label: tr(`${L}.status_open`) };
+}
+
+/** The figures in one bordered row, like the dashboard's KPI strip. */
+function KpiStrip({ items }: { items: { key: string; label: string; value: number; sub?: string; tone?: string }[] }) {
+  return (
+    <dl className="grid grid-cols-2 rounded-xl border border-border bg-card sm:grid-cols-5 sm:divide-x sm:divide-border" data-testid="session-kpis">
+      {items.map((k, i) => (
+        <div key={k.key} className={cn("grid content-start gap-1 px-5 py-3", i < items.length - 1 && "border-b border-border sm:border-b-0")}>
+          <dt className="text-[0.75rem] font-medium text-muted-foreground">{k.label}</dt>
+          <dd className={cn("text-[1.375rem] leading-none font-semibold tracking-[-0.02em] tabular-nums", k.tone)}>{k.value}</dd>
+          {k.sub ? <dd className="text-[0.75rem] text-muted-foreground">{k.sub}</dd> : null}
+        </div>
+      ))}
+    </dl>
+  );
+}
 
 /**
- * `/admin/sessions/[id]` (`bookings.read`, booking spec 5.1): the session header (time, kind,
- * event category, capacity, held, booked, open offers, waiting), the attendee list with check
- * in, undo, no-show, notes and cancel (`bookings.write`), the holds with P2's hold form and the
- * waitlist tab. A cancelled session shows its reason read-only. booking-P7 (R2): the Lead Magnet
- * tab with the current phase, lead places left and opening times, and the configuration form
- * (`bookings.override`, flag `ff_booking_lead_priority`, events only). booking-P8 (R2): the ticket
- * types tab of an event (sold per type, archived types) with the ticket types form
- * (`bookings.override`, flag `ff_booking_ticket_types`).
+ * `/admin/sessions/[id]` (`bookings.read`, booking spec 5.1), as a detail page in the back-office
+ * kit (owner review, November 2026): the header (title, date, time, kind, status pill) with
+ * "Add booking" (`bookings.write`) and, for events, the CSV export; a KPI strip (capacity,
+ * booked, blocked, free, waiting with the open offers); then tabs (`?tab=`): the participants
+ * with check in, undo, no-show, notes and cancel (`bookings.write`), the waiting list, the
+ * blocked places (seats held for staff, partners, hosts or speakers) with a one-row add form,
+ * and for events their details, the Lead Magnet tab (booking-P7, R2: phase, lead places left,
+ * opening times and the configuration form, `bookings.override`, flag `ff_booking_lead_priority`)
+ * and the ticket types tab (booking-P8, R2: sold per type, archived types, the ticket types form,
+ * `bookings.override`, flag `ff_booking_ticket_types`). A cancelled session shows its reason
+ * read-only; "Cancel session" (`bookings.override`) sits at the bottom.
  */
-export default async function SessionDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function SessionDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ tab?: string }> }) {
   const actor = await requireStaff({ permission: "bookings.read" });
   const { id } = await params;
   if (!UUID.test(id)) notFound();
@@ -87,82 +121,157 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
   const rows = attendees.map((a) => attendeeRow(a, session, rules, { now, locale, tr, canOverride }));
   const errors = bookingErrorLabels(tr);
   const cancelled = session.status === "cancelled";
-  const stat = (label: string, value: string | number) => (
-    <div className="grid gap-0.5">
-      <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="text-lg font-semibold tabular-nums">{value}</dd>
-    </div>
-  );
+  const state = sessionState(session, block, tr, now);
+  const showLead = session.kind === "event" && (leadOn || session.isLeadMagnet);
+  const showTickets = isEvent && (ticketsOn || ticketTypes.length > 0);
+
+  const tabs: { key: Tab; label: string; count?: number }[] = [
+    { key: "attendees", label: tr("booking.session.tab_attendees"), count: attendees.filter((a) => a.status !== "cancelled" && a.status !== "late_cancelled").length },
+    { key: "waitlist", label: tr("booking.session.tab_waitlist"), ...(block ? { count: block.waiting } : {}) },
+    { key: "holds", label: tr("booking.session.tab_holds"), count: holds.reduce((n, h) => n + h.quantity, 0) },
+    ...(isEvent ? [{ key: "details" as const, label: session.eventCategory === "webinar" ? tr("booking.event.webinar_details") : tr("booking.event.details") }] : []),
+    ...(showLead ? [{ key: "lead" as const, label: tr("booking.session.tab_lead") }] : []),
+    ...(showTickets ? [{ key: "tickets" as const, label: tr("booking.session.tab_ticket_types") }] : []),
+  ];
+  const wanted = (await searchParams).tab;
+  const tab: Tab = tabs.find((t) => t.key === wanted)?.key ?? "attendees";
+  const tabHref = (t: Tab) => (t === "attendees" ? `/admin/sessions/${id}` : `/admin/sessions/${id}?tab=${t}`) as Route;
 
   return (
-    <div className="grid gap-8">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="grid gap-1">
-          <h1 className="text-2xl font-semibold">{show(session.title, locale)}</h1>
-          <p className="text-muted-foreground">
-            {formatDate(session.startsAt, locale, "full")} · {brusselsTime(session.startsAt)}–{brusselsTime(session.endsAt)}
-            {session.location ? ` · ${session.location}` : ""}
-          </p>
-          <span className="flex flex-wrap gap-2">
-            <Badge variant="outline">{session.eventCategory ? tr(`booking.eventCategory.${session.eventCategory}`) : tr(`booking.kind.${session.kind}`)}</Badge>
-            <Badge variant={cancelled ? "destructive" : "outline"}>{tr(`booking.sessionStatus.${session.status}`)}</Badge>
-            {session.publishedAt ? null : <Badge variant="secondary">{tr("booking.session.draft")}</Badge>}
-            {session.isMemberOnly ? <Badge variant="secondary">{tr("booking.session.member_only")}</Badge> : null}
+    <div className="grid gap-5">
+      <PageHeader
+        title={show(session.title, locale)}
+        description={
+          <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="inline-block first-letter:uppercase">
+              {formatDate(session.startsAt, locale, "full")} · {brusselsTime(session.startsAt)}–{brusselsTime(session.endsAt)}
+              {session.location ? ` · ${session.location}` : ""}
+            </span>
+            <span>· {session.eventCategory ? tr(`booking.eventCategory.${session.eventCategory}`) : tr(`booking.kind.${session.kind}`)}</span>
+            <StatusPill tone={state.tone}>{state.label}</StatusPill>
+            {session.isMemberOnly ? <StatusPill tone="info">{tr("booking.session.member_only")}</StatusPill> : null}
           </span>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Link href={`/admin/sessions/day/${brusselsDate(session.startsAt)}` as Route} className={buttonVariants({ variant: "outline", size: "sm" })}>
-            {tr("booking.calendar.title")}
-          </Link>
-          {canWrite && !cancelled ? (
-            <Link href={`/admin/bookings/new?sessionId=${id}` as Route} className={buttonVariants({ size: "sm" })}>
-              {tr("booking.session.manual_booking")}
-            </Link>
-          ) : null}
-          {canOverride && !cancelled ? (
-            <CancelSessionDialog
-              sessionId={id}
-              labels={{
-                ...changeDialogLabels(tr, tr("booking.session.cancel_session"), tr("booking.session.cancel_session_reason")),
-                notify: tr("booking.session.cancel_session_notify"),
-                warning: tr("booking.session.cancel_session_confirm"),
-              }}
-            />
-          ) : null}
-          {canWrite ? (
-            <Link href={"/admin/bookings/checkin"} className={buttonVariants({ variant: "outline", size: "sm" })}>
-              {tr("booking.day.checkin_desk")}
-            </Link>
-          ) : null}
-          {isEvent ? (
-            <a href={`/admin/sessions/${id}/registrations.csv`} className={buttonVariants({ variant: "outline", size: "sm" })} data-testid="registrations-csv">
-              {tr("booking.event.export_csv")}
-            </a>
-          ) : null}
-        </div>
-      </div>
+        }
+        actions={
+          <>
+            {isEvent ? (
+              <a href={`/admin/sessions/${id}/registrations.csv`} className={secondary} data-testid="registrations-csv">
+                {tr("booking.event.export_csv")}
+              </a>
+            ) : null}
+            {canWrite && !cancelled ? <PrimaryAction href={`/admin/bookings/new?sessionId=${id}` as Route}>+ {tr("booking.session.manual_booking")}</PrimaryAction> : null}
+          </>
+        }
+      />
 
       {cancelled && session.cancelledAt ? (
-        <p role="status" className="rounded-md border border-destructive p-3 text-sm">
+        <p role="status" className="rounded-lg bg-[var(--status-bad-soft)] px-3 py-2 text-[0.8125rem] font-medium text-[var(--status-bad)]">
           {tr("booking.session.cancelled_info", { date: formatDateTime(session.cancelledAt, locale), reason: session.cancelReason ?? "" })}
         </p>
       ) : null}
 
       {block ? (
-        <dl className="grid grid-cols-2 gap-4 rounded-md border p-4 sm:grid-cols-5">
-          {stat(tr("booking.session.capacity"), block.capacity)}
-          {stat(tr("booking.session.held"), block.held)}
-          {stat(tr("booking.session.booked"), block.booked)}
-          {stat(tr("booking.session.live_offers"), block.liveOffers)}
-          {stat(tr("booking.session.waiting"), block.waiting)}
-        </dl>
+        <KpiStrip
+          items={[
+            { key: "capacity", label: tr("booking.session.capacity"), value: block.capacity },
+            { key: "booked", label: tr("booking.session.booked"), value: block.booked },
+            { key: "held", label: tr("booking.session.held"), value: block.held },
+            { key: "free", label: tr("booking.list.col_free"), value: Math.max(0, block.availableTotal), ...(block.availableTotal <= 0 && !cancelled ? { tone: "text-[var(--status-bad)]" } : {}) },
+            {
+              key: "waiting",
+              label: tr("booking.session.waiting"),
+              value: block.waiting,
+              ...(block.liveOffers ? { sub: `${tr("booking.session.live_offers")}: ${block.liveOffers}` } : {}),
+              ...(block.waiting ? { tone: "text-[var(--status-warn)]" } : {}),
+            },
+          ]}
+        />
       ) : null}
 
-      {isEvent ? (
-        <section aria-labelledby="event-details" className="grid gap-3" data-testid="event-details">
-          <h2 id="event-details" className="text-xl font-semibold">
-            {session.eventCategory === "webinar" ? tr("booking.event.webinar_details") : tr("booking.event.details")}
-          </h2>
+      <Segmented label={tr("booking.session.title")} items={tabs.map((t) => ({ key: t.key, label: t.label, href: tabHref(t.key), active: t.key === tab, ...(t.count !== undefined ? { count: t.count } : {}) }))} />
+
+      {tab === "attendees" ? (
+        <section aria-label={tr("booking.session.tab_attendees")}>
+          <AttendeeList rows={rows} labels={attendeeListLabels(tr, soft)} canWrite={canWrite && !cancelled} canOverride={canOverride} />
+        </section>
+      ) : null}
+
+      {tab === "waitlist" ? (
+        <section aria-label={tr("booking.session.tab_waitlist")}>
+          <SessionWaitlistTab sessionId={id} />
+        </section>
+      ) : null}
+
+      {tab === "holds" ? (
+        <Surface flush aria-label={tr("booking.session.tab_holds")} data-testid="session-holds">
+          <p className="border-b border-border px-5 py-2.5 text-[0.75rem] text-muted-foreground">{tr("booking.holds.intro")}</p>
+          {holds.length === 0 ? (
+            <p className="px-5 py-5 text-center text-[0.8125rem] text-muted-foreground">{tr("booking.holds.empty")}</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[40rem] text-[0.8125rem]">
+                <thead className="bg-[#faf9f6]">
+                  <tr className="border-b border-border">
+                    <th scope="col" className={cn(th, "w-36")}>{tr("booking.holds.kind")}</th>
+                    <th scope="col" className={cn(th, "w-36 text-right")}>
+                      {tr("booking.holds.used")} / {tr("booking.holds.quantity")}
+                    </th>
+                    <th scope="col" className={cn(th, "w-48")}>{tr("booking.holds.company")}</th>
+                    <th scope="col" className={th}>{tr("booking.holds.note")}</th>
+                    <th scope="col" className={cn(th, "w-28")}>
+                      <span className="sr-only">{tr("booking.common.delete")}</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {holds.map((h) => (
+                    <tr key={h.id} className="border-b border-border last:border-b-0 hover:bg-[#faf9f6]">
+                      <td className={td}>
+                        <StatusPill tone={HOLD_TONE[h.kind]}>{tr(`booking.holdKind.${h.kind}`)}</StatusPill>
+                      </td>
+                      <td className={cn(td, "text-right font-semibold tabular-nums")}>
+                        {h.used}
+                        <span className="font-normal text-muted-foreground">/{h.quantity}</span>
+                      </td>
+                      <td className={td}>{h.companyName ?? <span className="text-muted-foreground">–</span>}</td>
+                      <td className={cn(td, "text-muted-foreground")}>{h.note ?? "–"}</td>
+                      <td className={cn(td, "text-right")}>{canWrite && !cancelled ? <DeleteHoldButton id={h.id} label={tr("booking.common.delete")} errors={errors} /> : null}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {canWrite && !cancelled && session.endsAt.getTime() > now.getTime() ? (
+            <div className="grid gap-2 border-t border-border bg-[#faf9f6] px-5 py-3">
+              <h2 className="text-[0.8125rem] font-semibold">{tr("booking.holds.add")}</h2>
+              <HoldForm
+                inline
+                initial={{ sessionId: id, kind: "staff", quantity: 1, companyId: "", note: "" }}
+                sessions={[{ id, label: `${formatDate(session.startsAt, locale)} ${brusselsTime(session.startsAt)} · ${show(session.title, locale)}` }]}
+                companies={[]}
+                labels={{
+                  session: tr("booking.holds.session"),
+                  kind: tr("booking.holds.kind"),
+                  kinds: Object.fromEntries(HOLD_KINDS.map((k) => [k, tr(`booking.holdKind.${k}`)])) as Record<(typeof HOLD_KINDS)[number], string>,
+                  quantity: tr("booking.holds.quantity"),
+                  company: tr("booking.holds.company"),
+                  none: "—",
+                  note: tr("booking.holds.note"),
+                  noteHint: tr("booking.common.no_health_notes"),
+                  save: tr("booking.common.save"),
+                  saving: tr("booking.common.saving"),
+                  saved: tr("booking.common.saved"),
+                  errors: { ...errors, capacity_below_bookings: tr("booking.holds.below_bookings") },
+                }}
+              />
+            </div>
+          ) : null}
+        </Surface>
+      ) : null}
+
+      {tab === "details" && isEvent ? (
+        <Surface className="grid gap-4" aria-label={session.eventCategory === "webinar" ? tr("booking.event.webinar_details") : tr("booking.event.details")} data-testid="event-details">
           {session.webinarGeekUrl ? (
             <p className="text-sm">
               {tr("booking.event.webinargeek_link")}:{" "}
@@ -232,64 +341,14 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
               />
             </>
           ) : null}
-        </section>
+        </Surface>
       ) : null}
 
-      <section aria-labelledby="attendees" className="grid gap-3">
-        <h2 id="attendees" className="text-xl font-semibold">
-          {tr("booking.session.tab_attendees")}
-        </h2>
-        <AttendeeList rows={rows} labels={attendeeListLabels(tr, soft)} canWrite={canWrite && !cancelled} canOverride={canOverride} />
-      </section>
-
-      <section aria-labelledby="holds" className="grid gap-3">
-        <h2 id="holds" className="text-xl font-semibold">
-          {tr("booking.session.tab_holds")}
-        </h2>
-        {holds.length === 0 ? <p className="text-sm text-muted-foreground">{tr("booking.holds.empty")}</p> : null}
-        <ul className="grid gap-2">
-          {holds.map((h) => (
-            <li key={h.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm">
-              <span>
-                <Badge variant="outline">{tr(`booking.holdKind.${h.kind}`)}</Badge> {h.used}/{h.quantity}
-                {h.companyName ? ` · ${h.companyName}` : ""}
-                {h.note ? ` · ${h.note}` : ""}
-              </span>
-              {canWrite && !cancelled ? <DeleteHoldButton id={h.id} label={tr("booking.common.delete")} errors={errors} /> : null}
-            </li>
-          ))}
-        </ul>
-        {canWrite && !cancelled && session.endsAt.getTime() > now.getTime() ? (
-          <HoldForm
-            initial={{ sessionId: id, kind: "staff", quantity: 1, companyId: "", note: "" }}
-            sessions={[{ id, label: `${formatDate(session.startsAt, locale)} ${brusselsTime(session.startsAt)} · ${show(session.title, locale)}` }]}
-            companies={[]}
-            labels={{
-              session: tr("booking.holds.session"),
-              kind: tr("booking.holds.kind"),
-              kinds: Object.fromEntries(HOLD_KINDS.map((k) => [k, tr(`booking.holdKind.${k}`)])) as Record<(typeof HOLD_KINDS)[number], string>,
-              quantity: tr("booking.holds.quantity"),
-              company: tr("booking.holds.company"),
-              none: "—",
-              note: tr("booking.holds.note"),
-              noteHint: tr("booking.common.no_health_notes"),
-              save: tr("booking.common.save"),
-              saving: tr("booking.common.save"),
-              saved: tr("booking.common.save"),
-              errors: { ...errors, capacity_below_bookings: tr("booking.holds.below_bookings") },
-            }}
-          />
-        ) : null}
-      </section>
-
-      {session.kind === "event" && (leadOn || session.isLeadMagnet) ? (
-        <section aria-labelledby="lead" className="grid gap-3" data-testid="lead-tab">
-          <h2 id="lead" className="text-xl font-semibold">
-            {tr("booking.session.tab_lead")}
-          </h2>
+      {tab === "lead" && showLead ? (
+        <Surface className="grid gap-3" aria-label={tr("booking.session.tab_lead")} data-testid="lead-tab">
           <p className="text-sm text-muted-foreground">{tr("booking.lead.intro")}</p>
           {session.isLeadMagnet ? (
-            <dl className="grid gap-1 rounded-md border p-3 text-sm" data-testid="lead-status">
+            <dl className="grid gap-1 rounded-lg bg-muted px-3 py-2 text-sm" data-testid="lead-status">
               <dt className="sr-only">{tr("booking.session.lead_phase")}</dt>
               <dd>{tr("booking.lead.phase", { phase: tr(`booking.leadPhase.${availability.leadPhase}`) })}</dd>
               <dd>{tr("booking.lead.reserved_remaining", { count: availability.leadReservedRemaining })}</dd>
@@ -340,20 +399,17 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
               }}
             />
           ) : null}
-        </section>
+        </Surface>
       ) : null}
 
-      {isEvent && (ticketsOn || ticketTypes.length > 0) ? (
-        <section aria-labelledby="tickets" className="grid gap-3" data-testid="tickets-tab">
-          <h2 id="tickets" className="text-xl font-semibold">
-            {tr("booking.session.tab_ticket_types")}
-          </h2>
+      {tab === "tickets" && showTickets ? (
+        <Surface className="grid gap-3" aria-label={tr("booking.session.tab_ticket_types")} data-testid="tickets-tab">
           <p className="text-sm text-muted-foreground">{tr("booking.tickets.intro")}</p>
           {ticketTypes.length === 0 ? <p className="text-sm text-muted-foreground">{tr("booking.tickets.empty")}</p> : null}
           {!ticketsOn || !canOverride || cancelled ? (
             <ul className="grid gap-2" data-testid="ticket-types-list">
               {ticketTypes.map((t) => (
-                <li key={t.id} className="flex flex-wrap items-center gap-2 rounded-md border px-3 py-2 text-sm">
+                <li key={t.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm">
                   <span className="font-medium">{show(t.name, locale)}</span>
                   <span>{tr("booking.tickets.sold", { count: t.sold })}</span>
                   {t.capacity !== null ? <span>{tr("booking.tickets.capacity_of", { count: t.capacity })}</span> : null}
@@ -418,15 +474,22 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
               }}
             />
           ) : null}
-        </section>
+        </Surface>
       ) : null}
 
-      <section aria-labelledby="waitlist" className="grid gap-3">
-        <h2 id="waitlist" className="text-xl font-semibold">
-          {tr("booking.session.tab_waitlist")}
-        </h2>
-        <SessionWaitlistTab sessionId={id} />
-      </section>
+      {canOverride && !cancelled ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
+          <p className="text-[0.8125rem] text-muted-foreground">{tr("booking.session.cancel_session_hint")}</p>
+          <CancelSessionDialog
+            sessionId={id}
+            labels={{
+              ...changeDialogLabels(tr, tr("booking.session.cancel_session"), tr("booking.session.cancel_session_reason")),
+              notify: tr("booking.session.cancel_session_notify"),
+              warning: tr("booking.session.cancel_session_confirm"),
+            }}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }

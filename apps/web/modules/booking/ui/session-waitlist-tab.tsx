@@ -26,11 +26,13 @@ const ERRORS = ["session_full", "already_waiting", "already_booked", "protected_
 export function waitlistTableLabels(tr: Tr): WaitlistTableLabels {
   return {
     person: tr("booking.bookings.person"),
-    queue: tr("booking.session.waiting"),
+    queue: tr("booking.waitlist.col_queue"),
+    status: tr("booking.list.col_status"),
     joinedAt: tr("booking.waitlist.joined_at"),
     offerExpires: tr("booking.waitlist.offer_expires"),
     signals: tr("booking.waitlist.signals"),
     offerSeat: tr("booking.waitlist.offer_seat"),
+    more: tr("booking.waitlist.more_actions"),
     moveQueue: tr("booking.waitlist.move_queue"),
     reorder: tr("booking.waitlist.reorder"),
     release: tr("booking.waitlist.release"),
@@ -60,6 +62,7 @@ export function toTableRows(rows: StaffWaitlistRow[], locale: Locale): WaitlistT
     dateLabel: formatDate(r.startsAt, locale, "full"),
     timeLabel: brusselsTime(r.startsAt),
     productType: r.productType,
+    personId: r.personId,
     personName: r.personName,
     hasEmail: r.hasEmail,
     queue: r.queue,
@@ -76,7 +79,7 @@ export async function SessionWaitlistTab(props: { sessionId: string }) {
   const actor = await requireStaff({ permission: "bookings.read" });
   const locale = await adminLocale();
   const tr = translator(locale);
-  if (!hasPermission(actor, "waitlist.manage")) return <p className="text-sm text-muted-foreground">{tr("booking.waitlist.empty")}</p>;
+  if (!hasPermission(actor, "waitlist.manage")) return <p className="rounded-xl border border-border bg-card px-5 py-6 text-center text-[0.8125rem] text-muted-foreground">{tr("booking.waitlist.empty")}</p>;
   const { rows } = await listWaitlistRows(await getAppDb(), { sessionId: props.sessionId });
   return <WaitlistTable rows={toTableRows(rows, locale)} labels={waitlistTableLabels(tr)} showSession={false} />;
 }

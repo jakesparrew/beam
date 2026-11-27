@@ -289,9 +289,11 @@ export type CheckinDaySession = {
   arrived: number;
   /** Live rows not checked in yet, with their health declaration state. */
   notArrived: CheckinRow[];
+  /** Rows already checked in, in order of arrival (`attendedAt`). */
+  checkedIn: CheckinRow[];
 };
 
-/** The desk's day: every non-cancelled session of `onDate` with the attendees not yet arrived (R35, R62b). */
+/** The desk's day: every non-cancelled session of `onDate` with the attendees not yet arrived and those checked in (R35, R62b). */
 export async function getCheckinDay(db: DbOrTx, input: { onDate: string }): Promise<CheckinDaySession[]> {
   await requirePermission("bookings.read");
   const list = await db
@@ -301,28 +303,28 @@ export async function getCheckinDay(db: DbOrTx, input: { onDate: string }): Prom
     .orderBy(asc(sessions.startsAt), asc(sessions.id));
   if (list.length === 0) return [];
   const ids = list.map((s) => s.id);
-  const counts = await db
-    .select({ sessionId: bookings.sessionId, arrived: sql<number>`count(*)::int` })
-    .from(bookings)
-    .where(and(inArray(bookings.sessionId, ids), eq(bookings.status, "attended")))
-    .groupBy(bookings.sessionId);
-  const arrived = new Map(counts.map((c) => [c.sessionId, Number(c.arrived)]));
-  const waiting = await enrich(
+  const rows = await enrich(
     db,
     await rowSelect(db)
-      .where(and(inArray(bookings.sessionId, ids), inArray(bookings.status, ["reserved", "confirmed"])))
+      .where(and(inArray(bookings.sessionId, ids), inArray(bookings.status, ["reserved", "confirmed", "attended"])))
       .orderBy(asc(persons.lastName), asc(persons.firstName), asc(bookings.id)),
   );
-  return list.map((s) => ({
-    sessionId: s.id,
-    title: s.title,
-    kind: s.kind,
-    startsAt: s.startsAt,
-    endsAt: s.endsAt,
-    status: s.status,
-    arrived: arrived.get(s.id) ?? 0,
-    notArrived: waiting.filter((r) => r.sessionId === s.id),
-  }));
+  const arrivedAt = (r: CheckinRow) => r.attendedAt?.getTime() ?? 0;
+  return list.map((s) => {
+    const mine = rows.filter((r) => r.sessionId === s.id);
+    const checkedIn = mine.filter((r) => r.status === "attended").sort((a, b) => arrivedAt(a) - arrivedAt(b));
+    return {
+      sessionId: s.id,
+      title: s.title,
+      kind: s.kind,
+      startsAt: s.startsAt,
+      endsAt: s.endsAt,
+      status: s.status,
+      arrived: checkedIn.length,
+      notArrived: mine.filter((r) => r.status !== "attended"),
+      checkedIn,
+    };
+  });
 }
 
 export type ManualBookingSession = {
@@ -400,7 +402,7 @@ export async function listManualBookingSessions(db: DbOrTx, input: { from: Date;
 // Session detail and booking detail (booking spec 5.1)
 // ---------------------------------------------------------------------------
 
-export type AttendanceFlags = { canCheckIn: boolean; canUndo: boolean; canMarkNoShow: boolean; canRevertNoShow: boolean; inWindow: boolean };
+export type AttendanceFlags = { canCheckIn: boolean; canUndo: boolean; canMarkNoShow: boolean; canRevertNoShow: boolean; inWindow: boolean; opensAt: Date };
 
 /** Which attendance buttons a row shows at `now` (R35-R37); the actions check the same rules. */
 export function attendanceFlags(row: { status: BookingStatus; startsAt: Date; endsAt: Date }, rules: BookingRules, now: Date): AttendanceFlags {
@@ -409,6 +411,7 @@ export function attendanceFlags(row: { status: BookingStatus; startsAt: Date; en
   const inWindow = t >= opensAt.getTime() && t <= closesAt.getTime();
   return {
     inWindow,
+    opensAt,
     canCheckIn: row.status === "confirmed" && inWindow,
     canUndo: row.status === "attended" && t <= closesAt.getTime(),
     canMarkNoShow: row.status === "confirmed" && t >= row.startsAt.getTime(),
@@ -589,6 +592,7 @@ export function attendeeRow(
   return {
     bookingId: a.bookingId,
     version: a.version,
+    personId: a.personId,
     name: a.name || "—",
     guestOf: a.guestOfName,
     paidWith: ctx.tr(`booking.paidWith.${a.paidWith}`),

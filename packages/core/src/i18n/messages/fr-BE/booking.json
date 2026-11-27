@@ -286,7 +286,8 @@
       "warning_location_overlap": "Une autre séance utilise cette salle au même moment.",
       "warning_outside_business_hours": "Cet horaire est en dehors des heures d’ouverture.",
       "empty": "Pas encore de réservations.",
-      "revert_no_show": "Annuler l’absence"
+      "revert_no_show": "Annuler l’absence",
+      "cancel_session_hint": "Annuler une séance rembourse chaque réservation et libère les places."
     },
     "templates": {
       "title": "Planning",
@@ -412,7 +413,8 @@
       "unassign": "Retirer",
       "assigned": "Le nom a été ajouté à la place bloquée.",
       "unassigned": "Le nom a été retiré et la place est de nouveau libre.",
-      "not_found": "Cette place bloquée est introuvable ou ne vous appartient pas."
+      "not_found": "Cette place bloquée est introuvable ou ne vous appartient pas.",
+      "intro": "Places gardées pour le personnel, des partenaires, des hôtes ou des intervenants, ou bloquées. Ce ne sont pas des réservations."
     },
     "bookings": {
       "title": "Réservations",
@@ -439,7 +441,20 @@
       "force_refund": "Annuler et rembourser",
       "force_reason": "Motif (obligatoire)",
       "empty": "Aucune réservation pour ces filtres.",
-      "include_guests": "Annuler aussi les invités"
+      "include_guests": "Annuler aussi les invités",
+      "subtitle": "Toutes les réservations, les plus récentes d’abord. Cherchez un nom ou filtrez par statut, paiement et date.",
+      "status_all": "Toutes",
+      "status_short": {
+        "confirmed": "Confirmées",
+        "reserved": "À payer",
+        "attended": "Présents",
+        "no_show": "Absents",
+        "cancelled": "Annulées",
+        "late_cancelled": "Annulées tard"
+      },
+      "pick_person": "Choisissez une personne :",
+      "pay_at_desk_short": "Paiement à l’accueil",
+      "over_capacity_short": "Hors capacité"
     },
     "manual": {
       "title": "Nouvelle réservation",
@@ -499,7 +514,17 @@
       "cue_member": "Membre",
       "cue_package": "Paie avec un forfait",
       "cue_child": "Enfant",
-      "cue_guest": "Invité"
+      "cue_guest": "Invité",
+      "col_guest": "Client",
+      "col_booked": "Réservation",
+      "col_payment": "Paiement",
+      "col_attention": "Attention",
+      "col_action": "Action",
+      "checked_in": "Arrivés",
+      "opens_at": "Dès {time}",
+      "window_closed": "Enregistrement fermé",
+      "results_for": "Résultats pour « {q} »",
+      "guest_of_name": "Invité de {name}"
     },
     "waitlist": {
       "title": "Listes d’attente",
@@ -520,7 +545,10 @@
       "type_night": "Séances de nuit",
       "type_event": "Événements",
       "type_webinar": "Webinaires",
-      "waiting_count": "En attente : {count}"
+      "waiting_count": "En attente : {count}",
+      "subtitle": "Qui attend une place dans les prochaines séances, par jour et par séance. Proposez une place dès qu’elle se libère.",
+      "col_queue": "File",
+      "more_actions": "Plus d’actions"
     },
     "portalBook": {
       "title": "Réserver une séance",

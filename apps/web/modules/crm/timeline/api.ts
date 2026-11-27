@@ -52,6 +52,7 @@ export const TIMELINE_PREFIX_CATEGORY: Readonly<Record<string, TimelineCategory>
   interaction: "service",
   task: "service",
   inbox: "service",
+  assistant: "service",
   consent: "consent",
   suppression: "consent",
   privacy: "consent",

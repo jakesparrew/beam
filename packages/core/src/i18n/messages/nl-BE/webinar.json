@@ -108,7 +108,10 @@
         "created": "Concept aangemaakt.",
         "locale_missing": "Ontbreekt",
         "locale_complete": "Volledig",
-        "none": "—"
+        "none": "—",
+        "step_basics": "Pagina, eigenaar en talen",
+        "step_content": "Titel en beschrijving",
+        "step_planning": "Datum en duur"
       },
       "detail": {
         "back": "Alle webinars",

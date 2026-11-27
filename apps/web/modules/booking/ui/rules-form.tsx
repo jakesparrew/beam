@@ -36,7 +36,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 
 function Toggle({ name, label, defaultChecked }: { name: string; label: string; defaultChecked: boolean }) {
   return (
-    <Label className="flex min-h-11 items-center gap-2 sm:col-span-3">
+    <Label className="flex min-h-9 items-center gap-2 sm:col-span-3">
       <Checkbox name={name} defaultChecked={defaultChecked} />
       {label}
     </Label>
@@ -152,7 +152,7 @@ export function RulesForm({ value, version, save, labels }: { value: BookingRule
       <Section title={labels.sectionPayAtDesk}>
         <Toggle name="pad_enabled" label={labels.payAtDeskEnabled} defaultChecked={v.pay_at_desk.enabled} />
         {KINDS.map((k) => (
-          <Label key={k} className="flex min-h-11 items-center gap-2">
+          <Label key={k} className="flex min-h-9 items-center gap-2">
             <Checkbox name={`pad_${k}`} defaultChecked={v.pay_at_desk.kinds.includes(k)} />
             {labels[k]}
           </Label>

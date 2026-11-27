@@ -9,7 +9,7 @@ import type { Route } from "next";
 import type { UrlObject } from "node:url";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { cn } from "@beam/ui";
+import { cn, type StepFormLabels } from "@beam/ui";
 
 type Href = Route | UrlObject;
 
@@ -124,6 +124,22 @@ export function OccupancyBar({ taken, capacity, full }: { taken: number; capacit
       </span>
     </span>
   );
+}
+
+/** The labels of `StepForm` (`@beam/ui`), the Typeform-style long forms, from `platform.step_form`. */
+export function stepFormLabels(tr: (key: string, params?: Record<string, string | number>) => string): StepFormLabels {
+  const t = (k: string) => tr(`platform.step_form.${k}`);
+  return {
+    next: t("next"),
+    previous: t("previous"),
+    progress: tr("platform.step_form.progress", { current: "{current}", total: "{total}" }),
+    review: t("review"),
+    reviewIntro: t("review_intro"),
+    edit: t("edit"),
+    enterHint: t("enter_hint"),
+    yes: t("yes"),
+    no: t("no"),
+  };
 }
 
 /** Column header cell and body cell classes for hairline data tables. */

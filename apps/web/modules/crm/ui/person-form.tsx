@@ -3,11 +3,12 @@
  * The identity form of `/admin/persons/new` and `/admin/persons/[id]/edit` (crm spec 5.1). Create
  * shows the duplicate panel when candidates score 50 or more ("Open existing", "Create anyway");
  * edit sends the row `version` and answers a stale version with "Changed by someone else, reload".
+ * Create goes one section per screen (`StepForm`, with `steps`); edit shows every section.
  */
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
-import { Alert, AlertDescription, Badge, Button, Card, CardContent, CardHeader, CardTitle, FormField, Input } from "@beam/ui";
+import { Alert, AlertDescription, Badge, Button, Card, CardContent, CardHeader, CardTitle, FormField, Input, StepForm, type StepFormLabels } from "@beam/ui";
 import { createPerson, updatePerson } from "../actions";
 
 export type PersonFormValues = {
@@ -33,6 +34,9 @@ export type PersonFormValues = {
 };
 
 export type PersonFormLabels = {
+  sectionPerson: string;
+  sectionPreferences: string;
+  sectionAcquisition: string;
   firstName: string;
   lastName: string;
   email: string;
@@ -107,6 +111,7 @@ export function PersonForm({
   locales,
   channels,
   sources,
+  steps,
 }: {
   mode: "create" | "edit";
   personId?: string;
@@ -116,6 +121,8 @@ export function PersonForm({
   locales: Option[];
   channels: Option[];
   sources: Option[];
+  /** StepForm's labels: a new person is created one step per screen. */
+  steps?: StepFormLabels;
 }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
@@ -227,8 +234,26 @@ export function PersonForm({
 
   const fieldError = (name: string) => (error?.field === name ? error.text : null);
 
+  // A new person goes one step per screen (`steps`); edit shows every section at once.
+  const section = mode === "create" && steps ? { "data-step": "" } : { "data-section": "" };
+
   return (
-    <form onSubmit={(e) => void onSubmit(e)} className="grid max-w-3xl gap-6" noValidate>
+    <StepForm
+      onSubmit={(e) => void onSubmit(e)}
+      className="max-w-2xl"
+      noValidate
+      labels={mode === "create" ? steps : undefined}
+      footer={
+        <>
+          <Button type="submit" disabled={pending}>
+            {pending ? labels.saving : labels.save}
+          </Button>
+          <Button type="button" variant="outline" onClick={() => router.back()}>
+            {labels.cancel}
+          </Button>
+        </>
+      }
+    >
       {error && !error.field ? (
         <Alert variant="destructive" role="alert">
           <AlertDescription>
@@ -242,7 +267,8 @@ export function PersonForm({
         </Alert>
       ) : null}
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <fieldset {...section} className="grid gap-4 sm:grid-cols-2">
+        <legend>{labels.sectionPerson}</legend>
         <FormField label={labels.firstName}>
           <Input name="firstName" defaultValue={initial.firstName} maxLength={100} autoComplete="off" />
         </FormField>
@@ -255,6 +281,22 @@ export function PersonForm({
         <FormField label={labels.phone}>
           <Input name="phone" type="tel" defaultValue={initial.phone} maxLength={40} autoComplete="off" />
         </FormField>
+        {mode === "edit" ? (
+          <FormField label={labels.linkedinUrl} className="sm:col-span-2">
+            <Input name="linkedinUrl" type="url" defaultValue={initial.linkedinUrl} maxLength={300} />
+          </FormField>
+        ) : null}
+        {error?.mergeWith ? (
+          <p className="text-[0.8125rem] sm:col-span-2">
+            <Link className="underline" href={`/admin/persons/${personId}/merge?with=${error.mergeWith}` as never}>
+              {labels.openMerge}
+            </Link>
+          </p>
+        ) : null}
+      </fieldset>
+
+      <fieldset {...section} className="grid gap-4 sm:grid-cols-2">
+        <legend>{labels.sectionPreferences}</legend>
         <FormField label={labels.locale} required>
           <Select name="locale" defaultValue={initial.locale} options={locales} />
         </FormField>
@@ -264,66 +306,53 @@ export function PersonForm({
         <FormField label={labels.birthOn}>
           <Input name="birthOn" type="date" defaultValue={initial.birthOn} />
         </FormField>
-      </div>
-      {error?.mergeWith ? (
-        <p>
-          <Link href={`/admin/persons/${personId}/merge?with=${error.mergeWith}` as never}>{labels.openMerge}</Link>
-        </p>
-      ) : null}
+      </fieldset>
 
-      <fieldset className="grid gap-4">
-        <legend className="mb-2 text-sm font-medium">{labels.address}</legend>
-        <div className="grid gap-4 sm:grid-cols-6">
-          <FormField label={labels.street} className="sm:col-span-4">
-            <Input name="street" defaultValue={initial.street} maxLength={200} />
-          </FormField>
-          <FormField label={labels.number}>
-            <Input name="number" defaultValue={initial.number} maxLength={20} />
-          </FormField>
-          <FormField label={labels.box}>
-            <Input name="box" defaultValue={initial.box} maxLength={20} />
-          </FormField>
-          <FormField label={labels.postalCode} className="sm:col-span-2">
-            <Input name="postalCode" defaultValue={initial.postalCode} maxLength={20} />
-          </FormField>
-          <FormField label={labels.city} className="sm:col-span-3">
-            <Input name="city" defaultValue={initial.city} maxLength={100} />
-          </FormField>
-          <FormField label={labels.country}>
-            <Input name="country" defaultValue={initial.country || "BE"} maxLength={2} minLength={2} />
-          </FormField>
-        </div>
+      <fieldset {...section} className="grid gap-4 sm:grid-cols-6">
+        <legend>{labels.address}</legend>
+        <FormField label={labels.street} className="sm:col-span-4">
+          <Input name="street" defaultValue={initial.street} maxLength={200} />
+        </FormField>
+        <FormField label={labels.number}>
+          <Input name="number" defaultValue={initial.number} maxLength={20} />
+        </FormField>
+        <FormField label={labels.box}>
+          <Input name="box" defaultValue={initial.box} maxLength={20} />
+        </FormField>
+        <FormField label={labels.postalCode} className="sm:col-span-2">
+          <Input name="postalCode" defaultValue={initial.postalCode} maxLength={20} />
+        </FormField>
+        <FormField label={labels.city} className="sm:col-span-3">
+          <Input name="city" defaultValue={initial.city} maxLength={100} />
+        </FormField>
+        <FormField label={labels.country}>
+          <Input name="country" defaultValue={initial.country || "BE"} maxLength={2} minLength={2} />
+        </FormField>
       </fieldset>
 
       {mode === "create" ? (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <fieldset {...section} className="grid gap-4 sm:grid-cols-2">
+          <legend>{labels.sectionAcquisition}</legend>
           <FormField label={labels.acquisitionSource} required>
             <Select name="acquisitionSource" defaultValue={initial.acquisitionSource || "manual"} options={sources} />
           </FormField>
           <FormField label={labels.acquisitionCampaign}>
             <Input name="acquisitionCampaign" defaultValue={initial.acquisitionCampaign} maxLength={200} />
           </FormField>
-        </div>
+        </fieldset>
       ) : (
-        <>
-          <FormField label={labels.linkedinUrl}>
-            <Input name="linkedinUrl" type="url" defaultValue={initial.linkedinUrl} maxLength={300} />
+        <fieldset {...section} className="grid gap-4 sm:grid-cols-3">
+          <legend>{labels.emergencyContact}</legend>
+          <FormField label={labels.emergencyName}>
+            <Input name="emergencyName" defaultValue={initial.emergencyName} maxLength={100} />
           </FormField>
-          <fieldset className="grid gap-4">
-            <legend className="mb-2 text-sm font-medium">{labels.emergencyContact}</legend>
-            <div className="grid gap-4 sm:grid-cols-3">
-              <FormField label={labels.emergencyName}>
-                <Input name="emergencyName" defaultValue={initial.emergencyName} maxLength={100} />
-              </FormField>
-              <FormField label={labels.emergencyPhone}>
-                <Input name="emergencyPhone" type="tel" defaultValue={initial.emergencyPhone} maxLength={40} />
-              </FormField>
-              <FormField label={labels.emergencyRelation}>
-                <Input name="emergencyRelation" defaultValue={initial.emergencyRelation} maxLength={100} />
-              </FormField>
-            </div>
-          </fieldset>
-        </>
+          <FormField label={labels.emergencyPhone}>
+            <Input name="emergencyPhone" type="tel" defaultValue={initial.emergencyPhone} maxLength={40} />
+          </FormField>
+          <FormField label={labels.emergencyRelation}>
+            <Input name="emergencyRelation" defaultValue={initial.emergencyRelation} maxLength={100} />
+          </FormField>
+        </fieldset>
       )}
 
       {candidates?.length ? (
@@ -358,15 +387,6 @@ export function PersonForm({
           </CardContent>
         </Card>
       ) : null}
-
-      <div className="flex gap-2">
-        <Button type="submit" disabled={pending}>
-          {pending ? labels.saving : labels.save}
-        </Button>
-        <Button type="button" variant="outline" onClick={() => router.back()}>
-          {labels.cancel}
-        </Button>
-      </div>
-    </form>
+    </StepForm>
   );
 }

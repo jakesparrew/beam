@@ -5,6 +5,7 @@ import { eq, getAppDb } from "@/lib/ctx";
 import { adminLocale, translator } from "@/lib/i18n";
 import { creditsLabels } from "@/modules/credits/queries";
 import { NewGrantForm } from "@/modules/credits/ui/new-grant-form";
+import { PageHeader, stepFormLabels } from "@/modules/platform/ui/admin-kit";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -25,14 +26,11 @@ export default async function NewGrantPage({ searchParams }: { searchParams: Pro
   const labels = creditsLabels(locale, ["admin.common", "admin.new_grant", "admin.person_picker", "errors", "enum.kind", "enum.source", "enum.sharing_mode"]);
   return (
     <div className="grid gap-6">
-      <header className="grid gap-2">
-        <Link href="/admin/credits" className="text-sm text-muted-foreground hover:underline">
-          {tr("credits.admin.grant.back")}
-        </Link>
-        <h1 className="text-2xl font-semibold">{tr("credits.admin.new_grant.title")}</h1>
-        <p className="text-muted-foreground">{tr("credits.admin.new_grant.description")}</p>
-      </header>
-      <NewGrantForm labels={labels} person={person} />
+      <Link href="/admin/credits" className="w-fit text-[0.8125rem] text-muted-foreground hover:text-foreground">
+        ← {tr("credits.admin.grant.back")}
+      </Link>
+      <PageHeader title={tr("credits.admin.new_grant.title")} description={tr("credits.admin.new_grant.description")} />
+      <NewGrantForm labels={labels} person={person} steps={stepFormLabels(tr)} />
     </div>
   );
 }

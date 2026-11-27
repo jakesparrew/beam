@@ -2,6 +2,7 @@ import { ACQUISITION_SOURCES } from "@beam/core/crm";
 import { requireStaff } from "@/lib/auth";
 import { adminLocale, messageTemplate, translator } from "@/lib/i18n";
 import { PersonForm } from "@/modules/crm/ui/person-form";
+import { PageHeader, stepFormLabels } from "@/modules/platform/ui/admin-kit";
 import { channelOptions, localeOptions, personFormLabels, sourceOptions } from "@/modules/crm/ui/status-badge";
 
 /** `/admin/persons/new` (`persons.write`), crm spec 5.1: the duplicate panel appears at or above score 50. */
@@ -11,9 +12,10 @@ export default async function NewPersonPage() {
   const tr = translator(locale);
   return (
     <div className="grid gap-6">
-      <h1 className="text-2xl font-semibold">{tr("crm.persons.new.title")}</h1>
+      <PageHeader title={tr("crm.persons.new.title")} />
       <PersonForm
         mode="create"
+        steps={stepFormLabels(tr)}
         initial={{
           email: "",
           phone: "",

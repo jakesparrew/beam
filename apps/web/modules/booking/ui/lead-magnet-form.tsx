@@ -118,7 +118,7 @@ export function LeadMagnetForm({ initial, labels }: { initial: LeadMagnetFormVal
           <AlertDescription>{message.text}</AlertDescription>
         </Alert>
       ) : null}
-      <label className="flex min-h-11 items-center gap-3">
+      <label className="flex min-h-9 items-center gap-3">
         <input type="checkbox" name="isLeadMagnet" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} className="size-5" data-testid="lead-enabled" />
         <span className="font-medium">{labels.isLeadMagnet}</span>
       </label>
@@ -171,7 +171,7 @@ export function LeadMagnetForm({ initial, labels }: { initial: LeadMagnetFormVal
           <Input name="claimWindowMinutes" type="number" min={10} max={2880} defaultValue={initial.claimWindowMinutes} required />
         </FormField>
       </div>
-      <label className="flex min-h-11 items-center gap-3">
+      <label className="flex min-h-9 items-center gap-3">
         <input type="checkbox" name="isWaitlistPositionVisible" defaultChecked={initial.isWaitlistPositionVisible} className="size-5" />
         <span>{labels.positionVisible}</span>
       </label>

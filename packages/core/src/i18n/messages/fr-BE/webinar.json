@@ -108,7 +108,10 @@
         "created": "Brouillon créé.",
         "locale_missing": "Manquant",
         "locale_complete": "Complet",
-        "none": "—"
+        "none": "—",
+        "step_basics": "Page, responsable et langues",
+        "step_content": "Titre et description",
+        "step_planning": "Date et durée"
       },
       "detail": {
         "back": "Tous les webinaires",

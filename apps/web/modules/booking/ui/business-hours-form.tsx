@@ -79,7 +79,7 @@ export function BusinessHoursForm({ value, version, save, labels }: { value: Bus
           return (
             <li key={d} className="grid items-end gap-2 sm:grid-cols-[10rem_8rem_1fr_1fr]">
               <span className="font-medium">{labels.weekdayNames[d - 1]}</span>
-              <Label className="flex min-h-11 items-center gap-2">
+              <Label className="flex min-h-9 items-center gap-2">
                 <Checkbox checked={closed[d]} onCheckedChange={(on) => setClosed((c) => ({ ...c, [d]: on === true }))} />
                 {labels.closed}
               </Label>

@@ -974,6 +974,17 @@
       "saved": "Le rapport a été enregistré.",
       "send": "Envoyer le rapport",
       "sent": "Le rapport a été envoyé."
+    },
+    "step_form": {
+      "next": "Suivant",
+      "previous": "Précédent",
+      "progress": "Étape {current} sur {total}",
+      "review": "Récapitulatif",
+      "review_intro": "Vérifiez vos réponses, puis enregistrez.",
+      "edit": "Modifier",
+      "enter_hint": "ou appuyez sur Entrée ↵",
+      "yes": "Oui",
+      "no": "Non"
     }
   }
 }

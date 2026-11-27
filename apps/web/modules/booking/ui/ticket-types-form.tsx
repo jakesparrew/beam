@@ -186,11 +186,11 @@ function TicketTypeForm({
         </FormField>
       </div>
       <div className="flex flex-wrap gap-6">
-        <div className="flex min-h-11 items-center gap-2">
+        <div className="flex min-h-9 items-center gap-2">
           <Checkbox id={fid("member")} checked={memberOnly} onCheckedChange={(v) => setMemberOnly(v === true)} />
           <Label htmlFor={fid("member")}>{labels.memberOnly}</Label>
         </div>
-        <div className="flex min-h-11 items-center gap-2">
+        <div className="flex min-h-9 items-center gap-2">
           <Checkbox id={fid("guests")} checked={guestDetails} onCheckedChange={(v) => setGuestDetails(v === true)} />
           <Label htmlFor={fid("guests")}>{labels.requiresGuestDetails}</Label>
         </div>

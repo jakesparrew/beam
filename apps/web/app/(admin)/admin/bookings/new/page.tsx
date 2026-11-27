@@ -132,7 +132,7 @@ export default async function NewBookingPage({ searchParams }: { searchParams: P
         <input type="hidden" name="personId" value={person.id} />
         <div className="grid gap-1">
           <Label htmlFor="manual-date">{tr("booking.manual.day")}</Label>
-          <Input id="manual-date" type="date" name="date" defaultValue={date} className="h-10 w-48" />
+          <Input id="manual-date" type="date" name="date" defaultValue={date} className="w-48" />
         </div>
         <Link href={dayHref(addDays(date, -1))} className={buttonVariants({ variant: "outline", size: "lg" })}>
           {tr("booking.manual.previous_day")}

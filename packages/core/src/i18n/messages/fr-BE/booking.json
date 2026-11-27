@@ -287,7 +287,11 @@
       "warning_outside_business_hours": "Cet horaire est en dehors des heures d’ouverture.",
       "empty": "Pas encore de réservations.",
       "revert_no_show": "Annuler l’absence",
-      "cancel_session_hint": "Annuler une séance rembourse chaque réservation et libère les places."
+      "cancel_session_hint": "Annuler une séance rembourse chaque réservation et libère les places.",
+      "step_kind": "Type de séance",
+      "step_content": "Titre et description",
+      "step_planning": "Date et places",
+      "step_access": "Prix et accès"
     },
     "templates": {
       "title": "Planning",
@@ -316,7 +320,8 @@
       "regeneration_running": "Mise à jour des séances…",
       "regeneration_failed": "La mise à jour des séances a échoué. Relancez-la depuis la page des tâches.",
       "incomplete_name": "Complétez le nom dans les trois langues avant d’activer.",
-      "empty": "Pas encore de planning : ajoutez vos premières séances de jour."
+      "empty": "Pas encore de planning : ajoutez vos premières séances de jour.",
+      "step_schedule": "Jours et heures"
     },
     "exceptions": {
       "title": "Jours de fermeture et horaires spéciaux",

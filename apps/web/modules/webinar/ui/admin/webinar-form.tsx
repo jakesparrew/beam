@@ -10,7 +10,7 @@
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import { useState, type FormEvent, type ReactNode } from "react";
-import { Alert, AlertDescription, Button, Checkbox, FormField, Input, LocalizedInput, type LocalizedInputLabels, type LocalizedValue } from "@beam/ui";
+import { Alert, AlertDescription, Button, Checkbox, FormField, Input, LocalizedInput, StepForm, type LocalizedInputLabels, type LocalizedValue, type StepFormLabels } from "@beam/ui";
 import { createWebinar, updateWebinar } from "../../actions";
 
 type Locale = "nl-BE" | "fr-BE" | "en";
@@ -143,6 +143,10 @@ export type WebinarFormLabels = {
   questionsEnabled: string;
   meetUrl: string;
   meetHint: string;
+  /** Section titles; on a new webinar each section is one step. */
+  stepBasics: string;
+  stepContent: string;
+  stepPlanning: string;
   save: string;
   saveDraft: string;
   saving: string;
@@ -160,7 +164,18 @@ const str = (v: FormDataEntryValue | null): string => (typeof v === "string" ? v
 export const formText = (f: FormData, name: string): string => str(f.get(name));
 const intOrNull = (v: string): number | null => (v === "" ? null : Number.parseInt(v, 10));
 
-export function WebinarForm({ initial, owners, labels }: { initial: WebinarFormValues; owners: Array<{ id: string; label: string }>; labels: WebinarFormLabels }) {
+export function WebinarForm({
+  initial,
+  owners,
+  labels,
+  steps,
+}: {
+  initial: WebinarFormValues;
+  owners: Array<{ id: string; label: string }>;
+  labels: WebinarFormLabels;
+  /** StepForm's labels: a new webinar is created one step per screen. */
+  steps?: StepFormLabels;
+}) {
   const router = useRouter();
   const isNew = !initial.webinarId;
   const [mode, setMode] = useState<Mode>(initial.mode);
@@ -233,52 +248,86 @@ export function WebinarForm({ initial, owners, labels }: { initial: WebinarFormV
       {label}
     </label>
   );
+  // New webinars go one step per screen (`steps`); an existing one shows every section at once.
+  const section = isNew ? { "data-step": "" } : { "data-section": "" };
 
   return (
-    <form onSubmit={(e) => void onSubmit(e)} className="grid gap-5" noValidate>
+    <StepForm
+      onSubmit={(e) => void onSubmit(e)}
+      className="max-w-2xl"
+      noValidate
+      labels={isNew ? steps : undefined}
+      footer={
+        <Button type="submit" disabled={pending || locales.length === 0}>
+          {pending ? labels.saving : isNew ? labels.saveDraft : labels.save}
+        </Button>
+      }
+    >
       <Message message={message} />
       {isNew ? (
-        <fieldset className="grid gap-2">
-          <legend className="text-sm font-medium">{labels.mode}</legend>
+        <fieldset {...section} className="grid gap-3">
+          <legend>{labels.mode}</legend>
           {(["live", "simulive", "on_demand"] as const).map((m) => (
-            <label key={m} className="flex items-start gap-2 text-sm">
-              <input type="radio" name="mode" value={m} checked={mode === m} onChange={() => setMode(m)} className="mt-1" />
-              <span>
-                <span className="font-medium">{labels.modes[m]}</span>
-                <span className="block text-muted-foreground">{labels.modeHints[m]}</span>
-              </span>
-            </label>
+            <div key={m} className="flex items-start gap-2.5">
+              <input id={`mode-${m}`} type="radio" name="mode" value={m} checked={mode === m} onChange={() => setMode(m)} aria-describedby={`mode-${m}-hint`} className="mt-0.5" />
+              <div className="grid gap-0.5">
+                <label htmlFor={`mode-${m}`} className="font-medium">
+                  {labels.modes[m]}
+                </label>
+                <p id={`mode-${m}-hint`} className="text-xs text-muted-foreground">
+                  {labels.modeHints[m]}
+                </p>
+              </div>
+            </div>
           ))}
         </fieldset>
       ) : null}
-      <div className="grid gap-4 sm:grid-cols-2">
-        <FormField label={labels.slug} hint={labels.slugHint} required>
-          <Input name="slug" defaultValue={initial.slug} pattern="[a-z0-9]+(-[a-z0-9]+)*" maxLength={80} required readOnly={!isNew && initial.status !== "draft"} />
-        </FormField>
-        <FormField label={labels.owner} required>
-          <select name="ownerUserId" defaultValue={initial.ownerUserId} className={selectClass} required>
-            {owners.map((o) => (
-              <option key={o.id} value={o.id}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-        </FormField>
-      </div>
-      <fieldset className="grid gap-2">
-        <legend className="text-sm font-medium">{labels.locales}</legend>
-        <div className="flex flex-wrap gap-4">
-          {LOCALES.map((l) => (
-            <label key={l} className="flex items-center gap-2 text-sm">
-              <Checkbox checked={locales.includes(l)} onCheckedChange={(v) => toggleLocale(l, v === true)} aria-label={labels.localeNames[l]} />
-              <span lang={l}>{labels.localeNames[l]}</span>
-            </label>
-          ))}
+      <fieldset {...section} className="grid gap-4">
+        <legend>{labels.stepBasics}</legend>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <FormField label={labels.slug} hint={labels.slugHint} required>
+            <Input name="slug" defaultValue={initial.slug} pattern="[a-z0-9]+(-[a-z0-9]+)*" maxLength={80} required readOnly={!isNew && initial.status !== "draft"} />
+          </FormField>
+          <FormField label={labels.owner} required>
+            <select name="ownerUserId" defaultValue={initial.ownerUserId} className={selectClass} required>
+              {owners.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </FormField>
         </div>
+        <fieldset className="grid gap-2">
+          <legend className="mb-1.5 font-medium">{labels.locales}</legend>
+          <div className="flex flex-wrap gap-4">
+            {LOCALES.map((l) => (
+              <label key={l} className="flex items-center gap-2 text-sm">
+                <Checkbox checked={locales.includes(l)} onCheckedChange={(v) => toggleLocale(l, v === true)} aria-label={labels.localeNames[l]} />
+                <span lang={l}>{labels.localeNames[l]}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+        {!isNew ? (
+          <FormField label={labels.seriesKey} hint={labels.seriesHint}>
+            <Input name="seriesKey" defaultValue={initial.seriesKey} pattern="[a-z0-9-]{3,60}" maxLength={60} />
+          </FormField>
+        ) : null}
       </fieldset>
-      <LocalizedInput name="title" value={title} onChange={setTitle} locales={locales} labels={labels.title} />
-      <LocalizedInput name="description" value={description} onChange={setDescription} locales={locales} labels={labels.description} multiline />
-      <div className="grid gap-4 sm:grid-cols-3">
+      <fieldset {...section} className="grid gap-4">
+        <legend>{labels.stepContent}</legend>
+        <LocalizedInput name="title" value={title} onChange={setTitle} locales={locales} labels={labels.title} />
+        <LocalizedInput name="description" value={description} onChange={setDescription} locales={locales} labels={labels.description} multiline />
+      </fieldset>
+      <fieldset {...section} className="grid gap-4 sm:grid-cols-2">
+        <legend>{labels.stepPlanning}</legend>
+        <FormField label={labels.startsAt} hint={mode === "on_demand" ? labels.startsAtHint : undefined}>
+          <Input name="startsAt" type="datetime-local" defaultValue={initial.startsAt} disabled={mode === "on_demand"} />
+        </FormField>
+        <FormField label={labels.duration} required>
+          <Input name="plannedDurationMinutes" type="number" min={5} max={480} defaultValue={initial.plannedDurationMinutes} required />
+        </FormField>
         <FormField label={labels.spokenLocale}>
           <select name="spokenLocale" defaultValue={initial.spokenLocale} className={selectClass}>
             {LOCALES.map((l) => (
@@ -288,20 +337,11 @@ export function WebinarForm({ initial, owners, labels }: { initial: WebinarFormV
             ))}
           </select>
         </FormField>
-        <FormField label={labels.startsAt} hint={mode === "on_demand" ? labels.startsAtHint : undefined}>
-          <Input name="startsAt" type="datetime-local" defaultValue={initial.startsAt} disabled={mode === "on_demand"} />
-        </FormField>
-        <FormField label={labels.duration} required>
-          <Input name="plannedDurationMinutes" type="number" min={5} max={480} defaultValue={initial.plannedDurationMinutes} required />
-        </FormField>
-      </div>
+      </fieldset>
       {!isNew ? (
         <>
-          <FormField label={labels.seriesKey} hint={labels.seriesHint}>
-            <Input name="seriesKey" defaultValue={initial.seriesKey} pattern="[a-z0-9-]{3,60}" maxLength={60} />
-          </FormField>
-          <fieldset className="grid gap-3 rounded-md border p-4">
-            <legend className="px-1 text-sm font-medium">{labels.replay}</legend>
+          <fieldset data-section className="grid gap-3">
+            <legend>{labels.replay}</legend>
             {check("isReplayEnabled", labels.isReplayEnabled)}
             {check("isReplayGated", labels.isReplayGated)}
             <div className="grid gap-4 sm:grid-cols-3">
@@ -316,19 +356,17 @@ export function WebinarForm({ initial, owners, labels }: { initial: WebinarFormV
               </FormField>
             </div>
           </fieldset>
-          <fieldset className="grid gap-3 rounded-md border p-4">
-            <legend className="px-1 text-sm font-medium">{labels.thresholds}</legend>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <FormField label={labels.attendedMinutes}>
-                <Input name="attendedMinutes" type="number" min={1} max={60} defaultValue={initial.attendedMinutes} />
-              </FormField>
-              <FormField label={labels.conversionWindow}>
-                <Input name="conversionWindowDays" type="number" min={1} max={365} defaultValue={initial.conversionWindowDays} />
-              </FormField>
-            </div>
+          <fieldset data-section className="grid gap-4 sm:grid-cols-2">
+            <legend>{labels.thresholds}</legend>
+            <FormField label={labels.attendedMinutes}>
+              <Input name="attendedMinutes" type="number" min={1} max={60} defaultValue={initial.attendedMinutes} />
+            </FormField>
+            <FormField label={labels.conversionWindow}>
+              <Input name="conversionWindowDays" type="number" min={1} max={365} defaultValue={initial.conversionWindowDays} />
+            </FormField>
           </fieldset>
-          <fieldset className="grid gap-3 rounded-md border p-4">
-            <legend className="px-1 text-sm font-medium">{labels.interaction}</legend>
+          <fieldset data-section className="grid gap-3">
+            <legend>{labels.interaction}</legend>
             {check("isChatEnabled", labels.chatEnabled)}
             {check("isQuestionsEnabled", labels.questionsEnabled)}
             <FormField label={labels.meetUrl} hint={labels.meetHint}>
@@ -337,11 +375,6 @@ export function WebinarForm({ initial, owners, labels }: { initial: WebinarFormV
           </fieldset>
         </>
       ) : null}
-      <div>
-        <Button type="submit" disabled={pending || locales.length === 0}>
-          {pending ? labels.saving : isNew ? labels.saveDraft : labels.save}
-        </Button>
-      </div>
-    </form>
+    </StepForm>
   );
 }

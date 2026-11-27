@@ -138,6 +138,7 @@ export function Combobox({ options, value, defaultValue, onChange, name, initial
         disabled={disabled}
         aria-haspopup="listbox"
         aria-expanded={open}
+        data-placeholder={selected ? undefined : ""}
         aria-controls={open ? listId : undefined}
         aria-describedby={aria["aria-describedby"]}
         aria-invalid={aria["aria-invalid"]}

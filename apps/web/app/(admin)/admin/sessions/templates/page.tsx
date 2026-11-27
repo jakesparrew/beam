@@ -8,6 +8,7 @@ import { getAppDb } from "@/lib/ctx";
 import { adminLocale, translator } from "@/lib/i18n";
 import { listProductOptions, listTemplates } from "@/modules/booking/queries";
 import { TemplateActiveToggle, TemplateForm, type TemplateFormLabels } from "@/modules/booking/ui/template-form";
+import { stepFormLabels } from "@/modules/platform/ui/admin-kit";
 
 const show = (text: LocalizedText | null | undefined, locale: Locale) => text?.[locale] || text?.["nl-BE"] || text?.en || text?.["fr-BE"] || "";
 const WEEKDAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
@@ -42,6 +43,10 @@ function templateLabels(tr: (key: string, params?: Record<string, string | numbe
     incompleteName: tr("booking.templates.incomplete_name"),
     warningOverlap: tr("booking.session.warning_location_overlap"),
     warningHours: tr("booking.session.warning_outside_business_hours"),
+    stepKind: tr("booking.session.step_kind"),
+    stepContent: tr("booking.session.step_content"),
+    stepSchedule: tr("booking.templates.step_schedule"),
+    stepAccess: tr("booking.session.step_access"),
     errors: {
       ...Object.fromEntries(BOOKING_CONFLICT_REASONS.map((r) => [r, tr(`booking.errors.${r}`)])),
       validation: tr("platform.errors.validation"),
@@ -120,8 +125,8 @@ export default async function TemplatesPage() {
           </table>
         </div>
       )}
-      <section className="grid max-w-4xl gap-4" aria-labelledby="add-schedule">
-        <h2 id="add-schedule" className="text-xl font-semibold">
+      <section className="grid gap-4" aria-labelledby="add-schedule">
+        <h2 id="add-schedule" className="text-base font-semibold">
           {tr("booking.templates.add")}
         </h2>
         <TemplateForm
@@ -142,7 +147,7 @@ export default async function TemplatesPage() {
             activeToOn: "",
           }}
           products={products.map((p) => ({ id: p.id, label: `${show(p.name, locale)} (${p.sku})` }))}
-          labels={labels}
+          labels={{ ...labels, steps: stepFormLabels(tr) }}
         />
       </section>
     </div>

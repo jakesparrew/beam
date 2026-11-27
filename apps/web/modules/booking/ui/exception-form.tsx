@@ -164,7 +164,7 @@ export function ExceptionForm({
         <p className="text-xs text-muted-foreground">{labels.allTemplates}</p>
         <div className="flex flex-wrap gap-3">
           {templates.map((t) => (
-            <Label key={t.id} className="flex min-h-11 items-center gap-2">
+            <Label key={t.id} className="flex min-h-9 items-center gap-2">
               <Checkbox checked={selected.includes(t.id)} onCheckedChange={(on) => setSelected((cur) => (on === true ? [...cur, t.id] : cur.filter((x) => x !== t.id)))} />
               {t.label}
             </Label>

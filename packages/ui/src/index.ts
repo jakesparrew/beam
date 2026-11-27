@@ -1,6 +1,6 @@
 /**
  * `@beam/ui`: shadcn/ui components on `radix-ui`, tokens, and the shared composites
- * (DataTable, LocalizedInput, FormField, AdminShell, PortalShell, the empty, error and
+ * (DataTable, LocalizedInput, FormField, StepForm, AdminShell, PortalShell, the empty, error and
  * locale-unavailable states and ReportProblemDialog). Components take every string as
  * a prop; `ui` has no catalogue lookups and no server code. Each base component is also
  * importable as `@beam/ui/components/<name>`; the CSS is `@beam/ui/tokens.css`.
@@ -44,3 +44,4 @@ export * from "./locale-unavailable";
 export * from "./localized-input";
 export * from "./portal-shell";
 export * from "./report-problem-dialog";
+export * from "./step-form";

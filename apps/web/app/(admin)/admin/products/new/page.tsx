@@ -3,8 +3,9 @@ import { requireStaff } from "@/lib/auth";
 import { adminLocale, translator } from "@/lib/i18n";
 import { commerceLabels, productFormOptions } from "@/modules/commerce/queries";
 import { ProductForm } from "@/modules/commerce/ui/product-form";
+import { stepFormLabels } from "@/modules/platform/ui/admin-kit";
 
-/** `/admin/products/new` (`pricing.write`), commerce spec 5.1. The product starts inactive (rule 1). */
+/** `/admin/products/new` (`pricing.write`), commerce spec 5.1. The product starts inactive (rule 1); one section per screen (`StepForm`). */
 export default async function NewProductPage() {
   await requireStaff({ permission: "pricing.write" });
   const locale = await adminLocale();
@@ -41,6 +42,7 @@ export default async function NewProductPage() {
         }}
         options={productFormOptions(tr)}
         labels={commerceLabels(locale, ["common", "admin_products"])}
+        steps={stepFormLabels(tr)}
       />
     </div>
   );

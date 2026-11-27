@@ -43,6 +43,10 @@ function templateLabels(tr: (key: string, params?: Record<string, string | numbe
     incompleteName: tr("booking.templates.incomplete_name"),
     warningOverlap: tr("booking.session.warning_location_overlap"),
     warningHours: tr("booking.session.warning_outside_business_hours"),
+    stepKind: tr("booking.session.step_kind"),
+    stepContent: tr("booking.session.step_content"),
+    stepSchedule: tr("booking.templates.step_schedule"),
+    stepAccess: tr("booking.session.step_access"),
     errors: {
       ...Object.fromEntries(BOOKING_CONFLICT_REASONS.map((r) => [r, tr(`booking.errors.${r}`)])),
       validation: tr("platform.errors.validation"),

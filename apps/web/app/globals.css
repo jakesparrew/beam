@@ -371,13 +371,132 @@
   border-radius: 9999px;
   font-weight: 600;
 }
+/*
+ * Fields and forms (owner review, November 2026: "fields and forms are ugly"). One look for every
+ * control of the back-office: 36px high, 8px corners, a 1px warm border, white, 14px text and a
+ * gold focus ring; labels 13px medium, help and errors 12px under the field; textareas three rows.
+ * Sizes and paddings sit in the components layer, so a page's own size utility (the touch till,
+ * the check-in search) still wins; corners, colours and focus are unlayered and always apply.
+ * Stacked forms default to a readable 42rem (an explicit `max-w-*` wins); `fieldset[data-section]`
+ * and `fieldset[data-step]` (StepForm) are sections with a small title; `[data-slot=form-actions]`
+ * is the footer row (primary submit first, then the quiet secondary action).
+ */
+@layer components {
+  [data-slot="admin-shell"] main :is(input:not([type="checkbox"], [type="radio"], [type="hidden"], [type="file"], [type="range"], [type="color"], [type="submit"], [type="button"], [type="reset"], [type="image"]), select:not([multiple], [size])) {
+    height: 2.25rem;
+    padding-inline: 0.75rem;
+    border-width: 1px;
+    font-size: 0.875rem;
+  }
+  [data-slot="admin-shell"] main textarea {
+    min-height: 4.75rem;
+    padding: 0.5rem 0.75rem;
+    border-width: 1px;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    resize: vertical;
+  }
+  [data-slot="admin-shell"] main :is(input[type="checkbox"], input[type="radio"]) {
+    width: 1rem;
+    height: 1rem;
+    margin: 0;
+    flex-shrink: 0;
+  }
+  [data-slot="admin-shell"] main :is(label, legend) {
+    font-size: 0.8125rem;
+  }
+  [data-slot="admin-shell"] main form.grid:not([class*="grid-cols"]):has([data-slot="form-field"], fieldset):not(:has(table)),
+  [data-slot="admin-shell"] main form[data-slot="step-form"] {
+    max-width: 42rem;
+  }
+}
 [data-slot="admin-shell"] [data-slot="input"],
 [data-slot="admin-shell"] [data-slot="select-trigger"],
-[data-slot="admin-shell"] main select,
-[data-slot="admin-shell"] main textarea,
-[data-slot="admin-shell"] main input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]) {
+[data-slot="admin-shell"] main :is(select, textarea),
+[data-slot="admin-shell"] main input:not([type="checkbox"], [type="radio"], [type="hidden"], [type="range"], [type="color"], [type="submit"], [type="button"], [type="reset"], [type="image"]) {
   border-radius: 0.5rem;
+  border-color: var(--input);
   background-color: var(--card);
+  box-shadow: none;
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+[data-slot="admin-shell"] [data-slot="input"]:focus,
+[data-slot="admin-shell"] [data-slot="select-trigger"]:focus-visible,
+[data-slot="admin-shell"] main :is(select, textarea):focus,
+[data-slot="admin-shell"] main input:not([type="checkbox"], [type="radio"], [type="hidden"], [type="range"], [type="color"], [type="submit"], [type="button"], [type="reset"], [type="image"]):focus {
+  /* A deeper gold for the 1px edge keeps the focus indicator at 3:1 on white. */
+  border-color: #b5852f;
+  box-shadow: 0 0 0 3px rgb(201 151 58 / 0.25);
+  outline: none;
+}
+[data-slot="admin-shell"] main :is(input, select, textarea, [data-slot="select-trigger"])[aria-invalid="true"] {
+  border-color: var(--status-bad);
+}
+[data-slot="admin-shell"] main :is(input, select, textarea, [data-slot="select-trigger"])[aria-invalid="true"]:focus {
+  border-color: var(--status-bad);
+  box-shadow: 0 0 0 3px rgb(180 56 10 / 0.18);
+}
+[data-slot="admin-shell"] main :is(input, select, textarea):is(:disabled, [readonly]) {
+  background-color: #faf9f6;
+  color: var(--muted-foreground);
+}
+[data-slot="admin-shell"] main select:not([multiple], [size]) {
+  appearance: none;
+  padding-right: 2.25rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23615d56' stroke-opacity='0.6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.625rem center;
+  background-size: 1rem;
+  text-overflow: ellipsis;
+}
+[data-slot="admin-shell"] [data-slot="select-trigger"] > svg {
+  color: #615d56;
+  opacity: 0.6;
+}
+[data-slot="admin-shell"] main :is(input[type="checkbox"], input[type="radio"]) {
+  accent-color: var(--primary);
+}
+[data-slot="admin-shell"] main [data-slot="label"],
+[data-slot="admin-shell"] main [data-slot="localized-input"] > span:first-child {
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+  font-weight: 500;
+}
+[data-slot="admin-shell"] main [data-slot="form-field"] {
+  gap: 0.375rem;
+  align-content: start;
+  min-width: 0;
+}
+[data-slot="admin-shell"] main [data-slot="form-field"][data-invalid] > [data-slot="label"] {
+  color: inherit;
+}
+[data-slot="admin-shell"] main [data-slot="form-field-hint"] {
+  font-size: 0.75rem;
+  line-height: 1rem;
+  color: var(--muted-foreground);
+}
+[data-slot="admin-shell"] main [data-slot="form-field-error"] {
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 500;
+  color: var(--status-bad);
+}
+[data-slot="admin-shell"] main fieldset:is([data-section], [data-step]) {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+[data-slot="admin-shell"] main fieldset:is([data-section], [data-step]) > legend {
+  margin-bottom: 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+[data-slot="admin-shell"] main [data-slot="form-actions"] {
+  border-top: 1px solid var(--border);
+  padding-top: 1.25rem;
 }
 [data-slot="admin-shell"] [data-slot="table-container"] {
   background: var(--card);

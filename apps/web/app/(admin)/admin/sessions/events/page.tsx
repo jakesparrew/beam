@@ -7,7 +7,8 @@ import { hasPermission, requireStaff } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
 import { adminLocale, translator } from "@/lib/i18n";
 import { listSessionsInRange, type SessionBlock } from "@/modules/booking/queries";
-import { OccupancyBar, PageHeader, PrimaryAction, SecondaryAction, Segmented, StatusPill, Surface, Toolbar, td, th, type Tone } from "@/modules/platform/ui/admin-kit";
+import { MoreMenu, OccupancyBar, PageHeader, PrimaryAction, StatusPill, Surface, td, th, type Tone } from "@/modules/platform/ui/admin-kit";
+import { ListToolbar, listToolbarLabels } from "@/modules/platform/ui/admin-list-kit";
 
 const show = (text: LocalizedText | null | undefined, locale: Locale) => text?.[locale] || text?.["nl-BE"] || text?.en || text?.["fr-BE"] || "";
 const DAY = 86_400_000;
@@ -21,17 +22,26 @@ const L = "booking.list";
  * materials, registrations and the CSV export); "New event" and "New webinar" open
  * `/admin/sessions/new` with the category chosen (`bookings.override`).
  */
-export default async function EventsPage({ searchParams }: { searchParams: Promise<{ show?: string }> }) {
+export default async function EventsPage({ searchParams }: { searchParams: Promise<{ show?: string; q?: string }> }) {
   const actor = await requireStaff({ permission: "bookings.read" });
   const locale = await adminLocale();
   const tr = translator(locale);
-  const wanted = (await searchParams).show;
+  const sp = await searchParams;
+  const wanted = sp.show;
   const filter = (FILTERS as readonly string[]).includes(wanted ?? "") ? (wanted as (typeof FILTERS)[number]) : "all";
+  const q = sp.q?.trim().slice(0, 100) || undefined;
+  const needle = q?.toLowerCase();
   const now = new Date().getTime();
-  const all = await listSessionsInRange(await getAppDb(), { from: new Date(now - 7 * DAY), to: new Date(now + 3 * 365 * DAY), kind: "event" });
+  const upcoming = await listSessionsInRange(await getAppDb(), { from: new Date(now - 7 * DAY), to: new Date(now + 3 * 365 * DAY), kind: "event" });
   const isWebinar = (s: SessionBlock) => s.eventCategory === "webinar";
   const matches = (f: (typeof FILTERS)[number]) => (s: SessionBlock) => (f === "webinars" ? isWebinar(s) : f === "events" ? !isWebinar(s) : true);
+  // ponytail: the search runs on the loaded events (title in any language, place); a query filter if the list grows past a few hundred.
+  const all = needle ? upcoming.filter((s) => [...Object.values(s.title ?? {}), s.location].some((t) => t?.toLowerCase().includes(needle))) : upcoming;
   const rows = all.filter(matches(filter));
+  const href = (f: (typeof FILTERS)[number]) => {
+    const p = new URLSearchParams({ ...(f === "all" ? {} : { show: f }), ...(q ? { q } : {}) }).toString();
+    return `/admin/sessions/events${p ? `?${p}` : ""}` as Route;
+  };
   const canCreate = hasPermission(actor, "bookings.override");
   const state = (s: SessionBlock): { tone: Tone; label: string } => {
     if (s.status === "cancelled") return { tone: "bad", label: tr(`${L}.status_cancelled`) };
@@ -48,22 +58,21 @@ export default async function EventsPage({ searchParams }: { searchParams: Promi
     <div className="grid gap-5">
       <PageHeader
         title={tr("booking.event.list_title")}
-        description={tr("booking.event.list_intro")}
         actions={
           canCreate ? (
             <>
-              <SecondaryAction href="/admin/sessions/new?category=webinar">+ {tr("booking.event.new_webinar")}</SecondaryAction>
+              <MoreMenu label={tr("platform.table.more_actions")} items={[{ key: "webinar", href: "/admin/sessions/new?category=webinar", label: `+ ${tr("booking.event.new_webinar")}` }]} />
               <PrimaryAction href="/admin/sessions/new?category=lecture">+ {tr("booking.event.new_event")}</PrimaryAction>
             </>
           ) : null
         }
       />
-      <Toolbar>
-        <Segmented
-          label={tr("booking.event.filter")}
-          items={FILTERS.map((f) => ({ key: f, label: tr(`booking.event.filter_${f}`), href: `/admin/sessions/events${f === "all" ? "" : `?show=${f}`}` as Route, active: f === filter, count: all.filter(matches(f)).length }))}
-        />
-      </Toolbar>
+      <ListToolbar
+        labels={listToolbarLabels(tr)}
+        search={{ placeholder: tr("booking.event.search_placeholder"), defaultValue: q }}
+        hidden={{ show: filter === "all" ? undefined : filter }}
+        chips={{ label: tr("booking.event.filter"), items: FILTERS.map((f) => ({ key: f, label: tr(`booking.event.filter_${f}`), href: href(f), active: f === filter, count: all.filter(matches(f)).length })) }}
+      />
       {rows.length === 0 ? (
         <EmptyState title={tr("booking.event.list_empty")} />
       ) : (

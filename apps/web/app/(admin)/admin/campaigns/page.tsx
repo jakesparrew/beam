@@ -8,8 +8,8 @@ import { getAppDb } from "@/lib/ctx";
 import { adminLocale, softTranslator, translator } from "@/lib/i18n";
 import { duplicateCampaign } from "@/modules/email/actions";
 import { listCampaigns } from "@/modules/email/queries";
-import { SecondaryAction, Segmented, StatusPill, Surface, Toolbar, td, th } from "@/modules/platform/ui/admin-kit";
-import { aboveRow, Disclosure, Field, fieldClass, Notice, rowClass, rowLink, SearchField } from "@/modules/platform/ui/admin-list-kit";
+import { SecondaryAction, StatusPill, Surface, td, th } from "@/modules/platform/ui/admin-kit";
+import { aboveRow, Field, fieldClass, ListToolbar, listToolbarLabels, Notice, rowClass, rowLink } from "@/modules/platform/ui/admin-list-kit";
 import { CAMPAIGN_TONE, EmailHeader } from "./email-header";
 
 type Search = { status?: string; q?: string; page?: string; error?: string };
@@ -67,17 +67,12 @@ export default async function CampaignsPage({ searchParams }: { searchParams: Pr
       <EmailHeader active="campaigns" canWrite={canWrite} tr={tr} />
       {errorText ? <Notice tone="bad">{errorText}</Notice> : null}
 
-      <form data-auto-filter="" method="get" role="search">
-        <Toolbar>
-          <SearchField label={t("search")} placeholder={t("search_placeholder")} defaultValue={q} />
-          <Segmented
-            label={t("col_status")}
-            items={[
-              { key: "all", label: t("all_statuses"), href: href({ status: undefined }), active: !status },
-              ...TABS.map((s) => ({ key: s, label: t(`status_${s}`), href: href({ status: s }), active: status === s })),
-            ]}
-          />
-          <Disclosure label={t("filter")} count={rare ? 1 : 0} clear={rare ? { href: href({ status: undefined }), label: t("clear") } : null}>
+      <ListToolbar
+        labels={listToolbarLabels(tr)}
+        search={{ placeholder: t("search_placeholder"), defaultValue: q, label: t("search") }}
+        filters={{
+          count: rare ? 1 : 0,
+          children: (
             <Field label={t("col_status")}>
               <select id="campaigns-status" name="status" defaultValue={status ?? ""} className={fieldClass}>
                 <option value="">{t("all_statuses")}</option>
@@ -88,9 +83,17 @@ export default async function CampaignsPage({ searchParams }: { searchParams: Pr
                 ))}
               </select>
             </Field>
-          </Disclosure>
-        </Toolbar>
-      </form>
+          ),
+        }}
+        chips={{
+          label: t("col_status"),
+          items: [
+            { key: "all", label: t("all_statuses"), href: href({ status: undefined }), active: !status },
+            ...TABS.map((s) => ({ key: s, label: t(`status_${s}`), href: href({ status: s }), active: status === s })),
+          ],
+        }}
+        applied={rare ? [{ key: "status", label: t("col_status"), value: t(`status_${rare}`), href: href({ status: undefined }) }] : []}
+      />
 
       {list.items.length === 0 ? (
         <EmptyState title={q || status ? t("empty_filtered") : t("empty")} />

@@ -44,7 +44,7 @@ export type StaffWaitlistRow = {
  */
 export async function listWaitlist(
   db: DbOrTx,
-  input: { sessionId?: string; state?: WaitlistState; flaggedOnly?: boolean; offset?: number; now?: Date } = {},
+  input: { sessionId?: string; state?: WaitlistState; flaggedOnly?: boolean; q?: string; offset?: number; now?: Date } = {},
 ): Promise<{ rows: StaffWaitlistRow[]; hasMore: boolean }> {
   await requirePermission("waitlist.manage");
   return listWaitlistRows(db, input);
@@ -53,13 +53,19 @@ export async function listWaitlist(
 /** `listWaitlist` without the permission check (tests and server code that checked it already). */
 export async function listWaitlistRows(
   db: DbOrTx,
-  input: { sessionId?: string; state?: WaitlistState; flaggedOnly?: boolean; offset?: number; now?: Date } = {},
+  input: { sessionId?: string; state?: WaitlistState; flaggedOnly?: boolean; q?: string; offset?: number; now?: Date } = {},
 ): Promise<{ rows: StaffWaitlistRow[]; hasMore: boolean }> {
   const where: SQL[] = [];
   if (input.sessionId) where.push(eq(waitlistEntries.sessionId, input.sessionId));
   else where.push(gt(sessions.startsAt, input.now ?? new Date()));
   if (input.state) where.push(eq(waitlistEntries.state, input.state));
   if (input.flaggedOnly) where.push(and(eq(waitlistEntries.isFlaggedDuplicate, true), eq(waitlistEntries.state, "waiting"))!);
+  const q = input.q?.trim();
+  if (q) {
+    // The person's name or email, or the session title in any language.
+    const like = `%${q.replace(/[%_\\]/g, (m) => `\\${m}`)}%`;
+    where.push(sql`(concat_ws(' ', ${persons.firstName}, ${persons.lastName}) ilike ${like} or ${persons.email} ilike ${like} or exists (select 1 from jsonb_each_text(${sessions.title}) t where t.value ilike ${like}))`);
+  }
   const rows = await db
     .select({
       entryId: waitlistEntries.id,

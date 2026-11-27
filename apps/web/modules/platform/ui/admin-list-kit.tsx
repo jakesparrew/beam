@@ -35,10 +35,29 @@ export function SearchField({ label, placeholder, defaultValue, name = "q", clas
  * A toolbar disclosure ("Filters", "Periode"): a quiet button that opens a small panel. `count`
  * shows how many of its filters are active; `value` names the current choice (a period).
  */
-export function Disclosure({ label, count, value, clear, children, align = "left" }: { label: string; count?: number; value?: ReactNode; clear?: { href: Href; label: string } | null; children: ReactNode; align?: "left" | "right" }) {
+export function Disclosure({
+  label,
+  count,
+  value,
+  clear,
+  children,
+  align = "left",
+  icon,
+  summaryClassName,
+}: {
+  label: string;
+  count?: number;
+  value?: ReactNode;
+  clear?: { href: Href; label: string } | null;
+  children: ReactNode;
+  align?: "left" | "right";
+  icon?: ReactNode;
+  summaryClassName?: string;
+}) {
   return (
-    <details className="relative">
-      <summary className="flex h-9 cursor-pointer list-none items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-[0.8125rem] font-semibold whitespace-nowrap hover:bg-muted [&::-webkit-details-marker]:hidden">
+    <details className="relative" data-popover="">
+      <summary className={cn("flex h-9 cursor-pointer list-none items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-[0.8125rem] font-semibold whitespace-nowrap hover:bg-muted [&::-webkit-details-marker]:hidden", summaryClassName)}>
+        {icon}
         {label}
         {value ? <span className="font-normal text-muted-foreground">{value}</span> : null}
         {count ? <span className="grid h-5 min-w-5 place-items-center rounded-full bg-primary px-1.5 text-[0.6875rem] text-primary-foreground">{count}</span> : null}
@@ -46,7 +65,7 @@ export function Disclosure({ label, count, value, clear, children, align = "left
           <path d="m6 9 6 6 6-6" />
         </svg>
       </summary>
-      <div className={cn("absolute z-20 mt-1.5 grid w-72 gap-3 rounded-xl border border-border bg-card p-4 shadow-lg", align === "right" ? "right-0" : "left-0")}>
+      <div className={cn("absolute z-20 mt-1.5 grid w-72 max-w-[calc(100vw-2rem)] gap-3 rounded-xl border border-border bg-card p-4 shadow-lg", align === "right" ? "right-0" : "left-0")}>
         {children}
         {clear ? (
           <Link href={clear.href} className="w-fit text-[0.75rem] font-semibold text-muted-foreground hover:text-foreground">
@@ -68,7 +87,139 @@ export function Field({ label, children }: { label: string; children: ReactNode 
   );
 }
 
-export type Kpi = { key: string; label: string; value: ReactNode; sub?: ReactNode; href?: Href; tone?: Tone };
+export type ToolbarLabels = { search: string; filters: string; clearAll: string; remove: string; shortcut: string };
+
+/** The shared labels of `ListToolbar`, from `platform.table`. */
+export function listToolbarLabels(tr: (key: string) => string): ToolbarLabels {
+  return { search: tr("platform.table.search"), filters: tr("platform.table.filters"), clearAll: tr("platform.table.clear_all"), remove: tr("platform.table.remove_filter"), shortcut: tr("platform.table.search_shortcut") };
+}
+
+/** A quick filter of the chip row (one active), with an optional count. */
+export type ToolbarChip = { key: string; label: ReactNode; href: Href; active: boolean; count?: number };
+/** An applied filter shown as a removable chip; `href` is the list without it. */
+export type AppliedFilter = { key: string; label: ReactNode; value?: ReactNode; href: Href };
+
+/**
+ * The toolbar of every back-office list (owner review, November 2026: "the search bar is the main
+ * thing; don't overload us with buttons"). One wide search (`/` focuses it) with a single
+ * "Filters" popover beside it holding the secondary filters, then one compact row: the three or
+ * four most used views as chips, the applied filters as removable chips with "Clear all", and an
+ * optional `aside` (a period switch, a view toggle) on the right. One GET form with
+ * `data-auto-filter`, so every URL keeps working and fields apply as they change; `hidden` carries
+ * the query params the visible fields do not.
+ */
+export function ListToolbar({
+  labels,
+  search,
+  hidden,
+  filters,
+  chips,
+  applied = [],
+  clearAll,
+  aside,
+  className,
+}: {
+  labels: ToolbarLabels;
+  search?: { placeholder: string; defaultValue?: string | undefined; name?: string; label?: string };
+  hidden?: Record<string, string | undefined>;
+  filters?: { count: number; children: ReactNode; label?: string };
+  chips?: { label: string; items: ToolbarChip[] };
+  applied?: AppliedFilter[];
+  clearAll?: Href | null;
+  aside?: ReactNode;
+  className?: string;
+}) {
+  const row = !!(chips?.items.length || applied.length || aside);
+  return (
+    <form data-auto-filter="" method="get" role="search" className={cn("grid gap-2.5", className)}>
+      {Object.entries(hidden ?? {}).map(([k, v]) => (v ? <input key={k} type="hidden" name={k} value={v} /> : null))}
+      <div className="flex items-center gap-2">
+        {search ? (
+          <label className="group relative flex min-w-0 flex-1 items-center">
+            <span className="sr-only">{search.label ?? labels.search}</span>
+            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="pointer-events-none absolute left-3.5 size-[1.125rem] text-muted-foreground group-focus-within:text-[#8a5a14]">
+              <circle cx="11" cy="11" r="7" />
+              <path d="m20 20-3.5-3.5" />
+            </svg>
+            <input
+              type="search"
+              name={search.name ?? "q"}
+              defaultValue={search.defaultValue ?? ""}
+              placeholder={search.placeholder}
+              maxLength={100}
+              autoComplete="off"
+              aria-keyshortcuts="/"
+              data-super-search=""
+              className="h-11 w-full rounded-xl border border-input bg-card pr-12 pl-10 text-[0.9375rem] shadow-[0_1px_2px_rgba(20,20,20,0.04)] placeholder:text-muted-foreground/80 focus:border-[#c9973a] focus:ring-[3px] focus:ring-[#c9973a]/15 focus:outline-none"
+            />
+            <kbd aria-hidden="true" title={labels.shortcut} className="pointer-events-none absolute right-3 hidden h-5 min-w-5 place-items-center rounded border border-border bg-muted px-1 font-sans text-[0.6875rem] font-medium text-muted-foreground group-focus-within:invisible sm:grid">
+              /
+            </kbd>
+          </label>
+        ) : null}
+        {filters ? (
+          <Disclosure
+            label={filters.label ?? labels.filters}
+            count={filters.count}
+            align="right"
+            summaryClassName="h-11 rounded-xl px-3.5 shadow-[0_1px_2px_rgba(20,20,20,0.04)]"
+            icon={
+              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="size-4 text-muted-foreground">
+                <path d="M4 6h16M7 12h10M10 18h4" />
+              </svg>
+            }
+          >
+            {filters.children}
+          </Disclosure>
+        ) : null}
+      </div>
+      {row ? (
+        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-2">
+          {chips?.items.length ? (
+            <nav aria-label={chips.label} className="flex flex-wrap items-center gap-1.5">
+              {chips.items.map((c) => (
+                <Link
+                  key={c.key}
+                  href={c.href}
+                  aria-current={c.active ? "true" : undefined}
+                  className={cn(
+                    "inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-[0.75rem] font-medium whitespace-nowrap",
+                    c.active ? "border-[#c9973a]/45 bg-[#f7eedc] text-[#8a5a14]" : "border-border bg-card text-muted-foreground hover:border-foreground/20 hover:text-foreground",
+                  )}
+                >
+                  {c.label}
+                  {c.count !== undefined ? <span className={cn("tabular-nums", c.active ? "text-[#8a5a14]/70" : "text-muted-foreground/70")}>{c.count}</span> : null}
+                </Link>
+              ))}
+            </nav>
+          ) : null}
+          {chips?.items.length && applied.length ? <span aria-hidden="true" className="mx-1 h-4 w-px bg-border" /> : null}
+          {applied.map((a) => (
+            <Link key={a.key} href={a.href} className="inline-flex h-7 items-center gap-1 rounded-full bg-muted pr-1.5 pl-2.5 text-[0.75rem] whitespace-nowrap hover:bg-[#ebe8e1]" data-applied-filter={a.key}>
+              <span className="text-muted-foreground">
+                {a.label}
+                {a.value !== undefined ? ":" : ""}
+              </span>
+              {a.value !== undefined ? <span className="font-semibold text-foreground">{a.value}</span> : null}
+              <span aria-hidden="true" className="ml-0.5 grid size-4 place-items-center rounded-full text-muted-foreground">
+                ×
+              </span>
+              <span className="sr-only">{labels.remove}</span>
+            </Link>
+          ))}
+          {applied.length > 1 && clearAll ? (
+            <Link href={clearAll} className="ml-1 text-[0.75rem] font-semibold text-muted-foreground hover:text-foreground">
+              {labels.clearAll}
+            </Link>
+          ) : null}
+          {aside ? <div className="ml-auto flex flex-wrap items-center gap-2">{aside}</div> : null}
+        </div>
+      ) : null}
+    </form>
+  );
+}
+
+export type Kpi ={ key: string; label: string; value: ReactNode; sub?: ReactNode; href?: Href; tone?: Tone };
 
 /** A row of key figures in one hairline surface, no empty space. */
 export function KpiStrip({ items, ...rest }: { items: Kpi[] } & React.HTMLAttributes<HTMLElement>) {

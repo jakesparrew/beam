@@ -23,7 +23,6 @@ export function EmailHeader({ active, canWrite, tr }: { active: EmailTab; canWri
     <>
       <PageHeader
         title={tr("email.nav.campaigns")}
-        description={tr("email.campaigns.subtitle")}
         actions={
           canWrite ? (
             <Link href="/admin/campaigns/new" data-testid="campaign-new" className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3.5 text-[0.8125rem] font-semibold text-primary-foreground hover:opacity-90">

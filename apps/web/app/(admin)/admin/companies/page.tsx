@@ -7,16 +7,18 @@ import { getAppDb } from "@/lib/ctx";
 import { adminLocale, translator } from "@/lib/i18n";
 import { listCompanies } from "@/modules/crm/queries";
 import { COMPANY_STATUSES } from "@/modules/crm/companies/queries";
-import { PageHeader, PrimaryAction, Segmented, StatusPill, Surface, Toolbar, td, th, type Tone } from "@/modules/platform/ui/admin-kit";
-import { Disclosure, Field, fieldClass, Initials, rowClass, rowLink, SearchField } from "@/modules/platform/ui/admin-list-kit";
+import { PageHeader, PrimaryAction, StatusPill, Surface, td, th, type Tone } from "@/modules/platform/ui/admin-kit";
+import { Field, fieldClass, Initials, ListToolbar, listToolbarLabels, rowClass, rowLink } from "@/modules/platform/ui/admin-list-kit";
 
 const COMPANY_TONE: Record<CompanyStatus, Tone> = { target: "muted", prospect: "info", customer: "ok", partner: "gold", inactive: "muted" };
+/** The statuses shown as toolbar chips; target and inactive sit in Filters. */
+const CHIP_STATUSES = ["prospect", "customer", "partner"] as const satisfies readonly CompanyStatus[];
 
 /**
  * `/admin/companies` (`persons.read`; create with `crm.b2b`), crm spec 5.1, in the back-office kit
- * (owner review, November 2026): the header with "New company", one toolbar (search on name or
- * VAT number, the status as a segmented switch, "partners only" behind "Filters") and the table
- * whose rows open the company.
+ * (owner review, November 2026): the header with "New company", the list toolbar (search on name
+ * or VAT number; prospect, customer and partner as chips; every status and "partners only" behind
+ * "Filters") and the table whose rows open the company.
  */
 export default async function CompaniesPage({ searchParams }: { searchParams: Promise<{ q?: string; status?: string; partner?: string }> }) {
   const actor = await requireStaff({ permission: "persons.read" });
@@ -31,6 +33,7 @@ export default async function CompaniesPage({ searchParams }: { searchParams: Pr
   const rows = await listCompanies(db, { ...(q ? { q } : {}), ...(status ? { status } : {}), ...(partner ? { isPartner: true } : {}) });
   const c = (k: string) => tr(`crm.companies.${k}`);
   const filtered = !!(q || status || partner);
+  const rareStatus = status && !(CHIP_STATUSES as readonly string[]).includes(status) ? status : undefined;
   const href = (patch: Record<string, string | undefined>): Route => {
     const p = new URLSearchParams();
     for (const [k, v] of Object.entries({ q, status, partner, ...patch })) if (v) p.set(k, v);
@@ -40,29 +43,47 @@ export default async function CompaniesPage({ searchParams }: { searchParams: Pr
 
   return (
     <div className="grid gap-4">
-      <PageHeader title={c("title")} description={c("subtitle")} actions={canEdit ? <PrimaryAction href="/admin/companies/new">+ {c("create")}</PrimaryAction> : null} />
+      <PageHeader title={c("title")} actions={canEdit ? <PrimaryAction href="/admin/companies/new">+ {c("create")}</PrimaryAction> : null} />
 
-      <form data-auto-filter="" method="get" role="search">
-        <Toolbar>
-          <SearchField label={tr("crm.common.search")} placeholder={c("search_placeholder")} defaultValue={q} />
-          {status ? <input type="hidden" name="status" value={status} /> : null}
-          <Segmented
-            label={c("col_status")}
-            items={[
-              { key: "all", label: tr("crm.common.all"), href: href({ status: undefined }), active: !status },
-              ...COMPANY_STATUSES.map((s) => ({ key: s, label: tr(`crm.enums.company_status.${s}`), href: href({ status: s }), active: status === s })),
-            ]}
-          />
-          <Disclosure label={tr("crm.common.filters")} count={partner ? 1 : 0} clear={partner ? { href: href({ partner: undefined }), label: tr("crm.common.clear_filters") } : null}>
-            <Field label={c("col_partner")}>
-              <select name="partner" defaultValue={partner ?? ""} className={fieldClass}>
-                <option value="">{tr("crm.common.all")}</option>
-                <option value="yes">{c("partners_only")}</option>
-              </select>
-            </Field>
-          </Disclosure>
-        </Toolbar>
-      </form>
+      <ListToolbar
+        labels={listToolbarLabels(tr)}
+        search={{ placeholder: c("search_placeholder"), defaultValue: q, label: tr("crm.common.search") }}
+        filters={{
+          count: [rareStatus, partner].filter(Boolean).length,
+          children: (
+            <>
+              <Field label={c("col_status")}>
+                <select name="status" defaultValue={status ?? ""} className={fieldClass}>
+                  <option value="">{tr("crm.common.all")}</option>
+                  {COMPANY_STATUSES.map((s) => (
+                    <option key={s} value={s}>
+                      {tr(`crm.enums.company_status.${s}`)}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label={c("col_partner")}>
+                <select name="partner" defaultValue={partner ?? ""} className={fieldClass}>
+                  <option value="">{tr("crm.common.all")}</option>
+                  <option value="yes">{c("partners_only")}</option>
+                </select>
+              </Field>
+            </>
+          ),
+        }}
+        chips={{
+          label: c("col_status"),
+          items: [
+            { key: "all", label: tr("crm.common.all"), href: href({ status: undefined }), active: !status },
+            ...CHIP_STATUSES.map((s) => ({ key: s, label: tr(`crm.enums.company_status.${s}`), href: href({ status: s }), active: status === s })),
+          ],
+        }}
+        applied={[
+          ...(rareStatus ? [{ key: "status", label: c("col_status"), value: tr(`crm.enums.company_status.${rareStatus}`), href: href({ status: undefined }) }] : []),
+          ...(partner ? [{ key: "partner", label: c("partners_only"), href: href({ partner: undefined }) }] : []),
+        ]}
+        clearAll={href({ status: rareStatus ? undefined : status, partner: undefined })}
+      />
 
       {rows.length === 0 ? (
         <EmptyState title={filtered ? tr("crm.common.none") : c("empty")} action={canEdit && !filtered ? <Link href="/admin/companies/new">{c("create")}</Link> : undefined} />

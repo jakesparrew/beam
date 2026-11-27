@@ -12,15 +12,15 @@ import { exportPresets } from "@/modules/finance/service/exports";
 import { financeLabels } from "@/modules/finance/ui/labels";
 import { invoicesExportHref } from "@/modules/finance/ui/links";
 import { fillLabel } from "@/modules/finance/ui/text";
-import { PageHeader, SecondaryAction, Segmented, StatusPill, Surface, Toolbar, td, th, type Tone } from "@/modules/platform/ui/admin-kit";
-import { aboveRow, Disclosure, Field, fieldClass, Initials, KpiStrip, Notice, rowClass, rowLink, SearchField } from "@/modules/platform/ui/admin-list-kit";
+import { MoreMenu, PageHeader, SecondaryAction, StatusPill, Surface, td, th, type Tone } from "@/modules/platform/ui/admin-kit";
+import { aboveRow, Field, fieldClass, Initials, KpiStrip, ListToolbar, listToolbarLabels, Notice, rowClass, rowLink, type AppliedFilter } from "@/modules/platform/ui/admin-list-kit";
 
 type Search = { from?: string; to?: string; kind?: string; status?: string; billit?: string; b2b?: string; q?: string; cursor?: string };
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const KINDS = ["invoice", "credit_note"] as const;
-/** The status tabs; `overdue` is an open invoice past its due date. `issued` (credit notes) stays a URL filter. */
-const STATUS_TABS = ["open", "overdue", "paid", "cancelled"] as const;
+/** The status chips; `overdue` is an open invoice past its due date. Cancelled and `issued` (credit notes) sit in Filters. */
+const STATUS_TABS = ["open", "overdue", "paid"] as const;
 const STATUSES = ["paid", "open", "cancelled", "issued", "overdue"] as const;
 const BILLIT = ["pending", "synced", "failed"] as const;
 const PERIODS = ["this_month", "last_month", "this_year", "last_year"] as const;
@@ -83,7 +83,15 @@ export default async function FinanceInvoicesPage({ searchParams }: { searchPara
     const s = p.toString();
     return s ? `/admin/finance/invoices?${s}` : "/admin/finance/invoices";
   };
-  const moreFilters = [kind, billit, b2b].filter(Boolean).length;
+  const statusLabel = (s: (typeof STATUSES)[number]) => (s === "overdue" ? l("overview.overdue") : l(`status.${s}`));
+  const rareStatus = status && !(STATUS_TABS as readonly string[]).includes(status) ? status : undefined;
+  const applied: AppliedFilter[] = [
+    ...(rareStatus ? [{ key: "status", label: l("invoices.status"), value: statusLabel(rareStatus), href: href({ status: undefined }) }] : []),
+    ...(from || to ? [{ key: "period", label: l("invoices.period"), value: periodValue, href: href({ from: undefined, to: undefined }) }] : []),
+    ...(kind ? [{ key: "kind", label: l("invoices.kind"), value: l(`kind.${kind}`), href: href({ kind: undefined }) }] : []),
+    ...(billit ? [{ key: "billit", label: l("invoices.billit"), value: l(`billit_status.${billit}`), href: href({ billit: undefined }) }] : []),
+    ...(b2b ? [{ key: "b2b", label: l("invoices.b2b"), value: l(b2b === "1" ? "invoices.b2b_only" : "invoices.b2c_only"), href: href({ b2b: undefined }) }] : []),
+  ];
   const nextHref = page.nextCursor ? href({ cursor: page.nextCursor }) : null;
 
   const pill = (r: InvoiceRow): { tone: Tone; label: string } => {
@@ -108,21 +116,10 @@ export default async function FinanceInvoicesPage({ searchParams }: { searchPara
     <div className="grid gap-4">
       <PageHeader
         title={tr("finance.nav.invoices")}
-        description={l("invoices.subtitle")}
         actions={
           <>
             {canReport ? <SecondaryAction href={invoicesExportHref(filter)}>{l("invoices.export_short")}</SecondaryAction> : null}
-            <Disclosure label={l("invoices.more")} align="right">
-              <ul className="grid gap-0.5 text-[0.8125rem]">
-                {more.map((m) => (
-                  <li key={m.key}>
-                    <Link href={m.href} className="block rounded-md px-2 py-1.5 font-medium hover:bg-muted">
-                      {m.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </Disclosure>
+            <MoreMenu label={l("invoices.more")} items={more} />
           </>
         }
       />
@@ -155,72 +152,86 @@ export default async function FinanceInvoicesPage({ searchParams }: { searchPara
         </Notice>
       ) : null}
 
-      <form data-auto-filter="" method="get" role="search">
-        <Toolbar>
-          <SearchField label={l("invoices.search")} placeholder={l("invoices.search_placeholder")} defaultValue={q} />
-          {status ? <input type="hidden" name="status" value={status} /> : null}
-          <Segmented
-            label={l("invoices.status")}
-            items={[
-              { key: "all", label: l("common.all"), href: href({ status: undefined }), active: !status },
-              ...STATUS_TABS.map((s) => ({ key: s, label: s === "overdue" ? l("overview.overdue") : l(`status.${s}`), href: href({ status: s }), active: status === s })),
-            ]}
-          />
-          <Disclosure label={l("invoices.period")} value={periodValue}>
-            <ul className="flex flex-wrap gap-1.5 text-[0.8125rem]">
-              <li>
-                <Link href={href({ from: undefined, to: undefined })} aria-current={!from && !to ? "true" : undefined} className={cn("block rounded-md border border-border px-2.5 py-1 font-medium hover:bg-muted", !from && !to && "bg-muted")}>
-                  {l("invoices.period_all")}
-                </Link>
-              </li>
-              {PERIODS.map((p) => (
-                <li key={p}>
-                  <Link href={href(presets[p])} aria-current={activePreset === p ? "true" : undefined} className={cn("block rounded-md border border-border px-2.5 py-1 font-medium hover:bg-muted", activePreset === p && "bg-muted")}>
-                    {l(`invoices.period_${p}`)}
+      <ListToolbar
+        labels={listToolbarLabels(tr)}
+        search={{ placeholder: l("invoices.search_placeholder"), defaultValue: q, label: l("invoices.search") }}
+        filters={{
+          count: applied.length,
+          children: (
+            <>
+              <Field label={l("invoices.status")}>
+                <select id="fin-status" name="status" defaultValue={status ?? ""} className={fieldClass}>
+                  <option value="">{l("common.all")}</option>
+                  {STATUSES.map((s) => (
+                    <option key={s} value={s}>
+                      {statusLabel(s)}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <span className="text-[0.75rem] font-medium text-muted-foreground">{l("invoices.period")}</span>
+              <ul className="-mt-2 flex flex-wrap gap-1.5 text-[0.8125rem]">
+                <li>
+                  <Link href={href({ from: undefined, to: undefined })} aria-current={!from && !to ? "true" : undefined} className={cn("block rounded-md border border-border px-2.5 py-1 font-medium hover:bg-muted", !from && !to && "bg-muted")}>
+                    {l("invoices.period_all")}
                   </Link>
                 </li>
-              ))}
-            </ul>
-            <div className="grid grid-cols-2 gap-2">
-              <Field label={l("invoices.from")}>
-                <input id="fin-from" type="date" name="from" defaultValue={from ?? ""} className={fieldClass} />
-              </Field>
-              <Field label={l("invoices.to")}>
-                <input id="fin-to" type="date" name="to" defaultValue={to ?? ""} className={fieldClass} />
-              </Field>
-            </div>
-          </Disclosure>
-          <Disclosure label={l("invoices.filters")} count={moreFilters} clear={moreFilters ? { href: href({ kind: undefined, billit: undefined, b2b: undefined }), label: l("common.clear") } : null}>
-            <Field label={l("invoices.kind")}>
-              <select id="fin-kind" name="kind" defaultValue={kind ?? ""} className={fieldClass}>
-                <option value="">{l("common.all")}</option>
-                {KINDS.map((k) => (
-                  <option key={k} value={k}>
-                    {l(`kind.${k}`)}
-                  </option>
+                {PERIODS.map((p) => (
+                  <li key={p}>
+                    <Link href={href(presets[p])} aria-current={activePreset === p ? "true" : undefined} className={cn("block rounded-md border border-border px-2.5 py-1 font-medium hover:bg-muted", activePreset === p && "bg-muted")}>
+                      {l(`invoices.period_${p}`)}
+                    </Link>
+                  </li>
                 ))}
-              </select>
-            </Field>
-            <Field label={l("invoices.billit")}>
-              <select id="fin-billit" name="billit" defaultValue={billit ?? ""} className={fieldClass}>
-                <option value="">{l("common.all")}</option>
-                {BILLIT.map((s) => (
-                  <option key={s} value={s}>
-                    {l(`billit_status.${s}`)}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label={l("invoices.b2b")}>
-              <select id="fin-b2b" name="b2b" defaultValue={b2b ?? ""} className={fieldClass}>
-                <option value="">{l("common.all")}</option>
-                <option value="1">{l("invoices.b2b_only")}</option>
-                <option value="0">{l("invoices.b2c_only")}</option>
-              </select>
-            </Field>
-          </Disclosure>
-        </Toolbar>
-      </form>
+              </ul>
+              <div className="grid grid-cols-2 gap-2">
+                <Field label={l("invoices.from")}>
+                  <input id="fin-from" type="date" name="from" defaultValue={from ?? ""} className={fieldClass} />
+                </Field>
+                <Field label={l("invoices.to")}>
+                  <input id="fin-to" type="date" name="to" defaultValue={to ?? ""} className={fieldClass} />
+                </Field>
+              </div>
+              <Field label={l("invoices.kind")}>
+                <select id="fin-kind" name="kind" defaultValue={kind ?? ""} className={fieldClass}>
+                  <option value="">{l("common.all")}</option>
+                  {KINDS.map((k) => (
+                    <option key={k} value={k}>
+                      {l(`kind.${k}`)}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label={l("invoices.billit")}>
+                <select id="fin-billit" name="billit" defaultValue={billit ?? ""} className={fieldClass}>
+                  <option value="">{l("common.all")}</option>
+                  {BILLIT.map((s) => (
+                    <option key={s} value={s}>
+                      {l(`billit_status.${s}`)}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label={l("invoices.b2b")}>
+                <select id="fin-b2b" name="b2b" defaultValue={b2b ?? ""} className={fieldClass}>
+                  <option value="">{l("common.all")}</option>
+                  <option value="1">{l("invoices.b2b_only")}</option>
+                  <option value="0">{l("invoices.b2c_only")}</option>
+                </select>
+              </Field>
+            </>
+          ),
+        }}
+        chips={{
+          label: l("invoices.status"),
+          items: [
+            { key: "all", label: l("common.all"), href: href({ status: undefined }), active: !status },
+            ...STATUS_TABS.map((s) => ({ key: s, label: statusLabel(s), href: href({ status: s }), active: status === s })),
+          ],
+        }}
+        applied={applied}
+        clearAll={href({ status: rareStatus ? undefined : status, kind: undefined, billit: undefined, b2b: undefined, from: undefined, to: undefined })}
+      />
 
       {page.rows.length === 0 ? (
         <EmptyState title={o.documentCount === 0 ? l("overview.empty", { year: today.slice(0, 4) }) : l("invoices.empty")} />

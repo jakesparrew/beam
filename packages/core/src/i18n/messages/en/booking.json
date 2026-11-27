@@ -466,7 +466,8 @@
       },
       "pick_person": "Pick a person:",
       "pay_at_desk_short": "Pay at the desk",
-      "over_capacity_short": "Over capacity"
+      "over_capacity_short": "Over capacity",
+      "search_placeholder": "Search by name, email, phone or customer number…"
     },
     "manual": {
       "title": "New booking",
@@ -560,7 +561,8 @@
       "waiting_count": "Waiting: {count}",
       "subtitle": "Who waits for a place in the coming sessions, by day and session. Offer a place as soon as one frees up.",
       "col_queue": "Queue",
-      "more_actions": "More actions"
+      "more_actions": "More actions",
+      "search_placeholder": "Search by name, email or session…"
     },
     "portalBook": {
       "title": "Book a session",
@@ -905,7 +907,8 @@
       "release_materials": "Share with participants",
       "hide_materials": "Hide again",
       "file_too_large": "The file is larger than 10 MB.",
-      "image_type": "Choose a PNG, JPG, WebP or GIF image."
+      "image_type": "Choose a PNG, JPG, WebP or GIF image.",
+      "search_placeholder": "Search by title or location…"
     },
     "list": {
       "subtitle": "All sessions per day. Open a session for its participants, check-in and waiting list.",
@@ -929,7 +932,8 @@
       "day_empty": "No sessions",
       "today_badge": "Today",
       "week_range": "{from} – {to}",
-      "col_date": "Date"
+      "col_date": "Date",
+      "search_placeholder": "Search a session by name…"
     }
   }
 }

@@ -767,7 +767,30 @@
       "receipt_intro": "Le ticket part à l'adresse e-mail du client. Indiquez une autre adresse pour l'envoyer ailleurs.",
       "link_intro": "Le client reçoit un e-mail avec un lien pour payer en ligne.",
       "invoice_intro": "Une facture est créée, que le client paie par virement.",
-      "cancel_intro": "Une commande annulée ne peut plus être payée."
+      "cancel_intro": "Une commande annulée ne peut plus être payée.",
+      "search_placeholder": "Rechercher par référence, nom ou e-mail…",
+      "col_items": "Articles",
+      "col_payment": "Paiement",
+      "items_more": "{first} + {count} de plus",
+      "no_items": "Aucun article",
+      "today_at": "Aujourd'hui {time}",
+      "yesterday_at": "Hier {time}",
+      "channel_short": {
+        "portal": "En ligne",
+        "site": "En ligne",
+        "admin": "Collaborateur",
+        "pos": "Caisse",
+        "link": "Lien de paiement",
+        "recurring": "Abonnement"
+      },
+      "method": {
+        "terminal": "Carte (terminal)",
+        "cash": "Espèces",
+        "online": "En ligne",
+        "bank_transfer": "Virement",
+        "credit_balance": "Avoir",
+        "on_account": "Sur compte"
+      }
     },
     "admin_refund": {
       "title": "Rembourser la commande {reference}",

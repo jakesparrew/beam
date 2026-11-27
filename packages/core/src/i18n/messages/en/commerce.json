@@ -767,7 +767,30 @@
       "receipt_intro": "The receipt goes to the customer's email address. Enter another address to send it there instead.",
       "link_intro": "The customer gets an email with a link to pay online.",
       "invoice_intro": "An invoice is issued, which the customer pays by bank transfer.",
-      "cancel_intro": "A cancelled order can no longer be paid."
+      "cancel_intro": "A cancelled order can no longer be paid.",
+      "search_placeholder": "Search by reference, name or email…",
+      "col_items": "Items",
+      "col_payment": "Payment",
+      "items_more": "{first} + {count} more",
+      "no_items": "No items",
+      "today_at": "Today {time}",
+      "yesterday_at": "Yesterday {time}",
+      "channel_short": {
+        "portal": "Online",
+        "site": "Online",
+        "admin": "Staff",
+        "pos": "Till",
+        "link": "Payment link",
+        "recurring": "Subscription"
+      },
+      "method": {
+        "terminal": "Card (terminal)",
+        "cash": "Cash",
+        "online": "Online",
+        "bank_transfer": "Bank transfer",
+        "credit_balance": "Credit balance",
+        "on_account": "On account"
+      }
     },
     "admin_refund": {
       "title": "Refund order {reference}",

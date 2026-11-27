@@ -466,7 +466,8 @@
       },
       "pick_person": "Kies een persoon:",
       "pay_at_desk_short": "Betalen aan het onthaal",
-      "over_capacity_short": "Boven capaciteit"
+      "over_capacity_short": "Boven capaciteit",
+      "search_placeholder": "Zoek op naam, e-mail, telefoon of klantnummer…"
     },
     "manual": {
       "title": "Nieuwe boeking",
@@ -560,7 +561,8 @@
       "waiting_count": "Wachtend: {count}",
       "subtitle": "Wie wacht op een plaats in de komende sessies, per dag en per sessie. Bied een plaats aan zodra er een vrijkomt.",
       "col_queue": "Wachtrij",
-      "more_actions": "Meer acties"
+      "more_actions": "Meer acties",
+      "search_placeholder": "Zoek op naam, e-mail of sessie…"
     },
     "portalBook": {
       "title": "Een sessie boeken",
@@ -905,7 +907,8 @@
       "release_materials": "Delen met deelnemers",
       "hide_materials": "Weer verbergen",
       "file_too_large": "Het bestand is groter dan 10 MB.",
-      "image_type": "Kies een PNG-, JPG-, WebP- of GIF-afbeelding."
+      "image_type": "Kies een PNG-, JPG-, WebP- of GIF-afbeelding.",
+      "search_placeholder": "Zoek op titel of locatie…"
     },
     "list": {
       "subtitle": "Alle sessies per dag. Open een sessie voor deelnemers, inchecken en de wachtlijst.",
@@ -929,7 +932,8 @@
       "day_empty": "Geen sessies",
       "today_badge": "Vandaag",
       "week_range": "{from} – {to}",
-      "col_date": "Datum"
+      "col_date": "Datum",
+      "search_placeholder": "Zoek een sessie op naam…"
     }
   }
 }

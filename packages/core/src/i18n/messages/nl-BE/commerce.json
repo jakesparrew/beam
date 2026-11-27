@@ -767,7 +767,30 @@
       "receipt_intro": "Het kasticket gaat naar het e-mailadres van de klant. Vul een ander adres in om het daarheen te sturen.",
       "link_intro": "De klant krijgt een e-mail met een link om online te betalen.",
       "invoice_intro": "Er wordt een factuur gemaakt die de klant per overschrijving betaalt.",
-      "cancel_intro": "Een geannuleerde bestelling kan niet meer betaald worden."
+      "cancel_intro": "Een geannuleerde bestelling kan niet meer betaald worden.",
+      "search_placeholder": "Zoek op referentie, naam of e-mail…",
+      "col_items": "Artikelen",
+      "col_payment": "Betaling",
+      "items_more": "{first} + {count} meer",
+      "no_items": "Geen artikelen",
+      "today_at": "Vandaag {time}",
+      "yesterday_at": "Gisteren {time}",
+      "channel_short": {
+        "portal": "Online",
+        "site": "Online",
+        "admin": "Medewerker",
+        "pos": "Kassa",
+        "link": "Betaallink",
+        "recurring": "Abonnement"
+      },
+      "method": {
+        "terminal": "Kaart (terminal)",
+        "cash": "Cash",
+        "online": "Online",
+        "bank_transfer": "Overschrijving",
+        "credit_balance": "Tegoed",
+        "on_account": "Op rekening"
+      }
     },
     "admin_refund": {
       "title": "Bestelling {reference} terugbetalen",

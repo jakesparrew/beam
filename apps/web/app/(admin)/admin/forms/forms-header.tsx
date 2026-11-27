@@ -8,7 +8,7 @@ import { PageHeader, PrimaryAction, Segmented } from "@/modules/platform/ui/admi
 export function FormsHeader({ active, canImports, tr }: { active: "forms" | "imports"; canImports: boolean; tr: (key: string) => string }) {
   return (
     <>
-      <PageHeader title={tr("forms.list.title")} description={tr("forms.list.subtitle")} actions={<PrimaryAction href="/admin/forms/new">+ {tr("forms.list.new")}</PrimaryAction>} />
+      <PageHeader title={tr("forms.list.title")} actions={<PrimaryAction href="/admin/forms/new">+ {tr("forms.list.new")}</PrimaryAction>} />
       {canImports ? (
         <Segmented
           label={tr("forms.list.tabs")}

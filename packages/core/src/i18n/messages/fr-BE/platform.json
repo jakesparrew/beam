@@ -440,7 +440,12 @@
       "previous": "Précédent",
       "next": "Suivant",
       "apply": "Appliquer",
-      "filters": "Filtres"
+      "filters": "Filtres",
+      "search": "Rechercher",
+      "clear_all": "Tout effacer",
+      "remove_filter": "Retirer le filtre",
+      "search_shortcut": "Appuyez sur / pour rechercher",
+      "more_actions": "Plus d'actions"
     },
     "settings": {
       "title": "Paramètres",

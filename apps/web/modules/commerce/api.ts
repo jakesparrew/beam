@@ -224,6 +224,11 @@ export function listPersonOrders(tx: DbOrTx, personId: string, opts: { limit: nu
   return orderService().then((m) => m.listPersonOrders(tx, personId, opts));
 }
 
+/** The person's open on-account orders ("Openstaand", owner decision November 2026) and the total due. */
+export function getPersonOpenAccount(db: DbOrTx, personId: string): Promise<{ dueCents: number; orders: { orderId: string; reference: string; dueCents: number; since: Date }[] }> {
+  return import("./server/on-account").then((m) => m.getPersonOpenAccount(db, personId));
+}
+
 /** Booking: the ticket product behind an event price (create, or rename and re-price). */
 export function upsertEventTicketProduct(tx: Tx, ctx: Ctx, input: { sku: string; name: LocalizedText; amountCents: number }): Promise<{ productId: string }> {
   return catalogueService().then((m) => m.upsertEventTicketProductRecord({ ...ctx, tx }, input));

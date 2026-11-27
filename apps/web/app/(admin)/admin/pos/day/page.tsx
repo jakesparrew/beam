@@ -28,7 +28,7 @@ function errorCode(error: { message: string; fields?: Record<string, string> }):
 
 /**
  * `/admin/pos/day` (commerce spec 5.1, rule 55; `commerce.sell`), reached from the till: the
- * day's POS totals by method (terminal, cash, bank transfer, euro credit), refunds and order
+ * day's POS totals by method (Kaart (terminal), cash, bank transfer, euro credit, the integrated terminal when used), refunds and order
  * count; the cash float and the expected cash in the drawer; the close state. Close the day with
  * the counted cash (a note when it differs); reopen a closed day (`commerce.refund`). The one-off
  * Lightspeed import is linked from here (it left the menu, owner review November 2026).
@@ -66,8 +66,10 @@ export default async function PosDayPage({ searchParams }: { searchParams: Promi
     redirect(`/admin/pos/day?${q.toString()}` as never);
   }
 
+  // Kaart (terminal) is the card taken on a separate terminal; the integrated terminal only shows when used.
   const rows: [string, number][] = [
-    [c("terminal"), totals.terminal],
+    [c("card_terminal"), totals.card_terminal ?? 0],
+    ...(totals.terminal ? ([[c("terminal"), totals.terminal]] as [string, number][]) : []),
     [c("cash"), totals.cash],
     [c("bank_transfer"), totals.bank_transfer],
     [c("credit_balance"), totals.credit_balance],

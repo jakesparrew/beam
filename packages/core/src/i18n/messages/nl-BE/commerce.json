@@ -795,7 +795,8 @@
       "col_since": "Sinds",
       "open": "Open bestelling {reference}",
       "col_problem": "Probleem",
-      "subtitle": "Mislukte en hangende betalingen, achterstallige overschrijvingen en terugboekingen. Elke rij opent de bestelling."
+      "subtitle": "Mislukte en hangende betalingen, achterstallige overschrijvingen, terugboekingen en bestellingen op rekening. Elke rij opent de bestelling.",
+      "kind_on_account": "Op rekening"
     },
     "pos": {
       "title": "Onthaal",
@@ -884,7 +885,21 @@
       "quantity": "Aantal",
       "col_product": "Product",
       "col_amount": "Bedrag",
-      "choose_other": "Andere methode kiezen"
+      "choose_other": "Andere methode kiezen",
+      "method_card_terminal": "Kaart (terminal)",
+      "terminal_reference": "Terminalreferentie (laatste 4 cijfers of bonnummer, optioneel)",
+      "on_account": "Op rekening",
+      "on_account_needs_person": "Kies eerst een klant om op rekening te zetten.",
+      "on_account_title": "Op rekening gezet",
+      "on_account_body": "Bestelling {reference} staat open op de rekening van {name}: {amount} te betalen.",
+      "on_account_since": "Op rekening sinds {date}",
+      "settle_intro": "Hoe betaalt de klant?",
+      "settle_link": "Betaaluitnodiging sturen",
+      "settle_invoice": "Factuur (overschrijving)",
+      "settle_desk": "Later aan de balie",
+      "link_sent": "De betaaluitnodiging is verstuurd.",
+      "open_accounts_title": "Openstaand op rekening: {amount}",
+      "open_account_row": "{reference} · {amount} · sinds {date}"
     },
     "pos_day": {
       "title": "Dag aan het onthaal",
@@ -922,7 +937,8 @@
       "failed": "Niet opgeslagen: {message}",
       "today": "Vandaag",
       "previous_day": "Vorige dag",
-      "next_day": "Volgende dag"
+      "next_day": "Volgende dag",
+      "card_terminal": "Kaart (terminal)"
     },
     "resume": {
       "title": "Ga verder met je bestelling",
@@ -988,6 +1004,9 @@
       "col_vat": "Btw",
       "col_receipts": "Bonnen",
       "total": "Totaal"
+    },
+    "open_account": {
+      "line": "Openstaand: {amount} ({count} op rekening)"
     }
   }
 }

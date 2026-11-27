@@ -2,7 +2,8 @@
  * POS day summary and day close (commerce spec rule 55, edge case 31; commerce-P7).
  *
  * The business day is the Europe/Brussels calendar day. Its counter money is:
- * - `cash` and `terminal` payments paid that day (they only start at the counter, whatever the
+ * - `cash` and `terminal` payments paid that day (a `terminal` payment with method `external_card`
+ *   is Kaart (terminal), a card taken on a separate terminal, and has its own line) (they only start at the counter, whatever the
  *   order's channel: a booking pay-at-desk order paid in cash is drawer money too);
  * - `bank_transfer` payments placed that day and `credit_balance` payments paid that day on POS
  *   orders (no drawer effect, shown for the totals);
@@ -26,7 +27,8 @@ export const POS_DIFFERENCE_TASK_CENTS = 2000;
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 export type PosDayTotals = {
-  /** Cents per method. */
+  /** Cents per method: `card_terminal` is Kaart (terminal), `terminal` the integrated device. */
+  card_terminal: number;
   terminal: number;
   cash: number;
   bank_transfer: number;
@@ -80,7 +82,7 @@ export async function computePosDayTotals(db: DbOrTx, day: string): Promise<PosD
   const settings = await commerceSettings(db);
   const paidThatDay = and(inArray(payments.status, [...PAID_PAYMENT_STATUSES]), gte(payments.paidAt, from), lt(payments.paidAt, to));
   const rows = await db
-    .select({ id: payments.id, orderId: payments.orderId, provider: payments.provider, amountCents: payments.amountCents, status: payments.status })
+    .select({ id: payments.id, orderId: payments.orderId, provider: payments.provider, method: payments.method, amountCents: payments.amountCents, status: payments.status })
     .from(payments)
     .innerJoin(orders, eq(orders.id, payments.orderId))
     .where(
@@ -90,9 +92,10 @@ export async function computePosDayTotals(db: DbOrTx, day: string): Promise<PosD
         and(eq(orders.channel, "pos"), eq(payments.provider, "bank_transfer"), gte(payments.createdAt, from), lt(payments.createdAt, to), sql`${payments.status} not in ('cancelled', 'expired', 'failed')`),
       ),
     );
-  const totals: PosDayTotals = { terminal: 0, cash: 0, bank_transfer: 0, credit_balance: 0, refunds: 0, cash_refunds: 0, orders: 0, payments: rows.length, refund_count: 0, float: settings.pos_cash_float_cents };
+  const totals: PosDayTotals = { card_terminal: 0, terminal: 0, cash: 0, bank_transfer: 0, credit_balance: 0, refunds: 0, cash_refunds: 0, orders: 0, payments: rows.length, refund_count: 0, float: settings.pos_cash_float_cents };
   for (const r of rows) {
-    if (r.provider === "terminal" || r.provider === "cash" || r.provider === "bank_transfer" || r.provider === "credit_balance") totals[r.provider] += r.amountCents;
+    if (r.provider === "terminal" && r.method === "external_card") totals.card_terminal += r.amountCents;
+    else if (r.provider === "terminal" || r.provider === "cash" || r.provider === "bank_transfer" || r.provider === "credit_balance") totals[r.provider] += r.amountCents;
   }
   totals.orders = new Set(rows.map((r) => r.orderId)).size;
 

@@ -16,6 +16,7 @@ import { ActivityPanel } from "@/modules/assistant/ui/admin/activity-panel";
 import { BehaviourPanel } from "@/modules/assistant/ui/admin/behaviour-panel";
 import { AssistantPersonPanel } from "@/modules/assistant/ui/admin/person-panel";
 import { listPersonOrders } from "@/modules/commerce/api";
+import { PersonOpenAccount } from "@/modules/commerce/ui/person-open-account";
 import { getPersonCreditSummary } from "@/modules/credits/api";
 import { PersonMembershipPanel } from "@/modules/credits/ui/person-membership-panel";
 import { PersonEmailHistory } from "@/modules/email/ui/PersonEmailHistory";
@@ -267,6 +268,7 @@ export default async function Person360Page({ params, searchParams }: { params: 
 
       <KpiStrip items={kpis} data-testid="kpi-strip" aria-label={pl("kpis")} />
 
+      <PersonOpenAccount personId={person.id} locale={locale} />
       <div className="overflow-x-auto">
         <Segmented label={tr("crm.person360.tabs.label")} items={TABS.map((t) => ({ key: t, label: tr(`crm.person360.tabs.${t}`), href: tabHref(t), active: t === tab }))} />
       </div>

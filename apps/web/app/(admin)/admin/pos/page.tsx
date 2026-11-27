@@ -10,9 +10,9 @@ import { getAppDb } from "@/lib/ctx";
 import { adminLocale, translator } from "@/lib/i18n";
 import { getSetting } from "@/lib/settings";
 import { listBookableSessions } from "@/modules/booking/api";
-import { emailReceipt, posCreateWalkIn, posPayOrder, posSell, redeemVoucher } from "@/modules/commerce/actions";
+import { emailReceipt, issueOnAccountInvoice, posCreateWalkIn, posPayOrder, posSell, redeemVoucher, sendPaymentLink } from "@/modules/commerce/actions";
 import { getQuote } from "@/modules/commerce/api";
-import { ANONYMOUS_KINDS, businessDayOf, getPosOrder, isPosDayClosed, listProducts } from "@/modules/commerce/queries";
+import { ANONYMOUS_KINDS, businessDayOf, getPosOrder, isPosDayClosed, listOpenAccounts, listProducts } from "@/modules/commerce/queries";
 import { PosBasket, PosPaymentForm, type PosPaymentText } from "@/modules/commerce/ui/pos-basket";
 import { POS_TABS, PosGrid, type PosTab } from "@/modules/commerce/ui/pos-grid";
 import { TerminalDialog } from "@/modules/commerce/ui/terminal-dialog";
@@ -51,9 +51,12 @@ const field = (form: FormData, key: string) => {
 };
 const cents = (v: string | undefined) => (v === undefined ? undefined : Math.round(Number(v.replace(/\s/g, "").replace(",", ".")) * 100));
 
-/** The payment fields every POS payment form posts. */
+const METHODS = ["terminal", "card_terminal", "cash", "bank_transfer"] as const;
+
+/** The payment fields every POS payment form posts; the "Op rekening" button posts `onAccount=1`. */
 function paymentFields(form: FormData) {
-  const method = field(form, "method");
+  const picked = field(form, "method");
+  const method = field(form, "onAccount") === "1" ? "on_account" : (METHODS.find((m) => m === picked) ?? "card_terminal");
   const billing: BillingDetails | undefined = field(form, "companyName")
     ? BillingDetailsInput.safeParse({
         isCompany: true,
@@ -64,8 +67,9 @@ function paymentFields(form: FormData) {
       }).data
     : undefined;
   return {
-    method: (method === "cash" || method === "bank_transfer" ? method : "terminal"),
+    method,
     terminalId: field(form, "terminalId"),
+    terminalReference: method === "card_terminal" ? (field(form, "terminalReference") ?? null) : null,
     cashReceivedCents: method === "cash" ? (cents(field(form, "cashReceived")) ?? 0) : undefined,
     useEuroCredit: field(form, "useEuroCredit") === "1",
     ...(billing ? { billingDetails: billing } : {}),
@@ -93,8 +97,12 @@ function afterPayment(out: { orderId: string; status: string; changeCents?: numb
  * `/admin/pos` (commerce spec 5.1, rules 21, 25, 26b, 42 to 45, 56; `commerce.sell`): the
  * reception screen. Left the product grid by kind with today's sessions; right the basket with the
  * buyer (search, walk-in or anonymous), the live quote, euro credit, voucher redemption and the
- * payment (terminal, cash, bank transfer). `?order=<id>` opens a `pending_payment` order read-only
- * and pays it through `posPayOrder`; `?done=<id>` shows the result with print and email receipt.
+ * payment (Kaart (terminal), cash, bank transfer, the integrated terminal when configured) or "Op
+ * rekening" (needs a client; the order stays open on that person). `?order=<id>` opens a
+ * `pending_payment` order read-only and pays it through `posPayOrder`; `?done=<id>` shows the
+ * result with print and email receipt, or for an on-account order the three ways to settle it
+ * (payment link, open invoice with `invoices.issue`, later at the till). A selected client's open
+ * on-account orders are listed in the buyer panel to be paid here.
  */
 export default async function PosPage({ searchParams }: { searchParams: Promise<Search> }) {
   const actor = await requireStaff();
@@ -113,7 +121,7 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
 
   const basketText = { empty: c("basket_empty"), remove: (n: string) => c("remove_named", { name: n }), quantity: c("quantity"), product: c("col_product"), amount: c("col_amount"), subtotal: c("subtotal"), discount: c("discount"), total: c("total"), due: c("due") };
   const paymentText = (euroCents: number | null): PosPaymentText => ({
-    method: c("method"), terminal: c("method_terminal"), cash: c("method_cash"), bankTransfer: c("method_bank_transfer"), terminalLabel: c("terminal"), cashReceived: c("cash_received"),
+    method: c("method"), cardTerminal: c("method_card_terminal"), terminalReference: c("terminal_reference"), onAccount: c("on_account"), onAccountNeedsPerson: c("on_account_needs_person"), terminal: c("method_terminal"), cash: c("method_cash"), bankTransfer: c("method_bank_transfer"), terminalLabel: c("terminal"), cashReceived: c("cash_received"),
     useEuroCredit: c("use_euro_credit"), euroCredit: euroCents !== null ? c("euro_credit", { amount: money(euroCents) }) : null, companyToggle: c("company_toggle"), companyName: c("company_name"),
     vatNumber: c("vat_number"), line1: c("address_line1"), postalCode: c("postal_code"), city: c("city"), country: c("country"), billingEmail: c("billing_email"), pay: c("pay"),
   });
@@ -126,6 +134,7 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
         {sp.error ? <Notice tone="bad">{c("failed", { message: errorText(sp.error) })}</Notice> : null}
         {sp.msg === "voucher_redeemed" ? <Notice tone="ok">{c("voucher_redeemed", { amount: money(Number(sp.amount ?? 0)) })}</Notice> : null}
         {sp.msg === "receipt_sent" ? <Notice tone="ok">{c("receipt_sent")}</Notice> : null}
+        {sp.msg === "link_sent" ? <Notice tone="ok">{c("link_sent")}</Notice> : null}
       </div>
     </div>
   );
@@ -141,15 +150,44 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
       redirect(`/admin/pos?done=${orderId}&${r.ok ? "msg=receipt_sent" : `error=${encodeURIComponent(errorCode(r.error))}`}` as never);
     }
     const isPaid = view.status === "paid";
+    const onAccount = view.status === "pending_payment" && !!view.onAccountAt;
+    const canInvoice = hasPermission(actor, "invoices.issue");
+    async function onLink() {
+      "use server";
+      const r = await sendPaymentLink({ orderId });
+      redirect(`/admin/pos?done=${orderId}&${r.ok ? "msg=link_sent" : `error=${encodeURIComponent(errorCode(r.error))}`}` as never);
+    }
+    async function onInvoice() {
+      "use server";
+      const r = await issueOnAccountInvoice({ orderId });
+      redirect(`/admin/pos?done=${orderId}&${r.ok ? `dueOn=${r.data.dueOn}` : `error=${encodeURIComponent(errorCode(r.error))}`}` as never);
+    }
     return (
       <div className="grid gap-4">
         {header}
         <section aria-labelledby="pos-done-title" className="grid max-w-xl gap-3 rounded-xl border border-border bg-card p-5" data-pos-result={view.status}>
-          <h2 id="pos-done-title" className="text-[1.125rem] font-semibold">{isPaid ? c("paid_title") : c("order_title", { reference: view.reference })}</h2>
+          <h2 id="pos-done-title" className="text-[1.125rem] font-semibold">{isPaid ? c("paid_title") : onAccount ? c("on_account_title") : c("order_title", { reference: view.reference })}</h2>
           {isPaid ? <p>{c("paid_body", { reference: view.reference })}</p> : null}
+          {onAccount ? <p>{c("on_account_body", { reference: view.reference, amount: money(view.dueCents), name: view.personName ?? "" })}</p> : null}
           {isPaid && sp.change ? <p className="text-lg font-semibold">{c("change", { amount: money(Number(sp.change)) })}</p> : null}
           {sp.dueOn ? <p>{c("bank_transfer_open", { reference: view.reference, date: formatDate(sp.dueOn, locale, "long") })}</p> : null}
-          {!isPaid && !sp.dueOn ? <p>{c("order_state", { status: tr(`commerce.order_status.${view.status}`) })}</p> : null}
+          {!isPaid && !sp.dueOn && !onAccount ? <p>{c("order_state", { status: tr(`commerce.order_status.${view.status}`) })}</p> : null}
+          {onAccount ? (
+            <div className="grid gap-2 border-t pt-3">
+              <p className="text-sm font-medium">{c("settle_intro")}</p>
+              <div className="flex flex-wrap gap-2">
+                <form action={onLink}>
+                  <Button type="submit" variant="outline" className="min-h-11" disabled={!view.personEmail}>{c("settle_link")}</Button>
+                </form>
+                {canInvoice && !sp.dueOn ? (
+                  <form action={onInvoice}>
+                    <Button type="submit" variant="outline" className="min-h-11">{c("settle_invoice")}</Button>
+                  </form>
+                ) : null}
+                <Link href={`/admin/orders/${orderId}` as never} className="inline-flex min-h-11 items-center rounded-lg border border-border bg-card px-4 font-semibold hover:bg-muted">{c("settle_desk")}</Link>
+              </div>
+            </div>
+          ) : null}
           <div className="flex flex-wrap gap-2">
             {isPaid ? <Link href={`/admin/pos/receipt/${orderId}` as never} className="inline-flex min-h-11 items-center rounded-lg border border-border bg-card px-4 font-semibold hover:bg-muted">{c("print_receipt")}</Link> : null}
             <Link href="/admin/pos" className="inline-flex min-h-11 items-center rounded-lg bg-primary px-4 font-semibold text-primary-foreground hover:opacity-90">{c("new_sale")}</Link>
@@ -197,6 +235,7 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
             notes={[
               ...(view.personName ? [c("selected_person", { name: view.personName })] : []),
               ...(view.expiresAt && view.status === "pending_payment" ? [c("order_expires", { time: formatTime(view.expiresAt, locale) })] : []),
+              ...(view.onAccountAt && view.status === "pending_payment" ? [c("on_account_since", { date: formatDate(view.onAccountAt, locale, "long") })] : []),
               ...(view.status !== "pending_payment" ? [c("order_state", { status: tr(`commerce.order_status.${view.status}`) })] : []),
             ]}
             text={basketText}
@@ -212,7 +251,7 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
                 text={{ title: c("terminal_title"), waiting: c("terminal_waiting"), paid: c("terminal_paid"), failed: (status) => c("terminal_failed", { status: tr(`commerce.payment_status.${status}`) }), timeout: c("terminal_timeout"), cancel: c("terminal_cancel"), cancelled: c("terminal_cancelled"), chooseOther: c("choose_other"), error: tr("commerce.common.error") }}
               />
             ) : (
-              <PosPaymentForm action={onPayOrder} hidden={{ clientKey: randomUUID() }} terminals={settings.pos_terminals} allowBankTransfer={!view.hasDatedLines} allowCash={!dayClosed} canUseEuroCredit={!!euro} text={paymentText(euro)} />
+              <PosPaymentForm action={onPayOrder} hidden={{ clientKey: randomUUID() }} terminals={settings.pos_terminals} allowBankTransfer={!view.hasDatedLines || !!view.onAccountAt} allowCash={!dayClosed} canUseEuroCredit={!!euro} onAccount={view.onAccountAt ? null : { allowed: !!view.personId }} text={paymentText(euro)} />
             )}
           </PosBasket>
         </div>
@@ -241,6 +280,7 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
   const cart: CartItem[] = items.filter((i) => byId.has(i.productId)).map((i) => ({ productId: i.productId, quantity: i.quantity, ...(i.sessionId ? { sessionId: i.sessionId } : {}) }));
   const quote: Quote | null = cart.length ? await getQuote(db, { personId, companyId: null, items: cart, promoCode: promo, channel: "pos" }).catch(() => null) : null;
   const euro = personId ? (await getEuroBalance(db, personId)).remainingCents : null;
+  const openAccounts = personId ? await listOpenAccounts(db, { personId, limit: 20 }) : [];
   const kinds = cart.map((i) => byId.get(i.productId)!.kind);
   const needsPerson = !personId && kinds.some((k) => !(ANONYMOUS_KINDS as readonly string[]).includes(k));
   const hasDated = cart.some((i) => !!i.sessionId);
@@ -337,6 +377,20 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
                 </details>
               </>
             )}
+            {openAccounts.length ? (
+              <div className="grid gap-1 border-t pt-2 text-sm" data-testid="pos-open-accounts">
+                <p className="font-medium">{c("open_accounts_title", { amount: money(openAccounts.reduce((n, o) => n + o.dueCents, 0)) })}</p>
+                <ul className="grid gap-1">
+                  {openAccounts.map((o) => (
+                    <li key={o.orderId}>
+                      <Link href={`/admin/pos?order=${o.orderId}` as never} className="inline-flex min-h-11 items-center underline">
+                        {c("open_account_row", { reference: o.reference, amount: money(o.dueCents), date: formatDate(o.since, locale, "short") })}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
             {person ? (
               <form action={onRedeem} className="flex flex-wrap items-end gap-2 border-t pt-2">
                 <input type="hidden" name="personId" value={person.id} />
@@ -375,7 +429,7 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
                   <Button type="submit" variant="outline" className="min-h-11">{c("apply")}</Button>
                 </form>
                 {!needsPerson && quote ? (
-                  <PosPaymentForm action={onSell} hidden={hidden()} terminals={settings.pos_terminals} allowBankTransfer={!hasDated} allowCash={!dayClosed} canUseEuroCredit={!!euro} text={paymentText(euro)} />
+                  <PosPaymentForm action={onSell} hidden={hidden()} terminals={settings.pos_terminals} allowBankTransfer={!hasDated} allowCash={!dayClosed} canUseEuroCredit={!!euro} onAccount={{ allowed: !!personId }} text={paymentText(euro)} />
                 ) : null}
                 <Link href={href(sp, { items: null, promo: null, clientKey: null }) as never} className="inline-flex min-h-11 items-center text-sm underline">{c("clear_basket")}</Link>
               </>

@@ -4,19 +4,23 @@
  * later), `payment_pending_15m` (a provider payment open more than 15 minutes),
  * `bank_transfer_overdue`, `refund_failed` and `chargeback` (30 days). The view decides what is on
  * the feed; an item disappears as soon as its cause is gone (the payment settles, the refund is
- * retried, the transfer is paid or cancelled). `listPaymentAttention` is the api ops' action
+ * retried, the transfer is paid or cancelled). The owner's on-account orders ("Op rekening",
+ * `./on-account`) join the feed as kind `on_account` while they are open: the amount due and
+ * since when the order is on account. `listPaymentAttention` is the api ops' action
  * dashboard reads; `getAttentionFeed` adds what `/admin/orders/attention` shows.
  */
 import { orders, persons, vPaymentAttention } from "@beam/db/schema";
 import type { PaymentAttentionItem } from "@beam/core/commerce";
 import { asc, desc, eq, type DbOrTx } from "@/lib/ctx";
+import { listOpenAccounts } from "./on-account";
 
-export const ATTENTION_KINDS = ["payment_failed", "payment_pending_15m", "bank_transfer_overdue", "refund_failed", "chargeback"] as const;
+export const ATTENTION_KINDS = ["payment_failed", "payment_pending_15m", "bank_transfer_overdue", "refund_failed", "chargeback", "on_account"] as const;
 export type AttentionKind = (typeof ATTENTION_KINDS)[number];
 
 export type AttentionRow = PaymentAttentionItem & {
   kind: AttentionKind;
-  paymentId: string;
+  /** Null for `on_account` (the order has no payment yet). */
+  paymentId: string | null;
   personName: string | null;
   personEmail: string | null;
   channel: string;
@@ -48,7 +52,7 @@ export async function getAttentionFeed(db: DbOrTx, opts: { limit: number }): Pro
     .leftJoin(persons, eq(persons.id, orders.personId))
     .orderBy(asc(vPaymentAttention.kind), desc(vPaymentAttention.sinceAt))
     .limit(clampLimit(opts.limit));
-  return rows.map((r) => ({
+  const feed: AttentionRow[] = rows.map((r) => ({
     kind: r.kind,
     paymentId: r.paymentId,
     orderId: r.orderId,
@@ -62,6 +66,24 @@ export async function getAttentionFeed(db: DbOrTx, opts: { limit: number }): Pro
     personEmail: r.email ?? null,
     channel: r.channel,
   }));
+  const open = await listOpenAccounts(db, { limit: clampLimit(opts.limit) });
+  return [
+    ...feed,
+    ...open.map((r) => ({
+      kind: "on_account" as const,
+      paymentId: null,
+      orderId: r.orderId,
+      reference: r.reference,
+      personId: r.personId,
+      status: "pending_payment" as const,
+      reason: "on_account",
+      amountCents: r.dueCents,
+      since: r.since,
+      personName: r.personName,
+      personEmail: r.personEmail,
+      channel: r.channel,
+    })),
+  ];
 }
 
 /** api `listPaymentAttention` (ops' action dashboard): `reason` is the feed kind. */

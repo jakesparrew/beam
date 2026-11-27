@@ -795,7 +795,8 @@
       "col_since": "Since",
       "open": "Open order {reference}",
       "col_problem": "Problem",
-      "subtitle": "Failed and pending payments, overdue bank transfers and chargebacks. Each row opens the order."
+      "subtitle": "Failed and pending payments, overdue bank transfers, chargebacks and orders on account. Each row opens the order.",
+      "kind_on_account": "On account"
     },
     "pos": {
       "title": "Front desk",
@@ -884,7 +885,21 @@
       "quantity": "Quantity",
       "col_product": "Product",
       "col_amount": "Amount",
-      "choose_other": "Choose another method"
+      "choose_other": "Choose another method",
+      "method_card_terminal": "Card (terminal)",
+      "terminal_reference": "Terminal reference (last 4 digits or receipt number, optional)",
+      "on_account": "On account",
+      "on_account_needs_person": "Choose a client first to put the order on account.",
+      "on_account_title": "Put on account",
+      "on_account_body": "Order {reference} is open on the account of {name}: {amount} to pay.",
+      "on_account_since": "On account since {date}",
+      "settle_intro": "How will the client pay?",
+      "settle_link": "Send a payment invitation",
+      "settle_invoice": "Invoice (bank transfer)",
+      "settle_desk": "Later at the desk",
+      "link_sent": "The payment invitation was sent.",
+      "open_accounts_title": "Open on account: {amount}",
+      "open_account_row": "{reference} · {amount} · since {date}"
     },
     "pos_day": {
       "title": "Front-desk day",
@@ -922,7 +937,8 @@
       "failed": "Not saved: {message}",
       "today": "Today",
       "previous_day": "Previous day",
-      "next_day": "Next day"
+      "next_day": "Next day",
+      "card_terminal": "Card (terminal)"
     },
     "resume": {
       "title": "Continue your order",
@@ -988,6 +1004,9 @@
       "col_vat": "VAT",
       "col_receipts": "Receipts",
       "total": "Total"
+    },
+    "open_account": {
+      "line": "Open: {amount} ({count} on account)"
     }
   }
 }

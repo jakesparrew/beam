@@ -124,6 +124,12 @@
           "title": "Privacy requests near their due date",
           "empty": "Nothing needs attention today",
           "row": "{kind}, due {date}"
+        },
+        "open_accounts": {
+          "title": "Open accounts",
+          "empty": "Nothing needs attention today",
+          "row": "{amount} on account since {date}",
+          "review": "Go to Follow-up"
         }
       },
       "overview": {

@@ -274,7 +274,8 @@ export async function issueRefund(tx: Tx, ctx: Ctx, input: IssueRefundInput): Pr
         reason,
         lines: portions[i]!.map((p) => ({ order_line_id: p.orderLineId, quantity: p.quantity, amount_cents: p.amountCents })),
         creditAction: plan.creditAction,
-        status: immediate ? "refunded" : payment.provider === "bank_transfer" ? "sent" : "pending",
+        // A transfer or a card taken on a separate terminal is paid back by hand: `sent` until staff confirm it.
+        status: immediate ? "refunded" : payment.provider === "bank_transfer" || payment.method === "external_card" ? "sent" : "pending",
         createdByUserId,
       })
       .returning();

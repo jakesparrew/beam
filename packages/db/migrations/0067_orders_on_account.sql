@@ -1,0 +1,2 @@
+ALTER TABLE "orders" ADD COLUMN "on_account_at" timestamp with time zone;--> statement-breakpoint
+CREATE INDEX "orders_on_account_idx" ON "orders" USING btree ("person_id","on_account_at") WHERE "orders"."on_account_at" is not null and "orders"."status" = 'pending_payment';

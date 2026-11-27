@@ -31,6 +31,7 @@ export const ACTION_CARD_KEYS = [
   "b2b_proposals",
   "memberships_expiring",
   "failed_payments",
+  "open_accounts",
   "webinar_leads_not_booked",
   "unused_packages_expiring",
   "shared_package_abuse",

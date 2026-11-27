@@ -7,7 +7,8 @@
  *   Brussels, the order's own expiry cleared (a transfer waits for the money, not 30 minutes),
  *   and in the same transaction the open invoice through `finance.issueInvoice({status: 'open',
  *   dueOn})`, so commerce's overdue feed and finance's invoice show the same due date. Refused for
- *   orders with session, night or ticket lines (a seat cannot wait 14 days).
+ *   orders with session, night or ticket lines (a seat cannot wait 14 days), except on-account
+ *   orders, whose seats are already confirmed (`./on-account`).
  * - `recordBankTransferPaid` is what finance calls when Billit reports the transfer or staff mark
  *   the invoice paid: idempotent on the order, it settles the open transfer and runs the paid
  *   transaction, whose `issueInvoice` returns the open invoice, now settled.
@@ -44,7 +45,8 @@ export async function startBankTransfer(tx: Tx, ctx: Ctx, input: { orderId: stri
   if (!order) throw new NotFoundError("order_not_found");
   if (order.status !== "pending_payment") throw new ConflictError("invalid_transition");
   const lines = await tx.select({ kind: orderLines.productKind }).from(orderLines).where(eq(orderLines.orderId, order.id));
-  if (lines.some((l) => (DATED_PRODUCT_KINDS as readonly string[]).includes(l.kind))) throw new ConflictError("bank_transfer_not_allowed");
+  // An on-account order's seats are already the client's: only there may a dated line wait.
+  if (!order.onAccountAt && lines.some((l) => (DATED_PRODUCT_KINDS as readonly string[]).includes(l.kind))) throw new ConflictError("bank_transfer_not_allowed");
 
   const [open] = await tx
     .select()

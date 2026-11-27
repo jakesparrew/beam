@@ -755,7 +755,19 @@
       "person_search_hint": "Tapez un nom, une adresse e-mail ou un numéro de client",
       "subtitle": "Une commande est un paiement : un forfait, un abonnement, un produit ou une séance. Une place dans une séance (une réservation) se trouve sous Agenda > Réservations.",
       "tab_attention": "À suivre",
-      "filters": "Filtres"
+      "filters": "Filtres",
+      "more_actions": "Plus d'actions",
+      "subtotal": "Sous-total",
+      "vat_included": "dont TVA {rate}",
+      "invoiced": "Facturée",
+      "credit_note": "Note de crédit",
+      "activity": "Activité",
+      "method_card_online": "Carte (en ligne)",
+      "method_direct_debit": "Domiciliation",
+      "receipt_intro": "Le ticket part à l'adresse e-mail du client. Indiquez une autre adresse pour l'envoyer ailleurs.",
+      "link_intro": "Le client reçoit un e-mail avec un lien pour payer en ligne.",
+      "invoice_intro": "Une facture est créée, que le client paie par virement.",
+      "cancel_intro": "Une commande annulée ne peut plus être payée."
     },
     "admin_refund": {
       "title": "Rembourser la commande {reference}",

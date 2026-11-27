@@ -755,7 +755,19 @@
       "person_search_hint": "Type a name, email or customer number",
       "subtitle": "An order is a payment: a package, membership, product or session. A seat in a session (a booking) lives under Schedule > Bookings.",
       "tab_attention": "To follow up",
-      "filters": "Filters"
+      "filters": "Filters",
+      "more_actions": "More actions",
+      "subtotal": "Subtotal",
+      "vat_included": "of which VAT {rate}",
+      "invoiced": "Invoiced",
+      "credit_note": "Credit note",
+      "activity": "Activity",
+      "method_card_online": "Card (online)",
+      "method_direct_debit": "Direct debit",
+      "receipt_intro": "The receipt goes to the customer's email address. Enter another address to send it there instead.",
+      "link_intro": "The customer gets an email with a link to pay online.",
+      "invoice_intro": "An invoice is issued, which the customer pays by bank transfer.",
+      "cancel_intro": "A cancelled order can no longer be paid."
     },
     "admin_refund": {
       "title": "Refund order {reference}",

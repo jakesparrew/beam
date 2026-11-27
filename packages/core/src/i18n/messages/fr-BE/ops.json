@@ -252,7 +252,14 @@
         "new_badge": "nouveau",
         "credits_left": "{remaining} sur {total} {kind}",
         "single_session": "séance à l'unité",
-        "see": "Voir"
+        "see": "Voir",
+        "period_day": "Aujourd'hui",
+        "period_week": "Cette semaine",
+        "period_month": "Ce mois",
+        "revenue_periods_title": "Chiffre d'affaires",
+        "revenue_net": "Total",
+        "revenue_compare_note": "Comparé à la même période la semaine et le mois précédents, jusqu'au même jour.",
+        "kpi_revenue_sub": "semaine {week} · mois {month}"
       }
     },
     "period": {

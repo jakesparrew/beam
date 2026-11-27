@@ -128,21 +128,21 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       ) : null}
       {daily}
       <div className="flex flex-wrap items-end justify-between gap-3">
-        {expand ? <span /> : <h2 className="text-lg font-semibold">{tr("ops.dashboard.overview.to_do")}</h2>}
-        <nav aria-label={tr("ops.nav.dashboard")} className="flex gap-1 rounded-full bg-card p-1 shadow-sm" data-testid="dashboard-view">
+        {expand ? <span /> : <h2 className="text-[0.9375rem] font-semibold">{tr("ops.dashboard.overview.to_do")}</h2>}
+        <nav aria-label={tr("ops.nav.dashboard")} className="flex rounded-lg bg-muted p-0.5" data-testid="dashboard-view">
           {(["today", "week"] as const).map((v) => (
             <Link
               key={v}
               href={{ pathname: "/admin/dashboard", query: viewQuery(v) }}
               aria-current={v === view ? "page" : undefined}
-              className={cn(pill, "px-4", v === view ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}
+              className={cn(pill, v === view ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}
             >
               {tr(`ops.dashboard.view.${v}`)}
             </Link>
           ))}
         </nav>
       </div>
-      <div className={cn("grid gap-4", expand ? "" : "md:grid-cols-2 xl:grid-cols-3")}>
+      <div className="overflow-hidden rounded-xl border border-border bg-card">
         {[...busy, ...(expand ? quiet : [])].map((card) => {
           const rows: ActionCardRowView[] = card.rows.map((row) => ({
             personId: row.personId,
@@ -156,6 +156,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
             <ActionCard
               key={card.key}
               cardKey={card.key}
+              open={!!expand}
               count={card.count}
               rows={rows}
               canCreateTask={card.canCreateTask}

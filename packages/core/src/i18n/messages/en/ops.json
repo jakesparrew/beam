@@ -252,7 +252,14 @@
         "new_badge": "new",
         "credits_left": "{remaining} of {total} {kind}",
         "single_session": "single session",
-        "see": "See"
+        "see": "See",
+        "period_day": "Today",
+        "period_week": "This week",
+        "period_month": "This month",
+        "revenue_periods_title": "Revenue",
+        "revenue_net": "Total",
+        "revenue_compare_note": "Compared with the same span last week and last month, up to the same day.",
+        "kpi_revenue_sub": "week {week} · month {month}"
       }
     },
     "period": {

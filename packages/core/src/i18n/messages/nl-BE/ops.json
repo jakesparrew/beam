@@ -252,7 +252,14 @@
         "new_badge": "nieuw",
         "credits_left": "{remaining} van {total} {kind}",
         "single_session": "losse sessie",
-        "see": "Bekijk"
+        "see": "Bekijk",
+        "period_day": "Vandaag",
+        "period_week": "Deze week",
+        "period_month": "Deze maand",
+        "revenue_periods_title": "Omzet",
+        "revenue_net": "Totaal",
+        "revenue_compare_note": "Vergeleken met dezelfde periode vorige week en vorige maand, tot dezelfde dag.",
+        "kpi_revenue_sub": "week {week} · maand {month}"
       }
     },
     "period": {

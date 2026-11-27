@@ -317,3 +317,62 @@ export async function getDailyRevenue(db: DbOrTx, input: { day: string }): Promi
     groups: (Object.keys(REVENUE_GROUPS) as RevenueGroup[]).map((key) => ({ key, sales: both("gross", REVENUE_GROUPS[key]) })),
   };
 }
+
+// ---------------------------------------------------------------------------------------------
+// 4b. Revenue for the day, the week to date and the month to date (owner: always visible together)
+// ---------------------------------------------------------------------------------------------
+
+export type RevenuePeriodKey = "day" | "week" | "month";
+export type RevenuePeriod = {
+  key: RevenuePeriodKey;
+  from: string;
+  to: string;
+  /** The same span one period earlier (the same weekday last week, last week to the same weekday, last month to the same day). */
+  compareFrom: string;
+  compareTo: string;
+  net: Comparison;
+  groups: { key: RevenueGroup; sales: Comparison }[];
+};
+
+/** The last day of the month before `day`'s month, capped to `day`'s day of month. */
+export function previousMonthSpan(day: string): [string, string] {
+  const [y, m, d] = day.split("-").map(Number);
+  const firstPrev = new Date(Date.UTC(y!, m! - 2, 1));
+  const lastPrev = new Date(Date.UTC(y!, m! - 1, 0)).getUTCDate();
+  const to = new Date(Date.UTC(firstPrev.getUTCFullYear(), firstPrev.getUTCMonth(), Math.min(d!, lastPrev)));
+  return [firstPrev.toISOString().slice(0, 10), to.toISOString().slice(0, 10)];
+}
+
+/** Revenue of the day, the ISO week to date and the month to date, each against the same span one period earlier. */
+export async function getRevenuePeriods(db: DbOrTx, input: { day: string }): Promise<RevenuePeriod[]> {
+  const day = input.day;
+  const monthStart = `${day.slice(0, 8)}01`;
+  const [prevMonthFrom, prevMonthTo] = previousMonthSpan(day);
+  const spans: Record<RevenuePeriodKey, [string, string, string, string]> = {
+    day: [day, day, shiftDay(day, -7), shiftDay(day, -7)],
+    week: [weekStart(day), day, shiftDay(weekStart(day), -7), shiftDay(day, -7)],
+    month: [monthStart, day, prevMonthFrom, prevMonthTo],
+  };
+  const from = [prevMonthFrom, shiftDay(weekStart(day), -7)].sort()[0]!;
+  const rows = rowsOf<{ day_on: string | Date; product_kind: string; gross: string | number; refunds: string | number }>(
+    await db.execute(sql`select day_on, product_kind, sum(gross_cents)::bigint as gross, sum(refunds_cents)::bigint as refunds
+      from v_revenue_daily where day_on between ${from}::date and ${day}::date group by 1, 2`),
+  );
+  const iso = (v: string | Date) => (typeof v === "string" ? v.slice(0, 10) : v.toISOString().slice(0, 10));
+  const sum = (a: string, b: string, k: "gross" | "refunds", kinds?: readonly string[]) =>
+    rows.filter((r) => iso(r.day_on) >= a && iso(r.day_on) <= b && (!kinds || kinds.includes(r.product_kind))).reduce((n, r) => n + Number(r[k]), 0);
+  return (Object.keys(spans) as RevenuePeriodKey[]).map((key) => {
+    const [a, b, ca, cb] = spans[key];
+    const gross = comparePeriods(sum(a, b, "gross"), sum(ca, cb, "gross"));
+    const refunds = comparePeriods(sum(a, b, "refunds"), sum(ca, cb, "refunds"));
+    return {
+      key,
+      from: a,
+      to: b,
+      compareFrom: ca,
+      compareTo: cb,
+      net: comparePeriods(gross.current - refunds.current, gross.previous - refunds.previous),
+      groups: (Object.keys(REVENUE_GROUPS) as RevenueGroup[]).map((g) => ({ key: g, sales: comparePeriods(sum(a, b, "gross", REVENUE_GROUPS[g]), sum(ca, cb, "gross", REVENUE_GROUPS[g])) })),
+    };
+  });
+}

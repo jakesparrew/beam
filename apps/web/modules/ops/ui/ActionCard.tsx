@@ -1,14 +1,15 @@
 "use client";
 /**
- * One action dashboard card (ops spec 5, rules 22a-32): title, count, the first rows (name,
- * figure, link to the person) and "Create task" per row when allowed. The server formats every
+ * One action dashboard list (ops spec 5, rules 22a-32), shown as one folding row of the "To do"
+ * surface: title and count; open, the first rows (name, figure, link to the person) and a small
+ * "+" to create a task per row when allowed. The server formats every
  * text; this component only calls `createTaskFromCard` and shows its outcome next to the row.
  * Keyboard reachable: every row action is a link or a button with a visible focus ring.
  */
 import type { Route } from "next";
 import Link from "next/link";
 import { useState } from "react";
-import { Badge, Button, Card, CardAction, CardContent, CardHeader, CardTitle } from "@beam/ui";
+import { cn } from "@beam/ui";
 import type { ActionCardKey } from "@beam/core/ops";
 import { createTaskFromCard } from "../dashboard/actions";
 
@@ -50,6 +51,7 @@ export function ActionCard({
   listHref,
   linkHref,
   labels,
+  open = false,
 }: {
   cardKey: ActionCardKey;
   count: number;
@@ -59,6 +61,8 @@ export function ActionCard({
   /** The screen of another module where the card's list is worked on (rule 31), shown with `labels.link`. */
   linkHref?: Route | null;
   labels: ActionCardLabels;
+  /** Folded open (the single-card view); the dashboard shows each list as one folded row. */
+  open?: boolean;
 }) {
   const [state, setState] = useState<Record<string, RowState>>({});
 
@@ -74,79 +78,86 @@ export function ActionCard({
   }
 
   return (
-    <Card data-testid={`action-card-${cardKey}`} data-count={count}>
-      <CardHeader>
-        <CardTitle className="text-base">{labels.title}</CardTitle>
-        <CardAction>
-          <Badge variant={count > 0 ? "warning" : "secondary"}>{labels.count}</Badge>
-        </CardAction>
-      </CardHeader>
-      <CardContent className="grid gap-2">
+    <details className="group border-b border-border last:border-b-0" data-testid={`action-card-${cardKey}`} data-count={count} open={open}>
+      <summary className="flex cursor-pointer list-none items-center gap-3 px-5 py-2.5 hover:bg-[#faf9f6] [&::-webkit-details-marker]:hidden">
+        <span className="text-[0.8125rem] font-semibold">{labels.title}</span>
+        <span className={cn("rounded-full px-2 py-0.5 text-[0.6875rem] font-semibold", count > 0 ? "bg-[var(--status-warn-soft)] text-[var(--status-warn)]" : "bg-muted text-muted-foreground")}>{labels.count}</span>
         {labels.secondary ? (
-          <p className="text-sm text-muted-foreground" data-testid="action-card-secondary">
+          <span className="truncate text-[0.75rem] text-muted-foreground" data-testid="action-card-secondary">
             {labels.secondary}
-          </p>
+          </span>
         ) : null}
+        <span aria-hidden="true" className="ml-auto text-muted-foreground transition-transform group-open:rotate-90">
+          ›
+        </span>
+      </summary>
+      <div className="px-5 pb-3">
         {rows.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{labels.empty}</p>
+          <p className="text-[0.8125rem] text-muted-foreground">{labels.empty}</p>
         ) : (
-          <ul className="grid gap-2">
+          <ul className="grid">
             {rows.map((row) => {
               const key = `${row.personId}:${row.refId}`;
-              const s = state[key];
+              const st = state[key];
               return (
-                <li key={key} className="flex flex-wrap items-center justify-between gap-2 border-b pb-2 last:border-b-0 last:pb-0" data-ref-id={row.refId}>
-                  <div className="grid min-w-0 gap-0.5">
-                    {row.href ? (
-                      <Link href={row.href} className="truncate font-medium underline-offset-4 hover:underline focus-visible:underline" aria-label={`${labels.openPerson}: ${row.name}`}>
-                        {row.name}
-                      </Link>
-                    ) : (
-                      <span className="truncate font-medium">{row.name}</span>
-                    )}
-                    <span className="text-sm text-muted-foreground">
-                      {row.text}
-                      {row.flag ? (
-                        <Badge variant="destructive" className="ml-2">
-                          {row.flag}
-                        </Badge>
-                      ) : null}
-                    </span>
-                  </div>
+                <li key={key} className="grid grid-cols-[minmax(0,14rem)_1fr_auto] items-center gap-3 border-t border-border py-1.5 text-[0.8125rem]" data-ref-id={row.refId}>
+                  {row.href ? (
+                    <Link href={row.href} className="truncate font-medium hover:underline" aria-label={`${labels.openPerson}: ${row.name}`}>
+                      {row.name}
+                    </Link>
+                  ) : (
+                    <span className="truncate font-medium">{row.name}</span>
+                  )}
+                  <span className="flex min-w-0 items-center gap-2 text-muted-foreground">
+                    <span className="truncate">{row.text}</span>
+                    {row.flag ? <span className="shrink-0 rounded-full bg-[var(--status-bad-soft)] px-2 py-0.5 text-[0.6875rem] font-semibold text-[var(--status-bad)]">{row.flag}</span> : null}
+                  </span>
                   {canCreateTask && row.personId ? (
-                    s?.kind === "done" ? (
-                      <span className="text-sm" role="status" data-testid="task-result">
-                        {s.created ? labels.taskCreated : labels.taskExists}
+                    st?.kind === "done" ? (
+                      <span className="text-[0.75rem] text-[var(--status-ok)]" role="status" data-testid="task-result">
+                        {st.created ? labels.taskCreated : labels.taskExists}
                       </span>
                     ) : (
-                      <div className="flex items-center gap-2">
-                        {s?.kind === "error" ? (
-                          <span className="text-sm text-destructive" role="status">
-                            {s.message}
+                      <span className="flex items-center gap-2">
+                        {st?.kind === "error" ? (
+                          <span className="text-[0.75rem] text-destructive" role="status">
+                            {st.message}
                           </span>
                         ) : null}
-                        <Button size="sm" variant="outline" disabled={s?.kind === "busy"} onClick={() => void create(row)} data-testid="create-task">
-                          {labels.createTask}
-                        </Button>
-                      </div>
+                        <button
+                          type="button"
+                          title={labels.createTask}
+                          aria-label={`${labels.createTask}: ${row.name}`}
+                          disabled={st?.kind === "busy"}
+                          onClick={() => void create(row)}
+                          data-testid="create-task"
+                          className="grid size-7 place-items-center rounded-md border border-border text-muted-foreground hover:border-[#c9973a] hover:text-foreground disabled:opacity-50"
+                        >
+                          +
+                        </button>
+                      </span>
                     )
-                  ) : null}
+                  ) : (
+                    <span />
+                  )}
                 </li>
               );
             })}
           </ul>
         )}
-        {listHref && count > rows.length ? (
-          <Link href={listHref} className="text-sm font-medium underline-offset-4 hover:underline focus-visible:underline">
-            {labels.openList}
-          </Link>
-        ) : null}
-        {linkHref && labels.link ? (
-          <Link href={linkHref} className="text-sm font-medium underline-offset-4 hover:underline focus-visible:underline" data-testid="action-card-link">
-            {labels.link}
-          </Link>
-        ) : null}
-      </CardContent>
-    </Card>
+        <div className="flex flex-wrap gap-4 pt-1.5 text-[0.75rem] font-medium">
+          {listHref && count > rows.length ? (
+            <Link href={listHref} className="text-muted-foreground hover:text-foreground">
+              {labels.openList} →
+            </Link>
+          ) : null}
+          {linkHref && labels.link ? (
+            <Link href={linkHref} className="text-muted-foreground hover:text-foreground" data-testid="action-card-link">
+              {labels.link} →
+            </Link>
+          ) : null}
+        </div>
+      </div>
+    </details>
   );
 }

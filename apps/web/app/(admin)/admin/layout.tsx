@@ -49,8 +49,8 @@ const GROUPS: ReadonlyArray<{ key: string; label: string; icon: string; keys: st
     key: "dashboard",
     label: "ops.nav.dashboard",
     icon: "layout-dashboard",
-    keys: ["ops.dashboard", "ops.reports", "ops.retention", "ops.management", "ops.summary", "ops.custom", "ops.ask"],
-    labels: { "ops.dashboard": "platform.nav.today" },
+    // One page, no sub-menu (owner): reports get their own place later.
+    keys: ["ops.dashboard"],
   },
   { key: "reception", label: "platform.nav.section_reception", icon: "clipboard-list", keys: ["booking.checkin"] },
   {

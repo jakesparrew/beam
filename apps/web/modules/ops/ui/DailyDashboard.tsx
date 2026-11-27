@@ -9,13 +9,14 @@
  */
 import type { Route } from "next";
 import Link from "next/link";
+import { Fragment } from "react";
 import { NavIcon, cn } from "@beam/ui";
 import { comparePeriods } from "@beam/core/ops";
 import { formatDate, formatMoney, formatTime, type Locale } from "@beam/core/i18n";
 import {
   clientOpportunities,
   getDailyCapacity,
-  getDailyRevenue,
+  getRevenuePeriods,
   getWeekOccupancy,
   listDayClients,
   listSessionsToFill,
@@ -23,7 +24,7 @@ import {
   type CapacitySlot,
   type DailyAccess,
   type DailyCapacity,
-  type DailyRevenue,
+  type RevenuePeriod,
   type DayClient,
   type Opportunity,
   type WeekOccupancy,
@@ -162,13 +163,13 @@ function buildSuggestions(input: { toFill: CapacitySlot[]; clients: DayClient[] 
 function SuggestionsLine({ items, tr }: { items: Suggestion[]; tr: Tr }) {
   if (!items.length) return null;
   return (
-    <section aria-labelledby="daily-suggestions" className={cn(surface, "flex items-center gap-2 overflow-x-auto p-1.5 pl-3")} data-testid="daily-suggestions">
+    <section aria-labelledby="daily-suggestions" className={cn(surface, "flex flex-wrap items-center gap-2 p-1.5 pl-3")} data-testid="daily-suggestions">
       <h2 id="daily-suggestions" className="flex shrink-0 items-center gap-1.5 text-[0.8125rem] font-semibold">
         <NavIcon icon="sparkles" className="size-3.5 text-[#c9973a]" />
         {tr(`${K}.suggestions_count`, { count: items.length })}
       </h2>
       <span aria-hidden="true" className="mx-1 h-5 w-px shrink-0 bg-border" />
-      <ul className="flex gap-1.5">
+      <ul className="flex flex-wrap gap-1.5">
         {items.map((s) => (
           <li key={s.key} className="flex shrink-0 items-center gap-2.5 rounded-lg bg-muted px-2.5 py-1 text-[0.8125rem] text-muted-foreground" data-suggestion={s.key}>
             <span>{s.text}</span>
@@ -546,63 +547,66 @@ function ClientsTable({ clients, filter, day, today, tr, locale, now }: { client
 
 const REVENUE_TONES: Record<string, string> = { sessions: "#c9973a", packages: "#8a5a14", memberships: "#141414", events: "#4f46e5", other: "#b8b2a7" };
 
-function RevenueBlock({ r, day, tr, locale }: { r: DailyRevenue; day: string; tr: Tr; locale: Locale }) {
+function RevenueBlock({ periods, day, tr, locale }: { periods: RevenuePeriod[]; day: string; tr: Tr; locale: Locale }) {
   const money = (c: number) => formatMoney(c, locale);
-  const gross = r.groups.reduce((n, g) => n + g.sales.current, 0);
+  const dayNet = periods.find((p) => p.key === "day")?.net.current ?? 0;
+  const groups = periods[0]?.groups.map((g) => g.key) ?? [];
+  const cell = (c: { current: number; change: number; changePct: number | null }, strong = false) => (
+    <td className="py-2 pl-4 text-right align-top">
+      <span className={cn("block tabular-nums", strong ? "text-[0.9375rem] font-semibold" : "font-medium")}>{money(c.current)}</span>
+      {strong ? (
+        <span className="mt-0.5 inline-block">
+          <Delta change={c.change} changePct={c.changePct} formatted={money(Math.abs(c.change))} locale={locale} />
+        </span>
+      ) : null}
+    </td>
+  );
   return (
-    <section className={cn(surface, "grid content-start gap-3 p-5")} data-testid="daily-revenue" data-value={r.net.current}>
+    <section className={cn(surface, "grid content-start gap-3 p-5")} data-testid="daily-revenue" data-value={dayNet}>
       <div className="flex items-baseline gap-2">
-        <h2 className={sectionTitle}>{tr(`${K}.revenue_title`)}</h2>
+        <h2 className={sectionTitle}>{tr(`${K}.revenue_periods_title`)}</h2>
         <Link href={{ pathname: "/admin/reports/revenue", query: { period: "day", at: day } }} className="ml-auto text-[0.8125rem] font-medium text-muted-foreground hover:text-foreground">
           {tr("ops.dashboard.overview.more_figures")} →
         </Link>
       </div>
-      <div className="flex flex-wrap items-baseline gap-2">
-        <span className="text-[1.5rem] leading-none font-semibold tracking-[-0.02em]">{money(r.net.current)}</span>
-        <Delta change={r.net.change} changePct={r.net.changePct} formatted={money(Math.abs(r.net.change))} locale={locale} />
-      </div>
-      {gross > 0 ? (
-        <div className="flex h-2 overflow-hidden rounded-full bg-muted" aria-hidden="true">
-          {r.groups
-            .filter((g) => g.sales.current > 0)
-            .map((g) => (
-              <span key={g.key} style={{ width: `${(g.sales.current / gross) * 100}%`, background: REVENUE_TONES[g.key] }} />
-            ))}
-        </div>
-      ) : null}
       <table className="w-full text-[0.8125rem]">
-        <thead className="sr-only">
-          <tr>
-            <th scope="col">{tr(`${K}.revenue_title`)}</th>
-            <th scope="col">{formatDate(r.day, locale)}</th>
-            <th scope="col">{formatDate(r.compareDay, locale)}</th>
+        <thead>
+          <tr className="border-b border-border text-[0.75rem] text-muted-foreground">
+            <th scope="col" className="py-1.5 text-left font-medium">
+              <span className="sr-only">{tr(`${K}.revenue_periods_title`)}</span>
+            </th>
+            {periods.map((p) => (
+              <th key={p.key} scope="col" className="py-1.5 pl-4 text-right font-medium">
+                {tr(`${K}.period_${p.key}`)}
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody>
-          {r.groups.map((g) => (
-            <tr key={g.key} className="border-b border-border last:border-b-0" data-group={g.key}>
-              <th scope="row" className="py-1.5 text-left font-normal text-muted-foreground">
+          <tr className="border-b border-border" data-group="net">
+            <th scope="row" className="py-2 text-left align-top font-semibold">
+              {tr(`${K}.revenue_net`)}
+            </th>
+            {periods.map((p) => (
+              <Fragment key={p.key}>{cell(p.net, true)}</Fragment>
+            ))}
+          </tr>
+          {groups.map((g) => (
+            <tr key={g} className="border-b border-border last:border-b-0" data-group={g}>
+              <th scope="row" className="py-2 text-left font-normal text-muted-foreground">
                 <span className="flex items-center gap-2">
-                  <span aria-hidden="true" className="size-2 rounded-full" style={{ background: REVENUE_TONES[g.key] }} />
-                  {tr(`${K}.revenue_${g.key}`)}
+                  <span aria-hidden="true" className="size-2 rounded-full" style={{ background: REVENUE_TONES[g] }} />
+                  {tr(`${K}.revenue_${g}`)}
                 </span>
               </th>
-              <td className="py-1.5 text-right font-semibold">{money(g.sales.current)}</td>
-              <td className="w-20 py-1.5 text-right text-[0.75rem] text-muted-foreground">{money(g.sales.previous)}</td>
+              {periods.map((p) => (
+                <Fragment key={p.key}>{cell(p.groups.find((x) => x.key === g)!.sales)}</Fragment>
+              ))}
             </tr>
           ))}
-          {r.refunds.current || r.refunds.previous ? (
-            <tr data-group="refunds">
-              <th scope="row" className="py-1.5 text-left font-normal text-muted-foreground">
-                {tr(`${K}.revenue_refunds`)}
-              </th>
-              <td className="py-1.5 text-right font-semibold">−{money(r.refunds.current)}</td>
-              <td className="py-1.5 text-right text-[0.75rem] text-muted-foreground">−{money(r.refunds.previous)}</td>
-            </tr>
-          ) : null}
         </tbody>
       </table>
-      <p className="text-[0.75rem] text-muted-foreground">{tr(`${K}.revenue_vs`, { date: formatDate(r.compareDay, locale), amount: money(r.net.previous) })}</p>
+      <p className="text-[0.75rem] text-muted-foreground">{tr(`${K}.revenue_compare_note`)}</p>
     </section>
   );
 }
@@ -650,7 +654,7 @@ export async function DailyDashboard({ ctx, tr, day, access, errors, who = "all"
     getWeekOccupancy(ctx.tx, { day, locale }),
     access.clients ? listDayClients(ctx.tx, { day, now: ctx.now }) : null,
     listSessionsToFill(ctx.tx, { now: ctx.now, locale }),
-    access.revenue ? getDailyRevenue(ctx.tx, { day }) : null,
+    access.revenue ? getRevenuePeriods(ctx.tx, { day }) : null,
   ]);
   const today = brusselsDate(ctx.now);
   const taken = capacity.total.booked + capacity.total.held;
@@ -668,15 +672,18 @@ export async function DailyDashboard({ ctx, tr, day, access, errors, who = "all"
     },
     ...(clients ? [{ key: "clients", label: tr(`${K}.kpi_clients`), value: String(clients.length), sub: tr(`${K}.kpi_clients_sub`, { count: clients.filter((c) => c.isFirstVisit).length }) }] : []),
     ...(revenue
-      ? [
-          {
-            key: "revenue",
-            label: tr(`${K}.kpi_revenue`),
-            value: formatMoney(revenue.net.current, locale),
-            delta: <Delta change={revenue.net.change} changePct={revenue.net.changePct} formatted={formatMoney(Math.abs(revenue.net.change), locale)} locale={locale} />,
-            sub: tr(`${K}.vs_last_week`),
-          },
-        ]
+      ? (() => {
+          const [d, w, m] = revenue;
+          return [
+            {
+              key: "revenue",
+              label: tr(`${K}.kpi_revenue`),
+              value: formatMoney(d!.net.current, locale),
+              delta: <Delta change={d!.net.change} changePct={d!.net.changePct} formatted={formatMoney(Math.abs(d!.net.change), locale)} locale={locale} />,
+              sub: tr(`${K}.kpi_revenue_sub`, { week: formatMoney(w!.net.current, locale), month: formatMoney(m!.net.current, locale) }),
+            },
+          ];
+        })()
       : []),
     { key: "week", label: tr(`${K}.kpi_week`), value: String(freeAhead), sub: tr(`${K}.kpi_week_sub`, { count: toFill.length }) },
   ];
@@ -691,7 +698,7 @@ export async function DailyDashboard({ ctx, tr, day, access, errors, who = "all"
       </div>
       {clients ? <ClientsTable clients={clients} filter={who} day={day} today={today} tr={tr} locale={locale} now={ctx.now} /> : null}
       <div className="grid items-start gap-4 lg:grid-cols-2">
-        {revenue ? <RevenueBlock r={revenue} day={day} tr={tr} locale={locale} /> : null}
+        {revenue ? <RevenueBlock periods={revenue} day={day} tr={tr} locale={locale} /> : null}
         <FillBlock slots={toFill} canFill={access.fill} tr={tr} locale={locale} errors={errors} />
       </div>
     </div>

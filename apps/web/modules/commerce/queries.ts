@@ -33,7 +33,7 @@ import type { InvoiceSummary } from "@beam/core/finance";
 import { getInvoiceForOrder } from "@/modules/finance/api";
 import { listPartnerCompanies } from "@/modules/crm/api";
 import type { Audience, ProductKind } from "@beam/core/commerce";
-import { priceVersionAt } from "@beam/core/commerce";
+import { ITEM_CATEGORIES, priceVersionAt } from "@beam/core/commerce";
 import { messagesFor, TIME_ZONE, type Locale } from "@beam/core/i18n";
 import { and, asc, desc, eq, gt, gte, inArray, isNull, lt, lte, or, sql, type DbOrTx, type SQL } from "@/lib/ctx";
 import { productCompleteness, toPriceVersionRow, type PersonPriceDbRow, type PriceVersionDbRow, type ProductRow } from "./server/catalogue";
@@ -252,7 +252,7 @@ export function productFormOptions(tr: Tr) {
     creditKinds: opts(tr, "credit_kind", ["day", "night"]),
     intervals: opts(tr, "recurring_interval", ["month", "year"]),
     includedKinds: opts(tr, "credit_kind", ["day", "night"]),
-    itemCategories: opts(tr, "item_category", ["merchandise", "wellness_product", "other"]),
+    itemCategories: opts(tr, "item_category", ITEM_CATEGORIES),
     localeNames: { "nl-BE": tr("commerce.common.locale_nl"), "fr-BE": tr("commerce.common.locale_fr"), en: tr("commerce.common.locale_en") },
   };
 }
@@ -480,7 +480,7 @@ export async function getWithdrawalPreviewFor(db: DbOrTx, orderId: string) {
 export { getAttentionFeed, groupAttention, listPaymentAttention, ATTENTION_KINDS, type AttentionKind, type AttentionRow } from "./server/attention";
 export { getPayOrderByToken, type PayPageView } from "./server/payment-links";
 
-export { getPosOrder, getPosPaymentState, ANONYMOUS_KINDS, EXTERNAL_CARD_METHOD, type PosOrderView } from "./server/pos";
+export { getPosOrder, getPosPaymentState, findPosBuyers, posTabProducts, ANONYMOUS_KINDS, EXTERNAL_CARD_METHOD, type PosBuyerMatch, type PosOrderView } from "./server/pos";
 export { getPersonOpenAccount, listOpenAccounts, type OpenAccountRow } from "./server/on-account";
 export { getPosDaySummary, businessDayOf, isPosDayClosed, POS_DIFFERENCE_TASK_CENTS, type PosDaySummary, type PosDayTotals } from "./server/pos-day";
 export { findCheckoutByResumeToken, resumeContinuePath, type ResumeTarget } from "./server/recovery";

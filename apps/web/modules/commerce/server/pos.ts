@@ -18,19 +18,20 @@
  *   payment with method `external_card` is written `paid` at once with the optional terminal
  *   reference, and the order is paid like a cash sale (invoice, day close line "Kaart (terminal)").
  * - On account (`on_account`): the order stays open on its person (`./on-account`).
- * - Anonymous sales are allowed only for items and vouchers (rule 42).
+ * - Anonymous sales are allowed only for items and vouchers (rule 42); food and drinks are items
+ *   (`item_category` `food` / `drink`), listed on their own till tab.
  */
 import { orderLines, orders, payments, persons, products } from "@beam/db/schema";
 import { BookingConflictError } from "@beam/core/booking";
-import { CartItem, DATED_PRODUCT_KINDS, type OrderStatus } from "@beam/core/commerce";
+import { CartItem, DATED_PRODUCT_KINDS, FOOD_DRINK_CATEGORIES, type OrderStatus } from "@beam/core/commerce";
 import type { BillingDetails } from "@beam/core/finance";
 import { t, type Locale, type LocalizedText } from "@beam/core/i18n";
 import { IntegrationError } from "@beam/integrations/_shared";
 import { and, asc, desc, eq, inArray, sql, AppError, ConflictError, NotFoundError, ValidationError, type Ctx, type DbOrTx, type Tx } from "@/lib/ctx";
 import { getIntegrations, type Integrations } from "@/lib/integrations";
 import { runJobInline, type JobCtx } from "@/lib/job-runner";
-import { createTask } from "@/modules/crm/api";
-import { consumeCredits, getEuroBalance } from "@/modules/credits/api";
+import { createTask, searchPersons } from "@/modules/crm/api";
+import { consumeCredits, getEuroBalance, getPersonCreditSummary } from "@/modules/credits/api";
 import { setOrderBillingDetails } from "@/modules/finance/api";
 import { startBankTransfer } from "./bank-transfer";
 import { LIVE_STATUSES } from "./cancel";
@@ -431,6 +432,28 @@ export async function runCancelTerminal(ctx: JobCtx, input: { paymentId: string 
 // ---------------------------------------------------------------------------
 // Reads (the POS screen)
 // ---------------------------------------------------------------------------
+
+const isFoodDrink = (p: { kind: string; itemCategory: string | null }) => p.kind === "item" && (FOOD_DRINK_CATEGORIES as readonly (string | null)[]).includes(p.itemCategory);
+
+/** The POS-visible products of a product tab: `food` is the food and drink items, `item` the other items. */
+export function posTabProducts<P extends { kind: string; itemCategory: string | null; isPosVisible: boolean }>(list: readonly P[], tab: string): P[] {
+  return list.filter((p) => p.isPosVisible && (tab === "food" ? isFoodDrink(p) : tab === "item" ? p.kind === "item" && !isFoodDrink(p) : p.kind === tab));
+}
+
+export type PosBuyerMatch = { id: string; name: string; email: string | null; customerNumber: string; isMember: boolean; dayUnits: number; nightUnits: number };
+
+/** The till's buyer search (up to 8 matches) with the member flag and the day and night credits left. */
+export async function findPosBuyers(db: DbOrTx, q: string): Promise<PosBuyerMatch[]> {
+  if (q.trim().length < 2) return [];
+  const out: PosBuyerMatch[] = [];
+  // One credit summary per match, in turn on the one connection (at most 8).
+  for (const r of await searchPersons(db, { q, limit: 8 })) {
+    const { byKind } = await getPersonCreditSummary(db, r.personId);
+    const units = (kind: string) => byKind.filter((k) => k.kind === kind).reduce((n, k) => n + k.remainingUnits, 0);
+    out.push({ id: r.personId, name: r.name, email: r.email, customerNumber: r.customerNumber, isMember: r.status === "member", dayUnits: units("day"), nightUnits: units("night") });
+  }
+  return out;
+}
 
 export type PosOrderView = {
   orderId: string;

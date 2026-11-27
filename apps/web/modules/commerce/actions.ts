@@ -65,7 +65,7 @@ import {
 } from "./server/staff-orders";
 import { redeemVoucher as redeemVoucherRecord, resendVoucher as resendVoucherRecord, voidVoucher as voidVoucherRecord } from "./server/vouchers";
 import { withdrawOrder as withdrawOrderRecord } from "./server/withdrawals";
-import { getPosPaymentState, posCancelTerminal as posCancelTerminalRecord, posPayOrder as posPayOrderRecord, posSell as posSellRecord } from "./server/pos";
+import { findPosBuyers, getPosPaymentState, posCancelTerminal as posCancelTerminalRecord, posPayOrder as posPayOrderRecord, posSell as posSellRecord } from "./server/pos";
 import { closePosDay as closePosDayRecord, reopenPosDay as reopenPosDayRecord } from "./server/pos-day";
 import { issueOnAccountInvoice as issueOnAccountInvoiceRecord } from "./server/on-account";
 import { uploadLightspeedCsvRecord } from "./server/lightspeed";
@@ -406,6 +406,12 @@ export const pollPosPayment = action(
     if (!state) throw new ValidationError("validation", { paymentId: "not_found" });
     return state;
   },
+);
+
+/** The till's live buyer search (`/admin/pos`, up to 8 matches with member flag and credits left). */
+export const findPosBuyer = action(
+  { name: "commerce.find_pos_buyer", audience: "staff", permission: "persons.read", input: z.object({ q: z.string().trim().min(2).max(100) }), audit: false },
+  (ctx, input) => findPosBuyers(ctx.tx, input.q),
 );
 
 /** A walk-in buyer known only by name (rule 42 needs a person for sessions and packages). */

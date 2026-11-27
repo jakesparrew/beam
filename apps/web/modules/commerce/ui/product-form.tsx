@@ -7,7 +7,7 @@
  */
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent, type ReactNode, type SelectHTMLAttributes } from "react";
-import { Alert, AlertDescription, Button, Checkbox, FormField, Input, LocalizedInput, StepForm, type StepFormLabels } from "@beam/ui";
+import { Alert, AlertDescription, Button, Checkbox, FormField, Input, LocalizedInput, StepForm, Switch, type StepFormLabels } from "@beam/ui";
 import { createProduct, setProductActive, updateProduct } from "../actions";
 
 type Locale = "nl-BE" | "fr-BE" | "en";
@@ -282,7 +282,8 @@ export function ProductForm({
         <div className="grid gap-4 sm:grid-cols-3">
           {k === "item" ? (
             <FormField label={l("field_item_category")} required error={fieldError("itemCategory")}>
-              <Select value={v.itemCategory} onChange={(x) => set("itemCategory", x)} options={options.itemCategories} none="—" />
+              {/* A new food product defaults to 12 % (on-site meals), a drink to 21 % (Belgian VAT). */}
+              <Select value={v.itemCategory} onChange={(x) => setV((s) => ({ ...s, itemCategory: x, ...(isNew && (x === "food" || x === "drink") ? { vatRatePct: x === "food" ? "12" : "21" } : {}) }))} options={options.itemCategories} none="—" />
             </FormField>
           ) : null}
           {k !== "voucher" ? (
@@ -341,7 +342,11 @@ function Section({ title, step, children }: { title: string; step: boolean; chil
 }
 
 /** Activate or deactivate a product; activation errors name the missing locales or the price (rule 1). */
-export function ProductActiveToggle({ productId, isActive, labels }: { productId: string; isActive: boolean; labels: Labels }) {
+/**
+ * Activate or deactivate a product (rule 1: activation names the missing locales or price). The
+ * editor shows a button; the products list a compact switch (`switchLabel` names the product).
+ */
+export function ProductActiveToggle({ productId, isActive, labels, switchLabel }: { productId: string; isActive: boolean; labels: Labels; switchLabel?: string }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -367,11 +372,15 @@ export function ProductActiveToggle({ productId, isActive, labels }: { productId
 
   return (
     <div className="grid justify-items-start gap-1">
-      <Button type="button" size="sm" variant={isActive ? "outline" : "default"} onClick={() => void toggle()} disabled={pending}>
-        {isActive ? l("deactivate") : l("activate")}
-      </Button>
+      {switchLabel ? (
+        <Switch checked={isActive} onCheckedChange={() => void toggle()} disabled={pending} aria-label={switchLabel} title={isActive ? l("deactivate") : l("activate")} className="data-[state=checked]:bg-[#8a5a14]" />
+      ) : (
+        <Button type="button" size="sm" variant={isActive ? "outline" : "default"} onClick={() => void toggle()} disabled={pending}>
+          {isActive ? l("deactivate") : l("activate")}
+        </Button>
+      )}
       {error ? (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className={switchLabel ? "max-w-48 text-[0.75rem] text-destructive" : "text-sm text-destructive"}>
           {error}
         </p>
       ) : null}

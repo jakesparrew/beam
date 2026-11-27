@@ -60,7 +60,9 @@
     "item_category": {
       "merchandise": "Merchandise",
       "wellness_product": "Wellnessproduct",
-      "other": "Andere"
+      "other": "Andere",
+      "food": "Eten",
+      "drink": "Drank"
     },
     "audience": {
       "public": "Publiek",
@@ -150,7 +152,6 @@
       "voucher_min_730": "Cadeaubonnen zijn minstens 730 dagen geldig.",
       "custom_amount_range": "Tussen € 5 en € 1.000, minimum niet boven maximum.",
       "both_or_neither": "Vul beide velden voor inbegrepen kredieten in, of geen.",
-      "subtitle": "De catalogus van de shop en de kassa: prijzen per doelgroep, btw en waar elk product verkocht wordt.",
       "search": "Zoek op naam of SKU",
       "col_visible": "Verkocht in",
       "catalogue": "Catalogus",
@@ -159,7 +160,18 @@
       "extra_kind_day": "Dagsessies",
       "extra_kind_night": "Nachtsessies",
       "extra_kind_event": "Events",
-      "item_only": "Alleen artikelen kunnen een extra bij een boeking zijn."
+      "item_only": "Alleen artikelen kunnen een extra bij een boeking zijn.",
+      "kind_all": "Alle soorten",
+      "group_session": "Sessies",
+      "group_night": "Nachten",
+      "group_package": "Pakketten",
+      "group_membership": "Lidmaatschappen",
+      "group_ticket": "Tickets",
+      "group_voucher": "Cadeaubonnen",
+      "group_item": "Artikelen",
+      "group_food": "Eten & drinken",
+      "active_named": "{name} actief",
+      "same_price": "Zelfde prijs als publiek"
     },
     "admin_prices": {
       "title": "Prijsgeschiedenis",
@@ -835,8 +847,6 @@
     },
     "pos": {
       "title": "Onthaal",
-      "intro": "Verkoop aan de balie: kies de producten, de koper en de betaalmethode.",
-      "food_banner": "Eten en drinken: gebruik Lightspeed.",
       "tabs_label": "Productgroepen",
       "tab_sessions": "Sessies vandaag",
       "tab_package": "Pakketten",
@@ -856,10 +866,7 @@
       "buyer_title": "Koper",
       "person_search": "Zoek op naam, e-mail of telefoon",
       "search": "Zoeken",
-      "anonymous": "Anonieme koper (enkel artikelen en cadeaubonnen)",
-      "choose": "{name} kiezen",
       "selected_person": "Koper: {name}",
-      "clear_person": "Andere koper",
       "no_match": "Niemand gevonden.",
       "walk_in_title": "Nieuwe klant aan de balie",
       "first_name": "Voornaam",
@@ -934,7 +941,17 @@
       "settle_desk": "Later aan de balie",
       "link_sent": "De betaaluitnodiging is verstuurd.",
       "open_accounts_title": "Openstaand op rekening: {amount}",
-      "open_account_row": "{reference} · {amount} · sinds {date}"
+      "open_account_row": "{reference} · {amount} · sinds {date}",
+      "tab_food": "Eten & drinken",
+      "in_basket": "{count} in het mandje",
+      "searching": "Zoeken…",
+      "new_client": "Nieuwe klant",
+      "member": "Lid",
+      "credits_days": "Dagen",
+      "credits_nights": "Nachten",
+      "change_person": "Wijzig",
+      "change_person_named": "Andere koper dan {name}",
+      "needs_buyer": "Kies eerst een klant om sessies te verkopen"
     },
     "pos_day": {
       "title": "Dag aan het onthaal",

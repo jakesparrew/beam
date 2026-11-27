@@ -91,6 +91,8 @@ export const productsItemCategory = pgEnum("products_item_category", [
   "merchandise",
   "wellness_product",
   "other",
+  "food",
+  "drink",
 ]);
 export const promotionsKind = pgEnum("promotions_kind", ["percent", "fixed"]);
 export const promotionRedemptionsStatus = pgEnum("promotion_redemptions_status", [

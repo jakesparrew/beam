@@ -63,6 +63,9 @@ export const DEMO_SKUS = {
   eventTicket: "TICKET-EVENT",
   giftVoucher: "GIFT-VOUCHER",
   waterBottle: "MERCH-BOTTLE",
+  coffee: "FB-COFFEE",
+  herbalTea: "FB-HERBAL-TEA",
+  soupBowl: "FB-SOUP-BOWL",
 } as const;
 
 /** BEAM's real catalogue from beam.be (captured 2026-11-15), next to the spec's demo products. */
@@ -345,6 +348,37 @@ function specDemoProducts(now: Date): DemoProduct[] {
       isShopVisible: true,
       sortOrder: 90,
       prices: [{ amountCents: 1_900, validFromAt: from }],
+    },
+    // Food and drinks sold at the till (BEAM's own till replaces Lightspeed): drinks 21 %, food on site 12 %.
+    {
+      kind: "item",
+      sku: DEMO_SKUS.coffee,
+      name: text("Koffie", "Café", "Coffee"),
+      description: text("Een kop koffie of espresso.", "Une tasse de café ou un espresso.", "A cup of coffee or espresso."),
+      vatRatePct: "21.00",
+      itemCategory: "drink",
+      sortOrder: 200,
+      prices: [{ amountCents: 300, validFromAt: from }],
+    },
+    {
+      kind: "item",
+      sku: DEMO_SKUS.herbalTea,
+      name: text("Kruidenthee", "Tisane", "Herbal tea"),
+      description: text("Verse kruidenthee na je sessie.", "Une tisane fraîche après votre séance.", "Fresh herbal tea after your session."),
+      vatRatePct: "21.00",
+      itemCategory: "drink",
+      sortOrder: 201,
+      prices: [{ amountCents: 350, validFromAt: from }],
+    },
+    {
+      kind: "item",
+      sku: DEMO_SKUS.soupBowl,
+      name: text("Soep van de dag", "Soupe du jour", "Soup of the day"),
+      description: text("Soep van de dag met brood.", "Soupe du jour avec du pain.", "Soup of the day with bread."),
+      vatRatePct: "12.00",
+      itemCategory: "food",
+      sortOrder: 210,
+      prices: [{ amountCents: 850, validFromAt: from }],
     },
   ];
 }

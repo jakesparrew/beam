@@ -52,7 +52,7 @@ async function qrFile(personId: string) {
 
 describe("registration", () => {
   it("lists bookings and waitlist_entries, is in the generated registry and declares the NO_PII tables", () => {
-    expect([...privacy.tables].sort()).toEqual(["bookings", "waitlist_entries"]);
+    expect([...privacy.tables].sort()).toEqual(["bookings", "waitlist_entries", "wellbeing_checkins"]);
     expect(GDPR_REGISTRY.booking).toBe(privacy);
     expect(bookingPrivacy).toBe(privacy);
     for (const t of noPiiTables) {
@@ -102,7 +102,7 @@ describe("export", () => {
 
   it("returns empty lists for a person without bookings", async () => {
     const nobody = await makePerson(h.db);
-    await expect(inTx((tx) => privacy.export(tx, nobody.id))).resolves.toEqual({ "booking/bookings.json": [], "booking/waitlist.json": [] });
+    await expect(inTx((tx) => privacy.export(tx, nobody.id))).resolves.toEqual({ "booking/bookings.json": [], "booking/waitlist.json": [], "booking/wellbeing.json": [] });
   });
 });
 
@@ -138,6 +138,7 @@ describe("erase", () => {
     const report = await inTx((tx) => privacy.erase(tx, me.id));
     expect(report).toEqual([
       { table: "waitlist_entries", rows: 2, action: "deleted" },
+      { table: "wellbeing_checkins", rows: 0, action: "deleted" },
       { table: "bookings", rows: 2, action: "anonymised" },
       { table: "bookings", rows: 1, action: "retained_legal" },
       { table: "bookings", rows: 1, action: "unlinked" },

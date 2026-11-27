@@ -153,7 +153,13 @@
       "subtitle": "De catalogus van de shop en de kassa: prijzen per doelgroep, btw en waar elk product verkocht wordt.",
       "search": "Zoek op naam of SKU",
       "col_visible": "Verkocht in",
-      "catalogue": "Catalogus"
+      "catalogue": "Catalogus",
+      "field_booking_extra": "Extra bij een boeking",
+      "field_booking_extra_kinds": "Alleen aanbieden bij (niets aangeduid = bij alle sessies)",
+      "extra_kind_day": "Dagsessies",
+      "extra_kind_night": "Nachtsessies",
+      "extra_kind_event": "Events",
+      "item_only": "Alleen artikelen kunnen een extra bij een boeking zijn."
     },
     "admin_prices": {
       "title": "Prijsgeschiedenis",
@@ -530,7 +536,8 @@
       "expired": "Deze reservatie is vervallen.",
       "back_to_booking": "Terug naar reservaties",
       "due": "Nog te betalen",
-      "not_payable": "Deze bestelling kan niet meer betaald worden."
+      "not_payable": "Deze bestelling kan niet meer betaald worden.",
+      "credit_paid": "Betaald met cadeaubon of tegoed"
     },
     "return": {
       "title": "Betaling",

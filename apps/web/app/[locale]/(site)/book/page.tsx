@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { formatMoney, localeFromSegment, pick, URL_SEGMENT } from "@beam/core/i18n";
+import { utmFromSearch } from "@beam/core/site";
 import { getAppDb } from "@/lib/ctx";
 import { translator } from "@/lib/i18n";
 import { getBookingOffers } from "@/modules/booking/queries";
@@ -25,7 +26,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
 /** Owner's review 8: the sessions of the next seven days. */
 const DAYS = 7;
 
-export default async function PublicBookPage({ params, searchParams }: { params: Promise<{ locale: string }>; searchParams: Promise<{ kind?: string; tab?: string }> }) {
+export default async function PublicBookPage({ params, searchParams }: { params: Promise<{ locale: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { locale: seg } = await params;
   const locale = localeFromSegment(seg);
   if (!locale) notFound();
@@ -34,13 +35,18 @@ export default async function PublicBookPage({ params, searchParams }: { params:
   const raw = sp.kind ?? sp.tab;
   const kind = raw === "day" || raw === "night" ? raw : null;
   const base = `/${URL_SEGMENT[locale]}/book`;
+  // Campaign links (Google Business Profile, Instagram, Facebook) keep their utm_* values up to the
+  // booking form, which sends them with the booking even without analytics consent.
+  const query = new URLSearchParams(Object.entries(sp).flatMap(([k, x]) => (typeof x === "string" ? [[k, x]] : [])));
+  const utm = new URLSearchParams(Object.entries(utmFromSearch(query.toString())).map(([k, x]) => [`utm_${k}`, x])).toString();
+  const withUtm = (href: string) => (utm ? `${href}${href.includes("?") ? "&" : "?"}${utm}` : href);
 
   if (!kind) {
     const card = (k: "day" | "night") => {
       const night = k === "night";
       return (
         <a
-          href={`${base}?kind=${k}`}
+          href={withUtm(`${base}?kind=${k}`)}
           className="group relative isolate flex min-h-[30rem] flex-col justify-end overflow-hidden rounded-[2rem] p-7 text-[#fffaef] shadow-[0_24px_48px_-28px_rgb(33_40_66/0.6)]"
         >
           {/* eslint-disable-next-line @next/next/no-img-element -- static brand photo */}
@@ -92,7 +98,7 @@ export default async function PublicBookPage({ params, searchParams }: { params:
   }
 
   const slots = await getAvailabilityPreviewForSite(kind, DAYS).catch(() => []);
-  const weeks = buildWeeks(slots, locale, tr, (id) => `${base}/${id}`);
+  const weeks = buildWeeks(slots, locale, tr, (id) => withUtm(`${base}/${id}`));
   const night = kind === "night";
   // Owner's review 8: a package instead of a single session, with its saving (the prices of the first session shown).
   const firstSlot = slots[0];

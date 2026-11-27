@@ -57,7 +57,13 @@ export async function PayOrderScreen({
           <form action={pay} className="grid gap-6 rounded-[2rem] bg-card p-6 shadow-[0_1px_2px_rgb(33_40_66/0.04),0_24px_48px_-28px_rgb(33_40_66/0.3)] sm:p-10">
             <input type="hidden" name="clientKey" value={randomUUID()} />
             <ErrorSummary locale={locale} error={error} />
-            <OrderLinesTable locale={locale} lines={order.lines} totalCents={order.totalCents} />
+            <OrderLinesTable locale={locale} lines={order.lines} totalCents={order.totalCents} showDiscount />
+            {order.creditPaidCents > 0 ? (
+              <p className="flex justify-between text-sm" data-testid="order-credit-paid">
+                <span>{tr("commerce.pay_order.credit_paid")}</span>
+                <span className="tabular-nums">−{formatMoney(order.creditPaidCents, locale)}</span>
+              </p>
+            ) : null}
             {order.dueCents !== order.totalCents ? (
               <p className="text-sm">
                 {tr("commerce.pay_order.due")}: <span className="font-semibold tabular-nums">{formatMoney(order.dueCents, locale)}</span>

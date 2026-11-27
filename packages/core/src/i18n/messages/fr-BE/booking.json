@@ -199,7 +199,11 @@
       "children_not_available": "Les places enfants ne peuvent pas être réservées en ligne pour le moment. Appelez-nous.",
       "child_pays_by_order": "Les places enfants se paient avec la réservation.",
       "package_not_for_session": "Ce forfait ne peut pas être utilisé pour cette séance : les forfaits de jour sont pour les séances de jour, les forfaits de nuit pour les nuits.",
-      "pay_with_not_available": "Ce mode de paiement n'est pas disponible pour cette séance."
+      "pay_with_not_available": "Ce mode de paiement n'est pas disponible pour cette séance.",
+      "duplicate_session": "Vous avez choisi deux fois la même séance.",
+      "too_many_sessions": "Vous pouvez réserver au maximum six séances ensemble.",
+      "package_too_small": "Ce forfait n'a pas assez de séances pour tous les moments choisis.",
+      "extra_not_available": "Un extra choisi n'est plus disponible."
     },
     "calendar": {
       "title": "Séances",

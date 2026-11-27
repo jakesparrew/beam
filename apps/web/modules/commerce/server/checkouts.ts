@@ -16,7 +16,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { checkouts, orderLines, orders, payments, products, refunds, vouchers } from "@beam/db/schema";
-import { CartItem, type Quote } from "@beam/core/commerce";
+import { CartItem, Utm, type Quote } from "@beam/core/commerce";
 import { BillingDetailsInput } from "@beam/core/finance";
 import { LOCALES, type Locale } from "@beam/core/i18n";
 import { and, asc, desc, eq, inArray, isNotNull, lt, lte, notInArray, or, sql, AppError, ConflictError, NotFoundError, RateLimitedError, ValidationError, type Actor, type Ctx, type DbOrTx, type Tx } from "@/lib/ctx";
@@ -29,8 +29,9 @@ import { getCurrentLegalVersion, recordTermsAcceptance } from "@/modules/site/ap
 import { getQuote } from "./catalogue";
 import { cancelOrder } from "./cancel";
 import { createOrder } from "./orders";
-import { lockOrder, paidCentsOf, PAID_PAYMENT_STATUSES, type OrderRow } from "./paid";
+import { finalizePaidOrder, lockOrder, paidCentsOf, PAID_PAYMENT_STATUSES, type OrderRow } from "./paid";
 import { LIVE_PAYMENT_STATUSES, returnUrlFor, startPayment } from "./payments";
+import { redeemVoucher } from "./vouchers";
 
 export type CheckoutRow = typeof checkouts.$inferSelect;
 export type CheckoutChannel = "portal" | "site";
@@ -131,9 +132,6 @@ function pricingPersonOf(c: Pick<CheckoutRow, "personId">, viewer: CheckoutViewe
 // Inputs
 // ---------------------------------------------------------------------------
 
-const Utm = z
-  .object({ source: z.string().max(200), medium: z.string().max(200), campaign: z.string().max(200), term: z.string().max(200), content: z.string().max(200) })
-  .partial();
 const Items = z.array(CartItem).min(1).max(20);
 const Email = z.string().trim().toLowerCase().pipe(z.email().max(254));
 
@@ -468,11 +466,15 @@ async function applyEuroCredit(tx: Tx, ctx: Ctx, order: OrderRow): Promise<void>
   const due = order.totalCents - (await paidCentsOf(tx, order.id));
   if (due <= 0) return;
   const balance = await getEuroBalance(tx, order.personId);
-  const cents = Math.min(balance.remainingCents, due);
+  await payWithEuroCredit(tx, ctx, order.id, order.personId, Math.min(balance.remainingCents, due));
+}
+
+/** Rule 25: `cents` of the person's euro credit pay the order now, as a paid `credit_balance` payment. */
+async function payWithEuroCredit(tx: Tx, ctx: Ctx, orderId: string, personId: string, cents: number): Promise<void> {
   if (cents <= 0) return;
-  await consumeCredits(tx, ctx, { personId: order.personId, beneficiaryPersonId: order.personId, kind: "euro", units: cents, ref: { type: "order", id: order.id } });
+  await consumeCredits(tx, ctx, { personId, beneficiaryPersonId: personId, kind: "euro", units: cents, ref: { type: "order", id: orderId } });
   await tx.insert(payments).values({
-    orderId: order.id,
+    orderId,
     provider: "credit_balance",
     method: "credit_balance",
     status: "paid",
@@ -480,6 +482,35 @@ async function applyEuroCredit(tx: Tx, ctx: Ctx, order: OrderRow): Promise<void>
     paidAt: ctx.now,
     statusHistory: [{ status: "paid", at: ctx.now.toISOString(), source: "provider" }],
   });
+}
+
+/**
+ * Owner decision (the booking flow's "discount code or gift voucher" field): a gift voucher pays
+ * its own value of a fresh `pending_payment` order. The voucher is redeemed for the order's person
+ * (rule 45, with its rate limit of rule 47) and that euro credit, up to what is due, pays the order
+ * at once (rule 25); what the order does not need stays on the person's balance. Nothing left to
+ * pay -> paid in this transaction (rule 24). Throws `voucher_invalid`, `voucher_used`,
+ * `voucher_expired` or `rate_limited` like `redeemVoucher`.
+ */
+export async function applyVoucherToOrder(tx: Tx, ctx: Ctx, input: { orderId: string; code: string }): Promise<{ appliedCents: number; status: OrderRow["status"] }> {
+  const order = await lockOrder(tx, input.orderId);
+  if (!order || !order.personId) throw new NotFoundError("order_not_found");
+  // A repeated submit (same `clientKey`, edge case 2) finds its order already paid or paid in part with credit.
+  if ((PAID_PAYMENT_STATUSES as readonly string[]).includes(order.status)) return { appliedCents: 0, status: order.status };
+  if (order.status !== "pending_payment") throw new ConflictError("invalid_transition");
+  const [credit] = await tx
+    .select({ id: payments.id })
+    .from(payments)
+    .where(and(eq(payments.orderId, order.id), eq(payments.provider, "credit_balance"), eq(payments.status, "paid")))
+    .limit(1);
+  if (credit) return { appliedCents: 0, status: order.status };
+  const { amountCents } = await redeemVoucher(tx, ctx, { code: input.code, personId: order.personId });
+  const due = order.totalCents - (await paidCentsOf(tx, order.id));
+  const appliedCents = Math.max(0, Math.min(amountCents, due));
+  await payWithEuroCredit(tx, ctx, order.id, order.personId, appliedCents);
+  if (due - appliedCents > 0) return { appliedCents, status: "pending_payment" };
+  await finalizePaidOrder(tx, ctx, order.id);
+  return { appliedCents, status: "paid" };
 }
 
 /** Pays an existing `pending_payment` order (booking reservations, waitlist claims, renewal links). */
@@ -795,7 +826,7 @@ export async function getCheckout(db: DbOrTx, checkoutId: string, viewer: Checko
   };
 }
 
-export type OrderLineView = { id: string; description: string; kind: string; quantity: number; lineTotalCents: number; vatRatePct: number };
+export type OrderLineView = { id: string; description: string; kind: string; quantity: number; lineTotalCents: number; discountCents: number; vatRatePct: number };
 
 export type CustomerOrderView = {
   orderId: string;
@@ -806,6 +837,10 @@ export type CustomerOrderView = {
   paidAt: Date | null;
   expiresAt: Date | null;
   totalCents: number;
+  /** The quote's discount over the lines (promotion code, member price). */
+  discountCents: number;
+  /** Paid with euro credit (a gift voucher or the balance), rule 25. */
+  creditPaidCents: number;
   dueCents: number;
   withdrawalUntilAt: Date | null;
   lines: OrderLineView[];
@@ -840,9 +875,19 @@ async function orderView(db: DbOrTx, order: OrderRow, locale: Locale, viewer: Ch
     paidAt: order.paidAt,
     expiresAt: order.expiresAt,
     totalCents: order.totalCents,
+    discountCents: order.discountCents,
+    creditPaidCents: pays.filter((x) => x.provider === "credit_balance" && x.status === "paid").reduce((n, x) => n + x.amountCents, 0),
     dueCents: Math.max(0, order.totalCents - paid),
     withdrawalUntilAt: order.withdrawalUntilAt,
-    lines: lines.map((l) => ({ id: l.id, description: lineText(l.description, locale, l.sku), kind: l.productKind, quantity: l.quantity, lineTotalCents: l.lineTotalCents, vatRatePct: Number(l.vatRatePct) })),
+    lines: lines.map((l) => ({
+      id: l.id,
+      description: lineText(l.description, locale, l.sku),
+      kind: l.productKind,
+      quantity: l.quantity,
+      lineTotalCents: l.lineTotalCents,
+      discountCents: l.discountCents,
+      vatRatePct: Number(l.vatRatePct),
+    })),
     payments: pays.map((p) => ({ id: p.id, method: p.method, provider: p.provider, status: p.status, amountCents: p.amountCents, createdAt: p.createdAt })),
     refunds: refundRows.map((r) => ({ id: r.id, amountCents: r.amountCents, status: r.status, createdAt: r.createdAt })),
     needsTerms: isPending ? await orderNeedsTerms(db, order) : false,

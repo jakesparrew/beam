@@ -66,6 +66,12 @@ export const VAT_RATES: readonly VatRatePct[] = [0, 6, 12, 21];
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
+/** The `utm_*` values of a visit as checkouts and orders store them (D56, rule 40), at most 200 characters each. */
+export const Utm = z
+  .object({ source: z.string().max(200), medium: z.string().max(200), campaign: z.string().max(200), term: z.string().max(200), content: z.string().max(200) })
+  .partial();
+export type Utm = z.infer<typeof Utm>;
+
 // ---------------------------------------------------------------------------
 // CartItem
 // ---------------------------------------------------------------------------
@@ -78,6 +84,11 @@ export const CartItem = z
     ticketTypeId: z.string().uuid().optional(),
     /** Booking-originated session, night and ticket lines: exactly one `reserved` booking id (rule 21, D21). */
     bookingIds: z.array(z.string().uuid()).optional(),
+    /**
+     * A companion's seat in a booking (owner decision): priced as the public's, without the
+     * buyer's member price, member discount or person price, which are for the member themself.
+     */
+    guestSeat: z.boolean().optional(),
     /** Custom-amount voucher only. */
     amountCents: z.number().int().optional(),
     /** Future start of a membership or package, at most 90 days ahead. */

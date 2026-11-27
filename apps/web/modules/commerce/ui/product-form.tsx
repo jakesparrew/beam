@@ -39,8 +39,13 @@ export type ProductFormValues = {
   maxAmount: string;
   isShopVisible: boolean;
   isPosVisible: boolean;
+  /** Item products: offered as an extra in the booking flow, optionally only with these session kinds. */
+  isBookingExtra?: boolean;
+  bookingExtraKinds?: string[];
   sortOrder: string;
 };
+
+const EXTRA_KINDS = ["day", "night", "event"] as const;
 
 /** Labels from `commerce.admin_products.*` and `commerce.common.*`, keyed without prefix. */
 export type Labels = Record<string, string>;
@@ -132,6 +137,7 @@ export function ProductForm({
       maxAmountCents: k === "voucher" && v.isCustomAmount ? cents(v.maxAmount) : null,
       isShopVisible: v.isShopVisible,
       isPosVisible: v.isPosVisible,
+      ...(k === "item" && v.isBookingExtra !== undefined ? { isBookingExtra: v.isBookingExtra, bookingExtraKinds: v.isBookingExtra ? ((v.bookingExtraKinds ?? []) as Array<(typeof EXTRA_KINDS)[number]>) : [] } : {}),
       sortOrder: int(v.sortOrder) ?? 0,
     };
     setPending(true);
@@ -297,7 +303,27 @@ export function ProductForm({
             <Checkbox checked={v.isPosVisible} onCheckedChange={(c) => set("isPosVisible", c === true)} />
             {l("field_pos_visible")}
           </label>
+          {k === "item" ? (
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox checked={v.isBookingExtra ?? false} onCheckedChange={(c) => set("isBookingExtra", c === true)} />
+              {l("field_booking_extra")}
+            </label>
+          ) : null}
         </div>
+        {k === "item" && v.isBookingExtra ? (
+          <fieldset className="flex flex-wrap items-center gap-6 text-sm">
+            <legend className="mb-2 text-muted-foreground">{l("field_booking_extra_kinds")}</legend>
+            {EXTRA_KINDS.map((kind) => (
+              <label key={kind} className="flex items-center gap-2">
+                <Checkbox
+                  checked={v.bookingExtraKinds?.includes(kind) ?? false}
+                  onCheckedChange={(c) => set("bookingExtraKinds", c === true ? [...(v.bookingExtraKinds ?? []), kind] : (v.bookingExtraKinds ?? []).filter((x) => x !== kind))}
+                />
+                {l(`extra_kind_${kind}`)}
+              </label>
+            ))}
+          </fieldset>
+        ) : null}
       </Section>
 
     </StepForm>

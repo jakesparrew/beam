@@ -73,6 +73,9 @@ export const ProductFields = z.object({
   maxAmountCents: optionalPositive,
   isShopVisible: z.boolean().default(false),
   isPosVisible: z.boolean().default(true),
+  /** Owner decision: an extra in the booking flow (`item` products); omitted on an update = unchanged. */
+  isBookingExtra: z.boolean().optional(),
+  bookingExtraKinds: z.array(z.enum(["day", "night", "event"])).max(3).optional(),
   sortOrder: z.number().int().min(0).max(100_000).default(0),
 });
 export type ProductFieldsInput = z.input<typeof ProductFields>;
@@ -143,6 +146,7 @@ export function productColumns(kind: ProductKind, v: ProductFieldsValue): Produc
     if ((v.includedCreditKind ?? null) === null !== ((v.includedCreditUnits ?? null) === null)) fields.includedCreditUnits = "both_or_neither";
   }
   if (kind === "item" && !v.itemCategory) fields.itemCategory = "required";
+  if (v.isBookingExtra && kind !== "item") fields.isBookingExtra = "item_only";
   const isCustomAmount = isVoucher && v.isCustomAmount;
   if (v.isCustomAmount && !isVoucher) fields.isCustomAmount = "voucher_only";
   if (isCustomAmount) {
@@ -174,6 +178,8 @@ export function productColumns(kind: ProductKind, v: ProductFieldsValue): Produc
     maxAmountCents: isCustomAmount ? (v.maxAmountCents ?? null) : null,
     isShopVisible: v.isShopVisible,
     isPosVisible: v.isPosVisible,
+    ...(v.isBookingExtra !== undefined ? { isBookingExtra: v.isBookingExtra } : {}),
+    ...(v.bookingExtraKinds !== undefined ? { bookingExtraKinds: [...new Set(v.bookingExtraKinds)] } : {}),
     sortOrder: v.sortOrder,
   };
 }

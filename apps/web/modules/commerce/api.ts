@@ -201,6 +201,15 @@ export function rememberOrderInViewer(orderId: string): Promise<void> {
   return import("./server/checkouts").then((m) => m.rememberInViewer("order", orderId));
 }
 
+/**
+ * Booking's code field (owner decision): a gift voucher pays up to its value of a fresh
+ * `pending_payment` order (redeemed for the order's person, rate limited); nothing left due ->
+ * `paid` in the caller's transaction. Errors as `redeemVoucher`.
+ */
+export function applyVoucherToOrder(tx: Tx, ctx: Ctx, input: { orderId: string; code: string }): Promise<{ appliedCents: number; status: OrderStatus }> {
+  return import("./server/checkouts").then((m) => m.applyVoucherToOrder(tx, ctx, input));
+}
+
 // credits' portal packages page: the redeem field submits commerce's own server action (DM-13).
 export { redeemVoucher } from "./actions";
 

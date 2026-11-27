@@ -38,6 +38,8 @@ export default async function NewProductPage() {
           maxAmount: "",
           isShopVisible: false,
           isPosVisible: true,
+          isBookingExtra: false,
+          bookingExtraKinds: [],
           sortOrder: "0",
         }}
         options={productFormOptions(tr)}

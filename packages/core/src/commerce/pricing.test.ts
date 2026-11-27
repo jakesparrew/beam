@@ -128,6 +128,17 @@ describe("member pricing (rule 8)", () => {
     expect(line.lineTotalCents).toBe(4_050);
   });
 
+  it("prices a companion's seat (`guestSeat`) without the member's prices, member discount or person price", () => {
+    const p = product();
+    const pp: PersonPriceRow = { id: uid("pp"), productId: p.id, amountCents: 1_000, validFromAt: EARLY, validToAt: null, revokedAt: null };
+    const q = input([{ product: p, prices: [price(p, "public", 4_500), price(p, "member", 3_800)] }], { isMember: true, memberDiscountPct: 10, personPrices: [pp] });
+    q.items = [q.items[0]!, { ...q.items[0]!, guestSeat: true }];
+    const [own, companion] = quote(q).lines;
+    expect(own!.lineTotalCents).toBe(1_000);
+    expect(companion!).toMatchObject({ lineTotalCents: 4_500, discountCents: 0 });
+    expect(companion!.trace.candidates.map((c) => c.source)).toEqual(["base"]);
+  });
+
   it("gives no member pricing to non-members and no member discount on b2b orders", () => {
     const p = product("session", { memberDiscountPct: 20 });
     const prices = [price(p, "public", 4_500), price(p, "b2b", 4_200)];

@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Alert, AlertDescription, Button, Input, Label, Tabs, TabsContent, TabsList, TabsTrigger } from "@beam/ui";
 import { MARKETING_PURPOSES, type MarketingPurpose } from "@beam/core/email";
@@ -9,6 +8,8 @@ import { adminLocale, softTranslator, translator } from "@/lib/i18n";
 import { listPublicEvents } from "@/modules/booking/api";
 import { getSegmentSummaries } from "@/modules/crm/api";
 import { createCampaign } from "@/modules/email/actions";
+import { PageHeader } from "@/modules/platform/ui/admin-kit";
+import { BackLink } from "@/modules/platform/ui/admin-list-kit";
 import { catalogueSection, listAiDrafts, listTemplates } from "@/modules/email/queries";
 import { AiDraftPanel, type AiDraftPanelDraft } from "@/modules/email/ui/campaign/AiDraftPanel";
 
@@ -108,13 +109,9 @@ export default async function NewCampaignPage({ searchParams }: { searchParams: 
   );
 
   return (
-    <div className="grid max-w-2xl gap-6">
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">{t("new_title")}</h1>
-        <Button variant="ghost" asChild>
-          <Link href="/admin/campaigns">{t("title")}</Link>
-        </Button>
-      </div>
+    <div className="grid max-w-2xl gap-4">
+      <BackLink href="/admin/campaigns">{tr("email.nav.campaigns")}</BackLink>
+      <PageHeader title={t("new_title")} />
       {errorText ? (
         <Alert variant="destructive">
           <AlertDescription>{errorText}</AlertDescription>

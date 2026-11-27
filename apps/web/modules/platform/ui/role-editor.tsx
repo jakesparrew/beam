@@ -57,7 +57,7 @@ export function RoleEditor({
   return (
     <div className="grid gap-6">
       {groups.map((g) => (
-        <fieldset key={g.module} className="grid gap-3 rounded-md border p-4" disabled={readOnly}>
+        <fieldset key={g.module} className="grid gap-3 rounded-xl border border-border bg-card p-5" disabled={readOnly}>
           <legend className="px-1 text-sm font-semibold">{g.label}</legend>
           {g.permissions.map((p) => {
             const locked = !actorIsOwner && !own.has(p.key) && !granted.includes(p.key);
@@ -153,8 +153,8 @@ export function CreateRoleForm({ labels, errors }: { labels: Labels; errors: Lab
     );
   }
   return (
-    <form onSubmit={(e) => void onSubmit(e)} className="grid max-w-2xl gap-3 rounded-md border p-4" noValidate aria-labelledby="new-role-title">
-      <h2 id="new-role-title" className="text-lg font-medium">
+    <form onSubmit={(e) => void onSubmit(e)} className="grid max-w-2xl gap-3 rounded-xl border border-border bg-card p-5" noValidate aria-labelledby="new-role-title">
+      <h2 id="new-role-title" className="text-[0.9375rem] font-semibold">
         {lab(labels, "new_title")}
       </h2>
       <p className="text-sm text-muted-foreground">{lab(labels, "new_intro")}</p>
@@ -188,7 +188,7 @@ export function CustomRoleDetails({ role, labels, errors }: { role: { key: strin
     await rename.run(() => renameRole({ roleKey: role.key, name: formValue(form, "name"), description: formValue(form, "description") }), lab(labels, "renamed"));
   }
   return (
-    <div className="grid max-w-2xl gap-4 rounded-md border p-4">
+    <div className="grid max-w-2xl gap-4 rounded-xl border border-border bg-card p-5">
       <form onSubmit={(e) => void onSubmit(e)} className="grid gap-3" noValidate>
         <div className="grid gap-3 sm:grid-cols-2">
           <FormField label={lab(labels, "name")}>

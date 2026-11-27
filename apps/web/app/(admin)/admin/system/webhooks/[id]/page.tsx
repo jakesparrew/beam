@@ -6,6 +6,7 @@ import { getAppDb } from "@/lib/ctx";
 import { adminLocale, translator } from "@/lib/i18n";
 import { catalogueSection, getWebhookEvent } from "@/modules/platform/queries";
 import { ReplayWebhookButton } from "@/modules/platform/ui/system-tiles";
+import { BackLink } from "@/modules/platform/ui/admin-list-kit";
 
 /** `/admin/system/webhooks/[id]` (`system.jobs`): one event with its payload (secret keys redacted), its job and its replays (PL-40). */
 export default async function WebhookEventPage({ params }: { params: Promise<{ id: string }> }) {
@@ -19,12 +20,10 @@ export default async function WebhookEventPage({ params }: { params: Promise<{ i
   const when = (d: Date | null) => (d ? d.toLocaleString(locale, { timeZone: "Europe/Brussels", dateStyle: "short", timeStyle: "medium" }) : "–");
 
   return (
-    <div className="grid gap-6">
-      <header className="grid gap-2">
-        <Link href="/admin/system/webhooks" className="text-sm text-muted-foreground hover:underline">
-          {t("back")}
-        </Link>
-        <h1 className="text-2xl font-semibold">
+    <div className="grid gap-4">
+      <header className="grid gap-1">
+        <BackLink href="/admin/system/webhooks">{t("back")}</BackLink>
+        <h1>
           {event.provider} · <span className="font-mono text-lg">{event.externalEventId}</span>
         </h1>
         <p className="text-sm text-muted-foreground">{t("received_at", { when: when(event.receivedAt) })}</p>

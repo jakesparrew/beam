@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Badge, EmptyState, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@beam/ui";
+import { BackLink } from "@/modules/platform/ui/admin-list-kit";
 import { requireStaff } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
 import { adminLocale, translator } from "@/lib/i18n";
@@ -41,12 +42,10 @@ export default async function StaffUserPage({ params }: { params: Promise<{ id: 
   };
 
   return (
-    <div className="grid gap-6">
-      <header className="grid gap-2">
-        <Link href="/admin/settings/users" className="text-sm text-muted-foreground hover:underline">
-          {t("back")}
-        </Link>
-        <h1 className="text-2xl font-semibold">{user.name ?? user.email}</h1>
+    <div className="grid gap-4">
+      <header className="grid gap-1">
+        <BackLink href="/admin/settings/users">{tr("platform.users.title")}</BackLink>
+        <h1>{user.name ?? user.email}</h1>
         <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
           <span>{user.email}</span>
           <Badge variant={user.status === "active" ? "secondary" : "destructive"}>{t(`status_${user.status}`)}</Badge>

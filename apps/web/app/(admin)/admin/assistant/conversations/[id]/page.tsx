@@ -32,19 +32,19 @@ export default async function AssistantConversationPage({ params }: { params: Pr
   const a = c.analysis;
 
   return (
-    <div className="grid gap-6">
+    <div className="grid gap-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <Link href={"/admin/assistant/conversations" as Route} className="text-sm text-muted-foreground hover:text-foreground">
             ← {tr("assistant.admin.detail.back")}
           </Link>
-          <h1 className="font-display mt-1 text-3xl">{person?.name ?? tr("assistant.admin.conversations.anonymous")}</h1>
+          <h1 className="mt-1">{person?.name ?? tr("assistant.admin.conversations.anonymous")}</h1>
           <p className="text-sm text-muted-foreground">
             {tr(`assistant.admin.role.${c.role}`)} · {tr(`assistant.admin.status.${c.status}`)} · {tr("assistant.admin.detail.page")}: {c.page ?? "–"} · {formatDateTime(c.createdAt, locale)} · {tr("assistant.admin.detail.cost")} {usd(Number(c.costCents))}
           </p>
         </div>
         {person ? (
-          <Link href={`/admin/persons/${person.id}` as Route} className="rounded-full border px-4 py-2 text-sm hover:bg-accent">
+          <Link href={`/admin/persons/${person.id}` as Route} className="inline-flex h-9 items-center rounded-lg border border-border bg-card px-3 text-[0.8125rem] font-semibold hover:bg-muted">
             {tr("assistant.admin.detail.person")} →
           </Link>
         ) : null}

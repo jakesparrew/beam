@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { wallClock } from "@beam/core/platform";
+import { BackLink } from "@/modules/platform/ui/admin-list-kit";
 import { requireStaff } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
 import { adminLocale, translator } from "@/lib/i18n";
@@ -42,12 +42,10 @@ export default async function AiSettingsPage() {
   const isAdmin = actor.roleKey === "owner" || actor.roleKey === "technical_admin";
 
   return (
-    <div className="grid gap-6">
-      <header className="grid gap-2">
-        <Link href="/admin/settings" className="text-sm text-muted-foreground hover:underline">
-          {tr("platform.settings.back")}
-        </Link>
-        <h1 className="text-2xl font-semibold">{t("title")}</h1>
+    <div className="grid gap-4">
+      <header className="grid gap-1">
+        <BackLink href="/admin/settings">{tr("platform.settings.title")}</BackLink>
+        <h1>{t("title")}</h1>
         <p className="text-muted-foreground">{t("intro")}</p>
       </header>
       <section className="grid max-w-2xl gap-2" aria-labelledby="ai-spend">

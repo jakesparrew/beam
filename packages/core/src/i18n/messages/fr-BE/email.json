@@ -60,7 +60,10 @@
         "validation": "Vérifiez les champs et réessayez.",
         "forbidden": "Vous n'avez pas l'autorisation pour cette action.",
         "conflict": "Quelqu'un d'autre a modifié ceci ; rechargez la page."
-      }
+      },
+      "subtitle": "Les e-mails envoyés par BEAM : les modèles marketing des campagnes et les transactionnels de chaque module.",
+      "new_name_placeholder": "Nom du nouveau modèle",
+      "clear": "Effacer"
     },
     "editor": {
       "locale_nl": "Néerlandais",
@@ -406,7 +409,15 @@
         "recipient_not_planned": "Ce destinataire n'est plus prévu.",
         "recipient_not_removed": "Ce destinataire n'a pas été retiré.",
         "invalid_transition": "Ce n'est pas possible dans le statut actuel."
-      }
+      },
+      "tab_list": "Newsletters",
+      "tab_stats": "Statistiques",
+      "tab_messages": "Messages envoyés",
+      "tabs": "E-mail",
+      "subtitle": "Les campagnes vers vos segments, leur délivrabilité et chaque message envoyé.",
+      "search_placeholder": "Rechercher par nom",
+      "empty_filtered": "Aucune campagne ne correspond à ces filtres",
+      "clear": "Effacer"
     },
     "report": {
       "title": "Rapport : {name}",
@@ -634,7 +645,8 @@
       "blocked_restricted": "traitement limité",
       "blocked_suppressed": "supprimé",
       "blocked_withdrawn": "consentement retiré",
-      "blocked_no_consent": "pas de consentement"
+      "blocked_no_consent": "pas de consentement",
+      "clear": "Effacer"
     },
     "blocks": {
       "event_opens_for_you": "Ouvert pour vous le {date}",

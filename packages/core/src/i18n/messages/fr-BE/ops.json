@@ -940,7 +940,10 @@
       "progress_title": "Progression",
       "report_title": "Rapport",
       "cancel_reason": "Raison de l’annulation",
-      "lift_reason": "Raison de la levée de la limitation"
+      "lift_reason": "Raison de la levée de la limitation",
+      "subtitle": "Demandes de confidentialité, durées de conservation et analyse d'impact.",
+      "tab_requests": "Demandes",
+      "more": "Plus"
     },
     "retention_policy": {
       "ops_marketing_contact": "Contacts marketing sans achat",

@@ -5,6 +5,7 @@ import { getAppDb } from "@/lib/ctx";
 import { adminLocale, translator } from "@/lib/i18n";
 import { catalogueSection, getGoLiveGate } from "@/modules/platform/queries";
 import { GateChecklist } from "@/modules/platform/ui/gate-checklist";
+import { BackLink } from "@/modules/platform/ui/admin-list-kit";
 
 /** The runbook that explains how to check each gate item (`docs/runbooks/`). */
 const RUNBOOK: Record<GateItemKey, string> = {
@@ -37,10 +38,11 @@ export default async function GoLivePage() {
   const canConfirm = (GO_LIVE_CONFIRM_ROLES as readonly string[]).includes(actor.roleKey) && hasPermission(actor, "settings.write");
 
   return (
-    <div className="grid gap-6">
-      <header className="grid gap-2">
-        <h1 className="text-2xl font-semibold">{t("title")}</h1>
-        <p className="text-muted-foreground">{t("intro")}</p>
+    <div className="grid gap-4">
+      <BackLink href="/admin/system">{tr("platform.nav.technical")}</BackLink>
+      <header className="grid gap-1">
+        <h1>{t("title")}</h1>
+        <p className="max-w-2xl text-[0.8125rem] text-muted-foreground">{t("intro")}</p>
         <p className="flex items-center gap-2 text-sm">
           <Badge variant={gate.complete ? "success" : "warning"}>{gate.complete ? t("complete") : t("incomplete")}</Badge>
           {t("progress", { confirmed: gate.confirmed, total: gate.total })}

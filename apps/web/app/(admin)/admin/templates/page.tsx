@@ -1,17 +1,19 @@
+import type { Route } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Alert, AlertDescription, Badge, Button, EmptyState, Input, Label, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@beam/ui";
+import { cn, EmptyState } from "@beam/ui";
 import { MARKETING_PURPOSES, TEMPLATE_STATUSES, type MarketingPurpose } from "@beam/core/email";
 import { hasPermission, requireStaff } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
 import { adminLocale, softTranslator, translator } from "@/lib/i18n";
 import { archiveTemplate, createTemplate, duplicateTemplate } from "@/modules/email/actions";
 import { listTemplateModules, listTemplates } from "@/modules/email/queries";
+import { PageHeader, SecondaryAction, Segmented, StatusPill, Surface, Toolbar, td, th } from "@/modules/platform/ui/admin-kit";
+import { aboveRow, Disclosure, Field, fieldClass, Notice, rowClass, rowLink, SearchField } from "@/modules/platform/ui/admin-list-kit";
 
 type Search = { kind?: string; status?: string; q?: string; module?: string; page?: string; error?: string };
 
 const back = (kind: string, error?: string) => `/admin/templates?kind=${kind}${error ? `&error=${encodeURIComponent(error)}` : ""}`;
-
 
 /** A text field of a submitted form (files and missing fields read as the fallback). */
 function field(form: FormData, name: string, fallback = ""): string {
@@ -42,7 +44,8 @@ async function archive(form: FormData) {
 }
 
 /**
- * `/admin/templates` (`email.write`), email spec section 5: tabs Transactional and Marketing with
+ * `/admin/templates` (`email.write`), email spec section 5, in the back-office kit (owner review,
+ * November 2026): a search, tabs Marketing and Transactional (status and module behind "Filters"), with
  * name, slug, status, current version, locale badges and last published; new marketing template,
  * duplicate and archive (`email.send`); filter by owning module on the transactional tab.
  */
@@ -67,158 +70,147 @@ export default async function TemplatesPage({ searchParams }: { searchParams: Pr
   const errorKey = sp.error ? `email.templates.errors.${sp.error.replace(/[^a-z_]/g, "")}` : null;
   const errorText = errorKey ? (soft(errorKey) === errorKey ? t("errors.generic") : soft(errorKey)) : null;
 
+  const href = (patch: Record<string, string | undefined>): Route => {
+    const p = new URLSearchParams();
+    for (const [k, v] of Object.entries({ kind, q: sp.q || undefined, status, module: kind === "transactional" ? sp.module || undefined : undefined, ...patch })) if (v) p.set(k, v);
+    return `/admin/templates?${p.toString()}` as Route;
+  };
+  const moreFilters = [status, kind === "transactional" ? sp.module : undefined].filter(Boolean).length;
+
   return (
-    <div className="grid gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">{t("title")}</h1>
-      </div>
-      {errorText ? (
-        <Alert variant="destructive">
-          <AlertDescription>{errorText}</AlertDescription>
-        </Alert>
-      ) : null}
-      <nav className="flex gap-2" aria-label={t("tabs")}>
-        {(["transactional", "marketing"] as const).map((k) => (
-          <Button key={k} variant={k === kind ? "default" : "outline"} asChild>
-            <Link href={`/admin/templates?kind=${k}`} aria-current={k === kind ? "page" : undefined}>
-              {t(`tab_${k}`)}
-            </Link>
-          </Button>
-        ))}
-      </nav>
-      <form data-auto-filter="" className="flex flex-wrap items-end gap-3" method="get">
-        <input type="hidden" name="kind" value={kind} />
-        <div className="grid gap-1">
-          <Label htmlFor="templates-q">{t("search")}</Label>
-          <Input id="templates-q" name="q" defaultValue={sp.q ?? ""} />
-        </div>
-        <div className="grid gap-1">
-          <Label htmlFor="templates-status">{t("col_status")}</Label>
-          <select id="templates-status" name="status" defaultValue={status ?? ""} className="h-9 rounded-md border bg-background px-2 text-sm">
-            <option value="">{t("status_active")}</option>
-            {TEMPLATE_STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {t(`status_${s}`)}
-              </option>
-            ))}
-          </select>
-        </div>
-        {kind === "transactional" ? (
-          <div className="grid gap-1">
-            <Label htmlFor="templates-module">{t("module")}</Label>
-            <select id="templates-module" name="module" defaultValue={sp.module ?? ""} className="h-9 rounded-md border bg-background px-2 text-sm">
-              <option value="">{t("all_modules")}</option>
-              {modules.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </select>
-          </div>
-        ) : null}
+    <div className="grid gap-4">
+      <PageHeader
+        title={t("title")}
+        description={t("subtitle")}
+        actions={
+          kind === "marketing" ? (
+            <form action={create} className="flex flex-wrap items-center gap-2" aria-label={t("new")}>
+              <label className="sr-only" htmlFor="new-template-name">
+                {t("new_name")}
+              </label>
+              <input id="new-template-name" name="name" required maxLength={160} placeholder={t("new_name_placeholder")} className="h-9 w-56 rounded-lg border border-input bg-card px-3 text-[0.8125rem]" />
+              <label className="sr-only" htmlFor="new-template-purpose">
+                {t("new_purpose")}
+              </label>
+              <select id="new-template-purpose" name="purpose" defaultValue="newsletter" className="h-9 rounded-lg border border-input bg-card px-2.5 text-[0.8125rem]">
+                {MARKETING_PURPOSES.map((p) => (
+                  <option key={p} value={p}>
+                    {tr(`email.templates.purpose_${p}`)}
+                  </option>
+                ))}
+              </select>
+              <button type="submit" className="inline-flex h-9 items-center rounded-lg bg-primary px-3.5 text-[0.8125rem] font-semibold text-primary-foreground hover:opacity-90">
+                + {t("new")}
+              </button>
+            </form>
+          ) : null
+        }
+      />
+      {errorText ? <Notice tone="bad">{errorText}</Notice> : null}
+      <form data-auto-filter="" method="get" role="search">
+        <Toolbar>
+          <input type="hidden" name="kind" value={kind} />
+          <SearchField label={t("search")} placeholder={t("search")} defaultValue={sp.q} />
+          <Segmented label={t("tabs")} items={(["marketing", "transactional"] as const).map((k) => ({ key: k, label: t(`tab_${k}`), href: `/admin/templates?kind=${k}` as Route, active: k === kind }))} />
+          <Disclosure label={t("filter")} count={moreFilters} clear={moreFilters ? { href: href({ status: undefined, module: undefined }), label: t("clear") } : null}>
+            <Field label={t("col_status")}>
+              <select id="templates-status" name="status" defaultValue={status ?? ""} className={fieldClass}>
+                <option value="">{t("status_active")}</option>
+                {TEMPLATE_STATUSES.map((s) => (
+                  <option key={s} value={s}>
+                    {t(`status_${s}`)}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            {kind === "transactional" ? (
+              <Field label={t("module")}>
+                <select id="templates-module" name="module" defaultValue={sp.module ?? ""} className={fieldClass}>
+                  <option value="">{t("all_modules")}</option>
+                  {modules.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            ) : null}
+          </Disclosure>
+        </Toolbar>
       </form>
-      {kind === "marketing" ? (
-        <form action={create} className="flex flex-wrap items-end gap-3 rounded-md border p-4" aria-label={t("new")}>
-          <div className="grid gap-1">
-            <Label htmlFor="new-template-name">{t("new_name")}</Label>
-            <Input id="new-template-name" name="name" required maxLength={160} />
-          </div>
-          <div className="grid gap-1">
-            <Label htmlFor="new-template-purpose">{t("new_purpose")}</Label>
-            <select id="new-template-purpose" name="purpose" defaultValue="newsletter" className="h-9 rounded-md border bg-background px-2 text-sm">
-              {MARKETING_PURPOSES.map((p) => (
-                <option key={p} value={p}>
-                  {tr(`email.templates.purpose_${p}`)}
-                </option>
-              ))}
-            </select>
-          </div>
-          <Button type="submit">{t("new")}</Button>
-        </form>
-      ) : null}
       {list.items.length === 0 ? (
         <EmptyState title={kind === "marketing" ? t("empty_marketing") : t("empty_transactional")} />
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t("col_name")}</TableHead>
-              <TableHead>{t("col_slug")}</TableHead>
-              <TableHead>{t("col_status")}</TableHead>
-              <TableHead>{t("col_version")}</TableHead>
-              <TableHead>{t("col_locales")}</TableHead>
-              <TableHead>{t("col_published")}</TableHead>
-              <TableHead>{t("col_actions")}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {list.items.map((r) => (
-              <TableRow key={r.id}>
-                <TableCell>
-                  <Link className="font-medium underline-offset-2 hover:underline" href={`/admin/templates/${r.id}`}>
-                    {r.name}
-                  </Link>
-                  {r.hasDraft ? (
-                    <Badge variant="secondary" className="ml-2">
-                      {t("draft_pending")}
-                    </Badge>
-                  ) : null}
-                </TableCell>
-                <TableCell className="font-mono text-xs">{r.slug}</TableCell>
-                <TableCell>
-                  <Badge variant={r.status === "published" ? "default" : "outline"}>{t(`status_${r.status}`)}</Badge>
-                </TableCell>
-                <TableCell className="tabular-nums">{r.currentVersion ? `v${r.currentVersion}` : "—"}</TableCell>
-                <TableCell>
-                  <div className="flex gap-1">
-                    {r.locales.map((l) => (
-                      <Badge key={l} variant="outline">
-                        {l}
-                      </Badge>
-                    ))}
-                  </div>
-                </TableCell>
-                <TableCell>{r.lastPublishedAt ? dateFmt.format(r.lastPublishedAt) : "—"}</TableCell>
-                <TableCell>
-                  <div className="flex flex-wrap gap-2">
-                    {r.kind === "marketing" ? (
-                      <form action={duplicate}>
-                        <input type="hidden" name="templateId" value={r.id} />
-                        <input type="hidden" name="name" value={t("copy_of", { name: r.name }).slice(0, 160)} />
-                        <Button type="submit" size="sm" variant="outline">
-                          {t("duplicate")}
-                        </Button>
-                      </form>
-                    ) : null}
-                    {canSend && !r.isSystem && r.status !== "archived" ? (
-                      <form action={archive}>
-                        <input type="hidden" name="templateId" value={r.id} />
-                        <input type="hidden" name="kind" value={kind} />
-                        <Button type="submit" size="sm" variant="ghost">
-                          {t("archive")}
-                        </Button>
-                      </form>
-                    ) : null}
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <Surface flush>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[52rem] text-[0.8125rem]">
+              <caption className="sr-only">{t("title")}</caption>
+              <thead className="bg-[#faf9f6]">
+                <tr className="border-b border-border">
+                  <th scope="col" className={th}>{t("col_name")}</th>
+                  <th scope="col" className={cn(th, "w-56")}>{t("col_status")}</th>
+                  <th scope="col" className={cn(th, "w-28 text-right")}>{t("col_version")}</th>
+                  <th scope="col" className={cn(th, "w-32")}>{t("col_locales")}</th>
+                  <th scope="col" className={cn(th, "w-44")}>{t("col_published")}</th>
+                  <th scope="col" className={cn(th, "w-40")}>
+                    <span className="sr-only">{t("col_actions")}</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {list.items.map((r) => (
+                  <tr key={r.id} className={rowClass}>
+                    <td className={td}>
+                      <span className="grid leading-tight">
+                        <Link className={cn(rowLink, "font-semibold hover:underline")} href={`/admin/templates/${r.id}`}>
+                          {r.name}
+                        </Link>
+                        <span className="font-mono text-[0.6875rem] text-muted-foreground">{r.slug}</span>
+                      </span>
+                    </td>
+                    <td className={td}>
+                      <span className="flex flex-wrap gap-1">
+                        <StatusPill tone={r.status === "published" ? "ok" : "muted"}>{t(`status_${r.status}`)}</StatusPill>
+                        {r.hasDraft ? <StatusPill tone="gold">{t("draft_pending")}</StatusPill> : null}
+                      </span>
+                    </td>
+                    <td className={cn(td, "text-right tabular-nums")}>{r.currentVersion ? `v${r.currentVersion}` : "–"}</td>
+                    <td className={cn(td, "text-muted-foreground")}>{r.locales.map((l) => l.slice(0, 2).toUpperCase()).join(" · ")}</td>
+                    <td className={cn(td, "whitespace-nowrap text-muted-foreground")}>{r.lastPublishedAt ? dateFmt.format(r.lastPublishedAt) : "–"}</td>
+                    <td className={cn(td, "text-right")}>
+                      <span className={cn(aboveRow, "inline-flex gap-3 text-[0.75rem] font-semibold text-muted-foreground")}>
+                        {r.kind === "marketing" ? (
+                          <form action={duplicate}>
+                            <input type="hidden" name="templateId" value={r.id} />
+                            <input type="hidden" name="name" value={t("copy_of", { name: r.name }).slice(0, 160)} />
+                            <button type="submit" className="hover:text-foreground">
+                              {t("duplicate")}
+                            </button>
+                          </form>
+                        ) : null}
+                        {canSend && !r.isSystem && r.status !== "archived" ? (
+                          <form action={archive}>
+                            <input type="hidden" name="templateId" value={r.id} />
+                            <input type="hidden" name="kind" value={kind} />
+                            <button type="submit" className="hover:text-foreground">
+                              {t("archive")}
+                            </button>
+                          </form>
+                        ) : null}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Surface>
       )}
       {pages > 1 ? (
         <nav className="flex items-center gap-2" aria-label={t("pagination")}>
-          {page > 1 ? (
-            <Button variant="outline" size="sm" asChild>
-              <Link href={`/admin/templates?kind=${kind}&page=${page - 1}`}>{t("previous")}</Link>
-            </Button>
-          ) : null}
-          <span className="text-sm">{t("page_of", { page, pages })}</span>
-          {page < pages ? (
-            <Button variant="outline" size="sm" asChild>
-              <Link href={`/admin/templates?kind=${kind}&page=${page + 1}`}>{t("next")}</Link>
-            </Button>
-          ) : null}
+          {page > 1 ? <SecondaryAction href={href({ page: String(page - 1) })}>{t("previous")}</SecondaryAction> : null}
+          <span className="text-[0.8125rem] text-muted-foreground">{t("page_of", { page, pages })}</span>
+          {page < pages ? <SecondaryAction href={href({ page: String(page + 1) })}>{t("next")}</SecondaryAction> : null}
         </nav>
       ) : null}
     </div>

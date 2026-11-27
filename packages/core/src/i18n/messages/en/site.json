@@ -448,7 +448,10 @@
         "new": "New page",
         "openRequests": "Open Claude requests",
         "search": "Search pages",
-        "title": "Website pages"
+        "title": "Website pages",
+        "subtitle": "The pages of the public website, their versions and what is live.",
+        "filters": "Filters",
+        "clear": "Clear"
       },
       "redirects": {
         "add": "Add redirect",

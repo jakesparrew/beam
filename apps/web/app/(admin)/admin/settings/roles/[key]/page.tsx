@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Alert, AlertDescription } from "@beam/ui";
+import { BackLink } from "@/modules/platform/ui/admin-list-kit";
 import { requireStaff } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
 import { adminLocale, softTranslator, translator } from "@/lib/i18n";
@@ -45,12 +45,10 @@ export default async function RolePage({ params }: { params: Promise<{ key: stri
   const description = (role.description as Record<string, string>)[locale] ?? "";
 
   return (
-    <div className="grid gap-6">
-      <header className="grid gap-2">
-        <Link href="/admin/settings/roles" className="text-sm text-muted-foreground hover:underline">
-          {t("back")}
-        </Link>
-        <h1 className="text-2xl font-semibold">{label}</h1>
+    <div className="grid gap-4">
+      <header className="grid gap-1">
+        <BackLink href="/admin/settings/roles">{tr("platform.role_editor.title")}</BackLink>
+        <h1>{label}</h1>
         {description ? <p>{description}</p> : null}
         <p className="text-muted-foreground">{role.isOwner ? t("owner_read_only") : t("edit_intro")}</p>
       </header>

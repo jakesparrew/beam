@@ -35,12 +35,12 @@ export default async function SiteImportPage({ params, searchParams }: { params:
     detail.status === "done" || detail.status === "failed" ? getRedirectCoverage(importId, db) : Promise.resolve(null),
   ]);
   return (
-    <div className="grid gap-6">
+    <div className="grid gap-4">
       <div className="grid gap-1">
         <NextLink href="/admin/site/imports" className="text-sm text-muted-foreground underline-offset-4 hover:underline">
           {L["import.title"]}
         </NextLink>
-        <h1 className="text-2xl font-semibold">{detail.siteOrigin}</h1>
+        <h1>{detail.siteOrigin}</h1>
       </div>
       <SiteSectionNav L={L} current="/admin/site/imports" />
       <form className="flex flex-wrap items-end gap-2" action={`/admin/site/imports/${importId}`}>

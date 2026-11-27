@@ -13,8 +13,8 @@ export default async function SiteSettingsPage() {
   const L = siteAdminLabels(locale);
   const summary = await getSiteSettingsSummary(await getAppDb());
   return (
-    <div className="grid gap-6">
-      <h1 className="text-2xl font-semibold">{L["settings.title"]}</h1>
+    <div className="grid gap-4">
+      <h1>{L["settings.title"]}</h1>
       <SiteSectionNav L={L} current="/admin/site/settings" />
       <SettingsSummary summary={summary} L={L} canEditSettings={hasPermission(actor, "settings.write")} />
     </div>

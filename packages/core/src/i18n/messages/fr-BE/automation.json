@@ -139,7 +139,10 @@
         "reengagement": "Réengagement",
         "transactional": "Transactionnel",
         "other": "Autres"
-      }
+      },
+      "filters": "Filtres",
+      "clear": "Effacer",
+      "more": "Plus"
     },
     "new": {
       "title": "Nouvelle automatisation",

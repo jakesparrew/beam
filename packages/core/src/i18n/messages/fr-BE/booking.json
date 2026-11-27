@@ -325,7 +325,8 @@
       "regeneration_failed": "La mise à jour des séances a échoué. Relancez-la depuis la page des tâches.",
       "incomplete_name": "Complétez le nom dans les trois langues avant d’activer.",
       "empty": "Pas encore de planning : ajoutez vos premières séances de jour.",
-      "step_schedule": "Jours et heures"
+      "step_schedule": "Jours et heures",
+      "subtitle": "Le planning hebdomadaire ; les sessions des semaines à venir en sont créées."
     },
     "exceptions": {
       "title": "Jours de fermeture et horaires spéciaux",
@@ -353,7 +354,8 @@
       "calendar_remove": "Supprimer",
       "calendar_closed_weekly": "Fermé chaque semaine",
       "calendar_partial": "certaines séances seulement",
-      "calendar_default_name": "Fermé"
+      "calendar_default_name": "Fermé",
+      "subtitle": "Jours de fermeture, jours fériés et horaires particuliers des douze prochains mois."
     },
     "rules": {
       "title": "Règles de réservation",
@@ -392,7 +394,8 @@
       "hours_closed": "Fermé",
       "reception_phone": "Téléphone de l’accueil",
       "note": "Note pour les clients",
-      "stale": "Quelqu’un a modifié ces règles, rechargez la page."
+      "stale": "Quelqu’un a modifié ces règles, rechargez la page.",
+      "subtitle": "Quand annuler, réserver et s'enregistrer, et les heures d'ouverture."
     },
     "holds": {
       "title": "Places bloquées",

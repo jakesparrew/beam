@@ -4,7 +4,8 @@ import { adminLocale, translator } from "@/lib/i18n";
 import { getSetting } from "@/lib/settings";
 import type { AssistantSettingValue } from "@/modules/assistant/config";
 import { TOOLS } from "@/modules/assistant/server/tools";
-import { SubNav, SURFACE, assistantSubNav } from "@/modules/assistant/ui/admin/parts";
+import { SURFACE } from "@/modules/assistant/ui/admin/parts";
+import { AssistantHeader } from "../assistant-header";
 import { SettingsForm } from "@/modules/assistant/ui/admin/settings-form";
 
 export const dynamic = "force-dynamic";
@@ -27,15 +28,12 @@ export default async function AssistantSettingsPage() {
   const labels = Object.fromEntries([...KEYS.map((k) => [k, tr(`assistant.admin.settings.${k}`)]), ...(["guide", "coach", "analyst"] as const).map((r) => [`role.${r}`, tr(`assistant.admin.role.${r}`)])]);
 
   return (
-    <div className="grid gap-6">
-      <div>
-        <h1 className="font-display text-3xl">{tr("assistant.admin.settings.title")}</h1>
-        <p className="text-sm text-muted-foreground">{tr("assistant.admin.settings.subtitle")}</p>
-      </div>
-      <SubNav active="settings" items={assistantSubNav(tr)} />
+    <div className="grid gap-4">
+      <AssistantHeader active="settings" canManage tr={tr} />
+      <p className="max-w-3xl text-[0.8125rem] text-muted-foreground">{tr("assistant.admin.settings.subtitle")}</p>
       <SettingsForm initial={settings} labels={labels} />
       <section className={`${SURFACE} grid gap-3 p-5`} aria-labelledby="register-h">
-        <h2 id="register-h" className="text-lg font-semibold">
+        <h2 id="register-h">
           {tr("assistant.admin.settings.register")}
         </h2>
         <p className="text-sm text-muted-foreground">{tr("assistant.admin.settings.registerIntro")}</p>

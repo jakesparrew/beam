@@ -5,6 +5,7 @@ import { requireStaff } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
 import { adminLocale, translator } from "@/lib/i18n";
 import { listWebhookEvents, type WebhookProviderName } from "@/modules/platform/queries";
+import { BackLink } from "@/modules/platform/ui/admin-list-kit";
 
 type Search = { provider?: string; from?: string; to?: string; cursor?: string };
 type Row = Awaited<ReturnType<typeof listWebhookEvents>>["rows"][number];
@@ -26,10 +27,11 @@ export default async function WebhooksPage({ searchParams }: { searchParams: Pro
   const when = (d: Date) => d.toLocaleString(locale, { timeZone: "Europe/Brussels", dateStyle: "short", timeStyle: "medium" });
 
   return (
-    <div className="grid gap-6">
-      <header className="grid gap-2">
-        <h1 className="text-2xl font-semibold">{t("title")}</h1>
-        <p className="text-muted-foreground">{t("intro")}</p>
+    <div className="grid gap-4">
+      <BackLink href="/admin/system">{tr("platform.nav.technical")}</BackLink>
+      <header className="grid gap-1">
+        <h1>{t("title")}</h1>
+        <p className="max-w-2xl text-[0.8125rem] text-muted-foreground">{t("intro")}</p>
       </header>
       <DataTable<Row>
         rows={rows}

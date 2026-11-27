@@ -139,7 +139,10 @@
         "reengagement": "Opnieuw activeren",
         "transactional": "Transactioneel",
         "other": "Overige"
-      }
+      },
+      "filters": "Filters",
+      "clear": "Wissen",
+      "more": "Meer"
     },
     "new": {
       "title": "Nieuwe automatisering",

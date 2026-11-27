@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Badge } from "@beam/ui";
 import { requireStaff } from "@/lib/auth";
@@ -6,6 +5,7 @@ import { getAppDb } from "@/lib/ctx";
 import { adminLocale, translator } from "@/lib/i18n";
 import { catalogueSection, getIncident } from "@/modules/platform/queries";
 import { IncidentForm } from "@/modules/platform/ui/incident-form";
+import { BackLink } from "@/modules/platform/ui/admin-list-kit";
 
 /**
  * `/admin/system/incidents/[id]` (`system.jobs`): the seven blueprint-65 fields, severity, status
@@ -24,12 +24,10 @@ export default async function IncidentPage({ params }: { params: Promise<{ id: s
   const notifiedAfter = incident.beamNotifiedAt ? Math.round(((incident.beamNotifiedAt.getTime() - incident.discoveredAt.getTime()) / 3_600_000) * 10) / 10 : null;
 
   return (
-    <div className="grid gap-6">
-      <header className="grid gap-2">
-        <Link href="/admin/system/incidents" className="text-sm text-muted-foreground hover:underline">
-          {t("back")}
-        </Link>
-        <h1 className="text-2xl font-semibold">{incident.title}</h1>
+    <div className="grid gap-4">
+      <header className="grid gap-1">
+        <BackLink href="/admin/system/incidents">{t("back")}</BackLink>
+        <h1>{incident.title}</h1>
         <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
           <Badge variant={incident.severity === "normal" ? "secondary" : "destructive"}>{t(`severity_${incident.severity}`)}</Badge>
           <Badge variant="outline">{t(`status_${incident.status}`)}</Badge>

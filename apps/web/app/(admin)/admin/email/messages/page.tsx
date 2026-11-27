@@ -1,9 +1,13 @@
+import type { Route } from "next";
 import Link from "next/link";
-import { Badge, Button, EmptyState, Input, Label, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@beam/ui";
+import { cn, EmptyState } from "@beam/ui";
 import { hasPermission, requireStaff } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
-import { adminLocale } from "@/lib/i18n";
+import { adminLocale, translator } from "@/lib/i18n";
 import { catalogueSection, listMessages, ListMessagesInput } from "@/modules/email/queries";
+import { SecondaryAction, Segmented, StatusPill, Surface, Toolbar, td, th, type Tone } from "@/modules/platform/ui/admin-kit";
+import { aboveRow, Disclosure, Field, fieldClass, rowClass, rowLink, SearchField } from "@/modules/platform/ui/admin-list-kit";
+import { EmailHeader } from "../../campaigns/email-header";
 
 type Search = { status?: string; kind?: string; q?: string; from?: string; to?: string; page?: string; person?: string };
 
@@ -13,7 +17,8 @@ const KINDS = ["transactional", "campaign", "automation", "test"] as const;
 const fill = (text: string, params: Record<string, string | number> = {}) => text.replace(/\{(\w+)\}/g, (_, p: string) => String(params[p] ?? `{${p}}`));
 
 /**
- * `/admin/email/messages` (`email.write`), email spec section 5: the message log with time,
+ * `/admin/email/messages` (`email.write`), email spec section 5, the "Verzonden berichten" tab of
+ * the newsletters page (owner review, November 2026): the message log with time,
  * recipient (masked unless `persons.read`), template, kind, status and campaign; filters by
  * status, kind, period and search (template, campaign, or an address prefix with `persons.read`).
  */
@@ -34,6 +39,7 @@ export default async function EmailMessagesPage({ searchParams }: { searchParams
   const db = await getAppDb();
   const list = await listMessages(db, args, { unmasked: hasPermission(actor, "persons.read") });
   const locale = await adminLocale();
+  const tr = translator(locale);
   const labels = catalogueSection(locale, "email.messages");
   const t = (key: string, params?: Record<string, string | number>) => fill(labels[key] ?? key, params);
   const time = new Intl.DateTimeFormat(locale, { timeZone: "Europe/Brussels", dateStyle: "short", timeStyle: "short" });
@@ -45,99 +51,106 @@ export default async function EmailMessagesPage({ searchParams }: { searchParams
     return `/admin/email/messages?${p.toString()}`;
   };
 
+  const href = (patch: Record<string, string | undefined>): Route => {
+    const p = new URLSearchParams();
+    for (const [k, v] of Object.entries({ status: args.status, kind: args.kind, q: args.q, person: args.personId, from: sp.from, to: sp.to, ...patch })) if (v) p.set(k, String(v));
+    const s = p.toString();
+    return s ? `/admin/email/messages?${s}` : "/admin/email/messages";
+  };
+  const more = [args.status, sp.from, sp.to].filter(Boolean).length;
+  const tone = (s: string): Tone => (s === "bounced" || s === "complained" || s === "failed" ? "bad" : s === "delivered" || s === "sent" ? "ok" : s === "queued" ? "info" : s === "blocked_translation" ? "warn" : "muted");
+
   return (
-    <div className="grid gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">{t("title")}</h1>
-        <Button variant="ghost" asChild>
-          <Link href="/admin/email">{t("back_overview")}</Link>
-        </Button>
-      </div>
-      <form data-auto-filter="" className="flex flex-wrap items-end gap-3" method="get">
-        {args.personId ? <input type="hidden" name="person" value={args.personId} /> : null}
-        <div className="grid gap-1">
-          <Label htmlFor="messages-q">{t("search")}</Label>
-          <Input id="messages-q" name="q" defaultValue={args.q ?? ""} placeholder={t("search_hint")} />
-        </div>
-        <div className="grid gap-1">
-          <Label htmlFor="messages-status">{t("col_status")}</Label>
-          <select id="messages-status" name="status" defaultValue={args.status ?? ""} className="h-9 rounded-md border bg-background px-2 text-sm">
-            <option value="">{t("all")}</option>
-            {STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {t(`status_${s}`)}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="grid gap-1">
-          <Label htmlFor="messages-kind">{t("col_kind")}</Label>
-          <select id="messages-kind" name="kind" defaultValue={args.kind ?? ""} className="h-9 rounded-md border bg-background px-2 text-sm">
-            <option value="">{t("all")}</option>
-            {KINDS.map((k) => (
-              <option key={k} value={k}>
-                {t(`kind_${k}`)}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="grid gap-1">
-          <Label htmlFor="messages-from">{t("from")}</Label>
-          <Input id="messages-from" name="from" type="date" defaultValue={sp.from ?? ""} />
-        </div>
-        <div className="grid gap-1">
-          <Label htmlFor="messages-to">{t("to")}</Label>
-          <Input id="messages-to" name="to" type="date" defaultValue={sp.to ?? ""} />
-        </div>
+    <div className="grid gap-4">
+      <EmailHeader active="messages" canWrite tr={tr} />
+      <form data-auto-filter="" method="get" role="search">
+        <Toolbar>
+          {args.personId ? <input type="hidden" name="person" value={args.personId} /> : null}
+          {args.kind ? <input type="hidden" name="kind" value={args.kind} /> : null}
+          <SearchField label={t("search")} placeholder={t("search_hint")} defaultValue={args.q} />
+          <Segmented
+            label={t("col_kind")}
+            items={[{ key: "all", label: t("all"), href: href({ kind: undefined, page: undefined }), active: !args.kind }, ...KINDS.map((k) => ({ key: k, label: t(`kind_${k}`), href: href({ kind: k, page: undefined }), active: args.kind === k }))]}
+          />
+          <Disclosure label={t("apply")} count={more} clear={more ? { href: href({ status: undefined, from: undefined, to: undefined, page: undefined }), label: t("clear") } : null}>
+            <Field label={t("col_status")}>
+              <select id="messages-status" name="status" defaultValue={args.status ?? ""} className={fieldClass}>
+                <option value="">{t("all")}</option>
+                {STATUSES.map((s) => (
+                  <option key={s} value={s}>
+                    {t(`status_${s}`)}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <div className="grid grid-cols-2 gap-2">
+              <Field label={t("from")}>
+                <input id="messages-from" name="from" type="date" defaultValue={sp.from ?? ""} className={fieldClass} />
+              </Field>
+              <Field label={t("to")}>
+                <input id="messages-to" name="to" type="date" defaultValue={sp.to ?? ""} className={fieldClass} />
+              </Field>
+            </div>
+          </Disclosure>
+        </Toolbar>
       </form>
       {list.items.length ? (
-        <Table data-testid="messages-table">
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t("col_time")}</TableHead>
-              <TableHead>{t("col_recipient")}</TableHead>
-              <TableHead>{t("col_template")}</TableHead>
-              <TableHead>{t("col_kind")}</TableHead>
-              <TableHead>{t("col_status")}</TableHead>
-              <TableHead>{t("col_campaign")}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {list.items.map((m) => (
-              <TableRow key={m.id} data-message-id={m.id}>
-                <TableCell>
-                  <Link className="underline" href={`/admin/email/messages/${m.id}`}>
-                    {time.format(m.sentAt ?? m.createdAt)}
-                  </Link>
-                </TableCell>
-                <TableCell>{m.email ?? "–"}</TableCell>
-                <TableCell>{m.templateSlug ?? "–"}</TableCell>
-                <TableCell>{t(`kind_${m.kind}`)}</TableCell>
-                <TableCell>
-                  <Badge variant={m.status === "bounced" || m.status === "complained" || m.status === "failed" ? "destructive" : "secondary"}>{t(`status_${m.status}`)}</Badge>
-                  {m.error ? <span className="ml-2 text-xs text-muted-foreground">{m.error}</span> : null}
-                </TableCell>
-                <TableCell>{m.campaignId ? <Link href={`/admin/campaigns/${m.campaignId}/report`}>{m.campaignName ?? "–"}</Link> : "–"}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <Surface flush>
+          <div className="overflow-x-auto">
+            <table data-testid="messages-table" className="w-full min-w-[52rem] text-[0.8125rem]">
+              <caption className="sr-only">{t("title")}</caption>
+              <thead className="bg-[#faf9f6]">
+                <tr className="border-b border-border">
+                  <th scope="col" className={cn(th, "w-40")}>{t("col_time")}</th>
+                  <th scope="col" className={th}>{t("col_recipient")}</th>
+                  <th scope="col" className={cn(th, "w-48")}>{t("col_template")}</th>
+                  <th scope="col" className={cn(th, "w-32")}>{t("col_kind")}</th>
+                  <th scope="col" className={cn(th, "w-44")}>{t("col_status")}</th>
+                  <th scope="col" className={cn(th, "w-48")}>{t("col_campaign")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {list.items.map((m) => (
+                  <tr key={m.id} data-message-id={m.id} className={rowClass}>
+                    <td className={cn(td, "whitespace-nowrap tabular-nums")}>
+                      <Link className={cn(rowLink, "font-semibold hover:underline")} href={`/admin/email/messages/${m.id}`}>
+                        {time.format(m.sentAt ?? m.createdAt)}
+                      </Link>
+                    </td>
+                    <td className={cn(td, "max-w-0 truncate")}>{m.email ?? "–"}</td>
+                    <td className={cn(td, "font-mono text-[0.75rem] text-muted-foreground")}>{m.templateSlug ?? "–"}</td>
+                    <td className={td}>{t(`kind_${m.kind}`)}</td>
+                    <td className={td}>
+                      <span className="grid gap-0.5">
+                        <StatusPill tone={tone(m.status)} className="w-fit">
+                          {t(`status_${m.status}`)}
+                        </StatusPill>
+                        {m.error ? <span className="truncate text-[0.6875rem] text-muted-foreground">{m.error}</span> : null}
+                      </span>
+                    </td>
+                    <td className={td}>
+                      {m.campaignId ? (
+                        <Link className={cn(aboveRow, "hover:underline")} href={`/admin/campaigns/${m.campaignId}/report`}>
+                          {m.campaignName ?? "–"}
+                        </Link>
+                      ) : (
+                        <span className="text-muted-foreground">–</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Surface>
       ) : (
         <EmptyState title={filtered ? t("empty") : t("empty_none")} />
       )}
       {list.page > 1 || list.hasMore ? (
         <nav className="flex items-center gap-2" aria-label={t("pagination")}>
-          {list.page > 1 ? (
-            <Button variant="outline" size="sm" asChild>
-              <Link href={query(list.page - 1) as never}>{t("previous")}</Link>
-            </Button>
-          ) : null}
-          <span className="text-sm">{t("page", { page: list.page })}</span>
-          {list.hasMore ? (
-            <Button variant="outline" size="sm" asChild>
-              <Link href={query(list.page + 1) as never}>{t("next")}</Link>
-            </Button>
-          ) : null}
+          {list.page > 1 ? <SecondaryAction href={query(list.page - 1) as Route}>{t("previous")}</SecondaryAction> : null}
+          <span className="text-[0.8125rem] text-muted-foreground">{t("page", { page: list.page })}</span>
+          {list.hasMore ? <SecondaryAction href={query(list.page + 1) as Route}>{t("next")}</SecondaryAction> : null}
         </nav>
       ) : null}
     </div>

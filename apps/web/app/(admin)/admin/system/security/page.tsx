@@ -4,6 +4,7 @@ import { getAppDb } from "@/lib/ctx";
 import { adminLocale, translator } from "@/lib/i18n";
 import { catalogueSection, getSecurityStatus } from "@/modules/platform/queries";
 import { PentestForm, RekeyButton } from "@/modules/platform/ui/pentest-form";
+import { BackLink } from "@/modules/platform/ui/admin-list-kit";
 
 /** The blueprint-64 safeguards; each has one implementation and one proof in `docs/runbooks/security-controls.md` (PL-83). */
 const SAFEGUARDS = ["encryption_transit", "encryption_rest", "mfa", "rbac", "passwords", "logging", "backup", "api", "rate_limiting", "vulnerability_testing", "dependencies", "secrets"] as const;
@@ -29,10 +30,11 @@ export default async function SecurityPage() {
   const behind = s.versions.filter((v) => v.keyVersion < s.currentKeyVersion).reduce((n, v) => n + v.rows, 0);
 
   return (
-    <div className="grid gap-6">
-      <header className="grid gap-2">
-        <h1 className="text-2xl font-semibold">{t("title")}</h1>
-        <p className="text-muted-foreground">{t("intro")}</p>
+    <div className="grid gap-4">
+      <BackLink href="/admin/system">{tr("platform.nav.technical")}</BackLink>
+      <header className="grid gap-1">
+        <h1>{t("title")}</h1>
+        <p className="max-w-2xl text-[0.8125rem] text-muted-foreground">{t("intro")}</p>
       </header>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>

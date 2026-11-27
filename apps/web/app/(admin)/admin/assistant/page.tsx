@@ -1,11 +1,14 @@
 import Link from "next/link";
 import type { Route } from "next";
 import { formatDateTime } from "@beam/core/i18n";
-import { requireStaff } from "@/lib/auth";
+import { hasPermission, requireStaff } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
 import { adminLocale, translator } from "@/lib/i18n";
 import { getOverview } from "@/modules/assistant/queries";
-import { Kpi, SubNav, SURFACE, assistantSubNav, usd } from "@/modules/assistant/ui/admin/parts";
+import { SURFACE, usd } from "@/modules/assistant/ui/admin/parts";
+import { StatusPill } from "@/modules/platform/ui/admin-kit";
+import { KpiStrip, Notice } from "@/modules/platform/ui/admin-list-kit";
+import { AssistantHeader } from "./assistant-header";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +18,7 @@ export const dynamic = "force-dynamic";
  * the caps, the questions it could not answer and the agent log.
  */
 export default async function AssistantOverviewPage() {
-  await requireStaff({ permission: "assistant.read" });
+  const actor = await requireStaff({ permission: "assistant.read" });
   const locale = await adminLocale();
   const tr = translator(locale);
   const db = await getAppDb();
@@ -28,38 +31,32 @@ export default async function AssistantOverviewPage() {
   );
 
   return (
-    <div className="grid gap-6" data-testid="assistant-overview">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="font-display text-3xl">{tr("assistant.admin.overview.title")}</h1>
-          <p className="text-sm text-muted-foreground">{tr("assistant.admin.overview.subtitle")}</p>
-        </div>
-        <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold ${o.enabled ? "bg-[#e7f1ea] text-[#2f6d44]" : "bg-muted text-muted-foreground"}`}>
-          <span className={`size-2 rounded-full ${o.enabled ? "bg-[#2f6d44]" : "bg-muted-foreground"}`} />
-          {tr(o.enabled ? "assistant.admin.overview.on" : "assistant.admin.overview.off")}
-        </span>
-      </div>
-      <SubNav active="overview" items={assistantSubNav(tr)} />
+    <div className="grid gap-4" data-testid="assistant-overview">
+      <AssistantHeader
+        active="overview"
+        canManage={hasPermission(actor, "assistant.manage")}
+        tr={tr}
+        aside={<StatusPill tone={o.enabled ? "ok" : "muted"}>{tr(o.enabled ? "assistant.admin.overview.on" : "assistant.admin.overview.off")}</StatusPill>}
+      />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi tone="navy" label={tr("assistant.admin.kpi.week")} value={o.week} hint={`${tr("assistant.admin.kpi.today")}: ${o.today} · ${tr("assistant.admin.kpi.coach")}: ${o.coachWeek}`} />
-        <Kpi label={tr("assistant.admin.kpi.answered")} value={pct(o.answeredShare)} hint={`${tr("assistant.admin.kpi.handoffs")}: ${o.openHandoffs}`} />
-        <Kpi tone="gold" label={tr("assistant.admin.kpi.leads")} value={o.leadsWeek} hint={`${tr("assistant.admin.kpi.qualified")}: ${o.qualifiedWeek}`} />
-        <Kpi label={tr("assistant.admin.kpi.bookings")} value={o.bookingsAfterChat} hint={`${tr("assistant.admin.kpi.avgCost")}: ${usd(o.avgCostCents)}`} />
-      </div>
+      <KpiStrip
+        items={[
+          { key: "week", label: tr("assistant.admin.kpi.week"), value: o.week, sub: `${tr("assistant.admin.kpi.today")}: ${o.today} · ${tr("assistant.admin.kpi.coach")}: ${o.coachWeek}` },
+          { key: "answered", label: tr("assistant.admin.kpi.answered"), value: pct(o.answeredShare), sub: `${tr("assistant.admin.kpi.handoffs")}: ${o.openHandoffs}` },
+          { key: "leads", label: tr("assistant.admin.kpi.leads"), value: o.leadsWeek, sub: `${tr("assistant.admin.kpi.qualified")}: ${o.qualifiedWeek}` },
+          { key: "bookings", label: tr("assistant.admin.kpi.bookings"), value: o.bookingsAfterChat, sub: `${tr("assistant.admin.kpi.avgCost")}: ${usd(o.avgCostCents)}` },
+        ]}
+      />
 
       {o.openHandoffs > 0 ? (
-        <Link href={"/admin/assistant/conversations?filter=handoff" as Route} className="flex items-center justify-between gap-3 rounded-2xl bg-[#fdecea] px-4 py-3 text-sm text-[#8a2a1c] hover:bg-[#fbe0dc]">
-          <span>
-            <strong className="tabular-nums">{o.openHandoffs}</strong> · {tr("assistant.admin.kpi.handoffs")}
-          </span>
-          <span aria-hidden="true">→</span>
-        </Link>
+        <Notice tone="bad" action={{ href: "/admin/assistant/conversations?filter=handoff" as Route, label: tr("assistant.nav.conversations") }}>
+          <strong className="tabular-nums">{o.openHandoffs}</strong> · {tr("assistant.admin.kpi.handoffs")}
+        </Notice>
       ) : null}
 
       <div className="grid gap-4 lg:grid-cols-3">
         <section className={`${SURFACE} grid content-start gap-4 p-5`} aria-labelledby="spend-h">
-          <h2 id="spend-h" className="text-lg font-semibold">
+          <h2 id="spend-h">
             {tr("assistant.admin.spend.title")}
           </h2>
           <div className="grid gap-1.5">
@@ -94,7 +91,7 @@ export default async function AssistantOverviewPage() {
 
         <section className={`${SURFACE} grid content-start gap-3 p-5 lg:col-span-2`} aria-labelledby="unanswered-h">
           <div className="flex items-baseline justify-between gap-2">
-            <h2 id="unanswered-h" className="text-lg font-semibold">
+            <h2 id="unanswered-h">
               {tr("assistant.admin.unanswered.title")}
             </h2>
             <Link href={"/admin/inbox/knowledge" as Route} className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground">
@@ -124,7 +121,7 @@ export default async function AssistantOverviewPage() {
       </div>
 
       <section className={`${SURFACE} grid gap-3 p-5`} aria-labelledby="log-h">
-        <h2 id="log-h" className="text-lg font-semibold">
+        <h2 id="log-h">
           {tr("assistant.admin.log.title")}
         </h2>
         {o.actions.length === 0 ? (

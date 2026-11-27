@@ -1,8 +1,8 @@
 "use client";
 
 /**
- * Back-office form screens' client parts (forms spec section 5; forms-P5): the form list
- * (DataTable with status and kind filters and search), the "new form" form, the overview's status
+ * Back-office form screens' client parts (forms spec section 5; forms-P5; the form list renders in
+ * its page with the back-office kit): the "new form" form, the overview's status
  * actions (edit draft, archive, unarchive, delete, duplicate; P12 and P13 guards are enforced by
  * the actions) and "Restore as draft" on the versions page. Errors show a toast with the code's
  * message.
@@ -12,80 +12,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FORM_KINDS, type FormKind } from "@beam/core/forms";
 import { LOCALES, type Locale, type LocalizedText } from "@beam/core/i18n";
-import { Badge, Button, DataTable, EmptyState, Input, LocalizedInput, toast, type DataTableColumn } from "@beam/ui";
+import { Button, Input, LocalizedInput, toast } from "@beam/ui";
 import { archiveForm, createDraft, createForm, deleteForm, duplicateForm, unarchiveForm } from "../../actions";
-import type { FormListRow } from "../../queries";
 import { selectClass } from "./condition-builder";
 import { textLabels } from "./field-editor";
 import { lbl, type Labels } from "./issues-panel";
-
-const pct = (v: number | null) => (v === null ? "–" : `${Math.round(v * 100)}%`);
-
-export type FormListProps = {
-  rows: FormListRow[];
-  labels: Labels;
-  locale: Locale;
-  searchParams: Record<string, string | undefined>;
-  filtered: boolean;
-};
-
-export function FormList({ rows, labels, locale, searchParams, filtered }: FormListProps) {
-  const columns: DataTableColumn<FormListRow>[] = [
-    { key: "name", header: lbl(labels, "list.name"), cell: (r) => r.name[locale] || r.slug },
-    { key: "slug", header: lbl(labels, "list.slug"), cell: (r) => <code className="text-xs">{r.slug}</code> },
-    { key: "kind", header: lbl(labels, "list.kind"), cell: (r) => lbl(labels, `kind.${r.kind}`) },
-    {
-      key: "status",
-      header: lbl(labels, "list.status"),
-      cell: (r) => (
-        <span className="flex items-center gap-1">
-          <Badge variant={r.status === "published" ? "success" : r.status === "archived" ? "secondary" : "outline"}>{lbl(labels, `status.${r.status}`)}</Badge>
-          {r.hasDraft && r.status !== "draft" ? <Badge variant="warning">{lbl(labels, "list.draft_badge")}</Badge> : null}
-        </span>
-      ),
-    },
-    { key: "version", header: lbl(labels, "list.version"), cell: (r) => (r.currentVersion ? `v${r.currentVersion}` : "–"), align: "right" },
-    { key: "locales", header: lbl(labels, "list.locales"), cell: (r) => r.locales.join(", ") },
-    { key: "started", header: lbl(labels, "list.started"), cell: (r) => r.started30d, align: "right" },
-    { key: "completed", header: lbl(labels, "list.completed"), cell: (r) => r.completed30d, align: "right" },
-    { key: "rate", header: lbl(labels, "list.rate"), cell: (r) => pct(r.completionRate), align: "right" },
-  ];
-  return (
-    <DataTable
-      columns={columns}
-      rows={rows}
-      rowKey={(r) => r.id}
-      onRowHref={(r) => `/admin/forms/${r.id}`}
-      searchParams={searchParams}
-      caption={lbl(labels, "list.title")}
-      filters={[
-        { kind: "search", key: "q", label: lbl(labels, "list.search"), placeholder: lbl(labels, "list.search_placeholder") },
-        { kind: "select", key: "status", label: lbl(labels, "list.status"), allLabel: lbl(labels, "list.all_statuses"), options: (["draft", "published", "archived"] as const).map((s) => ({ value: s, label: lbl(labels, `status.${s}`) })) },
-        { kind: "select", key: "kind", label: lbl(labels, "list.kind"), allLabel: lbl(labels, "list.all_kinds"), options: FORM_KINDS.map((k) => ({ value: k, label: lbl(labels, `kind.${k}`) })) },
-      ]}
-      labels={{ pagination: lbl(labels, "list.pagination"), previous: lbl(labels, "list.previous"), next: lbl(labels, "list.next"), applyFilters: lbl(labels, "list.apply"), filters: lbl(labels, "list.filters") }}
-      emptyState={
-        filtered ? (
-          <EmptyState title={lbl(labels, "list.no_match")} />
-        ) : (
-          <EmptyState
-            title={lbl(labels, "list.empty")}
-            action={
-              <div className="flex gap-2">
-                <Link className="underline" href="/admin/forms/new?template=lead&kind=lead">
-                  {lbl(labels, "list.template_lead")}
-                </Link>
-                <Link className="underline" href="/admin/forms/new?template=assessment&kind=assessment">
-                  {lbl(labels, "list.template_assessment")}
-                </Link>
-              </div>
-            }
-          />
-        )
-      }
-    />
-  );
-}
 
 export type NewFormProps = { labels: Labels; localeNames: Record<Locale, string>; initialKind?: FormKind; initialTemplate?: "blank" | "lead" | "assessment" };
 

@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Button, EmptyState, Input, Label } from "@beam/ui";
@@ -7,6 +8,8 @@ import { getAppDb } from "@/lib/ctx";
 import { adminLocale, translator } from "@/lib/i18n";
 import { catalogueSection, getCampaign, listCampaignRecipients } from "@/modules/email/queries";
 import { clab } from "@/modules/email/ui/campaign/CampaignStepper";
+import { PageHeader } from "@/modules/platform/ui/admin-kit";
+import { BackLink } from "@/modules/platform/ui/admin-list-kit";
 import { RecipientsTable } from "@/modules/email/ui/campaign/RecipientsTable";
 
 type Search = { status?: string; q?: string; page?: string };
@@ -39,13 +42,9 @@ export default async function CampaignRecipientsPage({ params, searchParams }: {
   const query = (p: number) => `${base}?page=${p}${status ? `&status=${status}` : ""}${sp.q ? `&q=${encodeURIComponent(sp.q)}` : ""}`;
 
   return (
-    <div className="grid gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">{clab(labels, "recipients_title", { name: c.name })}</h1>
-        <Button variant="ghost" asChild>
-          <Link href={`/admin/campaigns/${c.id}`}>{clab(labels, "back_to_campaign")}</Link>
-        </Button>
-      </div>
+    <div className="grid gap-4">
+      <BackLink href={`/admin/campaigns/${c.id}` as Route}>{c.name}</BackLink>
+      <PageHeader title={clab(labels, "recipients_title", { name: c.name })} />
       <form data-auto-filter="" className="flex flex-wrap items-end gap-3" method="get">
         <div className="grid gap-1">
           <Label htmlFor="recipients-q">{clab(labels, "search")}</Label>

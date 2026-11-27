@@ -940,7 +940,10 @@
       "progress_title": "Voortgang",
       "report_title": "Verslag",
       "cancel_reason": "Reden van annulering",
-      "lift_reason": "Reden om de beperking op te heffen"
+      "lift_reason": "Reden om de beperking op te heffen",
+      "subtitle": "Privacyverzoeken, hoe lang gegevens bewaard blijven en de effectbeoordeling.",
+      "tab_requests": "Verzoeken",
+      "more": "Meer"
     },
     "retention_policy": {
       "ops_marketing_contact": "Marketingcontacten zonder aankoop",

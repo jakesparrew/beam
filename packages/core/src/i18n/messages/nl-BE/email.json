@@ -60,7 +60,10 @@
         "validation": "Controleer de velden en probeer opnieuw.",
         "forbidden": "Je hebt geen toestemming voor deze actie.",
         "conflict": "Iemand anders heeft dit gewijzigd; laad de pagina opnieuw."
-      }
+      },
+      "subtitle": "De e-mails die BEAM verstuurt: marketingsjablonen voor campagnes en de transactionele van elke module.",
+      "new_name_placeholder": "Naam van het nieuwe sjabloon",
+      "clear": "Wissen"
     },
     "editor": {
       "locale_nl": "Nederlands",
@@ -406,7 +409,15 @@
         "recipient_not_planned": "Deze ontvanger is niet meer gepland.",
         "recipient_not_removed": "Deze ontvanger werd niet verwijderd.",
         "invalid_transition": "Dat kan niet in de huidige status."
-      }
+      },
+      "tab_list": "Nieuwsbrieven",
+      "tab_stats": "Statistieken",
+      "tab_messages": "Verzonden berichten",
+      "tabs": "E-mail",
+      "subtitle": "Campagnes naar je segmenten, hoe ze aankomen en elk verzonden bericht.",
+      "search_placeholder": "Zoek op naam",
+      "empty_filtered": "Geen campagnes voor deze filters",
+      "clear": "Wissen"
     },
     "report": {
       "title": "Rapport: {name}",
@@ -634,7 +645,8 @@
       "blocked_restricted": "verwerking beperkt",
       "blocked_suppressed": "onderdrukt",
       "blocked_withdrawn": "toestemming ingetrokken",
-      "blocked_no_consent": "geen toestemming"
+      "blocked_no_consent": "geen toestemming",
+      "clear": "Wissen"
     },
     "blocks": {
       "event_opens_for_you": "Opent voor jou op {date}",

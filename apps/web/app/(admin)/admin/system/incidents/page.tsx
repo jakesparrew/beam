@@ -5,6 +5,7 @@ import { getAppDb } from "@/lib/ctx";
 import { adminLocale, translator } from "@/lib/i18n";
 import { catalogueSection, listIncidents } from "@/modules/platform/queries";
 import { IncidentForm } from "@/modules/platform/ui/incident-form";
+import { BackLink } from "@/modules/platform/ui/admin-list-kit";
 
 const STATUSES = ["open", "contained", "resolved"] as const;
 
@@ -27,10 +28,11 @@ export default async function IncidentsPage({ searchParams }: { searchParams: Pr
   const when = (d: Date | null) => (d ? d.toLocaleString(locale, { timeZone: "Europe/Brussels", dateStyle: "short", timeStyle: "short" }) : "–");
 
   return (
-    <div className="grid gap-6">
-      <header className="grid gap-2">
-        <h1 className="text-2xl font-semibold">{t("title")}</h1>
-        <p className="text-muted-foreground">{t("intro")}</p>
+    <div className="grid gap-4">
+      <BackLink href="/admin/system">{tr("platform.nav.technical")}</BackLink>
+      <header className="grid gap-1">
+        <h1>{t("title")}</h1>
+        <p className="max-w-2xl text-[0.8125rem] text-muted-foreground">{t("intro")}</p>
       </header>
       <nav aria-label={t("filter_status")} className="flex flex-wrap gap-3 text-sm">
         <Link href="/admin/system/incidents" className={status ? "underline" : "font-semibold"}>

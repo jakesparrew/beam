@@ -35,9 +35,9 @@ export default async function SiteVersionReview({ params }: { params: Promise<{ 
   const v = data.version;
   const title = titleIn(v.title, locale, data.page.slug);
   return (
-    <div className="grid gap-6">
+    <div className="grid gap-4">
       <header className="grid gap-1">
-        <h1 className="text-2xl font-semibold">{lbl(L, "diff.title", { n: v.version })}</h1>
+        <h1>{lbl(L, "diff.title", { n: v.version })}</h1>
         <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
           <NextLink className="underline" href={`/admin/site/pages/${pageId}` as Route}>
             {title}

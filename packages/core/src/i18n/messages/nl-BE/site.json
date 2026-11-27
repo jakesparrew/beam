@@ -448,7 +448,10 @@
         "new": "Nieuwe pagina",
         "openRequests": "Lopende Claude-aanvragen",
         "search": "Pagina's zoeken",
-        "title": "Websitepagina's"
+        "title": "Websitepagina's",
+        "subtitle": "De pagina's van de publieke website, hun versies en wat er live staat.",
+        "filters": "Filters",
+        "clear": "Wissen"
       },
       "redirects": {
         "add": "Doorverwijzing toevoegen",

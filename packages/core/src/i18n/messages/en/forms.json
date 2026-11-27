@@ -436,7 +436,10 @@
       "empty": "No forms yet. Create a lead form or an assessment.",
       "no_match": "No forms match these filters.",
       "template_lead": "Create a lead form",
-      "template_assessment": "Create an assessment"
+      "template_assessment": "Create an assessment",
+      "subtitle": "Lead forms and assessments with their funnel of the last 30 days.",
+      "tabs": "Forms",
+      "clear": "Clear"
     },
     "new": {
       "title": "New form",

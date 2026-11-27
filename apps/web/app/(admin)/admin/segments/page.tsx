@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Badge, Button, EmptyState, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@beam/ui";
+import { cn, EmptyState } from "@beam/ui";
 import { NotImplementedError } from "@beam/core/errors";
 import { hasPermission, requireStaff } from "@/lib/auth";
 import { getAppDb, type DbOrTx } from "@/lib/ctx";
@@ -8,6 +8,8 @@ import { isSegmentInUse as automationUses } from "@/modules/automation/api";
 import { isSegmentInUse as emailUses } from "@/modules/email/api";
 import { listSegments } from "@/modules/crm/queries";
 import { ArchiveSegmentButton } from "@/modules/crm/ui/segment-builder";
+import { PageHeader, PrimaryAction, Segmented, StatusPill, Surface, td, th } from "@/modules/platform/ui/admin-kit";
+import { aboveRow, rowClass, rowLink } from "@/modules/platform/ui/admin-list-kit";
 
 /** A use check whose owner has not shipped yet counts as "not in use" (crm-P5). */
 async function uses(check: (db: DbOrTx, id: string) => Promise<boolean>, db: DbOrTx, id: string): Promise<boolean> {
@@ -20,8 +22,9 @@ async function uses(check: (db: DbOrTx, id: string) => Promise<boolean>, db: DbO
 }
 
 /**
- * `/admin/segments` (`persons.read`; edit `email.write`), crm spec 5.1: name, kind, count, last
- * refreshed and used by (campaigns, automations), with create and archive.
+ * `/admin/segments` (`persons.read`; edit `email.write`), crm spec 5.1, in the back-office kit
+ * (owner review, November 2026): Active | Archived tabs, then name, kind, count, last refreshed
+ * and used by (campaigns, automations); a row opens the segment, archive per unused row.
  */
 export default async function SegmentsPage({ searchParams }: { searchParams: Promise<{ archived?: string }> }) {
   const actor = await requireStaff({ permission: "persons.read" });
@@ -40,73 +43,72 @@ export default async function SegmentsPage({ searchParams }: { searchParams: Pro
     ]),
   );
   const dateFmt = new Intl.DateTimeFormat(locale, { timeZone: "Europe/Brussels", dateStyle: "medium", timeStyle: "short" });
-  const createButton = canEdit ? (
-    <Button asChild>
-      <Link href="/admin/segments/new">{t("create")}</Link>
-    </Button>
-  ) : undefined;
 
   return (
-    <div className="grid gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">{t("title")}</h1>
-        <div className="flex gap-2">
-          <Button variant="ghost" asChild>
-            <Link href={{ pathname: "/admin/segments", query: includeArchived ? {} : { archived: "1" } }}>{includeArchived ? tr("crm.common.back") : t("show_archived")}</Link>
-          </Button>
-          {createButton}
-        </div>
-      </div>
+    <div className="grid gap-4">
+      <PageHeader title={t("title")} description={t("subtitle")} actions={canEdit ? <PrimaryAction href="/admin/segments/new">+ {t("create")}</PrimaryAction> : null} />
+      <Segmented
+        label={t("title")}
+        items={[
+          { key: "active", label: t("active"), href: "/admin/segments", active: !includeArchived },
+          { key: "archived", label: t("with_archived"), href: { pathname: "/admin/segments", query: { archived: "1" } }, active: includeArchived },
+        ]}
+      />
       {rows.length === 0 ? (
-        <EmptyState title={t("empty")} action={createButton} />
+        <EmptyState title={t("empty")} />
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t("col_name")}</TableHead>
-              <TableHead>{t("col_kind")}</TableHead>
-              <TableHead className="text-right">{t("col_count")}</TableHead>
-              <TableHead>{t("col_refreshed")}</TableHead>
-              <TableHead>{t("col_used_by")}</TableHead>
-              {canEdit ? <TableHead>{tr("crm.common.actions")}</TableHead> : null}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((r, i) => {
-              const used = usedBy[i] ?? [];
-              return (
-                <TableRow key={r.id}>
-                  <TableCell>
-                    <Link className="font-medium underline-offset-2 hover:underline" href={`/admin/segments/${r.id}`}>
-                      {r.name}
-                    </Link>
-                    {r.refreshError ? (
-                      <Badge variant="destructive" className="ml-2">
-                        {tr("crm.common.error")}
-                      </Badge>
-                    ) : null}
-                    {r.isArchived ? (
-                      <Badge variant="secondary" className="ml-2">
-                        {t("archive")}
-                      </Badge>
-                    ) : null}
-                  </TableCell>
-                  <TableCell>{tr(`crm.enums.segment_kind.${r.kind}`)}</TableCell>
-                  <TableCell className="text-right tabular-nums">{r.lastCount ?? "—"}</TableCell>
-                  <TableCell>{r.lastCountedAt ? dateFmt.format(r.lastCountedAt) : "—"}</TableCell>
-                  <TableCell>{used.length ? used.join(", ") : "—"}</TableCell>
+        <Surface flush>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[48rem] text-[0.8125rem]">
+              <caption className="sr-only">{t("title")}</caption>
+              <thead className="bg-[#faf9f6]">
+                <tr className="border-b border-border">
+                  <th scope="col" className={th}>{t("col_name")}</th>
+                  <th scope="col" className={cn(th, "w-40")}>{t("col_kind")}</th>
+                  <th scope="col" className={cn(th, "w-28 text-right")}>{t("col_count")}</th>
+                  <th scope="col" className={cn(th, "w-44")}>{t("col_refreshed")}</th>
+                  <th scope="col" className={cn(th, "w-48")}>{t("col_used_by")}</th>
                   {canEdit ? (
-                    <TableCell>
-                      {!r.isArchived && !used.length ? (
-                        <ArchiveSegmentButton segmentId={r.id} labels={{ archive: t("archive"), inUse: tr("crm.segments.builder.in_use", { name: tr("crm.nav.segments") }), error: tr("crm.common.error") }} />
-                      ) : null}
-                    </TableCell>
+                    <th scope="col" className={cn(th, "w-28")}>
+                      <span className="sr-only">{tr("crm.common.actions")}</span>
+                    </th>
                   ) : null}
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r, i) => {
+                  const used = usedBy[i] ?? [];
+                  return (
+                    <tr key={r.id} className={rowClass}>
+                      <td className={td}>
+                        <span className="flex flex-wrap items-center gap-2">
+                          <Link className={cn(rowLink, "font-semibold hover:underline")} href={`/admin/segments/${r.id}`}>
+                            {r.name}
+                          </Link>
+                          {r.refreshError ? <StatusPill tone="bad">{tr("crm.common.error")}</StatusPill> : null}
+                          {r.isArchived ? <StatusPill tone="muted">{t("archived")}</StatusPill> : null}
+                        </span>
+                      </td>
+                      <td className={cn(td, "text-muted-foreground")}>{tr(`crm.enums.segment_kind.${r.kind}`)}</td>
+                      <td className={cn(td, "text-right font-semibold tabular-nums")}>{r.lastCount ?? "–"}</td>
+                      <td className={cn(td, "whitespace-nowrap text-muted-foreground")}>{r.lastCountedAt ? dateFmt.format(r.lastCountedAt) : "–"}</td>
+                      <td className={td}>{used.length ? used.join(", ") : <span className="text-muted-foreground">–</span>}</td>
+                      {canEdit ? (
+                        <td className={cn(td, "text-right")}>
+                          {!r.isArchived && !used.length ? (
+                            <span className={aboveRow}>
+                              <ArchiveSegmentButton segmentId={r.id} labels={{ archive: t("archive"), inUse: tr("crm.segments.builder.in_use", { name: tr("crm.nav.segments") }), error: tr("crm.common.error") }} />
+                            </span>
+                          ) : null}
+                        </td>
+                      ) : null}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </Surface>
       )}
     </div>
   );

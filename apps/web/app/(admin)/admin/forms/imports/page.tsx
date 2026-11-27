@@ -1,17 +1,20 @@
 /**
- * `/admin/forms/imports` (`forms.publish`; forms spec section 5, rules I1 to I5): the ScoreApp
- * and Typeform import sources with provider, name, mirror form, last delivery and counts per
- * status; the wizard creates a source (its mirror form is published at once) and each row can be
- * deactivated or opened.
+ * `/admin/forms/imports` (`forms.publish`; forms spec section 5, rules I1 to I5), the Imports tab of
+ * the forms page (owner review, November 2026): the ScoreApp and Typeform import sources with
+ * provider, name, mirror form, last delivery and counts per status; the wizard creates a source
+ * (its mirror form is published at once) and each row can be deactivated or opened.
  */
 import Link from "next/link";
-import { Badge, EmptyState, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@beam/ui";
+import { cn, EmptyState } from "@beam/ui";
 import { formatDateTime } from "@beam/core/i18n";
 import { requireStaff } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
 import { adminLocale, translator } from "@/lib/i18n";
 import { listImportSources, screenLabels } from "@/modules/forms/queries";
 import { ImportSourceToggle, ImportWizard } from "@/modules/forms/ui/admin/import-wizard";
+import { StatusPill, Surface, td, th } from "@/modules/platform/ui/admin-kit";
+import { aboveRow, rowClass, rowLink } from "@/modules/platform/ui/admin-list-kit";
+import { FormsHeader } from "../forms-header";
 
 export const dynamic = "force-dynamic";
 
@@ -22,62 +25,59 @@ export default async function ImportSourcesPage() {
   const labels = screenLabels(locale, ["imports"]);
   const rows = await listImportSources(await getAppDb());
   return (
-    <div className="grid gap-6">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div className="grid gap-1">
-          <h1 className="text-2xl font-semibold">{tr("forms.imports.title")}</h1>
-          <p className="text-sm text-muted-foreground">{tr("forms.imports.intro")}</p>
-        </div>
-        <Link className="text-sm underline" href="/admin/forms">
-          {tr("forms.nav.forms")}
-        </Link>
-      </header>
+    <div className="grid gap-4">
+      <FormsHeader active="imports" canImports tr={tr} />
+      <p className="max-w-2xl text-[0.8125rem] text-muted-foreground">{tr("forms.imports.intro")}</p>
       <ImportWizard labels={labels} />
       {rows.length === 0 ? (
         <EmptyState title={tr("forms.imports.empty")} />
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{tr("forms.imports.name")}</TableHead>
-              <TableHead>{tr("forms.imports.provider")}</TableHead>
-              <TableHead>{tr("forms.imports.mirror_form")}</TableHead>
-              <TableHead>{tr("forms.imports.last_received")}</TableHead>
-              <TableHead>{tr("forms.imports.events")}</TableHead>
-              <TableHead />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((r) => (
-              <TableRow key={r.id}>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    <Link className="font-medium underline" href={`/admin/forms/imports/${r.id}`}>
-                      {r.name}
-                    </Link>
-                    {r.isActive ? null : <Badge variant="outline">{tr("forms.imports.inactive")}</Badge>}
-                  </div>
-                </TableCell>
-                <TableCell>{tr(`forms.imports.provider_${r.provider}`)}</TableCell>
-                <TableCell>
-                  <Link className="text-sm underline" href={`/admin/forms/${r.formId}`}>
-                    {r.formSlug}
-                  </Link>
-                </TableCell>
-                <TableCell className="whitespace-nowrap text-sm">{r.lastReceivedAt ? formatDateTime(r.lastReceivedAt, locale) : tr("forms.imports.never")}</TableCell>
-                <TableCell className="text-sm">{tr("forms.imports.counts", { ...r.counts })}</TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end gap-2">
-                    <ImportSourceToggle sourceId={r.id} isActive={r.isActive} labels={labels} />
-                    <Link className="text-sm underline" href={`/admin/forms/imports/${r.id}`}>
-                      {tr("forms.imports.open")}
-                    </Link>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <Surface flush>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[52rem] text-[0.8125rem]">
+              <caption className="sr-only">{tr("forms.imports.title")}</caption>
+              <thead className="bg-[#faf9f6]">
+                <tr className="border-b border-border">
+                  <th scope="col" className={th}>{tr("forms.imports.name")}</th>
+                  <th scope="col" className={cn(th, "w-32")}>{tr("forms.imports.provider")}</th>
+                  <th scope="col" className={cn(th, "w-44")}>{tr("forms.imports.mirror_form")}</th>
+                  <th scope="col" className={cn(th, "w-40")}>{tr("forms.imports.last_received")}</th>
+                  <th scope="col" className={th}>{tr("forms.imports.events")}</th>
+                  <th scope="col" className={cn(th, "w-32")}>
+                    <span className="sr-only">{tr("forms.imports.status")}</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={r.id} className={rowClass}>
+                    <td className={td}>
+                      <span className="flex items-center gap-2">
+                        <Link className={cn(rowLink, "font-semibold hover:underline")} href={`/admin/forms/imports/${r.id}`}>
+                          {r.name}
+                        </Link>
+                        {r.isActive ? null : <StatusPill tone="muted">{tr("forms.imports.inactive")}</StatusPill>}
+                      </span>
+                    </td>
+                    <td className={td}>{tr(`forms.imports.provider_${r.provider}`)}</td>
+                    <td className={td}>
+                      <Link className={cn(aboveRow, "font-mono text-[0.75rem] hover:underline")} href={`/admin/forms/${r.formId}`}>
+                        {r.formSlug}
+                      </Link>
+                    </td>
+                    <td className={cn(td, "whitespace-nowrap text-muted-foreground")}>{r.lastReceivedAt ? formatDateTime(r.lastReceivedAt, locale) : tr("forms.imports.never")}</td>
+                    <td className={cn(td, "text-muted-foreground")}>{tr("forms.imports.counts", { ...r.counts })}</td>
+                    <td className={cn(td, "text-right")}>
+                      <span className={aboveRow}>
+                        <ImportSourceToggle sourceId={r.id} isActive={r.isActive} labels={labels} />
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Surface>
       )}
     </div>
   );

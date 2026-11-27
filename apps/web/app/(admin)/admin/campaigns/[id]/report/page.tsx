@@ -1,11 +1,14 @@
-import Link from "next/link";
+import type { Route } from "next";
+import type { CampaignStatus } from "@beam/core/email";
 import { notFound } from "next/navigation";
-import { Badge, Button } from "@beam/ui";
 import { hasPermission, requireStaff } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
 import { adminLocale, translator } from "@/lib/i18n";
 import { catalogueSection, getCampaignReport } from "@/modules/email/queries";
 import { CampaignReport } from "@/modules/email/ui/CampaignReport";
+import { PageHeader, SecondaryAction, StatusPill } from "@/modules/platform/ui/admin-kit";
+import { BackLink } from "@/modules/platform/ui/admin-list-kit";
+import { CAMPAIGN_TONE } from "../../email-header";
 
 /**
  * `/admin/campaigns/[id]/report` (`email.write` or `reports.read`), email spec rule 61 and
@@ -30,25 +33,17 @@ export default async function CampaignReportPage({ params }: { params: Promise<{
   const localeNames = { "nl-BE": tr("email.editor.locale_nl"), "fr-BE": tr("email.editor.locale_fr"), en: tr("email.editor.locale_en") };
 
   return (
-    <div className="grid gap-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="grid gap-1">
-          <h1 className="text-2xl font-semibold">{(labels.title ?? "{name}").replace("{name}", report.campaign.name)}</h1>
-          <div>
-            <Badge variant={report.campaign.status === "sent" ? "default" : "secondary"} data-testid="report-campaign-status">
-              {status}
-            </Badge>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" asChild>
-            <Link href={`/admin/campaigns/${report.campaign.id}/recipients`}>{labels.recipients_link ?? "recipients_link"}</Link>
-          </Button>
-          <Button variant="ghost" asChild>
-            <Link href={`/admin/campaigns/${report.campaign.id}`}>{labels.back ?? "back"}</Link>
-          </Button>
-        </div>
-      </div>
+    <div className="grid gap-4">
+      <BackLink href={`/admin/campaigns/${report.campaign.id}` as Route}>{report.campaign.name}</BackLink>
+      <PageHeader
+        title={(labels.title ?? "{name}").replace("{name}", report.campaign.name)}
+        description={
+          <span data-testid="report-campaign-status">
+            <StatusPill tone={CAMPAIGN_TONE[report.campaign.status as CampaignStatus]}>{status}</StatusPill>
+          </span>
+        }
+        actions={<SecondaryAction href={`/admin/campaigns/${report.campaign.id}/recipients` as Route}>{labels.recipients_link ?? "recipients_link"}</SecondaryAction>}
+      />
       <CampaignReport report={report} locale={locale} labels={labels} localeNames={localeNames} canExport={canReports} />
     </div>
   );

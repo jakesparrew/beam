@@ -8,6 +8,7 @@ import { getAppDb } from "@/lib/ctx";
 import { adminLocale, softTranslator, translator } from "@/lib/i18n";
 import { getPerson, searchPersons } from "@/modules/crm/api";
 import { createPrivacyRequest } from "@/modules/ops/privacy/actions";
+import { BackLink } from "@/modules/platform/ui/admin-list-kit";
 
 /**
  * `/admin/privacy/new` (ops spec 5, rule 59): step 1 finds the person (crm search, `?q=`), step 2
@@ -55,8 +56,9 @@ export default async function NewPrivacyRequestPage({ searchParams }: { searchPa
   if (!person) {
     const matches = q ? await searchPersons(db, { q, limit: 20 }) : [];
     return (
-      <div className="grid gap-6">
-        <h1 className="text-2xl font-semibold">{tr("ops.privacy.new")}</h1>
+      <div className="grid gap-4">
+        <BackLink href="/admin/privacy">{tr("platform.nav.privacy")}</BackLink>
+        <h1>{tr("ops.privacy.new")}</h1>
         <form data-auto-filter="" method="get" role="search" className="grid max-w-xl gap-2 sm:grid-cols-[1fr_auto] sm:items-end">
           <div className="grid gap-1">
             <Label htmlFor="privacy-q">{tr("platform.users.search")}</Label>
@@ -83,8 +85,9 @@ export default async function NewPrivacyRequestPage({ searchParams }: { searchPa
 
   const name = [person.firstName, person.lastName].filter(Boolean).join(" ");
   return (
-    <div className="grid max-w-2xl gap-6">
-      <h1 className="text-2xl font-semibold">{tr("ops.privacy.new")}</h1>
+    <div className="grid max-w-2xl gap-4">
+      <BackLink href="/admin/privacy">{tr("platform.nav.privacy")}</BackLink>
+      <h1>{tr("ops.privacy.new")}</h1>
       <p className="font-medium">{name || person.id}</p>
       {error ? (
         <Alert variant="destructive">

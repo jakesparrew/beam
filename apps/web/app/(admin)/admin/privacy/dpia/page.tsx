@@ -7,6 +7,7 @@ import { adminLocale, translator } from "@/lib/i18n";
 import { updateDpiaRecord } from "@/modules/ops/exports/actions";
 import { listAiFeatureDocs, listDpiaRecords } from "@/modules/ops/exports/queries";
 import { storeFile } from "@/modules/platform/api";
+import { PrivacyHeader } from "../privacy-header";
 
 /**
  * `/admin/privacy/dpia` (`settings.write`, ops spec 5 and 9, rule 70): the register of the six
@@ -18,7 +19,7 @@ const ERROR_KEYS = new Set(["forbidden", "validation", "not_found", "conflict"])
 const MAX_DOCUMENT_BYTES = 10_485_760;
 
 export default async function DpiaRegisterPage({ searchParams }: { searchParams: Promise<{ error?: string; saved?: string }> }) {
-  await requireStaff({ permission: "settings.write" });
+  const actor = await requireStaff({ permission: "settings.write" });
   const sp = await searchParams;
   const locale = await adminLocale();
   const tr = translator(locale);
@@ -67,8 +68,8 @@ export default async function DpiaRegisterPage({ searchParams }: { searchParams:
   );
 
   return (
-    <div className="grid gap-6">
-      <h1 className="text-2xl font-semibold">{tr("ops.dpia.register_title")}</h1>
+    <div className="grid gap-4">
+      <PrivacyHeader active="dpia" actor={actor} tr={tr} />
       {error ? (
         <Alert variant="destructive">
           <AlertDescription>{tr(`platform.errors.${error}`)}</AlertDescription>

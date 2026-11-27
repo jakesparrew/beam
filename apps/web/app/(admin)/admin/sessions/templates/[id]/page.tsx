@@ -9,6 +9,8 @@ import { getAppDb } from "@/lib/ctx";
 import { adminLocale, translator } from "@/lib/i18n";
 import { getRegenerationStatus, getTemplate, listProductOptions } from "@/modules/booking/queries";
 import { TemplateActiveToggle, TemplateForm, type TemplateFormLabels } from "@/modules/booking/ui/template-form";
+import { PageHeader } from "@/modules/platform/ui/admin-kit";
+import { BackLink } from "@/modules/platform/ui/admin-list-kit";
 
 const show = (text: LocalizedText | null | undefined, locale: Locale) => text?.[locale] || text?.["nl-BE"] || text?.en || text?.["fr-BE"] || "";
 const WEEKDAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
@@ -75,22 +77,18 @@ export default async function TemplatePage({ params }: { params: Promise<{ id: s
   const labels = templateLabels(tr);
 
   return (
-    <div className="grid gap-8">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">
-          {show(t.name, locale)} · {t.startTime.slice(0, 5)}
-        </h1>
-        <div className="flex flex-wrap items-center gap-2">
+    <div className="grid gap-4">
+      <BackLink href="/admin/sessions/templates">{tr("booking.templates.title")}</BackLink>
+      <PageHeader
+        title={`${show(t.name, locale)} · ${t.startTime.slice(0, 5)}`}
+        actions={
           <TemplateActiveToggle
             id={t.id}
             isActive={t.isActive}
             labels={{ activate: tr("booking.templates.activate"), deactivate: tr("booking.templates.deactivate"), incomplete: tr("booking.templates.incomplete_name"), error: tr("platform.errors.conflict") }}
           />
-          <Link href="/admin/sessions/templates" className="text-sm underline">
-            {tr("booking.common.back")}
-          </Link>
-        </div>
-      </div>
+        }
+      />
       {job && (job.status === "pending" || job.status === "running") ? (
         <Alert role="status">
           <AlertDescription>{tr("booking.templates.regeneration_running")}</AlertDescription>

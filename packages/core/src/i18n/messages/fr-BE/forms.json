@@ -436,7 +436,10 @@
       "empty": "Aucun formulaire pour l'instant. Créez un formulaire de contact ou une évaluation.",
       "no_match": "Aucun formulaire pour ces filtres.",
       "template_lead": "Créer un formulaire de contact",
-      "template_assessment": "Créer une évaluation"
+      "template_assessment": "Créer une évaluation",
+      "subtitle": "Formulaires de lead et assessments avec leur entonnoir des 30 derniers jours.",
+      "tabs": "Formulaires",
+      "clear": "Effacer"
     },
     "new": {
       "title": "Nouveau formulaire",

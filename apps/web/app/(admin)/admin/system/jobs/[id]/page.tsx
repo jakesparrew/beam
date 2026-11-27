@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { formatDateTime } from "@beam/core/i18n";
 import { Badge, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@beam/ui";
@@ -7,6 +6,7 @@ import { getAppDb } from "@/lib/ctx";
 import { adminLocale, jobsTableLabels, translator } from "@/lib/i18n";
 import { getJob } from "@/modules/platform/queries";
 import { JobActions } from "@/modules/platform/ui/jobs-table";
+import { BackLink } from "@/modules/platform/ui/admin-list-kit";
 
 /** `/admin/system/jobs/[id]`: the full row (payload with secret keys redacted), result, error and provider calls. */
 export default async function JobDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -31,12 +31,10 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
     [tr("platform.jobs.request_id"), job.requestId ?? "–"],
   ];
   return (
-    <div className="grid gap-6">
-      <Link href="/admin/system/jobs" className="text-sm underline">
-        {tr("platform.jobs.back")}
-      </Link>
+    <div className="grid gap-4">
+      <BackLink href="/admin/system/jobs">{tr("platform.jobs.back")}</BackLink>
       <header className="flex flex-wrap items-center gap-3">
-        <h1 className="text-2xl font-semibold">{tr("platform.jobs.detail_title", { kind: job.kind })}</h1>
+        <h1>{tr("platform.jobs.detail_title", { kind: job.kind })}</h1>
         <Badge variant={job.status === "dead" ? "destructive" : "secondary"}>{labels.statuses[job.status] ?? job.status}</Badge>
       </header>
       <JobActions job={{ id: job.id, status: job.status, kind: job.kind }} labels={labels} canManage />
@@ -67,7 +65,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
       <section className="grid gap-2">
         <h2 className="text-lg font-semibold">{tr("platform.jobs.timeline")}</h2>
         {job.calls.length === 0 ? (
-          <p className="text-muted-foreground">{tr("platform.jobs.timeline_empty")}</p>
+          <p className="max-w-2xl text-[0.8125rem] text-muted-foreground">{tr("platform.jobs.timeline_empty")}</p>
         ) : (
           <Table>
             <TableHeader>

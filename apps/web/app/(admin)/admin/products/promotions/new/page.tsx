@@ -4,6 +4,7 @@ import { getAppDb } from "@/lib/ctx";
 import { adminLocale, translator } from "@/lib/i18n";
 import { brusselsInputValue, commerceLabels, listProductOptions, listPromotionPartnerOptions, promotionFormOptions } from "@/modules/commerce/queries";
 import { PromotionForm } from "@/modules/commerce/ui/promotion-form";
+import { stepFormLabels } from "@/modules/platform/ui/admin-kit";
 
 /** `/admin/products/promotions/new` (`pricing.write`): a code or an automatic offer (commerce spec 5.1); R3: a code can name a partner. */
 export default async function NewPromotionPage() {
@@ -38,6 +39,7 @@ export default async function NewPromotionPage() {
           partnerCompanyId: "",
         }}
         usesCount={0}
+        steps={stepFormLabels(tr)}
         options={{ ...promotionFormOptions(tr, locale, products), partners }}
         labels={{ ...commerceLabels(locale, ["common", "admin_promotions"]), invalid: tr("commerce.admin_products.invalid") }}
       />

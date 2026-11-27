@@ -361,7 +361,10 @@
         "duplicates_title": "Doublons possibles",
         "duplicates_intro": "Ces personnes ressemblent à celle que vous créez.",
         "open_existing": "Ouvrir l’existante",
-        "create_anyway": "Créer quand même"
+        "create_anyway": "Créer quand même",
+        "section_person": "Personne",
+        "section_preferences": "Préférences",
+        "section_acquisition": "Origine"
       },
       "edit": {
         "title": "Modifier la personne",
@@ -938,7 +941,9 @@
         "is_partner": "Entreprise partenaire",
         "commission": "Commission partenaire (%)",
         "vat_taken": "Une autre entreprise a ce numéro de TVA.",
-        "vat_invalid": "Ce numéro de TVA n’est pas valable."
+        "vat_invalid": "Ce numéro de TVA n’est pas valable.",
+        "section_company": "Entreprise",
+        "section_relation": "Relation"
       },
       "contact": {
         "position": "Fonction",

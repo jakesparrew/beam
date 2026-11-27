@@ -286,7 +286,11 @@
       "warning_location_overlap": "Een andere sessie gebruikt deze ruimte op hetzelfde moment.",
       "warning_outside_business_hours": "Dit tijdstip valt buiten de openingsuren.",
       "empty": "Nog geen boekingen.",
-      "revert_no_show": "No-show ongedaan maken"
+      "revert_no_show": "No-show ongedaan maken",
+      "step_kind": "Soort sessie",
+      "step_content": "Titel en beschrijving",
+      "step_planning": "Datum en plaatsen",
+      "step_access": "Prijs en toegang"
     },
     "templates": {
       "title": "Planning",
@@ -315,7 +319,8 @@
       "regeneration_running": "De sessies worden bijgewerkt…",
       "regeneration_failed": "Het bijwerken van de sessies is mislukt. Probeer opnieuw via de takenpagina.",
       "incomplete_name": "Vul de naam in de drie talen in voor je activeert.",
-      "empty": "Nog geen planning: voeg je eerste dagsessies toe."
+      "empty": "Nog geen planning: voeg je eerste dagsessies toe.",
+      "step_schedule": "Dagen en uren"
     },
     "exceptions": {
       "title": "Sluitingsdagen en aangepaste uren",

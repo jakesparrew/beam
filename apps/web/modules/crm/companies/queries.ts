@@ -133,6 +133,8 @@ export function companyFormLabels(tr: Tr) {
   const f = (k: string) => tr(`crm.companies.form.${k}`);
   const p = (k: string) => tr(`crm.persons.new.${k}`);
   return {
+    sectionCompany: f("section_company"),
+    sectionRelation: f("section_relation"),
     name: f("name"),
     vat: f("vat"),
     address: f("address"),

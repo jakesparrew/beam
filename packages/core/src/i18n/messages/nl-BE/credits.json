@@ -453,7 +453,10 @@
         "date": "Vervaldatum",
         "no_expiry": "Vervalt niet (enkel tegoed)",
         "sharing": "Gasten",
-        "submit": "Toekenning aanmaken"
+        "submit": "Toekenning aanmaken",
+        "step_person": "Persoon",
+        "step_credit": "Tegoed",
+        "step_validity": "Geldigheid en reden"
       },
       "bulk_extend": {
         "title": "Bulkverlenging",

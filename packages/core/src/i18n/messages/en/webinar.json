@@ -108,7 +108,10 @@
         "created": "Draft created.",
         "locale_missing": "Missing",
         "locale_complete": "Complete",
-        "none": "—"
+        "none": "—",
+        "step_basics": "Page, owner and languages",
+        "step_content": "Title and description",
+        "step_planning": "Date and duration"
       },
       "detail": {
         "back": "All webinars",

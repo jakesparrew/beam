@@ -153,7 +153,7 @@ export function ManualBookingWizard({
               <label
                 key={s.id}
                 className={cn(
-                  "flex min-h-11 cursor-pointer items-start gap-3 rounded-md border p-3 text-sm hover:border-primary has-[:checked]:border-primary has-[:checked]:bg-primary/5",
+                  "flex min-h-9 cursor-pointer items-start gap-3 rounded-md border p-3 text-sm hover:border-primary has-[:checked]:border-primary has-[:checked]:bg-primary/5",
                   s.isFull && "bg-muted/50",
                 )}
               >
@@ -191,7 +191,7 @@ export function ManualBookingWizard({
         <fieldset className="grid gap-2" data-testid="manual-ticket-types">
           <legend className="text-sm font-medium">{labels.ticketType}</legend>
           {tickets.map((t) => (
-            <label key={t.id} className={`flex min-h-11 items-center gap-2 text-sm${t.disabled && !canOverride ? " opacity-60" : ""}`}>
+            <label key={t.id} className={`flex min-h-9 items-center gap-2 text-sm${t.disabled && !canOverride ? " opacity-60" : ""}`}>
               <input
                 type="radio"
                 name="ticketTypeId"
@@ -212,7 +212,7 @@ export function ManualBookingWizard({
         <fieldset className="grid gap-2">
           <legend className="text-sm font-medium">{labels.payment}</legend>
           {options.map((o) => (
-            <label key={o.value} className="flex min-h-11 items-center gap-2 text-sm">
+            <label key={o.value} className="flex min-h-9 items-center gap-2 text-sm">
               <input type="radio" name="pay" value={o.value} checked={pay === o.value} onChange={() => setPay(o.value)} className="size-4" required />
               {o.label}
             </label>

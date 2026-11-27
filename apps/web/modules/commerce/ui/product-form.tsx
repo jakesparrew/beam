@@ -7,7 +7,7 @@
  */
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent, type ReactNode, type SelectHTMLAttributes } from "react";
-import { Alert, AlertDescription, Button, Checkbox, FormField, Input, LocalizedInput } from "@beam/ui";
+import { Alert, AlertDescription, Button, Checkbox, FormField, Input, LocalizedInput, StepForm, type StepFormLabels } from "@beam/ui";
 import { createProduct, setProductActive, updateProduct } from "../actions";
 
 type Locale = "nl-BE" | "fr-BE" | "en";
@@ -81,7 +81,18 @@ const int = (v: string): number | null => (v.trim() === "" ? null : Number.parse
 const num = (v: string): number | null => (v.trim() === "" ? null : Number(v.replace(",", ".")));
 const cents = (v: string): number | null => (v.trim() === "" ? null : Math.round(Number(v.replace(",", ".")) * 100));
 
-export function ProductForm({ initial, options, labels }: { initial: ProductFormValues; options: ProductFormOptions; labels: Labels }) {
+export function ProductForm({
+  initial,
+  options,
+  labels,
+  steps,
+}: {
+  initial: ProductFormValues;
+  options: ProductFormOptions;
+  labels: Labels;
+  /** StepForm's labels: a new product is created one section per screen. */
+  steps?: StepFormLabels;
+}) {
   const router = useRouter();
   const [v, setV] = useState<ProductFormValues>(initial);
   const [pending, setPending] = useState(false);
@@ -149,7 +160,17 @@ export function ProductForm({ initial, options, labels }: { initial: ProductForm
   const localizedLabels = (field: string) => ({ field, locales: options.localeNames, missing: l("missing"), complete: l("complete") });
 
   return (
-    <form onSubmit={(e) => void onSubmit(e)} className="grid max-w-3xl gap-6" noValidate>
+    <StepForm
+      onSubmit={(e) => void onSubmit(e)}
+      className="max-w-2xl"
+      noValidate
+      labels={isNew ? steps : undefined}
+      footer={
+        <Button type="submit" disabled={pending}>
+          {pending ? l("saving") : l("save")}
+        </Button>
+      }
+    >
       {error ? (
         <Alert variant="destructive" role="alert">
           <AlertDescription>{error}</AlertDescription>
@@ -161,13 +182,13 @@ export function ProductForm({ initial, options, labels }: { initial: ProductForm
         </p>
       ) : null}
 
-      <Section title={l("section_basics")}>
+      <Section step={isNew} title={l("section_basics")}>
         <div className="grid gap-4 sm:grid-cols-3">
           <FormField label={l("field_kind")} required>
             <Select value={k} onChange={(x) => set("kind", x as ProductKind)} options={options.kinds} disabled={!isNew} />
           </FormField>
           <FormField label={l("field_sku")} required hint={l("field_sku_hint")} error={fieldError("sku")}>
-            <Input value={v.sku} onChange={(e) => set("sku", e.target.value.toUpperCase())} maxLength={32} autoComplete="off" />
+            <Input value={v.sku} onChange={(e) => set("sku", e.target.value.toUpperCase())} maxLength={32} autoComplete="off" required />
           </FormField>
           <FormField label={l("field_vat")} required error={fieldError("vatRatePct")}>
             <Select value={v.vatRatePct} onChange={(x) => set("vatRatePct", x)} options={options.vatRates} />
@@ -186,7 +207,7 @@ export function ProductForm({ initial, options, labels }: { initial: ProductForm
       </Section>
 
       {k === "package" || k === "voucher" ? (
-        <Section title={l("section_credits")}>
+        <Section step={isNew} title={l("section_credits")}>
           <div className="grid gap-4 sm:grid-cols-3">
             {k === "package" ? (
               <>
@@ -194,12 +215,12 @@ export function ProductForm({ initial, options, labels }: { initial: ProductForm
                   <Select value={v.creditKind} onChange={(x) => set("creditKind", x)} options={options.creditKinds} none="—" />
                 </FormField>
                 <FormField label={l("field_credit_units")} required error={fieldError("creditUnits")}>
-                  <Input type="number" min={1} value={v.creditUnits} onChange={(e) => set("creditUnits", e.target.value)} />
+                  <Input type="number" min={1} value={v.creditUnits} onChange={(e) => set("creditUnits", e.target.value)} required />
                 </FormField>
               </>
             ) : null}
             <FormField label={l("field_validity_days")} required error={fieldError("validityDays")}>
-              <Input type="number" min={1} value={v.validityDays} onChange={(e) => set("validityDays", e.target.value)} />
+              <Input type="number" min={1} value={v.validityDays} onChange={(e) => set("validityDays", e.target.value)} required />
             </FormField>
           </div>
           {k === "package" ? (
@@ -217,7 +238,7 @@ export function ProductForm({ initial, options, labels }: { initial: ProductForm
       ) : null}
 
       {k === "voucher" ? (
-        <Section title={l("section_voucher")}>
+        <Section step={isNew} title={l("section_voucher")}>
           <label className="flex items-center gap-2 text-sm">
             <Checkbox checked={v.isCustomAmount} onCheckedChange={(c) => set("isCustomAmount", c === true)} />
             {l("field_custom_amount")}
@@ -236,7 +257,7 @@ export function ProductForm({ initial, options, labels }: { initial: ProductForm
       ) : null}
 
       {k === "membership" ? (
-        <Section title={l("section_membership")}>
+        <Section step={isNew} title={l("section_membership")}>
           <div className="grid gap-4 sm:grid-cols-3">
             <FormField label={l("field_interval")} required error={fieldError("recurringInterval")}>
               <Select value={v.recurringInterval} onChange={(x) => set("recurringInterval", x)} options={options.intervals} none="—" />
@@ -251,7 +272,7 @@ export function ProductForm({ initial, options, labels }: { initial: ProductForm
         </Section>
       ) : null}
 
-      <Section title={l("section_visibility")}>
+      <Section step={isNew} title={l("section_visibility")}>
         <div className="grid gap-4 sm:grid-cols-3">
           {k === "item" ? (
             <FormField label={l("field_item_category")} required error={fieldError("itemCategory")}>
@@ -279,19 +300,15 @@ export function ProductForm({ initial, options, labels }: { initial: ProductForm
         </div>
       </Section>
 
-      <div className="flex gap-2">
-        <Button type="submit" disabled={pending}>
-          {pending ? l("saving") : l("save")}
-        </Button>
-      </div>
-    </form>
+    </StepForm>
   );
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+/** One section of the form; on a new product each section is one step (`StepForm`). */
+function Section({ title, step, children }: { title: string; step: boolean; children: ReactNode }) {
   return (
-    <fieldset className="grid gap-4 rounded-lg border p-4">
-      <legend className="px-1 text-sm font-medium">{title}</legend>
+    <fieldset {...(step ? { "data-step": "" } : { "data-section": "" })} className="grid gap-4">
+      <legend>{title}</legend>
       {children}
     </fieldset>
   );

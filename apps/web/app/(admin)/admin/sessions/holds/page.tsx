@@ -15,8 +15,8 @@ import { partnerScope } from "@/modules/platform/api";
 const show = (text: LocalizedText | null | undefined, locale: Locale) => text?.[locale] || text?.["nl-BE"] || text?.en || text?.["fr-BE"] || "";
 const KINDS = ["staff", "partner", "host", "speaker", "blocked"] as const;
 const HERE = "/admin/sessions/holds";
-const input = "h-11 rounded-md border border-input bg-background px-3 text-sm";
-const button = "inline-flex h-11 items-center rounded-md border px-4 text-sm font-medium hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2";
+const input = "w-full min-w-0 font-normal";
+const button = "inline-flex h-9 items-center rounded-lg border border-border bg-card px-3 text-[0.8125rem] font-semibold hover:bg-muted";
 
 type Search = { assigned?: string; unassigned?: string; error?: string };
 
@@ -153,8 +153,8 @@ export default async function HoldsPage({ searchParams }: { searchParams: Promis
         </section>
       ) : null}
       {canWrite ? (
-        <section aria-labelledby="add-hold" className="grid max-w-3xl gap-4">
-          <h2 id="add-hold" className="text-xl font-semibold">
+        <section aria-labelledby="add-hold" className="grid gap-4">
+          <h2 id="add-hold" className="text-base font-semibold">
             {tr("booking.holds.add")}
           </h2>
           <HoldForm
@@ -262,24 +262,24 @@ function HoldSeats({
             ) : left === 0 ? (
               <p className="text-sm text-muted-foreground">{tr("booking.holds.seats_full")}</p>
             ) : canAssign ? (
-              <form action={assign} className="flex flex-wrap items-end gap-3">
+              <form action={assign} className="grid max-w-2xl gap-3 sm:grid-cols-[1fr_1fr_1.4fr_auto] sm:items-end">
                 <input type="hidden" name="holdId" value={h.id} />
-                <label className="grid gap-1 text-sm">
+                <label className="grid gap-1.5 font-medium">
                   {tr("booking.holds.first_name")}
                   <input name="firstName" required maxLength={100} autoComplete="off" className={input} />
                 </label>
-                <label className="grid gap-1 text-sm">
+                <label className="grid gap-1.5 font-medium">
                   {tr("booking.holds.last_name")}
                   <input name="lastName" required maxLength={100} autoComplete="off" className={input} />
                 </label>
-                <label className="grid gap-1 text-sm">
+                <label className="grid gap-1.5 font-medium">
                   {tr("booking.holds.email")}
                   <input name="email" type="email" maxLength={254} autoComplete="off" aria-describedby={`${titleId}-email-hint`} className={input} />
                 </label>
                 <button type="submit" className={button}>
                   {tr("booking.holds.assign")}
                 </button>
-                <p id={`${titleId}-email-hint`} className="w-full text-xs text-muted-foreground">
+                <p id={`${titleId}-email-hint`} className="text-xs text-muted-foreground sm:col-span-4">
                   {tr("booking.holds.email_hint")}
                 </p>
               </form>

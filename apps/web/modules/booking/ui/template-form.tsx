@@ -4,11 +4,13 @@
  * `/admin/sessions/templates/[id]`). Create takes several start times and makes one template per
  * time (`createTemplates`); edit changes one template with its version (`updateTemplate`, R2).
  * Warnings (room overlap, outside opening hours) never block the save. Texts come from the page.
+ * Long forms (owner review, November 2026): a new schedule and a new session go one section per
+ * screen (`StepForm`) with a review before saving; editing a schedule shows every section.
  */
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
-import { Alert, AlertDescription, Button, Checkbox, FormField, Input, Label, LocalizedInput, type LocalizedInputLabels, type LocalizedValue } from "@beam/ui";
+import { Alert, AlertDescription, Button, Checkbox, FormField, Input, Label, LocalizedInput, StepForm, type LocalizedInputLabels, type LocalizedValue, type StepFormLabels } from "@beam/ui";
 import { createSession } from "../actions/sessions";
 import { createTemplates, setTemplateActive, updateTemplate } from "../actions/templates";
 
@@ -64,6 +66,13 @@ export type TemplateFormLabels = {
   warningOverlap: string;
   warningHours: string;
   errors: Record<string, string>;
+  /** Section titles (owner review, November 2026); on a new schedule each section is one step. */
+  stepKind: string;
+  stepContent: string;
+  stepSchedule: string;
+  stepAccess: string;
+  /** StepForm's own labels; without them every section shows at once. */
+  steps?: StepFormLabels;
 };
 
 const selectClass =
@@ -134,8 +143,22 @@ export function TemplateForm({ initial, products, labels }: { initial: TemplateF
     }
   }
 
+  // A new schedule goes one step per screen (`labels.steps`); edit shows every section at once.
+  const section = !editing && labels.steps ? { "data-step": "" } : { "data-section": "" };
+  const pair = "grid gap-4 sm:grid-cols-2";
+
   return (
-    <form onSubmit={(e) => void onSubmit(e)} className="grid gap-4" noValidate>
+    <StepForm
+      onSubmit={(e) => void onSubmit(e)}
+      className="max-w-2xl"
+      noValidate
+      labels={editing ? undefined : labels.steps}
+      footer={
+        <Button type="submit" disabled={pending || weekdays.length === 0}>
+          {pending ? labels.saving : labels.save}
+        </Button>
+      }
+    >
       {error ? (
         <Alert variant="destructive" role="alert">
           <AlertDescription>{error}</AlertDescription>
@@ -152,7 +175,8 @@ export function TemplateForm({ initial, products, labels }: { initial: TemplateF
           </AlertDescription>
         </Alert>
       ) : null}
-      <div className="grid gap-4 sm:grid-cols-3">
+      <fieldset {...section} className={pair}>
+        <legend>{labels.stepKind}</legend>
         <FormField label={labels.kind}>
           <select name="kind" value={kind} onChange={(e) => setKind(e.target.value as TemplateFormValues["kind"])} className={selectClass}>
             {(["day", "night", "event"] as const).map((k) => (
@@ -162,32 +186,55 @@ export function TemplateForm({ initial, products, labels }: { initial: TemplateF
             ))}
           </select>
         </FormField>
-        <FormField label={labels.location}>
-          <Input name="location" defaultValue={initial.location} maxLength={200} />
-        </FormField>
         <FormField label={kind === "night" ? labels.beds : labels.seats} required>
           <Input name="capacity" type="number" min={0} defaultValue={initial.capacity ?? ""} required />
         </FormField>
-      </div>
-      <LocalizedInput name="name" value={name} onChange={setName} locales={LOCALES} labels={labels.name} />
-      <LocalizedInput name="description" value={description} onChange={setDescription} locales={LOCALES} labels={labels.description} multiline />
-      <fieldset className="grid gap-2">
-        <legend className="text-sm font-medium">{labels.weekdays}</legend>
-        <div className="flex flex-wrap gap-3">
-          {labels.weekdayNames.map((label, i) => (
-            <Label key={label} className="flex min-h-11 items-center gap-2">
-              <Checkbox checked={weekdays.includes(i + 1)} onCheckedChange={(on) => toggleDay(i + 1, on === true)} />
-              {label}
-            </Label>
-          ))}
-        </div>
+        <FormField label={labels.location} className="sm:col-span-2">
+          <Input name="location" defaultValue={initial.location} maxLength={200} />
+        </FormField>
       </fieldset>
-      <div className="grid gap-4 sm:grid-cols-3">
+      <fieldset {...section} className="grid gap-4">
+        <legend>{labels.stepContent}</legend>
+        <LocalizedInput name="name" value={name} onChange={setName} locales={LOCALES} labels={labels.name} />
+        <LocalizedInput name="description" value={description} onChange={setDescription} locales={LOCALES} labels={labels.description} multiline />
+      </fieldset>
+      <fieldset {...section} className={pair}>
+        <legend>{labels.stepSchedule}</legend>
+        <fieldset className="grid gap-2 sm:col-span-2">
+          <legend className="mb-1.5 font-medium">{labels.weekdays}</legend>
+          <div className="flex flex-wrap gap-x-4 gap-y-1">
+            {labels.weekdayNames.map((label, i) => (
+              <Label key={label} className="flex min-h-9 items-center gap-2">
+                <Checkbox checked={weekdays.includes(i + 1)} onCheckedChange={(on) => toggleDay(i + 1, on === true)} />
+                {label}
+              </Label>
+            ))}
+          </div>
+        </fieldset>
         <FormField label={editing ? labels.startTime : labels.startTimes} required hint={editing ? undefined : "09:00, 11:30, 14:00"}>
           <Input name="startTimes" defaultValue={initial.startTimes.join(", ")} required />
         </FormField>
         <FormField label={labels.duration} required>
           <Input name="durationMinutes" type="number" min={15} max={1440} defaultValue={initial.durationMinutes} required />
+        </FormField>
+        <FormField label={labels.activeFrom} required>
+          <Input name="activeFromOn" type="date" defaultValue={initial.activeFromOn} required />
+        </FormField>
+        <FormField label={labels.activeTo}>
+          <Input name="activeToOn" type="date" defaultValue={initial.activeToOn} />
+        </FormField>
+      </fieldset>
+      <fieldset {...section} className={pair}>
+        <legend>{labels.stepAccess}</legend>
+        <FormField label={labels.creditKind}>
+          <select name="creditKind" defaultValue={initial.creditKind} className={selectClass}>
+            <option value="">{labels.none}</option>
+            <option value="day">{labels.kinds.day}</option>
+            <option value="night">{labels.kinds.night}</option>
+          </select>
+        </FormField>
+        <FormField label={labels.creditCost}>
+          <Input name="creditCost" type="number" min={0} max={10} defaultValue={initial.creditCost} />
         </FormField>
         <FormField label={labels.product}>
           <select name="productId" defaultValue={initial.productId} className={selectClass}>
@@ -199,33 +246,12 @@ export function TemplateForm({ initial, products, labels }: { initial: TemplateF
             ))}
           </select>
         </FormField>
-        <FormField label={labels.creditKind}>
-          <select name="creditKind" defaultValue={initial.creditKind} className={selectClass}>
-            <option value="">{labels.none}</option>
-            <option value="day">{labels.kinds.day}</option>
-            <option value="night">{labels.kinds.night}</option>
-          </select>
-        </FormField>
-        <FormField label={labels.creditCost}>
-          <Input name="creditCost" type="number" min={0} max={10} defaultValue={initial.creditCost} />
-        </FormField>
-        <Label className="flex min-h-11 items-center gap-2 self-end">
+        <Label className="flex h-9 items-center gap-2 self-end">
           <Checkbox name="isMemberOnly" defaultChecked={initial.isMemberOnly} />
           {labels.memberOnly}
         </Label>
-        <FormField label={labels.activeFrom} required>
-          <Input name="activeFromOn" type="date" defaultValue={initial.activeFromOn} required />
-        </FormField>
-        <FormField label={labels.activeTo}>
-          <Input name="activeToOn" type="date" defaultValue={initial.activeToOn} />
-        </FormField>
-      </div>
-      <div>
-        <Button type="submit" disabled={pending || weekdays.length === 0}>
-          {pending ? labels.saving : labels.save}
-        </Button>
-      </div>
-    </form>
+      </fieldset>
+    </StepForm>
   );
 }
 
@@ -236,7 +262,7 @@ export function TemplateForm({ initial, products, labels }: { initial: TemplateF
 const EVENT_CATEGORIES = ["lecture", "concert", "member_event", "experience", "webinar", "special_activity", "partner_event"] as const;
 type EventCategory = (typeof EVENT_CATEGORIES)[number];
 
-export type SessionFormLabels = Omit<TemplateFormLabels, "weekdays" | "weekdayNames" | "startTimes" | "startTime" | "activeFrom" | "activeTo" | "incompleteName" | "warningHours" | "name" | "description" | "saved"> & {
+export type SessionFormLabels = Omit<TemplateFormLabels, "weekdays" | "weekdayNames" | "startTimes" | "startTime" | "activeFrom" | "activeTo" | "incompleteName" | "warningHours" | "name" | "description" | "saved" | "stepSchedule"> & {
   title: LocalizedInputLabels<Locale>;
   description: LocalizedInputLabels<Locale>;
   startsAt: string;
@@ -256,6 +282,8 @@ export type SessionFormLabels = Omit<TemplateFormLabels, "weekdays" | "weekdayNa
   webinarGeekUrlHint: string;
   webinarGeekId: string;
   webinarGeekIdHint: string;
+  /** The date-and-places step (the other step titles come from the template labels). */
+  stepPlanning: string;
 };
 
 /** A price typed in euro ("12,50", "12.5", "") as cents; empty is free. NaN for anything else. */
@@ -345,14 +373,32 @@ export function SessionForm({
     void submit(event.currentTarget, submitter?.value === "publish");
   }
 
+  const pair = "grid gap-4 sm:grid-cols-2";
   return (
-    <form onSubmit={onSubmit} className="grid gap-4" noValidate>
+    <StepForm
+      onSubmit={onSubmit}
+      className="max-w-2xl"
+      noValidate
+      labels={labels.steps}
+      footer={
+        <>
+          {missing.length ? <p className="w-full text-xs text-muted-foreground">{labels.missingLocales.replace("{locales}", missing.map((l) => labels.localeNames[l]).join(", "))}</p> : null}
+          <Button type="submit" name="intent" value="draft" variant="outline" disabled={pending}>
+            {pending ? labels.saving : labels.createDraft}
+          </Button>
+          <Button type="submit" name="intent" value="publish" disabled={pending || missing.length > 0}>
+            {labels.createPublish}
+          </Button>
+        </>
+      }
+    >
       {error ? (
         <Alert variant="destructive" role="alert">
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       ) : null}
-      <div className="grid gap-4 sm:grid-cols-3">
+      <fieldset data-step className={pair}>
+        <legend>{labels.stepKind}</legend>
         <FormField label={labels.kind}>
           <select name="kind" value={kind} onChange={(e) => setKind(e.target.value as TemplateFormValues["kind"])} className={selectClass}>
             {(["day", "night", "event"] as const).map((k) => (
@@ -385,10 +431,14 @@ export function SessionForm({
             </select>
           </FormField>
         ) : null}
-      </div>
-      <LocalizedInput name="title" value={title} onChange={setTitle} locales={LOCALES} labels={labels.title} />
-      <LocalizedInput name="description" value={description} onChange={setDescription} locales={LOCALES} labels={labels.description} multiline />
-      <div className="grid gap-4 sm:grid-cols-3">
+      </fieldset>
+      <fieldset data-step className="grid gap-4">
+        <legend>{labels.stepContent}</legend>
+        <LocalizedInput name="title" value={title} onChange={setTitle} locales={LOCALES} labels={labels.title} />
+        <LocalizedInput name="description" value={description} onChange={setDescription} locales={LOCALES} labels={labels.description} multiline />
+      </fieldset>
+      <fieldset data-step className={pair}>
+        <legend>{labels.stepPlanning}</legend>
         <FormField label={labels.startsAt} required>
           <Input name="startsAt" type="datetime-local" required />
         </FormField>
@@ -404,6 +454,12 @@ export function SessionForm({
         <FormField label={kind === "night" ? labels.beds : labels.seats} required>
           <Input key={`cap-${kind}-${isWebinar}`} name="capacity" type="number" min={0} defaultValue={kind === "night" ? 6 : isWebinar ? 100 : 12} required />
         </FormField>
+        <FormField label={labels.location}>
+          <Input name="location" maxLength={200} />
+        </FormField>
+      </fieldset>
+      <fieldset data-step className={pair}>
+        <legend>{labels.stepAccess}</legend>
         {isEvent ? (
           <FormField label={labels.price} hint={labels.priceHint}>
             <Input name="price" inputMode="decimal" placeholder="0" />
@@ -432,34 +488,22 @@ export function SessionForm({
             </FormField>
           </>
         )}
-        <FormField label={labels.location}>
-          <Input name="location" maxLength={200} />
-        </FormField>
-        <Label className="flex min-h-11 items-center gap-2 self-end">
+        <Label className="flex h-9 items-center gap-2 self-end">
           <Checkbox key={`member-${category}`} name="isMemberOnly" defaultChecked={kind === "event" && category === "member_event"} disabled={kind === "event" && category === "member_event"} />
           {labels.memberOnly}
         </Label>
-      </div>
-      {isWebinar ? (
-        <div className="grid gap-4 sm:grid-cols-2">
-          <FormField label={labels.webinarGeekUrl} hint={labels.webinarGeekUrlHint}>
-            <Input name="webinarGeekUrl" type="url" inputMode="url" placeholder="https://" maxLength={2000} />
-          </FormField>
-          <FormField label={labels.webinarGeekId} hint={labels.webinarGeekIdHint}>
-            <Input name="webinarGeekBroadcastId" inputMode="numeric" maxLength={20} />
-          </FormField>
-        </div>
-      ) : null}
-      {missing.length ? <p className="text-sm text-muted-foreground">{labels.missingLocales.replace("{locales}", missing.map((l) => labels.localeNames[l]).join(", "))}</p> : null}
-      <div className="flex flex-wrap gap-2">
-        <Button type="submit" name="intent" value="draft" variant="outline" disabled={pending}>
-          {pending ? labels.saving : labels.createDraft}
-        </Button>
-        <Button type="submit" name="intent" value="publish" disabled={pending || missing.length > 0}>
-          {labels.createPublish}
-        </Button>
-      </div>
-    </form>
+        {isWebinar ? (
+          <>
+            <FormField label={labels.webinarGeekUrl} hint={labels.webinarGeekUrlHint}>
+              <Input name="webinarGeekUrl" type="url" inputMode="url" placeholder="https://" maxLength={2000} />
+            </FormField>
+            <FormField label={labels.webinarGeekId} hint={labels.webinarGeekIdHint}>
+              <Input name="webinarGeekBroadcastId" inputMode="numeric" maxLength={20} />
+            </FormField>
+          </>
+        ) : null}
+      </fieldset>
+    </StepForm>
   );
 }
 

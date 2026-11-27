@@ -4,6 +4,7 @@ import { adminLocale, translator } from "@/lib/i18n";
 import { listStaffForAssignment } from "@/modules/platform/api";
 import { companyFormLabels, companyOptions } from "@/modules/crm/companies/queries";
 import { CompanyForm } from "@/modules/crm/ui/company-form";
+import { PageHeader, stepFormLabels } from "@/modules/platform/ui/admin-kit";
 
 /** `/admin/companies/new` (`crm.b2b`), crm spec 5.1. */
 export default async function NewCompanyPage() {
@@ -14,7 +15,7 @@ export default async function NewCompanyPage() {
   const { sizes, statuses } = companyOptions(tr);
   return (
     <div className="grid gap-6">
-      <h1 className="text-2xl font-semibold">{tr("crm.companies.create")}</h1>
+      <PageHeader title={tr("crm.companies.create")} />
       <CompanyForm
         initial={{
           name: "",
@@ -37,6 +38,7 @@ export default async function NewCompanyPage() {
         statuses={statuses}
         owners={staff.map((s) => ({ value: s.userId, label: s.name }))}
         labels={companyFormLabels(tr)}
+        steps={stepFormLabels(tr)}
       />
     </div>
   );

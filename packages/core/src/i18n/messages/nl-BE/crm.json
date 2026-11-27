@@ -361,7 +361,10 @@
         "duplicates_title": "Mogelijke dubbels",
         "duplicates_intro": "Deze personen lijken op de persoon die je aanmaakt.",
         "open_existing": "Bestaande openen",
-        "create_anyway": "Toch aanmaken"
+        "create_anyway": "Toch aanmaken",
+        "section_person": "Persoon",
+        "section_preferences": "Voorkeuren",
+        "section_acquisition": "Herkomst"
       },
       "edit": {
         "title": "Persoon bewerken",
@@ -938,7 +941,9 @@
         "is_partner": "Partnerbedrijf",
         "commission": "Partnercommissie (%)",
         "vat_taken": "Een ander bedrijf heeft dit btw-nummer.",
-        "vat_invalid": "Dit is geen geldig btw-nummer."
+        "vat_invalid": "Dit is geen geldig btw-nummer.",
+        "section_company": "Bedrijf",
+        "section_relation": "Relatie"
       },
       "contact": {
         "position": "Functie",

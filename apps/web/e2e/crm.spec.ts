@@ -62,9 +62,13 @@ test.afterAll(async () => {
 
 test("staff creates a person and sees the duplicate warning", async ({ page }) => {
   await signInStaff(page, "owner", { returnTo: "/admin/persons/new" });
+  const next = page.getByTestId("step-form-next");
+  await expect(next).toBeVisible();
   await page.locator('input[name="firstName"]').fill("Created");
   await page.locator('input[name="lastName"]').fill(LAST);
   await page.locator('input[name="phone"]').fill(PHONE);
+  // The create form goes one step per screen (StepForm): Next until the review, then save.
+  while (await next.isVisible()) await next.click();
   await clickAndWait(page, () => page.locator('form button[type="submit"]').first().click());
   const panel = page.getByTestId("duplicate-panel");
   await expect(panel).toBeVisible();

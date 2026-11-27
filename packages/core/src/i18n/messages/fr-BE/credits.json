@@ -453,7 +453,10 @@
         "date": "Date d'expiration",
         "no_expiry": "Sans expiration (avoir uniquement)",
         "sharing": "Invités",
-        "submit": "Créer l'attribution"
+        "submit": "Créer l'attribution",
+        "step_person": "Personne",
+        "step_credit": "Crédit",
+        "step_validity": "Validité et motif"
       },
       "bulk_extend": {
         "title": "Prolongation groupée",

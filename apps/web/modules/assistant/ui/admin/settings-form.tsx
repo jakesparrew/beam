@@ -19,7 +19,7 @@ export function SettingsForm({ initial, labels }: { initial: AssistantSettingVal
   const [pending, start] = useTransition();
   const [status, setStatus] = useState<"idle" | "saved" | "error">("idle");
   const L = (k: string) => labels[k] ?? k;
-  const box = "h-10 rounded-xl border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  const box = "h-9 rounded-lg border bg-card px-3 text-sm";
   const card = "grid gap-4 rounded-[1.25rem] bg-card p-5 shadow-[0_1px_2px_rgb(33_40_66/0.04),0_12px_32px_-18px_rgb(33_40_66/0.22)]";
   const num = (value: number, onChange: (n: number) => void, step = 1) => (
     <input type="number" step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} className={`${box} w-full tabular-nums`} />

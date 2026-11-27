@@ -453,7 +453,10 @@
         "date": "Expiry date",
         "no_expiry": "No expiry (store credit only)",
         "sharing": "Guests",
-        "submit": "Create grant"
+        "submit": "Create grant",
+        "step_person": "Person",
+        "step_credit": "Credit",
+        "step_validity": "Validity and reason"
       },
       "bulk_extend": {
         "title": "Bulk extension",

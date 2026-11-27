@@ -9,7 +9,7 @@
  */
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent, type ReactNode } from "react";
-import { Alert, AlertDescription, Badge, Button, Checkbox, Combobox, FormField, Input, LocalizedInput } from "@beam/ui";
+import { Alert, AlertDescription, Badge, Button, Checkbox, Combobox, FormField, Input, LocalizedInput, StepForm, type StepFormLabels } from "@beam/ui";
 import { createPromotion, updatePromotion } from "../actions";
 
 type Locale = "nl-BE" | "fr-BE" | "en";
@@ -80,7 +80,7 @@ function CheckboxGroup({ legend, options, value, onChange, disabled, hint }: { l
 function MultiPicker({ legend, options, value, onChange, disabled, hint, l }: { legend: string; options: Option[]; value: string[]; onChange: (v: string[]) => void; disabled?: boolean; hint?: string; l: (k: string) => string }) {
   const labelOf = (v: string) => options.find((o) => o.value === v)?.label ?? v;
   return (
-    <fieldset className="grid gap-2" disabled={disabled} title={disabled ? hint : undefined}>
+    <fieldset className="grid gap-2" disabled={disabled} title={disabled ? hint : undefined} data-review-value={value.map(labelOf).join(", ")}>
       <legend className="mb-1 text-sm font-medium">{legend}</legend>
       {value.length ? (
         <ul className="flex flex-wrap gap-2" data-testid="promotion-products">
@@ -117,16 +117,30 @@ function MultiPicker({ legend, options, value, onChange, disabled, hint, l }: { 
   );
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+/** One section of the form; on a new promotion each section is one step (`StepForm`). */
+function Section({ title, step, children }: { title: string; step: boolean; children: ReactNode }) {
   return (
-    <fieldset className="grid gap-4 rounded-lg border p-4">
-      <legend className="px-1 text-sm font-medium">{title}</legend>
+    <fieldset {...(step ? { "data-step": "" } : { "data-section": "" })} className="grid gap-4">
+      <legend>{title}</legend>
       {children}
     </fieldset>
   );
 }
 
-export function PromotionForm({ initial, usesCount, options, labels }: { initial: PromotionFormValues; usesCount: number; options: PromotionFormOptions; labels: Labels }) {
+export function PromotionForm({
+  initial,
+  usesCount,
+  options,
+  labels,
+  steps,
+}: {
+  initial: PromotionFormValues;
+  usesCount: number;
+  options: PromotionFormOptions;
+  labels: Labels;
+  /** StepForm's labels: a new promotion is created one section per screen. */
+  steps?: StepFormLabels;
+}) {
   const router = useRouter();
   const l = (k: string) => labels[k] ?? k;
   const [v, setV] = useState<PromotionFormValues>(initial);
@@ -190,7 +204,17 @@ export function PromotionForm({ initial, usesCount, options, labels }: { initial
   }
 
   return (
-    <form onSubmit={(e) => void onSubmit(e)} className="grid max-w-3xl gap-6" noValidate>
+    <StepForm
+      onSubmit={(e) => void onSubmit(e)}
+      className="max-w-2xl"
+      noValidate
+      labels={initial.id ? undefined : steps}
+      footer={
+        <Button type="submit" disabled={pending}>
+          {pending ? l("saving") : l("save")}
+        </Button>
+      }
+    >
       {error ? (
         <Alert variant="destructive" role="alert">
           <AlertDescription>{error}</AlertDescription>
@@ -202,7 +226,7 @@ export function PromotionForm({ initial, usesCount, options, labels }: { initial
         </p>
       ) : null}
 
-      <Section title={l("section_offer")}>
+      <Section step={!initial.id} title={l("section_offer")}>
         <div className="grid gap-4 sm:grid-cols-3">
           <FormField label={l("field_code")} hint={locked ? lockedHint : l("field_code_hint")} error={fieldError("code")}>
             <Input value={v.code} onChange={(e) => set("code", e.target.value.toUpperCase())} maxLength={24} autoComplete="off" disabled={locked} title={locked ? lockedHint : undefined} />
@@ -223,7 +247,7 @@ export function PromotionForm({ initial, usesCount, options, labels }: { initial
             </select>
           </FormField>
           <FormField label={v.kind === "fixed" ? l("field_value_fixed") : l("field_value_percent")} required error={fieldError("value")} hint={locked ? lockedHint : undefined}>
-            <Input inputMode="decimal" value={v.value} onChange={(e) => set("value", e.target.value)} disabled={locked} title={locked ? lockedHint : undefined} />
+            <Input inputMode="decimal" value={v.value} onChange={(e) => set("value", e.target.value)} disabled={locked} title={locked ? lockedHint : undefined} required />
           </FormField>
         </div>
         {options.partners ? (
@@ -248,13 +272,13 @@ export function PromotionForm({ initial, usesCount, options, labels }: { initial
         />
       </Section>
 
-      <Section title={l("section_applies")}>
+      <Section step={!initial.id} title={l("section_applies")}>
         <p className="text-sm text-muted-foreground">{l("field_applies_hint")}</p>
         <CheckboxGroup legend={l("field_kinds")} options={options.productKinds} value={v.productKinds} onChange={(x) => set("productKinds", x)} disabled={locked} hint={lockedHint} />
         <MultiPicker legend={l("field_products")} options={options.products} value={v.productIds} onChange={(x) => set("productIds", x)} disabled={locked} hint={lockedHint} l={l} />
       </Section>
 
-      <Section title={l("section_eligibility")}>
+      <Section step={!initial.id} title={l("section_eligibility")}>
         <p className="text-sm text-muted-foreground">{l("field_eligibility_hint")}</p>
         <CheckboxGroup legend={l("field_statuses")} options={options.statuses} value={v.statuses} onChange={(x) => set("statuses", x)} disabled={locked} hint={lockedHint} />
         <CheckboxGroup legend={l("field_channels")} options={options.channels} value={v.channels} onChange={(x) => set("channels", x)} disabled={locked} hint={lockedHint} />
@@ -269,10 +293,10 @@ export function PromotionForm({ initial, usesCount, options, labels }: { initial
         </div>
       </Section>
 
-      <Section title={l("section_schedule")}>
+      <Section step={!initial.id} title={l("section_schedule")}>
         <div className="grid gap-4 sm:grid-cols-2">
           <FormField label={l("field_starts")} required error={fieldError("startsAt")} hint={locked ? lockedHint : undefined}>
-            <Input type="datetime-local" value={v.startsAt} onChange={(e) => set("startsAt", e.target.value)} disabled={locked} />
+            <Input type="datetime-local" value={v.startsAt} onChange={(e) => set("startsAt", e.target.value)} disabled={locked} required />
           </FormField>
           <FormField label={l("field_ends")} error={fieldError("endsAt")}>
             <Input type="datetime-local" value={v.endsAt} onChange={(e) => set("endsAt", e.target.value)} />
@@ -290,11 +314,6 @@ export function PromotionForm({ initial, usesCount, options, labels }: { initial
         </label>
       </Section>
 
-      <div>
-        <Button type="submit" disabled={pending}>
-          {pending ? l("saving") : l("save")}
-        </Button>
-      </div>
-    </form>
+    </StepForm>
   );
 }

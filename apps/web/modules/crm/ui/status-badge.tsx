@@ -74,6 +74,9 @@ export function personFormLabels(tr: Tr, template: (key: string) => string) {
   const n = (k: string) => tr(`crm.persons.new.${k}`);
   const e = (k: string) => tr(`crm.persons.edit.${k}`);
   return {
+    sectionPerson: n("section_person"),
+    sectionPreferences: n("section_preferences"),
+    sectionAcquisition: n("section_acquisition"),
     firstName: n("first_name"),
     lastName: n("last_name"),
     email: n("email"),

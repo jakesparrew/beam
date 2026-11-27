@@ -78,14 +78,14 @@ export function HoldForm({
   }
 
   return (
-    <form onSubmit={(e) => void onSubmit(e)} className="grid gap-4" noValidate>
+    <form onSubmit={(e) => void onSubmit(e)} className="grid max-w-2xl gap-4" noValidate>
       {message ? (
         <Alert variant={message.error ? "destructive" : "default"} role={message.error ? "alert" : "status"}>
           <AlertDescription>{message.text}</AlertDescription>
         </Alert>
       ) : null}
       <div className="grid gap-4 sm:grid-cols-2">
-        <FormField label={labels.session} required>
+        <FormField label={labels.session} required className="sm:col-span-2">
           <select name="sessionId" defaultValue={initial.sessionId} className={selectClass} disabled={!!initial.id} required>
             {sessions.map((s) => (
               <option key={s.id} value={s.id}>
@@ -118,9 +118,9 @@ export function HoldForm({
         </FormField>
       </div>
       <FormField label={labels.note} hint={labels.noteHint}>
-        <Textarea name="note" defaultValue={initial.note} maxLength={2000} rows={2} />
+        <Textarea name="note" defaultValue={initial.note} maxLength={2000} rows={3} />
       </FormField>
-      <div>
+      <div data-slot="form-actions">
         <Button type="submit" disabled={pending || sessions.length === 0}>
           {pending ? labels.saving : labels.save}
         </Button>

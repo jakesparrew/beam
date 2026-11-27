@@ -5,6 +5,7 @@ import { getAppDb } from "@/lib/ctx";
 import { adminLocale, translator } from "@/lib/i18n";
 import { listCompanyOptions, listProductOptions } from "@/modules/booking/queries";
 import { SessionForm, type SessionFormLabels } from "@/modules/booking/ui/template-form";
+import { PageHeader, stepFormLabels } from "@/modules/platform/ui/admin-kit";
 
 const show = (text: LocalizedText | null | undefined, locale: Locale) => text?.[locale] || text?.["nl-BE"] || text?.en || text?.["fr-BE"] || "";
 const CATEGORIES = ["lecture", "concert", "member_event", "experience", "webinar", "special_activity", "partner_event"] as const;
@@ -12,7 +13,7 @@ const CATEGORIES = ["lecture", "concert", "member_event", "experience", "webinar
 /**
  * `/admin/sessions/new` (`bookings.override`, booking spec 5.1, R5, R50): a one-off session or an
  * event, created as a draft or published at once; publishing stays disabled while the title
- * misses a locale.
+ * misses a locale. A long form, so one step per screen (`StepForm`) with a review before saving.
  */
 export default async function NewSessionPage({ searchParams }: { searchParams: Promise<{ category?: string }> }) {
   await requireStaff({ permission: "bookings.override" });
@@ -57,6 +58,11 @@ export default async function NewSessionPage({ searchParams }: { searchParams: P
     webinarGeekUrlHint: tr("booking.event.webinargeek_url_hint"),
     webinarGeekId: tr("booking.event.webinargeek_id"),
     webinarGeekIdHint: tr("booking.event.webinargeek_id_hint"),
+    stepKind: tr("booking.session.step_kind"),
+    stepContent: tr("booking.session.step_content"),
+    stepPlanning: tr("booking.session.step_planning"),
+    stepAccess: tr("booking.session.step_access"),
+    steps: stepFormLabels(tr),
     errors: {
       ...Object.fromEntries(BOOKING_CONFLICT_REASONS.map((r) => [r, tr(`booking.errors.${r}`)])),
       validation: tr("platform.errors.validation"),
@@ -66,8 +72,8 @@ export default async function NewSessionPage({ searchParams }: { searchParams: P
   };
 
   return (
-    <div className="grid max-w-4xl gap-6">
-      <h1 className="text-2xl font-semibold">{tr("booking.calendar.new_session")}</h1>
+    <div className="grid gap-6">
+      <PageHeader title={tr("booking.calendar.new_session")} />
       <SessionForm
         products={products.map((p) => ({ id: p.id, label: `${show(p.name, locale)} (${p.sku})` }))}
         companies={companies.map((c) => ({ id: c.id, label: c.name }))}

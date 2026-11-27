@@ -52,7 +52,7 @@ export default async function PrivacyRequestsPage({ searchParams }: { searchPara
       <form data-auto-filter="" method="get" className="flex flex-wrap items-end gap-3" aria-label={tr("platform.table.filters")}>
         <label className="grid gap-1 text-sm">
           <span>{tr("platform.jobs.filter_status")}</span>
-          <select name="status" defaultValue={status ?? ""} className="h-10 rounded-md border bg-background px-2">
+          <select name="status" defaultValue={status ?? ""} className="h-9 rounded-lg border px-3">
             <option value="">{tr("platform.integrations.all_statuses")}</option>
             {PRIVACY_STATUSES.map((s) => (
               <option key={s} value={s}>
@@ -63,7 +63,7 @@ export default async function PrivacyRequestsPage({ searchParams }: { searchPara
         </label>
         <label className="grid gap-1 text-sm">
           <span>{tr("platform.jobs.filter_kind")}</span>
-          <select name="kind" defaultValue={kind ?? ""} className="h-10 rounded-md border bg-background px-2">
+          <select name="kind" defaultValue={kind ?? ""} className="h-9 rounded-lg border px-3">
             <option value="">{tr("platform.incidents.all")}</option>
             {PRIVACY_KINDS.map((k) => (
               <option key={k} value={k}>

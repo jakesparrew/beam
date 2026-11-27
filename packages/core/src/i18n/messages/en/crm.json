@@ -361,7 +361,10 @@
         "duplicates_title": "Possible duplicates",
         "duplicates_intro": "These persons look like the one you are creating.",
         "open_existing": "Open existing",
-        "create_anyway": "Create anyway"
+        "create_anyway": "Create anyway",
+        "section_person": "Person",
+        "section_preferences": "Preferences",
+        "section_acquisition": "Origin"
       },
       "edit": {
         "title": "Edit person",
@@ -938,7 +941,9 @@
         "is_partner": "Partner company",
         "commission": "Partner commission (%)",
         "vat_taken": "Another company has this VAT number.",
-        "vat_invalid": "This is not a valid VAT number."
+        "vat_invalid": "This is not a valid VAT number.",
+        "section_company": "Company",
+        "section_relation": "Relationship"
       },
       "contact": {
         "position": "Position",

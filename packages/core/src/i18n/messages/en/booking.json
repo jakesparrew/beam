@@ -286,7 +286,11 @@
       "warning_location_overlap": "Another session uses this room at the same time.",
       "warning_outside_business_hours": "This time is outside the public opening hours.",
       "empty": "No bookings yet.",
-      "revert_no_show": "Undo no-show"
+      "revert_no_show": "Undo no-show",
+      "step_kind": "Kind of session",
+      "step_content": "Title and description",
+      "step_planning": "Date and places",
+      "step_access": "Price and access"
     },
     "templates": {
       "title": "Schedule",
@@ -315,7 +319,8 @@
       "regeneration_running": "Updating the sessions…",
       "regeneration_failed": "Updating the sessions failed. Retry it from the jobs page.",
       "incomplete_name": "Complete the name in all three languages before activating.",
-      "empty": "No schedule yet: add your first day sessions."
+      "empty": "No schedule yet: add your first day sessions.",
+      "step_schedule": "Days and times"
     },
     "exceptions": {
       "title": "Closed days and special hours",

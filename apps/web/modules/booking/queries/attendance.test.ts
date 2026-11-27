@@ -134,10 +134,15 @@ describe("getCheckinCard and getCheckinDay", () => {
     expect(await getCheckinCard(h.db, { code: "ZZZZZZZZZZ", now })).toBeNull();
     expect(await getCheckinCard(h.db, { code: "a name", now })).toBeNull();
 
+    const late = await rawBooking(h.db, { sessionId: s.id, status: "attended", attendedAt: new Date(now.getTime() - 5 * 60_000) });
+    const early = await rawBooking(h.db, { sessionId: s.id, status: "attended", attendedAt: new Date(now.getTime() - 25 * 60_000) });
     const day = await getCheckinDay(h.db, { onDate: brusselsDate(s.startsAt) });
     const mine = day.find((d) => d.sessionId === s.id);
     expect(mine?.notArrived.map((r) => r.bookingId).sort()).toEqual([owner.id, guest.id, unpaid.booking.id].sort());
     expect(mine?.notArrived.every((r) => r.healthDeclaration.state === "missing")).toBe(true);
+    // The checked-in rows come in order of arrival, and the count matches them.
+    expect(mine?.checkedIn.map((r) => r.bookingId)).toEqual([early.id, late.id]);
+    expect(mine?.arrived).toBe(2);
   });
 });
 

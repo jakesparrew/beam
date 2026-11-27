@@ -1,20 +1,22 @@
 "use client";
 /**
- * The check-in desk's result card (booking spec 5.1 `/admin/bookings/checkin`, R35-R37, R62b):
- * attendee, session and status, the big "Check in" button (`checkIn`), undo, no-show and the
- * late check-in correction, "To pay" with a "Take payment" link to commerce's POS for `reserved`
- * rows, the "Terms not yet accepted" and health declaration badges (never blocking), crm's
- * reception card data when crm provides it, and the owner's guests with "Check in all" (one
- * action per row). Icons give the desk visual cues (owner review section 10): night, member,
- * package, child, guest, payment due, notes and the action buttons. Every text comes from the
- * page, already formatted.
+ * The check-in desk's result card (booking spec 5.1 `/admin/bookings/checkin`, R35-R37, R62b),
+ * in the back-office kit style (owner review, November 2026): one hairline surface with the
+ * attendee (initials, name, session, status pill) and the "Check in" button (`checkIn`) on the
+ * right, then one line of small cues (night, member, package, child, guest), the attention items
+ * (terms not yet accepted, health declaration, never blocking) with the form link, crm's
+ * reception data as one muted line, the notes, "To pay" with a "Take payment" link to commerce's
+ * POS for `reserved` rows, undo, no-show and the late check-in correction, and the owner's guests
+ * as compact rows with "Check in all" (one action per row). `credits` is the credits module's
+ * desk line, rendered in the card. Every text comes from the page, already formatted.
  */
 import Link from "next/link";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { Alert, AlertDescription, Badge, Button, NavIcon, buttonVariants, cn } from "@beam/ui";
+import { useState, type ReactNode } from "react";
+import { Button, NavIcon, buttonVariants, cn } from "@beam/ui";
 import { checkIn, markNoShow, revertNoShow, undoCheckIn } from "../actions/attendance";
+import { Initials, StatusPill, type Tone } from "./kit";
 
 export type BookingCardView = {
   bookingId: string;
@@ -41,7 +43,7 @@ export type BookingCardView = {
   notes: string | null;
   /** crm's reception card lines (customer number, status, member, tags, emergency contact, minor). */
   reception: string[];
-  /** Visual cues shown as icon badges: `icon` is a `NavIcon` name ("moon", "badge-check", ...). */
+  /** Visual cues shown as small icon chips: `icon` is a `NavIcon` name ("moon", "badge-check", ...). */
   cues: Array<{ icon: string; label: string }>;
   guests: Array<{ bookingId: string; name: string; statusLabel: string; canCheckIn: boolean }>;
 };
@@ -63,7 +65,10 @@ export type BookingCardLabels = {
   errors: Record<string, string>;
 };
 
-export function BookingCard({ card, labels, canWrite }: { card: BookingCardView; labels: BookingCardLabels; canWrite: boolean }) {
+const STATUS_TONE: Record<string, Tone> = { attended: "ok", confirmed: "info", reserved: "warn", no_show: "bad", cancelled: "muted", late_cancelled: "muted" };
+const chip = "inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[0.75rem] font-medium";
+
+export function BookingCard({ card, labels, canWrite, credits }: { card: BookingCardView; labels: BookingCardLabels; canWrite: boolean; credits?: ReactNode }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -95,80 +100,120 @@ export function BookingCard({ card, labels, canWrite }: { card: BookingCardView;
   const guestsToCheck = card.guests.filter((g) => g.canCheckIn).length;
 
   return (
-    <section aria-labelledby={`card-${card.bookingId}`} data-booking-id={card.bookingId} data-status={card.status} className="grid gap-4 rounded-lg border p-4 shadow-sm">
+    <section aria-labelledby={`card-${card.bookingId}`} data-booking-id={card.bookingId} data-status={card.status} className="grid gap-3 rounded-xl border border-border bg-card p-4">
       <header className="flex flex-wrap items-start justify-between gap-3">
-        <div className="grid gap-1">
-          <h2 id={`card-${card.bookingId}`} className="text-xl font-semibold">
-            {card.name}
-          </h2>
-          <p className="text-sm text-muted-foreground">{card.sessionLine}</p>
+        <div className="flex min-w-0 items-center gap-3">
+          <Initials id={card.personId} name={card.name} className="size-10 text-[0.8125rem]" />
+          <div className="grid min-w-0 gap-0.5">
+            <h2 id={`card-${card.bookingId}`} className="flex flex-wrap items-center gap-2 text-[1.0625rem] font-semibold">
+              {card.name}
+              <StatusPill tone={STATUS_TONE[card.status] ?? "muted"}>{card.statusLabel}</StatusPill>
+            </h2>
+            <p className="text-[0.8125rem] text-muted-foreground">{card.sessionLine}</p>
+          </div>
         </div>
-        <Badge variant={card.status === "attended" ? "default" : card.status === "reserved" || card.status === "no_show" ? "destructive" : "outline"}>{card.statusLabel}</Badge>
+        {canWrite ? (
+          <div className="flex flex-wrap items-center gap-2">
+            {card.canMarkNoShow ? (
+              <Button type="button" variant="ghost" size="sm" disabled={busy} data-action="no-show" onClick={() => void run(() => markNoShow({ bookingId: card.bookingId }))}>
+                <NavIcon icon="user-x" />
+                {labels.markNoShow}
+              </Button>
+            ) : null}
+            {card.canRevertNoShow ? (
+              <Button type="button" variant="outline" size="sm" disabled={busy} data-action="revert-no-show" onClick={() => void run(() => revertNoShow({ bookingId: card.bookingId }))}>
+                {labels.revertNoShow}
+              </Button>
+            ) : null}
+            {card.canUndo ? (
+              <Button type="button" variant="outline" size="sm" disabled={busy} data-action="undo" onClick={() => void run(() => undoCheckIn({ bookingId: card.bookingId }))}>
+                {labels.undo}
+              </Button>
+            ) : null}
+            {card.canOverride ? (
+              <Button type="button" variant="outline" size="sm" disabled={busy} data-action="check-in-override" onClick={() => void run(() => checkIn({ bookingId: card.bookingId, override: true }))}>
+                <NavIcon icon="circle-check" />
+                {labels.checkInOverride}
+              </Button>
+            ) : null}
+            {card.canCheckIn ? (
+              <Button type="button" data-action="check-in" className="h-10 min-w-36 text-[0.9375rem]" disabled={busy} onClick={() => void run(() => checkIn({ bookingId: card.bookingId }))}>
+                <NavIcon icon="circle-check" className="size-5" />
+                {labels.checkIn}
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
       </header>
 
-      {card.cues.length ? (
-        <ul className="flex flex-wrap gap-2" data-testid="checkin-cues">
-          {card.cues.map((c) => (
-            <li key={c.icon}>
-              <Badge variant="secondary" className="gap-1.5 px-2.5 py-1 text-sm">
-                <NavIcon icon={c.icon} className="size-4" />
-                {c.label}
-              </Badge>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-
       {card.wrongDayLabel ? (
-        <Alert variant="destructive">
-          <AlertDescription>{card.wrongDayLabel}</AlertDescription>
-        </Alert>
+        <p role="status" className="rounded-lg bg-[var(--status-bad-soft)] px-3 py-2 text-[0.8125rem] font-medium text-[var(--status-bad)]">
+          {card.wrongDayLabel}
+        </p>
       ) : null}
-      {card.checkedInLabel ? <p className="text-sm font-medium">{card.checkedInLabel}</p> : null}
 
-      <div className="flex flex-wrap gap-2">
-        {card.termsPending ? <Badge variant="warning">{labels.termsPending}</Badge> : null}
-        {healthLabel ? (
-          <span className="flex flex-wrap items-center gap-2">
-            <Badge variant="warning">{healthLabel}</Badge>
-            <Link href={`/admin/forms/enter?personId=${card.personId}` as Route} className="text-sm underline">
-              {labels.fillInForm}
-            </Link>
-          </span>
-        ) : null}
-      </div>
+      {card.cues.length || card.termsPending || healthLabel || card.checkedInLabel ? (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {card.checkedInLabel ? (
+            <span className={cn(chip, "bg-[var(--status-ok-soft)] text-[var(--status-ok)]")}>
+              <NavIcon icon="circle-check" className="size-3.5" />
+              {card.checkedInLabel}
+            </span>
+          ) : null}
+          {card.cues.length ? (
+            <ul className="contents" data-testid="checkin-cues">
+              {card.cues.map((c) => (
+                <li key={c.icon} className={cn(chip, "bg-muted text-foreground")}>
+                  <NavIcon icon={c.icon} className="size-3.5 text-muted-foreground" />
+                  {c.label}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {card.termsPending ? (
+            <span className={cn(chip, "bg-[var(--status-warn-soft)] text-[var(--status-warn)]")}>
+              <NavIcon icon="scroll-text" className="size-3.5" />
+              {labels.termsPending}
+            </span>
+          ) : null}
+          {healthLabel ? (
+            <span className={cn(chip, "bg-[var(--status-warn-soft)] text-[var(--status-warn)]")}>
+              <NavIcon icon="activity" className="size-3.5" />
+              {healthLabel}
+              <Link href={`/admin/forms/enter?personId=${card.personId}` as Route} className="font-semibold underline underline-offset-2">
+                {labels.fillInForm}
+              </Link>
+            </span>
+          ) : null}
+        </div>
+      ) : null}
 
       {card.reception.length ? (
-        <ul className="grid gap-1 rounded-md bg-muted p-3 text-sm">
+        <ul className="flex flex-wrap gap-x-3 gap-y-1 text-[0.75rem] text-muted-foreground">
           {card.reception.map((line) => (
             <li key={line}>{line}</li>
           ))}
         </ul>
       ) : null}
       {card.notes ? (
-        <p className="flex items-start gap-2 text-sm">
-          <NavIcon icon="sticky-note" className="mt-0.5 size-4 shrink-0" />
+        <p className="flex items-start gap-2 rounded-lg bg-muted px-3 py-2 text-[0.8125rem]">
+          <NavIcon icon="sticky-note" className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
           <span>
-            <span className="font-medium">{labels.notes}: </span>
+            <span className="font-semibold">{labels.notes}: </span>
             {card.notes}
           </span>
         </p>
       ) : null}
-
-      {error ? (
-        <Alert variant="destructive" role="alert">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      ) : null}
+      {credits}
 
       {card.toPayLabel ? (
-        <div className="flex flex-wrap items-center gap-3">
-          <p className="flex items-center gap-2 text-lg font-semibold" data-testid="to-pay">
-            <NavIcon icon="euro" className="size-5" />
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-[var(--status-warn-soft)] px-3 py-2">
+          <p className="flex items-center gap-2 text-[0.9375rem] font-semibold text-[var(--status-warn)]" data-testid="to-pay">
+            <NavIcon icon="euro" className="size-4" />
             {card.toPayLabel}
           </p>
           {card.orderId ? (
-            <Link href={`/admin/pos?order=${card.orderId}` as Route} data-action="take-payment" className={buttonVariants({ size: "lg" })}>
+            <Link href={`/admin/pos?order=${card.orderId}` as Route} data-action="take-payment" className={buttonVariants({ size: "sm" })}>
               <NavIcon icon="credit-card" />
               {labels.takePayment}
             </Link>
@@ -176,61 +221,36 @@ export function BookingCard({ card, labels, canWrite }: { card: BookingCardView;
         </div>
       ) : null}
 
-      {canWrite ? (
-        <div className="flex flex-wrap gap-2">
-          {card.canCheckIn ? (
-            <Button type="button" data-action="check-in" size="lg" className="min-h-11 min-w-40 text-base" disabled={busy} onClick={() => void run(() => checkIn({ bookingId: card.bookingId }))}>
-              <NavIcon icon="circle-check" className="size-5" />
-              {labels.checkIn}
-            </Button>
-          ) : null}
-          {card.canOverride ? (
-            <Button type="button" variant="outline" className="min-h-11" disabled={busy} data-action="check-in-override" onClick={() => void run(() => checkIn({ bookingId: card.bookingId, override: true }))}>
-              <NavIcon icon="circle-check" />
-              {labels.checkInOverride}
-            </Button>
-          ) : null}
-          {card.canUndo ? (
-            <Button type="button" variant="outline" className="min-h-11" disabled={busy} data-action="undo" onClick={() => void run(() => undoCheckIn({ bookingId: card.bookingId }))}>
-              {labels.undo}
-            </Button>
-          ) : null}
-          {card.canRevertNoShow ? (
-            <Button type="button" variant="outline" className="min-h-11" disabled={busy} data-action="revert-no-show" onClick={() => void run(() => revertNoShow({ bookingId: card.bookingId }))}>
-              {labels.revertNoShow}
-            </Button>
-          ) : null}
-          {card.canMarkNoShow ? (
-            <Button type="button" variant="ghost" className="min-h-11" disabled={busy} data-action="no-show" onClick={() => void run(() => markNoShow({ bookingId: card.bookingId }))}>
-              <NavIcon icon="user-x" />
-              {labels.markNoShow}
-            </Button>
-          ) : null}
-        </div>
+      {error ? (
+        <p role="alert" className="rounded-lg bg-[var(--status-bad-soft)] px-3 py-2 text-[0.8125rem] text-[var(--status-bad)]">
+          {error}
+        </p>
       ) : null}
 
       {card.guests.length ? (
-        <div className="grid gap-2 border-t pt-3">
+        <div className="grid gap-1 border-t border-border pt-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="flex items-center gap-2 font-medium">
-              <NavIcon icon="user-plus" />
+            <h3 className="flex items-center gap-2 text-[0.8125rem] font-semibold">
+              <NavIcon icon="user-plus" className="size-4 text-muted-foreground" />
               {labels.guestsOf}
             </h3>
             {canWrite && guestsToCheck > 0 ? (
-              <Button type="button" variant="secondary" className="min-h-11" disabled={busy} data-action="check-in-all" onClick={() => void checkInAll()}>
+              <Button type="button" variant="outline" size="sm" disabled={busy} data-action="check-in-all" onClick={() => void checkInAll()}>
                 <NavIcon icon="users" />
                 {labels.checkInAll}
               </Button>
             ) : null}
           </div>
-          <ul className="grid gap-2">
+          <ul className="grid">
             {card.guests.map((g) => (
-              <li key={g.bookingId} data-booking-id={g.bookingId} className={cn("flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2")}>
-                <span>
-                  {g.name} <span className="text-sm text-muted-foreground">· {g.statusLabel}</span>
+              <li key={g.bookingId} data-booking-id={g.bookingId} className="flex min-h-10 flex-wrap items-center justify-between gap-2 border-b border-border py-1.5 last:border-b-0">
+                <span className="flex items-center gap-2.5">
+                  <Initials id={g.bookingId} name={g.name} className="size-7" />
+                  <span className="font-medium">{g.name}</span>
+                  <span className="text-[0.75rem] text-muted-foreground">{g.statusLabel}</span>
                 </span>
                 {canWrite && g.canCheckIn ? (
-                  <Button type="button" size="sm" className="min-h-11" disabled={busy} onClick={() => void run(() => checkIn({ bookingId: g.bookingId }))}>
+                  <Button type="button" size="sm" disabled={busy} onClick={() => void run(() => checkIn({ bookingId: g.bookingId }))}>
                     <NavIcon icon="circle-check" />
                     {labels.checkIn}
                   </Button>

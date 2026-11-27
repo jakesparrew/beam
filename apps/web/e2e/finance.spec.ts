@@ -115,7 +115,9 @@ test.describe.serial("invoices from purchase to report", () => {
     await signInStaff(page, "owner");
     const orderPage = await page.goto(`/admin/orders/${invoice.order_id}`);
     test.skip(orderPage?.status() === 404, "commerce's order refund screen has not shipped yet");
-    await page.getByRole("button", { name: /Terugbetal|Refund/ }).first().click();
+    // The refund sits in the order's "⋯" menu (no primary action on a paid order).
+    await page.getByRole("button", { name: /Meer acties|More actions|Plus d'actions/ }).click();
+    await page.getByRole("menuitem", { name: /Terugbetal|Refund|Rembours/ }).click();
     const dialog = page.getByRole("dialog");
     await dialog.getByRole("spinbutton").first().fill(String(invoice.total_cents / 200));
     const posted = page.waitForResponse((r) => r.request().method() === "POST");

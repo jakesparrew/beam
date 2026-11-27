@@ -755,7 +755,19 @@
       "person_search_hint": "Typ een naam, e-mailadres of klantnummer",
       "subtitle": "Een bestelling is een betaling: een pakket, lidmaatschap, product of sessie. Een plaats in een sessie (een boeking) vind je onder Agenda > Boekingen.",
       "tab_attention": "Op te volgen",
-      "filters": "Filters"
+      "filters": "Filters",
+      "more_actions": "Meer acties",
+      "subtotal": "Subtotaal",
+      "vat_included": "waarvan btw {rate}",
+      "invoiced": "Gefactureerd",
+      "credit_note": "Creditnota",
+      "activity": "Activiteit",
+      "method_card_online": "Kaart (online)",
+      "method_direct_debit": "Domiciliëring",
+      "receipt_intro": "Het kasticket gaat naar het e-mailadres van de klant. Vul een ander adres in om het daarheen te sturen.",
+      "link_intro": "De klant krijgt een e-mail met een link om online te betalen.",
+      "invoice_intro": "Er wordt een factuur gemaakt die de klant per overschrijving betaalt.",
+      "cancel_intro": "Een geannuleerde bestelling kan niet meer betaald worden."
     },
     "admin_refund": {
       "title": "Bestelling {reference} terugbetalen",

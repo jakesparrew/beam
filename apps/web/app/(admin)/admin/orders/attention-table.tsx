@@ -5,7 +5,7 @@ import type { AttentionKind, AttentionRow } from "@/modules/commerce/queries";
 import { StatusPill, Surface, td, th, type Tone } from "@/modules/platform/ui/admin-kit";
 import { Initials, rowClass, rowLink } from "@/modules/platform/ui/admin-list-kit";
 
-const KIND_TONE: Record<AttentionKind, Tone> = { payment_failed: "bad", payment_pending_15m: "warn", bank_transfer_overdue: "warn", refund_failed: "bad", chargeback: "bad" };
+const KIND_TONE: Record<AttentionKind, Tone> = { payment_failed: "bad", payment_pending_15m: "warn", bank_transfer_overdue: "warn", refund_failed: "bad", chargeback: "bad", on_account: "info" };
 
 /**
  * The payment follow-up feed (`v_payment_attention`, commerce spec 5.1) as one table: the order,
@@ -32,7 +32,7 @@ export function AttentionTable({ rows, locale, tr }: { rows: readonly AttentionR
           </thead>
           <tbody>
             {rows.map((r) => (
-              <tr key={`${r.kind}-${r.paymentId}`} className={rowClass} data-kind={r.kind}>
+              <tr key={`${r.kind}-${r.paymentId ?? r.orderId}`} className={rowClass} data-kind={r.kind}>
                 <td className={cn(td, "font-semibold whitespace-nowrap")}>
                   <Link href={`/admin/orders/${r.orderId}`} className={cn(rowLink, "hover:underline")} aria-label={c("open", { reference: r.reference })}>
                     {r.reference}

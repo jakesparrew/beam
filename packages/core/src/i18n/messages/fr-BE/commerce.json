@@ -795,7 +795,8 @@
       "col_since": "Depuis",
       "open": "Ouvrir la commande {reference}",
       "col_problem": "Problème",
-      "subtitle": "Paiements échoués ou en attente, virements en retard et rétrofacturations. Chaque ligne ouvre la commande."
+      "subtitle": "Paiements échoués ou en attente, virements en retard, rétrofacturations et commandes sur compte. Chaque ligne ouvre la commande.",
+      "kind_on_account": "Sur compte"
     },
     "pos": {
       "title": "Accueil",
@@ -884,7 +885,21 @@
       "quantity": "Quantité",
       "col_product": "Produit",
       "col_amount": "Montant",
-      "choose_other": "Choisir un autre mode"
+      "choose_other": "Choisir un autre mode",
+      "method_card_terminal": "Carte (terminal)",
+      "terminal_reference": "Référence du terminal (4 derniers chiffres ou n° de ticket, facultatif)",
+      "on_account": "Sur compte",
+      "on_account_needs_person": "Choisissez d'abord un client pour mettre sur compte.",
+      "on_account_title": "Mis sur compte",
+      "on_account_body": "La commande {reference} est ouverte sur le compte de {name} : {amount} à payer.",
+      "on_account_since": "Sur compte depuis le {date}",
+      "settle_intro": "Comment le client paie-t-il ?",
+      "settle_link": "Envoyer une invitation à payer",
+      "settle_invoice": "Facture (virement)",
+      "settle_desk": "Plus tard à l'accueil",
+      "link_sent": "L'invitation à payer a été envoyée.",
+      "open_accounts_title": "Ouvert sur compte : {amount}",
+      "open_account_row": "{reference} · {amount} · depuis le {date}"
     },
     "pos_day": {
       "title": "Journée à l’accueil",
@@ -922,7 +937,8 @@
       "failed": "Non enregistré : {message}",
       "today": "Aujourd'hui",
       "previous_day": "Jour précédent",
-      "next_day": "Jour suivant"
+      "next_day": "Jour suivant",
+      "card_terminal": "Carte (terminal)"
     },
     "resume": {
       "title": "Reprendre votre commande",
@@ -988,6 +1004,9 @@
       "col_vat": "TVA",
       "col_receipts": "Tickets",
       "total": "Total"
+    },
+    "open_account": {
+      "line": "Ouvert : {amount} ({count} sur compte)"
     }
   }
 }

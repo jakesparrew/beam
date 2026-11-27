@@ -124,6 +124,12 @@
           "title": "Privacyverzoeken bijna over tijd",
           "empty": "Vandaag vraagt niets aandacht",
           "row": "{kind}, uiterlijk {date}"
+        },
+        "open_accounts": {
+          "title": "Openstaande rekeningen",
+          "empty": "Vandaag vraagt niets aandacht",
+          "row": "{amount} op rekening sinds {date}",
+          "review": "Naar Op te volgen"
         }
       },
       "overview": {

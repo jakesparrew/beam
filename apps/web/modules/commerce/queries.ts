@@ -465,7 +465,8 @@ export async function getWithdrawalPreviewFor(db: DbOrTx, orderId: string) {
 export { getAttentionFeed, groupAttention, listPaymentAttention, ATTENTION_KINDS, type AttentionKind, type AttentionRow } from "./server/attention";
 export { getPayOrderByToken, type PayPageView } from "./server/payment-links";
 
-export { getPosOrder, getPosPaymentState, ANONYMOUS_KINDS, type PosOrderView } from "./server/pos";
+export { getPosOrder, getPosPaymentState, ANONYMOUS_KINDS, EXTERNAL_CARD_METHOD, type PosOrderView } from "./server/pos";
+export { getPersonOpenAccount, listOpenAccounts, type OpenAccountRow } from "./server/on-account";
 export { getPosDaySummary, businessDayOf, isPosDayClosed, POS_DIFFERENCE_TASK_CENTS, type PosDaySummary, type PosDayTotals } from "./server/pos-day";
 export { findCheckoutByResumeToken, resumeContinuePath, type ResumeTarget } from "./server/recovery";
 export { getLightspeedDaily, listLightspeedImports, LIGHTSPEED_MAX_BYTES } from "./server/lightspeed";

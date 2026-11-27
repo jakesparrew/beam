@@ -13,6 +13,11 @@
  *   terminal writes a `terminal` payment and runs `payments.terminal` inline; its result arrives
  *   through the Mollie webhook. `posCancelTerminal` cancels a hanging terminal payment (source
  *   staff) and queues `payments.cancel_terminal` to cancel it on the device.
+ * - Kaart (terminal) (`card_terminal`, owner decision November 2026): the card or Bancontact was
+ *   taken on a separate terminal (a bank terminal, or Tap to Pay in the Stripe app). A `terminal`
+ *   payment with method `external_card` is written `paid` at once with the optional terminal
+ *   reference, and the order is paid like a cash sale (invoice, day close line "Kaart (terminal)").
+ * - On account (`on_account`): the order stays open on its person (`./on-account`).
  * - Anonymous sales are allowed only for items and vouchers (rule 42).
  */
 import { orderLines, orders, payments, persons, products } from "@beam/db/schema";
@@ -32,12 +37,16 @@ import { LIVE_STATUSES } from "./cancel";
 import { createOrder } from "./orders";
 import { commerceSettings, finalizePaidOrder, lockOrder, paidCentsOf, type OrderRow, type PaymentRow } from "./paid";
 import { applyProviderStatus, mollieWebhookUrl } from "./payments";
+import { putOnAccount } from "./on-account";
 import { assertCashDayOpen } from "./pos-day";
 
 /** booking's api, loaded on first use (booking's order flow imports commerce's api). */
 const bookingApi = () => import("@/modules/booking/api");
 
-export type PosMethod = "terminal" | "cash" | "bank_transfer";
+export type PosMethod = "terminal" | "card_terminal" | "cash" | "bank_transfer" | "on_account";
+
+/** `payments.method` of a card payment taken on a separate terminal (provider `terminal`, no provider id). */
+export const EXTERNAL_CARD_METHOD = "external_card";
 
 /** Product kinds an anonymous buyer may take home (rule 42). */
 export const ANONYMOUS_KINDS = ["item", "voucher"] as const;
@@ -53,6 +62,8 @@ export class PosSoldOutError extends AppError {
 export type PosPaymentInput = {
   method: PosMethod;
   terminalId?: string | undefined;
+  /** Kaart (terminal): the last 4 digits or the receipt number, optional. */
+  terminalReference?: string | null | undefined;
   cashReceivedCents?: number | undefined;
   useEuroCredit?: boolean | undefined;
   billingDetails?: BillingDetails | undefined;
@@ -121,7 +132,7 @@ export async function posSell(tx: Tx, ctx: Ctx, input: PosSellInput): Promise<Po
   const productRows = await tx.select({ id: products.id, kind: products.kind }).from(products).where(inArray(products.id, [...new Set(items.map((i) => i.productId))]));
   const kindOf = new Map(productRows.map((p) => [p.id, p.kind]));
   const kinds = items.map((i) => kindOf.get(i.productId)).filter((k): k is NonNullable<typeof k> => !!k);
-  if (!personId && kinds.some((k) => !(ANONYMOUS_KINDS as readonly string[]).includes(k))) throw new ValidationError("validation", { personId: "person_required" });
+  if (!personId && (input.method === "on_account" || kinds.some((k) => !(ANONYMOUS_KINDS as readonly string[]).includes(k)))) throw new ValidationError("validation", { personId: "person_required" });
   if (input.method === "bank_transfer" && kinds.some(isDated)) throw new ConflictError("bank_transfer_not_allowed");
   if (input.useEuroCredit && !personId) throw new ValidationError("validation", { useEuroCredit: "person_required" });
   await checkMethod(tx, ctx, input);
@@ -176,11 +187,11 @@ export async function posPayOrder(tx: Tx, ctx: Ctx, input: PosPaymentInput & { o
     .from(payments)
     .where(and(eq(payments.orderId, order.id), sql`${payments.raw} ->> 'client_key' = ${input.clientKey}`))
     .limit(1);
-  if (repeat || PAID_ORDER.has(order.status)) return currentState(tx, order.id);
+  if (repeat || PAID_ORDER.has(order.status) || (input.method === "on_account" && order.onAccountAt)) return currentState(tx, order.id);
   if (order.status !== "pending_payment") throw new ConflictError("invalid_transition");
   if (order.expiresAt && order.expiresAt.getTime() <= ctx.now.getTime()) throw new ConflictError("order_expired");
   const lines = await tx.select({ kind: orderLines.productKind }).from(orderLines).where(eq(orderLines.orderId, order.id));
-  if (input.method === "bank_transfer" && lines.some((l) => isDated(l.kind))) throw new ConflictError("bank_transfer_not_allowed");
+  if (input.method === "bank_transfer" && !order.onAccountAt && lines.some((l) => isDated(l.kind))) throw new ConflictError("bank_transfer_not_allowed");
   if (input.useEuroCredit && !order.personId) throw new ValidationError("validation", { useEuroCredit: "person_required" });
   await checkMethod(tx, ctx, input);
   if (input.billingDetails) await setOrderBillingDetails(tx, ctx, { orderId: order.id, details: input.billingDetails });
@@ -239,12 +250,35 @@ async function takePayment(tx: Tx, ctx: Ctx, order: OrderRow, input: PosPaymentI
     .select({ id: payments.id, provider: payments.provider })
     .from(payments)
     .where(and(eq(payments.orderId, order.id), inArray(payments.status, [...LIVE_STATUSES])));
-  if (live.some((p) => p.provider !== "bank_transfer") || (input.method !== "bank_transfer" && live.length)) throw new ConflictError("payment_in_progress");
+  // An open transfer blocks other methods, except on an on-account order (the paid transaction cancels it).
+  if (live.some((p) => p.provider !== "bank_transfer") || (input.method !== "bank_transfer" && live.length && !order.onAccountAt)) throw new ConflictError("payment_in_progress");
   const staffUserId = ctx.actor.kind === "staff" ? ctx.actor.userId : null;
 
   if (input.method === "bank_transfer") {
     const transfer = await startBankTransfer(tx, ctx, { orderId: order.id });
     return { orderId: order.id, status: "pending_payment", paymentId: transfer.paymentId, dueOn: transfer.dueOn };
+  }
+
+  if (input.method === "on_account") return putOnAccount(tx, ctx, order);
+
+  if (input.method === "card_terminal") {
+    const reference = input.terminalReference?.trim() || null;
+    const [payment] = await tx
+      .insert(payments)
+      .values({
+        orderId: order.id,
+        provider: "terminal",
+        method: EXTERNAL_CARD_METHOD,
+        status: "paid",
+        amountCents: due,
+        paidAt: ctx.now,
+        raw: { client_key: input.clientKey, terminal_reference: reference },
+        statusHistory: [{ status: "paid", at: ctx.now.toISOString(), source: "staff" }],
+        createdByUserId: staffUserId,
+      })
+      .returning({ id: payments.id });
+    await finalizePaidOrder(tx, ctx, order.id, { paymentId: payment!.id });
+    return { orderId: order.id, status: "paid", paymentId: payment!.id };
   }
 
   if (input.method === "cash") {
@@ -285,7 +319,7 @@ async function takePayment(tx: Tx, ctx: Ctx, order: OrderRow, input: PosPaymentI
     .returning();
   // Rule 22: a pending order expires 30 minutes after its last payment; pay-at-desk (admin) and
   // renewal orders keep their own expiry.
-  if (order.channel !== "admin" && !order.renewalMembershipId) {
+  if (order.channel !== "admin" && !order.renewalMembershipId && !order.onAccountAt) {
     const settings = await commerceSettings(tx);
     await tx
       .update(orders)
@@ -409,6 +443,8 @@ export type PosOrderView = {
   totalCents: number;
   dueCents: number;
   expiresAt: Date | null;
+  /** Set when the order is on the person's account (owner decision November 2026). */
+  onAccountAt: Date | null;
   lines: { lineId: string; description: LocalizedText; quantity: number; lineTotalCents: number; productKind: string }[];
   payments: { paymentId: string; provider: PaymentRow["provider"]; status: PaymentRow["status"]; amountCents: number; createdAt: Date }[];
   /** The terminal payment still waiting on the device, if any. */
@@ -438,6 +474,7 @@ export async function getPosOrder(db: DbOrTx, orderId: string): Promise<PosOrder
     totalCents: order.totalCents,
     dueCents: Math.max(0, order.totalCents - paid),
     expiresAt: order.expiresAt,
+    onAccountAt: order.onAccountAt,
     lines: lines.map((l) => ({ lineId: l.id, description: l.description, quantity: l.quantity, lineTotalCents: l.lineTotalCents, productKind: l.productKind })),
     payments: pays.map((p) => ({ paymentId: p.id, provider: p.provider, status: p.status, amountCents: p.amountCents, createdAt: p.createdAt })),
     liveTerminalPaymentId: live?.id ?? null,

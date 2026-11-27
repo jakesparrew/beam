@@ -67,6 +67,7 @@ import { redeemVoucher as redeemVoucherRecord, resendVoucher as resendVoucherRec
 import { withdrawOrder as withdrawOrderRecord } from "./server/withdrawals";
 import { getPosPaymentState, posCancelTerminal as posCancelTerminalRecord, posPayOrder as posPayOrderRecord, posSell as posSellRecord } from "./server/pos";
 import { closePosDay as closePosDayRecord, reopenPosDay as reopenPosDayRecord } from "./server/pos-day";
+import { issueOnAccountInvoice as issueOnAccountInvoiceRecord } from "./server/on-account";
 import { uploadLightspeedCsvRecord } from "./server/lightspeed";
 
 export const createProduct = action(
@@ -352,10 +353,11 @@ export const payByToken = action(
 // Front-desk POS and day close (commerce-P7, rules 21, 26b, 42 to 44, 55)
 // ---------------------------------------------------------------------------
 
-const PosMethod = z.enum(["terminal", "cash", "bank_transfer"]);
+const PosMethod = z.enum(["terminal", "card_terminal", "cash", "bank_transfer", "on_account"]);
 const PosPaymentFields = {
   method: PosMethod,
   terminalId: z.string().trim().min(1).max(100).optional(),
+  terminalReference: z.string().trim().max(40).nullable().optional(),
   cashReceivedCents: z.number().int().min(0).max(10_000_000).optional(),
   useEuroCredit: z.boolean().default(false),
   billingDetails: BillingDetailsInput.optional(),
@@ -377,6 +379,15 @@ export const posSell = action(
 export const posPayOrder = action(
   { name: "commerce.pos_pay_order", audience: "staff", permission: "commerce.sell", input: z.object({ orderId: z.uuid(), ...PosPaymentFields }), audit: false },
   (ctx, input) => posPayOrderRecord(ctx.tx, ctx, input),
+);
+
+/** On account, settled by invoice: the open invoice with due date and structured communication (finance's `invoices.issue`). */
+export const issueOnAccountInvoice = action(
+  { name: "commerce.issue_on_account_invoice", audience: "staff", permission: "invoices.issue", input: z.object({ orderId: z.uuid() }), audit: false },
+  async (ctx, input) => {
+    const out = await issueOnAccountInvoiceRecord(ctx.tx, ctx, input);
+    return { dueOn: out.dueOn, invoiceId: out.invoiceId };
+  },
 );
 
 export const posCancelTerminal = action(

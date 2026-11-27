@@ -17,6 +17,7 @@ import { ActivityPanel } from "@/modules/assistant/ui/admin/activity-panel";
 import { BehaviourPanel } from "@/modules/assistant/ui/admin/behaviour-panel";
 import { AssistantPersonPanel } from "@/modules/assistant/ui/admin/person-panel";
 import { listPersonOrders } from "@/modules/commerce/api";
+import { PersonOpenAccount } from "@/modules/commerce/ui/person-open-account";
 import { getPersonCreditSummary } from "@/modules/credits/api";
 import { PersonMembershipPanel } from "@/modules/credits/ui/person-membership-panel";
 import { PersonEmailHistory } from "@/modules/email/ui/PersonEmailHistory";
@@ -279,6 +280,7 @@ export default async function Person360Page({ params }: { params: Promise<{ id: 
       ) : null}
       {assistantPanel?.ok ? <AssistantPersonPanel panel={assistantPanel.value} tr={tr} formatDate={(d) => formatDateTime(d, locale)} /> : null}
       {wellbeing?.ok ? <WellbeingProfile journey={wellbeing.value} tr={tr} locale={locale} /> : null}
+      <PersonOpenAccount personId={person.id} locale={locale} />
 
       <PanelGrid>
         <ListPanel

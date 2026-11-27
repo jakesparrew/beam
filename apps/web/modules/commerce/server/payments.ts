@@ -128,13 +128,14 @@ export async function startPayment(tx: Tx, ctx: Ctx, input: { orderId: string; r
   }
 
   // Rule 23: an open bank transfer is the order's non-final payment (with an open invoice and no
-  // expiry), so the order is not paid online beside it.
+  // expiry), so the order is not paid online beside it; an on-account order may be (the paid
+  // transaction cancels the transfer).
   const [transfer] = await tx
     .select({ id: payments.id })
     .from(payments)
     .where(and(eq(payments.orderId, order.id), eq(payments.provider, "bank_transfer"), inArray(payments.status, ["open", "pending"])))
     .limit(1);
-  if (transfer) throw new ConflictError("payment_in_progress");
+  if (transfer && !order.onAccountAt) throw new ConflictError("payment_in_progress");
 
   const [live] = await tx
     .select()
@@ -162,8 +163,8 @@ export async function startPayment(tx: Tx, ctx: Ctx, input: { orderId: string; r
       })
       .returning();
     // Rule 22: a pending order expires 30 minutes after its last payment was created; booking's
-    // pay-at-desk (admin) orders and renewal orders keep their own expiry.
-    if (order.channel !== "admin" && !order.renewalMembershipId) {
+    // pay-at-desk (admin) orders, renewal orders and on-account orders keep their own expiry.
+    if (order.channel !== "admin" && !order.renewalMembershipId && !order.onAccountAt) {
       const settings = await commerceSettings(tx);
       await tx
         .update(orders)

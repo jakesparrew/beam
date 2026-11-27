@@ -112,7 +112,8 @@ export function receiptModel(input: ReceiptInput): ReceiptModel {
     vatRows: vatSummary(input.lines).map((v) => ({ rate: rate(v.ratePct), net: money(v.netCents), vat: money(v.vatCents), gross: money(v.grossCents) })),
     paidWithTitle: label(locale, "paid_with"),
     paidWith: input.payments.map((p) => ({
-      label: label(locale, `method_${PAYMENT_METHOD_KEYS.has(p.method) ? p.method : "other"}`),
+      // Kaart (terminal) (a separate card terminal) prints as "card at the desk".
+      label: label(locale, `method_${p.method === "external_card" ? "pointofsale" : PAYMENT_METHOD_KEYS.has(p.method) ? p.method : "other"}`),
       value: money(p.amountCents),
     })),
     withdrawal: input.withdrawalUntilAt ? label(locale, "withdrawal", { date: formatDate(input.withdrawalUntilAt, locale, "long") }) : null,

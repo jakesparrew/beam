@@ -362,11 +362,20 @@ export const orders = pgTable(
     }>(),
     paidAt: tstz(),
     cancelledAt: tstz(),
+    /**
+     * Owner decision (November 2026): staff put the order on the client's account at the till
+     * ("Op rekening"). The order stays `pending_payment` without expiry until it is paid by a
+     * payment link, an open invoice or at the till.
+     */
+    onAccountAt: tstz(),
     version: integer().notNull().default(0),
     ...timestamps(),
   },
   (t) => [
     index("orders_person_created_idx").on(t.personId, t.createdAt.desc()),
+    index("orders_on_account_idx")
+      .on(t.personId, t.onAccountAt)
+      .where(sql`${t.onAccountAt} is not null and ${t.status} = 'pending_payment'`),
     index("orders_pending_expires_idx")
       .on(t.status, t.expiresAt)
       .where(sql`${t.status} = 'pending_payment'`),

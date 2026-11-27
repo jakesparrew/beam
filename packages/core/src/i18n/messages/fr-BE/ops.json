@@ -124,6 +124,12 @@
           "title": "Demandes de confidentialité proches de l’échéance",
           "empty": "Rien ne demande votre attention aujourd’hui",
           "row": "{kind}, échéance le {date}"
+        },
+        "open_accounts": {
+          "title": "Comptes ouverts",
+          "empty": "Rien ne demande d'attention aujourd'hui",
+          "row": "{amount} sur compte depuis le {date}",
+          "review": "Vers À suivre"
         }
       },
       "overview": {

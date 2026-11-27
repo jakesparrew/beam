@@ -24,8 +24,8 @@ import { formatDateTime, formatMoney, pick, t, type LocalizedText } from "@beam/
 import { hasPermission, requireStaff } from "@/lib/auth";
 import { getAppDb } from "@/lib/ctx";
 import { adminLocale, translator } from "@/lib/i18n";
-import { choosePaymentPath, cancelOrder, confirmManualRefund, emailReceipt, refundOrder, resendVoucher, retryRefund, sendPaymentLink, voidVoucher } from "@/modules/commerce/actions";
-import { getOrder, getRefundPreview, quickRefundLines } from "@/modules/commerce/queries";
+import { choosePaymentPath, cancelOrder, confirmManualRefund, emailReceipt, issueOnAccountInvoice, refundOrder, resendVoucher, retryRefund, sendPaymentLink, voidVoucher } from "@/modules/commerce/actions";
+import { EXTERNAL_CARD_METHOD, getOrder, getRefundPreview, quickRefundLines } from "@/modules/commerce/queries";
 
 type Result = { ok: true } | { ok: false; error: { message: string } };
 
@@ -45,7 +45,9 @@ function text(form: FormData, key: string): string | undefined {
  * timeline events. Actions (server actions): choose the payment path (drafts), send a payment
  * link, cancel (draft or pending), refund (`commerce.refund`: a dialog with one euro amount spread
  * over the lines, `quickRefundLines`, and a link to the per-line refund screen), retry a failed
- * refund, confirm a manual refund, email the receipt, resend or void a voucher.
+ * refund, confirm a manual refund, email the receipt, resend or void a voucher. An on-account
+ * order ("Op rekening") is settled here by a payment link, an open invoice (`invoices.issue`) or
+ * at the till.
  */
 export default async function OrderPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ done?: string; error?: string }> }) {
   const actor = await requireStaff();
@@ -66,6 +68,14 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
   const isPaid = order.status === "paid" || order.status === "partially_refunded";
   const line = (d: unknown, fallback: string) => pick(d as LocalizedText, locale, "order_lines.description") || fallback;
   const r = (k: string, p?: Record<string, string | number>) => tr(`commerce.admin_refund.${k}`, p);
+  const onAccount = order.status === "pending_payment" && !!order.onAccountAt;
+  const hasOpenTransfer = detail.payments.some((p) => p.provider === "bank_transfer" && p.status === "open");
+  const canInvoice = hasPermission(actor, "invoices.issue");
+  const methodText = (p: (typeof detail.payments)[number]) => {
+    if (p.method !== EXTERNAL_CARD_METHOD) return p.method ?? "—";
+    const ref = (p.raw as { terminal_reference?: string | null } | null)?.terminal_reference;
+    return ref ? `${tr("commerce.pos.method_card_terminal")} · ${ref}` : tr("commerce.pos.method_card_terminal");
+  };
   const refundableCents = canRefund && isPaid ? ((await getRefundPreview(await getAppDb(), id))?.refundableCents ?? 0) : 0;
 
   async function onPath(form: FormData) {
@@ -75,6 +85,10 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
   async function onLink(form: FormData) {
     "use server";
     back(id, await sendPaymentLink({ orderId: id, email: text(form, "email") }));
+  }
+  async function onInvoice() {
+    "use server";
+    back(id, await issueOnAccountInvoice({ orderId: id }));
   }
   async function onCancel(form: FormData) {
     "use server";
@@ -120,6 +134,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
           <h1 className="text-2xl font-semibold">{c("detail_title", { reference: order.reference })}</h1>
           <Badge>{tr(`commerce.order_status.${order.status}`)}</Badge>
           <Badge variant="outline">{tr(`commerce.channel.${order.channel}`)}</Badge>
+          {onAccount ? <Badge variant="outline">{tr("commerce.pos.on_account_since", { date: formatDateTime(order.onAccountAt!, locale, "short") })}</Badge> : null}
         </div>
         <p className="text-sm">
           {detail.companyName ?? detail.person?.name ?? c("walk_in")}
@@ -211,7 +226,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
               {detail.payments.map((p) => (
                 <TableRow key={p.id}>
                   <TableCell>{tr(`commerce.provider.${p.provider}`)}</TableCell>
-                  <TableCell>{p.method ?? "—"}</TableCell>
+                  <TableCell>{methodText(p)}</TableCell>
                   <TableCell>{tr(`commerce.payment_status.${p.status}`)}</TableCell>
                   <TableCell className="text-right tabular-nums">{money(p.amountCents)}</TableCell>
                   <TableCell className="text-xs">
@@ -342,6 +357,13 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
               <Input name="email" type="email" aria-label={c("email_optional")} placeholder={c("email_optional")} className="w-64" />
               <Button type="submit">{c("send_link")}</Button>
             </form>
+            {onAccount && canInvoice && !hasOpenTransfer ? (
+              <form action={onInvoice}>
+                <Button type="submit" variant="outline">
+                  {tr("commerce.pos.settle_invoice")}
+                </Button>
+              </form>
+            ) : null}
           </div>
         ) : null}
         {canSell && isOpen ? (

@@ -97,6 +97,10 @@ export function PosBasket(props: {
 
 export type PosPaymentText = {
   method: string;
+  cardTerminal: string;
+  terminalReference: string;
+  onAccount: string;
+  onAccountNeedsPerson: string;
   terminal: string;
   cash: string;
   bankTransfer: string;
@@ -117,7 +121,9 @@ export type PosPaymentText = {
 
 /**
  * Method, cash received, terminal, euro credit and the "Invoice to a company" fields. `hidden`
- * carries the basket (items, buyer, promotion, client key) or the order id.
+ * carries the basket (items, buyer, promotion, client key) or the order id. Kaart (terminal) (a
+ * card taken on a separate terminal) is the default method; the integrated terminal shows only
+ * when one is configured. "Op rekening" posts `onAccount=1` and needs a client.
  */
 export function PosPaymentForm(props: {
   action: (form: FormData) => Promise<void>;
@@ -126,6 +132,8 @@ export function PosPaymentForm(props: {
   allowBankTransfer: boolean;
   allowCash: boolean;
   canUseEuroCredit: boolean;
+  /** "Op rekening" is offered (null hides it); `allowed` is false without a client. */
+  onAccount: { allowed: boolean } | null;
   text: PosPaymentText;
 }) {
   const { text } = props;
@@ -138,9 +146,15 @@ export function PosPaymentForm(props: {
       <fieldset className="grid gap-2">
         <legend className="text-sm font-medium">{text.method}</legend>
         <label className="flex min-h-11 items-center gap-2 text-sm">
-          <input type="radio" name="method" value="terminal" defaultChecked className={radio} />
-          {text.terminal}
+          <input type="radio" name="method" value="card_terminal" defaultChecked className={radio} />
+          {text.cardTerminal}
         </label>
+        {props.terminals.length ? (
+          <label className="flex min-h-11 items-center gap-2 text-sm">
+            <input type="radio" name="method" value="terminal" className={radio} />
+            {text.terminal}
+          </label>
+        ) : null}
         {props.allowCash ? (
           <label className="flex min-h-11 items-center gap-2 text-sm">
             <input type="radio" name="method" value="cash" className={radio} />
@@ -155,15 +169,21 @@ export function PosPaymentForm(props: {
         ) : null}
       </fieldset>
       <label className="grid gap-1 text-sm">
-        <span>{text.terminalLabel}</span>
-        <select name="terminalId" className="h-11 rounded-md border border-input bg-transparent px-3 text-sm" defaultValue={props.terminals[0]?.id ?? ""}>
-          {props.terminals.map((term) => (
-            <option key={term.id} value={term.id}>
-              {term.name}
-            </option>
-          ))}
-        </select>
+        <span>{text.terminalReference}</span>
+        <Input name="terminalReference" maxLength={40} className="h-11 w-56" autoComplete="off" />
       </label>
+      {props.terminals.length ? (
+        <label className="grid gap-1 text-sm">
+          <span>{text.terminalLabel}</span>
+          <select name="terminalId" className="h-11 rounded-md border border-input bg-transparent px-3 text-sm" defaultValue={props.terminals[0]?.id ?? ""}>
+            {props.terminals.map((term) => (
+              <option key={term.id} value={term.id}>
+                {term.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
       {props.allowCash ? (
         <label className="grid gap-1 text-sm">
           <span>{text.cashReceived}</span>
@@ -201,9 +221,21 @@ export function PosPaymentForm(props: {
           ))}
         </div>
       </details>
-      <Button type="submit" className="min-h-11 text-base">
-        {text.pay}
-      </Button>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button type="submit" className="min-h-11 text-base">
+          {text.pay}
+        </Button>
+        {props.onAccount ? (
+          <Button type="submit" name="onAccount" value="1" variant="outline" className="min-h-11 text-base" disabled={!props.onAccount.allowed} aria-describedby={props.onAccount.allowed ? undefined : "pos-on-account-hint"}>
+            {text.onAccount}
+          </Button>
+        ) : null}
+      </div>
+      {props.onAccount && !props.onAccount.allowed ? (
+        <p id="pos-on-account-hint" className="text-sm text-muted-foreground">
+          {text.onAccountNeedsPerson}
+        </p>
+      ) : null}
     </form>
   );
 }

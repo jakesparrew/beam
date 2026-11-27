@@ -175,6 +175,21 @@ export const CARDS: readonly CardDef[] = [
       order: sql`b.sort1 desc, b.ref_id`,
     }),
   },
+  // Owner decision (November 2026): orders put on the client's account at the till and still
+  // open ("Openstaande rekeningen"), oldest first; worked on in Bestellingen > Op te volgen.
+  {
+    key: "open_accounts",
+    anyOf: ["reports.read", "commerce.sell"],
+    createsTasks: true,
+    load: async (_db, _env, _limit, sqlCard) => ({ ...(await sqlCard()), linkHref: "/admin/orders?status=attention" }),
+    query: () => ({
+      base: sql`select o.person_id, 'order' as ref_type, o.id::text as ref_id, extract(epoch from o.on_account_at)::numeric as sort1,
+          jsonb_build_object('amount', (o.total_cents - coalesce((select sum(p.amount_cents) from payments p where p.order_id = o.id and p.status in ('paid', 'partially_refunded', 'refunded')), 0))::int, 'date', o.on_account_at) as params
+        from orders o join persons pe on pe.id = o.person_id
+        where ${realPerson("pe")} and o.status = 'pending_payment' and o.on_account_at is not null`,
+      order: sql`b.sort1 asc, b.ref_id`,
+    }),
+  },
   // Rule 29, V1 part: registrations imported from the current webinar tool. The `webinar_tool`
   // applier stores `{ provider, external_webinar_id, title, starts_at }`, the generic history
   // import `webinar_title` and `webinar_starts_at`; both are read.
@@ -389,7 +404,7 @@ function normalise(v: unknown): string | number | null {
 
 /** Task kind per card (rule 22a). */
 export function taskKindFor(card: ActionCardKey): TaskKind {
-  if (card === "failed_payments") return "payment";
+  if (card === "failed_payments" || card === "open_accounts") return "payment";
   if (card === "b2b_proposals") return "proposal";
   if (card === "shared_package_abuse") return "review";
   return "follow_up";

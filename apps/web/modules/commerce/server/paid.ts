@@ -161,6 +161,15 @@ export async function finalizePaidOrder(tx: Tx, ctx: Ctx, orderId: string, opts:
     .update(orders)
     .set({ status: "paid", paidAt, withdrawalUntilAt, version: sql`${orders.version} + 1`, updatedAt: paidAt })
     .where(eq(orders.id, orderId));
+  // An on-account order paid another way (link, till) no longer waits for its open transfer.
+  await tx
+    .update(payments)
+    .set({
+      status: "cancelled",
+      statusHistory: sql`${payments.statusHistory} || ${JSON.stringify([{ status: "cancelled", at: paidAt.toISOString(), source: "staff" }])}::jsonb`,
+      updatedAt: paidAt,
+    })
+    .where(and(eq(payments.orderId, orderId), eq(payments.provider, "bank_transfer"), inArray(payments.status, ["open", "pending"])));
 
   // 2. The mandate of the paying payment (upserted by applyProviderStatus) feeds activateMembership.
   const paidPayments = await tx

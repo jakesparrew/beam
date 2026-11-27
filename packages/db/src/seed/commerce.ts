@@ -90,7 +90,7 @@ export const BEAM_SKUS = {
 } as const;
 
 /** The demo catalogue's booking extras (owner decision: add-ons in the booking flow). */
-const BOOKING_EXTRA_SKUS: readonly string[] = [BEAM_SKUS.detoxSalt, BEAM_SKUS.robeRental];
+const BOOKING_EXTRA_SKUS: readonly string[] = [BEAM_SKUS.detoxSalt, BEAM_SKUS.robeRental, DEMO_SKUS.herbalTea, DEMO_SKUS.soupBowl];
 
 /** 18 months, the validity of every BEAM package. */
 const EIGHTEEN_MONTHS = 548;
@@ -367,6 +367,7 @@ function specDemoProducts(now: Date): DemoProduct[] {
       description: text("Verse kruidenthee na je sessie.", "Une tisane fraîche après votre séance.", "Fresh herbal tea after your session."),
       vatRatePct: "21.00",
       itemCategory: "drink",
+      isBookingExtra: true,
       sortOrder: 201,
       prices: [{ amountCents: 350, validFromAt: from }],
     },
@@ -377,6 +378,7 @@ function specDemoProducts(now: Date): DemoProduct[] {
       description: text("Soep van de dag met brood.", "Soupe du jour avec du pain.", "Soup of the day with bread."),
       vatRatePct: "12.00",
       itemCategory: "food",
+      isBookingExtra: true,
       sortOrder: 210,
       prices: [{ amountCents: 850, validFromAt: from }],
     },

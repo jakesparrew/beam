@@ -937,8 +937,10 @@
       },
       "s2": {
         "title": "Kies je moment",
-        "intro": "Groen betekent: er is nog plaats. Klik op een tijdstip om verder te gaan.",
-        "change": "Andere ervaring"
+        "intro": "Kies één of meer momenten en ga verder.",
+        "change": "Andere ervaring",
+        "continue": "{count, plural, one {Verder met # sessie} other {Verder met # sessies}}",
+        "clear": "Wissen"
       },
       "tips": {
         "title": "Goed om te weten",
@@ -1043,14 +1045,14 @@
         "booked": "Je boeking is bevestigd. We stuurden de details naar je e-mailadres.",
         "noPayOption": "Deze sessie kan niet online geboekt worden. Neem contact met ons op.",
         "companionsTitle": "Kom je met meer personen?",
-        "companionsBody": "Voeg tot {max} volwassenen toe. Elke persoon neemt een plaats in en betaalt het volwassenentarief; een e-mailadres is niet verplicht.",
+        "companionsBody": "Voeg tot {max} volwassenen toe met hun e-mailadres. Elke persoon neemt een plaats in en betaalt de volwassenenprijs.",
         "companion": "Persoon {n}",
-        "companionEmail": "E-mailadres (niet verplicht)",
+        "companionEmail": "E-mailadres",
         "sharesBed": "Deelt een bed met mij tijdens de nacht",
         "addCompanion": "Persoon toevoegen",
         "removeCompanion": "Laatste persoon verwijderen",
         "extrasTitle": "Extra's bij je bezoek",
-        "extrasBody": "Reserveer ze nu, dan liggen ze voor je klaar.",
+        "extrasBody": "Tik om toe te voegen. Alles ligt klaar als je aankomt.",
         "extraFewer": "Eén {name} minder",
         "extraMore": "Eén {name} meer",
         "moreTitle": "Nog een sessie toevoegen",
@@ -1060,7 +1062,12 @@
         "codeHint": "We controleren de code wanneer je verdergaat. Een cadeaubon trekken we meteen van het totaal af.",
         "summaryTitle": "Jouw boeking",
         "seats": "Plaatsen: {n}",
-        "totalHint": "Geschat met de publieke prijzen. Bij de volgende stap zie je het exacte bedrag, met je kortingen."
+        "totalHint": "Geschat met de publieke prijzen. Bij de volgende stap zie je het exacte bedrag, met je kortingen.",
+        "payPackageChoice": "Koop een pakket en bespaar tot {pct}%",
+        "payPackageChoicePlain": "Koop een pakket",
+        "packagePick": "Pakket",
+        "removeSession": "{when} verwijderen",
+        "extraAdd": "Toevoegen"
       },
       "packages": {
         "title": "Of koop een pakket",
@@ -1068,7 +1075,12 @@
         "per": "{per} per sessie",
         "save": "{pct}% goedkoper dan {single}",
         "buyNamed": "Koop {name} voor {price}",
-        "inFlow": "Je kan ook een pakket kopen wanneer je een moment boekt: die boeking gebruikt dan één sessie ervan."
+        "inFlow": "Je kan ook een pakket kopen wanneer je een moment boekt: die boeking gebruikt dan één sessie ervan.",
+        "upTo": "Bespaar tot {pct}%",
+        "option": "{name} · {price}",
+        "optionSave": "{name} · {price} (−{pct}%)",
+        "choose": "Kies een pakket",
+        "buy": "Koop dit pakket"
       }
     }
   }

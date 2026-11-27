@@ -10,7 +10,7 @@ import { getSetting } from "@/lib/settings";
 import { bookAsGuest, bookSession } from "@/modules/booking/actions";
 import { getSessionCards } from "@/modules/booking/api";
 import { getBookableSession, getBookingAddOns, getBookingOffers } from "@/modules/booking/queries";
-import { GuestBookForm, type BookFormSession, type GuestBookState } from "@/modules/booking/ui/site/guest-book-form";
+import { GuestBookForm, type BookFormSession, type ExtraIcon, type GuestBookState } from "@/modules/booking/ui/site/guest-book-form";
 import { getPersonCreditSummary } from "@/modules/credits/api";
 import { getCurrentLegalVersion, getLegalLinks, hasAcceptedCurrentTerms } from "@/modules/site/api";
 import { BookSteps, InfoCard, TrustStrip } from "@/modules/site/ui/public/book-flow";
@@ -43,8 +43,29 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
 }
 
 /**
+ * Owner decision: another adult is added by email only. The name comes from the address
+ * ("jan.claes@…" is Jan Claes) until they complete their own profile.
+ */
+function namesFromEmail(email: string): { firstName: string; lastName: string } {
+  const cap = (x: string) => x.charAt(0).toUpperCase() + x.slice(1);
+  const local = email.split("@")[0] ?? "";
+  const [first, ...rest] = local.split(/[._+-]+/).filter(Boolean);
+  // ponytail: "-" as last name for one-word addresses; the person record keeps the email, so staff can complete it.
+  return { firstName: cap(first ?? local).slice(0, 100) || "-", lastName: rest.map(cap).join(" ").slice(0, 100) || "-" };
+}
+
+/** The tile icon of a booking extra without a photo. */
+function extraIcon(sku: string, category: string | null): ExtraIcon {
+  if (category === "drink") return "drink";
+  if (category === "food") return "food";
+  if (/robe/i.test(sku)) return "robe";
+  if (category === "wellness_product") return "salt";
+  return "gift";
+}
+
+/**
  * The submitted form as the actions' input. `pay` is `credit` (the client's own package), `order`
- * (this session) or `package:<productId>` (buy that package, this booking uses one session).
+ * (this session) or `package` with `packagePick=<productId>` (buy that package, this booking uses one session).
  */
 function readForm(fd: FormData) {
   const v = (k: string) => {
@@ -52,7 +73,7 @@ function readForm(fd: FormData) {
     return typeof x === "string" ? x.trim() : "";
   };
   const pay = v("pay");
-  const packageProductId = pay.startsWith("package:") ? pay.slice("package:".length) : undefined;
+  const packageProductId = pay === "package" && UUID.test(v("packagePick")) ? v("packagePick") : undefined;
   const children: Array<{ firstName: string; ageGroup: "child" | "youth" }> = [];
   for (let i = 0; i < MAX_KIDS; i++) {
     const firstName = v(`kids.${i}.firstName`);
@@ -62,10 +83,8 @@ function readForm(fd: FormData) {
   // Owner decisions: other adults, extras, more sessions in the same payment, a code, the campaign.
   const companions: Array<{ firstName: string; lastName: string; email?: string; sharesBed?: boolean }> = [];
   for (let i = 0; i < MAX_COMPANIONS; i++) {
-    const firstName = v(`companions.${i}.firstName`);
-    const lastName = v(`companions.${i}.lastName`);
     const email = v(`companions.${i}.email`);
-    if (firstName || lastName) companions.push({ firstName, lastName, ...(email ? { email } : {}), ...(fd.get(`companions.${i}.sharesBed`) === "on" ? { sharesBed: true } : {}) });
+    if (email) companions.push({ ...namesFromEmail(email), email, ...(fd.get(`companions.${i}.sharesBed`) === "on" ? { sharesBed: true } : {}) });
   }
   const extras: Array<{ productId: string; quantity: number }> = [];
   const moreSessionIds: string[] = [];
@@ -120,7 +139,7 @@ function refusal(locale: Locale, error: { code: string; message: string; fields?
  * seat and leads to step 2, review and pay (`/checkout/pay/<orderId>` for a guest,
  * `/account/checkout/<orderId>` when signed in).
  */
-export default async function PublicBookSessionPage({ params, searchParams }: { params: Promise<{ locale: string; sessionId: string }>; searchParams: Promise<{ booked?: string }> }) {
+export default async function PublicBookSessionPage({ params, searchParams }: { params: Promise<{ locale: string; sessionId: string }>; searchParams: Promise<{ booked?: string; more?: string }> }) {
   const { locale: seg, sessionId } = await params;
   const locale = localeFromSegment(seg);
   if (!locale || !UUID.test(sessionId)) notFound();
@@ -158,7 +177,8 @@ export default async function PublicBookSessionPage({ params, searchParams }: { 
   const termsHref = termsNeeded ? ((await getLegalLinks(locale, db).catch(() => null))?.terms ?? null) : null;
   const emergency = customer ? !!view?.needsEmergencyContact : card.kind === "night" && rules.require_emergency_contact_for_nights;
   const kidsAllowed = childrenAllowed({ kind: card.kind, startsAt: card.startsAt }) && rules.max_guests_per_booking > 0 && prices.childCents.child !== null && prices.childCents.youth !== null;
-  // Owner decisions: extras and more sessions of the next seven days (day and night).
+  // Owner decisions: extras, and the other sessions picked on the moment page (`?more=<id>,<id>`),
+  // kept only when they are bookable sessions of the next seven days.
   const addOns = card.kind === "event" ? { extras: [], moreSessions: [] } : await getBookingAddOns(db, sessionId).catch(() => ({ extras: [], moreSessions: [] }));
   const dayFmt = fmt({ weekday: "long", day: "numeric", month: "long" });
   const hm = fmt({ hour: "2-digit", minute: "2-digit" });
@@ -171,7 +191,8 @@ export default async function PublicBookSessionPage({ params, searchParams }: { 
     youthCents: prices.childCents.youth,
     childrenAllowed: kidsAllowed,
   };
-  const moreSessions: BookFormSession[] = addOns.moreSessions.map((m) => ({
+  const picked = new Set((sp.more ?? "").split(",").filter((id) => UUID.test(id)));
+  const moreSessions: BookFormSession[] = addOns.moreSessions.filter((m) => picked.has(m.sessionId)).map((m) => ({
     sessionId: m.sessionId,
     kind: m.kind,
     day: dayFmt.format(m.startsAt),
@@ -181,26 +202,34 @@ export default async function PublicBookSessionPage({ params, searchParams }: { 
     childrenAllowed: m.childrenAllowed,
   }));
 
-  const payOptions: Array<{ value: string; label: string; hint: string | null; packageCents?: number; packageKind?: string }> = [];
+  const payOptions: Array<{ value: string; label: string; hint: string | null }> = [];
   if (customer && view?.payOptions.includes("credit")) {
     payOptions.push({ value: "credit", label: tr("site.bookFlow.guest.payCredit"), hint: creditsLeft !== null ? tr("site.bookFlow.guest.payCreditHint", { count: creditsLeft }) : null });
   }
   if (card.productId && prices.singleCents !== null) {
     payOptions.push({ value: "order", label: tr("site.bookFlow.guest.payOrder", { price: money(prices.singleCents) }), hint: tr("site.bookFlow.guest.payOrderHint") });
   }
-  for (const o of prices.offers) {
-    const per = money(o.perSessionCents);
-    payOptions.push({
-      packageCents: o.priceCents,
-      packageKind: kind,
-      value: `package:${o.productId}`,
-      label: tr("site.bookFlow.guest.payPackage", { name: pick(o.name, locale), price: money(o.priceCents) }),
-      hint:
-        o.savingPct !== null && prices.singleCents !== null
-          ? tr("site.bookFlow.guest.payPackageSaving", { per, single: money(prices.singleCents), pct: o.savingPct })
-          : tr("site.bookFlow.guest.payPackageHint", { per }),
-    });
-  }
+  // Owner: one "buy a package" option with a dropdown of the packages and their saving.
+  const bestPct = Math.max(0, ...prices.offers.map((o) => o.savingPct ?? 0));
+  const packages = prices.offers.length
+    ? {
+        title: bestPct ? tr("site.bookFlow.guest.payPackageChoice", { pct: bestPct }) : tr("site.bookFlow.guest.payPackageChoicePlain"),
+        items: prices.offers.map((o) => {
+          const per = money(o.perSessionCents);
+          const name = pick(o.name, locale);
+          return {
+            productId: o.productId,
+            priceCents: o.priceCents,
+            kind,
+            label: o.savingPct ? tr("site.bookFlow.packages.optionSave", { name, price: money(o.priceCents), pct: o.savingPct }) : tr("site.bookFlow.packages.option", { name, price: money(o.priceCents) }),
+            detail:
+              o.savingPct !== null && prices.singleCents !== null
+                ? tr("site.bookFlow.guest.payPackageSaving", { per, single: money(prices.singleCents), pct: o.savingPct })
+                : tr("site.bookFlow.guest.payPackageHint", { per }),
+          };
+        }),
+      }
+    : null;
 
   const signedIn = !!customer;
   const user = session?.user;
@@ -283,7 +312,7 @@ export default async function PublicBookSessionPage({ params, searchParams }: { 
             <p role="status" className="rounded-2xl border border-border bg-card p-5">
               {tr("site.bookFlow.full")}
             </p>
-          ) : payOptions.length === 0 ? (
+          ) : payOptions.length === 0 && !packages ? (
             <p role="status" className="rounded-2xl border border-border bg-card p-5">
               {tr("site.bookFlow.guest.noPayOption")}
             </p>
@@ -296,9 +325,18 @@ export default async function PublicBookSessionPage({ params, searchParams }: { 
                 signedIn={signedIn}
                 loginHref={`${prefix}/account/login?returnTo=${encodeURIComponent(here)}`}
                 payOptions={payOptions}
+                packages={packages}
                 kids={kidsAllowed ? { max: Math.min(MAX_KIDS, rules.max_guests_per_booking) } : null}
                 companions={card.kind !== "event" && rules.max_guests_per_booking > 0 ? { max: Math.min(MAX_COMPANIONS, rules.max_guests_per_booking), sharedBeds: rules.max_shared_bed_guests_per_booking } : null}
-                extras={addOns.extras.map((e) => ({ productId: e.productId, name: pick(e.name, locale), priceCents: e.priceCents, price: money(e.priceCents), kinds: e.kinds }))}
+                extras={addOns.extras.map((e) => ({
+                  productId: e.productId,
+                  name: pick(e.name, locale),
+                  priceCents: e.priceCents,
+                  price: money(e.priceCents),
+                  kinds: e.kinds,
+                  icon: extraIcon(e.sku, e.itemCategory),
+                  imageUrl: e.imageFileId ? `/api/public/files/${e.imageFileId}` : null,
+                }))}
                 session={formSession}
                 moreSessions={moreSessions}
                 emergency={emergency}
@@ -316,6 +354,7 @@ export default async function PublicBookSessionPage({ params, searchParams }: { 
                   signIn: tr("site.bookFlow.account.login"),
                   signedIn: user ? tr("site.bookFlow.guest.signedIn", { name: user.name ?? user.email, email: user.email }) : null,
                   payTitle: tr("site.bookFlow.guest.payTitle"),
+                  packagePick: tr("site.bookFlow.guest.packagePick"),
                   kidsTitle: tr("site.bookFlow.guest.kidsTitle"),
                   kidsBody: tr("site.bookFlow.guest.kidsBody", { youth: money(prices.childCents.youth ?? 0) }),
                   kidFirstName: tr("site.bookFlow.guest.kidFirstName", { n: "{n}" }),
@@ -339,10 +378,10 @@ export default async function PublicBookSessionPage({ params, searchParams }: { 
                   removeCompanion: tr("site.bookFlow.guest.removeCompanion"),
                   extrasTitle: tr("site.bookFlow.guest.extrasTitle"),
                   extrasBody: tr("site.bookFlow.guest.extrasBody"),
+                  extraAdd: tr("site.bookFlow.guest.extraAdd"),
                   fewer: tr("site.bookFlow.guest.extraFewer", { name: "{name}" }),
                   more: tr("site.bookFlow.guest.extraMore", { name: "{name}" }),
-                  moreTitle: tr("site.bookFlow.guest.moreTitle"),
-                  moreBody: tr("site.bookFlow.guest.moreBody"),
+                  removeSession: tr("site.bookFlow.guest.removeSession", { when: "{when}" }),
                   kindDay: tr("site.bookFlow.day.title"),
                   kindNight: tr("site.bookFlow.night.title"),
                   codeTitle: tr("site.bookFlow.guest.codeTitle"),

@@ -59,7 +59,16 @@ export async function getBookingOffers(db: DbOrTx, sessionId: string, at: Date =
 }
 
 /** Owner decision: a booking extra the booking form offers, at its public price (the order's quote applies member discounts). */
-export type BookingExtraOffer = { productId: string; name: LocalizedText; priceCents: number; kinds: string[] };
+export type BookingExtraOffer = {
+  productId: string;
+  sku: string;
+  name: LocalizedText;
+  priceCents: number;
+  kinds: string[];
+  /** For the tile's icon when the product has no photo. */
+  itemCategory: string | null;
+  imageFileId: string | null;
+};
 
 /** Owner decision: a day or night session of the next days that the same booking can add. */
 export type MoreSessionOffer = { sessionId: string; kind: "day" | "night"; startsAt: Date; endsAt: Date; singleCents: number | null; youthCents: number | null; childrenAllowed: boolean };
@@ -72,14 +81,14 @@ export type MoreSessionOffer = { sessionId: string; kind: "day" | "night"; start
 export async function getBookingAddOns(db: DbOrTx, sessionId: string, opts: { days?: number; at?: Date } = {}): Promise<{ extras: BookingExtraOffer[]; moreSessions: MoreSessionOffer[] }> {
   const at = opts.at ?? new Date();
   const extraRows = await db
-    .select({ id: products.id, name: products.name, kinds: products.bookingExtraKinds })
+    .select({ id: products.id, sku: products.sku, name: products.name, kinds: products.bookingExtraKinds, itemCategory: products.itemCategory, imageFileId: products.imageFileId })
     .from(products)
     .where(and(eq(products.isBookingExtra, true), eq(products.isActive, true), eq(products.kind, "item")))
     .orderBy(asc(products.sortOrder), asc(products.sku));
   const extras: BookingExtraOffer[] = [];
   for (const r of extraRows) {
     const price = await getProductPrice(db, r.id, "public", at);
-    if (price) extras.push({ productId: r.id, name: r.name, priceCents: price.amountCents, kinds: r.kinds });
+    if (price) extras.push({ productId: r.id, sku: r.sku, name: r.name, priceCents: price.amountCents, kinds: r.kinds, itemCategory: r.itemCategory, imageFileId: r.imageFileId });
   }
 
   const to = new Date(at.getTime() + (opts.days ?? 7) * 86_400_000);

@@ -1,18 +1,19 @@
 "use client";
 /**
- * Step 1 of the public booking flow (owner's review 8): the details and the way to pay for one
- * chosen session, without an account. A guest gives email, full name and phone; a signed-in client
+ * Step 3 of the public booking flow (owner's review 8): the details and the way to pay for the
+ * chosen sessions, without an account. A guest gives email, full name and phone; a signed-in client
  * books as themselves and may pay with their package. Payment: this session (the method, such as
  * Bancontact or card, is picked on Stripe's page), the client's own package, or a package bought
- * now with one of its sessions used for this booking. Children (owner's review 1) come as rows
- * under the adult on sessions that take them. The page's server action returns the error with
- * the typed values, so nothing is lost and no detail goes into the URL; success redirects to
- * step 2 (review and pay).
+ * now (one option with a dropdown of the packages and their saving) with one of its sessions used
+ * for this booking. Children (owner's review 1) come as rows under the adult on sessions that take
+ * them. The page's server action returns the error with the typed values, so nothing is lost and no
+ * detail goes into the URL; success redirects to review and pay.
  *
- * Owner decisions, each in its own closed section so the default path stays one session for one
- * adult: other adults (companions, a shared bed on nights), extras with a quantity, more sessions
- * from the next days in the same payment, and a discount code or gift voucher. The running total
- * is an estimate from the public prices shown; the next step shows the order's own quote.
+ * Owner decisions: other adults are added by email only (a closed section, so the default path
+ * stays one adult); the extra sessions are picked on the moment page (step 2) and only listed here,
+ * each removable; extras are tiles with an icon under the booking summary; a discount code or gift
+ * voucher. The running total is an estimate from the public prices shown; the next step shows the
+ * order's own quote.
  */
 import { useActionState, useEffect, useRef, useState } from "react";
 import { readStoredUtm, utmFromSearch } from "@beam/core/site";
@@ -31,6 +32,7 @@ export type GuestBookLabels = {
   signIn: string;
   signedIn: string | null;
   payTitle: string;
+  packagePick: string;
   kidsTitle: string;
   kidsBody: string;
   kidFirstName: string;
@@ -54,10 +56,10 @@ export type GuestBookLabels = {
   removeCompanion: string;
   extrasTitle: string;
   extrasBody: string;
+  extraAdd: string;
   fewer: string;
   more: string;
-  moreTitle: string;
-  moreBody: string;
+  removeSession: string;
   kindDay: string;
   kindNight: string;
   codeTitle: string;
@@ -72,6 +74,8 @@ export type GuestBookLabels = {
 /** A session of the booking, labelled on the server. */
 export type BookFormSession = { sessionId: string; kind: "day" | "night" | "event"; day: string; time: string; priceCents: number | null; youthCents: number | null; childrenAllowed: boolean };
 
+export type ExtraIcon = "salt" | "robe" | "drink" | "food" | "gift";
+
 export type GuestBookFormProps = {
   action: (prev: GuestBookState, fd: FormData) => Promise<GuestBookState>;
   clientKey: string;
@@ -79,17 +83,20 @@ export type GuestBookFormProps = {
   /** False for a guest (the details fields are shown). */
   signedIn: boolean;
   loginHref: string;
-  /** `packageCents`/`packageKind`: the package bought with this option (running total only). */
-  payOptions: Array<{ value: string; label: string; hint: string | null; packageCents?: number; packageKind?: string | null }>;
+  /** "credit" (own package) and "order" (this session). */
+  payOptions: Array<{ value: string; label: string; hint: string | null }>;
+  /** The packages to buy now (`pay=package`, `packagePick=<productId>`), smallest first; `kind` is what they pay for. */
+  packages: { title: string; items: Array<{ productId: string; label: string; detail: string; priceCents: number; kind: string }> } | null;
   /** Children rows (at most `max`) when the session takes children. */
   kids: { max: number } | null;
   /** Other adults (R54): at most `max`; `sharedBeds` of them may share the owner's bed on nights (R13). */
   companions: { max: number; sharedBeds: number } | null;
-  extras: Array<{ productId: string; name: string; priceCents: number; price: string; kinds: string[] }>;
+  extras: Array<{ productId: string; name: string; priceCents: number; price: string; kinds: string[]; icon: ExtraIcon; imageUrl: string | null }>;
   session: BookFormSession;
+  /** The other sessions picked on the moment page, all in the booking until removed here. */
   moreSessions: BookFormSession[];
   emergency: boolean;
-  /** Ask the emergency contact as soon as a night is added (required for a guest). */
+  /** Ask the emergency contact as soon as a night is in the booking (required for a guest). */
   emergencyIfNight: boolean;
   terms: { href: string | null } | null;
   labels: GuestBookLabels;
@@ -103,7 +110,16 @@ const INPUT =
 const SECTION = "rounded-2xl border border-border p-5";
 const SUMMARY = "cursor-pointer font-display text-xl";
 const ROUND =
-  "grid size-10 place-items-center rounded-full border border-border bg-card text-lg font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-40";
+  "grid size-8 place-items-center rounded-full border border-border bg-card text-base font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-40";
+
+/** Small line icons for the extra tiles (24px grid, stroke). */
+const ICON_PATHS: Record<ExtraIcon, string> = {
+  salt: "M8 3h8M9 3v3l-3 3v10a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V9l-3-3V3M9 13h.01M12 15h.01M15 12h.01",
+  robe: "M8 3 4 6l1.5 5L7 10v11h10V10l1.5 1L20 6l-4-3-4 5-4-5zM12 8v13",
+  drink: "M5 8h12v5a6 6 0 0 1-12 0V8zM17 9h1.5a2.5 2.5 0 0 1 0 5H17M8 2v3M11 2v3M14 2v3",
+  food: "M3 11h18a9 9 0 0 1-18 0zM12 4v3M8 5l1 2M16 5l-1 2",
+  gift: "M4 10h16v10H4zM3 7h18v3H3zM12 7v13M12 7c-2-4-6-3-5 0M12 7c2-4 6-3 5 0",
+};
 
 const INITIAL: GuestBookState = { error: null, fields: [], values: {}, n: 0 };
 const MAX_EXTRA = 10;
@@ -114,6 +130,7 @@ export function GuestBookForm(p: GuestBookFormProps) {
   const bad = (name: string) => (state.fields.includes(name) ? true : undefined);
   const errId = "guest-book-error";
   const formRef = useRef<HTMLFormElement>(null);
+  const packageRadio = useRef<HTMLInputElement>(null);
   // What the running total and the conditional fields read: the form's current values (after a
   // server answer, the values it returned).
   const [typed, setTyped] = useState<{ n: number; values: Record<string, string> }>({ n: state.n, values: state.values });
@@ -125,9 +142,10 @@ export function GuestBookForm(p: GuestBookFormProps) {
     setTyped({ n: state.n, values: out });
   };
   const companionsMax = p.companions?.max ?? 0;
-  const initialCompanions = Array.from({ length: companionsMax }, (_, i) => i).filter((i) => v(`companions.${i}.firstName`) || v(`companions.${i}.lastName`)).length;
+  const initialCompanions = Array.from({ length: companionsMax }, (_, i) => i).filter((i) => v(`companions.${i}.email`)).length;
   const [companionCount, setCompanionCount] = useState(initialCompanions);
   const [extras, setExtras] = useState<Record<string, number>>(() => Object.fromEntries(p.extras.map((e) => [e.productId, Number(v(`extras.${e.productId}`)) || 0])));
+  const [moreIds, setMoreIds] = useState<string[]>(() => p.moreSessions.map((s) => s.sessionId));
   const utmRef = useRef<HTMLInputElement>(null);
 
   // Campaign links (Google Business Profile, Instagram, Facebook): the visit's stored UTM (after
@@ -155,20 +173,24 @@ export function GuestBookForm(p: GuestBookFormProps) {
       />
     </label>
   );
-  const checkedPay = state.values.pay ?? p.payOptions[0]?.value;
+  const checkedPay = state.values.pay ?? p.payOptions[0]?.value ?? (p.packages ? "package" : undefined);
   const kidRows = p.kids ? Array.from({ length: p.kids.max }, (_, i) => i) : [];
   const kidsOpen = kidRows.some((i) => v(`kids.${i}.firstName`) || v(`kids.${i}.ageGroup`));
 
   // The booking as chosen right now.
-  const chosen = [p.session, ...p.moreSessions.filter((s) => snap[`more.${s.sessionId}`] === "on")];
+  const more = p.moreSessions.filter((s) => moreIds.includes(s.sessionId));
+  const chosen = [p.session, ...more];
   const hasNight = chosen.some((s) => s.kind === "night");
   const kinds = new Set(chosen.map((s) => s.kind));
   const visibleExtras = p.extras.filter((e) => e.kinds.length === 0 || e.kinds.some((k) => kinds.has(k as BookFormSession["kind"])));
   const kidAges = kidRows.map((i) => (snap[`kids.${i}.firstName`]?.trim() ? snap[`kids.${i}.ageGroup`] : "")).filter((a) => a === "child" || a === "youth");
-  const pay = p.payOptions.find((o) => o.value === (snap.pay ?? checkedPay));
-  const ownSeatFree = (s: BookFormSession) => pay?.value === "credit" || (!!pay?.packageKind && pay.packageKind === s.kind);
+  const payValue = snap.pay ?? checkedPay;
+  const pickedPackageId = snap.packagePick ?? v("packagePick") ?? "";
+  const pkg = p.packages ? (p.packages.items.find((i) => i.productId === pickedPackageId) ?? p.packages.items[0]) : undefined;
+  const buying = payValue === "package" ? pkg : undefined;
+  const ownSeatFree = (s: BookFormSession) => payValue === "credit" || (!!buying && buying.kind === s.kind);
   const fmt = (cents: number) => new Intl.NumberFormat(p.locale, { style: "currency", currency: "EUR" }).format(cents / 100);
-  let total = pay?.packageCents ?? 0;
+  let total = buying?.priceCents ?? 0;
   for (const s of chosen) {
     const seat = s.priceCents ?? 0;
     total += (ownSeatFree(s) ? 0 : seat) + seat * companionCount;
@@ -177,14 +199,15 @@ export function GuestBookForm(p: GuestBookFormProps) {
   for (const e of visibleExtras) total += e.priceCents * (extras[e.productId] ?? 0);
   const seatsPer = (s: BookFormSession) => 1 + companionCount + (s.childrenAllowed ? kidAges.length : 0);
   const kindLabel = (k: BookFormSession["kind"]) => (k === "night" ? p.labels.kindNight : k === "day" ? p.labels.kindDay : "");
-
-  const moreByDay = new Map<string, BookFormSession[]>();
-  for (const s of p.moreSessions) moreByDay.set(s.day, [...(moreByDay.get(s.day) ?? []), s]);
+  const setExtra = (id: string, n: number) => setExtras((x) => ({ ...x, [id]: Math.max(0, Math.min(MAX_EXTRA, n)) }));
 
   return (
     <form key={state.n} ref={formRef} action={formAction} onChange={read} className="grid gap-8" data-testid="guest-book-form">
       <input type="hidden" name="clientKey" value={p.clientKey} />
       <input ref={utmRef} type="hidden" name="utm" defaultValue="" />
+      {more.map((s) => (
+        <input key={s.sessionId} type="hidden" name={`more.${s.sessionId}`} value="on" />
+      ))}
       {state.error ? (
         <p id={errId} role="alert" className="rounded-2xl border border-destructive/40 bg-destructive/5 p-4 text-sm" data-testid="guest-book-error">
           {state.error}
@@ -229,21 +252,42 @@ export function GuestBookForm(p: GuestBookFormProps) {
             </span>
           </label>
         ))}
+        {p.packages && pkg ? (
+          <label className={OPTION} data-testid="pay-package-option">
+            <input ref={packageRadio} type="radio" name="pay" value="package" defaultChecked={checkedPay === "package"} className="mt-1 size-5 accent-[#212842]" data-testid="pay-package" />
+            <span className="flex min-w-0 flex-1 flex-col gap-2">
+              <span className="font-medium">{p.packages.title}</span>
+              <select
+                name="packagePick"
+                aria-label={p.labels.packagePick}
+                defaultValue={pkg.productId}
+                onChange={() => {
+                  if (packageRadio.current) packageRadio.current.checked = true;
+                }}
+                className={`${INPUT} h-11 cursor-pointer`}
+                data-testid="package-pick"
+              >
+                {p.packages.items.map((i) => (
+                  <option key={i.productId} value={i.productId}>
+                    {i.label}
+                  </option>
+                ))}
+              </select>
+              <span className="text-sm text-muted-foreground">{pkg.detail}</span>
+            </span>
+          </label>
+        ) : null}
       </fieldset>
 
       {p.companions ? (
         <details open={companionCount > 0} className={SECTION} data-testid="companions">
           <summary className={SUMMARY}>{p.labels.companionsTitle}</summary>
           <p className="mt-2 text-sm text-muted-foreground">{p.labels.companionsBody}</p>
-          <div className="mt-4 grid gap-5">
+          <div className="mt-4 grid gap-4">
             {Array.from({ length: companionCount }, (_, i) => (
-              <fieldset key={i} className="grid gap-3 border-t border-border pt-4 first:border-t-0 first:pt-0" data-testid={`companion-${i}`}>
-                <legend className="text-sm font-semibold">{p.labels.companion.replace("{n}", String(i + 2))}</legend>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {text(`companions.${i}.firstName`, p.labels.firstName, { autoComplete: "off" })}
-                  {text(`companions.${i}.lastName`, p.labels.lastName, { autoComplete: "off" })}
-                </div>
-                {text(`companions.${i}.email`, p.labels.companionEmail, { type: "email", maxLength: 254, required: false })}
+              <fieldset key={i} className="grid gap-2" data-testid={`companion-${i}`}>
+                <legend className="sr-only">{p.labels.companion.replace("{n}", String(i + 2))}</legend>
+                {text(`companions.${i}.email`, `${p.labels.companion.replace("{n}", String(i + 2))} · ${p.labels.companionEmail}`, { type: "email", maxLength: 254 })}
                 {hasNight && p.companions!.sharedBeds > 0 ? (
                   <label className="flex min-h-11 items-center gap-3 text-sm font-medium">
                     <input type="checkbox" name={`companions.${i}.sharesBed`} defaultChecked={v(`companions.${i}.sharesBed`) === "on"} className="size-5 accent-[#212842]" />
@@ -293,67 +337,6 @@ export function GuestBookForm(p: GuestBookFormProps) {
         </details>
       ) : null}
 
-      {p.moreSessions.length ? (
-        <details open={chosen.length > 1} className={SECTION} data-testid="more-sessions">
-          <summary className={SUMMARY}>{p.labels.moreTitle}</summary>
-          <p className="mt-2 text-sm text-muted-foreground">{p.labels.moreBody}</p>
-          <div className="mt-4 grid gap-4">
-            {[...moreByDay.entries()].map(([day, slots]) => (
-              <fieldset key={day} className="grid gap-2">
-                <legend className="mb-1 text-sm font-semibold first-letter:uppercase">{day}</legend>
-                <div className="flex flex-wrap gap-2">
-                  {slots.map((s) => (
-                    <label
-                      key={s.sessionId}
-                      className="flex min-h-11 cursor-pointer items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm has-[:checked]:border-[#212842] has-[:checked]:bg-[#fffaef]"
-                    >
-                      <input type="checkbox" name={`more.${s.sessionId}`} defaultChecked={v(`more.${s.sessionId}`) === "on"} className="size-4 accent-[#212842]" />
-                      <span>
-                        {s.kind === "night" ? "☾" : "☀"} {s.time}
-                        <span className="sr-only"> {kindLabel(s.kind)}</span>
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
-            ))}
-          </div>
-        </details>
-      ) : null}
-
-      {visibleExtras.length ? (
-        <details open={visibleExtras.some((e) => (extras[e.productId] ?? 0) > 0)} className={SECTION} data-testid="extras">
-          <summary className={SUMMARY}>{p.labels.extrasTitle}</summary>
-          <p className="mt-2 text-sm text-muted-foreground">{p.labels.extrasBody}</p>
-          <ul className="mt-4 grid gap-3">
-            {visibleExtras.map((e) => {
-              const qty = extras[e.productId] ?? 0;
-              const set = (n: number) => setExtras((x) => ({ ...x, [e.productId]: Math.max(0, Math.min(MAX_EXTRA, n)) }));
-              return (
-                <li key={e.productId} className="flex items-center justify-between gap-4" data-testid={`extra-${e.productId}`}>
-                  <span className="grid">
-                    <span className="font-medium">{e.name}</span>
-                    <span className="text-sm text-muted-foreground tabular-nums">{e.price}</span>
-                  </span>
-                  <span className="flex items-center gap-3">
-                    <button type="button" className={ROUND} onClick={() => set(qty - 1)} disabled={qty === 0} aria-label={p.labels.fewer.replace("{name}", e.name)}>
-                      −
-                    </button>
-                    <output aria-live="polite" className="w-6 text-center font-semibold tabular-nums">
-                      {qty}
-                    </output>
-                    <button type="button" className={ROUND} onClick={() => set(qty + 1)} disabled={qty >= MAX_EXTRA} aria-label={p.labels.more.replace("{name}", e.name)}>
-                      +
-                    </button>
-                    <input type="hidden" name={`extras.${e.productId}`} value={qty} />
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        </details>
-      ) : null}
-
       {p.emergency || (p.emergencyIfNight && hasNight) ? (
         <fieldset className="grid gap-4 sm:grid-cols-2" data-testid="emergency-fields">
           <legend className={`${LEGEND} sm:col-span-2`}>{p.labels.emergencyTitle}</legend>
@@ -381,6 +364,114 @@ export function GuestBookForm(p: GuestBookFormProps) {
         </p>
       </details>
 
+      <section aria-labelledby="book-summary" className="grid gap-3 rounded-2xl bg-[#fffaef] p-5" data-testid="book-summary">
+        <h3 id="book-summary" className="font-semibold">
+          {p.labels.summaryTitle}
+        </h3>
+        <ul className="grid gap-1.5 text-sm">
+          {chosen.map((s, i) => (
+            <li key={s.sessionId} className="flex items-center justify-between gap-3">
+              <span className="first-letter:uppercase">
+                {kindLabel(s.kind) ? `${kindLabel(s.kind)} · ` : ""}
+                {s.day} · {s.time}
+              </span>
+              <span className="flex shrink-0 items-center gap-2 text-muted-foreground">
+                {p.labels.seats.replace("{n}", String(seatsPer(s)))}
+                {i > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => setMoreIds((ids) => ids.filter((id) => id !== s.sessionId))}
+                    aria-label={p.labels.removeSession.replace("{when}", `${s.day} ${s.time}`)}
+                    className="grid size-6 place-items-center rounded-full text-muted-foreground hover:bg-[#212842]/10 hover:text-foreground"
+                    data-testid={`remove-session-${s.sessionId}`}
+                  >
+                    ×
+                  </button>
+                ) : null}
+              </span>
+            </li>
+          ))}
+          {visibleExtras
+            .filter((e) => (extras[e.productId] ?? 0) > 0)
+            .map((e) => (
+              <li key={e.productId} className="flex justify-between gap-3">
+                <span>
+                  {extras[e.productId]} × {e.name}
+                </span>
+                <span className="text-muted-foreground tabular-nums">{fmt(e.priceCents * (extras[e.productId] ?? 0))}</span>
+              </li>
+            ))}
+        </ul>
+        <p className="flex items-baseline justify-between gap-3 border-t border-[#212842]/15 pt-3">
+          <span className="font-semibold">{p.labels.total}</span>
+          <span className="text-xl font-semibold tabular-nums" data-testid="book-total" suppressHydrationWarning>
+            {fmt(total)}
+          </span>
+        </p>
+        <p className="text-xs text-muted-foreground">{p.labels.totalHint}</p>
+      </section>
+
+      {visibleExtras.length ? (
+        <section aria-labelledby="book-extras" className="-mt-4 grid gap-3" data-testid="extras">
+          <div>
+            <h3 id="book-extras" className="font-display text-xl">
+              {p.labels.extrasTitle}
+            </h3>
+            <p className="text-sm text-muted-foreground">{p.labels.extrasBody}</p>
+          </div>
+          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {visibleExtras.map((e) => {
+              const qty = extras[e.productId] ?? 0;
+              return (
+                <li
+                  key={e.productId}
+                  className={`relative grid justify-items-center gap-2 rounded-2xl border-2 p-3 text-center transition ${qty ? "border-[#212842] bg-[#fffaef]" : "border-border bg-card"}`}
+                  data-testid={`extra-${e.productId}`}
+                >
+                  <span aria-hidden="true" className="grid size-14 place-items-center overflow-hidden rounded-full bg-[#f4ead3] text-[#9a7428]">
+                    {e.imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- product photo from the files route
+                      <img src={e.imageUrl} alt="" className="size-full object-cover" />
+                    ) : (
+                      <svg viewBox="0 0 24 24" className="size-7" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                        <path d={ICON_PATHS[e.icon]} />
+                      </svg>
+                    )}
+                  </span>
+                  <span className="grid">
+                    <span className="text-sm leading-tight font-semibold">{e.name}</span>
+                    <span className="text-xs text-muted-foreground tabular-nums">{e.price}</span>
+                  </span>
+                  {qty === 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => setExtra(e.productId, 1)}
+                      aria-label={p.labels.more.replace("{name}", e.name)}
+                      className="rounded-full border border-[#212842] px-4 py-1 text-xs font-semibold hover:bg-[#212842] hover:text-[#fffaef]"
+                    >
+                      + {p.labels.extraAdd}
+                    </button>
+                  ) : (
+                    <span className="flex items-center gap-2">
+                      <button type="button" className={ROUND} onClick={() => setExtra(e.productId, qty - 1)} aria-label={p.labels.fewer.replace("{name}", e.name)}>
+                        −
+                      </button>
+                      <output aria-live="polite" className="w-5 text-center text-sm font-semibold tabular-nums">
+                        {qty}
+                      </output>
+                      <button type="button" className={ROUND} onClick={() => setExtra(e.productId, qty + 1)} disabled={qty >= MAX_EXTRA} aria-label={p.labels.more.replace("{name}", e.name)}>
+                        +
+                      </button>
+                    </span>
+                  )}
+                  <input type="hidden" name={`extras.${e.productId}`} value={qty} />
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ) : null}
+
       {p.terms ? (
         <div className="space-y-1">
           <label className="flex min-h-11 items-center gap-3 font-medium">
@@ -394,39 +485,6 @@ export function GuestBookForm(p: GuestBookFormProps) {
           ) : null}
         </div>
       ) : null}
-
-      <section aria-labelledby="book-summary" className="grid gap-3 rounded-2xl bg-[#fffaef] p-5" data-testid="book-summary">
-        <h3 id="book-summary" className="font-semibold">
-          {p.labels.summaryTitle}
-        </h3>
-        <ul className="grid gap-1 text-sm">
-          {chosen.map((s) => (
-            <li key={s.sessionId} className="flex justify-between gap-3">
-              <span className="first-letter:uppercase">
-                {kindLabel(s.kind) ? `${kindLabel(s.kind)} · ` : ""}
-                {s.day} · {s.time}
-              </span>
-              <span className="shrink-0 text-muted-foreground">{p.labels.seats.replace("{n}", String(seatsPer(s)))}</span>
-            </li>
-          ))}
-          {visibleExtras
-            .filter((e) => (extras[e.productId] ?? 0) > 0)
-            .map((e) => (
-              <li key={e.productId} className="flex justify-between gap-3">
-                <span>
-                  {extras[e.productId]} × {e.name}
-                </span>
-              </li>
-            ))}
-        </ul>
-        <p className="flex items-baseline justify-between gap-3 border-t border-[#212842]/15 pt-3">
-          <span className="font-semibold">{p.labels.total}</span>
-          <span className="text-xl font-semibold tabular-nums" data-testid="book-total" suppressHydrationWarning>
-            {fmt(total)}
-          </span>
-        </p>
-        <p className="text-xs text-muted-foreground">{p.labels.totalHint}</p>
-      </section>
 
       <div className="grid gap-2">
         <button

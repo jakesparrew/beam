@@ -13,6 +13,7 @@ export const TERMS_CONTEXTS: readonly TermsContext[] = ["checkout", "signup", "b
 
 export type PortalRoute =
   | "home"
+  | "book"
   | "book_day"
   | "book_night"
   | "bookings"

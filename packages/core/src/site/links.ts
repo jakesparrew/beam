@@ -10,6 +10,7 @@ import type { PortalRoute } from "./types";
 
 export const PORTAL_ROUTES = [
   "home",
+  "book",
   "book_day",
   "book_night",
   "bookings",
@@ -25,6 +26,8 @@ export const PORTAL_ROUTES = [
 /** Path below `/<prefix>` and fixed query of each portal route. */
 const PORTAL_TARGETS: Record<PortalRoute, { path: string; query?: Record<string, string> }> = {
   home: { path: "account" },
+  /** The public booking flow from its first step (day or night): every "Book your session" button. */
+  book: { path: "book" },
   book_day: { path: "account/book", query: { kind: "day" } },
   book_night: { path: "account/book", query: { kind: "night" } },
   bookings: { path: "account/bookings" },

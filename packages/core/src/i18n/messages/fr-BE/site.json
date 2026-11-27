@@ -937,8 +937,10 @@
       },
       "s2": {
         "title": "Choisissez votre moment",
-        "intro": "Vert signifie : il reste de la place. Cliquez sur un horaire pour continuer.",
-        "change": "Autre formule"
+        "intro": "Choisissez un ou plusieurs moments, puis continuez.",
+        "change": "Autre formule",
+        "continue": "{count, plural, one {Continuer avec # séance} other {Continuer avec # séances}}",
+        "clear": "Effacer"
       },
       "tips": {
         "title": "Bon à savoir",
@@ -1043,14 +1045,14 @@
         "booked": "Votre réservation est confirmée. Nous avons envoyé les détails à votre adresse e-mail.",
         "noPayOption": "Cette séance ne peut pas être réservée en ligne. Contactez-nous.",
         "companionsTitle": "Vous venez à plusieurs ?",
-        "companionsBody": "Ajoutez jusqu'à {max} adultes. Chaque personne occupe une place et paie le tarif adulte ; l'adresse e-mail est facultative.",
+        "companionsBody": "Ajoutez jusqu'à {max} adultes avec leur adresse e-mail. Chaque personne occupe une place et paie le prix adulte.",
         "companion": "Personne {n}",
-        "companionEmail": "Adresse e-mail (facultatif)",
+        "companionEmail": "Adresse e-mail",
         "sharesBed": "Partage mon lit pendant la nuit",
         "addCompanion": "Ajouter une personne",
         "removeCompanion": "Retirer la dernière personne",
         "extrasTitle": "Extras pour votre visite",
-        "extrasBody": "Réservez-les maintenant, ils vous attendront.",
+        "extrasBody": "Touchez pour ajouter. Tout sera prêt à votre arrivée.",
         "extraFewer": "Un {name} de moins",
         "extraMore": "Un {name} de plus",
         "moreTitle": "Ajouter une autre séance",
@@ -1060,7 +1062,12 @@
         "codeHint": "Nous vérifions le code lorsque vous continuez. Un chèque-cadeau est déduit tout de suite du total.",
         "summaryTitle": "Votre réservation",
         "seats": "Places : {n}",
-        "totalHint": "Estimé aux prix publics. À l'étape suivante, vous voyez le montant exact, avec vos réductions."
+        "totalHint": "Estimé aux prix publics. À l'étape suivante, vous voyez le montant exact, avec vos réductions.",
+        "payPackageChoice": "Achetez un forfait et économisez jusqu'à {pct} %",
+        "payPackageChoicePlain": "Acheter un forfait",
+        "packagePick": "Forfait",
+        "removeSession": "Retirer {when}",
+        "extraAdd": "Ajouter"
       },
       "packages": {
         "title": "Ou achetez un forfait",
@@ -1068,7 +1075,12 @@
         "per": "{per} la séance",
         "save": "{pct} % de moins que {single}",
         "buyNamed": "Acheter {name} pour {price}",
-        "inFlow": "Vous pouvez aussi acheter un forfait en réservant un créneau : cette réservation utilise alors une de ses séances."
+        "inFlow": "Vous pouvez aussi acheter un forfait en réservant un créneau : cette réservation utilise alors une de ses séances.",
+        "upTo": "Économisez jusqu'à {pct} %",
+        "option": "{name} · {price}",
+        "optionSave": "{name} · {price} (−{pct} %)",
+        "choose": "Choisissez un forfait",
+        "buy": "Acheter ce forfait"
       }
     }
   }

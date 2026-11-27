@@ -108,7 +108,7 @@ const HOME: Builder = (i, c) => [
     "Een omgeving doelbewust ontworpen voor rust, herstel en balans. Europa's grootste 48-unit EESystem-installatie, in Sint-Martens-Latem bij Gent.",
     "Un environnement conçu pour le repos, la récupération et l'équilibre. La plus grande installation EESystem de 48 unités d'Europe, à Sint-Martens-Latem près de Gand.",
     "An environment specifically created for rest, recovery and balance. Europe's largest 48-unit EESystem installation, in Sint-Martens-Latem near Ghent.",
-  ], { label: BOOK, link: portal("book_day") }, "hero"),
+  ], { label: BOOK, link: portal("book") }, "hero"),
   book(i, c, "quick-day", L_DAY, { kind: "book_day" }, DAY_NOTE),
   book(i, c, "quick-night", L_NIGHT, { kind: "book_night" }, NIGHT_NOTE),
   book(i, c, "quick-gift", L_GIFT, { kind: "gift" }, GIFT_NOTE),
@@ -228,7 +228,7 @@ const HOME: Builder = (i, c) => [
   ]),
   ...reviews(i, c, "review"),
   { id: c.id("events"), type: "events_list", heading: ["Komende events", "Événements à venir", "Upcoming events"][i]!, limit: 3, showFull: true },
-  cta(i, c, "cta", ["Klaar om op te laden?", "Prêt à vous ressourcer ?", "Ready to recharge?"], ["Kom tot rust in de grootste EESystem-ruimte van Europa.", "Venez vous ressourcer dans le plus grand espace EESystem d'Europe.", "Come and recharge in Europe's largest EESystem space."], BOOK, portal("book_day")),
+  cta(i, c, "cta", ["Klaar om op te laden?", "Prêt à vous ressourcer ?", "Ready to recharge?"], ["Kom tot rust in de grootste EESystem-ruimte van Europa.", "Venez vous ressourcer dans le plus grand espace EESystem d'Europe.", "Come and recharge in Europe's largest EESystem space."], BOOK, portal("book")),
 ];
 
 const DAY_INTRO: Part = { p: [["Een sessie bij BEAM duurt **2 uur**. Je komt tot rust in een stille, coherente ruimte. Er wordt niets van je verwacht: je kunt rusten, lezen of gewoon zijn.", "Une séance chez BEAM dure **2 heures**. Vous vous détendez dans un espace calme et cohérent. Rien n'est attendu de vous : vous pouvez vous reposer, lire ou simplement être.", "A session at BEAM lasts **2 hours**. You unwind in a quiet, coherent space. Nothing is expected of you: rest, read or simply be."]] };
@@ -388,7 +388,7 @@ const ABOUT: Builder = (i, c) => [
       ["**Christophe Haddad**: ontwerp en realisatie van de BEAM-omgeving, met een achtergrond in operations en mensgericht ontwerp.", "**Christophe Haddad** : conception et réalisation de l'environnement BEAM, avec une expérience en opérations et en design centré sur l'humain.", "**Christophe Haddad**: design and build of the BEAM environment, with a background in operations and human-centred design."],
     ] },
   ]),
-  cta(i, c, "cta", ["Ervaar het zelf", "Faites-en l'expérience", "Experience it yourself"], ["De beste manier om BEAM te begrijpen is er te zijn.", "La meilleure façon de comprendre BEAM, c'est d'y être.", "The best way to understand BEAM is to be there."], BOOK, portal("book_day")),
+  cta(i, c, "cta", ["Ervaar het zelf", "Faites-en l'expérience", "Experience it yourself"], ["De beste manier om BEAM te begrijpen is er te zijn.", "La meilleure façon de comprendre BEAM, c'est d'y être.", "The best way to understand BEAM is to be there."], BOOK, portal("book")),
 ];
 
 const ENVIRONMENT: Builder = (i, c) => [

@@ -107,7 +107,7 @@ export function doc(i: number, parts: Part[]): RichDoc {
 }
 
 export const rt = (i: number, c: BuildCtx, key: string, parts: Part[]): Block => ({ id: c.id(key), type: "rich_text", doc: doc(i, parts) });
-export const portal = (route: "book_day" | "book_night" | "home" | "membership" | "packages" | "bookings"): Link => ({ kind: "portal", route });
+export const portal = (route: "book" | "book_day" | "book_night" | "home" | "membership" | "packages" | "bookings"): Link => ({ kind: "portal", route });
 export const hero = (i: number, c: BuildCtx, heading: L3, sub: L3, cta?: { label: L3; link: Link }, img?: MediaKey): Block => {
   const mediaId = img ? c.media(img) : undefined;
   return {

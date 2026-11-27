@@ -974,6 +974,17 @@
       "saved": "Het rapport is opgeslagen.",
       "send": "Rapport versturen",
       "sent": "Het rapport is verstuurd."
+    },
+    "step_form": {
+      "next": "Volgende",
+      "previous": "Vorige",
+      "progress": "Stap {current} van {total}",
+      "review": "Overzicht",
+      "review_intro": "Kijk je antwoorden na en sla op.",
+      "edit": "Wijzigen",
+      "enter_hint": "of druk op Enter ↵",
+      "yes": "Ja",
+      "no": "Nee"
     }
   }
 }

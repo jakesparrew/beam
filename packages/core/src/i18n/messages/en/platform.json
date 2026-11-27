@@ -974,6 +974,17 @@
       "saved": "The report was saved.",
       "send": "Send report",
       "sent": "The report was sent."
+    },
+    "step_form": {
+      "next": "Next",
+      "previous": "Back",
+      "progress": "Step {current} of {total}",
+      "review": "Review",
+      "review_intro": "Check your answers, then save.",
+      "edit": "Edit",
+      "enter_hint": "or press Enter ↵",
+      "yes": "Yes",
+      "no": "No"
     }
   }
 }
